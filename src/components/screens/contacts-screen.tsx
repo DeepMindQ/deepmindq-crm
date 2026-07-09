@@ -7,7 +7,6 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -16,10 +15,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 const ROLES = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other']
 
 const healthCls = (h: string) =>
-  h === 'valid' ? 'bg-[#D4AF37]/15 text-[#D4AF37]' : h === 'risky' ? 'bg-amber-100 text-amber-700' : h === 'invalid' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+  h === 'valid'
+    ? 'bg-emerald-50 text-emerald-700'
+    : h === 'risky'
+      ? 'bg-amber-50 text-amber-700'
+      : h === 'invalid'
+        ? 'bg-red-50 text-red-700'
+        : 'bg-gray-100 text-gray-500'
 
 const statusCls = (s: string) =>
-  s === 'active' ? 'bg-[#D4AF37]/15 text-[#D4AF37]' : s === 'archived' ? 'bg-gray-100 text-gray-600' : 'bg-amber-100 text-amber-700'
+  s === 'active'
+    ? 'bg-emerald-50 text-emerald-700'
+    : s === 'archived'
+      ? 'bg-gray-100 text-gray-400'
+      : 'bg-amber-50 text-amber-700'
 
 export default function ContactsScreen() {
   const qc = useQueryClient()
@@ -32,7 +41,12 @@ export default function ContactsScreen() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
 
   const timerRef = useRef<ReturnType<typeof setTimeout>>()
-  const updateSearch = (v: string) => { setSearch(v); setPage(1); clearTimeout(timerRef.current); timerRef.current = setTimeout(() => setDebouncedSearch(v), 300) }
+  const updateSearch = (v: string) => {
+    setSearch(v)
+    setPage(1)
+    clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => setDebouncedSearch(v), 300)
+  }
   const updateStatus = (v: string) => { setStatus(v === 'all' ? '' : v); setPage(1) }
   const updateHealth = (v: string) => { setHealth(v === 'all' ? '' : v); setPage(1) }
 
@@ -49,8 +63,19 @@ export default function ContactsScreen() {
 
   const addContact = useMutation({
     mutationFn: (f: typeof form) =>
-      fetch('/api/contacts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(f) }).then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error) })),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['contacts'] }); setDlgOpen(false); setForm({ name: '', email: '', jobTitle: '', roleBucket: '', company: '', linkedinUrl: '' }); toast.success('Contact added') },
+      fetch('/api/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(f),
+      }).then(r =>
+        r.ok ? r.json() : r.json().then(e => { throw new Error(e.error) })
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contacts'] })
+      setDlgOpen(false)
+      setForm({ name: '', email: '', jobTitle: '', roleBucket: '', company: '', linkedinUrl: '' })
+      toast.success('Contact added')
+    },
     onError: (e: Error) => toast.error(e.message),
   })
 
@@ -62,57 +87,263 @@ export default function ContactsScreen() {
 
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2"><Users className="size-5 text-muted-foreground" /><h2 className="text-lg font-semibold">Contacts</h2>{total > 0 && <Badge variant="secondary">{total}</Badge>}</div>
-        <Button size="sm" onClick={() => setDlgOpen(true)}><Plus className="size-3.5 mr-1.5" />Add Contact</Button>
+        <div className="flex items-center gap-2.5">
+          <Users className="size-5 text-gray-400" />
+          <h2 className="text-lg font-semibold text-gray-900">Contacts</h2>
+          {total > 0 && (
+            <span className="bg-gray-100 text-gray-600 text-sm px-2.5 py-0.5 rounded-full font-medium">
+              {total}
+            </span>
+          )}
+        </div>
+        <Button
+          size="sm"
+          onClick={() => setDlgOpen(true)}
+          className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
+        >
+          <Plus className="size-4 mr-1.5" />
+          Add Contact
+        </Button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px] max-w-xs"><Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search contacts..." value={search} onChange={e => updateSearch(e.target.value)} className="pl-8 h-9" /></div>
-        <Select value={status} onValueChange={updateStatus}><SelectTrigger className="w-[130px] h-9"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="all">All Status</SelectItem><SelectItem value="active">Active</SelectItem><SelectItem value="inactive">Inactive</SelectItem><SelectItem value="archived">Archived</SelectItem></SelectContent></Select>
-        <Select value={health} onValueChange={updateHealth}><SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="Health" /></SelectTrigger><SelectContent><SelectItem value="all">All Health</SelectItem><SelectItem value="valid">Valid</SelectItem><SelectItem value="risky">Risky</SelectItem><SelectItem value="invalid">Invalid</SelectItem><SelectItem value="unknown">Unknown</SelectItem></SelectContent></Select>
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px] max-w-xs">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+          <Input
+            placeholder="Search contacts..."
+            value={search}
+            onChange={e => updateSearch(e.target.value)}
+            className="bg-white border border-gray-200 rounded-lg h-10 pl-9 text-sm placeholder:text-gray-400 focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
+          />
+        </div>
+        <Select value={status || 'all'} onValueChange={updateStatus}>
+          <SelectTrigger className="border-gray-200 rounded-lg h-10 w-[140px] text-sm">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="archived">Archived</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={health || 'all'} onValueChange={updateHealth}>
+          <SelectTrigger className="border-gray-200 rounded-lg h-10 w-[140px] text-sm">
+            <SelectValue placeholder="Health" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Health</SelectItem>
+            <SelectItem value="valid">Valid</SelectItem>
+            <SelectItem value="risky">Risky</SelectItem>
+            <SelectItem value="invalid">Invalid</SelectItem>
+            <SelectItem value="unknown">Unknown</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
+      {/* Table */}
       {isLoading ? (
-        <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+        <div className="rounded-xl border border-gray-200/80 shadow-sm overflow-hidden bg-white">
+          <div className="p-4 space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
       ) : contacts.length === 0 ? (
-        <div className="text-center py-12"><Users className="size-10 mx-auto text-muted-foreground/40" /><p className="text-sm text-muted-foreground mt-2">No contacts found.</p></div>
+        <div className="rounded-xl border border-gray-200/80 shadow-sm overflow-hidden bg-white">
+          <div className="flex flex-col items-center justify-center py-16">
+            <Users className="size-12 text-gray-300 mb-3" />
+            <p className="text-sm text-gray-500 font-medium">No contacts found</p>
+            <p className="text-xs text-gray-400 mt-1">Try adjusting your search or filters</p>
+          </div>
+        </div>
       ) : (
-        <div className="rounded-lg border overflow-hidden">
-          <Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead className="hidden md:table-cell">Company</TableHead><TableHead className="hidden lg:table-cell">Job Title</TableHead><TableHead>Email</TableHead><TableHead>Health</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-          <TableBody>{contacts.map((c: any) => (
-            <TableRow key={c.id}><TableCell className="font-medium">{c.name}</TableCell><TableCell className="hidden md:table-cell text-muted-foreground">{c.company?.name || '—'}</TableCell><TableCell className="hidden lg:table-cell text-muted-foreground">{c.jobTitle || '—'}</TableCell><TableCell className="text-muted-foreground text-sm">{c.email || '—'}</TableCell>
-            <TableCell><span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${healthCls(c.emailHealth)}`}>{c.emailHealth || 'unknown'}</span></TableCell>
-            <TableCell><span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusCls(c.status)}`}>{c.status}</span></TableCell></TableRow>
-          ))}</TableBody></Table>
+        <div className="rounded-xl border border-gray-200/80 shadow-sm overflow-hidden bg-white">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent bg-gray-50/80 border-b border-gray-200/60">
+                <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Name
+                </TableHead>
+                <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                  Company
+                </TableHead>
+                <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                  Job Title
+                </TableHead>
+                <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Email
+                </TableHead>
+                <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Health
+                </TableHead>
+                <TableHead className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Status
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {contacts.map((c: any) => (
+                <TableRow
+                  key={c.id}
+                  className="hover:bg-amber-50/50 transition-colors border-b border-gray-100 last:border-b-0"
+                >
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="size-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 text-xs font-semibold shrink-0">
+                        {c.name?.charAt(0)?.toUpperCase()}
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900">{c.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <span className="text-sm text-gray-500">{c.company?.name || '—'}</span>
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    <span className="text-sm text-gray-500">{c.jobTitle || '—'}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm text-gray-600 font-mono">{c.email || '—'}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border-0 ${healthCls(c.emailHealth)}`}
+                    >
+                      {c.emailHealth || 'unknown'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border-0 ${statusCls(c.status)}`}
+                    >
+                      {c.status}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
 
+      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Page {page} of {totalPages}</span>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="size-8" disabled={page <= 1} onClick={() => setPage(p => p - 1)}><ChevronLeft className="size-4" /></Button>
-            <Button variant="outline" size="icon" className="size-8" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}><ChevronRight className="size-4" /></Button>
+        <div className="flex items-center justify-between text-sm text-gray-500">
+          <span>
+            Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of {total}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage(p => p - 1)}
+              className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            >
+              <ChevronLeft className="size-4 mr-1" />
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage(p => p + 1)}
+              className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            >
+              Next
+              <ChevronRight className="size-4 ml-1" />
+            </Button>
           </div>
         </div>
       )}
 
+      {/* Add Contact Dialog */}
       <Dialog open={dlgOpen} onOpenChange={setDlgOpen}>
-        <DialogContent><DialogHeader><DialogTitle>Add Contact</DialogTitle></DialogHeader>
-          <div className="grid gap-3">
-            <div><Label className="text-xs">Name *</Label><Input value={form.name} onChange={e => updateField('name', e.target.value)} className="mt-1" /></div>
-            <div><Label className="text-xs">Email</Label><Input type="email" value={form.email} onChange={e => updateField('email', e.target.value)} className="mt-1" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Job Title</Label><Input value={form.jobTitle} onChange={e => updateField('jobTitle', e.target.value)} className="mt-1" /></div>
-              <div><Label className="text-xs">Role Bucket</Label><Select value={form.roleBucket} onValueChange={v => updateField('roleBucket', v)}><SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger><SelectContent>{ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent></Select></div>
+        <DialogContent className="sm:max-w-md bg-white border-gray-200/80">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900">Add Contact</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-1.5">
+              <Label className="text-sm font-medium text-gray-700">Name *</Label>
+              <Input
+                value={form.name}
+                onChange={e => updateField('name', e.target.value)}
+                className="border-gray-200 rounded-lg h-10 text-sm focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-sm font-medium text-gray-700">Email</Label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={e => updateField('email', e.target.value)}
+                className="border-gray-200 rounded-lg h-10 text-sm font-mono focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Company</Label><Input value={form.company} onChange={e => updateField('company', e.target.value)} className="mt-1" placeholder="Company name" /></div>
-              <div><Label className="text-xs">LinkedIn</Label><Input value={form.linkedinUrl} onChange={e => updateField('linkedinUrl', e.target.value)} className="mt-1" /></div>
+              <div className="grid gap-1.5">
+                <Label className="text-sm font-medium text-gray-700">Job Title</Label>
+                <Input
+                  value={form.jobTitle}
+                  onChange={e => updateField('jobTitle', e.target.value)}
+                  className="border-gray-200 rounded-lg h-10 text-sm focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-sm font-medium text-gray-700">Role Bucket</Label>
+                <Select value={form.roleBucket} onValueChange={v => updateField('roleBucket', v)}>
+                  <SelectTrigger className="border-gray-200 rounded-lg h-10 text-sm">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLES.map(r => (
+                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label className="text-sm font-medium text-gray-700">Company</Label>
+                <Input
+                  value={form.company}
+                  onChange={e => updateField('company', e.target.value)}
+                  placeholder="Company name"
+                  className="border-gray-200 rounded-lg h-10 text-sm focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-sm font-medium text-gray-700">LinkedIn</Label>
+                <Input
+                  value={form.linkedinUrl}
+                  onChange={e => updateField('linkedinUrl', e.target.value)}
+                  className="border-gray-200 rounded-lg h-10 text-sm focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
+                />
+              </div>
             </div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setDlgOpen(false)}>Cancel</Button><Button onClick={() => addContact.mutate(form)} disabled={!form.name.trim() || addContact.isPending}>Add</Button></DialogFooter>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDlgOpen(false)}
+              className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => addContact.mutate(form)}
+              disabled={!form.name.trim() || addContact.isPending}
+              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
+            >
+              {addContact.isPending ? 'Adding…' : 'Add Contact'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

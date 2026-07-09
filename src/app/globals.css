@@ -37,89 +37,72 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --color-gold: #D4AF37;
-  --color-gold-dim: #B8962E;
-  --color-gold-bright: #E8C547;
-  --color-gold-muted: rgba(212, 175, 55, 0.1);
-  --color-gold-border: rgba(212, 175, 55, 0.2);
-  --color-deep-navy: #0A0E1A;
-  --color-surface: #1A1A1A;
-  --color-surface-raised: #242424;
+  --color-gold: oklch(0.78 0.14 85);
+  --color-gold-dim: oklch(0.72 0.12 85);
+  --color-gold-bright: oklch(0.84 0.16 85);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Light theme */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.98 0 0);
-  --foreground: oklch(0.145 0 0);
+  --radius: 0.5rem;
+
+  /* Core */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.15 0.02 260);
+
+  /* Card */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.15 0.02 260);
+
+  /* Popover */
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.15 0.02 260);
+
+  /* Primary — DeepMindQ gold */
   --primary: oklch(0.78 0.14 85);
-  --primary-foreground: oklch(0.15 0 0);
+  --primary-foreground: oklch(1 0 0);
+
+  /* Secondary — warm light gray */
   --secondary: oklch(0.97 0.005 85);
-  --secondary-foreground: oklch(0.35 0.1 85);
-  --muted: oklch(0.96 0.003 85);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.96 0.003 85);
-  --accent-foreground: oklch(0.35 0.1 85);
+  --secondary-foreground: oklch(0.35 0.02 85);
+
+  /* Muted */
+  --muted: oklch(0.965 0.002 260);
+  --muted-foreground: oklch(0.45 0.01 260);
+
+  /* Accent — light gold tint */
+  --accent: oklch(0.96 0.02 85);
+  --accent-foreground: oklch(0.55 0.1 85);
+
+  /* Destructive */
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.91 0.01 85);
-  --input: oklch(0.91 0.01 85);
+
+  /* Border & Input */
+  --border: oklch(0.92 0.005 260);
+  --input: oklch(0.92 0.005 260);
+
+  /* Ring */
   --ring: oklch(0.78 0.14 85);
+
+  /* Chart */
   --chart-1: oklch(0.78 0.14 85);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.55 0.15 270);
-  --chart-4: oklch(0.7 0.15 340);
-  --chart-5: oklch(0.65 0.2 45);
-  --sidebar: oklch(0.98 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.78 0.14 85);
-  --sidebar-primary-foreground: oklch(0.15 0 0);
-  --sidebar-accent: oklch(0.96 0.003 85);
-  --sidebar-accent-foreground: oklch(0.35 0.1 85);
-  --sidebar-border: oklch(0.91 0.01 85);
-  --sidebar-ring: oklch(0.78 0.14 85);
-}
+  --chart-4: oklch(0.7 0.12 175);
+  --chart-5: oklch(0.65 0.18 45);
 
-/* Dark theme — primary theme matching DeepMindQ landing page */
-.dark {
-  --background: #121212;
-  --foreground: #F0F0F0;
-  --card: #1E1E1E;
-  --card-foreground: #F0F0F0;
-  --popover: #1E1E1E;
-  --popover-foreground: #F0F0F0;
-  --primary: #D4AF37;
-  --primary-foreground: #121212;
-  --secondary: #2A2A2A;
-  --secondary-foreground: #E0E0E0;
-  --muted: #2A2A2A;
-  --muted-foreground: #888888;
-  --accent: #2A2A2A;
-  --accent-foreground: #D4AF37;
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.1);
-  --ring: #D4AF37;
-  --chart-1: #D4AF37;
-  --chart-2: #2A9DFF;
-  --chart-3: #9D4EDD;
-  --chart-4: #4FC3F7;
-  --chart-5: #E8C547;
-  --sidebar: #0A0E1A;
-  --sidebar-foreground: #CCCCCC;
-  --sidebar-primary: #D4AF37;
-  --sidebar-primary-foreground: #121212;
-  --sidebar-accent: rgba(212, 175, 55, 0.08);
-  --sidebar-accent-foreground: #D4AF37;
-  --sidebar-border: rgba(255, 255, 255, 0.06);
-  --sidebar-ring: #D4AF37;
+  /* Sidebar — white with subtle warmth */
+  --sidebar: oklch(0.99 0 0);
+  --sidebar-foreground: oklch(0.25 0.02 260);
+  --sidebar-primary: oklch(0.78 0.14 85);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.96 0.02 85);
+  --sidebar-accent-foreground: oklch(0.35 0.02 85);
+  --sidebar-border: oklch(0.93 0.005 260);
+  --sidebar-ring: oklch(0.78 0.14 85);
 }
 
 @layer base {
@@ -131,31 +114,18 @@
   }
 }
 
-/* Custom scrollbar for dark theme */
-.dark ::-webkit-scrollbar {
+/* Premium scrollbar */
+::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-.dark ::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
   background: transparent;
 }
-.dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+::-webkit-scrollbar-thumb {
+  background: oklch(0.88 0.005 260);
   border-radius: 3px;
 }
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-/* Gold accent utility */
-.gold-glow {
-  box-shadow: 0 0 20px rgba(212, 175, 55, 0.15);
-}
-.dark .gold-glow {
-  box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
-}
-
-/* Subtle gold border accent */
-.gold-border {
-  border-color: rgba(212, 175, 55, 0.3);
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.78 0.01 260);
 }

@@ -2,9 +2,6 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { Building2, Users, ShieldCheck, ShieldAlert, TrendingUp, Sparkles, Activity } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 interface DashboardData {
@@ -25,13 +22,16 @@ export function DashboardScreen() {
     queryFn: () => fetch('/api/dashboard').then(r => r.json()),
   })
 
-  const metrics = data ? [
-    { label: 'Total Companies', value: data.totalCompanies, icon: Building2, color: 'text-[#666666]', bg: 'bg-[#242424]' },
-    { label: 'Total Contacts', value: data.totalContacts, icon: Users, color: 'text-[#666666]', bg: 'bg-[#242424]' },
-    { label: 'Healthy Emails', value: data.healthyEmails, icon: ShieldCheck, color: 'text-[#D4AF37]', bg: 'bg-[#D4AF37]/10' },
-    { label: 'Invalid Emails', value: data.invalidEmails, icon: ShieldAlert, color: 'text-red-400', bg: 'bg-red-400/10' },
-    { label: 'New This Week', value: data.newThisWeek, icon: TrendingUp, color: 'text-[#D4AF37]', bg: 'bg-[#D4AF37]/10' },
-    { label: 'AI Drafts Generated', value: data.draftsGenerated, icon: Sparkles, color: 'text-amber-400', bg: 'bg-amber-400/10' },
+  const primaryMetrics = data ? [
+    { label: 'Companies', value: data.totalCompanies, icon: Building2, iconBg: 'bg-blue-50', iconColor: 'text-blue-600' },
+    { label: 'Contacts', value: data.totalContacts, icon: Users, iconBg: 'bg-violet-50', iconColor: 'text-violet-600' },
+    { label: 'Healthy Emails', value: data.healthyEmails, icon: ShieldCheck, iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
+    { label: 'Invalid Emails', value: data.invalidEmails, icon: ShieldAlert, iconBg: 'bg-red-50', iconColor: 'text-red-500' },
+  ] : []
+
+  const secondaryMetrics = data ? [
+    { label: 'New This Week', value: data.newThisWeek, icon: TrendingUp, iconBg: 'bg-amber-50', iconColor: 'text-amber-600' },
+    { label: 'AI Drafts Generated', value: data.draftsGenerated, icon: Sparkles, iconBg: 'bg-indigo-50', iconColor: 'text-indigo-600' },
   ] : []
 
   if (isLoading) {
@@ -39,12 +39,18 @@ export function DashboardScreen() {
       <div className="space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
+            <div key={i} className="bg-gray-100 animate-pulse rounded-xl h-28" />
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="bg-gray-100 animate-pulse rounded-xl h-28" />
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Skeleton className="h-72 rounded-xl" />
-          <Skeleton className="h-72 rounded-xl" />
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="bg-gray-100 animate-pulse rounded-xl h-72" />
+          ))}
         </div>
       </div>
     )
@@ -55,123 +61,185 @@ export function DashboardScreen() {
   const invalidCount = data?.invalidEmails || 0
   const total = validCount + riskyCount + invalidCount || 1
 
+  const validPct = Math.round((validCount / total) * 100)
+  const riskyPct = Math.round((riskyCount / total) * 100)
+  const invalidPct = 100 - validPct - riskyPct
+
   return (
     <div className="space-y-6">
-      {/* Primary metric cards */}
+      {/* Primary KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {metrics.slice(0, 4).map((m) => {
+        {primaryMetrics.map((m) => {
           const Icon = m.icon
           return (
-            <Card key={m.label} className="border-border/50 hover:-translate-y-0.5 transition-transform duration-200">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{m.label}</p>
-                    <p className="text-2xl font-bold tracking-tight">{m.value.toLocaleString()}</p>
-                  </div>
-                  <div className={`rounded-xl p-2.5 ${m.bg}`}>
-                    <Icon className={`size-5 ${m.color}`} />
-                  </div>
+            <div
+              key={m.label}
+              className="rounded-xl border border-gray-200/80 shadow-sm bg-white p-5 hover:shadow-md transition-shadow duration-200"
+            >
+              <div className="flex items-start justify-between">
+                <div className="space-y-1.5">
+                  <p className="text-sm font-medium text-gray-500">{m.label}</p>
+                  <p className="text-3xl font-semibold text-gray-900 tracking-tight">
+                    {m.value.toLocaleString()}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
-
-      {/* Secondary metric cards */}
-      <div className="grid grid-cols-2 gap-4">
-        {metrics.slice(4).map((m) => {
-          const Icon = m.icon
-          return (
-            <Card key={m.label} className="border-border/50 hover:-translate-y-0.5 transition-transform duration-200">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{m.label}</p>
-                    <p className="text-2xl font-bold tracking-tight">{m.value.toLocaleString()}</p>
-                  </div>
-                  <div className={`rounded-xl p-2.5 ${m.bg}`}>
-                    <Icon className={`size-5 ${m.color}`} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
-
-      {/* Bottom panels */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Email Health Distribution */}
-        <Card className="border-border/50">
-          <CardContent className="p-6">
-            <h3 className="text-sm font-semibold mb-4">Email Health Distribution</h3>
-            <div className="flex items-center gap-6">
-              <div className="relative w-32 h-32">
-                <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" className="text-muted/30" strokeWidth="3" />
-                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" className="text-[#D4AF37]" strokeWidth="3" strokeDasharray={`${(validCount/total)*100} ${100-(validCount/total)*100}`} strokeDashoffset="0" strokeLinecap="round" />
-                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" className="text-[#2A9DFF]" strokeWidth="3" strokeDasharray={`${(riskyCount/total)*100} ${100-(riskyCount/total)*100}`} strokeDashoffset={`${-(validCount/total)*100}`} strokeLinecap="round" />
-                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" className="text-[#9D4EDD]" strokeWidth="3" strokeDasharray={`${(invalidCount/total)*100} ${100-(invalidCount/total)*100}`} strokeDashoffset={`${-((validCount+riskyCount)/total)*100}`} strokeLinecap="round" />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-lg font-bold">{total}</span>
-                </div>
-              </div>
-              <div className="flex-1 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#D4AF37]" />
-                    <span className="text-sm text-muted-foreground">Valid</span>
-                  </div>
-                  <span className="text-sm font-semibold">{validCount} <span className="text-muted-foreground font-normal">({Math.round((validCount/total)*100)}%)</span></span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#2A9DFF]" />
-                    <span className="text-sm text-muted-foreground">Risky</span>
-                  </div>
-                  <span className="text-sm font-semibold">{riskyCount} <span className="text-muted-foreground font-normal">({Math.round((riskyCount/total)*100)}%)</span></span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#9D4EDD]" />
-                    <span className="text-sm text-muted-foreground">Invalid</span>
-                  </div>
-                  <span className="text-sm font-semibold">{invalidCount} <span className="text-muted-foreground font-normal">({Math.round((invalidCount/total)*100)}%)</span></span>
+                <div className={`rounded-xl p-2.5 ${m.iconBg}`}>
+                  <Icon className={`size-5 ${m.iconColor}`} />
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          )
+        })}
+      </div>
+
+      {/* Secondary KPI Cards */}
+      <div className="grid grid-cols-2 gap-4">
+        {secondaryMetrics.map((m) => {
+          const Icon = m.icon
+          return (
+            <div
+              key={m.label}
+              className="rounded-xl border border-gray-200/80 shadow-sm bg-white p-5 hover:shadow-md transition-shadow duration-200"
+            >
+              <div className="flex items-start justify-between">
+                <div className="space-y-1.5">
+                  <p className="text-sm font-medium text-gray-500">{m.label}</p>
+                  <p className="text-3xl font-semibold text-gray-900 tracking-tight">
+                    {m.value.toLocaleString()}
+                  </p>
+                </div>
+                <div className={`rounded-xl p-2.5 ${m.iconBg}`}>
+                  <Icon className={`size-5 ${m.iconColor}`} />
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Bottom Panels */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Email Health Distribution */}
+        <div className="rounded-xl border border-gray-200/80 shadow-sm bg-white p-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-5">Email Health Distribution</h3>
+          <div className="flex items-center gap-8">
+            <div className="relative w-36 h-36 shrink-0">
+              <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                {/* Background ring */}
+                <circle
+                  cx="18" cy="18" r="15.9"
+                  fill="none"
+                  className="text-gray-100"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                />
+                {/* Valid (emerald) */}
+                <circle
+                  cx="18" cy="18" r="15.9"
+                  fill="none"
+                  stroke="#10B981"
+                  strokeWidth="3"
+                  strokeDasharray={`${validPct} ${100 - validPct}`}
+                  strokeDashoffset="0"
+                  strokeLinecap="round"
+                />
+                {/* Risky (amber) */}
+                <circle
+                  cx="18" cy="18" r="15.9"
+                  fill="none"
+                  stroke="#F59E0B"
+                  strokeWidth="3"
+                  strokeDasharray={`${riskyPct} ${100 - riskyPct}`}
+                  strokeDashoffset={`-${validPct}`}
+                  strokeLinecap="round"
+                />
+                {/* Invalid (red) */}
+                <circle
+                  cx="18" cy="18" r="15.9"
+                  fill="none"
+                  stroke="#EF4444"
+                  strokeWidth="3"
+                  strokeDasharray={`${invalidPct} ${100 - invalidPct}`}
+                  strokeDashoffset={`-${validPct + riskyPct}`}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-2xl font-semibold text-gray-900">{total}</span>
+                <span className="text-xs text-gray-400 mt-0.5">Total</span>
+              </div>
+            </div>
+            <div className="flex-1 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#10B981]" />
+                  <span className="text-sm text-gray-600">Valid</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">
+                  {validCount}{' '}
+                  <span className="text-gray-400 font-normal">({validPct}%)</span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]" />
+                  <span className="text-sm text-gray-600">Risky</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">
+                  {riskyCount}{' '}
+                  <span className="text-gray-400 font-normal">({riskyPct}%)</span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#EF4444]" />
+                  <span className="text-sm text-gray-600">Invalid</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">
+                  {invalidCount}{' '}
+                  <span className="text-gray-400 font-normal">({invalidPct}%)</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Recent Activity */}
-        <Card className="border-border/50">
-          <CardContent className="p-6">
-            <h3 className="text-sm font-semibold mb-4">Recent Activity</h3>
-            <ScrollArea className="h-64">
-              {data?.recentActivity && data.recentActivity.length > 0 ? (
-                <div className="space-y-3">
-                  {data.recentActivity.map((item) => (
-                    <div key={item.id} className="flex items-start gap-3 pb-3 border-b border-border/30 last:border-0">
-                      <Activity className="size-4 mt-0.5 text-[#D4AF37] shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{item.action}</p>
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">{item.details}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-                  <Activity className="size-8 mb-2 opacity-30" />
-                  <p className="text-sm">No recent activity</p>
-                </div>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl border border-gray-200/80 shadow-sm bg-white p-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-5">Recent Activity</h3>
+          <ScrollArea className="h-64">
+            {data?.recentActivity && data.recentActivity.length > 0 ? (
+              <div className="space-y-0">
+                {data.recentActivity.map((item) => (
+                  <div
+                    key={item.id}
+                    className="border-l-2 border-amber-400 pl-4 py-3"
+                  >
+                    <p className="text-sm font-medium text-gray-900 leading-snug">
+                      {item.action}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">
+                      {item.details}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {new Date(item.createdAt).toLocaleString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-48">
+                <Activity className="size-8 text-gray-400 mb-2" />
+                <p className="text-sm text-gray-500">No recent activity</p>
+              </div>
+            )}
+          </ScrollArea>
+        </div>
       </div>
     </div>
   )

@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import {
@@ -11,8 +10,6 @@ import {
   Upload,
   Settings,
   Search,
-  Sun,
-  Moon,
 } from 'lucide-react'
 import {
   SidebarProvider,
@@ -32,7 +29,6 @@ import {
 } from '@/components/ui/sidebar'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useAppStore } from '@/lib/store'
@@ -71,19 +67,16 @@ const pageDescriptions: Record<ActiveView, string> = {
 }
 
 // ---------------------------------------------------------------------------
-// Animation
+// Animation — opacity only for subtlety
 // ---------------------------------------------------------------------------
 
 const contentVariants = {
-  initial: { opacity: 0, y: 6 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -6 },
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
 }
 
-const contentTransition = {
-  duration: 0.18,
-  ease: [0.25, 0.1, 0.25, 1] as const,
-}
+const contentTransition = { duration: 0.15 }
 
 // ---------------------------------------------------------------------------
 // AppShell
@@ -98,13 +91,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     toggleSidebar,
     setSearchQuery,
   } = useAppStore()
-
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = React.useState(false)
-
-  React.useEffect(() => {
-    setMounted(true)
-  }, [])
 
   // When in company-profile view, keep "Companies" nav item highlighted
   const isNavActive = (view: ActiveView): boolean => {
@@ -122,16 +108,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }}
     >
       {/* ------------------------------------------------------------------ */}
-      {/* Sidebar — DeepMindQ dark navy theme                                */}
+      {/* Sidebar — Premium white theme                                      */}
       {/* ------------------------------------------------------------------ */}
       <Sidebar
         collapsible="icon"
-        className="border-r border-white/[0.06] bg-[#0A0E1A]"
+        className="border-r border-gray-200/80 bg-white"
       >
         {/* Logo */}
         <SidebarHeader className="px-4 py-5">
           <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#D4AF37]/10 ring-1 ring-[#D4AF37]/20">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 ring-1 ring-amber-200/60">
               <Image
                 src="/logo.png"
                 alt="DeepMindQ"
@@ -140,8 +126,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className="rounded-sm"
               />
             </div>
-            <span className="truncate text-[15px] font-semibold tracking-tight text-white">
-              Deep<span className="text-[#D4AF37]">MindQ</span>
+            <span className="truncate text-[15px] font-semibold tracking-tight text-gray-900">
+              Deep<span className="text-[#B8962E]">MindQ</span>
             </span>
           </div>
         </SidebarHeader>
@@ -165,14 +151,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           side: 'right' as const,
                           align: 'center' as const,
                           className:
-                            'font-medium text-xs bg-[#1E1E1E] text-[#CCCCCC] border border-white/[0.06]',
+                            'font-medium text-xs bg-white text-gray-700 border border-gray-200 shadow-sm',
                         }}
                         className={cn(
                           'rounded-lg transition-all duration-150',
-                          // Default / hover
-                          'text-[#888888] hover:bg-white/[0.04] hover:text-[#CCCCCC]',
-                          // Active — gold accent
-                          'data-[active=true]:bg-[#D4AF37]/10 data-[active=true]:text-[#D4AF37]',
+                          'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+                          'data-[active=true]:bg-amber-50 data-[active=true]:text-amber-700',
                           'data-[active=true]:font-medium data-[active=true]:shadow-none',
                         )}
                       >
@@ -187,53 +171,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </SidebarGroup>
         </SidebarContent>
 
-        {/* Footer — user & theme toggle */}
+        {/* Footer — user section */}
         <SidebarFooter className="mt-auto">
-          <SidebarSeparator className="bg-white/[0.06]" />
+          <SidebarSeparator className="bg-gray-200/80" />
           <div className="flex items-center gap-2 px-3 py-2">
             {/* Avatar + name */}
             <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden">
               <Avatar className="size-8 shrink-0">
-                <AvatarFallback className="bg-[#D4AF37]/10 text-xs font-semibold text-[#D4AF37]">
+                <AvatarFallback className="bg-amber-100 text-xs font-semibold text-amber-700">
                   R
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium leading-none text-white">
+                <p className="truncate text-sm font-medium leading-none text-gray-900">
                   Ravi
                 </p>
-                <p className="mt-1 truncate text-[11px] text-[#888888]">
+                <p className="mt-1 truncate text-[11px] text-gray-500">
                   ravi@deepmindq.com
                 </p>
               </div>
             </div>
-
-            {/* Theme toggle — only visible when expanded */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="group-data-[collapsible=icon]:hidden size-8 shrink-0 text-[#888888] hover:bg-white/[0.04] hover:text-white"
-                  onClick={() =>
-                    setTheme(theme === 'dark' ? 'light' : 'dark')
-                  }
-                  aria-label="Toggle theme"
-                >
-                  {mounted && theme === 'dark' ? (
-                    <Sun className="size-4" />
-                  ) : (
-                    <Moon className="size-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent
-                side="right"
-                className="text-xs bg-[#1E1E1E] text-[#CCCCCC] border border-white/[0.06]"
-              >
-                {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-              </TooltipContent>
-            </Tooltip>
           </div>
         </SidebarFooter>
 
@@ -242,29 +199,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Sidebar>
 
       {/* ------------------------------------------------------------------ */}
-      {/* Main content area — dark surface                                   */}
+      {/* Main content area — light surface                                   */}
       {/* ------------------------------------------------------------------ */}
-      <SidebarInset className="bg-[#121212]">
+      <SidebarInset className="bg-gray-50/80">
         {/* Sticky header */}
         <header
           className={cn(
             'sticky top-0 z-30 flex h-14 items-center gap-3',
-            'border-b border-white/[0.06] bg-[#121212]/80 px-4 backdrop-blur-xl',
+            'border-b border-gray-200/80 bg-white/80 px-4 backdrop-blur-xl',
           )}
         >
-          <SidebarTrigger className="-ml-1.5 text-[#888888] hover:text-white" />
+          <SidebarTrigger className="-ml-1.5 text-gray-400 hover:text-gray-900" />
 
           <Separator
             orientation="vertical"
-            className="mx-1 h-4 bg-white/[0.08]"
+            className="mx-1 h-4 bg-gray-200/80"
           />
 
           {/* Page title & description */}
           <div className="flex min-w-0 flex-col">
-            <h1 className="truncate text-sm font-semibold tracking-tight leading-none text-white">
+            <h1 className="truncate text-sm font-semibold tracking-tight leading-none text-gray-900">
               {pageTitles[activeView]}
             </h1>
-            <p className="hidden text-[11px] text-[#888888] leading-none sm:block mt-0.5">
+            <p className="hidden text-[11px] text-gray-500 leading-none sm:block mt-0.5">
               {pageDescriptions[activeView]}
             </p>
           </div>
@@ -274,7 +231,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* Search */}
           <div className="relative max-w-xs">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[#888888]/60" />
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-gray-400" />
             <Input
               type="search"
               placeholder="Search..."
@@ -282,39 +239,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               onChange={(e) => setSearchQuery(e.target.value)}
               className={cn(
                 'h-8 w-full rounded-lg border-transparent pl-8 pr-3 text-sm',
-                'bg-white/[0.04] shadow-none placeholder:text-[#888888]/50',
+                'bg-gray-100 shadow-none placeholder:text-gray-400',
                 'transition-colors duration-150',
-                'focus-visible:border-[#D4AF37]/30 focus-visible:bg-white/[0.06] focus-visible:ring-[#D4AF37]/20 focus-visible:ring-[3px]',
+                'focus-visible:bg-white focus-visible:border-gray-300 focus-visible:ring-amber-200/50 focus-visible:ring-[3px]',
               )}
             />
           </div>
-
-          {/* Theme toggle — mobile */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden size-8 text-[#888888] hover:bg-white/[0.04] hover:text-white md:hidden"
-                onClick={() =>
-                  setTheme(theme === 'dark' ? 'light' : 'dark')
-                }
-                aria-label="Toggle theme"
-              >
-                {mounted && theme === 'dark' ? (
-                  <Sun className="size-4" />
-                ) : (
-                  <Moon className="size-4" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent
-              side="bottom"
-              className="text-xs bg-[#1E1E1E] text-[#CCCCCC] border border-white/[0.06]"
-            >
-              {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-            </TooltipContent>
-          </Tooltip>
         </header>
 
         {/* Animated content */}

@@ -44,14 +44,35 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* Semantic color tokens */
+  --color-success: #059669;
+  --color-success-light: #ECFDF5;
+  --color-success-muted: #D1FAE5;
+  --color-warning: #D97706;
+  --color-warning-light: #FFFBEB;
+  --color-warning-muted: #FEF3C7;
+  --color-danger: #DC2626;
+  --color-danger-light: #FEF2F2;
+  --color-danger-muted: #FECACA;
+  --color-info: #2563EB;
+  --color-info-light: #EFF6FF;
+  --color-info-muted: #BFDBFE;
+
+  /* Elevation system */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+  --shadow-raised: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  --shadow-overlay: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+  --shadow-modal: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.04);
+  --shadow-float: 0 0 0 1px rgb(0 0 0 / 0.04), 0 8px 16px rgb(0 0 0 / 0.08);
 }
 
 :root {
   --radius: 0.5rem;
 
   /* Core */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.15 0.02 260);
+  --background: oklch(0.985 0.002 260);
+  --foreground: oklch(0.145 0.02 260);
 
   /* Card */
   --card: oklch(1 0 0);
@@ -62,70 +83,159 @@
   --popover-foreground: oklch(0.15 0.02 260);
 
   /* Primary — DeepMindQ gold */
-  --primary: oklch(0.78 0.14 85);
+  --primary: oklch(0.72 0.14 75);
   --primary-foreground: oklch(1 0 0);
 
-  /* Secondary — warm light gray */
-  --secondary: oklch(0.97 0.005 85);
-  --secondary-foreground: oklch(0.35 0.02 85);
+  /* Secondary */
+  --secondary: oklch(0.965 0.004 260);
+  --secondary-foreground: oklch(0.35 0.02 260);
 
   /* Muted */
-  --muted: oklch(0.965 0.002 260);
-  --muted-foreground: oklch(0.45 0.01 260);
+  --muted: oklch(0.96 0.003 260);
+  --muted-foreground: oklch(0.48 0.01 260);
 
-  /* Accent — light gold tint */
-  --accent: oklch(0.96 0.02 85);
+  /* Accent */
+  --accent: oklch(0.95 0.015 85);
   --accent-foreground: oklch(0.55 0.1 85);
 
   /* Destructive */
   --destructive: oklch(0.577 0.245 27.325);
 
   /* Border & Input */
-  --border: oklch(0.92 0.005 260);
-  --input: oklch(0.92 0.005 260);
+  --border: oklch(0.91 0.005 260);
+  --input: oklch(0.91 0.005 260);
 
   /* Ring */
   --ring: oklch(0.78 0.14 85);
 
   /* Chart */
-  --chart-1: oklch(0.78 0.14 85);
+  --chart-1: oklch(0.72 0.14 75);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.55 0.15 270);
   --chart-4: oklch(0.7 0.12 175);
   --chart-5: oklch(0.65 0.18 45);
 
-  /* Sidebar — white with subtle warmth */
-  --sidebar: oklch(0.99 0 0);
+  /* Sidebar */
+  --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.25 0.02 260);
-  --sidebar-primary: oklch(0.78 0.14 85);
+  --sidebar-primary: oklch(0.72 0.14 75);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.96 0.02 85);
-  --sidebar-accent-foreground: oklch(0.35 0.02 85);
-  --sidebar-border: oklch(0.93 0.005 260);
-  --sidebar-ring: oklch(0.78 0.14 85);
+  --sidebar-accent: oklch(0.95 0.015 85);
+  --sidebar-accent-foreground: oklch(0.35 0.02 260);
+  --sidebar-border: oklch(0.92 0.005 260);
+  --sidebar-ring: oklch(0.72 0.14 75);
 }
 
+/* ── Base ── */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-/* Premium scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* ── Typography Scale ── */
+@layer base {
+  h1, .text-display { letter-spacing: -0.025em; line-height: 1.15; }
+  h2, .text-heading { letter-spacing: -0.02em; line-height: 1.2; }
+  h3, .text-subheading { letter-spacing: -0.01em; line-height: 1.3; }
+  .prose-body { line-height: 1.6; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+
+/* ── Card Elevation System ── */
+@layer components {
+  .card-rest {
+    box-shadow: var(--shadow-xs);
+    border: 1px solid oklch(0.92 0.005 260);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .card-rest:hover {
+    box-shadow: var(--shadow-raised);
+  }
+  .card-interactive {
+    box-shadow: var(--shadow-xs);
+    border: 1px solid oklch(0.92 0.005 260);
+    transition: box-shadow 0.2s ease, transform 0.15s ease, border-color 0.2s ease;
+    cursor: pointer;
+  }
+  .card-interactive:hover {
+    box-shadow: var(--shadow-raised);
+    transform: translateY(-1px);
+    border-color: oklch(0.86 0.01 85);
+  }
+  .elevation-overlay { box-shadow: var(--shadow-overlay); }
+  .elevation-modal { box-shadow: var(--shadow-modal); }
+  .elevation-float { box-shadow: var(--shadow-float); }
 }
-::-webkit-scrollbar-thumb {
-  background: oklch(0.88 0.005 260);
-  border-radius: 3px;
+
+/* ── Micro-interaction Utilities ── */
+@layer utilities {
+  .press-scale {
+    transition: transform 0.1s ease;
+  }
+  .press-scale:active {
+    transform: scale(0.97);
+  }
+  .fade-in {
+    animation: fadeIn 0.3s ease forwards;
+  }
+  .slide-up {
+    animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .scale-in {
+    animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
 }
-::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.78 0.01 260);
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ── Premium Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(0.88 0.005 260); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(0.76 0.01 260); }
+
+/* ── Toast Hierarchy ── */
+[data-sonner-toast][data-type="success"] {
+  border-left: 3px solid #059669;
+}
+[data-sonner-toast][data-type="error"] {
+  border-left: 3px solid #DC2626;
+}
+[data-sonner-toast][data-type="warning"] {
+  border-left: 3px solid #D97706;
+}
+
+/* ── Table Row Hover Micro-interaction ── */
+@layer components {
+  .table-row-hover {
+    transition: background-color 0.15s ease;
+  }
+  .table-row-hover:hover {
+    background-color: oklch(0.97 0.005 85);
+  }
+}
+
+/* ── Focus Ring ── */
+@layer base {
+  :focus-visible {
+    outline: 2px solid oklch(0.72 0.14 75);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 }

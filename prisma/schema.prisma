@@ -1,0 +1,265 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id              String   @id @default(cuid())
+  name            String
+  domain          String?
+  linkedinUrl     String?
+  website         String?
+  industry        String?
+  employeeSize    String?
+  country         String?
+  location        String?
+  status          String   @default("new")
+  intelligenceScore Int?
+  dataFreshness   String?
+  lastUpdatedAt   DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  contacts        Contact[]
+  notes           CompanyNote[]
+  researchCard    CompanyResearchCard?
+  opportunities   Opportunity[]
+  timeline        TimelineEntry[]
+}
+
+model Contact {
+  id              String   @id @default(cuid())
+  companyId       String
+  name            String
+  email           String?
+  jobTitle        String?
+  roleBucket      String?
+  linkedinUrl     String?
+  phone           String?
+  location        String?
+  status          String   @default("new")
+  emailHealth     String   @default("unknown")
+  emailHealthScore Int?
+  lastContactedAt DateTime?
+  lastValidatedAt DateTime?
+  archivedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  notes           ContactNote[]
+  timeline        TimelineEntry[]
+  drafts          Draft[]
+  healthChecks    EmailHealthCheck[]
+
+  @@index([companyId])
+  @@index([email])
+  @@index([status])
+}
+
+model CompanyNote {
+  id        String   @id @default(cuid())
+  companyId String
+  body      String
+  noteType  String?
+  createdAt DateTime @default(now())
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model ContactNote {
+  id        String   @id @default(cuid())
+  contactId String
+  body      String
+  noteType  String?
+  createdAt DateTime @default(now())
+
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+}
+
+model CompanyResearchCard {
+  id                   String   @id @default(cuid())
+  companyId            String   @unique
+  businessOverview     String?
+  currentTechLandscape String?
+  potentialChallenges  String?
+  possibleOpportunities String?
+  relevantServices     String?
+  keyDecisionMakers    String?
+  lastInteraction      String?
+  nextAction           String?
+  confidenceScore      Int?
+  lastResearchedAt     DateTime @updatedAt
+  createdAt            DateTime @default(now())
+
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model CompanyResearchSource {
+  id        String   @id @default(cuid())
+  companyId String
+  sourceType String?
+  sourceUrl String?
+  excerpt   String?
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+}
+
+model Opportunity {
+  id          String   @id @default(cuid())
+  companyId   String
+  title       String
+  description String?
+  targetContactId String?
+  status      String   @default("researching")
+  nextAction  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model TimelineEntry {
+  id          String   @id @default(cuid())
+  companyId   String?
+  contactId   String?
+  action      String
+  details     String?
+  createdAt   DateTime @default(now())
+
+  company     Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contact     Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([contactId])
+}
+
+model CapabilityDocument {
+  id          String   @id @default(cuid())
+  title       String
+  docType     String
+  description String?
+  content     String?
+  fileName    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  snippets    CapabilitySnippet[]
+}
+
+model CapabilitySnippet {
+  id          String   @id @default(cuid())
+  documentId  String
+  snippetType String
+  title       String
+  content     String
+  industries  String?
+  outcomes    String?
+  createdAt   DateTime @default(now())
+
+  document    CapabilityDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([snippetType])
+}
+
+model Draft {
+  id              String   @id @default(cuid())
+  contactId       String
+  subject         String
+  body            String
+  cta             String?
+  serviceAngle    String?
+  matchScore      Int?
+  confidenceScore Int?
+  status          String   @default("draft")
+  rejectReason    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  contact         Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+}
+
+model EmailHealthCheck {
+  id              String   @id @default(cuid())
+  contactId       String
+  status          String
+  score           Int
+  actionRecommendation String?
+  syntaxOk        Boolean  @default(false)
+  domainOk        Boolean  @default(false)
+  mxOk            Boolean  @default(false)
+  disposableOk    Boolean  @default(false)
+  checkedAt       DateTime @default(now())
+
+  contact         Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+}
+
+model ImportBatch {
+  id              String   @id @default(cuid())
+  fileName        String
+  fileHash        String   @unique
+  totalRows       Int      @default(0)
+  acceptedRows    Int      @default(0)
+  duplicateRows   Int      @default(0)
+  invalidRows     Int      @default(0)
+  status          String   @default("staged")
+  createdAt       DateTime @default(now())
+
+  @@index([status])
+}
+
+model UserPreferences {
+  id              String   @id @default(cuid())
+  tone            String   @default("professional-casual")
+  emailLength     String   @default("medium")
+  openerStyle     String   @default("Hi [First Name]")
+  signOff         String   @default("Regards, Ravi")
+  avoidPhrases    String   @default("")
+  exampleEmail    String?
+  ctaStyle        String   @default("soft")
+  aiProvider      String   @default("openai")
+  aiModel         String   @default("gpt-4o-mini")
+  aiApiKey        String?
+  scoringWeights  String   @default("{}")
+}
+
+model CustomFieldDefinition {
+  id              String   @id @default(cuid())
+  entityType      String
+  sourceHeader    String
+  internalKey     String
+  displayName     String
+  dataType        String   @default("text")
+  isSearchable    Boolean  @default(false)
+  isFilterable    Boolean  @default(false)
+  createdAt       DateTime @default(now())
+}
+
+model CustomFieldValue {
+  id              String   @id @default(cuid())
+  fieldId         String
+  contactId       String?
+  companyId       String?
+  rawValue        String?
+  createdAt       DateTime @default(now())
+
+  @@index([contactId])
+  @@index([companyId])
+}

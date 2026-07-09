@@ -16,10 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 const ROLES = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other']
 
 const healthCls = (h: string) =>
-  h === 'valid' ? 'bg-emerald-100 text-emerald-700' : h === 'risky' ? 'bg-amber-100 text-amber-700' : h === 'invalid' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+  h === 'valid' ? 'bg-[#D4AF37]/15 text-[#D4AF37]' : h === 'risky' ? 'bg-amber-100 text-amber-700' : h === 'invalid' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
 
 const statusCls = (s: string) =>
-  s === 'active' ? 'bg-emerald-100 text-emerald-700' : s === 'archived' ? 'bg-gray-100 text-gray-600' : 'bg-amber-100 text-amber-700'
+  s === 'active' ? 'bg-[#D4AF37]/15 text-[#D4AF37]' : s === 'archived' ? 'bg-gray-100 text-gray-600' : 'bg-amber-100 text-amber-700'
 
 export default function ContactsScreen() {
   const qc = useQueryClient()

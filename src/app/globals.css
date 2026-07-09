@@ -37,79 +37,89 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-gold: #D4AF37;
+  --color-gold-dim: #B8962E;
+  --color-gold-bright: #E8C547;
+  --color-gold-muted: rgba(212, 175, 55, 0.1);
+  --color-gold-border: rgba(212, 175, 55, 0.2);
+  --color-deep-navy: #0A0E1A;
+  --color-surface: #1A1A1A;
+  --color-surface-raised: #242424;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* Light theme */
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
+  --background: oklch(0.98 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --primary: oklch(0.78 0.14 85);
+  --primary-foreground: oklch(0.15 0 0);
+  --secondary: oklch(0.97 0.005 85);
+  --secondary-foreground: oklch(0.35 0.1 85);
+  --muted: oklch(0.96 0.003 85);
+  --muted-foreground: oklch(0.5 0 0);
+  --accent: oklch(0.96 0.003 85);
+  --accent-foreground: oklch(0.35 0.1 85);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
+  --border: oklch(0.91 0.01 85);
+  --input: oklch(0.91 0.01 85);
+  --ring: oklch(0.78 0.14 85);
+  --chart-1: oklch(0.78 0.14 85);
   --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
+  --chart-3: oklch(0.55 0.15 270);
+  --chart-4: oklch(0.7 0.15 340);
+  --chart-5: oklch(0.65 0.2 45);
+  --sidebar: oklch(0.98 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-primary: oklch(0.78 0.14 85);
+  --sidebar-primary-foreground: oklch(0.15 0 0);
+  --sidebar-accent: oklch(0.96 0.003 85);
+  --sidebar-accent-foreground: oklch(0.35 0.1 85);
+  --sidebar-border: oklch(0.91 0.01 85);
+  --sidebar-ring: oklch(0.78 0.14 85);
 }
 
+/* Dark theme — primary theme matching DeepMindQ landing page */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: #121212;
+  --foreground: #F0F0F0;
+  --card: #1E1E1E;
+  --card-foreground: #F0F0F0;
+  --popover: #1E1E1E;
+  --popover-foreground: #F0F0F0;
+  --primary: #D4AF37;
+  --primary-foreground: #121212;
+  --secondary: #2A2A2A;
+  --secondary-foreground: #E0E0E0;
+  --muted: #2A2A2A;
+  --muted-foreground: #888888;
+  --accent: #2A2A2A;
+  --accent-foreground: #D4AF37;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #D4AF37;
+  --chart-1: #D4AF37;
+  --chart-2: #2A9DFF;
+  --chart-3: #9D4EDD;
+  --chart-4: #4FC3F7;
+  --chart-5: #E8C547;
+  --sidebar: #0A0E1A;
+  --sidebar-foreground: #CCCCCC;
+  --sidebar-primary: #D4AF37;
+  --sidebar-primary-foreground: #121212;
+  --sidebar-accent: rgba(212, 175, 55, 0.08);
+  --sidebar-accent-foreground: #D4AF37;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-ring: #D4AF37;
 }
 
 @layer base {
@@ -119,4 +129,33 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Custom scrollbar for dark theme */
+.dark ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Gold accent utility */
+.gold-glow {
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.15);
+}
+.dark .gold-glow {
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+}
+
+/* Subtle gold border accent */
+.gold-border {
+  border-color: rgba(212, 175, 55, 0.3);
 }

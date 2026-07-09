@@ -44,7 +44,7 @@ export function SettingsScreen() {
       const csv = `=== COMPANIES ===\n${data.companies}\n\n=== CONTACTS ===\n${data.contacts}`
       const blob = new Blob([csv], { type: 'text/csv' })
       const url = URL.createObjectURL(blob)
-      const a = document.createElement('a'); a.href = url; a.download = 'leadintel-export.csv'; a.click()
+      const a = document.createElement('a'); a.href = url; a.download = 'deepmindq-export.csv'; a.click()
       URL.revokeObjectURL(url)
     },
     onSuccess: () => toast.success('Data exported successfully'),
@@ -107,7 +107,7 @@ export function SettingsScreen() {
       </Card>
 
       <Separator />
-      <p className="text-center text-xs text-muted-foreground pb-4">LeadIntel v1.0 — AI-Powered Sales Intelligence</p>
+      <p className="text-center text-xs text-muted-foreground pb-4">DeepMindQ v1.0 — AI-Powered Sales Intelligence</p>
     </div>
   )
 }

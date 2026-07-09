@@ -101,7 +101,7 @@ export default function ImportScreen() {
       <div className="flex items-center gap-4">
         {STEPS.map((s, i) => (
           <div key={s} className="flex items-center gap-2">
-            <div className={`flex size-7 items-center justify-center rounded-full text-xs font-bold ${i + 1 <= step ? 'bg-emerald-500 text-white' : 'bg-muted text-muted-foreground'}`}>{i + 1 <= step && i + 1 < step ? <CheckCircle2 className="size-4" /> : i + 1}</div>
+            <div className={`flex size-7 items-center justify-center rounded-full text-xs font-bold ${i + 1 <= step ? 'bg-[#D4AF37] text-white' : 'bg-muted text-muted-foreground'}`}>{i + 1 <= step && i + 1 < step ? <CheckCircle2 className="size-4" /> : i + 1}</div>
             <span className={`text-sm hidden sm:inline ${i + 1 === step ? 'font-medium' : 'text-muted-foreground'}`}>{s}</span>
             {i < 3 && <ArrowRight className="size-3.5 text-muted-foreground mx-1" />}
           </div>
@@ -109,7 +109,7 @@ export default function ImportScreen() {
       </div>
 
       {step === 1 && (
-        <div className="border-2 border-dashed rounded-xl p-12 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors" onClick={() => fileRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={onDrop}>
+        <div className="border-2 border-dashed rounded-xl p-12 text-center cursor-pointer hover:border-[#D4AF37] hover:bg-[#D4AF37]/15 transition-colors" onClick={() => fileRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={onDrop}>
           <Upload className="size-10 mx-auto text-muted-foreground/60" />
           <p className="mt-3 font-medium">Drop your CSV file here or click to browse</p>
           <p className="text-xs text-muted-foreground mt-1">.csv files only</p>
@@ -145,7 +145,7 @@ export default function ImportScreen() {
       {step === 4 && (
         <Card><CardContent className="p-6 text-center space-y-4">
           {progress < 100 ? (<><Progress value={progress} className="h-2" /><p className="text-sm text-muted-foreground">Importing...</p></>)
-            : (<><CheckCircle2 className="size-12 mx-auto text-emerald-500" /><p className="font-semibold">Import Complete!</p>
+            : (<><CheckCircle2 className="size-12 mx-auto text-[#D4AF37]" /><p className="font-semibold">Import Complete!</p>
               {importResult && <p className="text-sm text-muted-foreground">{importResult.totalRows} rows processed, {importResult.acceptedRows} accepted.</p>}
               <div className="flex justify-center gap-2"><Button variant="outline" size="sm" onClick={() => { setStep(1); setFile(null); setCsv({ headers: [], rows: [] }); setMapping({}); setImportResult(null) }}><RefreshCw className="size-3.5 mr-1" />Import Another</Button><Button size="sm" onClick={() => setActiveView('companies')}>Go to Companies</Button></div>
             </>)}
@@ -157,7 +157,7 @@ export default function ImportScreen() {
           <CardContent><div className="rounded-lg border overflow-x-auto">
             <Table><TableHeader><TableRow><TableHead>File</TableHead><TableHead>Rows</TableHead><TableHead>Accepted</TableHead><TableHead>Duplicates</TableHead><TableHead>Invalid</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
             <TableBody>{history.map((b: any) => (
-              <TableRow key={b.id}><TableCell className="font-medium">{b.fileName}</TableCell><TableCell>{b.totalRows}</TableCell><TableCell>{b.acceptedRows}</TableCell><TableCell>{b.duplicateRows}</TableCell><TableCell>{b.invalidRows}</TableCell><TableCell><Badge variant="secondary" className={b.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : ''}>{b.status}</Badge></TableCell></TableRow>
+              <TableRow key={b.id}><TableCell className="font-medium">{b.fileName}</TableCell><TableCell>{b.totalRows}</TableCell><TableCell>{b.acceptedRows}</TableCell><TableCell>{b.duplicateRows}</TableCell><TableCell>{b.invalidRows}</TableCell><TableCell><Badge variant="secondary" className={b.status === 'completed' ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : ''}>{b.status}</Badge></TableCell></TableRow>
             ))}</TableBody></Table>
           </div></CardContent></Card>
       )}

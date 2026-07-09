@@ -3,13 +3,13 @@
 import * as React from 'react'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
+import Image from 'next/image'
 import {
   LayoutDashboard,
   Building2,
   Users,
   Upload,
   Settings,
-  Brain,
   Search,
   Sun,
   Moon,
@@ -116,27 +116,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <SidebarProvider
       open={!sidebarCollapsed}
       onOpenChange={(open) => {
-        // Sync sidebar state: only toggle if the new state differs
         if (open !== !sidebarCollapsed) {
           toggleSidebar()
         }
       }}
     >
       {/* ------------------------------------------------------------------ */}
-      {/* Sidebar                                                           */}
+      {/* Sidebar — DeepMindQ dark navy theme                                */}
       {/* ------------------------------------------------------------------ */}
       <Sidebar
         collapsible="icon"
-        className="border-r border-border/50 bg-white dark:border-white/[0.06] dark:bg-slate-950"
+        className="border-r border-white/[0.06] bg-[#0A0E1A]"
       >
         {/* Logo */}
         <SidebarHeader className="px-4 py-5">
           <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 ring-1 ring-emerald-500/10">
-              <Brain className="size-4 text-emerald-500" />
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#D4AF37]/10 ring-1 ring-[#D4AF37]/20">
+              <Image
+                src="/logo.png"
+                alt="DeepMindQ"
+                width={20}
+                height={20}
+                className="rounded-sm"
+              />
             </div>
-            <span className="truncate text-[15px] font-semibold tracking-tight">
-              Lead<span className="text-emerald-500">Intel</span>
+            <span className="truncate text-[15px] font-semibold tracking-tight text-white">
+              Deep<span className="text-[#D4AF37]">MindQ</span>
             </span>
           </div>
         </SidebarHeader>
@@ -160,18 +165,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           side: 'right' as const,
                           align: 'center' as const,
                           className:
-                            'font-medium text-xs bg-popover text-popover-foreground border border-border/60',
+                            'font-medium text-xs bg-[#1E1E1E] text-[#CCCCCC] border border-white/[0.06]',
                         }}
                         className={cn(
                           'rounded-lg transition-all duration-150',
                           // Default / hover
-                          'text-muted-foreground hover:bg-muted/70 hover:text-foreground',
-                          'dark:hover:bg-white/[0.06] dark:hover:text-foreground',
-                          // Active
-                          'data-[active=true]:bg-emerald-500/10 data-[active=true]:text-emerald-600',
-                          'dark:data-[active=true]:bg-emerald-500/10 dark:data-[active=true]:text-emerald-400',
+                          'text-[#888888] hover:bg-white/[0.04] hover:text-[#CCCCCC]',
+                          // Active — gold accent
+                          'data-[active=true]:bg-[#D4AF37]/10 data-[active=true]:text-[#D4AF37]',
                           'data-[active=true]:font-medium data-[active=true]:shadow-none',
-                          // Collapsed icon sizing handled by shadcn base styles
                         )}
                       >
                         <Icon className="size-4 shrink-0" />
@@ -187,21 +189,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Footer — user & theme toggle */}
         <SidebarFooter className="mt-auto">
-          <SidebarSeparator className="bg-border/50 dark:bg-white/[0.06]" />
+          <SidebarSeparator className="bg-white/[0.06]" />
           <div className="flex items-center gap-2 px-3 py-2">
             {/* Avatar + name */}
             <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden">
               <Avatar className="size-8 shrink-0">
-                <AvatarFallback className="bg-emerald-500/10 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                <AvatarFallback className="bg-[#D4AF37]/10 text-xs font-semibold text-[#D4AF37]">
                   R
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium leading-none">
+                <p className="truncate text-sm font-medium leading-none text-white">
                   Ravi
                 </p>
-                <p className="mt-1 truncate text-[11px] text-muted-foreground">
-                  ravi@leadintel.io
+                <p className="mt-1 truncate text-[11px] text-[#888888]">
+                  ravi@deepmindq.com
                 </p>
               </div>
             </div>
@@ -212,7 +214,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="group-data-[collapsible=icon]:hidden size-8 shrink-0 text-muted-foreground hover:bg-muted/70 hover:text-foreground dark:hover:bg-white/[0.06]"
+                  className="group-data-[collapsible=icon]:hidden size-8 shrink-0 text-[#888888] hover:bg-white/[0.04] hover:text-white"
                   onClick={() =>
                     setTheme(theme === 'dark' ? 'light' : 'dark')
                   }
@@ -227,7 +229,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </TooltipTrigger>
               <TooltipContent
                 side="right"
-                className="text-xs bg-popover text-popover-foreground border border-border/60"
+                className="text-xs bg-[#1E1E1E] text-[#CCCCCC] border border-white/[0.06]"
               >
                 {theme === 'dark' ? 'Light mode' : 'Dark mode'}
               </TooltipContent>
@@ -240,30 +242,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Sidebar>
 
       {/* ------------------------------------------------------------------ */}
-      {/* Main content area                                                  */}
+      {/* Main content area — dark surface                                   */}
       {/* ------------------------------------------------------------------ */}
-      <SidebarInset className="bg-gray-50/50 dark:bg-slate-900/80">
+      <SidebarInset className="bg-[#121212]">
         {/* Sticky header */}
         <header
           className={cn(
             'sticky top-0 z-30 flex h-14 items-center gap-3',
-            'border-b border-border/50 bg-white/80 px-4 backdrop-blur-xl',
-            'dark:border-white/[0.06] dark:bg-slate-900/60 dark:backdrop-blur-xl',
+            'border-b border-white/[0.06] bg-[#121212]/80 px-4 backdrop-blur-xl',
           )}
         >
-          <SidebarTrigger className="-ml-1.5 text-muted-foreground hover:text-foreground" />
+          <SidebarTrigger className="-ml-1.5 text-[#888888] hover:text-white" />
 
           <Separator
             orientation="vertical"
-            className="mx-1 h-4 bg-border/50 dark:bg-white/[0.08]"
+            className="mx-1 h-4 bg-white/[0.08]"
           />
 
           {/* Page title & description */}
           <div className="flex min-w-0 flex-col">
-            <h1 className="truncate text-sm font-semibold tracking-tight leading-none">
+            <h1 className="truncate text-sm font-semibold tracking-tight leading-none text-white">
               {pageTitles[activeView]}
             </h1>
-            <p className="hidden text-[11px] text-muted-foreground leading-none sm:block mt-0.5">
+            <p className="hidden text-[11px] text-[#888888] leading-none sm:block mt-0.5">
               {pageDescriptions[activeView]}
             </p>
           </div>
@@ -273,7 +274,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* Search */}
           <div className="relative max-w-xs">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/60" />
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[#888888]/60" />
             <Input
               type="search"
               placeholder="Search..."
@@ -281,22 +282,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               onChange={(e) => setSearchQuery(e.target.value)}
               className={cn(
                 'h-8 w-full rounded-lg border-transparent pl-8 pr-3 text-sm',
-                'bg-muted/50 shadow-none placeholder:text-muted-foreground/50',
+                'bg-white/[0.04] shadow-none placeholder:text-[#888888]/50',
                 'transition-colors duration-150',
-                'focus-visible:border-border/60 focus-visible:bg-background focus-visible:ring-ring/20 focus-visible:ring-[3px]',
-                'dark:bg-white/[0.04] dark:placeholder:text-muted-foreground/40',
-                'dark:focus-visible:bg-white/[0.06] dark:focus-visible:border-white/[0.1]',
+                'focus-visible:border-[#D4AF37]/30 focus-visible:bg-white/[0.06] focus-visible:ring-[#D4AF37]/20 focus-visible:ring-[3px]',
               )}
             />
           </div>
 
-          {/* Theme toggle — mobile / always-visible in header */}
+          {/* Theme toggle — mobile */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className="hidden size-8 text-muted-foreground hover:bg-muted/70 hover:text-foreground dark:hover:bg-white/[0.06] md:hidden"
+                className="hidden size-8 text-[#888888] hover:bg-white/[0.04] hover:text-white md:hidden"
                 onClick={() =>
                   setTheme(theme === 'dark' ? 'light' : 'dark')
                 }
@@ -311,7 +310,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </TooltipTrigger>
             <TooltipContent
               side="bottom"
-              className="text-xs bg-popover text-popover-foreground border border-border/60"
+              className="text-xs bg-[#1E1E1E] text-[#CCCCCC] border border-white/[0.06]"
             >
               {theme === 'dark' ? 'Light mode' : 'Dark mode'}
             </TooltipContent>

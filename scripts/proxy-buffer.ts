@@ -1,31 +1,48 @@
-// Simple HTTP/1.1 reverse proxy buffer
-// Listens on port 3000, forwards to Next.js on port 3789
-// This works around Caddy <-> Bun HTTP/2 compatibility issues
+// Simple HTTP reverse proxy with full response buffering
+// Buffers entire response before forwarding - avoids streaming crashes
 
-const TARGET = `http://127.0.0.1:${process.env.BACKEND_PORT || 3789}`;
+const BACKEND = `http://127.0.0.1:${process.env.BACKEND_PORT || 3789}`;
 
 const server = Bun.serve({
   port: parseInt(process.env.PORT || '3000'),
   hostname: '0.0.0.0',
   async fetch(req) {
     const url = new URL(req.url);
-    url.protocol = 'http';
-    url.hostname = '127.0.0.1';
-    url.port = process.env.BACKEND_PORT || '3789';
-    
+    const backendUrl = `${BACKEND}${url.pathname}${url.search}`;
+
     try {
-      const resp = await fetch(url.toString(), {
+      // Build clean headers (filter out hop-by-hop)
+      const headers = new Headers();
+      for (const [key, value] of req.headers.entries()) {
+        if (!['host', 'connection', 'keep-alive', 'transfer-encoding', 'upgrade'].includes(key)) {
+          headers.set(key, value);
+        }
+      }
+
+      const resp = await fetch(backendUrl, {
         method: req.method,
-        headers: req.headers,
-        body: req.method !== 'GET' && req.method !== 'HEAD' ? req.body : undefined,
+        headers,
+        body: req.method !== 'GET' && req.method !== 'HEAD' ? await req.arrayBuffer() : undefined,
       });
-      
-      return new Response(resp.body, {
+
+      // Buffer the full response
+      const body = await resp.arrayBuffer();
+
+      // Build response headers (filter hop-by-hop)
+      const respHeaders = new Headers();
+      for (const [key, value] of resp.headers.entries()) {
+        if (!['connection', 'keep-alive', 'transfer-encoding', 'content-encoding'].includes(key)) {
+          respHeaders.set(key, value);
+        }
+      }
+
+      return new Response(body, {
         status: resp.status,
         statusText: resp.statusText,
-        headers: resp.headers,
+        headers: respHeaders,
       });
     } catch (err) {
+      console.error('Proxy error:', err);
       return new Response(JSON.stringify({ error: 'Proxy error', message: String(err) }), {
         status: 502,
         headers: { 'content-type': 'application/json' },
@@ -34,4 +51,4 @@ const server = Bun.serve({
   },
 });
 
-console.log(`Proxy buffer listening on port ${server.port} -> ${TARGET}`);
+console.log(`Proxy listening on port ${server.port} -> ${BACKEND}`);

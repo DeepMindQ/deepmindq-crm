@@ -19,13 +19,13 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const scoreColor = (s: number | null) =>
-  s == null ? 'text-muted-foreground' : s >= 80 ? 'text-emerald-600' : s >= 50 ? 'text-amber-600' : 'text-red-600'
+  s == null ? 'text-muted-foreground' : s >= 80 ? 'text-[#D4AF37]' : s >= 50 ? 'text-amber-600' : 'text-red-400'
 
 const healthVariant = (h: string) =>
-  h === 'valid' ? 'bg-emerald-100 text-emerald-700' : h === 'risky' ? 'bg-amber-100 text-amber-700' : h === 'invalid' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+  h === 'valid' ? 'bg-[#D4AF37]/15 text-[#D4AF37]' : h === 'risky' ? 'bg-amber-100 text-amber-700' : h === 'invalid' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
 
 const statusVariant = (s: string) =>
-  s === 'open' ? 'bg-emerald-100 text-emerald-700' : s === 'won' ? 'bg-blue-100 text-blue-700' : s === 'lost' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+  s === 'open' ? 'bg-[#D4AF37]/15 text-[#D4AF37]' : s === 'won' ? 'bg-blue-100 text-blue-700' : s === 'lost' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
 
 const RESEARCH_LABELS: Record<string, string> = {
   businessOverview: 'Business Overview', currentTechLandscape: 'Tech Landscape',
@@ -130,7 +130,7 @@ export default function CompanyProfileScreen() {
         <TabsContent value="timeline" className="mt-4">
           {timeline.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">No timeline entries.</p> : (
             <div className="space-y-3">{timeline.map((t: any) => (
-              <div key={t.id} className="flex items-start gap-3"><div className="mt-1.5 size-2 shrink-0 rounded-full bg-emerald-500" /><div className="min-w-0"><p className="text-sm font-medium capitalize">{t.action.replace(/_/g, ' ')}</p>{t.details && <p className="text-xs text-muted-foreground mt-0.5">{t.details}</p>}<p className="text-xs text-muted-foreground/60 mt-0.5">{formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}</p></div></div>
+              <div key={t.id} className="flex items-start gap-3"><div className="mt-1.5 size-2 shrink-0 rounded-full bg-[#D4AF37]" /><div className="min-w-0"><p className="text-sm font-medium capitalize">{t.action.replace(/_/g, ' ')}</p>{t.details && <p className="text-xs text-muted-foreground mt-0.5">{t.details}</p>}<p className="text-xs text-muted-foreground/60 mt-0.5">{formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}</p></div></div>
             ))}</div>
           )}
         </TabsContent>

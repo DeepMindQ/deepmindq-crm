@@ -16,21 +16,22 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LeadIntel — AI Lead Intelligence & Sales Assistant",
-  description: "Premium AI-powered lead intelligence platform. Discover companies, enrich contacts, and close deals faster.",
-  authors: [{ name: "LeadIntel" }],
+  title: "DeepMindQ — Intelligence. Insight. Impact.",
+  description: "AI-powered sales intelligence platform by DeepMindQ. Discover companies, enrich contacts, and close deals faster.",
+  authors: [{ name: "DeepMindQ", url: "https://www.deepmindq.com" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/logo.png",
   },
   openGraph: {
-    title: "LeadIntel — AI Lead Intelligence",
-    description: "Discover companies, enrich contacts, and close deals faster with AI.",
+    title: "DeepMindQ — Intelligence. Insight. Impact.",
+    description: "AI-powered sales intelligence platform. Discover companies, enrich contacts, and close deals faster.",
     type: "website",
+    siteName: "DeepMindQ",
   },
   twitter: {
     card: "summary_large_image",
-    title: "LeadIntel — AI Lead Intelligence",
-    description: "Discover companies, enrich contacts, and close deals faster with AI.",
+    title: "DeepMindQ — Intelligence. Insight. Impact.",
+    description: "AI-powered sales intelligence platform by DeepMindQ.",
   },
 };
 
@@ -46,7 +47,7 @@ export default function RootLayout({
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="light"
+          defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
         >

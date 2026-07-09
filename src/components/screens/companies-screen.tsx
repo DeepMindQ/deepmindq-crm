@@ -36,12 +36,12 @@ export function CompaniesScreen() {
   })
 
   const statusColor = (s: string) => {
-    const map: Record<string, string> = { new: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300', researching: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400', ready: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', contacted: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-400', archived: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' }
+    const map: Record<string, string> = { new: 'bg-[#242424] text-slate-300', researching: 'bg-amber-950/50 text-amber-400', ready: 'bg-[#D4AF37]/15 text-[#D4AF37]', contacted: 'bg-[#2A9DFF]/10 text-[#2A9DFF]', archived: 'bg-gray-800 text-gray-400' }
     return map[s] || map.new
   }
 
   const freshnessColor = (f: string) => {
-    const map: Record<string, string> = { fresh: 'bg-emerald-500', stale: 'bg-amber-500', old: 'bg-red-500' }
+    const map: Record<string, string> = { fresh: 'bg-[#D4AF37]', stale: 'bg-amber-500', old: 'bg-red-500' }
     return map[f] || 'bg-gray-400'
   }
 
@@ -53,7 +53,7 @@ export function CompaniesScreen() {
           <Building2 className="size-5 text-muted-foreground" />
           <span className="text-sm text-muted-foreground">{data?.total || 0} companies</span>
         </div>
-        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setShowAdd(true)}>
+        <Button size="sm" className="bg-[#D4AF37] hover:bg-[#D4AF37]/15 text-white" onClick={() => setShowAdd(true)}>
           <Plus className="size-4 mr-1.5" /> Add Company
         </Button>
       </div>
@@ -102,7 +102,7 @@ export function CompaniesScreen() {
               <TableRow key={c.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => { setSelectedCompanyId(c.id); setActiveView('company-profile') }}>
                 <TableCell>
                   <div className="flex items-center gap-3">
-                    <div className="size-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-xs font-bold shrink-0">{c.name?.charAt(0)}</div>
+                    <div className="size-8 rounded-lg bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37] text-xs font-bold shrink-0">{c.name?.charAt(0)}</div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{c.name}</p>
                       {c.domain && <p className="text-xs text-muted-foreground truncate">{c.domain}</p>}
@@ -115,7 +115,7 @@ export function CompaniesScreen() {
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className={`h-full rounded-full ${c.intelligenceScore >= 80 ? 'bg-emerald-500' : c.intelligenceScore >= 50 ? 'bg-amber-500' : 'bg-gray-400'}`} style={{ width: `${c.intelligenceScore || 0}%` }} />
+                      <div className={`h-full rounded-full ${c.intelligenceScore >= 80 ? 'bg-[#D4AF37]' : c.intelligenceScore >= 50 ? 'bg-amber-500' : 'bg-gray-400'}`} style={{ width: `${c.intelligenceScore || 0}%` }} />
                     </div>
                     <span className="text-xs font-medium tabular-nums">{c.intelligenceScore || 0}</span>
                   </div>
@@ -185,7 +185,7 @@ export function CompaniesScreen() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => createMutation.mutate(form)} disabled={!form.name}>Create Company</Button>
+            <Button className="bg-[#D4AF37] hover:bg-[#D4AF37]/15 text-white" onClick={() => createMutation.mutate(form)} disabled={!form.name}>Create Company</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -5,7 +5,7 @@ import { Building2, Users, ShieldCheck, ShieldAlert, TrendingUp, Sparkles, Activ
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ScrollArea } from '@/components/ui/alert'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 interface DashboardData {
   totalCompanies: number

@@ -1,0 +1,1494 @@
+     1→'use client'
+     2→
+     3→import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
+     4→import { useMutation, useQuery } from '@tanstack/react-query'
+     5→import { motion, AnimatePresence } from 'framer-motion'
+     6→import {
+     7→  Upload,
+     8→  FileSpreadsheet,
+     9→  ArrowRight,
+    10→  ArrowLeft,
+    11→  CheckCircle2,
+    12→  AlertTriangle,
+    13→  XCircle,
+    14→  FileText,
+    15→  Building2,
+    16→  Users,
+    17→  Copy,
+    18→  MailWarning,
+    19→  Clock,
+    20→  Check,
+    21→  Loader2,
+    22→  RefreshCw,
+    23→  ExternalLink,
+    24→} from 'lucide-react'
+    25→
+    26→import { Button } from '@/components/ui/button'
+    27→import {
+    28→  Card,
+    29→  CardContent,
+    30→  CardDescription,
+    31→  CardHeader,
+    32→  CardTitle,
+    33→} from '@/components/ui/card'
+    34→import {
+    35→  Select,
+    36→  SelectContent,
+    37→  SelectItem,
+    38→  SelectTrigger,
+    39→  SelectValue,
+    40→} from '@/components/ui/select'
+    41→import { Badge } from '@/components/ui/badge'
+    42→import { Progress } from '@/components/ui/progress'
+    43→import {
+    44→  Table,
+    45→  TableBody,
+    46→  TableCell,
+    47→  TableHead,
+    48→  TableHeader,
+    49→  TableRow,
+    50→} from '@/components/ui/table'
+    51→import { ScrollArea } from '@/components/ui/scroll-area'
+    52→import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+    53→import { Separator } from '@/components/ui/separator'
+    54→import { cn } from '@/lib/utils'
+    55→
+    56→// ---------------------------------------------------------------------------
+    57→// Types
+    58→// ---------------------------------------------------------------------------
+    59→
+    60→interface ParsedCSV {
+    61→  headers: string[]
+    62→  rows: Record<string, string>[]
+    63→}
+    64→
+    65→type MappingField =
+    66→  | 'companyName'
+    67→  | 'contactName'
+    68→  | 'email'
+    69→  | 'jobTitle'
+    70→  | 'role'
+    71→  | 'linkedin'
+    72→  | 'phone'
+    73→  | 'location'
+    74→  | 'industry'
+    75→  | 'country'
+    76→  | 'domain'
+    77→  | 'employeeSize'
+    78→  | 'website'
+    79→  | '__skip__'
+    80→
+    81→interface ColumnMapping {
+    82→  [csvColumn: string]: MappingField
+    83→}
+    84→
+    85→interface ImportHistoryItem {
+    86→  id: string
+    87→  fileName: string
+    88→  rows: number
+    89→  status: 'completed' | 'failed' | 'processing'
+    90→  date: string
+    91→}
+    92→
+    93→interface ImportResult {
+    94→  companiesCreated: number
+    95→  contactsAdded: number
+    96→  duplicatesSkipped: number
+    97→  invalidEmailsArchived: number
+    98→}
+    99→
+   100→// ---------------------------------------------------------------------------
+   101→// Constants
+   102→// ---------------------------------------------------------------------------
+   103→
+   104→const MAPPING_OPTIONS: { value: MappingField; label: string; recommended?: boolean }[] = [
+   105→  { value: 'companyName', label: 'Company Name', recommended: true },
+   106→  { value: 'contactName', label: 'Contact Name', recommended: true },
+   107→  { value: 'email', label: 'Email' },
+   108→  { value: 'jobTitle', label: 'Job Title' },
+   109→  { value: 'role', label: 'Role' },
+   110→  { value: 'linkedin', label: 'LinkedIn' },
+   111→  { value: 'phone', label: 'Phone' },
+   112→  { value: 'location', label: 'Location' },
+   113→  { value: 'industry', label: 'Industry' },
+   114→  { value: 'country', label: 'Country' },
+   115→  { value: 'domain', label: 'Domain' },
+   116→  { value: 'employeeSize', label: 'Employee Size' },
+   117→  { value: 'website', label: 'Website' },
+   118→  { value: '__skip__', label: '-- Skip --' },
+   119→]
+   120→
+   121→const AUTO_DETECT_RULES: { pattern: RegExp; field: MappingField }[] = [
+   122→  { pattern: /e[-_]?mail/i, field: 'email' },
+   123→  { pattern: /company/i, field: 'companyName' },
+   124→  { pattern: /organization|org\b/i, field: 'companyName' },
+   125→  { pattern: /firm|account/i, field: 'companyName' },
+   126→  { pattern: /(contact|full)[\s_-]*name/i, field: 'contactName' },
+   127→  { pattern: /^(name|first[\s_-]*name|last[\s_-]*name)$/i, field: 'contactName' },
+   128→  { pattern: /job[\s_-]*title|position|title/i, field: 'jobTitle' },
+   129→  { pattern: /role/i, field: 'role' },
+   130→  { pattern: /linkedin/i, field: 'linkedin' },
+   131→  { pattern: /phone|tel/i, field: 'phone' },
+   132→  { pattern: /location|city|address/i, field: 'location' },
+   133→  { pattern: /industry|sector/i, field: 'industry' },
+   134→  { pattern: /country/i, field: 'country' },
+   135→  { pattern: /domain/i, field: 'domain' },
+   136→  { pattern: /employee|size|headcount|head[_\s]*count/i, field: 'employeeSize' },
+   137→  { pattern: /website|url|site/i, field: 'website' },
+   138→]
+   139→
+   140→const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+   141→
+   142→const STEPS = [
+   143→  { id: 1, title: 'Upload', description: 'Choose your CSV file' },
+   144→  { id: 2, title: 'Map Columns', description: 'Match fields to your data' },
+   145→  { id: 3, title: 'Review', description: 'Verify import summary' },
+   146→  { id: 4, title: 'Import', description: 'Process your data' },
+   147→] as const
+   148→
+   149→// ---------------------------------------------------------------------------
+   150→// CSV Parser
+   151→// ---------------------------------------------------------------------------
+   152→
+   153→function parseCSV(text: string): ParsedCSV {
+   154→  const lines = text.split('\n').filter((l) => l.trim())
+   155→  if (lines.length === 0) return { headers: [], rows: [] }
+   156→
+   157→  const headers = lines[0]
+   158→    .split(',')
+   159→    .map((h) => h.trim().replace(/^"|"$/g, ''))
+   160→
+   161→  const rows = lines.slice(1).map((line) => {
+   162→    const values = line
+   163→      .split(',')
+   164→      .map((v) => v.trim().replace(/^"|"$/g, ''))
+   165→    const row: Record<string, string> = {}
+   166→    headers.forEach((h, i) => {
+   167→      row[h] = values[i] || ''
+   168→    })
+   169→    return row
+   170→  })
+   171→
+   172→  return { headers, rows }
+   173→}
+   174→
+   175→// ---------------------------------------------------------------------------
+   176→// Smart auto-detection
+   177→// ---------------------------------------------------------------------------
+   178→
+   179→function autoDetectMapping(headers: string[]): ColumnMapping {
+   180→  const mapping: ColumnMapping = {}
+   181→  const usedFields = new Set<MappingField>()
+   182→
+   183→  for (const header of headers) {
+   184→    let matched = false
+   185→    for (const rule of AUTO_DETECT_RULES) {
+   186→      if (rule.pattern.test(header) && !usedFields.has(rule.field)) {
+   187→        mapping[header] = rule.field
+   188→        usedFields.add(rule.field)
+   189→        matched = true
+   190→        break
+   191→      }
+   192→    }
+   193→    if (!matched) {
+   194→      mapping[header] = '__skip__'
+   195→    }
+   196→  }
+   197→
+   198→  return mapping
+   199→}
+   200→
+   201→// ---------------------------------------------------------------------------
+   202→// Step animations
+   203→// ---------------------------------------------------------------------------
+   204→
+   205→const slideVariants = {
+   206→  enter: (direction: number) => ({
+   207→    x: direction > 0 ? 80 : -80,
+   208→    opacity: 0,
+   209→  }),
+   210→  center: {
+   211→    x: 0,
+   212→    opacity: 1,
+   213→  },
+   214→  exit: (direction: number) => ({
+   215→    x: direction < 0 ? 80 : -80,
+   216→    opacity: 0,
+   217→  }),
+   218→}
+   219→
+   220→// ---------------------------------------------------------------------------
+   221→// Summary calculator
+   222→// ---------------------------------------------------------------------------
+   223→
+   224→function computeSummary(
+   225→  rows: Record<string, string>[],
+   226→  mapping: ColumnMapping
+   227→) {
+   228→  const companyKey = Object.entries(mapping).find(
+   229→    ([, v]) => v === 'companyName'
+   230→  )?.[0]
+   231→  const emailKey = Object.entries(mapping).find(
+   232→    ([, v]) => v === 'email'
+   233→  )?.[0]
+   234→  const contactKey = Object.entries(mapping).find(
+   235→    ([, v]) => v === 'contactName'
+   236→  )?.[0]
+   237→
+   238→  const totalRows = rows.length
+   239→
+   240→  const companySet = new Set<string>()
+   241→  rows.forEach((row) => {
+   242→    if (companyKey) {
+   243→      const val = (row[companyKey] || '').trim().toLowerCase()
+   244→      if (val) companySet.add(val)
+   245→    }
+   246→  })
+   247→  const uniqueCompanies = companySet.size
+   248→
+   249→  let invalidEmails = 0
+   250→  rows.forEach((row) => {
+   251→    if (emailKey) {
+   252→      const val = (row[emailKey] || '').trim()
+   253→      if (val && !EMAIL_REGEX.test(val)) invalidEmails++
+   254→    }
+   255→  })
+   256→
+   257→  const seen = new Set<string>()
+   258→  let duplicates = 0
+   259→  rows.forEach((row) => {
+   260→    const email = emailKey ? (row[emailKey] || '').trim().toLowerCase() : ''
+   261→    const name = contactKey ? (row[contactKey] || '').trim().toLowerCase() : ''
+   262→    const company = companyKey
+   263→      ? (row[companyKey] || '').trim().toLowerCase()
+   264→      : ''
+   265→    const key = email || `${name}||${company}`
+   266→    if (key && seen.has(key)) {
+   267→      duplicates++
+   268→    } else {
+   269→      seen.add(key)
+   270→    }
+   271→  })
+   272→
+   273→  const validRows = Math.max(0, totalRows - duplicates)
+   274→
+   275→  return {
+   276→    totalRows,
+   277→    uniqueCompanies,
+   278→    duplicates,
+   279→    invalidEmails,
+   280→    validRows,
+   281→  }
+   282→}
+   283→
+   284→// ---------------------------------------------------------------------------
+   285→// Fallback import history data
+   286→// ---------------------------------------------------------------------------
+   287→
+   288→const FALLBACK_HISTORY: ImportHistoryItem[] = [
+   289→  {
+   290→    id: '1',
+   291→    fileName: 'leads-q4-2024.csv',
+   292→    rows: 1250,
+   293→    status: 'completed',
+   294→    date: '12/15/2024',
+   295→  },
+   296→  {
+   297→    id: '2',
+   298→    fileName: 'conference-attendees.csv',
+   299→    rows: 340,
+   300→    status: 'completed',
+   301→    date: '12/10/2024',
+   302→  },
+   303→  {
+   304→    id: '3',
+   305→    fileName: 'website-leads-dec.csv',
+   306→    rows: 89,
+   307→    status: 'failed',
+   308→    date: '12/8/2024',
+   309→  },
+   310→]
+   311→
+   312→// ---------------------------------------------------------------------------
+   313→// Component
+   314→// ---------------------------------------------------------------------------
+   315→
+   316→export default function ImportScreen() {
+   317→  const [currentStep, setCurrentStep] = useState(1)
+   318→  const [direction, setDirection] = useState(0)
+   319→
+   320→  // Step 1: Upload
+   321→  const [file, setFile] = useState<File | null>(null)
+   322→  const [parsedData, setParsedData] = useState<ParsedCSV | null>(null)
+   323→  const [isDragging, setIsDragging] = useState(false)
+   324→  const fileInputRef = useRef<HTMLInputElement>(null)
+   325→
+   326→  // Step 2: Mapping
+   327→  const [columnMapping, setColumnMapping] = useState<ColumnMapping>({})
+   328→
+   329→  // Step 4: Import
+   330→  const [importProgress, setImportProgress] = useState(0)
+   331→  const [importResult, setImportResult] = useState<ImportResult | null>(null)
+   332→
+   333→  // -----------------------------------------------------------------------
+   334→  // Derived summary
+   335→  // -----------------------------------------------------------------------
+   336→  const summary = useMemo(() => {
+   337→    if (!parsedData) return null
+   338→    return computeSummary(parsedData.rows, columnMapping)
+   339→  }, [parsedData, columnMapping])
+   340→
+   341→  // -----------------------------------------------------------------------
+   342→  // Import history query
+   343→  // -----------------------------------------------------------------------
+   344→  const { data: historyData } = useQuery<ImportHistoryItem[]>({
+   345→    queryKey: ['import-history'],
+   346→    queryFn: async () => {
+   347→      try {
+   348→        const res = await fetch('/api/imports')
+   349→        if (res.ok) {
+   350→          const data = await res.json()
+   351→          return (data ?? []).map(
+   352→            (item: Record<string, unknown>) =>
+   353→              ({
+   354→                id: String(item.id ?? ''),
+   355→                fileName: String(item.fileName ?? 'Unknown'),
+   356→                rows: Number(item.totalRows ?? 0),
+   357→                status:
+   358→                  (item.status as string) === 'completed'
+   359→                    ? 'completed'
+   360→                    : (item.status as string) === 'failed'
+   361→                      ? 'failed'
+   362→                      : 'processing',
+   363→                date: item.createdAt
+   364→                  ? String(new Date(item.createdAt as string).toLocaleDateString())
+   365→                  : '—',
+   366→              }) satisfies ImportHistoryItem
+   367→          )
+   368→        }
+   369→      } catch {
+   370→        // API not available yet — use fallback
+   371→      }
+   372→      return FALLBACK_HISTORY
+   373→    },
+   374→    staleTime: 30_000,
+   375→  })
+   376→
+   377→  // -----------------------------------------------------------------------
+   378→  // Import mutation (simulated)
+   379→  // -----------------------------------------------------------------------
+   380→  const importMutation = useMutation({
+   381→    mutationFn: async () => {
+   382→      // Simulate the import with a 2-second animated progress
+   383→      await new Promise<void>((resolve) => {
+   384→        setImportProgress(0)
+   385→        const duration = 2000
+   386→        const interval = 30
+   387→        let elapsed = 0
+   388→
+   389→        const timer = setInterval(() => {
+   390→          elapsed += interval
+   391→          const t = Math.min(elapsed / duration, 1)
+   392→          // Ease-out cubic
+   393→          const eased = 1 - Math.pow(1 - t, 3)
+   394→          setImportProgress(Math.round(eased * 100))
+   395→          if (t >= 1) {
+   396→            clearInterval(timer)
+   397→            resolve()
+   398→          }
+   399→        }, interval)
+   400→      })
+   401→    },
+   402→    onSuccess: () => {
+   403→      setImportResult({
+   404→        companiesCreated: summary?.uniqueCompanies ?? 0,
+   405→        contactsAdded: summary?.validRows ?? 0,
+   406→        duplicatesSkipped: summary?.duplicates ?? 0,
+   407→        invalidEmailsArchived: summary?.invalidEmails ?? 0,
+   408→      })
+   409→    },
+   410→  })
+   411→
+   412→  // -----------------------------------------------------------------------
+   413→  // File handling
+   414→  // -----------------------------------------------------------------------
+   415→  const handleFile = useCallback((f: File) => {
+   416→    if (!f.name.endsWith('.csv')) return
+   417→    setFile(f)
+   418→    const reader = new FileReader()
+   419→    reader.onload = (e) => {
+   420→      const text = e.target?.result as string
+   421→      const data = parseCSV(text)
+   422→      setParsedData(data)
+   423→      setColumnMapping(autoDetectMapping(data.headers))
+   424→    }
+   425→    reader.readAsText(f)
+   426→  }, [])
+   427→
+   428→  const handleDragOver = useCallback((e: React.DragEvent) => {
+   429→    e.preventDefault()
+   430→    setIsDragging(true)
+   431→  }, [])
+   432→
+   433→  const handleDragLeave = useCallback((e: React.DragEvent) => {
+   434→    e.preventDefault()
+   435→    setIsDragging(false)
+   436→  }, [])
+   437→
+   438→  const handleDrop = useCallback(
+   439→    (e: React.DragEvent) => {
+   440→      e.preventDefault()
+   441→      setIsDragging(false)
+   442→      const f = e.dataTransfer.files[0]
+   443→      if (f) handleFile(f)
+   444→    },
+   445→    [handleFile]
+   446→  )
+   447→
+   448→  const handleFileInput = useCallback(
+   449→    (e: React.ChangeEvent<HTMLInputElement>) => {
+   450→      const f = e.target.files?.[0]
+   451→      if (f) handleFile(f)
+   452→    },
+   453→    [handleFile]
+   454→  )
+   455→
+   456→  // -----------------------------------------------------------------------
+   457→  // Navigation
+   458→  // -----------------------------------------------------------------------
+   459→  const goToStep = useCallback(
+   460→    (step: number) => {
+   461→      setDirection(step > currentStep ? 1 : -1)
+   462→      setCurrentStep(step)
+   463→    },
+   464→    [currentStep]
+   465→  )
+   466→
+   467→  const handleContinue = useCallback(() => {
+   468→    if (currentStep < 4) goToStep(currentStep + 1)
+   469→  }, [currentStep, goToStep])
+   470→
+   471→  const handleBack = useCallback(() => {
+   472→    if (currentStep > 1) goToStep(currentStep - 1)
+   473→  }, [currentStep, goToStep])
+   474→
+   475→  const handleReset = useCallback(() => {
+   476→    setCurrentStep(1)
+   477→    setFile(null)
+   478→    setParsedData(null)
+   479→    setColumnMapping({})
+   480→    setImportProgress(0)
+   481→    setImportResult(null)
+   482→    importMutation.reset()
+   483→    if (fileInputRef.current) fileInputRef.current.value = ''
+   484→  }, [importMutation])
+   485→
+   486→  // -----------------------------------------------------------------------
+   487→  // Column mapping helpers
+   488→  // -----------------------------------------------------------------------
+   489→  const updateMapping = useCallback(
+   490→    (csvColumn: string, field: MappingField) => {
+   491→      setColumnMapping((prev) => {
+   492→        const next = { ...prev, [csvColumn]: field }
+   493→        // If this field was mapped elsewhere, un-map the other column
+   494→        if (field !== '__skip__') {
+   495→          for (const [col, f] of Object.entries(prev)) {
+   496→            if (col !== csvColumn && f === field) {
+   497→              next[col] = '__skip__'
+   498→            }
+   499→          }
+   500→        }
+   501→        return next
+   502→      })
+   503→    },
+   504→    []
+   505→  )
+   506→
+   507→  const hasCompanyMapping = Object.values(columnMapping).includes('companyName')
+   508→  const hasContactMapping = Object.values(columnMapping).includes('contactName')
+   509→
+   510→  // -----------------------------------------------------------------------
+   511→  // Helpers
+   512→  // -----------------------------------------------------------------------
+   513→  function formatFileSize(bytes: number): string {
+   514→    if (bytes < 1024) return `${bytes} B`
+   515→    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`
+   516→    return `${(bytes / 1048576).toFixed(1)} MB`
+   517→  }
+   518→
+   519→  // -----------------------------------------------------------------------
+   520→  // When step changes to 4, trigger import automatically
+   521→  // -----------------------------------------------------------------------
+   522→  const prevStepRef = useRef(currentStep)
+   523→  useEffect(() => {
+   524→    if (prevStepRef.current !== 4 && currentStep === 4 && !importResult) {
+   525→      const timer = setTimeout(() => importMutation.mutate(), 200)
+   526→      return () => clearTimeout(timer)
+   527→    }
+   528→    prevStepRef.current = currentStep
+   529→  }, [currentStep, importResult, importMutation])
+   530→
+   531→  // -----------------------------------------------------------------------
+   532→  // Render
+   533→  // -----------------------------------------------------------------------
+   534→  return (
+   535→    <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white">
+   536→      {/* ---- Header ---- */}
+   537→      <header className="border-b border-slate-200/80 bg-white/80 backdrop-blur-xl sticky top-0 z-30">
+   538→        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+   539→          <div className="flex items-center justify-between">
+   540→            <div>
+   541→              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-slate-900">
+   542→                Import Data
+   543→              </h1>
+   544→              <p className="text-sm text-slate-500 mt-0.5">
+   545→                Upload a CSV file to import companies and contacts
+   546→              </p>
+   547→            </div>
+   548→            {currentStep === 4 && importResult && (
+   549→              <Button
+   550→                variant="outline"
+   551→                size="sm"
+   552→                onClick={handleReset}
+   553→                className="gap-1.5 text-slate-600"
+   554→              >
+   555→                <RefreshCw className="size-3.5" />
+   556→                Import Another
+   557→              </Button>
+   558→            )}
+   559→          </div>
+   560→        </div>
+   561→      </header>
+   562→
+   563→      {/* ---- Main ---- */}
+   564→      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+   565→        {/* Stepper */}
+   566→        <div className="mb-10">
+   567→          <div className="flex items-center justify-between">
+   568→            {STEPS.map((step, idx) => {
+   569→              const isActive = step.id === currentStep
+   570→              const isCompleted = step.id < currentStep
+   571→              const isLast = idx === STEPS.length - 1
+   572→
+   573→              return (
+   574→                <div
+   575→                  key={step.id}
+   576→                  className="flex items-center flex-1 last:flex-none"
+   577→                >
+   578→                  <div className="flex flex-col items-center gap-2">
+   579→                    <motion.div
+   580→                      className={cn(
+   581→                        'relative flex items-center justify-center rounded-full border-2 size-10 transition-colors duration-300',
+   582→                        isActive &&
+   583→                          'border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/25',
+   584→                        isCompleted &&
+   585→                          'border-emerald-500 bg-emerald-500 text-white',
+   586→                        !isActive &&
+   587→                          !isCompleted &&
+   588→                          'border-slate-300 bg-white text-slate-400'
+   589→                      )}
+   590→                      animate={isActive ? { scale: [1, 1.08, 1] } : {}}
+   591→                      transition={
+   592→                        isActive
+   593→                          ? { duration: 0.6, repeat: Infinity, repeatDelay: 2 }
+   594→                          : {}
+   595→                      }
+   596→                    >
+   597→                      {isCompleted ? (
+   598→                        <Check className="size-4.5" strokeWidth={3} />
+   599→                      ) : (
+   600→                        <span className="text-sm font-semibold">{step.id}</span>
+   601→                      )}
+   602→                    </motion.div>
+   603→                    <div className="text-center">
+   604→                      <p
+   605→                        className={cn(
+   606→                          'text-xs font-medium transition-colors',
+   607→                          isActive
+   608→                            ? 'text-emerald-700'
+   609→                            : isCompleted
+   610→                              ? 'text-slate-700'
+   611→                              : 'text-slate-400'
+   612→                        )}
+   613→                      >
+   614→                        {step.title}
+   615→                      </p>
+   616→                      <p className="text-[11px] text-slate-400 hidden sm:block mt-0.5">
+   617→                        {step.description}
+   618→                      </p>
+   619→                    </div>
+   620→                  </div>
+   621→
+   622→                  {!isLast && (
+   623→                    <div className="flex-1 mx-3 sm:mx-4 mt-[-1.25rem]">
+   624→                      <div className="h-0.5 rounded-full overflow-hidden bg-slate-200">
+   625→                        <motion.div
+   626→                          className="h-full bg-emerald-500 rounded-full"
+   627→                          initial={{ width: '0%' }}
+   628→                          animate={{
+   629→                            width: isCompleted
+   630→                              ? '100%'
+   631→                              : isActive
+   632→                                ? '50%'
+   633→                                : '0%',
+   634→                          }}
+   635→                          transition={{ duration: 0.5, ease: 'easeInOut' }}
+   636→                        />
+   637→                      </div>
+   638→                    </div>
+   639→                  )}
+   640→                </div>
+   641→              )
+   642→            })}
+   643→          </div>
+   644→        </div>
+   645→
+   646→        {/* ---- Step Content ---- */}
+   647→        <AnimatePresence mode="wait" custom={direction}>
+   648→          <motion.div
+   649→            key={currentStep}
+   650→            custom={direction}
+   651→            variants={slideVariants}
+   652→            initial="enter"
+   653→            animate="center"
+   654→            exit="exit"
+   655→            transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+   656→          >
+   657→            {/* =========================================================== */}
+   658→            {/* STEP 1 — Upload                                              */}
+   659→            {/* =========================================================== */}
+   660→            {currentStep === 1 && (
+   661→              <div className="max-w-2xl mx-auto">
+   662→                <Card className="border-slate-200/80 shadow-sm overflow-hidden">
+   663→                  <CardHeader className="pb-0">
+   664→                    <CardTitle className="text-lg text-slate-900">
+   665→                      Upload CSV File
+   666→                    </CardTitle>
+   667→                    <CardDescription>
+   668→                      Select a CSV file containing your leads or contacts data
+   669→                    </CardDescription>
+   670→                  </CardHeader>
+   671→                  <CardContent className="pt-6">
+   672→                    {/* Drop zone */}
+   673→                    <motion.div
+   674→                      onDragOver={handleDragOver}
+   675→                      onDragLeave={handleDragLeave}
+   676→                      onDrop={handleDrop}
+   677→                      onClick={() => fileInputRef.current?.click()}
+   678→                      className={cn(
+   679→                        'relative cursor-pointer rounded-xl border-2 border-dashed px-6 py-16 sm:py-20',
+   680→                        'flex flex-col items-center justify-center gap-4 text-center',
+   681→                        'transition-all duration-300 ease-out',
+   682→                        isDragging
+   683→                          ? 'border-emerald-400 bg-emerald-50/80 scale-[1.01]'
+   684→                          : file
+   685→                            ? 'border-emerald-300 bg-emerald-50/40'
+   686→                            : 'border-slate-300 bg-slate-50/50 hover:border-emerald-400 hover:bg-emerald-50/40 hover:scale-[1.005] active:scale-[0.995]'
+   687→                      )}
+   688→                      whileHover={!isDragging ? { y: -2 } : {}}
+   689→                      whileTap={!isDragging ? { scale: 0.995 } : {}}
+   690→                    >
+   691→                      <input
+   692→                        ref={fileInputRef}
+   693→                        type="file"
+   694→                        accept=".csv"
+   695→                        onChange={handleFileInput}
+   696→                        className="hidden"
+   697→                      />
+   698→
+   699→                      {file ? (
+   700→                        <>
+   701→                          <motion.div
+   702→                            initial={{ scale: 0, rotate: -10 }}
+   703→                            animate={{ scale: 1, rotate: 0 }}
+   704→                            transition={{
+   705→                              type: 'spring',
+   706→                              stiffness: 200,
+   707→                              damping: 15,
+   708→                            }}
+   709→                            className="flex items-center justify-center size-14 rounded-2xl bg-emerald-100 text-emerald-600"
+   710→                          >
+   711→                            <FileSpreadsheet className="size-7" />
+   712→                          </motion.div>
+   713→                          <div>
+   714→                            <p className="text-sm font-semibold text-slate-900">
+   715→                              {file.name}
+   716→                            </p>
+   717→                            <p className="text-xs text-slate-500 mt-1">
+   718→                              {formatFileSize(file.size)}
+   719→                            </p>
+   720→                          </div>
+   721→                          <button
+   722→                            type="button"
+   723→                            className="text-xs text-slate-500 hover:text-emerald-600 underline underline-offset-2 transition-colors"
+   724→                            onClick={(e) => {
+   725→                              e.stopPropagation()
+   726→                              fileInputRef.current?.click()
+   727→                            }}
+   728→                          >
+   729→                            Change file
+   730→                          </button>
+   731→                        </>
+   732→                      ) : (
+   733→                        <>
+   734→                          <motion.div
+   735→                            className="flex items-center justify-center size-14 rounded-2xl bg-slate-100 text-slate-400"
+   736→                            animate={
+   737→                              isDragging
+   738→                                ? {
+   739→                                    scale: 1.1,
+   740→                                    backgroundColor: 'rgba(16,185,129,0.15)',
+   741→                                    color: 'rgb(5,150,105)',
+   742→                                  }
+   743→                                : {}
+   744→                            }
+   745→                            transition={{ duration: 0.2 }}
+   746→                          >
+   747→                            <Upload className="size-7" />
+   748→                          </motion.div>
+   749→                          <div>
+   750→                            <p className="text-sm font-medium text-slate-700">
+   751→                              Drop CSV file here or{' '}
+   752→                              <span className="text-emerald-600 font-semibold">
+   753→                                click to browse
+   754→                              </span>
+   755→                            </p>
+   756→                            <p className="text-xs text-slate-400 mt-1">
+   757→                              Supports .csv files up to 10 MB
+   758→                            </p>
+   759→                          </div>
+   760→                        </>
+   761→                      )}
+   762→                    </motion.div>
+   763→
+   764→                    {/* Parsed confirmation */}
+   765→                    {parsedData && (
+   766→                      <motion.div
+   767→                        initial={{ opacity: 0, y: 8 }}
+   768→                        animate={{ opacity: 1, y: 0 }}
+   769→                        className="mt-4 flex items-center gap-2 text-xs text-slate-500"
+   770→                      >
+   771→                        <CheckCircle2 className="size-3.5 text-emerald-500" />
+   772→                        <span>
+   773→                          Parsed{' '}
+   774→                          <strong className="text-slate-700">
+   775→                            {parsedData.rows.length}
+   776→                          </strong>{' '}
+   777→                          rows with{' '}
+   778→                          <strong className="text-slate-700">
+   779→                            {parsedData.headers.length}
+   780→                          </strong>{' '}
+   781→                          columns
+   782→                        </span>
+   783→                      </motion.div>
+   784→                    )}
+   785→
+   786→                    <div className="mt-6 flex justify-end">
+   787→                      <Button
+   788→                        onClick={handleContinue}
+   789→                        disabled={!file || !parsedData}
+   790→                        className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20"
+   791→                      >
+   792→                        Continue
+   793→                        <ArrowRight className="size-4" />
+   794→                      </Button>
+   795→                    </div>
+   796→                  </CardContent>
+   797→                </Card>
+   798→              </div>
+   799→            )}
+   800→
+   801→            {/* =========================================================== */}
+   802→            {/* STEP 2 — Column Mapping                                      */}
+   803→            {/* =========================================================== */}
+   804→            {currentStep === 2 && parsedData && (
+   805→              <div className="space-y-6">
+   806→                {/* Preview Table */}
+   807→                <Card className="border-slate-200/80 shadow-sm overflow-hidden">
+   808→                  <CardHeader>
+   809→                    <div className="flex items-center justify-between">
+   810→                      <div>
+   811→                        <CardTitle className="text-lg text-slate-900">
+   812→                          Data Preview
+   813→                        </CardTitle>
+   814→                        <CardDescription>
+   815→                          First{' '}
+   816→                          {Math.min(5, parsedData.rows.length)} rows of your
+   817→                          file
+   818→                        </CardDescription>
+   819→                      </div>
+   820→                      <Badge
+   821→                        variant="outline"
+   822→                        className="text-xs font-normal text-slate-500"
+   823→                      >
+   824→                        {parsedData.rows.length} total rows
+   825→                      </Badge>
+   826→                    </div>
+   827→                  </CardHeader>
+   828→                  <CardContent>
+   829→                    <ScrollArea className="max-h-72">
+   830→                      <Table>
+   831→                        <TableHeader>
+   832→                          <TableRow className="border-slate-200/80 bg-slate-50/80 hover:bg-slate-50/80">
+   833→                            <TableHead className="text-slate-500 font-medium text-xs uppercase tracking-wider w-10">
+   834→                              #
+   835→                            </TableHead>
+   836→                            {parsedData.headers.map((h) => (
+   837→                              <TableHead
+   838→                                key={h}
+   839→                                className="text-slate-500 font-medium text-xs uppercase tracking-wider"
+   840→                              >
+   841→                                {h}
+   842→                              </TableHead>
+   843→                            ))}
+   844→                          </TableRow>
+   845→                        </TableHeader>
+   846→                        <TableBody>
+   847→                          {parsedData.rows.slice(0, 5).map((row, i) => (
+   848→                            <TableRow key={i} className="border-slate-100">
+   849→                              <TableCell className="text-slate-400 text-xs font-mono">
+   850→                                {i + 1}
+   851→                              </TableCell>
+   852→                              {parsedData.headers.map((h) => (
+   853→                                <TableCell
+   854→                                  key={h}
+   855→                                  className="text-slate-700 text-sm max-w-[200px] truncate"
+   856→                                >
+   857→                                  {row[h] || (
+   858→                                    <span className="text-slate-300 italic">
+   859→                                      empty
+   860→                                    </span>
+   861→                                  )}
+   862→                                </TableCell>
+   863→                              ))}
+   864→                            </TableRow>
+   865→                          ))}
+   866→                        </TableBody>
+   867→                      </Table>
+   868→                    </ScrollArea>
+   869→                  </CardContent>
+   870→                </Card>
+   871→
+   872→                {/* Column Mapping Interface */}
+   873→                <Card className="border-slate-200/80 shadow-sm overflow-hidden">
+   874→                  <CardHeader>
+   875→                    <CardTitle className="text-lg text-slate-900">
+   876→                      Column Mapping
+   877→                    </CardTitle>
+   878→                    <CardDescription>
+   879→                      Map your CSV columns to the corresponding fields
+   880→                    </CardDescription>
+   881→                  </CardHeader>
+   882→                  <CardContent>
+   883→                    <div className="space-y-3">
+   884→                      {parsedData.headers.map((header, idx) => {
+   885→                        const mappedTo = columnMapping[header] || '__skip__'
+   886→                        const option = MAPPING_OPTIONS.find(
+   887→                          (o) => o.value === mappedTo
+   888→                        )
+   889→                        return (
+   890→                          <motion.div
+   891→                            key={header}
+   892→                            initial={{ opacity: 0, x: -12 }}
+   893→                            animate={{ opacity: 1, x: 0 }}
+   894→                            transition={{ delay: idx * 0.04 }}
+   895→                            className="flex items-center gap-4 py-2"
+   896→                          >
+   897→                            <div className="flex-1 min-w-0">
+   898→                              <div className="flex items-center gap-2">
+   899→                                <span className="text-sm font-medium text-slate-800 truncate">
+   900→                                  {header}
+   901→                                </span>
+   902→                                {parsedData.rows.length > 0 && (
+   903→                                  <span className="text-xs text-slate-400 truncate max-w-[180px]">
+   904→                                    — &ldquo;
+   905→                                    {parsedData.rows[0]?.[header]?.slice(0, 30)}
+   906→                                    &rdquo;
+   907→                                  </span>
+   908→                                )}
+   909→                              </div>
+   910→                            </div>
+   911→                            <div className="flex items-center gap-2 shrink-0">
+   912→                              <span className="text-xs text-slate-400 hidden sm:inline">
+   913→                                Map to
+   914→                              </span>
+   915→                              <Select
+   916→                                value={mappedTo}
+   917→                                onValueChange={(val) =>
+   918→                                  updateMapping(header, val as MappingField)
+   919→                                }
+   920→                              >
+   921→                                <SelectTrigger className="w-[180px] h-8 text-sm">
+   922→                                  <SelectValue />
+   923→                                </SelectTrigger>
+   924→                                <SelectContent>
+   925→                                  {MAPPING_OPTIONS.map((opt) => (
+   926→                                    <SelectItem key={opt.value} value={opt.value}>
+   927→                                      <span className="flex items-center gap-2">
+   928→                                        {opt.recommended && (
+   929→                                          <span className="inline-flex items-center gap-0.5">
+   930→                                            <span className="size-1.5 rounded-full bg-emerald-400" />
+   931→                                          </span>
+   932→                                        )}
+   933→                                        {opt.label}
+   934→                                      </span>
+   935→                                    </SelectItem>
+   936→                                  ))}
+   937→                                </SelectContent>
+   938→                              </Select>
+   939→                              {option?.recommended &&
+   940→                                mappedTo !== '__skip__' && (
+   941→                                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] px-1.5 py-0">
+   942→                                    Recommended
+   943→                                  </Badge>
+   944→                                )}
+   945→                            </div>
+   946→                          </motion.div>
+   947→                        )
+   948→                      })}
+   949→                    </div>
+   950→
+   951→                    {/* Warning if no recommended mappings */}
+   952→                    {!hasCompanyMapping && !hasContactMapping && (
+   953→                      <motion.div
+   954→                        initial={{ opacity: 0, y: -4 }}
+   955→                        animate={{ opacity: 1, y: 0 }}
+   956→                        className="mt-4"
+   957→                      >
+   958→                        <Alert className="border-amber-200 bg-amber-50/80 text-amber-800">
+   959→                          <AlertTriangle className="size-4 text-amber-500" />
+   960→                          <AlertTitle>Missing recommended mappings</AlertTitle>
+   961→                          <AlertDescription>
+   962→                            For best results, map at least a Company Name and
+   963→                            Contact Name column.
+   964→                          </AlertDescription>
+   965→                        </Alert>
+   966→                      </motion.div>
+   967→                    )}
+   968→
+   969→                    <Separator className="my-6 bg-slate-200/60" />
+   970→
+   971→                    <div className="flex items-center justify-between">
+   972→                      <Button
+   973→                        variant="ghost"
+   974→                        onClick={handleBack}
+   975→                        className="gap-1.5 text-slate-500 hover:text-slate-700"
+   976→                      >
+   977→                        <ArrowLeft className="size-4" />
+   978→                        Back
+   979→                      </Button>
+   980→                      <Button
+   981→                        onClick={handleContinue}
+   982→                        className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20"
+   983→                      >
+   984→                        Continue
+   985→                        <ArrowRight className="size-4" />
+   986→                      </Button>
+   987→                    </div>
+   988→                  </CardContent>
+   989→                </Card>
+   990→              </div>
+   991→            )}
+   992→
+   993→            {/* =========================================================== */}
+   994→            {/* STEP 3 — Pre-Import Summary                                  */}
+   995→            {/* =========================================================== */}
+   996→            {currentStep === 3 && summary && (
+   997→              <div className="max-w-2xl mx-auto">
+   998→                <Card className="border-slate-200/80 shadow-sm overflow-hidden">
+   999→                  <CardHeader>
+  1000→                    <CardTitle className="text-lg text-slate-900">
+  1001→                      Import Summary
+  1002→                    </CardTitle>
+  1003→                    <CardDescription>
+  1004→                      Review the following details before importing
+  1005→                    </CardDescription>
+  1006→                  </CardHeader>
+  1007→                  <CardContent>
+  1008→                    <div className="space-y-4">
+  1009→                      {/* File info */}
+  1010→                      <div className="flex items-center gap-3 p-3.5 rounded-lg bg-slate-50 border border-slate-200/60">
+  1011→                        <div className="flex items-center justify-center size-10 rounded-xl bg-white border border-slate-200 shadow-sm">
+  1012→                          <FileText className="size-5 text-slate-500" />
+  1013→                        </div>
+  1014→                        <div className="flex-1 min-w-0">
+  1015→                          <p className="text-sm font-medium text-slate-800 truncate">
+  1016→                            {file?.name}
+  1017→                          </p>
+  1018→                          <p className="text-xs text-slate-400">
+  1019→                            {file ? formatFileSize(file.size) : ''}
+  1020→                          </p>
+  1021→                        </div>
+  1022→                      </div>
+  1023→
+  1024→                      {/* Stats Grid */}
+  1025→                      <div className="grid grid-cols-2 gap-3">
+  1026→                        <motion.div
+  1027→                          initial={{ opacity: 0, y: 8 }}
+  1028→                          animate={{ opacity: 1, y: 0 }}
+  1029→                          transition={{ delay: 0.05 }}
+  1030→                          className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/60"
+  1031→                        >
+  1032→                          <div className="flex items-center gap-2 mb-1">
+  1033→                            <FileText className="size-3.5 text-slate-400" />
+  1034→                            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+  1035→                              Total Rows
+  1036→                            </span>
+  1037→                          </div>
+  1038→                          <p className="text-2xl font-bold text-slate-900">
+  1039→                            {summary.totalRows}
+  1040→                          </p>
+  1041→                        </motion.div>
+  1042→
+  1043→                        <motion.div
+  1044→                          initial={{ opacity: 0, y: 8 }}
+  1045→                          animate={{ opacity: 1, y: 0 }}
+  1046→                          transition={{ delay: 0.1 }}
+  1047→                          className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200/60"
+  1048→                        >
+  1049→                          <div className="flex items-center gap-2 mb-1">
+  1050→                            <Building2 className="size-3.5 text-emerald-500" />
+  1051→                            <span className="text-xs font-medium text-emerald-700 uppercase tracking-wide">
+  1052→                              New Companies
+  1053→                            </span>
+  1054→                          </div>
+  1055→                          <p className="text-2xl font-bold text-emerald-700">
+  1056→                            {summary.uniqueCompanies}
+  1057→                          </p>
+  1058→                        </motion.div>
+  1059→
+  1060→                        <motion.div
+  1061→                          initial={{ opacity: 0, y: 8 }}
+  1062→                          animate={{ opacity: 1, y: 0 }}
+  1063→                          transition={{ delay: 0.15 }}
+  1064→                          className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/60"
+  1065→                        >
+  1066→                          <div className="flex items-center gap-2 mb-1">
+  1067→                            <Users className="size-3.5 text-slate-400" />
+  1068→                            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+  1069→                              Ready to Import
+  1070→                            </span>
+  1071→                          </div>
+  1072→                          <p className="text-2xl font-bold text-slate-900">
+  1073→                            {summary.validRows}
+  1074→                          </p>
+  1075→                        </motion.div>
+  1076→
+  1077→                        <motion.div
+  1078→                          initial={{ opacity: 0, y: 8 }}
+  1079→                          animate={{ opacity: 1, y: 0 }}
+  1080→                          transition={{ delay: 0.2 }}
+  1081→                          className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/60"
+  1082→                        >
+  1083→                          <div className="flex items-center gap-2 mb-1">
+  1084→                            <Copy className="size-3.5 text-slate-400" />
+  1085→                            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+  1086→                              Possible Duplicates
+  1087→                            </span>
+  1088→                          </div>
+  1089→                          <p
+  1090→                            className={cn(
+  1091→                              'text-2xl font-bold',
+  1092→                              summary.duplicates > 0
+  1093→                                ? 'text-amber-600'
+  1094→                                : 'text-slate-900'
+  1095→                            )}
+  1096→                          >
+  1097→                            {summary.duplicates}
+  1098→                          </p>
+  1099→                        </motion.div>
+  1100→                      </div>
+  1101→
+  1102→                      {/* Warnings */}
+  1103→                      {summary.duplicates > 0 && (
+  1104→                        <motion.div
+  1105→                          initial={{ opacity: 0, height: 0 }}
+  1106→                          animate={{ opacity: 1, height: 'auto' }}
+  1107→                          transition={{ delay: 0.25 }}
+  1108→                        >
+  1109→                          <Alert className="border-amber-200 bg-amber-50/80 text-amber-800">
+  1110→                            <AlertTriangle className="size-4 text-amber-500" />
+  1111→                            <AlertTitle>Duplicates detected</AlertTitle>
+  1112→                            <AlertDescription>
+  1113→                              {summary.duplicates} duplicate
+  1114→                              {summary.duplicates === 1 ? '' : 's'} found.
+  1115→                              Duplicates will be skipped during import.
+  1116→                            </AlertDescription>
+  1117→                          </Alert>
+  1118→                        </motion.div>
+  1119→                      )}
+  1120→
+  1121→                      {summary.invalidEmails > 0 && (
+  1122→                        <motion.div
+  1123→                          initial={{ opacity: 0, height: 0 }}
+  1124→                          animate={{ opacity: 1, height: 'auto' }}
+  1125→                          transition={{ delay: 0.3 }}
+  1126→                        >
+  1127→                          <Alert className="border-amber-200 bg-amber-50/80 text-amber-800">
+  1128→                            <MailWarning className="size-4 text-amber-500" />
+  1129→                            <AlertTitle>Invalid emails found</AlertTitle>
+  1130→                            <AlertDescription>
+  1131→                              {summary.invalidEmails} row
+  1132→                              {summary.invalidEmails === 1 ? '' : 's'} with
+  1133→                              invalid email format will be archived for review.
+  1134→                            </AlertDescription>
+  1135→                          </Alert>
+  1136→                        </motion.div>
+  1137→                      )}
+  1138→
+  1139→                      <Separator className="bg-slate-200/60" />
+  1140→
+  1141→                      {/* Active Mappings Summary */}
+  1142→                      <div>
+  1143→                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-3">
+  1144→                          Active Mappings
+  1145→                        </p>
+  1146→                        <div className="flex flex-wrap gap-1.5">
+  1147→                          {Object.entries(columnMapping)
+  1148→                            .filter(([, v]) => v !== '__skip__')
+  1149→                            .map(([col, field]) => (
+  1150→                              <Badge
+  1151→                                key={col}
+  1152→                                variant="outline"
+  1153→                                className="text-xs font-normal border-slate-200 text-slate-600 bg-white"
+  1154→                              >
+  1155→                                {col}
+  1156→                                <ArrowRight className="size-3 mx-0.5 text-slate-300" />
+  1157→                                <span className="font-medium text-slate-800">
+  1158→                                  {
+  1159→                                    MAPPING_OPTIONS.find(
+  1160→                                      (o) => o.value === field
+  1161→                                    )?.label
+  1162→                                  }
+  1163→                                </span>
+  1164→                              </Badge>
+  1165→                            ))}
+  1166→                          {Object.values(columnMapping).every(
+  1167→                            (v) => v === '__skip__'
+  1168→                          ) && (
+  1169→                            <span className="text-xs text-slate-400 italic">
+  1170→                              No columns mapped
+  1171→                            </span>
+  1172→                          )}
+  1173→                        </div>
+  1174→                      </div>
+  1175→
+  1176→                      <Separator className="bg-slate-200/60" />
+  1177→
+  1178→                      <div className="flex items-center justify-between">
+  1179→                        <Button
+  1180→                          variant="ghost"
+  1181→                          onClick={handleBack}
+  1182→                          className="gap-1.5 text-slate-500 hover:text-slate-700"
+  1183→                        >
+  1184→                          <ArrowLeft className="size-4" />
+  1185→                          Back
+  1186→                        </Button>
+  1187→                        <Button
+  1188→                          onClick={handleContinue}
+  1189→                          size="lg"
+  1190→                          className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20 px-6"
+  1191→                        >
+  1192→                          Import {summary.validRows} Row
+  1193→                          {summary.validRows !== 1 ? 's' : ''}
+  1194→                          <ArrowRight className="size-4" />
+  1195→                        </Button>
+  1196→                      </div>
+  1197→                    </div>
+  1198→                  </CardContent>
+  1199→                </Card>
+  1200→              </div>
+  1201→            )}
+  1202→
+  1203→            {/* =========================================================== */}
+  1204→            {/* STEP 4 — Import Progress & Result                            */}
+  1205→            {/* =========================================================== */}
+  1206→            {currentStep === 4 && (
+  1207→              <div className="max-w-2xl mx-auto">
+  1208→                <AnimatePresence mode="wait">
+  1209→                  {!importResult ? (
+  1210→                    <motion.div
+  1211→                      key="progress"
+  1212→                      initial={{ opacity: 0, scale: 0.98 }}
+  1213→                      animate={{ opacity: 1, scale: 1 }}
+  1214→                      exit={{ opacity: 0, scale: 0.98 }}
+  1215→                    >
+  1216→                      <Card className="border-slate-200/80 shadow-sm overflow-hidden">
+  1217→                        <CardContent className="py-16 px-8">
+  1218→                          <div className="flex flex-col items-center gap-6 text-center">
+  1219→                            <motion.div
+  1220→                              className="flex items-center justify-center size-16 rounded-2xl bg-emerald-50 text-emerald-600"
+  1221→                              animate={{ rotate: 360 }}
+  1222→                              transition={{
+  1223→                                duration: 2,
+  1224→                                repeat: Infinity,
+  1225→                                ease: 'linear',
+  1226→                              }}
+  1227→                            >
+  1228→                              <Loader2 className="size-8" />
+  1229→                            </motion.div>
+  1230→                            <div>
+  1231→                              <p className="text-lg font-semibold text-slate-900">
+  1232→                                Importing your data&hellip;
+  1233→                              </p>
+  1234→                              <p className="text-sm text-slate-500 mt-1">
+  1235→                                Creating companies and contacts
+  1236→                              </p>
+  1237→                            </div>
+  1238→                            <div className="w-full max-w-sm">
+  1239→                              <Progress
+  1240→                                value={importProgress}
+  1241→                                className="h-2.5 bg-slate-100 [&>div]:bg-emerald-500 [&>div]:rounded-full"
+  1242→                              />
+  1243→                              <p className="text-xs text-slate-400 mt-2">
+  1244→                                {importProgress}%
+  1245→                              </p>
+  1246→                            </div>
+  1247→                          </div>
+  1248→                        </CardContent>
+  1249→                      </Card>
+  1250→                    </motion.div>
+  1251→                  ) : (
+  1252→                    <motion.div
+  1253→                      key="result"
+  1254→                      initial={{ opacity: 0, scale: 0.95, y: 10 }}
+  1255→                      animate={{ opacity: 1, scale: 1, y: 0 }}
+  1256→                      transition={{
+  1257→                        type: 'spring',
+  1258→                        stiffness: 180,
+  1259→                        damping: 20,
+  1260→                      }}
+  1261→                    >
+  1262→                      <Card className="border-emerald-200/80 shadow-sm shadow-emerald-100/50 overflow-hidden">
+  1263→                        <CardContent className="py-10 px-8">
+  1264→                          <div className="flex flex-col items-center gap-6 text-center">
+  1265→                            {/* Success icon */}
+  1266→                            <motion.div
+  1267→                              className="flex items-center justify-center size-16 rounded-2xl bg-emerald-500 text-white"
+  1268→                              initial={{ scale: 0 }}
+  1269→                              animate={{ scale: 1 }}
+  1270→                              transition={{
+  1271→                                type: 'spring',
+  1272→                                stiffness: 200,
+  1273→                                damping: 12,
+  1274→                                delay: 0.1,
+  1275→                              }}
+  1276→                            >
+  1277→                              <CheckCircle2
+  1278→                                className="size-8"
+  1279→                                strokeWidth={2.5}
+  1280→                              />
+  1281→                            </motion.div>
+  1282→
+  1283→                            <div>
+  1284→                              <p className="text-xl font-bold text-slate-900">
+  1285→                                Import Complete
+  1286→                              </p>
+  1287→                              <p className="text-sm text-slate-500 mt-1">
+  1288→                                Your data has been processed successfully
+  1289→                              </p>
+  1290→                            </div>
+  1291→
+  1292→                            {/* Result stat cards */}
+  1293→                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full mt-2">
+  1294→                              {[
+  1295→                                {
+  1296→                                  label: 'Companies',
+  1297→                                  value: importResult.companiesCreated,
+  1298→                                  icon: Building2,
+  1299→                                  color: 'text-emerald-600',
+  1300→                                  bg: 'bg-emerald-50',
+  1301→                                },
+  1302→                                {
+  1303→                                  label: 'Contacts',
+  1304→                                  value: importResult.contactsAdded,
+  1305→                                  icon: Users,
+  1306→                                  color: 'text-slate-700',
+  1307→                                  bg: 'bg-slate-50',
+  1308→                                },
+  1309→                                {
+  1310→                                  label: 'Duplicates Skipped',
+  1311→                                  value: importResult.duplicatesSkipped,
+  1312→                                  icon: Copy,
+  1313→                                  color: 'text-amber-600',
+  1314→                                  bg: 'bg-amber-50',
+  1315→                                },
+  1316→                                {
+  1317→                                  label: 'Invalid Emails',
+  1318→                                  value: importResult.invalidEmailsArchived,
+  1319→                                  icon: MailWarning,
+  1320→                                  color:
+  1321→                                    importResult.invalidEmailsArchived > 0
+  1322→                                      ? 'text-red-500'
+  1323→                                      : 'text-slate-400',
+  1324→                                  bg:
+  1325→                                    importResult.invalidEmailsArchived > 0
+  1326→                                      ? 'bg-red-50'
+  1327→                                      : 'bg-slate-50',
+  1328→                                },
+  1329→                              ].map((stat, idx) => (
+  1330→                                <motion.div
+  1331→                                  key={stat.label}
+  1332→                                  initial={{ opacity: 0, y: 12 }}
+  1333→                                  animate={{ opacity: 1, y: 0 }}
+  1334→                                  transition={{ delay: 0.2 + idx * 0.08 }}
+  1335→                                  className={cn(
+  1336→                                    'p-4 rounded-xl border border-slate-200/60',
+  1337→                                    stat.bg
+  1338→                                  )}
+  1339→                                >
+  1340→                                  <stat.icon
+  1341→                                    className={cn(
+  1342→                                      'size-4 mx-auto mb-2',
+  1343→                                      stat.color
+  1344→                                    )}
+  1345→                                  />
+  1346→                                  <p
+  1347→                                    className={cn(
+  1348→                                      'text-2xl font-bold',
+  1349→                                      stat.color
+  1350→                                    )}
+  1351→                                  >
+  1352→                                    {stat.value}
+  1353→                                  </p>
+  1354→                                  <p className="text-xs text-slate-500 mt-0.5">
+  1355→                                    {stat.label}
+  1356→                                  </p>
+  1357→                                </motion.div>
+  1358→                              ))}
+  1359→                            </div>
+  1360→
+  1361→                            <Separator className="bg-slate-200/60 w-full" />
+  1362→
+  1363→                            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+  1364→                              <Button
+  1365→                                variant="outline"
+  1366→                                className="gap-2 border-slate-200 text-slate-600 hover:bg-slate-50 w-full sm:w-auto"
+  1367→                                onClick={handleReset}
+  1368→                              >
+  1369→                                <RefreshCw className="size-4" />
+  1370→                                Import Another
+  1371→                              </Button>
+  1372→                              <Button className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20 w-full sm:w-auto">
+  1373→                                Go to Companies
+  1374→                                <ExternalLink className="size-3.5" />
+  1375→                              </Button>
+  1376→                            </div>
+  1377→                          </div>
+  1378→                        </CardContent>
+  1379→                      </Card>
+  1380→                    </motion.div>
+  1381→                  )}
+  1382→                </AnimatePresence>
+  1383→              </div>
+  1384→            )}
+  1385→          </motion.div>
+  1386→        </AnimatePresence>
+  1387→
+  1388→        {/* ---- Import History ---- */}
+  1389→        {currentStep !== 4 && (
+  1390→          <motion.div
+  1391→            initial={{ opacity: 0, y: 20 }}
+  1392→            animate={{ opacity: 1, y: 0 }}
+  1393→            transition={{ delay: 0.2 }}
+  1394→            className="mt-16"
+  1395→          >
+  1396→            <Separator className="bg-slate-200/60 mb-8" />
+  1397→            <div>
+  1398→              <div className="flex items-center gap-2 mb-4">
+  1399→                <Clock className="size-4 text-slate-400" />
+  1400→                <h2 className="text-base font-semibold text-slate-800">
+  1401→                  Import History
+  1402→                </h2>
+  1403→              </div>
+  1404→              <Card className="border-slate-200/80 shadow-sm overflow-hidden">
+  1405→                <CardContent className="p-0">
+  1406→                  {historyData && historyData.length > 0 ? (
+  1407→                    <ScrollArea className="max-h-64">
+  1408→                      <Table>
+  1409→                        <TableHeader>
+  1410→                          <TableRow className="border-slate-200/80 bg-slate-50/80 hover:bg-slate-50/80">
+  1411→                            <TableHead className="text-slate-500 font-medium text-xs uppercase tracking-wider">
+  1412→                              File Name
+  1413→                            </TableHead>
+  1414→                            <TableHead className="text-slate-500 font-medium text-xs uppercase tracking-wider">
+  1415→                              Rows
+  1416→                            </TableHead>
+  1417→                            <TableHead className="text-slate-500 font-medium text-xs uppercase tracking-wider">
+  1418→                              Status
+  1419→                            </TableHead>
+  1420→                            <TableHead className="text-slate-500 font-medium text-xs uppercase tracking-wider text-right">
+  1421→                              Date
+  1422→                            </TableHead>
+  1423→                          </TableRow>
+  1424→                        </TableHeader>
+  1425→                        <TableBody>
+  1426→                          {historyData.map((item) => (
+  1427→                            <TableRow
+  1428→                              key={item.id}
+  1429→                              className="border-slate-100"
+  1430→                            >
+  1431→                              <TableCell className="text-slate-700 text-sm font-medium">
+  1432→                                <div className="flex items-center gap-2">
+  1433→                                  <FileSpreadsheet className="size-4 text-slate-400" />
+  1434→                                  {item.fileName}
+  1435→                                </div>
+  1436→                              </TableCell>
+  1437→                              <TableCell className="text-slate-600 text-sm">
+  1438→                                {item.rows.toLocaleString()}
+  1439→                              </TableCell>
+  1440→                              <TableCell>
+  1441→                                <Badge
+  1442→                                  className={cn(
+  1443→                                    'text-[11px] font-medium border-0',
+  1444→                                    item.status === 'completed' &&
+  1445→                                      'bg-emerald-50 text-emerald-700',
+  1446→                                    item.status === 'processing' &&
+  1447→                                      'bg-amber-50 text-amber-700',
+  1448→                                    item.status === 'failed' &&
+  1449→                                      'bg-red-50 text-red-600'
+  1450→                                  )}
+  1451→                                >
+  1452→                                  {item.status === 'completed' && (
+  1453→                                    <CheckCircle2 className="size-3 mr-1" />
+  1454→                                  )}
+  1455→                                  {item.status === 'processing' && (
+  1456→                                    <Loader2 className="size-3 mr-1 animate-spin" />
+  1457→                                  )}
+  1458→                                  {item.status === 'failed' && (
+  1459→                                    <XCircle className="size-3 mr-1" />
+  1460→                                  )}
+  1461→                                  {item.status.charAt(0).toUpperCase() +
+  1462→                                    item.status.slice(1)}
+  1463→                                </Badge>
+  1464→                              </TableCell>
+  1465→                              <TableCell className="text-slate-500 text-sm text-right">
+  1466→                                {item.date}
+  1467→                              </TableCell>
+  1468→                            </TableRow>
+  1469→                          ))}
+  1470→                        </TableBody>
+  1471→                      </Table>
+  1472→                    </ScrollArea>
+  1473→                  ) : (
+  1474→                    <div className="py-12 text-center">
+  1475→                      <div className="flex items-center justify-center size-10 rounded-xl bg-slate-100 text-slate-400 mx-auto mb-3">
+  1476→                        <FileText className="size-5" />
+  1477→                      </div>
+  1478→                      <p className="text-sm text-slate-500">
+  1479→                        No import history yet
+  1480→                      </p>
+  1481→                      <p className="text-xs text-slate-400 mt-0.5">
+  1482→                        Your completed imports will appear here
+  1483→                      </p>
+  1484→                    </div>
+  1485→                  )}
+  1486→                </CardContent>
+  1487→              </Card>
+  1488→            </div>
+  1489→          </motion.div>
+  1490→        )}
+  1491→      </main>
+  1492→    </div>
+  1493→  )
+  1494→}

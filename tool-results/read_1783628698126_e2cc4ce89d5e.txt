@@ -1,0 +1,1019 @@
+     1→'use client';
+     2→
+     3→import { useState, useCallback } from 'react';
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→import { motion, AnimatePresence } from 'framer-motion';
+     6→import {
+     7→  Plus,
+     8→  Search,
+     9→  Users,
+    10→  MoreHorizontal,
+    11→  ExternalLink,
+    12→  Archive,
+    13→  CheckCircle2,
+    14→  Mail,
+    15→  ChevronLeft,
+    16→  ChevronRight,
+    17→  Linkedin,
+    18→  MapPin,
+    19→  Phone,
+    20→  Building2,
+    21→  Clock,
+    22→  StickyNote,
+    23→  ShieldCheck,
+    24→} from 'lucide-react';
+    25→import { useAppStore } from '@/lib/store';
+    26→import type { Contact, Company } from '@/lib/types';
+    27→import { formatDistanceToNow, format } from 'date-fns';
+    28→
+    29→import { Button } from '@/components/ui/button';
+    30→import { Input } from '@/components/ui/input';
+    31→import { Badge } from '@/components/ui/badge';
+    32→import { Skeleton } from '@/components/ui/skeleton';
+    33→import { Separator } from '@/components/ui/separator';
+    34→import { Checkbox } from '@/components/ui/checkbox';
+    35→import { ScrollArea } from '@/components/ui/scroll-area';
+    36→import {
+    37→  Table,
+    38→  TableBody,
+    39→  TableCell,
+    40→  TableHead,
+    41→  TableHeader,
+    42→  TableRow,
+    43→} from '@/components/ui/table';
+    44→import {
+    45→  Select,
+    46→  SelectContent,
+    47→  SelectItem,
+    48→  SelectTrigger,
+    49→  SelectValue,
+    50→} from '@/components/ui/select';
+    51→import {
+    52→  Dialog,
+    53→  DialogContent,
+    54→  DialogDescription,
+    55→  DialogFooter,
+    56→  DialogHeader,
+    57→  DialogTitle,
+    58→} from '@/components/ui/dialog';
+    59→import {
+    60→  DropdownMenu,
+    61→  DropdownMenuContent,
+    62→  DropdownMenuItem,
+    63→  DropdownMenuSeparator,
+    64→  DropdownMenuTrigger,
+    65→} from '@/components/ui/dropdown-menu';
+    66→import {
+    67→  Sheet,
+    68→  SheetContent,
+    69→  SheetHeader,
+    70→  SheetTitle,
+    71→  SheetDescription,
+    72→} from '@/components/ui/sheet';
+    73→import { Label } from '@/components/ui/label';
+    74→import { Textarea } from '@/components/ui/textarea';
+    75→
+    76→// ─── Constants ────────────────────────────────────────────────────────────────
+    77→
+    78→const ROLE_BUCKETS = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'];
+    79→
+    80→const STATUS_OPTIONS = [
+    81→  { value: '', label: 'All Statuses' },
+    82→  { value: 'active', label: 'Active' },
+    83→  { value: 'inactive', label: 'Inactive' },
+    84→  { value: 'outreach_pending', label: 'Outreach Pending' },
+    85→  { value: 'contacted', label: 'Contacted' },
+    86→];
+    87→
+    88→const HEALTH_OPTIONS = [
+    89→  { value: '', label: 'All Health' },
+    90→  { value: 'valid', label: 'Valid' },
+    91→  { value: 'risky', label: 'Risky' },
+    92→  { value: 'invalid', label: 'Invalid' },
+    93→  { value: 'unknown', label: 'Unknown' },
+    94→];
+    95→
+    96→const PAGE_SIZE = 20;
+    97→
+    98→// ─── Helpers ──────────────────────────────────────────────────────────────────
+    99→
+   100→function getHealthBadge(emailHealth: string) {
+   101→  const map: Record<string, { className: string; label: string; dot?: string }> = {
+   102→    valid: {
+   103→      className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800',
+   104→      label: 'Valid',
+   105→      dot: 'bg-emerald-500',
+   106→    },
+   107→    risky: {
+   108→      className: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800',
+   109→      label: 'Risky',
+   110→      dot: 'bg-amber-500',
+   111→    },
+   112→    invalid: {
+   113→      className: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800',
+   114→      label: 'Invalid',
+   115→      dot: 'bg-red-500',
+   116→    },
+   117→    unknown: {
+   118→      className: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700',
+   119→      label: 'Unknown',
+   120→      dot: 'bg-gray-400',
+   121→    },
+   122→  };
+   123→  const config = map[emailHealth] || map.unknown;
+   124→  return (
+   125→    <span className="inline-flex items-center gap-1.5">
+   126→      <span className={`size-1.5 rounded-full ${config.dot}`} />
+   127→      <span className={`text-[11px] font-medium px-2 py-0 inline-flex items-center rounded-md border ${config.className}`}>
+   128→        {config.label}
+   129→      </span>
+   130→    </span>
+   131→  );
+   132→}
+   133→
+   134→function getStatusBadge(status: string) {
+   135→  const map: Record<string, { className: string; label: string }> = {
+   136→    active: {
+   137→      className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800',
+   138→      label: 'Active',
+   139→    },
+   140→    inactive: {
+   141→      className: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700',
+   142→      label: 'Inactive',
+   143→    },
+   144→    outreach_pending: {
+   145→      className: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800',
+   146→      label: 'Outreach Pending',
+   147→    },
+   148→    contacted: {
+   149→      className: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/50 dark:text-teal-400 dark:border-teal-800',
+   150→      label: 'Contacted',
+   151→    },
+   152→  };
+   153→  const config = map[status] || { className: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700', label: status };
+   154→  return (
+   155→    <Badge variant="outline" className={`text-[11px] font-medium px-2 py-0 ${config.className}`}>
+   156→      {config.label}
+   157→    </Badge>
+   158→  );
+   159→}
+   160→
+   161→function formatRelative(date: string) {
+   162→  return formatDistanceToNow(new Date(date), { addSuffix: true });
+   163→}
+   164→
+   165→// ─── Skeleton ─────────────────────────────────────────────────────────────────
+   166→
+   167→function TableSkeleton() {
+   168→  return (
+   169→    <div className="space-y-3 p-4">
+   170→      {Array.from({ length: 8 }).map((_, i) => (
+   171→        <div key={i} className="flex items-center gap-4">
+   172→          <Skeleton className="size-4" />
+   173→          <Skeleton className="h-4 w-[140px]" />
+   174→          <Skeleton className="h-4 w-[120px]" />
+   175→          <Skeleton className="h-4 w-[150px]" />
+   176→          <Skeleton className="h-4 w-[80px]" />
+   177→          <Skeleton className="h-4 w-[70px]" />
+   178→          <Skeleton className="h-4 w-[60px]" />
+   179→          <Skeleton className="h-4 w-[60px]" />
+   180→        </div>
+   181→      ))}
+   182→    </div>
+   183→  );
+   184→}
+   185→
+   186→// ─── Add Contact Dialog ───────────────────────────────────────────────────────
+   187→
+   188→function AddContactDialog({
+   189→  open,
+   190→  onOpenChange,
+   191→  companies,
+   192→  preselectedCompanyId,
+   193→}: {
+   194→  open: boolean;
+   195→  onOpenChange: (o: boolean) => void;
+   196→  companies: { id: string; name: string }[];
+   197→  preselectedCompanyId?: string | null;
+   198→}) {
+   199→  const queryClient = useQueryClient();
+   200→  const [form, setForm] = useState({
+   201→    name: '',
+   202→    email: '',
+   203→    jobTitle: '',
+   204→    roleBucket: '',
+   205→    linkedinUrl: '',
+   206→    phone: '',
+   207→    location: '',
+   208→    companyId: preselectedCompanyId || '',
+   209→  });
+   210→  const [submitting, setSubmitting] = useState(false);
+   211→
+   212→  const mutation = useMutation({
+   213→    mutationFn: async () => {
+   214→      const res = await fetch('/api/contacts', {
+   215→        method: 'POST',
+   216→        headers: { 'Content-Type': 'application/json' },
+   217→        body: JSON.stringify(form),
+   218→      });
+   219→      if (!res.ok) {
+   220→        const err = await res.json().catch(() => ({}));
+   221→        throw new Error(err.error || 'Failed to create contact');
+   222→      }
+   223→      return res.json();
+   224→    },
+   225→    onSuccess: () => {
+   226→      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+   227→      queryClient.invalidateQueries({ queryKey: ['companies'] });
+   228→      setForm({ name: '', email: '', jobTitle: '', roleBucket: '', linkedinUrl: '', phone: '', location: '', companyId: '' });
+   229→      onOpenChange(false);
+   230→    },
+   231→  });
+   232→
+   233→  const handleSubmit = (e: React.FormEvent) => {
+   234→    e.preventDefault();
+   235→    if (!form.name.trim() || !form.companyId) return;
+   236→    setSubmitting(true);
+   237→    mutation.mutate(undefined, { onSettled: () => setSubmitting(false) });
+   238→  };
+   239→
+   240→  return (
+   241→    <Dialog open={open} onOpenChange={onOpenChange}>
+   242→      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
+   243→        <DialogHeader>
+   244→          <DialogTitle className="text-lg font-semibold">Add Contact</DialogTitle>
+   245→          <DialogDescription>Add a new contact to your pipeline.</DialogDescription>
+   246→        </DialogHeader>
+   247→        <form onSubmit={handleSubmit} className="space-y-4">
+   248→          <div className="space-y-2">
+   249→            <Label htmlFor="c-name">Name *</Label>
+   250→            <Input id="c-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required placeholder="Jane Smith" />
+   251→          </div>
+   252→          <div className="grid grid-cols-2 gap-4">
+   253→            <div className="space-y-2">
+   254→              <Label htmlFor="c-email">Email</Label>
+   255→              <Input id="c-email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="jane@acme.com" />
+   256→            </div>
+   257→            <div className="space-y-2">
+   258→              <Label htmlFor="c-title">Job Title</Label>
+   259→              <Input id="c-title" value={form.jobTitle} onChange={(e) => setForm((f) => ({ ...f, jobTitle: e.target.value }))} placeholder="VP of Engineering" />
+   260→            </div>
+   261→          </div>
+   262→          <div className="grid grid-cols-2 gap-4">
+   263→            <div className="space-y-2">
+   264→              <Label>Role Bucket</Label>
+   265→              <Select value={form.roleBucket} onValueChange={(v) => setForm((f) => ({ ...f, roleBucket: v }))}>
+   266→                <SelectTrigger className="w-full" size="default"><SelectValue placeholder="Select..." /></SelectTrigger>
+   267→                <SelectContent>{ROLE_BUCKETS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+   268→              </Select>
+   269→            </div>
+   270→            <div className="space-y-2">
+   271→              <Label htmlFor="c-phone">Phone</Label>
+   272→              <Input id="c-phone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="+1 555-0123" />
+   273→            </div>
+   274→          </div>
+   275→          <div className="space-y-2">
+   276→            <Label>Company *</Label>
+   277→            <Select value={form.companyId} onValueChange={(v) => setForm((f) => ({ ...f, companyId: v }))}>
+   278→              <SelectTrigger className="w-full" size="default"><SelectValue placeholder="Select company..." /></SelectTrigger>
+   279→              <SelectContent>
+   280→                {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+   281→              </SelectContent>
+   282→            </Select>
+   283→          </div>
+   284→          <div className="space-y-2">
+   285→            <Label htmlFor="c-linkedin">LinkedIn URL</Label>
+   286→            <Input id="c-linkedin" value={form.linkedinUrl} onChange={(e) => setForm((f) => ({ ...f, linkedinUrl: e.target.value }))} placeholder="https://linkedin.com/in/janesmith" />
+   287→          </div>
+   288→          <div className="space-y-2">
+   289→            <Label htmlFor="c-location">Location</Label>
+   290→            <Input id="c-location" value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} placeholder="San Francisco, CA" />
+   291→          </div>
+   292→          <DialogFooter>
+   293→            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+   294→            <Button type="submit" disabled={!form.name.trim() || !form.companyId || submitting} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+   295→              {submitting ? 'Adding...' : 'Add Contact'}
+   296→            </Button>
+   297→          </DialogFooter>
+   298→        </form>
+   299→      </DialogContent>
+   300→    </Dialog>
+   301→  );
+   302→}
+   303→
+   304→// ─── Contact Detail Sheet ─────────────────────────────────────────────────────
+   305→
+   306→function ContactDetailSheet({
+   307→  contactId,
+   308→  open,
+   309→  onOpenChange,
+   310→}: {
+   311→  contactId: string | null;
+   312→  open: boolean;
+   313→  onOpenChange: (o: boolean) => void;
+   314→}) {
+   315→  const { setSelectedCompanyId, setActiveView } = useAppStore();
+   316→  const queryClient = useQueryClient();
+   317→
+   318→  const { data: contact, isLoading } = useQuery({
+   319→    queryKey: ['contact-detail', contactId],
+   320→    queryFn: async () => {
+   321→      const res = await fetch(`/api/contacts/${contactId}`);
+   322→      if (!res.ok) throw new Error('Failed');
+   323→      return res.json() as Promise<Contact>;
+   324→    },
+   325→    enabled: !!contactId && open,
+   326→  });
+   327→
+   328→  const archiveMutation = useMutation({
+   329→    mutationFn: async () => {
+   330→      await fetch(`/api/contacts/${contactId}`, { method: 'DELETE' });
+   331→    },
+   332→    onSuccess: () => {
+   333→      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+   334→      queryClient.invalidateQueries({ queryKey: ['companies'] });
+   335→      onOpenChange(false);
+   336→    },
+   337→  });
+   338→
+   339→  return (
+   340→    <Sheet open={open} onOpenChange={onOpenChange}>
+   341→      <SheetContent side="right" className="sm:max-w-lg w-full p-0 overflow-hidden">
+   342→        {isLoading ? (
+   343→          <div className="p-6 space-y-4 animate-pulse">
+   344→            <Skeleton className="h-7 w-48" />
+   345→            <Skeleton className="h-4 w-64" />
+   346→            <Separator />
+   347→            <div className="grid grid-cols-2 gap-4">
+   348→              {Array.from({ length: 6 }).map((_, i) => (
+   349→                <div key={i} className="space-y-1">
+   350→                  <Skeleton className="h-3 w-16" />
+   351→                  <Skeleton className="h-4 w-full" />
+   352→                </div>
+   353→              ))}
+   354→            </div>
+   355→          </div>
+   356→        ) : contact ? (
+   357→          <div className="flex flex-col h-full">
+   358→            <SheetHeader className="p-6 pb-4 border-b border-border/40">
+   359→              <div className="flex items-start justify-between">
+   360→                <div className="min-w-0">
+   361→                  <SheetTitle className="text-lg">{contact.name}</SheetTitle>
+   362→                  <SheetDescription className="mt-0.5">{contact.jobTitle || 'No title specified'}</SheetDescription>
+   363→                </div>
+   364→                {contact.company && (
+   365→                  <Button
+   366→                    variant="outline"
+   367→                    size="sm"
+   368→                    className="shrink-0 ml-4 h-7 text-xs"
+   369→                    onClick={() => {
+   370→                      setSelectedCompanyId(contact.companyId);
+   371→                      setActiveView('company-profile');
+   372→                      onOpenChange(false);
+   373→                    }}
+   374→                  >
+   375→                    <Building2 className="size-3 mr-1.5" />
+   376→                    {contact.company.name}
+   377→                  </Button>
+   378→                )}
+   379→              </div>
+   380→            </SheetHeader>
+   381→
+   382→            <ScrollArea className="flex-1 p-6 space-y-6">
+   383→              {/* Info Grid */}
+   384→              <motion.div
+   385→                initial={{ opacity: 0, y: 8 }}
+   386→                animate={{ opacity: 1, y: 0 }}
+   387→                transition={{ duration: 0.2 }}
+   388→                className="grid grid-cols-2 gap-x-6 gap-y-4"
+   389→              >
+   390→                <div>
+   391→                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 flex items-center gap-1">
+   392→                    <Mail className="size-3" /> Email
+   393→                  </p>
+   394→                  <div className="flex items-center gap-2">
+   395→                    {contact.email ? (
+   396→                      <a href={`mailto:${contact.email}`} className="text-sm text-teal-600 dark:text-teal-400 hover:underline truncate">
+   397→                        {contact.email}
+   398→                      </a>
+   399→                    ) : (
+   400→                      <span className="text-sm text-muted-foreground">—</span>
+   401→                    )}
+   402→                    {getHealthBadge(contact.emailHealth)}
+   403→                  </div>
+   404→                </div>
+   405→                <div>
+   406→                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 flex items-center gap-1">
+   407→                    <Phone className="size-3" /> Phone
+   408→                  </p>
+   409→                  <p className="text-sm text-foreground">{contact.phone || '—'}</p>
+   410→                </div>
+   411→                <div>
+   412→                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 flex items-center gap-1">
+   413→                    <ShieldCheck className="size-3" /> Role
+   414→                  </p>
+   415→                  <p className="text-sm text-foreground">{contact.roleBucket || '—'}</p>
+   416→                </div>
+   417→                <div>
+   418→                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 flex items-center gap-1">
+   419→                    <MapPin className="size-3" /> Location
+   420→                  </p>
+   421→                  <p className="text-sm text-foreground">{contact.location || '—'}</p>
+   422→                </div>
+   423→                <div>
+   424→                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Status</p>
+   425→                  {getStatusBadge(contact.status)}
+   426→                </div>
+   427→                <div>
+   428→                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Created</p>
+   429→                  <p className="text-sm text-foreground">
+   430→                    {contact.createdAt ? format(new Date(contact.createdAt), 'MMM d, yyyy') : '—'}
+   431→                  </p>
+   432→                </div>
+   433→              </motion.div>
+   434→
+   435→              {contact.linkedinUrl && (
+   436→                <a
+   437→                  href={contact.linkedinUrl}
+   438→                  target="_blank"
+   439→                  rel="noopener noreferrer"
+   440→                  className="inline-flex items-center gap-1.5 text-sm text-teal-600 dark:text-teal-400 hover:underline"
+   441→                >
+   442→                  <Linkedin className="size-3.5" /> LinkedIn Profile <ExternalLink className="size-3" />
+   443→                </a>
+   444→              )}
+   445→
+   446→              <Separator />
+   447→
+   448→              {/* Timeline */}
+   449→              {contact.timeline && contact.timeline.length > 0 && (
+   450→                <motion.div
+   451→                  initial={{ opacity: 0, y: 8 }}
+   452→                  animate={{ opacity: 1, y: 0 }}
+   453→                  transition={{ duration: 0.2, delay: 0.05 }}
+   454→                >
+   455→                  <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
+   456→                    <Clock className="size-3.5 text-muted-foreground" /> Timeline
+   457→                  </h3>
+   458→                  <div className="space-y-0">
+   459→                    {contact.timeline.slice(0, 10).map((entry, idx) => (
+   460→                      <motion.div
+   461→                        key={entry.id}
+   462→                        initial={{ opacity: 0, x: -6 }}
+   463→                        animate={{ opacity: 1, x: 0 }}
+   464→                        transition={{ delay: 0.05 + idx * 0.03 }}
+   465→                        className="flex gap-3 pb-4 last:pb-0"
+   466→                      >
+   467→                        <div className="flex flex-col items-center shrink-0">
+   468→                          <div className="size-2 rounded-full bg-emerald-500 mt-1.5" />
+   469→                          <div className="w-px flex-1 bg-border/50" />
+   470→                        </div>
+   471→                        <div>
+   472→                          <p className="text-sm text-foreground">{entry.details || entry.action.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}</p>
+   473→                          <p className="text-xs text-muted-foreground mt-0.5">{formatRelative(entry.createdAt)}</p>
+   474→                        </div>
+   475→                      </motion.div>
+   476→                    ))}
+   477→                  </div>
+   478→                </motion.div>
+   479→              )}
+   480→
+   481→              {/* Notes */}
+   482→              {contact.notes && contact.notes.length > 0 && (
+   483→                <motion.div
+   484→                  initial={{ opacity: 0, y: 8 }}
+   485→                  animate={{ opacity: 1, y: 0 }}
+   486→                  transition={{ duration: 0.2, delay: 0.1 }}
+   487→                >
+   488→                  <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
+   489→                    <StickyNote className="size-3.5 text-muted-foreground" /> Notes
+   490→                  </h3>
+   491→                  <div className="space-y-3">
+   492→                    {contact.notes.map((note) => (
+   493→                      <div key={note.id} className="rounded-lg border border-border/50 bg-muted/30 p-3">
+   494→                        <div className="flex items-center gap-2 mb-1">
+   495→                          {note.noteType && (
+   496→                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 capitalize">{note.noteType}</Badge>
+   497→                          )}
+   498→                          <span className="text-xs text-muted-foreground">{formatRelative(note.createdAt)}</span>
+   499→                        </div>
+   500→                        <p className="text-sm text-foreground leading-relaxed">{note.body}</p>
+   501→                      </div>
+   502→                    ))}
+   503→                  </div>
+   504→                </motion.div>
+   505→              )}
+   506→            </ScrollArea>
+   507→
+   508→            {/* Footer Actions */}
+   509→            <div className="shrink-0 border-t border-border/40 p-4 flex gap-2">
+   510→              <Button
+   511→                variant="outline"
+   512→                size="sm"
+   513→                className="flex-1 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/20"
+   514→                onClick={() => archiveMutation.mutate()}
+   515→              >
+   516→                <Archive className="size-3.5 mr-1.5" /> Archive
+   517→              </Button>
+   518→              {contact.email && (
+   519→                <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white" asChild>
+   520→                  <a href={`mailto:${contact.email}`}>
+   521→                    <Mail className="size-3.5 mr-1.5" /> Send Email
+   522→                  </a>
+   523→                </Button>
+   524→              )}
+   525→            </div>
+   526→          </div>
+   527→        ) : null}
+   528→      </SheetContent>
+   529→    </Sheet>
+   530→  );
+   531→}
+   532→
+   533→// ─── Main Component ───────────────────────────────────────────────────────────
+   534→
+   535→export default function ContactsScreen() {
+   536→  const queryClient = useQueryClient();
+   537→
+   538→  // Filters
+   539→  const [search, setSearch] = useState('');
+   540→  const [status, setStatus] = useState('');
+   541→  const [emailHealth, setEmailHealth] = useState('');
+   542→  const [roleBucket, setRoleBucket] = useState('');
+   543→  const [companyId, setCompanyId] = useState('');
+   544→  const [page, setPage] = useState(1);
+   545→  const [dialogOpen, setDialogOpen] = useState(false);
+   546→  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+   547→  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+   548→
+   549→  // Debounced search
+   550→  const [debouncedSearch, setDebouncedSearch] = useState('');
+   551→  const handleSearchChange = (val: string) => {
+   552→    setSearch(val);
+   553→    const timer = setTimeout(() => {
+   554→      setDebouncedSearch(val);
+   555→      setPage(1);
+   556→    }, 300);
+   557→    return () => clearTimeout(timer);
+   558→  };
+   559→
+   560→  const handleFilterChange = (filterType: string, val: string) => {
+   561→    if (filterType === 'status') setStatus(val === '__all' ? '' : val);
+   562→    else if (filterType === 'emailHealth') setEmailHealth(val === '__all' ? '' : val);
+   563→    else if (filterType === 'roleBucket') setRoleBucket(val === '__all' ? '' : val);
+   564→    else if (filterType === 'companyId') setCompanyId(val === '__all' ? '' : val);
+   565→    setPage(1);
+   566→  };
+   567→
+   568→  // Fetch contacts
+   569→  const { data, isLoading, isError } = useQuery({
+   570→    queryKey: ['contacts', debouncedSearch, status, emailHealth, roleBucket, companyId, page, PAGE_SIZE],
+   571→    queryFn: async () => {
+   572→      const params = new URLSearchParams();
+   573→      if (debouncedSearch) params.set('search', debouncedSearch);
+   574→      if (status) params.set('status', status);
+   575→      if (emailHealth) params.set('emailHealth', emailHealth);
+   576→      if (roleBucket) params.set('roleBucket', roleBucket);
+   577→      if (companyId) params.set('companyId', companyId);
+   578→      params.set('page', String(page));
+   579→      params.set('pageSize', String(PAGE_SIZE));
+   580→      const res = await fetch(`/api/contacts?${params.toString()}`);
+   581→      if (!res.ok) throw new Error('Failed to fetch');
+   582→      return res.json() as Promise<{
+   583→        contacts: (Contact & { company?: Pick<Company, 'id' | 'name'> })[];
+   584→        total: number;
+   585→        page: number;
+   586→        pageSize: number;
+   587→      }>;
+   588→    },
+   589→  });
+   590→
+   591→  // Fetch companies for the dialog dropdown
+   592→  const { data: companiesData } = useQuery({
+   593→    queryKey: ['companies-list'],
+   594→    queryFn: async () => {
+   595→      const res = await fetch('/api/companies?pageSize=200');
+   596→      if (!res.ok) throw new Error('Failed');
+   597→      const json = await res.json();
+   598→      return json.companies as { id: string; name: string }[];
+   599→    },
+   600→  });
+   601→
+   602→  // Fetch companies for filter dropdown
+   603→  const { data: filterCompanies } = useQuery({
+   604→    queryKey: ['companies-filter-list'],
+   605→    queryFn: async () => {
+   606→      const res = await fetch('/api/companies?pageSize=500');
+   607→      if (!res.ok) throw new Error('Failed');
+   608→      const json = await res.json();
+   609→      return json.companies as { id: string; name: string }[];
+   610→    },
+   611→  });
+   612→
+   613→  const contacts = data?.contacts || [];
+   614→  const total = data?.total || 0;
+   615→  const totalPages = Math.ceil(total / PAGE_SIZE);
+   616→  const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+   617→  const to = Math.min(page * PAGE_SIZE, total);
+   618→
+   619→  // Selection logic
+   620→  const allSelected = contacts.length > 0 && contacts.every((c) => selectedIds.has(c.id));
+   621→  const toggleAll = () => {
+   622→    if (allSelected) {
+   623→      setSelectedIds(new Set());
+   624→    } else {
+   625→      setSelectedIds(new Set(contacts.map((c) => c.id)));
+   626→    }
+   627→  };
+   628→  const toggleOne = (id: string) => {
+   629→    setSelectedIds((prev) => {
+   630→      const next = new Set(prev);
+   631→      if (next.has(id)) next.delete(id);
+   632→      else next.add(id);
+   633→      return next;
+   634→    });
+   635→  };
+   636→
+   637→  const handleBulkArchive = async () => {
+   638→    const promises = Array.from(selectedIds).map((id) =>
+   639→      fetch(`/api/contacts/${id}`, { method: 'DELETE' })
+   640→    );
+   641→    await Promise.all(promises);
+   642→    setSelectedIds(new Set());
+   643→    queryClient.invalidateQueries({ queryKey: ['contacts'] });
+   644→  };
+   645→
+   646→  const handleBulkHealthCheck = async () => {
+   647→    const promises = Array.from(selectedIds).map((id) =>
+   648→      fetch('/api/health-check', {
+   649→        method: 'POST',
+   650→        headers: { 'Content-Type': 'application/json' },
+   651→        body: JSON.stringify({ contactId: id }),
+   652→      })
+   653→    );
+   654→    await Promise.all(promises);
+   655→    setSelectedIds(new Set());
+   656→    queryClient.invalidateQueries({ queryKey: ['contacts'] });
+   657→  };
+   658→
+   659→  return (
+   660→    <div className="flex flex-col h-full">
+   661→      {/* Header */}
+   662→      <div className="flex flex-col gap-4 px-6 pt-6 pb-2">
+   663→        <div className="flex items-center justify-between">
+   664→          <div className="flex items-center gap-3">
+   665→            <div className="flex items-center justify-center size-9 rounded-lg bg-teal-50 dark:bg-teal-950/50">
+   666→              <Users className="size-5 text-teal-600 dark:text-teal-400" />
+   667→            </div>
+   668→            <div>
+   669→              <h1 className="text-xl font-semibold tracking-tight text-foreground">Contacts</h1>
+   670→              {!isLoading && (
+   671→                <p className="text-sm text-muted-foreground">
+   672→                  {total} {total === 1 ? 'contact' : 'contacts'} total
+   673→                </p>
+   674→              )}
+   675→            </div>
+   676→          </div>
+   677→          <Button
+   678→            onClick={() => setDialogOpen(true)}
+   679→            className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+   680→          >
+   681→            <Plus className="size-4 mr-1.5" />
+   682→            Add Contact
+   683→          </Button>
+   684→        </div>
+   685→
+   686→        {/* Filters */}
+   687→        <div className="flex flex-wrap items-center gap-3">
+   688→          <div className="relative flex-1 min-w-[200px] max-w-sm">
+   689→            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   690→            <Input
+   691→              placeholder="Search contacts..."
+   692→              value={search}
+   693→              onChange={(e) => handleSearchChange(e.target.value)}
+   694→              className="pl-9 h-9 bg-muted/50 border-muted-foreground/10 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/20"
+   695→            />
+   696→          </div>
+   697→          <Select value={status || '__all'} onValueChange={(v) => handleFilterChange('status', v)}>
+   698→            <SelectTrigger size="sm" className="w-[150px] bg-muted/50 border-muted-foreground/10">
+   699→              <SelectValue placeholder="All Statuses" />
+   700→            </SelectTrigger>
+   701→            <SelectContent>
+   702→              {STATUS_OPTIONS.map((opt) => (
+   703→                <SelectItem key={opt.value || '__all'} value={opt.value || '__all'}>{opt.label}</SelectItem>
+   704→              ))}
+   705→            </SelectContent>
+   706→          </Select>
+   707→          <Select value={emailHealth || '__all'} onValueChange={(v) => handleFilterChange('emailHealth', v)}>
+   708→            <SelectTrigger size="sm" className="w-[140px] bg-muted/50 border-muted-foreground/10">
+   709→              <SelectValue placeholder="All Health" />
+   710→            </SelectTrigger>
+   711→            <SelectContent>
+   712→              {HEALTH_OPTIONS.map((opt) => (
+   713→                <SelectItem key={opt.value || '__all'} value={opt.value || '__all'}>{opt.label}</SelectItem>
+   714→              ))}
+   715→            </SelectContent>
+   716→          </Select>
+   717→          <Select value={roleBucket || '__all'} onValueChange={(v) => handleFilterChange('roleBucket', v)}>
+   718→            <SelectTrigger size="sm" className="w-[140px] bg-muted/50 border-muted-foreground/10">
+   719→              <SelectValue placeholder="All Roles" />
+   720→            </SelectTrigger>
+   721→            <SelectContent>
+   722→              <SelectItem value="__all">All Roles</SelectItem>
+   723→              {ROLE_BUCKETS.map((r) => (
+   724→                <SelectItem key={r} value={r}>{r}</SelectItem>
+   725→              ))}
+   726→            </SelectContent>
+   727→          </Select>
+   728→          <Select value={companyId || '__all'} onValueChange={(v) => handleFilterChange('companyId', v)}>
+   729→            <SelectTrigger size="sm" className="w-[170px] bg-muted/50 border-muted-foreground/10">
+   730→              <SelectValue placeholder="All Companies" />
+   731→            </SelectTrigger>
+   732→            <SelectContent>
+   733→              <SelectItem value="__all">All Companies</SelectItem>
+   734→              {(filterCompanies || []).map((c) => (
+   735→                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+   736→              ))}
+   737→            </SelectContent>
+   738→          </Select>
+   739→        </div>
+   740→      </div>
+   741→
+   742→      {/* Bulk Action Bar */}
+   743→      <AnimatePresence>
+   744→        {selectedIds.size > 0 && (
+   745→          <motion.div
+   746→            initial={{ opacity: 0, height: 0 }}
+   747→            animate={{ opacity: 1, height: 'auto' }}
+   748→            exit={{ opacity: 0, height: 0 }}
+   749→            className="overflow-hidden"
+   750→          >
+   751→            <div className="mx-6 mt-2 px-4 py-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 flex items-center justify-between gap-4">
+   752→              <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+   753→                {selectedIds.size} {selectedIds.size === 1 ? 'contact' : 'contacts'} selected
+   754→              </span>
+   755→              <div className="flex items-center gap-2">
+   756→                <Button
+   757→                  variant="outline"
+   758→                  size="sm"
+   759→                  className="h-7 text-xs border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/50"
+   760→                  onClick={handleBulkHealthCheck}
+   761→                >
+   762→                  <ShieldCheck className="size-3 mr-1.5" /> Run Health Check
+   763→                </Button>
+   764→                <Button
+   765→                  variant="outline"
+   766→                  size="sm"
+   767→                  className="h-7 text-xs border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20"
+   768→                  onClick={handleBulkArchive}
+   769→                >
+   770→                  <Archive className="size-3 mr-1.5" /> Archive Selected
+   771→                </Button>
+   772→              </div>
+   773→            </div>
+   774→          </motion.div>
+   775→        )}
+   776→      </AnimatePresence>
+   777→
+   778→      {/* Table */}
+   779→      <div className="flex-1 overflow-hidden px-6 py-4">
+   780→        <div className="h-full flex flex-col rounded-xl border border-border/60 bg-card overflow-hidden">
+   781→          {isLoading ? (
+   782→            <TableSkeleton />
+   783→          ) : isError ? (
+   784→            <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+   785→              Failed to load contacts. Please try again.
+   786→            </div>
+   787→          ) : contacts.length === 0 ? (
+   788→            <div className="flex flex-col items-center justify-center h-64 gap-3 text-center px-4">
+   789→              <motion.div
+   790→                initial={{ opacity: 0, scale: 0.9 }}
+   791→                animate={{ opacity: 1, scale: 1 }}
+   792→                transition={{ duration: 0.3 }}
+   793→              >
+   794→                <div className="flex items-center justify-center size-16 rounded-2xl bg-muted/80 mb-2">
+   795→                  <Users className="size-8 text-muted-foreground/50" />
+   796→                </div>
+   797→              </motion.div>
+   798→              <div>
+   799→                <p className="text-sm font-medium text-foreground">No contacts found</p>
+   800→                <p className="text-sm text-muted-foreground mt-1">
+   801→                  Add a contact or adjust your filters.
+   802→                </p>
+   803→              </div>
+   804→              <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)} className="mt-1">
+   805→                <Plus className="size-3.5 mr-1.5" /> Add Contact
+   806→              </Button>
+   807→            </div>
+   808→          ) : (
+   809→            <div className="flex-1 overflow-auto">
+   810→              <Table>
+   811→                <TableHeader>
+   812→                  <TableRow className="hover:bg-transparent border-border/40 bg-muted/30">
+   813→                    <TableHead className="w-10 pl-4">
+   814→                      <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
+   815→                    </TableHead>
+   816→                    <TableHead className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/70">
+   817→                      Name
+   818→                    </TableHead>
+   819→                    <TableHead className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/70">
+   820→                      Company
+   821→                    </TableHead>
+   822→                    <TableHead className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/70">
+   823→                      Job Title
+   824→                    </TableHead>
+   825→                    <TableHead className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/70">
+   826→                      Email
+   827→                    </TableHead>
+   828→                    <TableHead className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/70">
+   829→                      Role
+   830→                    </TableHead>
+   831→                    <TableHead className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/70">
+   832→                      Status
+   833→                    </TableHead>
+   834→                    <TableHead className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/70">
+   835→                      Health
+   836→                    </TableHead>
+   837→                    <TableHead className="w-10 pr-4" />
+   838→                  </TableRow>
+   839→                </TableHeader>
+   840→                <TableBody>
+   841→                  <AnimatePresence mode="popLayout">
+   842→                    {contacts.map((contact, idx) => (
+   843→                      <motion.tr
+   844→                        key={contact.id}
+   845→                        initial={{ opacity: 0, y: 4 }}
+   846→                        animate={{ opacity: 1, y: 0 }}
+   847→                        exit={{ opacity: 0, y: -4 }}
+   848→                        transition={{ duration: 0.15, delay: idx * 0.02 }}
+   849→                        className={`group border-b border-border/30 last:border-0 transition-colors cursor-pointer ${
+   850→                          selectedIds.has(contact.id) ? 'bg-emerald-50/50 dark:bg-emerald-950/10' : 'hover:bg-muted/40'
+   851→                        }`}
+   852→                        onClick={() => setSelectedContactId(contact.id)}
+   853→                      >
+   854→                        <TableCell className="pl-4 py-3" onClick={(e) => e.stopPropagation()}>
+   855→                          <Checkbox
+   856→                            checked={selectedIds.has(contact.id)}
+   857→                            onCheckedChange={() => toggleOne(contact.id)}
+   858→                          />
+   859→                        </TableCell>
+   860→                        <TableCell className="py-3">
+   861→                          <div className="flex items-center gap-2.5">
+   862→                            <div className="size-7 rounded-full bg-gradient-to-br from-teal-50 to-emerald-50 dark:from-teal-950/50 dark:to-emerald-950/50 flex items-center justify-center border border-border/50 shrink-0">
+   863→                              <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300">{contact.name.slice(0, 2).toUpperCase()}</span>
+   864→                            </div>
+   865→                            <span className="text-sm font-medium text-foreground truncate max-w-[160px]">{contact.name}</span>
+   866→                          </div>
+   867→                        </TableCell>
+   868→                        <TableCell className="py-3">
+   869→                          {contact.company ? (
+   870→                            <span className="text-sm text-muted-foreground truncate max-w-[140px] block">{contact.company.name}</span>
+   871→                          ) : (
+   872→                            <span className="text-xs text-muted-foreground/50">—</span>
+   873→                          )}
+   874→                        </TableCell>
+   875→                        <TableCell className="py-3">
+   876→                          <span className="text-sm text-muted-foreground truncate max-w-[160px] block">{contact.jobTitle || '—'}</span>
+   877→                        </TableCell>
+   878→                        <TableCell className="py-3">
+   879→                          {contact.email ? (
+   880→                            <div className="flex items-center gap-1.5">
+   881→                              <Mail className="size-3 text-muted-foreground shrink-0" />
+   882→                              <span className="text-sm text-muted-foreground truncate max-w-[180px]">{contact.email}</span>
+   883→                            </div>
+   884→                          ) : (
+   885→                            <span className="text-xs text-muted-foreground/50">—</span>
+   886→                          )}
+   887→                        </TableCell>
+   888→                        <TableCell className="py-3">
+   889→                          {contact.roleBucket ? (
+   890→                            <Badge variant="secondary" className="text-[11px] font-medium bg-muted/80">{contact.roleBucket}</Badge>
+   891→                          ) : (
+   892→                            <span className="text-xs text-muted-foreground/50">—</span>
+   893→                          )}
+   894→                        </TableCell>
+   895→                        <TableCell className="py-3">{getStatusBadge(contact.status)}</TableCell>
+   896→                        <TableCell className="py-3">{getHealthBadge(contact.emailHealth)}</TableCell>
+   897→                        <TableCell className="py-3 pr-4" onClick={(e) => e.stopPropagation()}>
+   898→                          <DropdownMenu>
+   899→                            <DropdownMenuTrigger asChild>
+   900→                              <Button
+   901→                                variant="ghost"
+   902→                                size="sm"
+   903→                                className="size-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+   904→                              >
+   905→                                <MoreHorizontal className="size-4" />
+   906→                                <span className="sr-only">Actions</span>
+   907→                              </Button>
+   908→                            </DropdownMenuTrigger>
+   909→                            <DropdownMenuContent align="end" className="w-44">
+   910→                              <DropdownMenuItem onClick={() => setSelectedContactId(contact.id)}>
+   911→                                <CheckCircle2 className="size-4 mr-2" /> View Details
+   912→                              </DropdownMenuItem>
+   913→                              {contact.email && (
+   914→                                <DropdownMenuItem asChild>
+   915→                                  <a href={`mailto:${contact.email}`}>
+   916→                                    <Mail className="size-4 mr-2" /> Send Email
+   917→                                  </a>
+   918→                                </DropdownMenuItem>
+   919→                              )}
+   920→                              {contact.linkedinUrl && (
+   921→                                <DropdownMenuItem asChild>
+   922→                                  <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer">
+   923→                                    <Linkedin className="size-4 mr-2" /> LinkedIn
+   924→                                  </a>
+   925→                                </DropdownMenuItem>
+   926→                              )}
+   927→                              <DropdownMenuSeparator />
+   928→                              <DropdownMenuItem
+   929→                                className="text-red-600 dark:text-red-400"
+   930→                                onClick={async () => {
+   931→                                  await fetch(`/api/contacts/${contact.id}`, { method: 'DELETE' });
+   932→                                  queryClient.invalidateQueries({ queryKey: ['contacts'] });
+   933→                                }}
+   934→                              >
+   935→                                <Archive className="size-4 mr-2" /> Archive
+   936→                              </DropdownMenuItem>
+   937→                            </DropdownMenuContent>
+   938→                          </DropdownMenu>
+   939→                        </TableCell>
+   940→                      </motion.tr>
+   941→                    ))}
+   942→                  </AnimatePresence>
+   943→                </TableBody>
+   944→              </Table>
+   945→            </div>
+   946→          )}
+   947→
+   948→          {/* Pagination */}
+   949→          {!isLoading && !isError && contacts.length > 0 && (
+   950→            <div className="flex items-center justify-between px-4 py-3 border-t border-border/40 bg-muted/20">
+   951→              <p className="text-sm text-muted-foreground">
+   952→                Showing <span className="font-medium text-foreground">{from}</span>–
+   953→                <span className="font-medium text-foreground">{to}</span> of{' '}
+   954→                <span className="font-medium text-foreground">{total}</span>
+   955→              </p>
+   956→              <div className="flex items-center gap-1">
+   957→                <Button
+   958→                  variant="outline"
+   959→                  size="sm"
+   960→                  disabled={page <= 1}
+   961→                  onClick={() => setPage((p) => p - 1)}
+   962→                  className="h-8"
+   963→                >
+   964→                  <ChevronLeft className="size-4" />
+   965→                  <span className="sr-only sm:not-sr-only ml-1">Previous</span>
+   966→                </Button>
+   967→                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+   968→                  let pageNum: number;
+   969→                  if (totalPages <= 5) {
+   970→                    pageNum = i + 1;
+   971→                  } else if (page <= 3) {
+   972→                    pageNum = i + 1;
+   973→                  } else if (page >= totalPages - 2) {
+   974→                    pageNum = totalPages - 4 + i;
+   975→                  } else {
+   976→                    pageNum = page - 2 + i;
+   977→                  }
+   978→                  return (
+   979→                    <Button
+   980→                      key={pageNum}
+   981→                      variant={page === pageNum ? 'default' : 'outline'}
+   982→                      size="sm"
+   983→                      className="h-8 w-8 p-0"
+   984→                      onClick={() => setPage(pageNum)}
+   985→                    >
+   986→                      {pageNum}
+   987→                    </Button>
+   988→                  );
+   989→                })}
+   990→                <Button
+   991→                  variant="outline"
+   992→                  size="sm"
+   993→                  disabled={page >= totalPages}
+   994→                  onClick={() => setPage((p) => p + 1)}
+   995→                  className="h-8"
+   996→                >
+   997→                  <span className="sr-only sm:not-sr-only mr-1">Next</span>
+   998→                  <ChevronRight className="size-4" />
+   999→                </Button>
+  1000→              </div>
+  1001→            </div>
+  1002→          )}
+  1003→        </div>
+  1004→      </div>
+  1005→
+  1006→      {/* Dialogs */}
+  1007→      <AddContactDialog
+  1008→        open={dialogOpen}
+  1009→        onOpenChange={setDialogOpen}
+  1010→        companies={companiesData || []}
+  1011→      />
+  1012→      <ContactDetailSheet
+  1013→        contactId={selectedContactId}
+  1014→        open={!!selectedContactId}
+  1015→        onOpenChange={(open) => { if (!open) setSelectedContactId(null); }}
+  1016→      />
+  1017→    </div>
+  1018→  );
+  1019→}

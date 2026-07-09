@@ -1,0 +1,1221 @@
+     1→'use client';
+     2→
+     3→import { useState, useMemo } from 'react';
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→import { motion, AnimatePresence } from 'framer-motion';
+     6→import {
+     7→  ArrowLeft,
+     8→  Building2,
+     9→  Globe,
+    10→  Linkedin,
+    11→  MapPin,
+    12→  Users,
+    13→  Calendar,
+    14→  ExternalLink,
+    15→  Edit3,
+    16→  Archive,
+    17→  MoreHorizontal,
+    18→  Plus,
+    19→  FileText,
+    20→  Clock,
+    21→  Target,
+    22→  MessageSquare,
+    23→  Sparkles,
+    24→  ChevronRight,
+    25→  Stethoscope,
+    26→  Lightbulb,
+    27→  AlertTriangle,
+    28→  Handshake,
+    29→  UserCheck,
+    30→  ArrowRightLeft,
+    31→  Zap,
+    32→  StickyNote,
+    33→} from 'lucide-react';
+    34→import { useAppStore } from '@/lib/store';
+    35→import type { Company, Contact, Opportunity, CompanyNote, CompanyResearchCard, TimelineEntry } from '@/lib/types';
+    36→import { formatDistanceToNow, format } from 'date-fns';
+    37→
+    38→import { Button } from '@/components/ui/button';
+    39→import { Input } from '@/components/ui/input';
+    40→import { Badge } from '@/components/ui/badge';
+    41→import { Skeleton } from '@/components/ui/skeleton';
+    42→import { Separator } from '@/components/ui/separator';
+    43→import { Textarea } from '@/components/ui/textarea';
+    44→import { ScrollArea } from '@/components/ui/scroll-area';
+    45→import {
+    46→  Table,
+    47→  TableBody,
+    48→  TableCell,
+    49→  TableHead,
+    50→  TableHeader,
+    51→  TableRow,
+    52→} from '@/components/ui/table';
+    53→import {
+    54→  Select,
+    55→  SelectContent,
+    56→  SelectItem,
+    57→  SelectTrigger,
+    58→  SelectValue,
+    59→} from '@/components/ui/select';
+    60→import {
+    61→  Tabs,
+    62→  TabsContent,
+    63→  TabsList,
+    64→  TabsTrigger,
+    65→} from '@/components/ui/tabs';
+    66→import {
+    67→  Dialog,
+    68→  DialogContent,
+    69→  DialogDescription,
+    70→  DialogFooter,
+    71→  DialogHeader,
+    72→  DialogTitle,
+    73→} from '@/components/ui/dialog';
+    74→import {
+    75→  DropdownMenu,
+    76→  DropdownMenuContent,
+    77→  DropdownMenuItem,
+    78→  DropdownMenuTrigger,
+    79→} from '@/components/ui/dropdown-menu';
+    80→import {
+    81→  Sheet,
+    82→  SheetContent,
+    83→  SheetHeader,
+    84→  SheetTitle,
+    85→  SheetDescription,
+    86→} from '@/components/ui/sheet';
+    87→import { Label } from '@/components/ui/label';
+    88→
+    89→// ─── Helpers ──────────────────────────────────────────────────────────────────
+    90→
+    91→const ROLE_BUCKETS = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'];
+    92→
+    93→const OPP_STATUS_MAP: Record<string, { className: string; label: string }> = {
+    94→  researching: {
+    95→    className: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800',
+    96→    label: 'Researching',
+    97→  },
+    98→  qualified: {
+    99→    className: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/50 dark:text-sky-400 dark:border-sky-800',
+   100→    label: 'Qualified',
+   101→  },
+   102→  proposal: {
+   103→    className: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/50 dark:text-violet-400 dark:border-violet-800',
+   104→    label: 'Proposal',
+   105→  },
+   106→  won: {
+   107→    className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800',
+   108→    label: 'Won',
+   109→  },
+   110→  lost: {
+   111→    className: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800',
+   112→    label: 'Lost',
+   113→  },
+   114→};
+   115→
+   116→function getScoreColor(score: number | null) {
+   117→  if (score === null) return { text: 'text-gray-400', stroke: 'stroke-gray-300', bg: 'bg-gray-100' };
+   118→  if (score >= 80) return { text: 'text-emerald-600 dark:text-emerald-400', stroke: 'stroke-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/30' };
+   119→  if (score >= 50) return { text: 'text-amber-600 dark:text-amber-400', stroke: 'stroke-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/30' };
+   120→  return { text: 'text-gray-500', stroke: 'stroke-gray-400', bg: 'bg-gray-50 dark:bg-gray-900/30' };
+   121→}
+   122→
+   123→function getFreshnessInfo(date: string | null) {
+   124→  if (!date) return { dot: 'bg-gray-300 dark:bg-gray-600', label: 'Unknown', color: 'text-gray-400' };
+   125→  const days = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24));
+   126→  if (days <= 30) return { dot: 'bg-emerald-500', label: 'Fresh', color: 'text-emerald-600 dark:text-emerald-400' };
+   127→  if (days <= 90) return { dot: 'bg-amber-500', label: 'Stale', color: 'text-amber-600 dark:text-amber-400' };
+   128→  return { dot: 'bg-red-500', label: 'Outdated', color: 'text-red-600 dark:text-red-400' };
+   129→}
+   130→
+   131→function formatRelative(date: string) {
+   132→  return formatDistanceToNow(new Date(date), { addSuffix: true });
+   133→}
+   134→
+   135→function getHealthBadge(emailHealth: string) {
+   136→  const map: Record<string, { className: string; label: string }> = {
+   137→    valid: { className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800', label: 'Valid' },
+   138→    risky: { className: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800', label: 'Risky' },
+   139→    invalid: { className: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800', label: 'Invalid' },
+   140→    unknown: { className: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700', label: 'Unknown' },
+   141→  };
+   142→  const config = map[emailHealth] || map.unknown;
+   143→  return <Badge variant="outline" className={`text-[11px] font-medium px-2 py-0 ${config.className}`}>{config.label}</Badge>;
+   144→}
+   145→
+   146→// ─── Score Ring ───────────────────────────────────────────────────────────────
+   147→
+   148→function ScoreRing({ score }: { score: number | null }) {
+   149→  const radius = 40;
+   150→  const circumference = 2 * Math.PI * radius;
+   151→  const pct = score !== null ? score / 100 : 0;
+   152→  const offset = circumference - pct * circumference;
+   153→  const colors = getScoreColor(score);
+   154→
+   155→  return (
+   156→    <div className={`relative flex items-center justify-center size-24 rounded-full ${colors.bg}`}>
+   157→      <svg className="size-24 -rotate-90" viewBox="0 0 100 100">
+   158→        <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="6" className="stroke-border/40" />
+   159→        <motion.circle
+   160→          cx="50" cy="50" r={radius} fill="none" strokeWidth="6"
+   161→          strokeLinecap="round" className={colors.stroke}
+   162→          strokeDasharray={circumference} strokeDashoffset={circumference}
+   163→          animate={{ strokeDashoffset: offset }}
+   164→          transition={{ duration: 1, ease: 'easeOut' }}
+   165→        />
+   166→      </svg>
+   167→      <div className="absolute inset-0 flex flex-col items-center justify-center">
+   168→        <span className={`text-xl font-bold tabular-nums ${colors.text}`}>
+   169→          {score !== null ? score : '—'}
+   170→        </span>
+   171→        <span className="text-[10px] text-muted-foreground font-medium -mt-0.5">INTEL</span>
+   172→      </div>
+   173→    </div>
+   174→  );
+   175→}
+   176→
+   177→// ─── Full Page Skeleton ───────────────────────────────────────────────────────
+   178→
+   179→function ProfileSkeleton() {
+   180→  return (
+   181→    <div className="flex flex-col h-full p-6 gap-6 animate-pulse">
+   182→      <div className="flex items-center gap-4">
+   183→        <Skeleton className="size-8" />
+   184→        <Skeleton className="h-8 w-64" />
+   185→        <Skeleton className="size-24 rounded-full ml-auto" />
+   186→      </div>
+   187→      <Skeleton className="h-10 w-96" />
+   188→      <div className="grid grid-cols-2 gap-6">
+   189→        <Skeleton className="h-64 rounded-xl" />
+   190→        <Skeleton className="h-64 rounded-xl" />
+   191→      </div>
+   192→    </div>
+   193→  );
+   194→}
+   195→
+   196→// ─── Research Field Block ─────────────────────────────────────────────────────
+   197→
+   198→function ResearchField({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string | null }) {
+   199→  if (!value) return null;
+   200→  return (
+   201→    <div className="py-3">
+   202→      <div className="flex items-center gap-2 mb-1.5">
+   203→        <Icon className="size-3.5 text-muted-foreground" />
+   204→        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+   205→      </div>
+   206→      <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{value}</p>
+   207→    </div>
+   208→  );
+   209→}
+   210→
+   211→// ─── Research Dialog ──────────────────────────────────────────────────────────
+   212→
+   213→function ResearchDialog({
+   214→  open,
+   215→  onOpenChange,
+   216→  companyId,
+   217→  existing,
+   218→}: {
+   219→  open: boolean;
+   220→  onOpenChange: (o: boolean) => void;
+   221→  companyId: string;
+   222→  existing: CompanyResearchCard | null;
+   223→}) {
+   224→  const queryClient = useQueryClient();
+   225→  const [form, setForm] = useState({
+   226→    businessOverview: existing?.businessOverview || '',
+   227→    currentTechLandscape: existing?.currentTechLandscape || '',
+   228→    potentialChallenges: existing?.potentialChallenges || '',
+   229→    possibleOpportunities: existing?.possibleOpportunities || '',
+   230→    relevantServices: existing?.relevantServices || '',
+   231→    keyDecisionMakers: existing?.keyDecisionMakers || '',
+   232→    lastInteraction: existing?.lastInteraction || '',
+   233→    nextAction: existing?.nextAction || '',
+   234→  });
+   235→  const [submitting, setSubmitting] = useState(false);
+   236→
+   237→  const fields = [
+   238→    { key: 'businessOverview' as const, label: 'Business Overview', icon: FileText, rows: 3 },
+   239→    { key: 'currentTechLandscape' as const, label: 'Current Technology Landscape', icon: Stethoscope, rows: 3 },
+   240→    { key: 'potentialChallenges' as const, label: 'Potential Challenges', icon: AlertTriangle, rows: 2 },
+   241→    { key: 'possibleOpportunities' as const, label: 'Possible Opportunities', icon: Lightbulb, rows: 3 },
+   242→    { key: 'relevantServices' as const, label: 'Relevant Services', icon: Handshake, rows: 3 },
+   243→    { key: 'keyDecisionMakers' as const, label: 'Key Decision Makers', icon: UserCheck, rows: 2 },
+   244→    { key: 'lastInteraction' as const, label: 'Last Interaction', icon: ArrowRightLeft, rows: 2 },
+   245→    { key: 'nextAction' as const, label: 'Next Action', icon: Zap, rows: 2 },
+   246→  ];
+   247→
+   248→  const mutation = useMutation({
+   249→    mutationFn: async () => {
+   250→      const res = await fetch('/api/research', {
+   251→        method: 'POST',
+   252→        headers: { 'Content-Type': 'application/json' },
+   253→        body: JSON.stringify({ companyId, ...form }),
+   254→      });
+   255→      if (!res.ok) throw new Error('Failed to save research');
+   256→      return res.json();
+   257→    },
+   258→    onSuccess: () => {
+   259→      queryClient.invalidateQueries({ queryKey: ['company', companyId] });
+   260→      onOpenChange(false);
+   261→    },
+   262→  });
+   263→
+   264→  return (
+   265→    <Dialog open={open} onOpenChange={onOpenChange}>
+   266→      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+   267→        <DialogHeader>
+   268→          <DialogTitle className="text-lg font-semibold flex items-center gap-2">
+   269→            <Sparkles className="size-5 text-emerald-500" />
+   270→            {existing ? 'Edit Research' : 'Start Research'}
+   271→          </DialogTitle>
+   272→          <DialogDescription>
+   273→            {existing ? 'Update the research card for this company.' : 'Fill in intelligence about this company.'}
+   274→          </DialogDescription>
+   275→        </DialogHeader>
+   276→        <ScrollArea className="max-h-[60vh] pr-2">
+   277→          <div className="space-y-4 py-2">
+   278→            {fields.map(({ key, label, icon: Icon, rows }) => (
+   279→              <div key={key} className="space-y-1.5">
+   280→                <Label className="text-sm font-medium flex items-center gap-1.5">
+   281→                  <Icon className="size-3.5 text-muted-foreground" />
+   282→                  {label}
+   283→                </Label>
+   284→                <Textarea
+   285→                  value={form[key]}
+   286→                  onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+   287→                  rows={rows}
+   288→                  placeholder={`Enter ${label.toLowerCase()}...`}
+   289→                  className="resize-none"
+   290→                />
+   291→              </div>
+   292→            ))}
+   293→          </div>
+   294→        </ScrollArea>
+   295→        <DialogFooter>
+   296→          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+   297→          <Button
+   298→            onClick={() => { setSubmitting(true); mutation.mutate(undefined, { onSettled: () => setSubmitting(false) }); }}
+   299→            disabled={submitting}
+   300→            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+   301→          >
+   302→            {submitting ? 'Saving...' : 'Save Research'}
+   303→          </Button>
+   304→        </DialogFooter>
+   305→      </DialogContent>
+   306→    </Dialog>
+   307→  );
+   308→}
+   309→
+   310→// ─── Add Contact Dialog (Company-scoped) ──────────────────────────────────────
+   311→
+   312→function AddContactDialog({
+   313→  open,
+   314→  onOpenChange,
+   315→  companyId,
+   316→}: {
+   317→  open: boolean;
+   318→  onOpenChange: (o: boolean) => void;
+   319→  companyId: string;
+   320→}) {
+   321→  const queryClient = useQueryClient();
+   322→  const [form, setForm] = useState({
+   323→    name: '',
+   324→    email: '',
+   325→    jobTitle: '',
+   326→    roleBucket: '',
+   327→    linkedinUrl: '',
+   328→    phone: '',
+   329→    location: '',
+   330→  });
+   331→  const [submitting, setSubmitting] = useState(false);
+   332→
+   333→  const mutation = useMutation({
+   334→    mutationFn: async () => {
+   335→      const res = await fetch('/api/contacts', {
+   336→        method: 'POST',
+   337→        headers: { 'Content-Type': 'application/json' },
+   338→        body: JSON.stringify({ ...form, companyId }),
+   339→      });
+   340→      if (!res.ok) throw new Error('Failed to create contact');
+   341→      return res.json();
+   342→    },
+   343→    onSuccess: () => {
+   344→      queryClient.invalidateQueries({ queryKey: ['company', companyId] });
+   345→      setForm({ name: '', email: '', jobTitle: '', roleBucket: '', linkedinUrl: '', phone: '', location: '' });
+   346→      onOpenChange(false);
+   347→    },
+   348→  });
+   349→
+   350→  return (
+   351→    <Dialog open={open} onOpenChange={onOpenChange}>
+   352→      <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
+   353→        <DialogHeader>
+   354→          <DialogTitle className="text-lg font-semibold">Add Contact</DialogTitle>
+   355→          <DialogDescription>Add a new contact to this company.</DialogDescription>
+   356→        </DialogHeader>
+   357→        <form
+   358→          onSubmit={(e) => {
+   359→            e.preventDefault();
+   360→            if (!form.name.trim()) return;
+   361→            setSubmitting(true);
+   362→            mutation.mutate(undefined, { onSettled: () => setSubmitting(false) });
+   363→          }}
+   364→          className="space-y-4"
+   365→        >
+   366→          <div className="space-y-2">
+   367→            <Label htmlFor="contact-name">Name *</Label>
+   368→            <Input id="contact-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required placeholder="Jane Smith" />
+   369→          </div>
+   370→          <div className="grid grid-cols-2 gap-4">
+   371→            <div className="space-y-2">
+   372→              <Label htmlFor="contact-email">Email</Label>
+   373→              <Input id="contact-email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="jane@acme.com" />
+   374→            </div>
+   375→            <div className="space-y-2">
+   376→              <Label htmlFor="contact-title">Job Title</Label>
+   377→              <Input id="contact-title" value={form.jobTitle} onChange={(e) => setForm((f) => ({ ...f, jobTitle: e.target.value }))} placeholder="VP of Engineering" />
+   378→            </div>
+   379→          </div>
+   380→          <div className="grid grid-cols-2 gap-4">
+   381→            <div className="space-y-2">
+   382→              <Label>Role Bucket</Label>
+   383→              <Select value={form.roleBucket} onValueChange={(v) => setForm((f) => ({ ...f, roleBucket: v }))}>
+   384→                <SelectTrigger className="w-full" size="default"><SelectValue placeholder="Select..." /></SelectTrigger>
+   385→                <SelectContent>{ROLE_BUCKETS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+   386→              </Select>
+   387→            </div>
+   388→            <div className="space-y-2">
+   389→              <Label htmlFor="contact-phone">Phone</Label>
+   390→              <Input id="contact-phone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="+1 555-0123" />
+   391→            </div>
+   392→          </div>
+   393→          <div className="space-y-2">
+   394→            <Label htmlFor="contact-linkedin">LinkedIn URL</Label>
+   395→            <Input id="contact-linkedin" value={form.linkedinUrl} onChange={(e) => setForm((f) => ({ ...f, linkedinUrl: e.target.value }))} placeholder="https://linkedin.com/in/janesmith" />
+   396→          </div>
+   397→          <div className="space-y-2">
+   398→            <Label htmlFor="contact-location">Location</Label>
+   399→            <Input id="contact-location" value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} placeholder="San Francisco, CA" />
+   400→          </div>
+   401→          <DialogFooter>
+   402→            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+   403→            <Button type="submit" disabled={!form.name.trim() || submitting} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+   404→              {submitting ? 'Adding...' : 'Add Contact'}
+   405→            </Button>
+   406→          </DialogFooter>
+   407→        </form>
+   408→      </DialogContent>
+   409→    </Dialog>
+   410→  );
+   411→}
+   412→
+   413→// ─── Add Opportunity Dialog ───────────────────────────────────────────────────
+   414→
+   415→function AddOpportunityDialog({
+   416→  open,
+   417→  onOpenChange,
+   418→  companyId,
+   419→  contacts,
+   420→}: {
+   421→  open: boolean;
+   422→  onOpenChange: (o: boolean) => void;
+   423→  companyId: string;
+   424→  contacts: Contact[];
+   425→}) {
+   426→  const queryClient = useQueryClient();
+   427→  const [form, setForm] = useState({
+   428→    title: '',
+   429→    description: '',
+   430→    targetContactId: '',
+   431→    status: 'researching',
+   432→    nextAction: '',
+   433→  });
+   434→  const [submitting, setSubmitting] = useState(false);
+   435→
+   436→  const mutation = useMutation({
+   437→    mutationFn: async () => {
+   438→      const res = await fetch('/api/opportunities', {
+   439→        method: 'POST',
+   440→        headers: { 'Content-Type': 'application/json' },
+   441→        body: JSON.stringify({ companyId, ...form, targetContactId: form.targetContactId || null }),
+   442→      });
+   443→      if (!res.ok) throw new Error('Failed to create opportunity');
+   444→      return res.json();
+   445→    },
+   446→    onSuccess: () => {
+   447→      queryClient.invalidateQueries({ queryKey: ['company', companyId] });
+   448→      setForm({ title: '', description: '', targetContactId: '', status: 'researching', nextAction: '' });
+   449→      onOpenChange(false);
+   450→    },
+   451→  });
+   452→
+   453→  return (
+   454→    <Dialog open={open} onOpenChange={onOpenChange}>
+   455→      <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
+   456→        <DialogHeader>
+   457→          <DialogTitle className="text-lg font-semibold">Add Opportunity</DialogTitle>
+   458→          <DialogDescription>Create a new opportunity for this company.</DialogDescription>
+   459→        </DialogHeader>
+   460→        <form
+   461→          onSubmit={(e) => {
+   462→            e.preventDefault();
+   463→            if (!form.title.trim()) return;
+   464→            setSubmitting(true);
+   465→            mutation.mutate(undefined, { onSettled: () => setSubmitting(false) });
+   466→          }}
+   467→          className="space-y-4"
+   468→        >
+   469→          <div className="space-y-2">
+   470→            <Label>Title *</Label>
+   471→            <Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} required placeholder="Enterprise SaaS migration" />
+   472→          </div>
+   473→          <div className="space-y-2">
+   474→            <Label>Description</Label>
+   475→            <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={3} placeholder="Describe the opportunity..." className="resize-none" />
+   476→          </div>
+   477→          <div className="grid grid-cols-2 gap-4">
+   478→            <div className="space-y-2">
+   479→              <Label>Target Contact</Label>
+   480→              <Select value={form.targetContactId} onValueChange={(v) => setForm((f) => ({ ...f, targetContactId: v }))}>
+   481→                <SelectTrigger className="w-full" size="default"><SelectValue placeholder="Select..." /></SelectTrigger>
+   482→                <SelectContent>
+   483→                  {contacts.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}{c.jobTitle ? ` — ${c.jobTitle}` : ''}</SelectItem>)}
+   484→                </SelectContent>
+   485→              </Select>
+   486→            </div>
+   487→            <div className="space-y-2">
+   488→              <Label>Status</Label>
+   489→              <Select value={form.status} onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}>
+   490→                <SelectTrigger className="w-full" size="default"><SelectValue /></SelectTrigger>
+   491→                <SelectContent>
+   492→                  {Object.entries(OPP_STATUS_MAP).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+   493→                </SelectContent>
+   494→              </Select>
+   495→            </div>
+   496→          </div>
+   497→          <div className="space-y-2">
+   498→            <Label>Next Action</Label>
+   499→            <Input value={form.nextAction} onChange={(e) => setForm((f) => ({ ...f, nextAction: e.target.value }))} placeholder="Schedule discovery call" />
+   500→          </div>
+   501→          <DialogFooter>
+   502→            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+   503→            <Button type="submit" disabled={!form.title.trim() || submitting} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+   504→              {submitting ? 'Creating...' : 'Create Opportunity'}
+   505→            </Button>
+   506→          </DialogFooter>
+   507→        </form>
+   508→      </DialogContent>
+   509→    </Dialog>
+   510→  );
+   511→}
+   512→
+   513→// ─── Add Note Dialog ──────────────────────────────────────────────────────────
+   514→
+   515→function AddNoteDialog({
+   516→  open,
+   517→  onOpenChange,
+   518→  companyId,
+   519→}: {
+   520→  open: boolean;
+   521→  onOpenChange: (o: boolean) => void;
+   522→  companyId: string;
+   523→}) {
+   524→  const queryClient = useQueryClient();
+   525→  const [body, setBody] = useState('');
+   526→  const [noteType, setNoteType] = useState('');
+   527→  const [submitting, setSubmitting] = useState(false);
+   528→
+   529→  const mutation = useMutation({
+   530→    mutationFn: async () => {
+   531→      const res = await fetch('/api/notes', {
+   532→        method: 'POST',
+   533→        headers: { 'Content-Type': 'application/json' },
+   534→        body: JSON.stringify({ companyId, body, noteType: noteType || null }),
+   535→      });
+   536→      if (!res.ok) throw new Error('Failed to add note');
+   537→      return res.json();
+   538→    },
+   539→    onSuccess: () => {
+   540→      queryClient.invalidateQueries({ queryKey: ['company', companyId] });
+   541→      setBody('');
+   542→      setNoteType('');
+   543→      onOpenChange(false);
+   544→    },
+   545→  });
+   546→
+   547→  return (
+   548→    <Dialog open={open} onOpenChange={onOpenChange}>
+   549→      <DialogContent className="sm:max-w-[480px]">
+   550→        <DialogHeader>
+   551→          <DialogTitle className="text-lg font-semibold">Add Note</DialogTitle>
+   552→          <DialogDescription>Add a note to this company.</DialogDescription>
+   553→        </DialogHeader>
+   554→        <form
+   555→          onSubmit={(e) => {
+   556→            e.preventDefault();
+   557→            if (!body.trim()) return;
+   558→            setSubmitting(true);
+   559→            mutation.mutate(undefined, { onSettled: () => setSubmitting(false) });
+   560→          }}
+   561→          className="space-y-4"
+   562→        >
+   563→          <div className="space-y-2">
+   564→            <Label>Type</Label>
+   565→            <Select value={noteType} onValueChange={setNoteType}>
+   566→              <SelectTrigger className="w-full" size="default"><SelectValue placeholder="Select type..." /></SelectTrigger>
+   567→              <SelectContent>
+   568→                <SelectItem value="general">General</SelectItem>
+   569→                <SelectItem value="call">Call</SelectItem>
+   570→                <SelectItem value="email">Email</SelectItem>
+   571→                <SelectItem value="meeting">Meeting</SelectItem>
+   572→                <SelectItem value="research">Research</SelectItem>
+   573→              </SelectContent>
+   574→            </Select>
+   575→          </div>
+   576→          <div className="space-y-2">
+   577→            <Label htmlFor="note-body">Note *</Label>
+   578→            <Textarea id="note-body" value={body} onChange={(e) => setBody(e.target.value)} required rows={4} placeholder="Write your note..." className="resize-none" />
+   579→          </div>
+   580→          <DialogFooter>
+   581→            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+   582→            <Button type="submit" disabled={!body.trim() || submitting} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+   583→              {submitting ? 'Adding...' : 'Add Note'}
+   584→            </Button>
+   585→          </DialogFooter>
+   586→        </form>
+   587→      </DialogContent>
+   588→    </Dialog>
+   589→  );
+   590→}
+   591→
+   592→// ─── Contact Detail Sheet ─────────────────────────────────────────────────────
+   593→
+   594→function ContactDetailSheet({
+   595→  contactId,
+   596→  open,
+   597→  onOpenChange,
+   598→}: {
+   599→  contactId: string | null;
+   600→  open: boolean;
+   601→  onOpenChange: (o: boolean) => void;
+   602→}) {
+   603→  const { data: contact, isLoading } = useQuery({
+   604→    queryKey: ['contact', contactId],
+   605→    queryFn: async () => {
+   606→      const res = await fetch(`/api/contacts/${contactId}`);
+   607→      if (!res.ok) throw new Error('Failed');
+   608→      return res.json() as Promise<Contact>;
+   609→    },
+   610→    enabled: !!contactId && open,
+   611→  });
+   612→
+   613→  return (
+   614→    <Sheet open={open} onOpenChange={onOpenChange}>
+   615→      <SheetContent side="right" className="sm:max-w-md w-full p-0 overflow-hidden">
+   616→        {isLoading ? (
+   617→          <div className="p-6 space-y-4">
+   618→            <Skeleton className="h-6 w-40" />
+   619→            <Skeleton className="h-4 w-56" />
+   620→            <Separator />
+   621→            <div className="space-y-3">
+   622→              {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-4 w-full" />)}
+   623→            </div>
+   624→          </div>
+   625→        ) : contact ? (
+   626→          <div className="flex flex-col h-full">
+   627→            <SheetHeader className="p-6 pb-4 border-b border-border/40">
+   628→              <SheetTitle className="text-lg">{contact.name}</SheetTitle>
+   629→              <SheetDescription>{contact.jobTitle || 'No title specified'}</SheetDescription>
+   630→            </SheetHeader>
+   631→            <ScrollArea className="flex-1 p-6 space-y-6">
+   632→              {/* Info Grid */}
+   633→              <div className="grid grid-cols-2 gap-4">
+   634→                <div>
+   635→                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Email</p>
+   636→                  <p className="text-sm text-foreground flex items-center gap-1.5">
+   637→                    {contact.email || '—'}
+   638→                    {contact.email && (
+   639→                      <span className="inline-flex items-center ml-1">
+   640→                        {getHealthBadge(contact.emailHealth)}
+   641→                      </span>
+   642→                    )}
+   643→                  </p>
+   644→                </div>
+   645→                <div>
+   646→                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Phone</p>
+   647→                  <p className="text-sm text-foreground">{contact.phone || '—'}</p>
+   648→                </div>
+   649→                <div>
+   650→                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Role</p>
+   651→                  <p className="text-sm text-foreground">{contact.roleBucket || '—'}</p>
+   652→                </div>
+   653→                <div>
+   654→                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Location</p>
+   655→                  <p className="text-sm text-foreground">{contact.location || '—'}</p>
+   656→                </div>
+   657→                <div>
+   658→                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Company</p>
+   659→                  <p className="text-sm text-foreground">{contact.company?.name || '—'}</p>
+   660→                </div>
+   661→                <div>
+   662→                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Status</p>
+   663→                  <Badge variant="secondary" className="text-xs">{contact.status}</Badge>
+   664→                </div>
+   665→              </div>
+   666→
+   667→              {contact.linkedinUrl && (
+   668→                <div>
+   669→                  <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-teal-600 dark:text-teal-400 hover:underline">
+   670→                    <Linkedin className="size-3.5" /> LinkedIn Profile <ExternalLink className="size-3" />
+   671→                  </a>
+   672→                </div>
+   673→              )}
+   674→
+   675→              <Separator />
+   676→
+   677→              {/* Timeline */}
+   678→              {contact.timeline && contact.timeline.length > 0 && (
+   679→                <div>
+   680→                  <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
+   681→                    <Clock className="size-3.5 text-muted-foreground" /> Timeline
+   682→                  </h3>
+   683→                  <div className="space-y-3">
+   684→                    {contact.timeline.slice(0, 10).map((entry) => (
+   685→                      <div key={entry.id} className="flex gap-3">
+   686→                        <div className="flex flex-col items-center">
+   687→                          <div className="size-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+   688→                          <div className="w-px flex-1 bg-border/50" />
+   689→                        </div>
+   690→                        <div className="pb-3">
+   691→                          <p className="text-sm text-foreground">{entry.details || entry.action}</p>
+   692→                          <p className="text-xs text-muted-foreground mt-0.5">{formatRelative(entry.createdAt)}</p>
+   693→                        </div>
+   694→                      </div>
+   695→                    ))}
+   696→                  </div>
+   697→                </div>
+   698→              )}
+   699→
+   700→              {/* Notes */}
+   701→              {contact.notes && contact.notes.length > 0 && (
+   702→                <div>
+   703→                  <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
+   704→                    <StickyNote className="size-3.5 text-muted-foreground" /> Notes
+   705→                  </h3>
+   706→                  <div className="space-y-3">
+   707→                    {contact.notes.map((note) => (
+   708→                      <div key={note.id} className="rounded-lg border border-border/50 bg-muted/30 p-3">
+   709→                        <p className="text-sm text-foreground">{note.body}</p>
+   710→                        <p className="text-xs text-muted-foreground mt-1.5">{formatRelative(note.createdAt)}</p>
+   711→                      </div>
+   712→                    ))}
+   713→                  </div>
+   714→                </div>
+   715→              )}
+   716→            </ScrollArea>
+   717→          </div>
+   718→        ) : null}
+   719→      </SheetContent>
+   720→    </Sheet>
+   721→  );
+   722→}
+   723→
+   724→// ─── Timeline Entry Component ─────────────────────────────────────────────────
+   725→
+   726→function TimelineItem({ entry, index }: { entry: TimelineEntry; index: number }) {
+   727→  return (
+   728→    <motion.div
+   729→      initial={{ opacity: 0, x: -8 }}
+   730→      animate={{ opacity: 1, x: 0 }}
+   731→      transition={{ duration: 0.2, delay: index * 0.03 }}
+   732→      className="flex gap-4 group"
+   733→    >
+   734→      <div className="flex flex-col items-center shrink-0">
+   735→        <div className="size-2.5 rounded-full bg-emerald-500 ring-4 ring-background group-hover:ring-emerald-50 dark:group-hover:ring-emerald-950/30 transition-all mt-1" />
+   736→        {index < 100 && <div className="w-px flex-1 bg-border/60" />}
+   737→      </div>
+   738→      <div className="pb-6 flex-1 min-w-0">
+   739→        <div className="flex items-baseline gap-2 mb-0.5">
+   740→          <p className="text-sm font-medium text-foreground">{entry.action.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}</p>
+   741→          {entry.contact && (
+   742→            <span className="text-xs text-muted-foreground">— {entry.contact.name}</span>
+   743→          )}
+   744→        </div>
+   745→        {entry.details && (
+   746→          <p className="text-sm text-muted-foreground leading-relaxed">{entry.details}</p>
+   747→        )}
+   748→        <p className="text-xs text-muted-foreground/70 mt-1">{formatRelative(entry.createdAt)}</p>
+   749→      </div>
+   750→    </motion.div>
+   751→  );
+   752→}
+   753→
+   754→// ─── Main Component ───────────────────────────────────────────────────────────
+   755→
+   756→export default function CompanyProfileScreen() {
+   757→  const { selectedCompanyId, setActiveView } = useAppStore();
+   758→  const queryClient = useQueryClient();
+   759→
+   760→  // Dialogs
+   761→  const [researchDialog, setResearchDialog] = useState(false);
+   762→  const [contactDialog, setContactDialog] = useState(false);
+   763→  const [opportunityDialog, setOpportunityDialog] = useState(false);
+   764→  const [noteDialog, setNoteDialog] = useState(false);
+   765→  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+   766→
+   767→  // Fetch company
+   768→  const { data: company, isLoading, isError } = useQuery({
+   769→    queryKey: ['company', selectedCompanyId],
+   770→    queryFn: async () => {
+   771→      const res = await fetch(`/api/companies/${selectedCompanyId}`);
+   772→      if (!res.ok) throw new Error('Failed');
+   773→      return res.json() as Promise<Company>;
+   774→    },
+   775→    enabled: !!selectedCompanyId,
+   776→  });
+   777→
+   778→  const handleArchive = async () => {
+   779→    if (!selectedCompanyId) return;
+   780→    await fetch(`/api/companies/${selectedCompanyId}`, { method: 'DELETE' });
+   781→    queryClient.invalidateQueries({ queryKey: ['companies'] });
+   782→    setActiveView('companies');
+   783→  };
+   784→
+   785→  const handleBack = () => {
+   786→    setActiveView('companies');
+   787→  };
+   788→
+   789→  if (!selectedCompanyId) {
+   790→    return (
+   791→      <div className="flex items-center justify-center h-full">
+   792→        <p className="text-sm text-muted-foreground">No company selected.</p>
+   793→      </div>
+   794→    );
+   795→  }
+   796→
+   797→  if (isLoading) return <ProfileSkeleton />;
+   798→  if (isError || !company) {
+   799→    return (
+   800→      <div className="flex flex-col items-center justify-center h-full gap-3">
+   801→        <p className="text-sm text-muted-foreground">Company not found.</p>
+   802→        <Button variant="outline" size="sm" onClick={handleBack}>
+   803→          <ArrowLeft className="size-4 mr-1.5" /> Back to Companies
+   804→        </Button>
+   805→      </div>
+   806→    );
+   807→  }
+   808→
+   809→  const freshness = getFreshnessInfo(company.lastUpdatedAt);
+   810→  const contacts = company.contacts || [];
+   811→  const opportunities = company.opportunities || [];
+   812→  const timeline = company.timeline || [];
+   813→  const notes = company.notes || [];
+   814→
+   815→  return (
+   816→    <div className="flex flex-col h-full overflow-hidden">
+   817→      {/* ── Top Header ── */}
+   818→      <div className="shrink-0 border-b border-border/40 bg-card/50 backdrop-blur-sm">
+   819→        <div className="px-6 py-4">
+   820→          <div className="flex items-start gap-4">
+   821→            <Button variant="ghost" size="sm" onClick={handleBack} className="mt-1 -ml-2 hover:bg-muted/60">
+   822→              <ArrowLeft className="size-4" />
+   823→              <span className="sr-only sm:not-sr-only ml-1.5">Back</span>
+   824→            </Button>
+   825→
+   826→            <div className="flex-1 min-w-0">
+   827→              <div className="flex items-center gap-3 flex-wrap">
+   828→                <h1 className="text-2xl font-bold tracking-tight text-foreground">{company.name}</h1>
+   829→                {company.industry && (
+   830→                  <Badge variant="outline" className="text-xs font-medium bg-muted/50">{company.industry}</Badge>
+   831→                )}
+   832→                {company.country && (
+   833→                  <span className="text-sm text-muted-foreground flex items-center gap-1">
+   834→                    <MapPin className="size-3" /> {company.country}
+   835→                  </span>
+   836→                )}
+   837→              </div>
+   838→              {company.domain && (
+   839→                <p className="text-sm text-muted-foreground mt-0.5">{company.domain}</p>
+   840→              )}
+   841→            </div>
+   842→
+   843→            <div className="flex items-center gap-4 shrink-0">
+   844→              {/* Freshness */}
+   845→              <div className="flex items-center gap-1.5">
+   846→                <span className={`size-2 rounded-full ${freshness.dot}`} />
+   847→                <span className={`text-xs font-medium ${freshness.color}`}>{freshness.label}</span>
+   848→              </div>
+   849→
+   850→              {/* Score Ring */}
+   851→              <ScoreRing score={company.intelligenceScore} />
+   852→
+   853→              {/* Actions */}
+   854→              <DropdownMenu>
+   855→                <DropdownMenuTrigger asChild>
+   856→                  <Button variant="ghost" size="sm" className="size-8 p-0">
+   857→                    <MoreHorizontal className="size-4" />
+   858→                  </Button>
+   859→                </DropdownMenuTrigger>
+   860→                <DropdownMenuContent align="end" className="w-44">
+   861→                  <DropdownMenuItem>
+   862→                    <Edit3 className="size-4 mr-2" /> Edit Company
+   863→                  </DropdownMenuItem>
+   864→                  <DropdownMenuItem className="text-red-600 dark:text-red-400" onClick={handleArchive}>
+   865→                    <Archive className="size-4 mr-2" /> Archive
+   866→                  </DropdownMenuItem>
+   867→                </DropdownMenuContent>
+   868→              </DropdownMenu>
+   869→            </div>
+   870→          </div>
+   871→        </div>
+   872→
+   873→        {/* Tabs */}
+   874→        <div className="px-6">
+   875→          <Tabs defaultValue="overview" className="w-full">
+   876→            <TabsList className="bg-transparent border-b border-border/40 rounded-none h-auto p-0 w-full justify-start gap-0">
+   877→              <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none pb-2.5 px-4 text-sm">
+   878→                Overview
+   879→              </TabsTrigger>
+   880→              <TabsTrigger value="contacts" className="rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none pb-2.5 px-4 text-sm">
+   881→                Contacts {contacts.length > 0 && <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">{contacts.length}</Badge>}
+   882→              </TabsTrigger>
+   883→              <TabsTrigger value="opportunities" className="rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none pb-2.5 px-4 text-sm">
+   884→                Opportunities {opportunities.length > 0 && <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">{opportunities.length}</Badge>}
+   885→              </TabsTrigger>
+   886→              <TabsTrigger value="timeline" className="rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none pb-2.5 px-4 text-sm">
+   887→                Timeline
+   888→              </TabsTrigger>
+   889→              <TabsTrigger value="notes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none pb-2.5 px-4 text-sm">
+   890→                Notes {notes.length > 0 && <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">{notes.length}</Badge>}
+   891→              </TabsTrigger>
+   892→            </TabsList>
+   893→
+   894→            {/* ── OVERVIEW TAB ── */}
+   895→            <TabsContent value="overview" className="mt-6 pb-6">
+   896→              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   897→                {/* Company Info Card */}
+   898→                <motion.div
+   899→                  initial={{ opacity: 0, y: 8 }}
+   900→                  animate={{ opacity: 1, y: 0 }}
+   901→                  transition={{ duration: 0.3 }}
+   902→                  className="rounded-xl border border-border/60 bg-card p-5"
+   903→                >
+   904→                  <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+   905→                    <Building2 className="size-4 text-muted-foreground" /> Company Information
+   906→                  </h3>
+   907→                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+   908→                    {[
+   909→                      { label: 'Website', value: company.website, icon: Globe, href: true },
+   910→                      { label: 'LinkedIn', value: company.linkedinUrl, icon: Linkedin, href: true },
+   911→                      { label: 'Employee Size', value: company.employeeSize, icon: Users },
+   912→                      { label: 'Location', value: company.location, icon: MapPin },
+   913→                      { label: 'Status', value: company.status, icon: Target, badge: true },
+   914→                      { label: 'Created', value: company.createdAt ? format(new Date(company.createdAt), 'MMM d, yyyy') : null, icon: Calendar },
+   915→                    ].map((item) => (
+   916→                      <div key={item.label}>
+   917→                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 flex items-center gap-1">
+   918→                          <item.icon className="size-3" /> {item.label}
+   919→                        </p>
+   920→                        {item.value ? (
+   921→                          item.badge ? (
+   922→                            <Badge variant="outline" className="text-xs capitalize">{item.value}</Badge>
+   923→                          ) : item.href ? (
+   924→                            <a href={item.value} target="_blank" rel="noopener noreferrer" className="text-sm text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1 truncate">
+   925→                              {item.value.replace(/^https?:\/\//, '')} <ExternalLink className="size-3 shrink-0" />
+   926→                            </a>
+   927→                          ) : (
+   928→                            <p className="text-sm text-foreground">{item.value}</p>
+   929→                          )
+   930→                        ) : (
+   931→                          <p className="text-sm text-muted-foreground/50">—</p>
+   932→                        )}
+   933→                      </div>
+   934→                    ))}
+   935→                  </div>
+   936→                </motion.div>
+   937→
+   938→                {/* Research Card */}
+   939→                <motion.div
+   940→                  initial={{ opacity: 0, y: 8 }}
+   941→                  animate={{ opacity: 1, y: 0 }}
+   942→                  transition={{ duration: 0.3, delay: 0.05 }}
+   943→                  className="rounded-xl border border-border/60 bg-card p-5"
+   944→                >
+   945→                  <div className="flex items-center justify-between mb-4">
+   946→                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+   947→                      <Sparkles className="size-4 text-emerald-500" /> Research Intelligence
+   948→                    </h3>
+   949→                    <Button
+   950→                      variant="outline"
+   951→                      size="sm"
+   952→                      className="h-7 text-xs"
+   953→                      onClick={() => setResearchDialog(true)}
+   954→                    >
+   955→                      {company.researchCard ? <Edit3 className="size-3 mr-1" /> : <Plus className="size-3 mr-1" />}
+   956→                      {company.researchCard ? 'Edit' : 'Start'} Research
+   957→                    </Button>
+   958→                  </div>
+   959→
+   960→                  {company.researchCard ? (
+   961→                    <ScrollArea className="max-h-[400px] pr-2">
+   962→                      <div className="divide-y divide-border/40">
+   963→                        <ResearchField icon={FileText} label="Business Overview" value={company.researchCard.businessOverview} />
+   964→                        <ResearchField icon={Stethoscope} label="Tech Landscape" value={company.researchCard.currentTechLandscape} />
+   965→                        <ResearchField icon={AlertTriangle} label="Challenges" value={company.researchCard.potentialChallenges} />
+   966→                        <ResearchField icon={Lightbulb} label="Opportunities" value={company.researchCard.possibleOpportunities} />
+   967→                        <ResearchField icon={Handshake} label="Relevant Services" value={company.researchCard.relevantServices} />
+   968→                        <ResearchField icon={UserCheck} label="Decision Makers" value={company.researchCard.keyDecisionMakers} />
+   969→                        <ResearchField icon={ArrowRightLeft} label="Last Interaction" value={company.researchCard.lastInteraction} />
+   970→                        <ResearchField icon={Zap} label="Next Action" value={company.researchCard.nextAction} />
+   971→                      </div>
+   972→                    </ScrollArea>
+   973→                  ) : (
+   974→                    <div className="flex flex-col items-center justify-center py-12 text-center">
+   975→                      <div className="flex items-center justify-center size-12 rounded-xl bg-muted/80 mb-3">
+   976→                        <Sparkles className="size-6 text-muted-foreground/40" />
+   977→                      </div>
+   978→                      <p className="text-sm font-medium text-foreground">No research yet</p>
+   979→                      <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">
+   980→                        Start researching this company to build intelligence.
+   981→                      </p>
+   982→                      <Button
+   983→                        variant="outline"
+   984→                        size="sm"
+   985→                        className="mt-3 h-8 text-xs"
+   986→                        onClick={() => setResearchDialog(true)}
+   987→                      >
+   988→                        <Plus className="size-3 mr-1" /> Start Research
+   989→                      </Button>
+   990→                    </div>
+   991→                  )}
+   992→                </motion.div>
+   993→              </div>
+   994→            </TabsContent>
+   995→
+   996→            {/* ── CONTACTS TAB ── */}
+   997→            <TabsContent value="contacts" className="mt-6 pb-6">
+   998→              <div className="flex items-center justify-between mb-4">
+   999→                <h3 className="text-sm font-semibold text-foreground">{contacts.length} {contacts.length === 1 ? 'contact' : 'contacts'}</h3>
+  1000→                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs" onClick={() => setContactDialog(true)}>
+  1001→                  <Plus className="size-3 mr-1" /> Add Contact
+  1002→                </Button>
+  1003→              </div>
+  1004→
+  1005→              {contacts.length === 0 ? (
+  1006→                <div className="flex flex-col items-center justify-center py-16 text-center">
+  1007→                  <div className="flex items-center justify-center size-12 rounded-xl bg-muted/80 mb-3">
+  1008→                    <Users className="size-6 text-muted-foreground/40" />
+  1009→                  </div>
+  1010→                  <p className="text-sm font-medium text-foreground">No contacts yet</p>
+  1011→                  <p className="text-xs text-muted-foreground mt-1">Add contacts from this company.</p>
+  1012→                </div>
+  1013→              ) : (
+  1014→                <div className="rounded-xl border border-border/60 overflow-hidden">
+  1015→                  <Table>
+  1016→                    <TableHeader>
+  1017→                      <TableRow className="hover:bg-transparent bg-muted/30 border-border/40">
+  1018→                        <TableHead className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/70 pl-4">Name</TableHead>
+  1019→                        <TableHead className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/70">Title</TableHead>
+  1020→                        <TableHead className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/70">Email</TableHead>
+  1021→                        <TableHead className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/70">Health</TableHead>
+  1022→                        <TableHead className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/70">Role</TableHead>
+  1023→                        <TableHead className="w-10" />
+  1024→                      </TableRow>
+  1025→                    </TableHeader>
+  1026→                    <TableBody>
+  1027→                      <AnimatePresence>
+  1028→                        {contacts.map((contact, idx) => (
+  1029→                          <motion.tr
+  1030→                            key={contact.id}
+  1031→                            initial={{ opacity: 0 }}
+  1032→                            animate={{ opacity: 1 }}
+  1033→                            exit={{ opacity: 0 }}
+  1034→                            transition={{ delay: idx * 0.03 }}
+  1035→                            className="group border-b border-border/30 last:border-0 hover:bg-muted/40 cursor-pointer transition-colors"
+  1036→                            onClick={() => { setSelectedContactId(contact.id); }}
+  1037→                          >
+  1038→                            <TableCell className="pl-4 py-2.5">
+  1039→                              <div className="flex items-center gap-2.5">
+  1040→                                <div className="size-7 rounded-full bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center border border-border/50 shrink-0">
+  1041→                                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">{contact.name.slice(0, 2).toUpperCase()}</span>
+  1042→                                </div>
+  1043→                                <div>
+  1044→                                  <p className="text-sm font-medium text-foreground">{contact.name}</p>
+  1045→                                </div>
+  1046→                              </div>
+  1047→                            </TableCell>
+  1048→                            <TableCell className="py-2.5 text-sm text-muted-foreground">{contact.jobTitle || '—'}</TableCell>
+  1049→                            <TableCell className="py-2.5 text-sm text-muted-foreground">{contact.email || '—'}</TableCell>
+  1050→                            <TableCell className="py-2.5">{getHealthBadge(contact.emailHealth)}</TableCell>
+  1051→                            <TableCell className="py-2.5 text-sm text-muted-foreground">{contact.roleBucket || '—'}</TableCell>
+  1052→                            <TableCell className="py-2.5 pr-4" onClick={(e) => e.stopPropagation()}>
+  1053→                              <Button variant="ghost" size="sm" className="size-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+  1054→                                <ChevronRight className="size-3.5" />
+  1055→                              </Button>
+  1056→                            </TableCell>
+  1057→                          </motion.tr>
+  1058→                        ))}
+  1059→                      </AnimatePresence>
+  1060→                    </TableBody>
+  1061→                  </Table>
+  1062→                </div>
+  1063→              )}
+  1064→            </TabsContent>
+  1065→
+  1066→            {/* ── OPPORTUNITIES TAB ── */}
+  1067→            <TabsContent value="opportunities" className="mt-6 pb-6">
+  1068→              <div className="flex items-center justify-between mb-4">
+  1069→                <h3 className="text-sm font-semibold text-foreground">{opportunities.length} {opportunities.length === 1 ? 'opportunity' : 'opportunities'}</h3>
+  1070→                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs" onClick={() => setOpportunityDialog(true)}>
+  1071→                  <Plus className="size-3 mr-1" /> Add Opportunity
+  1072→                </Button>
+  1073→              </div>
+  1074→
+  1075→              {opportunities.length === 0 ? (
+  1076→                <div className="flex flex-col items-center justify-center py-16 text-center">
+  1077→                  <div className="flex items-center justify-center size-12 rounded-xl bg-muted/80 mb-3">
+  1078→                    <Target className="size-6 text-muted-foreground/40" />
+  1079→                  </div>
+  1080→                  <p className="text-sm font-medium text-foreground">No opportunities yet</p>
+  1081→                  <p className="text-xs text-muted-foreground mt-1">Track potential deals here.</p>
+  1082→                </div>
+  1083→              ) : (
+  1084→                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  1085→                  <AnimatePresence>
+  1086→                    {opportunities.map((opp, idx) => {
+  1087→                      const statusConfig = OPP_STATUS_MAP[opp.status] || OPP_STATUS_MAP.researching;
+  1088→                      const targetContact = contacts.find((c) => c.id === opp.targetContactId);
+  1089→                      return (
+  1090→                        <motion.div
+  1091→                          key={opp.id}
+  1092→                          initial={{ opacity: 0, y: 8 }}
+  1093→                          animate={{ opacity: 1, y: 0 }}
+  1094→                          exit={{ opacity: 0 }}
+  1095→                          transition={{ delay: idx * 0.05 }}
+  1096→                          className="rounded-xl border border-border/60 bg-card p-4 hover:border-border transition-colors"
+  1097→                        >
+  1098→                          <div className="flex items-start justify-between gap-2 mb-2">
+  1099→                            <h4 className="text-sm font-semibold text-foreground leading-snug">{opp.title}</h4>
+  1100→                            <Badge variant="outline" className={`text-[11px] font-medium px-2 py-0 shrink-0 ${statusConfig.className}`}>
+  1101→                              {statusConfig.label}
+  1102→                            </Badge>
+  1103→                          </div>
+  1104→                          {opp.description && (
+  1105→                            <p className="text-xs text-muted-foreground leading-relaxed mb-3 line-clamp-2">{opp.description}</p>
+  1106→                          )}
+  1107→                          <div className="flex items-center justify-between">
+  1108→                            {targetContact && (
+  1109→                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+  1110→                                <Users className="size-3" /> {targetContact.name}
+  1111→                              </span>
+  1112→                            )}
+  1113→                            {opp.nextAction && (
+  1114→                              <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+  1115→                                <Zap className="size-3" /> {opp.nextAction}
+  1116→                              </span>
+  1117→                            )}
+  1118→                          </div>
+  1119→                        </motion.div>
+  1120→                      );
+  1121→                    })}
+  1122→                  </AnimatePresence>
+  1123→                </div>
+  1124→              )}
+  1125→            </TabsContent>
+  1126→
+  1127→            {/* ── TIMELINE TAB ── */}
+  1128→            <TabsContent value="timeline" className="mt-6 pb-6">
+  1129→              {timeline.length === 0 ? (
+  1130→                <div className="flex flex-col items-center justify-center py-16 text-center">
+  1131→                  <div className="flex items-center justify-center size-12 rounded-xl bg-muted/80 mb-3">
+  1132→                    <Clock className="size-6 text-muted-foreground/40" />
+  1133→                  </div>
+  1134→                  <p className="text-sm font-medium text-foreground">No activity yet</p>
+  1135→                  <p className="text-xs text-muted-foreground mt-1">Actions will appear here as you interact.</p>
+  1136→                </div>
+  1137→              ) : (
+  1138→                <div className="rounded-xl border border-border/60 bg-card p-5">
+  1139→                  <ScrollArea className="max-h-[500px]">
+  1140→                    {timeline.map((entry, idx) => (
+  1141→                      <TimelineItem key={entry.id} entry={entry} index={idx} />
+  1142→                    ))}
+  1143→                  </ScrollArea>
+  1144→                </div>
+  1145→              )}
+  1146→            </TabsContent>
+  1147→
+  1148→            {/* ── NOTES TAB ── */}
+  1149→            <TabsContent value="notes" className="mt-6 pb-6">
+  1150→              <div className="flex items-center justify-between mb-4">
+  1151→                <h3 className="text-sm font-semibold text-foreground">{notes.length} {notes.length === 1 ? 'note' : 'notes'}</h3>
+  1152→                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs" onClick={() => setNoteDialog(true)}>
+  1153→                  <Plus className="size-3 mr-1" /> Add Note
+  1154→                </Button>
+  1155→              </div>
+  1156→
+  1157→              {notes.length === 0 ? (
+  1158→                <div className="flex flex-col items-center justify-center py-16 text-center">
+  1159→                  <div className="flex items-center justify-center size-12 rounded-xl bg-muted/80 mb-3">
+  1160→                    <MessageSquare className="size-6 text-muted-foreground/40" />
+  1161→                  </div>
+  1162→                  <p className="text-sm font-medium text-foreground">No notes yet</p>
+  1163→                  <p className="text-xs text-muted-foreground mt-1">Keep notes on this company.</p>
+  1164→                </div>
+  1165→              ) : (
+  1166→                <AnimatePresence>
+  1167→                  <div className="space-y-3">
+  1168→                    {notes.map((note, idx) => (
+  1169→                      <motion.div
+  1170→                        key={note.id}
+  1171→                        initial={{ opacity: 0, y: 8 }}
+  1172→                        animate={{ opacity: 1, y: 0 }}
+  1173→                        exit={{ opacity: 0 }}
+  1174→                        transition={{ delay: idx * 0.03 }}
+  1175→                        className="rounded-xl border border-border/60 bg-card p-4"
+  1176→                      >
+  1177→                        <div className="flex items-start justify-between gap-2 mb-1.5">
+  1178→                          {note.noteType && (
+  1179→                            <Badge variant="secondary" className="text-[10px] px-2 py-0 h-5 capitalize">{note.noteType}</Badge>
+  1180→                          )}
+  1181→                          <span className="text-xs text-muted-foreground ml-auto shrink-0">{formatRelative(note.createdAt)}</span>
+  1182→                        </div>
+  1183→                        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{note.body}</p>
+  1184→                      </motion.div>
+  1185→                    ))}
+  1186→                  </div>
+  1187→                </AnimatePresence>
+  1188→              )}
+  1189→            </TabsContent>
+  1190→          </Tabs>
+  1191→        </div>
+  1192→      </div>
+  1193→
+  1194→      {/* Dialogs */}
+  1195→      {company.researchCard && (
+  1196→        <ResearchDialog
+  1197→          open={researchDialog}
+  1198→          onOpenChange={setResearchDialog}
+  1199→          companyId={company.id}
+  1200→          existing={company.researchCard}
+  1201→        />
+  1202→      )}
+  1203→      {!company.researchCard && (
+  1204→        <ResearchDialog
+  1205→          open={researchDialog}
+  1206→          onOpenChange={setResearchDialog}
+  1207→          companyId={company.id}
+  1208→          existing={null}
+  1209→        />
+  1210→      )}
+  1211→      <AddContactDialog open={contactDialog} onOpenChange={setContactDialog} companyId={company.id} />
+  1212→      <AddOpportunityDialog open={opportunityDialog} onOpenChange={setOpportunityDialog} companyId={company.id} contacts={contacts} />
+  1213→      <AddNoteDialog open={noteDialog} onOpenChange={setNoteDialog} companyId={company.id} />
+  1214→      <ContactDetailSheet
+  1215→        contactId={selectedContactId}
+  1216→        open={!!selectedContactId}
+  1217→        onOpenChange={(open) => { if (!open) setSelectedContactId(null); }}
+  1218→      />
+  1219→    </div>
+  1220→  );
+  1221→}

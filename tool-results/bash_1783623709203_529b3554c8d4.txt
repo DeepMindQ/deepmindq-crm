@@ -1,0 +1,848 @@
+  mailboxes.graph_user_id         text                     Microsoft Graph user identifier.
+
+  mailboxes.send_enabled          boolean default false    Mailbox can participate in sending.
+
+  mailboxes.daily_limit           integer                  Per-day sending cap.
+
+  mailboxes.hourly_limit          integer                  Per-hour sending cap.
+
+  mailboxes.working_hours_jsonb   jsonb                    Allowed send windows by day.
+
+  app_settings.setting_key        text PK                  Simple single-org configuration key.
+
+  app_settings.setting_value      jsonb not null           Settings payload.
+  -----------------------------------------------------------------------------------------------------
+
+4. Core Master Data
+
+These tables represent the current truth for companies and contacts.
+
+  ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Field                               Type / constraints             Purpose
+  ----------------------------------- ------------------------------ ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+  companies.company_id                uuid PK                        Primary company record.
+
+  companies.name_raw                  text not null                  Original display name from import or manual entry.
+
+  companies.name_normalized           text not null                  Canonical match key used for duplicate detection.
+
+  companies.domain                    citext                         Normalized website domain; should be indexed and ideally unique when known.
+
+  companies.linkedin_url_raw          text                           Raw company LinkedIn URL from import or manual entry.
+
+  companies.linkedin_url_normalized   text                           Canonical company LinkedIn page URL used for matching.
+
+  companies.website                   text                           Canonical website URL.
+
+  companies.industry                  text                           Primary industry classification.
+
+  companies.employee_size_band        text                           Headcount band such as 1-10, 11-50, 51-200, 201-500, 501-1000, 1000+.
+
+  companies.location                  text                           Main location or headquarters.
+
+  companies.research_summary          text                           Short company context summary.
+
+  companies.custom_fields             jsonb                          Flexible company-specific fields from source files.
+
+  contacts.contact_id                 uuid PK                        Primary person record.
+
+  contacts.company_id                 uuid FK -> companies           Mandatory company link.
+
+  contacts.batch_id                   uuid FK -> ingestion_batches   Origin batch traceability.
+
+  contacts.name_raw                   text                           Original name from source.
+
+  contacts.name_normalized            text                           Normalized match key for contact identity.
+
+  contacts.name_edited                text                           Current user-corrected name, if changed.
+
+  contacts.email_address              citext                         Contact email address; nullable for non-send-ready records.
+
+  contacts.linkedin_url_raw           text                           Raw person LinkedIn profile URL or handle.
+
+  contacts.linkedin_url_normalized    text                           Canonical LinkedIn profile URL used for matching.
+
+  contacts.job_title_raw              text                           Original imported job title.
+
+  contacts.role_bucket                text                           Normalized persona bucket such as executive, manager, technical, operations, sales, or other.
+
+  contacts.phone                      text                           Phone number when available.
+
+  contacts.location                   text                           Person location when available.
+
+  contacts.status                     text not null                  Contact lifecycle state such as imported, cleaned, duplicate, ready, drafted, approved, queued, sent, replied, bounced, invalid, risky, suppressed, archived.
+
+  contacts.email_health_status        text                           valid, risky, invalid, unknown; drives queue eligibility.
+
+  contacts.email_health_score         smallint                       0-100 confidence or risk score.
+
+  contacts.consent_status             text                           unconfirmed, confirmed, expired, revoked, or not_applicable.
+
+  contacts.consent_source             text                           batch_import, manual_entry, web_form, list_upload, other.
+
+  contacts.consent_timestamp          timestamptz                    When the current consent state was recorded.
+
+  contacts.data_source                text                           Batch id or manual source reference.
+
+  contacts.raw_payload                jsonb                          Raw imported row snapshot.
+
+  contacts.normalized_payload         jsonb                          Normalized machine-readable snapshot.
+
+  contacts.edited_payload             jsonb                          Current user-edited field snapshot.
+
+  contacts.custom_fields              jsonb                          Any unmapped or extra imported fields.
+
+  contacts.last_contacted_at          timestamptz                    Most recent outbound communication.
+
+  contacts.last_validated_at          timestamptz                    Most recent health check.
+
+  contacts.archived_at                timestamptz                    Soft archive marker.
+  ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+4.1 Custom Field Definitions and Typed Values
+
+Custom fields let the importer preserve the original spreadsheet shape while still exposing only the fields that matter for filtering, scoring, and prompt assembly. Each value row should point to exactly one contact or one company, never both.
+
+  -----------------------------------------------------------------------------------------------------------------------------------
+  Field                                         Type / constraints                    Purpose
+  --------------------------------------------- ------------------------------------- -----------------------------------------------
+  custom_field_definitions.field_id             uuid PK                               Definition identifier.
+
+  custom_field_definitions.entity_type          text not null                         contact or company.
+
+  custom_field_definitions.source_header        text not null                         Original spreadsheet header.
+
+  custom_field_definitions.internal_key         text not null                         Canonical internal field name.
+
+  custom_field_definitions.display_name         text not null                         UI-friendly label.
+
+  custom_field_definitions.data_type            text not null                         text, number, date, boolean, url, enum, json.
+
+  custom_field_definitions.is_searchable        boolean default false                 Whether the value should be searchable.
+
+  custom_field_definitions.is_filterable        boolean default false                 Whether the value should appear in filters.
+
+  custom_field_definitions.include_in_prompt    boolean default false                 Whether AI may use it in draft assembly.
+
+  custom_field_definitions.validation_pattern   text                                  Optional regex or validation rule.
+
+  custom_field_definitions.allowed_values       jsonb                                 Optional enum values or lookup hints.
+
+  custom_field_definitions.is_active            boolean default true                  Definition lifecycle flag.
+
+  custom_field_values.value_id                  uuid PK                               Materialized custom field value.
+
+  custom_field_values.field_id                  uuid FK -> custom_field_definitions   Field definition.
+
+  custom_field_values.contact_id                uuid FK -> contacts null              Contact-scoped value, if applicable.
+
+  custom_field_values.company_id                uuid FK -> companies null             Company-scoped value, if applicable.
+
+  custom_field_values.source_batch_id           uuid FK -> ingestion_batches          Origin batch for traceability.
+
+  custom_field_values.raw_value_text            text                                  Original value as imported.
+
+  custom_field_values.normalized_value_text     text                                  Normalized text representation.
+
+  custom_field_values.value_number              numeric                               Typed numeric value when applicable.
+
+  custom_field_values.value_date                date                                  Typed date value when applicable.
+
+  custom_field_values.value_boolean             boolean                               Typed boolean value when applicable.
+
+  custom_field_values.value_jsonb               jsonb                                 Structured value when needed.
+
+  custom_field_values.created_at                timestamptz                           Insert timestamp.
+
+  custom_field_values.updated_at                timestamptz                           Last update timestamp.
+  -----------------------------------------------------------------------------------------------------------------------------------
+
+5. Notes and Research
+
+Notes are separate from the core master record so company context and contact observations can evolve independently.
+
+  ---------------------------------------------------------------------------------------------------------------------------------------------------
+  Field                                           Type / constraints     Purpose
+  ----------------------------------------------- ---------------------- ----------------------------------------------------------------------------
+  company_notes.note_id                           uuid PK                Individual company note entry.
+
+  company_notes.company_id                        uuid FK -> companies   Parent company.
+
+  company_notes.body                              text not null          Long-form strategic note.
+
+  company_notes.note_type                         text                   Optional classification such as research, call_note, objection, follow_up.
+
+  company_notes.author_id                         uuid FK -> users       Who added the note.
+
+  company_notes.created_at                        timestamptz            Creation timestamp.
+
+  contact_notes.note_id                           uuid PK                Individual contact note entry.
+
+  contact_notes.contact_id                        uuid FK -> contacts    Parent contact.
+
+  contact_notes.body                              text not null          Person-specific observation.
+
+  contact_notes.note_type                         text                   Optional classification.
+
+  contact_notes.author_id                         uuid FK -> users       Who added the note.
+
+  company_research_cards.card_id                  uuid PK                Active or historical company research card.
+
+  company_research_cards.company_id               uuid FK -> companies   Parent company.
+
+  company_research_cards.summary                  text not null          Concise company context for drafting.
+
+  company_research_cards.pain_points              text                   Observed or inferred business problems.
+
+  company_research_cards.opportunity_hypotheses   text                   Internal hypotheses only; not factual claims.
+
+  company_research_cards.confidence_score         smallint               Research confidence or completeness score.
+
+  company_research_cards.last_researched_at       timestamptz            Freshness marker.
+
+  company_research_sources.source_id              uuid PK                Curated source entry.
+
+  company_research_sources.company_id             uuid FK -> companies   Parent company.
+
+  company_research_sources.source_type            text                   web, manual_note, call_note, internal_reference.
+
+  company_research_sources.source_url             text                   Reference URL when applicable.
+
+  company_research_sources.excerpt                text                   Snippet or observation from source.
+  ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+6. Ingestion and Batch Control
+
+These tables preserve source-file lineage and let the system stage, validate, and review data before it reaches the master tables.
+
+  -------------------------------------------------------------------------------------------------------------------------------------
+  Field                                         Type / constraints             Purpose
+  --------------------------------------------- ------------------------------ --------------------------------------------------------
+  import_profiles.profile_id                    uuid PK                        Saved mapping profile.
+
+  import_profiles.name                          text not null                  Human-readable profile name.
+
+  import_profiles.header_hash                   text unique                    Header-row signature for auto-mapping.
+
+  import_profiles.mapping_jsonb                 jsonb not null                 Source header to target field map.
+
+  import_profiles.last_used_at                  timestamptz                    Usage tracking.
+
+  ingestion_batches.batch_id                    uuid PK                        One uploaded file.
+
+  ingestion_batches.file_name                   text not null                  Original file name.
+
+  ingestion_batches.file_hash                   text unique not null           SHA-256 hash of the upload.
+
+  ingestion_batches.profile_id                  uuid FK -> import_profiles     Mapping profile used.
+
+  ingestion_batches.uploaded_by                 uuid FK -> users               Uploader.
+
+  ingestion_batches.status                      text not null                  staged, reviewing, committed, rejected, archived.
+
+  ingestion_batches.total_rows                  integer                        Total rows seen.
+
+  ingestion_batches.accepted_rows               integer                        Rows committed to master.
+
+  ingestion_batches.duplicate_rows              integer                        Rows flagged as duplicates.
+
+  ingestion_batch_rows.batch_row_id             uuid PK                        Staging row record.
+
+  ingestion_batch_rows.batch_id                 uuid FK -> ingestion_batches   Parent batch.
+
+  ingestion_batch_rows.row_number               integer                        Original spreadsheet row number.
+
+  ingestion_batch_rows.row_status               text not null                  clean, invalid, duplicate, review, accepted, rejected.
+
+  ingestion_batch_rows.row_reason               text                           Human-readable validation reason.
+
+  ingestion_batch_rows.raw_row                  jsonb not null                 Original raw source row.
+
+  ingestion_batch_rows.mapped_row               jsonb                          Mapped internal field structure.
+
+  ingestion_batch_rows.matched_contact_id       uuid FK -> contacts            Resolved contact if known.
+
+  ingestion_batch_rows.matched_company_id       uuid FK -> companies           Resolved company if known.
+
+  ingestion_batch_rows.duplicate_candidate_id   uuid                           Pointer to duplicate review candidate.
+  -------------------------------------------------------------------------------------------------------------------------------------
+
+7. Duplicate Resolution and Merge History
+
+These tables capture exact or fuzzy matches, the human review process, and the final merge outcome.
+
+  ----------------------------------------------------------------------------------------------------------------------------------
+  Field                                     Type / constraints   Purpose
+  ----------------------------------------- -------------------- -------------------------------------------------------------------
+  duplicate_candidates.candidate_id         uuid PK              One possible duplicate relationship.
+
+  duplicate_candidates.entity_type          text not null        contact or company.
+
+  duplicate_candidates.existing_entity_id   uuid not null        Known existing record.
+
+  duplicate_candidates.source_entity_id     uuid not null        New or staged record.
+
+  duplicate_candidates.match_rule           text not null        email, linkedin, name+company, domain, fuzzy_name, fuzzy_company.
+
+  duplicate_candidates.match_score          numeric              Similarity score.
+
+  duplicate_candidates.review_status        text                 pending, accepted, rejected, merged.
+
+  duplicate_candidates.assigned_to          uuid FK -> users     Reviewer currently assigned.
+
+  duplicate_candidates.assigned_at          timestamptz          Assignment timestamp.
+
+  duplicate_candidates.resolved_by          uuid FK -> users     Reviewer who handled the candidate.
+
+  merge_events.merge_id                     uuid PK              Completed merge record.
+
+  merge_events.entity_type                  text not null        contact or company.
+
+  merge_events.survivor_entity_id           uuid not null        Record that remains active.
+
+  merge_events.merged_entity_id             uuid not null        Record that was absorbed.
+
+  merge_events.merge_reason                 text                 Why the merge happened.
+
+  merge_events.conflict_resolution_jsonb    jsonb                Field-level before/after resolution data.
+
+  merge_events.created_by                   uuid FK -> users     Who approved or triggered the merge.
+  ----------------------------------------------------------------------------------------------------------------------------------
+
+8. Scoring, Health, and Suppression
+
+These tables model quality, readiness, and do-not-contact behavior.
+
+  -----------------------------------------------------------------------------------------------------------------------------------------
+  Field                                       Type / constraints     Purpose
+  ------------------------------------------- ---------------------- ----------------------------------------------------------------------
+  contact_scores.score_id                     uuid PK                Score snapshot.
+
+  contact_scores.contact_id                   uuid FK -> contacts    Scored contact.
+
+  contact_scores.total_score                  smallint               Aggregate score.
+
+  contact_scores.score_band                   text                   Hot, warm, cold, or custom.
+
+  contact_scores.rule_breakdown               jsonb                  Explanation for the score.
+
+  contact_scores.evaluated_at                 timestamptz            When the score was calculated.
+
+  email_health_checks.health_check_id         uuid PK                One validation snapshot.
+
+  email_health_checks.contact_id              uuid FK -> contacts    Checked contact.
+
+  email_health_checks.status                  text not null          valid, risky, invalid, unknown.
+
+  email_health_checks.score                   smallint               Risk or confidence score.
+
+  email_health_checks.action_recommendation   text                   allow, review, or block based on score thresholds.
+
+  email_health_checks.syntax_ok               boolean                Syntax test result.
+
+  email_health_checks.domain_ok               boolean                Domain resolution result.
+
+  email_health_checks.mx_ok                   boolean                MX lookup result.
+
+  email_health_checks.disposable_ok           boolean                Disposable-domain check result.
+
+  email_health_checks.bounce_count            integer                Observed bounce count.
+
+  email_health_checks.checked_at              timestamptz            Validation timestamp.
+
+  suppression_entries.suppression_id          uuid PK                Suppression record.
+
+  suppression_entries.contact_id              uuid FK -> contacts    Suppressed contact.
+
+  suppression_entries.company_id              uuid FK -> companies   Optional company-level suppression.
+
+  suppression_entries.suppression_type        text not null          unsubscribed, bounce_soft, bounce_hard, manual_dnc, temporary_pause.
+
+  suppression_entries.reason                  text                   Human-readable reason or opt-out note.
+
+  suppression_entries.source_channel          text                   outlook_reply, list_unsubscribe, admin_action, import, webhook.
+
+  suppression_entries.source_message_id       text                   Related inbound or outbound message identifier.
+
+  suppression_entries.expires_at              timestamptz            Optional expiry for temporary pauses.
+
+  suppression_entries.is_active               boolean default true   Active suppression state.
+
+  suppression_entries.created_by              uuid FK -> users       Who created the suppression.
+
+  suppression_entries.removed_by              uuid FK -> users       Who removed it, if ever.
+
+  suppression_entries.removed_at              timestamptz            Removal timestamp.
+  -----------------------------------------------------------------------------------------------------------------------------------------
+
+8.1 Contact Scoring Rules
+
+These tables let the admin tune the initial rules-based scoring model without changing application code.
+
+  ------------------------------------------------------------------------------------------------------
+  Field                                   Type / constraints     Purpose
+  --------------------------------------- ---------------------- ---------------------------------------
+  contact_scoring_rules.rule_id           uuid PK                One scoring rule.
+
+  contact_scoring_rules.name              text not null          Human-readable rule name.
+
+  contact_scoring_rules.description       text                   What the rule is intended to capture.
+
+  contact_scoring_rules.applies_to        text not null          contact or company scope.
+
+  contact_scoring_rules.condition_jsonb   jsonb not null         Condition definition.
+
+  contact_scoring_rules.weight            smallint not null      Rule weight in points.
+
+  contact_scoring_rules.sort_order        smallint               Execution order.
+
+  contact_scoring_rules.is_active         boolean default true   Rule on/off flag.
+
+  contact_scoring_rules.created_by        uuid FK -> users       Rule author.
+
+  contact_scoring_rules.created_at        timestamptz            Creation timestamp.
+
+  contact_scoring_rules.updated_at        timestamptz            Last update timestamp.
+  ------------------------------------------------------------------------------------------------------
+
+9. AI Drafting and Approval
+
+These tables store generated output, human edits, and the metadata that explains why a draft exists.
+
+  ---------------------------------------------------------------------------------------------------------------------------------
+  Field                           Type / constraints                 Purpose
+  ------------------------------- ---------------------------------- --------------------------------------------------------------
+  drafts.draft_id                 uuid PK                            Primary draft record.
+
+  drafts.contact_id               uuid FK -> contacts                Draft target.
+
+  drafts.company_id               uuid FK -> companies               Draft context anchor.
+
+  drafts.sequence_run_id          uuid FK -> contact_sequence_runs   Optional sequence linkage.
+
+  drafts.subject                  text not null                      Email subject line.
+
+  drafts.body                     text not null                      Email body.
+
+  drafts.cta                      text                               Short call-to-action line.
+
+  drafts.model_provider           text                               AI provider such as OpenAI or another approved API provider.
+
+  drafts.model_name               text                               AI model used.
+
+  drafts.model_version            text                               Pinned model version or snapshot.
+
+  drafts.prompt_template_id       uuid FK -> prompt_templates        Prompt template used for generation.
+
+  drafts.prompt_version           text                               Prompt template version label.
+
+  drafts.prompt_tokens            integer                            Prompt token usage.
+
+  drafts.completion_tokens        integer                            Completion token usage.
+
+  drafts.estimated_cost_usd       numeric                            Estimated generation cost.
+
+  drafts.confidence_score         smallint                           Model or reviewer confidence.
+
+  drafts.status                   text not null                      generated, reviewed, approved, rejected.
+
+  drafts.source_context_jsonb     jsonb                              Contact/company/capability inputs used.
+
+  drafts.assumptions_jsonb        jsonb                              Any clearly labeled assumptions.
+
+  drafts.review_assigned_to       uuid FK -> users                   Reviewer currently assigned.
+
+  drafts.review_assigned_at       timestamptz                        Assignment timestamp.
+
+  drafts.reviewed_by              uuid FK -> users                   Reviewer who handled the draft.
+
+  drafts.reviewed_at              timestamptz                        Review timestamp.
+
+  drafts.review_notes             text                               Reviewer notes or feedback.
+
+  drafts.rejected_by              uuid FK -> users                   Reviewer who rejected the draft.
+
+  drafts.rejected_at              timestamptz                        Rejection timestamp.
+
+  drafts.rejection_reason         text                               Reason for rejection.
+
+  drafts.approved_by              uuid FK -> users                   Reviewer who approved.
+
+  drafts.approved_at              timestamptz                        Approval time.
+
+  draft_versions.version_id       uuid PK                            Version row.
+
+  draft_versions.draft_id         uuid FK -> drafts                  Parent draft.
+
+  draft_versions.version_number   integer                            Monotonic revision number.
+
+  draft_versions.subject          text                               Versioned subject.
+
+  draft_versions.body             text                               Versioned body.
+
+  draft_versions.edited_by        uuid FK -> users                   Who changed it.
+
+  draft_versions.edited_at        timestamptz                        Edit timestamp.
+  ---------------------------------------------------------------------------------------------------------------------------------
+
+9.1 Prompt Templates and AI Runs
+
+These tables pin the prompt structure and keep a history of each AI generation attempt, including cost and failure state.
+
+  --------------------------------------------------------------------------------------------------------------
+  Field                                   Type / constraints            Purpose
+  --------------------------------------- ----------------------------- ----------------------------------------
+  prompt_templates.template_id            uuid PK                       Prompt template identifier.
+
+  prompt_templates.name                   text not null                 Human-readable template name.
+
+  prompt_templates.version_number         integer not null              Template version.
+
+  prompt_templates.provider               text                          Provider the template is intended for.
+
+  prompt_templates.model_family           text                          Model family hint such as gpt-4-class.
+
+  prompt_templates.system_prompt          text not null                 System instructions.
+
+  prompt_templates.user_prompt            text not null                 User prompt body or template.
+
+  prompt_templates.output_schema_jsonb    jsonb                         Expected structured output contract.
+
+  prompt_templates.is_active              boolean default true          Active template flag.
+
+  prompt_templates.superseded_by          uuid FK -> prompt_templates   Next active template version.
+
+  prompt_templates.created_by             uuid FK -> users              Template author.
+
+  prompt_templates.created_at             timestamptz                   Creation timestamp.
+
+  ai_generation_runs.run_id               uuid PK                       One generation attempt.
+
+  ai_generation_runs.draft_id             uuid FK -> drafts             Generated draft.
+
+  ai_generation_runs.prompt_template_id   uuid FK -> prompt_templates   Template used.
+
+  ai_generation_runs.provider             text                          Provider name.
+
+  ai_generation_runs.model_name           text                          Model name.
+
+  ai_generation_runs.model_version        text                          Pinned version or snapshot.
+
+  ai_generation_runs.input_tokens         integer                       Prompt token count.
+
+  ai_generation_runs.output_tokens        integer                       Completion token count.
+
+  ai_generation_runs.estimated_cost_usd   numeric                       Estimated cost for the run.
+
+  ai_generation_runs.status               text not null                 queued, running, succeeded, failed.
+
+  ai_generation_runs.error_message        text                          Failure reason if any.
+
+  ai_generation_runs.started_at           timestamptz                   Start timestamp.
+
+  ai_generation_runs.completed_at         timestamptz                   Completion timestamp.
+  --------------------------------------------------------------------------------------------------------------
+
+10. Sequence and Outbox Execution
+
+These tables control follow-up sequencing, scheduling, delivery, retries, and send state.
+
+  ----------------------------------------------------------------------------------------------------------------------------
+  Field                                      Type / constraints              Purpose
+  ------------------------------------------ ------------------------------- -------------------------------------------------
+  outreach_sequences.sequence_id             uuid PK                         Simple reusable sequence definition.
+
+  outreach_sequences.name                    text not null                   Sequence name.
+
+  outreach_sequences.is_active               boolean default true            Availability flag.
+
+  outreach_sequence_steps.step_id            uuid PK                         Step record.
+
+  outreach_sequence_steps.sequence_id        uuid FK -> outreach_sequences   Parent sequence.
+
+  outreach_sequence_steps.step_order         smallint not null               1, 2, 3, etc.
+
+  outreach_sequence_steps.delay_days         smallint not null               Delay after the previous step.
+
+  outreach_sequence_steps.step_type          text not null                   initial or followup.
+
+  contact_sequence_runs.run_id               uuid PK                         Per-contact sequence progress.
+
+  contact_sequence_runs.contact_id           uuid FK -> contacts             Tracked contact.
+
+  contact_sequence_runs.sequence_id          uuid FK -> outreach_sequences   Selected sequence.
+
+  contact_sequence_runs.current_step         smallint                        Current step number.
+
+  contact_sequence_runs.status               text not null                   running, paused, completed, stopped.
+
+  contact_sequence_runs.next_step_at         timestamptz                     Next scheduled action.
+
+  outbound_messages.message_id               uuid PK                         Queue item / delivery record.
+
+  outbound_messages.draft_id                 uuid FK -> drafts               Source approved draft.
+
+  outbound_messages.contact_id               uuid FK -> contacts             Recipient.
+
+  outbound_messages.mailbox_id               uuid FK -> mailboxes            Sending mailbox.
+
+  outbound_messages.delivery_mode            text not null                   production or dry_run.
+
+  outbound_messages.provider_message_id      text unique                     Microsoft Graph message identifier.
+
+  outbound_messages.thread_id                text                            Conversation thread identifier.
+
+  outbound_messages.status                   text not null                   queued, sending, sent, failed, paused, dry_run.
+
+  outbound_messages.scheduled_for            timestamptz                     Planned send time.
+
+  outbound_messages.sent_at                  timestamptz                     Actual send time.
+
+  outbound_message_attempts.attempt_id       uuid PK                         Retry record.
+
+  outbound_message_attempts.message_id       uuid FK -> outbound_messages    Parent message.
+
+  outbound_message_attempts.attempt_number   smallint                        1, 2, 3...
+
+  outbound_message_attempts.attempt_status   text                            success or failed.
+
+  outbound_message_attempts.error_code       text                            Provider or network error code.
+
+  outbound_message_attempts.error_message    text                            Human-readable failure reason.
+  ----------------------------------------------------------------------------------------------------------------------------
+
+11. Inbound Replies and Bounce Tracking
+
+These tables capture incoming email signals and tie them back to the correct contact and thread.
+
+  -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Field                                        Type / constraints     Purpose
+  -------------------------------------------- ---------------------- -----------------------------------------------------------------------------------------------------
+  inbound_messages.inbound_message_id          uuid PK                Received message record.
+
+  inbound_messages.contact_id                  uuid FK -> contacts    Matched contact.
+
+  inbound_messages.company_id                  uuid FK -> companies   Matched company.
+
+  inbound_messages.provider_message_id         text unique            Message identifier from Outlook or Graph.
+
+  inbound_messages.thread_id                   text                   Thread identifier used to group the conversation.
+
+  inbound_messages.subject                     text                   Incoming subject.
+
+  inbound_messages.body_text                   text                   Plain text body.
+
+  inbound_messages.classification              text                   positive_interest, negative_interest, out_of_office, unsubscribe, neutral, unknown_requires_review.
+
+  inbound_messages.classification_confidence   smallint               Confidence in the reply classification.
+
+  inbound_messages.received_at                 timestamptz            Received timestamp.
+
+  inbound_messages.raw_payload                 jsonb                  Provider response for traceability.
+  -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+11.1 Bounce Events
+
+Bounce events are stored separately from replies so the system can distinguish deliverability failures from ordinary conversation replies.
+
+  ---------------------------------------------------------------------------------------------------------------
+  Field                               Type / constraints             Purpose
+  ----------------------------------- ------------------------------ --------------------------------------------
+  bounce_events.bounce_id             uuid PK                        Bounce record identifier.
+
+  bounce_events.outbound_message_id   uuid FK -> outbound_messages   Message that bounced.
+
+  bounce_events.contact_id            uuid FK -> contacts            Affected contact.
+
+  bounce_events.company_id            uuid FK -> companies           Affected company.
+
+  bounce_events.bounce_type           text not null                  hard, soft, mailbox_full, policy, unknown.
+
+  bounce_events.reason                text                           Bounce explanation.
+
+  bounce_events.provider_message_id   text                           Provider bounce identifier.
+
+  bounce_events.received_at           timestamptz                    Bounce timestamp.
+
+  bounce_events.raw_payload           jsonb                          Provider response for traceability.
+  ---------------------------------------------------------------------------------------------------------------
+
+12. Knowledge Base Assets
+
+These tables store the internal service library that powers AI drafting and manual reuse.
+
+  --------------------------------------------------------------------------------------------------------------------------------------------------
+  Field                                         Type / constraints                        Purpose
+  --------------------------------------------- ----------------------------------------- ----------------------------------------------------------
+  capability_documents.document_id              uuid PK                                   Primary capability document.
+
+  capability_documents.title                    text not null                             Document title.
+
+  capability_documents.category                 text                                      Service line, case study, objection, CTA, playbook, etc.
+
+  capability_documents.status                   text not null                             active, archived, draft.
+
+  capability_documents.active_version_id        uuid FK -> capability_document_versions   Currently approved version.
+
+  capability_document_versions.version_id       uuid PK                                   Version row.
+
+  capability_document_versions.document_id      uuid FK -> capability_documents           Parent document.
+
+  capability_document_versions.version_number   integer not null                          Monotonic version number.
+
+  capability_document_versions.file_name        text                                      Original file name.
+
+  capability_document_versions.file_path        text                                      Object storage pointer.
+
+  capability_document_versions.extracted_text   text                                      Raw text extraction.
+
+  capability_document_versions.summary          text                                      Structured human-readable summary.
+
+  capability_document_versions.is_active        boolean default true                      Version state.
+
+  capability_snippets.snippet_id                uuid PK                                   Reusable AI input unit.
+
+  capability_snippets.document_version_id       uuid FK -> capability_document_versions   Source version.
+
+  capability_snippets.snippet_type              text                                      service, proof_point, objection, CTA, industry_fit.
+
+  capability_snippets.title                     text not null                             Short snippet title.
+
+  capability_snippets.body                      text not null                             Snippet content.
+
+  capability_snippets.keywords                  text[]                                    Search and retrieval keywords.
+
+  capability_snippets.target_industries         text[]                                    Industry tags.
+
+  capability_snippets.target_roles              text[]                                    Role or persona tags.
+
+  capability_snippets.is_active                 boolean default true                      Enable or disable snippet use.
+  --------------------------------------------------------------------------------------------------------------------------------------------------
+
+13. Reporting and Audit
+
+These tables provide the operational memory of the system and must remain append-only or at least highly controlled.
+
+  ------------------------------------------------------------------------------------------------------------
+  Field                      Type / constraints   Purpose
+  -------------------------- -------------------- ------------------------------------------------------------
+  audit_logs.audit_id        uuid PK              Immutable change record.
+
+  audit_logs.actor_user_id   uuid FK -> users     Who performed the action.
+
+  audit_logs.entity_type     text not null        contacts, companies, drafts, batches, settings, etc.
+
+  audit_logs.entity_id       uuid not null        The affected row.
+
+  audit_logs.action          text not null        Created, updated, approved, merged, sent, suppressed, etc.
+
+  audit_logs.before_data     jsonb                Before state snapshot.
+
+  audit_logs.after_data      jsonb                After state snapshot.
+
+  audit_logs.metadata        jsonb                Extra diagnostic information.
+
+  audit_logs.created_at      timestamptz          Append time.
+  ------------------------------------------------------------------------------------------------------------
+
+13.1 Export Jobs
+
+Export jobs make it possible to generate shareable CSVs or audit extracts without losing traceability.
+
+  ----------------------------------------------------------------------------------------------------------------
+  Field                       Type / constraints   Purpose
+  --------------------------- -------------------- ---------------------------------------------------------------
+  export_jobs.export_id       uuid PK              Export job identifier.
+
+  export_jobs.requested_by    uuid FK -> users     User who requested the export.
+
+  export_jobs.export_type     text not null        contacts, companies, audit_logs, suppression_list, or custom.
+
+  export_jobs.filters_jsonb   jsonb                Filter criteria used for the export.
+
+  export_jobs.file_path       text                 Object storage path for the result.
+
+  export_jobs.row_count       integer              Rows included in the export.
+
+  export_jobs.status          text not null        queued, running, succeeded, failed.
+
+  export_jobs.created_at      timestamptz          Job creation time.
+
+  export_jobs.completed_at    timestamptz          Job completion time.
+  ----------------------------------------------------------------------------------------------------------------
+
+14. Index and Constraint Strategy
+
+-   Unique or near-unique indexes: ingestion_batches.file_hash, import_profiles.header_hash, companies.domain when present, inbound_messages.provider_message_id, outbound_messages.provider_message_id, users.email_address.
+
+-   Search indexes: contacts.email_address, contacts.linkedin_url_normalized, contacts.name_normalized, companies.name_normalized, companies.domain, companies.linkedin_url_normalized, contacts.status, contacts.email_health_status, custom_field_definitions.internal_key, custom_field_values.normalized_value_text.
+
+-   Foreign key indexes: all parent-child relationships used for search and joins.
+
+-   JSONB indexes: contacts.custom_fields, companies.custom_fields, and settings payloads only where needed, with GIN indexing if queryable.
+
+-   Temporal indexes: audit_logs.created_at, email_health_checks.checked_at, outbound_messages.scheduled_for, inbound_messages.received_at, ai_generation_runs.started_at.
+
+-   Partitioning is optional at first but can later be added for audit_logs, outbound_messages, inbound_messages, email_health_checks, and ai_generation_runs if volume grows sharply.
+
+15. Recommended Constraints
+
+-   A contact must always point to a company, even if the company is a placeholder.
+
+-   A company must always have a normalized name for duplicate detection.
+
+-   A batch file hash should never be imported twice without an explicit override path.
+
+-   A suppression entry should block drafting and sending until removed by an authorized user.
+
+-   A revoked consent state or a hard suppression should block all future sends immediately.
+
+-   A health score below the block threshold should prevent queueing unless an authorized override is recorded.
+
+-   A draft should not move to outbound_messages until it has been approved.
+
+-   Approved drafts should create outbound_messages in queued state instead of bypassing the queue.
+
+-   An outbound message should not send outside the configured working window unless the user explicitly overrides the queue.
+
+-   Dry-run mode should record outbound_messages but skip actual Graph send calls.
+
+16. Example SQL Conventions
+
+-- Example conventions only, not the full DDL
+
+create table companies (
+
+company_id uuid primary key,
+
+name_raw text not null,
+
+name_normalized text not null,
+
+domain citext,
+
+custom_fields jsonb not null default '{}'::jsonb,
+
+created_at timestamptz not null default now(),
+
+updated_at timestamptz not null default now()
+
+);
+
+create index idx_companies_domain on companies(domain);
+
+create index idx_companies_name_normalized on companies(name_normalized);
+
+17. Practical Notes
+
+-   Keep the schema wide enough for current spreadsheet reality, but not so wide that every field needs a migration.
+
+-   Favor JSONB for source-specific custom data and relational columns for everything that must be filtered, sorted, or reported often.
+
+-   Use custom_field_definitions plus custom_field_values when a custom column needs validation, filtering, or prompt access.
+
+-   Keep event tables append-only wherever possible.
+
+-   Use audit logs for who changed what and when, but use history tables for operational traces that need fast lookup.
+
+-   The schema should support the web app without requiring a separate mobile data model.

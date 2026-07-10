@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'logo.clearbit.com' },
     ],
   },
+  allowedDevOrigins: ['*'],
 };
 
 export default nextConfig;

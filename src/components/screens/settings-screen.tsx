@@ -216,7 +216,7 @@ export function SettingsScreen() {
                   <SelectTrigger className="h-9 border-gray-200 rounded-lg text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="openai">OpenAI</SelectItem>
-                    <SelectItem value="google-gemini">Google Gemini</SelectItem>
+                    <SelectItem value="gemini">Google Gemini</SelectItem>
                     <SelectItem value="groq">Groq</SelectItem>
                   </SelectContent>
                 </Select>

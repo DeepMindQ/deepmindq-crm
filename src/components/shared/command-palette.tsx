@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
-  LayoutDashboard, Building2, Users, Upload, Settings, Search, ArrowRight,
+  LayoutDashboard, Building2, Users, Upload, Settings, Search, ArrowRight, Mail,
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import type { ActiveView } from '@/lib/types'
@@ -10,16 +10,29 @@ import type { ActiveView } from '@/lib/types'
 const commands = [
   { id: 'dashboard', label: 'Go to Dashboard', icon: LayoutDashboard, view: 'dashboard' as ActiveView, shortcut: 'G D' },
   { id: 'companies', label: 'Go to Companies', icon: Building2, view: 'companies' as ActiveView, shortcut: 'G C' },
-  { id: 'contacts', label: 'Go to Contacts', icon: Users, view: 'contacts' as ActiveView, shortcut: 'G U' },
+  { id: 'contacts', label: 'Go to Contacts', icon: Users, view: 'contacts' as ActiveView, shortcut: 'G T' },
   { id: 'import', label: 'Import Data', icon: Upload, view: 'import' as ActiveView, shortcut: 'G I' },
   { id: 'settings', label: 'Open Settings', icon: Settings, view: 'settings' as ActiveView, shortcut: 'G S' },
+  { id: 'email-generation', label: 'AI Emails', icon: Mail, view: 'email-generation' as ActiveView, shortcut: 'G E' },
 ]
+
+// Map shortcut second keys to view IDs for the G+key global shortcuts
+const G_KEY_MAP: Record<string, ActiveView> = {
+  d: 'dashboard',
+  c: 'companies',
+  t: 'contacts',
+  i: 'import',
+  s: 'settings',
+  e: 'email-generation',
+}
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(0)
   const { setActiveView } = useAppStore()
+  const gPendingRef = useRef(false)
+  const gTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const filtered = commands.filter(c =>
     c.label.toLowerCase().includes(query.toLowerCase())
@@ -31,12 +44,21 @@ export function CommandPalette() {
     setSelected(0)
   }, [])
 
+  // Global keyboard shortcut listener: Cmd/Ctrl+K for palette, G+key for navigation
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      // Ignore events when typing in inputs/textareas (except when palette is open)
+      const tag = (e.target as HTMLElement)?.tagName
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable
+
+      // Cmd/Ctrl+K: toggle palette
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
         toggle()
+        return
       }
+
+      // If palette is open, handle palette-specific keys
       if (open) {
         if (e.key === 'Escape') { setOpen(false); setQuery('') }
         if (e.key === 'ArrowDown') { e.preventDefault(); setSelected(s => Math.min(s + 1, filtered.length - 1)) }
@@ -46,10 +68,42 @@ export function CommandPalette() {
           setOpen(false)
           setQuery('')
         }
+        return
+      }
+
+      // When palette is closed and not in an input: handle G+key shortcuts
+      if (isInput) return
+
+      const key = e.key.toLowerCase()
+
+      if (key === 'g' && !gPendingRef.current) {
+        // First press of G — start the timer
+        gPendingRef.current = true
+        if (gTimerRef.current) clearTimeout(gTimerRef.current)
+        gTimerRef.current = setTimeout(() => {
+          gPendingRef.current = false
+        }, 500)
+        return
+      }
+
+      if (gPendingRef.current && key !== 'g') {
+        // G was pressed, now a second key — check if it's a valid shortcut
+        const targetView = G_KEY_MAP[key]
+        gPendingRef.current = false
+        if (gTimerRef.current) clearTimeout(gTimerRef.current)
+
+        if (targetView) {
+          e.preventDefault()
+          useAppStore.getState().setActiveView(targetView)
+        }
       }
     }
+
     document.addEventListener('keydown', down)
-    return () => document.removeEventListener('keydown', down)
+    return () => {
+      document.removeEventListener('keydown', down)
+      if (gTimerRef.current) clearTimeout(gTimerRef.current)
+    }
   }, [open, filtered, selected, setActiveView, toggle])
 
   if (!open) return null
@@ -96,6 +150,11 @@ export function CommandPalette() {
                   >
                     <Icon className={`size-4 shrink-0 ${i === selected ? 'text-amber-600' : 'text-gray-400'}`} />
                     <span className="flex-1 font-medium">{cmd.label}</span>
+                    <kbd className={`hidden sm:inline-flex items-center gap-0.5 rounded border px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                      i === selected ? 'border-amber-200 bg-amber-100 text-amber-700' : 'border-gray-200 bg-gray-50 text-gray-400'
+                    }`}>
+                      {cmd.shortcut}
+                    </kbd>
                     <ArrowRight className={`size-3 transition-opacity ${i === selected ? 'opacity-100 text-amber-600' : 'opacity-0'}`} />
                   </button>
                 )
@@ -107,6 +166,7 @@ export function CommandPalette() {
             <span>↑↓ Navigate</span>
             <span>↵ Select</span>
             <span>esc Close</span>
+            <span className="hidden sm:inline border-l border-gray-200 pl-4">⌘K Open</span>
           </div>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Upload, CheckCircle2, ArrowRight, ArrowLeft, RefreshCw, FileSpreadsheet,
-  AlertTriangle, FileText, Eye, UploadCloud,
+  AlertTriangle, Eye, UploadCloud, Loader2,
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import { toast } from 'sonner'
@@ -57,21 +57,70 @@ export default function ImportScreen() {
   const [csv, setCsv] = useState<{ headers: string[]; rows: string[][] }>({ headers: [], rows: [] })
   const [mapping, setMapping] = useState<Record<number, string>>({})
   const [progress, setProgress] = useState(0)
-  const [importResult, setImportResult] = useState<{ totalRows: number; acceptedRows: number } | null>(null)
+  const [importResult, setImportResult] = useState<{
+    accepted: number
+    duplicates: number
+    invalid: number
+  } | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [batchId, setBatchId] = useState<string | null>(null)
 
   const { data: history } = useQuery({ queryKey: ['imports'], queryFn: () => fetch('/api/imports').then(r => r.json()) })
 
-  const doImport = useMutation({
-    mutationFn: async (f: File) => { const fd = new FormData(); fd.append('file', f); return fetch('/api/imports', { method: 'POST', body: fd }).then(r => r.json()) },
-    onSuccess: (d) => { setImportResult(d); setProgress(100); qc.invalidateQueries({ queryKey: ['imports'] }); toast.success('Import complete!') },
-    onError: (e: any) => toast.error(e.error || 'Import failed'),
+  // Stage mutation: upload file as FormData to get batchId
+  const stageMutation = useMutation({
+    mutationFn: async (f: File) => {
+      const fd = new FormData()
+      fd.append('file', f)
+      const res = await fetch('/api/imports', { method: 'POST', body: fd })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Upload failed' }))
+        throw new Error(err.error || 'Upload failed')
+      }
+      return res.json() as Promise<{ id: string; fileName: string; totalRows: number }>
+    },
+    onSuccess: (data) => {
+      setBatchId(data.id)
+      setStep(3)
+    },
+    onError: (e: Error) => toast.error(e.message || 'Failed to stage import'),
+  })
+
+  // Execute mutation: send JSON with batchId, mapping, rows
+  const executeMutation = useMutation({
+    mutationFn: async (params: {
+      batchId: string
+      mapping: Record<string, number>
+      rows: string[][]
+    }) => {
+      const res = await fetch('/api/imports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'execute', ...params }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Import failed' }))
+        throw new Error(err.error || 'Import failed')
+      }
+      return res.json() as Promise<{ success: boolean; accepted: number; duplicates: number; invalid: number }>
+    },
+    onSuccess: (data) => {
+      setImportResult(data)
+      setProgress(100)
+      qc.invalidateQueries({ queryKey: ['imports'] })
+      toast.success(`Import complete! ${data.accepted} contacts imported.`)
+    },
+    onError: (e: Error) => {
+      toast.error(e.message || 'Import failed')
+      setProgress(100)
+    },
   })
 
   const handleFile = useCallback((f: File) => {
     if (!f.name.toLowerCase().endsWith('.csv')) { toast.error('Please upload a CSV file'); return }
     setFile(f)
+    setBatchId(null)
     const reader = new FileReader()
     reader.onload = (e) => {
       const parsed = parseCSV(e.target?.result as string)
@@ -94,13 +143,42 @@ export default function ImportScreen() {
   const readyCount = csv.rows.length - invalidEmails
   const invalidRowIndices = emailColIdx != null ? csv.rows.map((r, i) => r[emailColIdx] && !emailRe.test(r[emailColIdx]) ? i : -1).filter(i => i >= 0) : []
 
-  const runImport = () => {
+  // Called when clicking "Next" on step 2 → stages the file and moves to step 3
+  const goToReview = () => {
     if (!file) return
-    setStep(4); setProgress(0)
-    let p = 0
-    const iv = setInterval(() => { p += Math.random() * 30 + 10; if (p > 90) p = 90; setProgress(Math.min(p, 90)) }, 400)
-    doImport.mutate(file, { onSettled: () => { clearInterval(iv); setProgress(100) } })
+    stageMutation.mutate(file)
   }
+
+  // Called when clicking "Start Import" on step 3 → executes the import
+  const runImport = () => {
+    if (!batchId) return
+
+    // Invert mapping from Record<number, string> to Record<string, number>
+    const invertedMapping: Record<string, number> = {}
+    for (const [colIdx, fieldName] of Object.entries(mapping)) {
+      if (fieldName && fieldName !== '_skip') {
+        invertedMapping[fieldName] = Number(colIdx)
+      }
+    }
+
+    // Filter out rows with invalid emails
+    const validRows = emailColIdx != null
+      ? csv.rows.filter(r => !r[emailColIdx] || emailRe.test(r[emailColIdx]))
+      : csv.rows
+
+    setStep(4)
+    setProgress(0)
+    let p = 0
+    const iv = setInterval(() => { p += Math.random() * 25 + 5; if (p > 90) p = 90; setProgress(Math.min(p, 90)) }, 400)
+
+    executeMutation.mutate(
+      { batchId, mapping: invertedMapping, rows: validRows },
+      { onSettled: () => { clearInterval(iv) } },
+    )
+  }
+
+  // Check if staging is in progress (moving from step 2 to 3)
+  const isStaging = stageMutation.isPending
 
   const STEPS = ['Upload', 'Map Columns', 'Review', 'Import']
 
@@ -115,7 +193,7 @@ export default function ImportScreen() {
                 'flex size-8 items-center justify-center rounded-full text-sm font-bold transition-all duration-300',
                 i + 1 < step ? 'bg-amber-600 text-white' : i + 1 === step ? 'bg-amber-600 text-white ring-4 ring-amber-100' : 'bg-gray-100 text-gray-400'
               )}>
-                {i + 1 < step ? <CheckCircle2 className="size-4" /> : i + 1}
+                {i + 1 < step ? <CheckCircle2 className="size-4" /> : (i + 1 === step && (isStaging || executeMutation.isPending)) ? <Loader2 className="size-4 animate-spin" /> : i + 1}
               </div>
               <span className={cn('hidden sm:inline text-xs whitespace-nowrap', i + 1 === step ? 'font-medium text-gray-900' : 'text-gray-400')}>{s}</span>
             </div>
@@ -128,7 +206,7 @@ export default function ImportScreen() {
       {step === 1 && (
         <div
           className={cn(
-            'rounded-2xl border-2 border-dashed p-16 text-center cursor-pointer transition-all duration-300',
+            'rounded-2xl border-2 border-dashed p-8 sm:p-16 text-center cursor-pointer transition-all duration-300',
             isDragging
               ? 'border-amber-400 bg-amber-50/50 scale-[1.01]'
               : 'border-gray-300 hover:border-amber-300 hover:bg-amber-50/30'
@@ -155,15 +233,15 @@ export default function ImportScreen() {
             <h3 className="text-sm font-semibold text-gray-900">Column Mapping</h3>
             <p className="text-xs text-gray-500 mt-0.5">Map your CSV columns to the correct fields. Auto-detected mappings are pre-selected.</p>
           </div>
-          <div className="px-6 space-y-2 max-h-80 overflow-y-auto pb-3">
+          <div className="px-4 md:px-6 space-y-2 max-h-80 overflow-y-auto pb-3">
             {csv.headers.map((h, i) => {
               const isMapped = mapping[i] && mapping[i] !== '_skip'
               return (
-                <div key={i} className={cn('flex items-center gap-3 p-2 rounded-lg transition-colors', isMapped ? 'bg-amber-50/50' : 'bg-gray-50/50')}>
-                  <span className="text-sm font-medium text-gray-900 w-44 truncate">{h}</span>
-                  <ArrowRight className="size-3.5 text-gray-300 shrink-0" />
+                <div key={i} className={cn('flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 p-2 rounded-lg transition-colors', isMapped ? 'bg-amber-50/50' : 'bg-gray-50/50')}>
+                  <span className="text-sm font-medium text-gray-900 sm:w-44 truncate">{h}</span>
+                  <ArrowRight className="size-3.5 text-gray-300 shrink-0 hidden sm:block" />
                   <Select value={mapping[i] || '_skip'} onValueChange={v => setMapping(p => ({ ...p, [i]: v }))}>
-                    <SelectTrigger className={cn('w-48 h-8 rounded-lg text-xs', isMapped ? 'border-amber-200 bg-white' : 'border-gray-200')}>
+                    <SelectTrigger className={cn('w-full sm:w-48 h-8 rounded-lg text-xs', isMapped ? 'border-amber-200 bg-white' : 'border-gray-200')}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -175,7 +253,7 @@ export default function ImportScreen() {
               )
             })}
           </div>
-          <div className="flex justify-between p-6 pt-3 border-t border-gray-100">
+          <div className="flex flex-col-reverse sm:flex-row justify-between p-4 md:p-6 pt-3 gap-2 border-t border-gray-100">
             <Button variant="ghost" className="text-gray-500 text-sm" onClick={() => { setStep(1); setCsv({ headers: [], rows: [] }); setMapping({}) }}>
               <ArrowLeft className="size-3.5 mr-1" /> Back
             </Button>
@@ -183,7 +261,8 @@ export default function ImportScreen() {
               <Button variant="outline" size="sm" className="text-xs border-gray-200 text-gray-600" onClick={() => setShowPreview(p => !p)}>
                 <Eye className="size-3.5 mr-1" /> {showPreview ? 'Hide Preview' : 'Preview Data'}
               </Button>
-              <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={() => setStep(3)}>
+              <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={goToReview} disabled={isStaging}>
+                {isStaging && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
                 Next <ArrowRight className="size-3.5 ml-1" />
               </Button>
             </div>
@@ -231,7 +310,7 @@ export default function ImportScreen() {
             <h3 className="text-sm font-semibold text-gray-900">Import Summary</h3>
             <p className="text-xs text-gray-500 mt-0.5">Review your import details before proceeding.</p>
           </div>
-          <div className="px-6 py-4 grid grid-cols-2 md:grid-cols-5 gap-6">
+          <div className="px-4 md:px-6 py-4 grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6">
             {([
               ['Total Rows', csv.rows.length, 'text-gray-900'],
               ['New Companies', uniqueCompanies, 'text-blue-600'],
@@ -246,7 +325,7 @@ export default function ImportScreen() {
             ))}
           </div>
           {invalidEmails > 0 && (
-            <div className="mx-6 mb-4 p-3 rounded-lg bg-red-50 border border-red-100 flex items-start gap-2">
+            <div className="mx-4 md:mx-6 mb-4 p-3 rounded-lg bg-red-50 border border-red-100 flex items-start gap-2">
               <AlertTriangle className="size-4 text-red-500 shrink-0 mt-0.5" />
               <div>
                 <p className="text-xs font-medium text-red-700">{invalidEmails} rows have invalid email addresses</p>
@@ -254,11 +333,11 @@ export default function ImportScreen() {
               </div>
             </div>
           )}
-          <div className="flex justify-between p-6 pt-0 border-t border-gray-100">
+          <div className="flex flex-col-reverse sm:flex-row justify-between p-4 md:p-6 pt-0 gap-2 border-t border-gray-100">
             <Button variant="ghost" className="text-gray-500 text-sm" onClick={() => setStep(2)}>
               <ArrowLeft className="size-3.5 mr-1" /> Back
             </Button>
-            <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={runImport} disabled={readyCount === 0}>
+            <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={runImport} disabled={readyCount === 0 || !batchId}>
               Start Import
             </Button>
           </div>
@@ -278,19 +357,49 @@ export default function ImportScreen() {
               </>
             ) : (
               <div className="scale-in">
-                <CheckCircle2 className="size-14 mx-auto text-emerald-500" />
-                <div className="mt-4">
-                  <p className="text-lg font-bold text-gray-900">Import Complete!</p>
-                  {importResult && <p className="text-sm text-gray-500 mt-1">{importResult.totalRows} rows processed, {importResult.acceptedRows} accepted.</p>}
-                </div>
-                <div className="flex justify-center gap-2 pt-4">
-                  <Button variant="outline" className="text-gray-600 border-gray-200 rounded-lg text-sm" onClick={() => { setStep(1); setFile(null); setCsv({ headers: [], rows: [] }); setMapping({}); setImportResult(null) }}>
-                    <RefreshCw className="size-3.5 mr-1.5" /> Import Another
-                  </Button>
-                  <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={() => setActiveView('companies')}>
-                    Go to Companies <ArrowRight className="size-3.5 ml-1" />
-                  </Button>
-                </div>
+                {executeMutation.isError ? (
+                  <>
+                    <AlertTriangle className="size-14 mx-auto text-red-500" />
+                    <div className="mt-4">
+                      <p className="text-lg font-bold text-gray-900">Import Failed</p>
+                      <p className="text-sm text-gray-500 mt-1">{executeMutation.error?.message || 'An unexpected error occurred.'}</p>
+                    </div>
+                    <div className="flex justify-center gap-2 pt-4">
+                      <Button variant="outline" className="text-gray-600 border-gray-200 rounded-lg text-sm" onClick={() => { setStep(3); setProgress(0); setImportResult(null) }}>
+                        <ArrowLeft className="size-3.5 mr-1.5" /> Go Back
+                      </Button>
+                      <Button variant="outline" className="text-gray-600 border-gray-200 rounded-lg text-sm" onClick={() => { setStep(1); setFile(null); setCsv({ headers: [], rows: [] }); setMapping({}); setImportResult(null); setBatchId(null) }}>
+                        <RefreshCw className="size-3.5 mr-1.5" /> Start Over
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="size-14 mx-auto text-emerald-500" />
+                    <div className="mt-4">
+                      <p className="text-lg font-bold text-gray-900">Import Complete!</p>
+                      {importResult && (
+                        <div className="mt-2 flex items-center justify-center gap-4 text-sm text-gray-500">
+                          <span className="text-emerald-600 font-medium">{importResult.accepted} accepted</span>
+                          {importResult.duplicates > 0 && (
+                            <span className="text-amber-600 font-medium">{importResult.duplicates} duplicates</span>
+                          )}
+                          {importResult.invalid > 0 && (
+                            <span className="text-red-600 font-medium">{importResult.invalid} invalid</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex justify-center gap-2 pt-4">
+                      <Button variant="outline" className="text-gray-600 border-gray-200 rounded-lg text-sm" onClick={() => { setStep(1); setFile(null); setCsv({ headers: [], rows: [] }); setMapping({}); setImportResult(null); setBatchId(null) }}>
+                        <RefreshCw className="size-3.5 mr-1.5" /> Import Another
+                      </Button>
+                      <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={() => setActiveView('companies')}>
+                        Go to Companies <ArrowRight className="size-3.5 ml-1" />
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

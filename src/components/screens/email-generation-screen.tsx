@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { Mail, Sparkles, Copy, RefreshCw, Save, User, CheckCircle2 } from 'lucide-react'
+import { Mail, Sparkles, Copy, RefreshCw, Save, User, CheckCircle2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { useAppStore } from '@/lib/store'
 import { EmptyState } from '@/components/shared/design-system'
 import { cn } from '@/lib/utils'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 type Tone = 'formal' | 'professional-casual' | 'direct'
 type EmailLength = 'short' | 'medium' | 'detailed'
@@ -35,6 +36,22 @@ const CTA_OPTIONS: { value: CtaStyle; label: string }[] = [
 const toggleActive = 'bg-amber-600 text-white'
 const toggleInactive = 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
 
+function matchScoreBadgeClasses(score: number | null | undefined) {
+  if (score == null) return 'bg-gray-100 text-gray-600 border border-gray-200'
+  if (score >= 80) return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+  if (score >= 60) return 'bg-amber-50 text-amber-700 border border-amber-200'
+  return 'bg-red-50 text-red-700 border border-red-200'
+}
+
+function confidenceBadgeClasses(confidence: string | undefined) {
+  switch (confidence) {
+    case 'high': return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+    case 'medium': return 'bg-amber-50 text-amber-700 border border-amber-200'
+    case 'low': return 'bg-red-50 text-red-700 border border-red-200'
+    default: return 'bg-gray-100 text-gray-600 border border-gray-200'
+  }
+}
+
 export default function EmailGenerationScreen() {
   const { selectedContactId, setSelectedContactId } = useAppStore()
   const [tone, setTone] = useState<Tone>('professional-casual')
@@ -42,14 +59,37 @@ export default function EmailGenerationScreen() {
   const [ctaStyle, setCtaStyle] = useState<CtaStyle>('soft')
   const [generatedSubject, setGeneratedSubject] = useState('')
   const [generatedBody, setGeneratedBody] = useState('')
+  const [lastDraftId, setLastDraftId] = useState<string | null>(null)
+  const [lastMatchScore, setLastMatchScore] = useState<number | null>(null)
+  const [lastConfidence, setLastConfidence] = useState<string | undefined>(undefined)
+  // Track which contactId the current draft belongs to so we can hide it on contact switch
+  const [draftContactId, setDraftContactId] = useState<string | null>(null)
 
   const { data: contactsData, isLoading: contactsLoading } = useQuery({
     queryKey: ['contacts', 'email-gen-sidebar'],
     queryFn: () => fetch('/api/contacts?pageSize=10').then(r => r.json()),
   })
 
+  // Fetch a specific contact if selectedContactId is set but not in the sidebar list
   const contacts = (contactsData?.contacts ?? []) as any[]
   const selectedContact = contacts.find((c: any) => c.id === selectedContactId) ?? null
+
+  const { data: preselectedContact, isLoading: preselectedLoading } = useQuery({
+    queryKey: ['contact', selectedContactId],
+    queryFn: () => fetch(`/api/contacts/${selectedContactId}`).then(r => r.json()),
+    enabled: !!selectedContactId && !selectedContact,
+  })
+
+  const activeContact = selectedContact || (preselectedContact ? {
+    id: preselectedContact.id,
+    name: preselectedContact.name,
+    email: preselectedContact.email,
+    jobTitle: preselectedContact.jobTitle,
+    company: preselectedContact.company,
+  } : null)
+
+  // Only show draft data when it belongs to the currently selected contact
+  const hasDraft = generatedBody.length > 0 && draftContactId === selectedContactId
 
   const generateMutation = useMutation({
     mutationFn: () =>
@@ -62,6 +102,10 @@ export default function EmailGenerationScreen() {
     onSuccess: (data) => {
       setGeneratedSubject(data.subject || '')
       setGeneratedBody(data.body || '')
+      setLastDraftId(data.draftId || null)
+      setLastMatchScore(data.matchScore ?? null)
+      setLastConfidence(data.confidence)
+      setDraftContactId(selectedContactId || null)
       toast.success('Email generated successfully')
     },
     onError: (e: Error) => toast.error(e.message),
@@ -79,23 +123,54 @@ export default function EmailGenerationScreen() {
     }
   }
 
-  const hasDraft = generatedBody.length > 0
+  const handleSaveDraft = () => {
+    if (lastDraftId) {
+      toast.success('Draft already saved')
+    } else {
+      toast.info('Generate an email first to save it as a draft')
+    }
+  }
 
   return (
-    <div className="flex h-full -m-6">
-      {/* ─── Left Sidebar ─── */}
-      <aside className="w-72 border-r border-gray-200/80 bg-gray-50/50 flex flex-col shrink-0">
+    <div className="flex h-full -m-6 flex-col md:flex-row">
+      {/* ─── Mobile Contact Selector ─── */}
+      <div className="md:hidden p-4 border-b border-gray-200/60 bg-white">
+        <Select value={selectedContactId || ''} onValueChange={(id) => {
+          setSelectedContactId(id)
+          setGeneratedSubject('')
+          setGeneratedBody('')
+          setLastDraftId(null)
+          setLastMatchScore(null)
+          setLastConfidence(undefined)
+          setDraftContactId(null)
+        }}>
+          <SelectTrigger className="w-full h-9 border-gray-200 rounded-lg text-sm">
+            <SelectValue placeholder="Select a contact..." />
+          </SelectTrigger>
+          <SelectContent>
+            {contacts.map((c: any) => (
+              <SelectItem key={c.id} value={c.id}>
+                <span className="font-medium">{c.name}</span>
+                {c.jobTitle && <span className="text-gray-400 ml-2">{c.jobTitle}</span>}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* ─── Left Sidebar (hidden on mobile) ─── */}
+      <aside className="hidden md:flex w-72 border-r border-gray-200/80 bg-gray-50/50 flex-col shrink-0">
         {/* Selected Contact Card */}
-        {selectedContact && (
+        {activeContact && (
           <div className="p-4 border-b border-gray-200/60 bg-white">
             <div className="flex items-center gap-3">
               <div className="size-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 text-sm font-semibold shrink-0">
-                {selectedContact.name?.charAt(0)?.toUpperCase()}
+                {activeContact.name?.charAt(0)?.toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-gray-900 truncate">{selectedContact.name}</p>
-                <p className="text-xs text-gray-500 font-mono truncate">{selectedContact.email}</p>
-                <p className="text-xs text-gray-400 mt-0.5 truncate">{selectedContact.company?.name || selectedContact.company || '—'}</p>
+                <p className="text-sm font-semibold text-gray-900 truncate">{activeContact.name}</p>
+                <p className="text-xs text-gray-500 font-mono truncate">{activeContact.email}</p>
+                <p className="text-xs text-gray-400 mt-0.5 truncate">{activeContact.company?.name || activeContact.company || '—'}</p>
               </div>
             </div>
             <div className="mt-3">
@@ -135,6 +210,10 @@ export default function EmailGenerationScreen() {
                       setSelectedContactId(c.id)
                       setGeneratedSubject('')
                       setGeneratedBody('')
+                      setLastDraftId(null)
+                      setLastMatchScore(null)
+                      setLastConfidence(undefined)
+                      setDraftContactId(null)
                     }}
                     className={cn(
                       'w-full p-3 rounded-lg cursor-pointer transition-colors flex items-center gap-2.5 text-left',
@@ -160,8 +239,8 @@ export default function EmailGenerationScreen() {
       </aside>
 
       {/* ─── Main Area ─── */}
-      <main className="flex-1 overflow-y-auto">
-        {!selectedContact ? (
+      <main className="flex-1 overflow-y-auto min-h-0">
+        {!activeContact && !preselectedLoading ? (
           <div className="h-full">
             <EmptyState
               icon={Mail}
@@ -169,15 +248,19 @@ export default function EmailGenerationScreen() {
               description="Choose a contact from the sidebar to begin crafting an AI-powered outreach email tailored to them."
             />
           </div>
+        ) : preselectedLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="size-6 animate-spin text-amber-600" />
+          </div>
         ) : (
-          <div className="max-w-3xl mx-auto p-6 space-y-6">
+          <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
             {/* ─── Tone Selector ─── */}
-            <div className="bg-white rounded-xl border border-gray-200/80 p-6 elevation-modal space-y-4">
+            <div className="bg-white rounded-xl border border-gray-200/80 p-4 md:p-6 elevation-modal space-y-4">
               <div>
                 <h3 className="text-sm font-semibold text-gray-900 mb-1">Email Tone</h3>
                 <p className="text-xs text-gray-500">Choose the tone for your outreach message</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {TONE_OPTIONS.map(opt => (
                   <button
                     key={opt.value}
@@ -194,12 +277,12 @@ export default function EmailGenerationScreen() {
             </div>
 
             {/* ─── Email Length ─── */}
-            <div className="bg-white rounded-xl border border-gray-200/80 p-6 elevation-modal space-y-4">
+            <div className="bg-white rounded-xl border border-gray-200/80 p-4 md:p-6 elevation-modal space-y-4">
               <div>
                 <h3 className="text-sm font-semibold text-gray-900 mb-1">Email Length</h3>
                 <p className="text-xs text-gray-500">How detailed should the generated email be?</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {LENGTH_OPTIONS.map(opt => (
                   <button
                     key={opt.value}
@@ -216,12 +299,12 @@ export default function EmailGenerationScreen() {
             </div>
 
             {/* ─── CTA Style ─── */}
-            <div className="bg-white rounded-xl border border-gray-200/80 p-6 elevation-modal space-y-4">
+            <div className="bg-white rounded-xl border border-gray-200/80 p-4 md:p-6 elevation-modal space-y-4">
               <div>
                 <h3 className="text-sm font-semibold text-gray-900 mb-1">CTA Style</h3>
                 <p className="text-xs text-gray-500">How should the call-to-action be framed?</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {CTA_OPTIONS.map(opt => (
                   <button
                     key={opt.value}
@@ -261,16 +344,16 @@ export default function EmailGenerationScreen() {
               <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
                 {/* Badges row */}
                 <div className="flex items-center gap-3">
-                  <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold px-2.5 py-1">
-                    Match Score: 87%
+                  <Badge className={cn('text-[11px] font-semibold px-2.5 py-1', matchScoreBadgeClasses(lastMatchScore))}>
+                    Match Score: {lastMatchScore != null ? `${lastMatchScore}%` : '—'}
                   </Badge>
-                  <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold px-2.5 py-1">
-                    Confidence: High
+                  <Badge className={cn('text-[11px] font-semibold px-2.5 py-1', confidenceBadgeClasses(lastConfidence))}>
+                    Confidence: {lastConfidence ? lastConfidence.charAt(0).toUpperCase() + lastConfidence.slice(1) : '—'}
                   </Badge>
                 </div>
 
                 {/* Subject */}
-                <div className="bg-white rounded-xl border border-gray-200/80 p-6 elevation-modal space-y-3">
+                <div className="bg-white rounded-xl border border-gray-200/80 p-4 md:p-6 elevation-modal space-y-3">
                   <label className="text-sm font-medium text-gray-700 block">Subject Line</label>
                   <Input
                     value={generatedSubject}
@@ -281,14 +364,14 @@ export default function EmailGenerationScreen() {
                 </div>
 
                 {/* Body */}
-                <div className="bg-gray-50/50 border border-gray-200/80 rounded-xl p-6">
+                <div className="bg-gray-50/50 border border-gray-200/80 rounded-xl p-4 md:p-6">
                   <pre className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed font-sans">
                     {generatedBody}
                   </pre>
                 </div>
 
                 {/* Action Row */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Button
                     variant="outline"
                     onClick={() => generateMutation.mutate()}
@@ -307,7 +390,7 @@ export default function EmailGenerationScreen() {
                     Copy Email
                   </Button>
                   <Button
-                    onClick={() => toast.success('Draft saved')}
+                    onClick={handleSaveDraft}
                     className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale gap-2"
                   >
                     <Save className="size-4" />

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Eye, EyeOff, Download, Stethoscope, Save, Loader2, Mail,
@@ -57,6 +57,27 @@ export function SettingsScreen() {
 
   const form = { ...DEFAULTS, ...prefs, ...draft }
 
+  // Saved values (what's on the server)
+  const savedValues = useMemo(() => ({ ...DEFAULTS, ...prefs }), [prefs])
+
+  // Current form values
+  const currentValues = useMemo(() => ({ ...DEFAULTS, ...prefs, ...draft }), [prefs, draft])
+
+  // Track unsaved changes
+  const hasChanges = useMemo(() => {
+    if (!draft) return false
+    return Object.keys(draft).some(k => (draft as any)[k] !== (savedValues as any)[k])
+  }, [draft, savedValues])
+
+  // Discard changes handler
+  const handleDiscard = useCallback(() => { setDraft(null) }, [])
+
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    window.onbeforeunload = hasChanges ? () => '' : null
+    return () => { window.onbeforeunload = null }
+  }, [hasChanges])
+
   const savePrefs = useMutation({
     mutationFn: (data: Record<string, string>) =>
       fetch('/api/preferences', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
@@ -96,13 +117,25 @@ export function SettingsScreen() {
 
   return (
     <div className="max-w-3xl">
+      {/* Unsaved changes warning bar */}
+      {hasChanges && (
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 animate-in slide-in-from-top-2 duration-200">
+          <p className="text-sm text-amber-800 font-medium">You have unsaved changes</p>
+          <div className="flex items-center gap-2 self-end">
+            <Button variant="outline" size="sm" className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-100 rounded-md" onClick={handleDiscard}>Discard</Button>
+            <Button size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md" onClick={() => savePrefs.mutate(currentValues)} disabled={savePrefs.isPending}>
+              {savePrefs.isPending ? <Loader2 className="size-3 mr-1 animate-spin" /> : null} Save
+            </Button>
+          </div>
+        </div>
+      )}
       <div className="mb-6">
         <h1 className="text-lg font-bold text-gray-900 tracking-tight">Settings</h1>
         <p className="text-sm text-gray-500">Configure your workspace, AI preferences, and data management.</p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 mb-6">
+        <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 mb-6 overflow-x-auto">
           {[
             { value: 'email', label: 'Email Style', icon: Mail },
             { value: 'ai', label: 'AI Config', icon: Cpu },
@@ -110,8 +143,8 @@ export function SettingsScreen() {
             { value: 'danger', label: 'Advanced', icon: AlertTriangle },
           ].map(tab => (
             <TabsTrigger key={tab.value} value={tab.value}
-              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-3 py-2 flex items-center gap-1.5">
-              <tab.icon className="size-3.5" /> {tab.label}
+              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-2 sm:px-3 py-2 flex items-center gap-1.5 whitespace-nowrap">
+              <tab.icon className="size-3.5" /> <span className="hidden sm:inline">{tab.label}</span>
             </TabsTrigger>
           ))}
         </TabsList>
@@ -219,27 +252,27 @@ export function SettingsScreen() {
               <p className="text-xs text-gray-500 mt-0.5">Export your data or run maintenance tasks.</p>
             </div>
             <div className="grid gap-3">
-              <div className="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="size-9 rounded-lg bg-blue-50 flex items-center justify-center"><Download className="size-4 text-blue-600" /></div>
+                  <div className="size-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0"><Download className="size-4 text-blue-600" /></div>
                   <div>
                     <p className="text-sm font-medium text-gray-900">Export All Data</p>
                     <p className="text-xs text-gray-500">Download companies and contacts as CSV</p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="text-xs border-gray-200 text-gray-600 rounded-lg" onClick={() => handleExport.mutate()} disabled={handleExport.isPending}>
+                <Button variant="outline" size="sm" className="text-xs border-gray-200 text-gray-600 rounded-lg shrink-0" onClick={() => handleExport.mutate()} disabled={handleExport.isPending}>
                   {handleExport.isPending ? <Loader2 className="size-3.5 animate-spin" /> : 'Export'}
                 </Button>
               </div>
-              <div className="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="size-9 rounded-lg bg-emerald-50 flex items-center justify-center"><Stethoscope className="size-4 text-emerald-600" /></div>
+                  <div className="size-9 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0"><Stethoscope className="size-4 text-emerald-600" /></div>
                   <div>
                     <p className="text-sm font-medium text-gray-900">Run Email Health Check</p>
                     <p className="text-xs text-gray-500">Validate all email addresses in your database</p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="text-xs border-gray-200 text-gray-600 rounded-lg" onClick={() => handleHealthCheck.mutate()} disabled={handleHealthCheck.isPending}>
+                <Button variant="outline" size="sm" className="text-xs border-gray-200 text-gray-600 rounded-lg shrink-0" onClick={() => handleHealthCheck.mutate()} disabled={handleHealthCheck.isPending}>
                   {handleHealthCheck.isPending ? <Loader2 className="size-3.5 animate-spin" /> : 'Run Check'}
                 </Button>
               </div>
@@ -256,12 +289,12 @@ export function SettingsScreen() {
               </h3>
               <p className="text-xs text-gray-500 mt-0.5">Irreversible and destructive actions.</p>
             </div>
-            <div className="flex items-center justify-between p-4 rounded-lg border border-red-200 bg-red-50/30">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-lg border border-red-200 bg-red-50/30">
               <div>
                 <p className="text-sm font-medium text-gray-900">Delete All Data</p>
                 <p className="text-xs text-gray-500">Permanently remove all companies, contacts, and notes. This cannot be undone.</p>
               </div>
-              <Button variant="outline" size="sm" className="text-xs border-red-300 text-red-600 hover:bg-red-50 rounded-lg" onClick={() => setDangerOpen(true)}>
+              <Button variant="outline" size="sm" className="text-xs border-red-300 text-red-600 hover:bg-red-50 rounded-lg shrink-0 self-end sm:self-auto" onClick={() => setDangerOpen(true)}>
                 <Trash2 className="size-3.5 mr-1" /> Delete All
               </Button>
             </div>

@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Search, MoreHorizontal, ExternalLink, Building2, ChevronLeft, ChevronRight,
-  Sparkles, Users, Mail, Eye, Archive, Trash2, FileDown, ArrowUpDown, X,
+  Sparkles, Users, Mail, Eye, Archive, Trash2, FileDown, ArrowUpDown, X, Loader2, ArrowRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,11 +37,11 @@ const statusStyle: Record<string, string> = {
 const statusOptions = ['new', 'researching', 'ready', 'contacted', 'archived']
 
 export function CompaniesScreen() {
-  const { setSelectedCompanyId, setActiveView } = useAppStore()
+  const { setSelectedCompanyId, setActiveView, companyStatusFilter } = useAppStore()
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [industry, setIndustry] = useState('all')
-  const [status, setStatus] = useState('all')
+  const [status, setStatus] = useState(companyStatusFilter)
   const [page, setPage] = useState(1)
   const [sortKey, setSortKey] = useState('name')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
@@ -69,16 +69,19 @@ export function CompaniesScreen() {
   const createMutation = useMutation({
     mutationFn: (d: typeof form) => fetch('/api/companies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) }).then(r => r.json()),
     onSuccess: () => { toast.success('Company created'); setShowAdd(false); setForm({ name: '', domain: '', industry: '', employeeSize: '', country: '', location: '', website: '', linkedinUrl: '' }); qc.invalidateQueries({ queryKey: ['companies'] }) },
+    onError: () => toast.error('Failed to create company'),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (ids: string[]) => Promise.all(ids.map(id => fetch(`/api/companies/${id}`, { method: 'DELETE' }).then(r => r.json()))),
     onSuccess: () => { toast.success(`${selected.size} companies deleted`); setSelected(new Set()); qc.invalidateQueries({ queryKey: ['companies'] }) },
+    onError: () => toast.error('Failed to delete companies'),
   })
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => fetch(`/api/companies/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }).then(r => r.json()),
     onSuccess: () => { toast.success('Status updated'); setStatusDialog({ open: false, id: '', current: '' }); qc.invalidateQueries({ queryKey: ['companies'] }) },
+    onError: () => toast.error('Failed to update status'),
   })
 
   const handleSort = (key: string) => {
@@ -102,19 +105,19 @@ export function CompaniesScreen() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold text-gray-900 tracking-tight">Companies</h1>
           <p className="text-sm text-gray-500">{data?.total || 0} accounts</p>
         </div>
-        <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs" onClick={() => setShowAdd(true)}>
-          <Plus className="size-4 mr-1.5" /> Add Company
+        <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs shrink-0" onClick={() => setShowAdd(true)}>
+          <Plus className="size-4 sm:mr-1.5" /> <span className="hidden sm:inline">Add Company</span>
         </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 max-w-xs">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
+        <div className="relative flex-1 sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
           <Input placeholder="Search companies..." value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
             className="pl-9 h-9 bg-white border-gray-200 rounded-lg text-sm focus:border-amber-400 focus:ring-amber-100" />
@@ -134,14 +137,17 @@ export function CompaniesScreen() {
           </SelectContent>
         </Select>
         {selected.size > 0 && (
-          <div className="flex items-center gap-2 ml-auto animate-in fade-in slide-in-from-right-2 duration-200">
+          <div className="flex items-center gap-2 sm:ml-auto animate-in fade-in slide-in-from-right-2 duration-200 w-full sm:w-auto">
             <span className="text-xs font-medium text-gray-500">{selected.size} selected</span>
-            <Button variant="outline" size="sm" className="h-8 border-gray-200 text-gray-600 rounded-lg text-xs" onClick={() => deleteMutation.mutate(Array.from(selected))}>
-              <Trash2 className="size-3 mr-1 text-red-500" /> Delete
+            <div className="flex items-center gap-2 ml-auto sm:ml-0">
+            <Button variant="outline" size="sm" className="h-8 border-gray-200 text-gray-600 rounded-lg text-xs" onClick={() => deleteMutation.mutate(Array.from(selected))} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending ? <Loader2 className="size-3 mr-1 animate-spin text-red-500" /> : <Trash2 className="size-3 mr-1 text-red-500" />}
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
             </Button>
             <Button variant="outline" size="sm" className="h-8 border-gray-200 text-gray-600 rounded-lg text-xs" onClick={() => setSelected(new Set())}>
               <X className="size-3 mr-1" /> Clear
             </Button>
+            </div>
           </div>
         )}
       </div>
@@ -282,9 +288,9 @@ export function CompaniesScreen() {
 
       {/* Pagination */}
       {data && data.total > 20 && (
-        <div className="flex items-center justify-between text-sm text-gray-500">
-          <span>Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, data.total)} of {data.total}</span>
-          <div className="flex gap-1">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 text-sm text-gray-500">
+          <span className="text-center sm:text-left">Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, data.total)} of {data.total}</span>
+          <div className="flex gap-1 justify-center">
             <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="inline-flex items-center gap-1 px-3 h-8 text-xs border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
               <ChevronLeft className="size-3.5" /> Previous
             </button>
@@ -302,8 +308,9 @@ export function CompaniesScreen() {
           <div className="grid gap-2 py-2">
             {statusOptions.map(s => (
               <button key={s} onClick={() => updateStatusMutation.mutate({ id: statusDialog.id, status: s })}
-                className={cn('flex items-center gap-3 p-2.5 rounded-lg text-sm text-left transition-colors', statusDialog.current === s ? 'bg-amber-50 text-amber-900 font-medium' : 'hover:bg-gray-50 text-gray-700')}>
-                <div className={cn('w-2 h-2 rounded-full', statusStyle[s]?.split(' ')[0])} />
+                disabled={updateStatusMutation.isPending}
+                className={cn('flex items-center gap-3 p-2.5 rounded-lg text-sm text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed', statusDialog.current === s ? 'bg-amber-50 text-amber-900 font-medium' : 'hover:bg-gray-50 text-gray-700')}>
+                {updateStatusMutation.isPending ? <Loader2 className="size-3.5 animate-spin text-amber-600" /> : <div className={cn('w-2 h-2 rounded-full', statusStyle[s]?.split(' ')[0])} />}
                 {s.charAt(0).toUpperCase() + s.slice(1)}
                 {statusDialog.current === s && <span className="ml-auto text-xs text-amber-600">current</span>}
               </button>
@@ -321,7 +328,7 @@ export function CompaniesScreen() {
               <Label className="text-sm font-medium text-gray-700">Name</Label>
               <Input placeholder="ABC Manufacturing" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="border-gray-200 rounded-lg" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="grid gap-1.5">
                 <Label className="text-sm font-medium text-gray-700">Domain</Label>
                 <Input placeholder="abc.com" value={form.domain} onChange={e => setForm({ ...form, domain: e.target.value })} className="border-gray-200 rounded-lg" />
@@ -334,7 +341,7 @@ export function CompaniesScreen() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="grid gap-1.5">
                 <Label className="text-sm font-medium text-gray-700">Country</Label>
                 <Input placeholder="USA" value={form.country} onChange={e => setForm({ ...form, country: e.target.value })} className="border-gray-200 rounded-lg" />

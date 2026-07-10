@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, ShieldCheck, Sparkles, Plus, Archive, Mail, Phone, MapPin,
-  Building2, Linkedin, Copy, RefreshCw, FileText, Clock,
+  Building2, Linkedin, Copy, RefreshCw, FileText, Clock, Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
@@ -85,6 +85,38 @@ export default function ContactDetailScreen() {
     onError: () => toast.error('Failed to archive contact'),
   })
 
+  const validateEmail = useMutation({
+    mutationFn: () =>
+      fetch(`/api/contacts/${selectedContactId}/validate`, {
+        method: 'POST',
+      }).then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Validation failed') })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
+      toast.success('Email validated')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const regenerateDraft = useMutation({
+    mutationFn: () =>
+      fetch(`/api/contacts/${selectedContactId}/generate-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      }).then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Regeneration failed') })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
+      toast.success('Draft regenerated')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  /* ── Handlers ── */
+  const handleGenerateEmail = () => {
+    useAppStore.getState().setSelectedContactId(selectedContactId)
+    useAppStore.getState().setActiveView('email-generation')
+  }
+
   /* ── Guards ── */
   if (!selectedContactId) {
     return (
@@ -126,8 +158,8 @@ export default function ContactDetailScreen() {
   return (
     <div className="space-y-6">
       {/* ════════════ Header ════════════ */}
-      <div className="rounded-xl bg-white p-6 card-rest slide-up">
-        <div className="flex items-start gap-5">
+      <div className="rounded-xl bg-white p-4 md:p-6 card-rest slide-up">
+        <div className="flex items-start gap-4 md:gap-5">
           {/* Avatar */}
           <div className="size-12 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
             <span className="text-lg font-bold text-amber-700">{data.name?.charAt(0)?.toUpperCase()}</span>
@@ -174,14 +206,20 @@ export default function ContactDetailScreen() {
               <Button
                 size="sm"
                 className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg press-scale shadow-xs"
-                onClick={() => toast.info('Email validation triggered!')}
+                onClick={() => validateEmail.mutate()}
+                disabled={validateEmail.isPending}
               >
-                <ShieldCheck className="size-3.5 mr-1.5" /> Validate Email
+                {validateEmail.isPending ? (
+                  <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <ShieldCheck className="size-3.5 mr-1.5" />
+                )}
+                {validateEmail.isPending ? 'Validating...' : 'Validate Email'}
               </Button>
               <Button
                 size="sm"
                 className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg press-scale shadow-xs"
-                onClick={() => toast.info('Email generation coming soon')}
+                onClick={handleGenerateEmail}
               >
                 <Sparkles className="size-3.5 mr-1.5" /> Generate Email
               </Button>
@@ -209,7 +247,7 @@ export default function ContactDetailScreen() {
 
       {/* ════════════ Tabs ════════════ */}
       <Tabs defaultValue="overview">
-        <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5">
+        <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 overflow-x-auto">
           {['overview', 'notes', 'activity', 'drafts'].map((tab) => (
             <TabsTrigger
               key={tab}
@@ -406,9 +444,15 @@ export default function ContactDetailScreen() {
                       size="sm"
                       variant="outline"
                       className="h-7 text-xs border-gray-200 text-gray-600 rounded-md"
-                      onClick={() => toast.info('Regenerating draft...')}
+                      onClick={() => regenerateDraft.mutate()}
+                      disabled={regenerateDraft.isPending}
                     >
-                      <RefreshCw className="size-3 mr-1" /> Regenerate
+                      {regenerateDraft.isPending ? (
+                        <Loader2 className="size-3 mr-1 animate-spin" />
+                      ) : (
+                        <RefreshCw className="size-3 mr-1" />
+                      )}
+                      {regenerateDraft.isPending ? 'Regenerating...' : 'Regenerate'}
                     </Button>
                     <Button
                       size="sm"

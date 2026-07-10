@@ -202,7 +202,7 @@ export default function KnowledgeLibraryScreen() {
   return (
     <div className="space-y-6">
       {/* ── Header ─────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold text-gray-900 tracking-tight">
             Knowledge Library
@@ -212,11 +212,11 @@ export default function KnowledgeLibraryScreen() {
           </p>
         </div>
         <Button
-          className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+          className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs shrink-0"
           onClick={handleOpenUpload}
         >
-          <Plus className="size-4 mr-1.5" />
-          Upload Document
+          <Plus className="size-4 sm:mr-1.5" />
+          <span className="hidden sm:inline">Upload Document</span>
         </Button>
       </div>
 

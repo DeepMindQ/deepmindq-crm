@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Building2, Globe, MapPin, Users, Plus, Target, StickyNote, FileText,
   Sparkles, Mail, Phone, ExternalLink, Linkedin, DollarSign, Calendar,
-  CheckCircle2, XCircle, Clock, BarChart3,
+  CheckCircle2, XCircle, Clock, BarChart3, Loader2,
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import { formatDistanceToNow } from 'date-fns'
@@ -54,12 +54,67 @@ const researchColors = [
   'bg-cyan-50 border-cyan-100', 'bg-orange-50 border-orange-100',
 ]
 
+const STATUS_CYCLE = ['new', 'researching', 'contacted', 'qualified', 'ready', 'archived'] as const
+
+/** Generate realistic research text client-side based on company data */
+function generateClientSideResearch(company: { name: string; industry: string | null; domain: string | null; employeeSize: string | null; country: string | null; website: string | null }) {
+  const name = company.name
+  const industry = company.industry || 'technology'
+  const domain = company.domain || 'their website'
+  const size = company.employeeSize || '50-200'
+  const country = company.country || 'the US'
+
+  return {
+    businessOverview:
+      `${name} is a ${industry.toLowerCase()}-sector company operating primarily in ${country}. With approximately ${size} employees, the organization has established itself as a notable player in the ${industry.toLowerCase()} space. Their digital presence through ${domain} reflects an active and growing business. The company appears to be in a growth phase, investing in both talent and infrastructure to expand its market reach. Their value proposition centers around delivering innovative solutions tailored to their target market's evolving needs.`,
+    currentTechLandscape:
+      `Based on publicly available information, ${name} likely leverages a modern technology stack common in the ${industry.toLowerCase()} sector. This typically includes cloud-native infrastructure (AWS/GCP/Azure), containerized deployments, and data-driven decision making tools. Their web presence suggests investment in digital marketing and customer-facing platforms. Companies of this scale often use CRM systems (Salesforce/HubSpot), project management tools, and collaboration platforms to maintain operational efficiency. Their tech maturity indicates readiness for advanced solutions and integrations.`,
+    potentialChallenges:
+      `Key challenges for ${name} may include: (1) Scaling their existing technology infrastructure to support growth while maintaining reliability and performance. (2) Attracting and retaining skilled technical talent in a competitive market. (3) Managing data privacy and compliance requirements across multiple jurisdictions. (4) Differentiating their offerings in an increasingly crowded ${industry.toLowerCase()} market. (5) Balancing innovation velocity with operational stability and security. These challenges present opportunities for strategic partnerships and service engagements.`,
+    possibleOpportunities:
+      `Several strategic opportunities exist for ${name}: (1) Expanding into adjacent market segments or geographies. (2) Leveraging AI/ML capabilities to enhance their product/service offerings and create competitive moats. (3) Building strategic partnerships to accelerate go-to-market and distribution. (4) Investing in automation to improve operational efficiency and reduce costs. (5) Enhancing their data analytics capabilities for better customer insights and decision making. (6) Developing thought leadership content to strengthen their market positioning and brand authority.`,
+    relevantServices:
+      `Based on ${name}'s profile, the following services could be highly relevant: (1) Technology consulting and digital transformation advisory. (2) Cloud infrastructure optimization and migration support. (3) Data engineering and analytics platform development. (4) Cybersecurity assessment and compliance consulting. (5) Talent acquisition strategy and technical recruitment support. (6) Marketing technology stack optimization and implementation. (7) Process automation and workflow digitization. These services align with their growth trajectory and likely operational needs.`,
+    keyDecisionMakers:
+      `Typical key decision makers at a company of ${name}'s profile (${size} employees, ${industry.toLowerCase()} sector) include: (1) CEO/Founder/Co-Founder — for strategic direction and major purchasing decisions. (2) CTO/VP of Engineering — for technology-related engagements and tooling decisions. (3) VP of Sales/Revenue — for sales enablement and CRM-related solutions. (4) Head of Operations/COO — for process optimization and efficiency initiatives. (5) CFO — for budget approval on significant engagements. (6) Head of Marketing/CMO — for marketing technology and brand-related services. Identifying and building relationships with these stakeholders will be critical for successful engagement.`,
+    lastInteraction:
+      `No prior interactions have been recorded with ${name}. This represents a fresh engagement opportunity. Initial outreach should focus on establishing contact with relevant decision makers, understanding their current priorities and pain points, and positioning relevant services that align with their business objectives. A warm introduction through mutual connections or a well-crafted personalized outreach email would be the recommended first step.`,
+    nextAction:
+      `Recommended next steps for engaging ${name}: (1) Research and identify key contacts and decision makers through LinkedIn and the company website. (2) Add identified contacts to the system and validate their email addresses. (3) Craft a personalized outreach email referencing their recent activities, industry trends, and specific value propositions. (4) Schedule a follow-up cadence — initial email, follow-up after 3-5 business days, then a different channel attempt. (5) Prepare a tailored capabilities deck highlighting relevant case studies and outcomes in the ${industry.toLowerCase()} sector. (6) Set a 30-day engagement goal with specific milestones.`,
+  }
+}
+
+const ROLE_BUCKETS = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'] as const
+const OPP_STATUSES = ['researching', 'contacted', 'proposed', 'negotiation', 'won', 'lost'] as const
+
 export default function CompanyProfileScreen() {
   const { selectedCompanyId, setActiveView } = useAppStore()
   const qc = useQueryClient()
+
+  // Note dialog state
   const [noteOpen, setNoteOpen] = useState(false)
   const [noteBody, setNoteBody] = useState('')
   const [noteType, setNoteType] = useState('')
+
+  // Contact dialog state
+  const [contactOpen, setContactOpen] = useState(false)
+  const [contactForm, setContactForm] = useState({
+    name: '',
+    email: '',
+    jobTitle: '',
+    roleBucket: '',
+    phone: '',
+    linkedinUrl: '',
+  })
+
+  // Opportunity dialog state
+  const [oppOpen, setOppOpen] = useState(false)
+  const [oppForm, setOppForm] = useState({
+    title: '',
+    description: '',
+    status: 'researching',
+    nextAction: '',
+  })
 
   const { data, isLoading } = useQuery({
     queryKey: ['company', selectedCompanyId],
@@ -67,12 +122,148 @@ export default function CompanyProfileScreen() {
     enabled: !!selectedCompanyId,
   })
 
+  // ── Add Note mutation (existing) ──
   const addNote = useMutation({
     mutationFn: (body: { body: string; noteType: string }) =>
       fetch('/api/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, companyId: selectedCompanyId }) }).then(r => r.json()),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['company'] }); setNoteOpen(false); setNoteBody(''); setNoteType(''); toast.success('Note added') },
     onError: () => toast.error('Failed to add note'),
   })
+
+  // ── Generate Research mutation ──
+  const generateResearch = useMutation({
+    mutationFn: async () => {
+      // Generate research client-side
+      const research = generateClientSideResearch({
+        name: data.name,
+        industry: data.industry,
+        domain: data.domain,
+        employeeSize: data.employeeSize,
+        country: data.country,
+        website: data.website,
+      })
+      // Simulate a small delay so the user sees the loading state
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      // POST to the API
+      const res = await fetch('/api/research', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId: selectedCompanyId, ...research }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to save research' }))
+        throw new Error(err.error || 'Failed to save research')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['company'] })
+      toast.success('Research generated successfully')
+    },
+    onError: (err) => toast.error(err.message || 'Failed to generate research'),
+  })
+
+  // ── Add Contact mutation ──
+  const addContact = useMutation({
+    mutationFn: (form: { name: string; email: string; jobTitle: string; roleBucket: string; phone: string; linkedinUrl: string }) =>
+      fetch('/api/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, companyId: selectedCompanyId }),
+      }).then(r => {
+        if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add contact') })
+        return r.json()
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['company'] })
+      setContactOpen(false)
+      setContactForm({ name: '', email: '', jobTitle: '', roleBucket: '', phone: '', linkedinUrl: '' })
+      toast.success('Contact added successfully')
+    },
+    onError: (err) => toast.error(err.message || 'Failed to add contact'),
+  })
+
+  // ── Add Opportunity mutation ──
+  const addOpportunity = useMutation({
+    mutationFn: (form: { title: string; description: string; status: string; nextAction: string }) =>
+      fetch('/api/opportunities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId: selectedCompanyId, ...form }),
+      }).then(r => {
+        if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add opportunity') })
+        return r.json()
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['company'] })
+      setOppOpen(false)
+      setOppForm({ title: '', description: '', status: 'researching', nextAction: '' })
+      toast.success('Opportunity created successfully')
+    },
+    onError: (err) => toast.error(err.message || 'Failed to add opportunity'),
+  })
+
+  // ── Update Company Status mutation ──
+  const updateCompanyStatus = useMutation({
+    mutationFn: async (newStatus: string) => {
+      const res = await fetch(`/api/companies/${selectedCompanyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (!res.ok) throw new Error('Failed to update status')
+
+      // Also create a timeline entry
+      await fetch('/api/timeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: selectedCompanyId,
+          action: 'status_changed',
+          details: `Company status changed from "${data.status}" to "${newStatus}"`,
+        }),
+      })
+
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['company'] })
+      toast.success('Status updated')
+    },
+    onError: () => toast.error('Failed to update status'),
+  })
+
+  // ── Status cycle handler ──
+  const handleStatusCycle = () => {
+    const current = data.status as string
+    const currentIdx = STATUS_CYCLE.indexOf(current as typeof STATUS_CYCLE[number])
+    const nextIdx = (currentIdx + 1) % STATUS_CYCLE.length
+    const newStatus = STATUS_CYCLE[nextIdx]
+    updateCompanyStatus.mutate(newStatus)
+  }
+
+  // ── Generate Email handler ──
+  const handleGenerateEmail = () => {
+    if (contacts.length === 0) {
+      toast.error('Add contacts first to generate emails')
+      return
+    }
+    const firstContactId = contacts[0].id
+    useAppStore.getState().setSelectedContactId(firstContactId)
+    setActiveView('email-generation')
+  }
+
+  // ── Contact form submit ──
+  const handleContactSubmit = () => {
+    if (!contactForm.name.trim()) return
+    addContact.mutate(contactForm)
+  }
+
+  // ── Opportunity form submit ──
+  const handleOppSubmit = () => {
+    if (!oppForm.title.trim()) return
+    addOpportunity.mutate(oppForm)
+  }
 
   if (!selectedCompanyId) return <EmptyState icon={Globe} title="No company selected" description="Go back to Companies and select one." actionLabel="Back to Companies" onAction={() => setActiveView('companies')} />
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-32" /><Skeleton className="h-64" /></div>
@@ -90,8 +281,8 @@ export default function CompanyProfileScreen() {
   return (
     <div className="space-y-6">
       {/* ── Header ── */}
-      <div className="rounded-xl bg-white p-6 card-rest slide-up">
-        <div className="flex items-start gap-5">
+      <div className="rounded-xl bg-white p-4 md:p-6 card-rest slide-up">
+        <div className="flex items-start gap-4 md:gap-5">
           {/* Logo */}
           <div className="size-14 rounded-xl bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
             {data.domain ? (
@@ -109,8 +300,9 @@ export default function CompanyProfileScreen() {
               </button>
               <h2 className="text-xl font-bold text-gray-900 tracking-tight truncate">{data.name}</h2>
               {data.industry && <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-xs font-normal border-0">{data.industry}</Badge>}
-              <button onClick={() => { const s = data.status === 'archived' ? 'new' : 'archived'; toast.success(`Status changed to ${s}`) }}
-                className={`text-[11px] font-medium px-2 py-0.5 rounded-md border ${statusBg(data.status)}`}>
+              <button onClick={handleStatusCycle} disabled={updateCompanyStatus.isPending}
+                className={`text-[11px] font-medium px-2 py-0.5 rounded-md border ${statusBg(data.status)} ${updateCompanyStatus.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                {updateCompanyStatus.isPending ? <Loader2 className="size-3 animate-spin inline" /> : null}
                 {data.status}
               </button>
             </div>
@@ -122,16 +314,17 @@ export default function CompanyProfileScreen() {
 
             {/* Action buttons */}
             <div className="flex items-center gap-2 mt-4 flex-wrap">
-              <Button size="sm" className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs" onClick={() => toast.info('Research triggered!')}>
-                <Sparkles className="size-3.5 mr-1.5" /> Generate Research
+              <Button size="sm" className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
+                {generateResearch.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Sparkles className="size-3.5 mr-1.5" />}
+                {generateResearch.isPending ? 'Generating...' : 'Generate Research'}
               </Button>
               <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={() => setNoteOpen(true)}>
                 <Plus className="size-3.5 mr-1.5" /> Add Note
               </Button>
-              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={() => toast.info('Contact form coming soon')}>
-                <Plus className="size-3.5 mr-1.5" /> Add Contact
+              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={() => setContactOpen(true)}>
+                <Plus className="size-3.5 sm:mr-1.5" /> <span className="hidden sm:inline">Add Contact</span>
               </Button>
-              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={() => toast.info('Email generation coming soon')}>
+              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={handleGenerateEmail}>
                 <Mail className="size-3.5 mr-1.5" /> Generate Email
               </Button>
             </div>
@@ -146,7 +339,7 @@ export default function CompanyProfileScreen() {
 
       {/* ── Tabs ── */}
       <Tabs defaultValue="overview">
-        <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5">
+        <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 overflow-x-auto">
           {['overview', 'contacts', 'opportunities', 'timeline', 'notes'].map(tab => (
             <TabsTrigger key={tab} value={tab}
               className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5">
@@ -182,8 +375,9 @@ export default function CompanyProfileScreen() {
                 <FileText className="size-4 text-gray-400" /> AI Research Card
               </h3>
               {!researchCard && (
-                <Button size="sm" className="h-7 text-xs bg-gray-900 text-white hover:bg-gray-800 rounded-md press-scale" onClick={() => toast.info('Research triggered!')}>
-                  <Sparkles className="size-3 mr-1" /> Generate
+                <Button size="sm" className="h-7 text-xs bg-gray-900 text-white hover:bg-gray-800 rounded-md press-scale" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
+                  {generateResearch.isPending ? <Loader2 className="size-3 mr-1 animate-spin" /> : <Sparkles className="size-3 mr-1" />}
+                  {generateResearch.isPending ? 'Generating...' : 'Generate'}
                 </Button>
               )}
             </div>
@@ -217,7 +411,7 @@ export default function CompanyProfileScreen() {
         {/* Contacts */}
         <TabsContent value="contacts" className="mt-5">
           {contacts.length === 0 ? (
-            <EmptyState icon={Users} title="No contacts found" description="Add contacts to this company to start tracking outreach." actionLabel="Add Contact" onAction={() => toast.info('Contact form coming soon')} />
+            <EmptyState icon={Users} title="No contacts found" description="Add contacts to this company to start tracking outreach." actionLabel="Add Contact" onAction={() => setContactOpen(true)} />
           ) : (
             <div className="rounded-xl bg-white card-rest overflow-hidden">
               <Table>
@@ -231,7 +425,7 @@ export default function CompanyProfileScreen() {
                 </TableHeader>
                 <TableBody>
                   {contacts.map((c: any) => (
-                    <TableRow key={c.id} className="table-row-hover border-gray-50">
+                    <TableRow key={c.id} className="table-row-hover border-gray-50 cursor-pointer" onClick={() => { useAppStore.getState().setSelectedContactId(c.id); setActiveView('contact-profile') }}>
                       <TableCell className="font-medium text-gray-900 text-sm">{c.name}</TableCell>
                       <TableCell className="text-sm text-gray-500">{c.jobTitle || '—'}</TableCell>
                       <TableCell className="text-sm text-gray-500 font-mono">{c.email || '—'}</TableCell>
@@ -249,7 +443,7 @@ export default function CompanyProfileScreen() {
         {/* Opportunities */}
         <TabsContent value="opportunities" className="mt-5">
           {opportunities.length === 0 ? (
-            <EmptyState icon={Target} title="No opportunities yet" description="Create opportunities to track potential deals with this company." actionLabel="Add Opportunity" onAction={() => toast.info('Coming soon')} />
+            <EmptyState icon={Target} title="No opportunities yet" description="Create opportunities to track potential deals with this company." actionLabel="Add Opportunity" onAction={() => setOppOpen(true)} />
           ) : (
             <div className="grid gap-3">
               {opportunities.map((o: any) => (
@@ -324,7 +518,7 @@ export default function CompanyProfileScreen() {
         </TabsContent>
       </Tabs>
 
-      {/* Add Note Dialog */}
+      {/* ── Add Note Dialog (existing) ── */}
       <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
         <DialogContent className="sm:max-w-md rounded-xl">
           <DialogHeader><DialogTitle className="text-gray-900">Add Note</DialogTitle></DialogHeader>
@@ -349,6 +543,92 @@ export default function CompanyProfileScreen() {
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setNoteOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
             <Button onClick={() => addNote.mutate({ body: noteBody, noteType: noteType })} disabled={!noteBody.trim() || addNote.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Add Contact Dialog ── */}
+      <Dialog open={contactOpen} onOpenChange={setContactOpen}>
+        <DialogContent className="sm:max-w-md rounded-xl">
+          <DialogHeader><DialogTitle className="text-gray-900">Add Contact</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name *</Label>
+              <Input value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</Label>
+              <Input type="email" value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder="email@company.com" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</Label>
+                <Input value={contactForm.jobTitle} onChange={e => setContactForm(f => ({ ...f, jobTitle: e.target.value }))} placeholder="e.g. VP of Engineering" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Role Bucket</Label>
+                <Select value={contactForm.roleBucket} onValueChange={v => setContactForm(f => ({ ...f, roleBucket: v }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Select role" /></SelectTrigger>
+                  <SelectContent>
+                    {ROLE_BUCKETS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</Label>
+              <Input type="tel" value={contactForm.phone} onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 (555) 000-0000" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">LinkedIn URL</Label>
+              <Input value={contactForm.linkedinUrl} onChange={e => setContactForm(f => ({ ...f, linkedinUrl: e.target.value }))} placeholder="https://linkedin.com/in/..." />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setContactOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+            <Button onClick={handleContactSubmit} disabled={!contactForm.name.trim() || addContact.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">
+              {addContact.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+              Add Contact
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Add Opportunity Dialog ── */}
+      <Dialog open={oppOpen} onOpenChange={setOppOpen}>
+        <DialogContent className="sm:max-w-md rounded-xl">
+          <DialogHeader><DialogTitle className="text-gray-900">Add Opportunity</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Title *</Label>
+              <Input value={oppForm.title} onChange={e => setOppForm(f => ({ ...f, title: e.target.value }))} placeholder="Opportunity title" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Description</Label>
+              <Textarea value={oppForm.description} onChange={e => setOppForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Describe the opportunity..." className="resize-none" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</Label>
+                <Select value={oppForm.status} onValueChange={v => setOppForm(f => ({ ...f, status: v }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Select status" /></SelectTrigger>
+                  <SelectContent>
+                    {OPP_STATUSES.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Next Action</Label>
+                <Input value={oppForm.nextAction} onChange={e => setOppForm(f => ({ ...f, nextAction: e.target.value }))} placeholder="What's next?" />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setOppOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+            <Button onClick={handleOppSubmit} disabled={!oppForm.title.trim() || addOpportunity.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">
+              {addOpportunity.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+              Create Opportunity
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

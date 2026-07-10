@@ -1,0 +1,307 @@
+     1→     1→import { db } from '../src/lib/db';
+     2→     2→
+     3→     3→async function seed() {
+     4→     4→  console.log('Seeding database...');
+     5→     5→
+     6→     6→  const companies = [
+     7→     7→    { id: 'comp-1', name: 'ABC Manufacturing', domain: 'abc.com', industry: 'Manufacturing', country: 'USA', employeeSize: '5001-10000', location: 'Detroit, MI', website: 'https://abc.com', linkedinUrl: 'https://linkedin.com/company/abc-mfg', status: 'researching', intelligenceScore: 85, dataFreshness: 'fresh' },
+     8→     8→    { id: 'comp-2', name: 'TechVision Solutions', domain: 'techvision.io', industry: 'Technology', country: 'India', employeeSize: '201-500', location: 'Bangalore, India', website: 'https://techvision.io', linkedinUrl: 'https://linkedin.com/company/techvision', status: 'ready', intelligenceScore: 72, dataFreshness: 'fresh' },
+     9→     9→    { id: 'comp-3', name: 'Global Finance Corp', domain: 'gfc.com', industry: 'Finance', country: 'UK', employeeSize: '10000+', location: 'London, UK', website: 'https://gfc.com', status: 'new', intelligenceScore: 68, dataFreshness: 'stale' },
+    10→    10→    { id: 'comp-4', name: 'HealthPlus Networks', domain: 'healthplus.com', industry: 'Healthcare', country: 'USA', employeeSize: '501-1000', location: 'Boston, MA', website: 'https://healthplus.com', linkedinUrl: 'https://linkedin.com/company/healthplus', status: 'contacted', intelligenceScore: 91, dataFreshness: 'fresh' },
+    11→    11→    { id: 'comp-5', name: 'EduLearn Platform', domain: 'edulearn.com', industry: 'Education', country: 'Singapore', employeeSize: '51-200', location: 'Singapore', website: 'https://edulearn.com', status: 'researching', intelligenceScore: 55, dataFreshness: 'old' },
+    12→    12→    { id: 'comp-6', name: 'RetailMax Group', domain: 'retailmax.com', industry: 'Retail', country: 'UAE', employeeSize: '1001-5000', location: 'Dubai, UAE', website: 'https://retailmax.com', linkedinUrl: 'https://linkedin.com/company/retailmax', status: 'new', intelligenceScore: 78, dataFreshness: 'fresh' },
+    13→    13→    { id: 'comp-7', name: 'GreenEnergy Systems', domain: 'greenenergy.com', industry: 'Energy', country: 'Germany', employeeSize: '201-500', location: 'Berlin, Germany', website: 'https://greenenergy.com', status: 'ready', intelligenceScore: 82, dataFreshness: 'fresh' },
+    14→    14→    { id: 'comp-8', name: 'LogiTrans Global', domain: 'logitrans.com', industry: 'Logistics', country: 'Netherlands', employeeSize: '501-1000', location: 'Amsterdam, NL', website: 'https://logitrans.com', linkedinUrl: 'https://linkedin.com/company/logitrans', status: 'researching', intelligenceScore: 63, dataFreshness: 'stale' },
+    15→    15→    { id: 'comp-9', name: 'NexGen Pharma', domain: 'nexgenpharma.com', industry: 'Pharmaceuticals', country: 'Switzerland', employeeSize: '5001-10000', location: 'Basel, Switzerland', website: 'https://nexgenpharma.com', linkedinUrl: 'https://linkedin.com/company/nexgenpharma', status: 'contacted', intelligenceScore: 88, dataFreshness: 'fresh' },
+    16→    16→    { id: 'comp-10', name: 'CyberShield Security', domain: 'cybershield.io', industry: 'Cybersecurity', country: 'Israel', employeeSize: '201-500', location: 'Tel Aviv, Israel', website: 'https://cybershield.io', status: 'ready', intelligenceScore: 76, dataFreshness: 'fresh' },
+    17→    17→    { id: 'comp-11', name: 'AutoDrive Motors', domain: 'autodrive.com', industry: 'Automotive', country: 'Japan', employeeSize: '10000+', location: 'Tokyo, Japan', website: 'https://autodrive.com', linkedinUrl: 'https://linkedin.com/company/autodrive', status: 'new', intelligenceScore: 71, dataFreshness: 'stale' },
+    18→    18→    { id: 'comp-12', name: 'Agritech Solutions', domain: 'agritech.in', industry: 'Agriculture', country: 'India', employeeSize: '51-200', location: 'Hyderabad, India', website: 'https://agritech.in', status: 'researching', intelligenceScore: 59, dataFreshness: 'fresh' },
+    19→    19→    { id: 'comp-13', name: 'SkyRocket Media', domain: 'skyrocketmedia.com', industry: 'Media & Entertainment', country: 'USA', employeeSize: '201-500', location: 'Los Angeles, CA', website: 'https://skyrocketmedia.com', linkedinUrl: 'https://linkedin.com/company/skyrocketmedia', status: 'contacted', intelligenceScore: 74, dataFreshness: 'fresh' },
+    20→    20→    { id: 'comp-14', name: 'BuildRight Construction', domain: 'buildright.com', industry: 'Construction', country: 'Australia', employeeSize: '501-1000', location: 'Sydney, Australia', website: 'https://buildright.com', status: 'new', intelligenceScore: 52, dataFreshness: 'old' },
+    21→    21→    { id: 'comp-15', name: 'FinTech Innovations', domain: 'fintechinnovations.co', industry: 'Financial Technology', country: 'Singapore', employeeSize: '51-200', location: 'Singapore', website: 'https://fintechinnovations.co', linkedinUrl: 'https://linkedin.com/company/fintechinnovations', status: 'ready', intelligenceScore: 83, dataFreshness: 'fresh' },
+    22→    22→    { id: 'comp-16', name: 'CloudNine Telecom', domain: 'cloudninetelecom.com', industry: 'Telecommunications', country: 'Canada', employeeSize: '1001-5000', location: 'Toronto, Canada', website: 'https://cloudninetelecom.com', status: 'researching', intelligenceScore: 67, dataFreshness: 'stale' },
+    23→    23→    { id: 'comp-17', name: 'BioGenetics Lab', domain: 'biogeneticslab.com', industry: 'Biotechnology', country: 'USA', employeeSize: '201-500', location: 'San Francisco, CA', website: 'https://biogeneticslab.com', linkedinUrl: 'https://linkedin.com/company/biogeneticslab', status: 'contacted', intelligenceScore: 90, dataFreshness: 'fresh' },
+    24→    24→    { id: 'comp-18', name: 'TravelWise Holdings', domain: 'travelwise.com', industry: 'Travel & Hospitality', country: 'UAE', employeeSize: '1001-5000', location: 'Abu Dhabi, UAE', website: 'https://travelwise.com', status: 'new', intelligenceScore: 61, dataFreshness: 'old' },
+    25→    25→    { id: 'comp-19', name: 'SteelWorks United', domain: 'steelworks.com', industry: 'Manufacturing', country: 'South Korea', employeeSize: '5001-10000', location: 'Seoul, South Korea', website: 'https://steelworks.com', linkedinUrl: 'https://linkedin.com/company/steelworks', status: 'researching', intelligenceScore: 79, dataFreshness: 'fresh' },
+    26→    26→    { id: 'comp-20', name: 'DataVault Analytics', domain: 'datavault.io', industry: 'Technology', country: 'USA', employeeSize: '51-200', location: 'Austin, TX', website: 'https://datavault.io', linkedinUrl: 'https://linkedin.com/company/datavault', status: 'ready', intelligenceScore: 86, dataFreshness: 'fresh' },
+    27→    27→    { id: 'comp-21', name: 'QuickBite Foods', domain: 'quickbitefoods.com', industry: 'Food & Beverage', country: 'India', employeeSize: '5001-10000', location: 'Mumbai, India', website: 'https://quickbitefoods.com', status: 'new', intelligenceScore: 57, dataFreshness: 'stale' },
+    28→    28→    { id: 'comp-22', name: 'PrimeReal Estate', domain: 'primerealestate.com', industry: 'Real Estate', country: 'UK', employeeSize: '201-500', location: 'Manchester, UK', website: 'https://primerealestate.com', status: 'researching', intelligenceScore: 64, dataFreshness: 'fresh' },
+    29→    29→    { id: 'comp-23', name: 'SafeGuard Insurance', domain: 'safeguardinsurance.com', industry: 'Insurance', country: 'USA', employeeSize: '1001-5000', location: 'Hartford, CT', website: 'https://safeguardinsurance.com', linkedinUrl: 'https://linkedin.com/company/safeguardinsurance', status: 'contacted', intelligenceScore: 81, dataFreshness: 'fresh' },
+    30→    30→    { id: 'comp-24', name: 'MarineTech Solutions', domain: 'marinetech.com', industry: 'Maritime', country: 'Norway', employeeSize: '201-500', location: 'Oslo, Norway', website: 'https://marinetech.com', status: 'new', intelligenceScore: 70, dataFreshness: 'old' },
+    31→    31→    { id: 'comp-25', name: 'EduSphere Global', domain: 'edusphere.com', industry: 'Education Technology', country: 'India', employeeSize: '201-500', location: 'Delhi NCR, India', website: 'https://edusphere.com', linkedinUrl: 'https://linkedin.com/company/edusphere', status: 'ready', intelligenceScore: 77, dataFreshness: 'fresh' },
+    32→    32→  ];
+    33→    33→
+    34→    34→  for (const c of companies) {
+    35→    35→    await db.company.upsert({ where: { id: c.id }, update: c, create: c });
+    36→    36→  }
+    37→    37→  console.log(`Created ${companies.length} companies`);
+    38→    38→
+    39→    39→  const contacts = [
+    40→    40→    // ABC Manufacturing (comp-1)
+    41→    41→    { id: 'cont-1', companyId: 'comp-1', name: 'John Smith', email: 'john.smith@abc.com', jobTitle: 'Chief Information Officer', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/johnsmith', phone: '+1-313-555-0101', location: 'Detroit, MI', status: 'ready', emailHealth: 'valid', emailHealthScore: 95 },
+    42→    42→    { id: 'cont-2', companyId: 'comp-1', name: 'Mary Wilson', email: 'mary.wilson@abc.com', jobTitle: 'VP of Technology', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/marywilson', phone: '+1-313-555-0102', location: 'Detroit, MI', status: 'ready', emailHealth: 'valid', emailHealthScore: 92 },
+    43→    43→    { id: 'cont-3', companyId: 'comp-1', name: 'Raj Kumar', email: 'raj.kumar@abc.com', jobTitle: 'Chief Technology Officer', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/rajkumar', status: 'drafted', emailHealth: 'valid', emailHealthScore: 88 },
+    44→    44→    { id: 'cont-4', companyId: 'comp-1', name: 'Lisa Park', email: 'lisa.park@abc.com', jobTitle: 'IT Manager', roleBucket: 'manager', phone: '+1-313-555-0103', location: 'Detroit, MI', status: 'archived', archivedAt: new Date('2026-06-01'), emailHealth: 'invalid', emailHealthScore: 0 },
+    45→    45→    { id: 'cont-5', companyId: 'comp-1', name: 'Tom Bradley', email: 't.bradley@abc.com', jobTitle: 'Director of Digital Transformation', roleBucket: 'director', location: 'Detroit, MI', status: 'new', emailHealth: 'valid', emailHealthScore: 87 },
+    46→    46→
+    47→    47→    // TechVision Solutions (comp-2)
+    48→    48→    { id: 'cont-6', companyId: 'comp-2', name: 'Priya Sharma', email: 'priya@techvision.io', jobTitle: 'Chief Executive Officer', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/priyasharma', location: 'Bangalore', status: 'contacted', emailHealth: 'valid', emailHealthScore: 97 },
+    49→    49→    { id: 'cont-7', companyId: 'comp-2', name: 'Amit Patel', email: 'amit.patel@techvision.io', jobTitle: 'Head of Engineering', roleBucket: 'manager', emailHealth: 'valid', emailHealthScore: 90, status: 'new' },
+    50→    50→    { id: 'cont-8', companyId: 'comp-2', name: 'Neha Gupta', email: 'neha.gupta@techvision.io', jobTitle: 'VP of Product', roleBucket: 'executive', location: 'Bangalore', status: 'ready', emailHealth: 'valid', emailHealthScore: 94 },
+    51→    51→    { id: 'cont-9', companyId: 'comp-2', name: 'Vikram Singh', email: 'vikram.s@techvision.io', jobTitle: 'CTO', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/vikramsingh', location: 'Bangalore', status: 'new', emailHealth: 'valid', emailHealthScore: 91 },
+    52→    52→
+    53→    53→    // Global Finance Corp (comp-3)
+    54→    54→    { id: 'cont-10', companyId: 'comp-3', name: 'James Thompson', email: 'j.thompson@gfc.com', jobTitle: 'Chief Financial Officer', roleBucket: 'executive', location: 'London', status: 'new', emailHealth: 'risky', emailHealthScore: 62 },
+    55→    55→    { id: 'cont-11', companyId: 'comp-3', name: 'Emily Watson', email: 'e.watson@gfc.com', jobTitle: 'Technology Director', roleBucket: 'director', location: 'London', status: 'new', emailHealth: 'valid', emailHealthScore: 91 },
+    56→    56→    { id: 'cont-12', companyId: 'comp-3', name: 'Robert Clarke', email: 'r.clarke@gfc.com', jobTitle: 'Head of IT Infrastructure', roleBucket: 'manager', location: 'London', status: 'researching', emailHealth: 'valid', emailHealthScore: 86 },
+    57→    57→    { id: 'cont-13', companyId: 'comp-3', name: 'Sarah Mitchell', email: 's.mitchell@gfc.com', jobTitle: 'CIO', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/sarahmitchell', location: 'London', status: 'new', emailHealth: 'valid', emailHealthScore: 93 },
+    58→    58→
+    59→    59→    // HealthPlus Networks (comp-4)
+    60→    60→    { id: 'cont-14', companyId: 'comp-4', name: 'Sarah Chen', email: 'sarah.chen@healthplus.com', jobTitle: 'VP of Operations', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/sarahchen', phone: '+1-617-555-0201', location: 'Boston, MA', status: 'replied', emailHealth: 'valid', emailHealthScore: 96 },
+    61→    61→    { id: 'cont-15', companyId: 'comp-4', name: 'Dr. Michael Lee', email: 'mlee@healthplus.com', jobTitle: 'Chief Medical Officer', roleBucket: 'executive', location: 'Boston, MA', status: 'ready', emailHealth: 'valid', emailHealthScore: 94 },
+    62→    62→    { id: 'cont-16', companyId: 'comp-4', name: 'Karen Rodriguez', email: 'k.rodriguez@healthplus.com', jobTitle: 'Director of IT', roleBucket: 'director', location: 'Boston, MA', status: 'new', emailHealth: 'valid', emailHealthScore: 89 },
+    63→    63→    { id: 'cont-17', companyId: 'comp-4', name: 'David Park', email: 'd.park@healthplus.com', jobTitle: 'Head of Data Analytics', roleBucket: 'manager', location: 'Boston, MA', status: 'ready', emailHealth: 'risky', emailHealthScore: 55 },
+    64→    64→
+    65→    65→    // EduLearn Platform (comp-5)
+    66→    66→    { id: 'cont-18', companyId: 'comp-5', name: 'David Tan', email: 'david.tan@edulearn.com', jobTitle: 'Director of Technology', roleBucket: 'director', location: 'Singapore', status: 'researching', emailHealth: 'valid', emailHealthScore: 85 },
+    67→    67→    { id: 'cont-19', companyId: 'comp-5', name: 'Rachel Lim', email: 'rachel.lim@edulearn.com', jobTitle: 'CEO', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/rachellim', location: 'Singapore', status: 'new', emailHealth: 'valid', emailHealthScore: 92 },
+    68→    68→
+    69→    69→    // RetailMax Group (comp-6)
+    70→    70→    { id: 'cont-20', companyId: 'comp-6', name: 'Fatima Al-Rashid', email: 'fatima@retailmax.com', jobTitle: 'Chief Technology Officer', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/fatima-alrashid', location: 'Dubai', status: 'new', emailHealth: 'valid', emailHealthScore: 90 },
+    71→    71→    { id: 'cont-21', companyId: 'comp-6', name: 'Omar Hassan', email: 'omar.h@retailmax.com', jobTitle: 'VP of Digital', roleBucket: 'executive', location: 'Dubai', status: 'new', emailHealth: 'valid', emailHealthScore: 87 },
+    72→    72→    { id: 'cont-22', companyId: 'comp-6', name: 'Aisha Khan', email: 'aisha.k@retailmax.com', jobTitle: 'Head of E-Commerce', roleBucket: 'manager', location: 'Dubai', status: 'researching', emailHealth: 'invalid', emailHealthScore: 8 },
+    73→    73→
+    74→    74→    // GreenEnergy Systems (comp-7)
+    75→    75→    { id: 'cont-23', companyId: 'comp-7', name: 'Hans Mueller', email: 'hans@greenenergy.com', jobTitle: 'Head of IT', roleBucket: 'manager', location: 'Berlin', status: 'ready', emailHealth: 'valid', emailHealthScore: 88 },
+    76→    76→    { id: 'cont-24', companyId: 'comp-7', name: 'Anna Schmidt', email: 'anna.s@greenenergy.com', jobTitle: 'Sustainability Director', roleBucket: 'director', location: 'Berlin', status: 'new', emailHealth: 'risky', emailHealthScore: 58 },
+    77→    77→    { id: 'cont-25', companyId: 'comp-7', name: 'Klaus Weber', email: 'klaus.w@greenenergy.com', jobTitle: 'CFO', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/klausweber', location: 'Berlin', status: 'contacted', emailHealth: 'valid', emailHealthScore: 94 },
+    78→    78→
+    79→    79→    // LogiTrans Global (comp-8)
+    80→    80→    { id: 'cont-26', companyId: 'comp-8', name: 'Jan de Vries', email: 'jan@logitrans.com', jobTitle: 'Chief Executive Officer', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/jandevries', location: 'Amsterdam', status: 'researching', emailHealth: 'valid', emailHealthScore: 93 },
+    81→    81→    { id: 'cont-27', companyId: 'comp-8', name: 'Pieter Van Berg', email: 'pieter@logitrans.com', jobTitle: 'CTO', roleBucket: 'executive', location: 'Amsterdam', status: 'new', emailHealth: 'valid', emailHealthScore: 86 },
+    82→    82→
+    83→    83→    // NexGen Pharma (comp-9)
+    84→    84→    { id: 'cont-28', companyId: 'comp-9', name: 'Dr. Elena Fischer', email: 'e.fischer@nexgenpharma.com', jobTitle: 'VP of R&D Digital', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/elenafischer', location: 'Basel', status: 'contacted', emailHealth: 'valid', emailHealthScore: 95 },
+    85→    85→    { id: 'cont-29', companyId: 'comp-9', name: 'Marc Dubois', email: 'm.dubois@nexgenpharma.com', jobTitle: 'Global IT Director', roleBucket: 'director', location: 'Basel', status: 'ready', emailHealth: 'valid', emailHealthScore: 91 },
+    86→    86→    { id: 'cont-30', companyId: 'comp-9', name: 'Sophie Laurent', email: 's.laurent@nexgenpharma.com', jobTitle: 'Head of Data Science', roleBucket: 'manager', location: 'Basel', status: 'new', emailHealth: 'valid', emailHealthScore: 88 },
+    87→    87→
+    88→    88→    // CyberShield Security (comp-10)
+    89→    89→    { id: 'cont-31', companyId: 'comp-10', name: 'Avi Cohen', email: 'avi@cybershield.io', jobTitle: 'CEO & Co-Founder', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/avicohen', location: 'Tel Aviv', status: 'ready', emailHealth: 'valid', emailHealthScore: 96 },
+    90→    90→    { id: 'cont-32', companyId: 'comp-10', name: 'Yael Goldstein', email: 'yael@cybershield.io', jobTitle: 'VP Engineering', roleBucket: 'executive', location: 'Tel Aviv', status: 'new', emailHealth: 'valid', emailHealthScore: 92 },
+    91→    91→
+    92→    92→    // AutoDrive Motors (comp-11)
+    93→    93→    { id: 'cont-33', companyId: 'comp-11', name: 'Takeshi Yamamoto', email: 't.yamamoto@autodrive.com', jobTitle: 'Chief Digital Officer', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/takeshiyamamoto', location: 'Tokyo', status: 'new', emailHealth: 'valid', emailHealthScore: 89 },
+    94→    94→    { id: 'cont-34', companyId: 'comp-11', name: 'Kenji Tanaka', email: 'k.tanaka@autodrive.com', jobTitle: 'Head of Connected Vehicles', roleBucket: 'director', location: 'Tokyo', status: 'new', emailHealth: 'risky', emailHealthScore: 60 },
+    95→    95→
+    96→    96→    // Agritech Solutions (comp-12)
+    97→    97→    { id: 'cont-35', companyId: 'comp-12', name: 'Ramesh Reddy', email: 'ramesh@agritech.in', jobTitle: 'Founder & CEO', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/rameshreddy', location: 'Hyderabad', status: 'researching', emailHealth: 'valid', emailHealthScore: 90 },
+    98→    98→    { id: 'cont-36', companyId: 'comp-12', name: 'Lakshmi Priya', email: 'lakshmi@agritech.in', jobTitle: 'CTO', roleBucket: 'executive', location: 'Hyderabad', status: 'new', emailHealth: 'valid', emailHealthScore: 87 },
+    99→    99→
+   100→   100→    // SkyRocket Media (comp-13)
+   101→   101→    { id: 'cont-37', companyId: 'comp-13', name: 'Jake Morrison', email: 'jake@skyrocketmedia.com', jobTitle: 'Chief Technology Officer', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/jakemorrison', location: 'Los Angeles', status: 'contacted', emailHealth: 'valid', emailHealthScore: 93 },
+   102→   102→    { id: 'cont-38', companyId: 'comp-13', name: 'Amanda Torres', email: 'amanda.t@skyrocketmedia.com', jobTitle: 'VP of Product', roleBucket: 'executive', location: 'Los Angeles', status: 'new', emailHealth: 'valid', emailHealthScore: 88 },
+   103→   103→
+   104→   104→    // BuildRight Construction (comp-14)
+   105→   105→    { id: 'cont-39', companyId: 'comp-14', name: 'Daniel Cooper', email: 'd.cooper@buildright.com', jobTitle: 'Operations Director', roleBucket: 'director', location: 'Sydney', status: 'new', emailHealth: 'valid', emailHealthScore: 84 },
+   106→   106→    { id: 'cont-40', companyId: 'comp-14', name: 'Emma White', email: 'emma.w@buildright.com', jobTitle: 'IT Manager', roleBucket: 'manager', location: 'Sydney', status: 'new', emailHealth: 'invalid', emailHealthScore: 3 },
+   107→   107→
+   108→   108→    // FinTech Innovations (comp-15)
+   109→   109→    { id: 'cont-41', companyId: 'comp-15', name: 'Wei Lin', email: 'wei.lin@fintechinnovations.co', jobTitle: 'CEO', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/weilin', location: 'Singapore', status: 'ready', emailHealth: 'valid', emailHealthScore: 95 },
+   110→   110→    { id: 'cont-42', companyId: 'comp-15', name: 'Arjun Mehta', email: 'arjun@fintechinnovations.co', jobTitle: 'CTO', roleBucket: 'executive', location: 'Singapore', status: 'new', emailHealth: 'valid', emailHealthScore: 91 },
+   111→   111→
+   112→   112→    // CloudNine Telecom (comp-16)
+   113→   113→    { id: 'cont-43', companyId: 'comp-16', name: 'Pierre Tremblay', email: 'pierre.t@cloudninetelecom.com', jobTitle: 'VP of Network Operations', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/pierrtremblay', location: 'Toronto', status: 'researching', emailHealth: 'valid', emailHealthScore: 89 },
+   114→   114→    { id: 'cont-44', companyId: 'comp-16', name: 'Sarah Johnson', email: 's.johnson@cloudninetelecom.com', jobTitle: 'Director of IT', roleBucket: 'director', location: 'Toronto', status: 'new', emailHealth: 'risky', emailHealthScore: 54 },
+   115→   115→
+   116→   116→    // BioGenetics Lab (comp-17)
+   117→   117→    { id: 'cont-45', companyId: 'comp-17', name: 'Dr. Jennifer Wu', email: 'j.wu@biogeneticslab.com', jobTitle: 'VP of Computational Biology', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/jenniferwu', location: 'San Francisco', status: 'contacted', emailHealth: 'valid', emailHealthScore: 97 },
+   118→   118→    { id: 'cont-46', companyId: 'comp-17', name: 'Chris Martinez', email: 'c.martinez@biogeneticslab.com', jobTitle: 'Head of Bioinformatics', roleBucket: 'manager', location: 'San Francisco', status: 'ready', emailHealth: 'valid', emailHealthScore: 90 },
+   119→   119→
+   120→   120→    // TravelWise Holdings (comp-18)
+   121→   121→    { id: 'cont-47', companyId: 'comp-18', name: 'Mohammed Al-Fahim', email: 'm.alfahim@travelwise.com', jobTitle: 'Chief Technology Officer', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/mohammedalfahim', location: 'Abu Dhabi', status: 'new', emailHealth: 'valid', emailHealthScore: 88 },
+   122→   122→    { id: 'cont-48', companyId: 'comp-18', name: 'Rashid Al-Mansoori', email: 'rashid@travelwise.com', jobTitle: 'Head of Digital', roleBucket: 'director', location: 'Abu Dhabi', status: 'new', emailHealth: 'invalid', emailHealthScore: 5 },
+   123→   123→
+   124→   124→    // SteelWorks United (comp-19)
+   125→   125→    { id: 'cont-49', companyId: 'comp-19', name: 'Jin-Ho Kim', email: 'jinho.kim@steelworks.com', jobTitle: 'CIO', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/jinhokim', location: 'Seoul', status: 'researching', emailHealth: 'valid', emailHealthScore: 92 },
+   126→   126→    { id: 'cont-50', companyId: 'comp-19', name: 'Soo-Jin Park', email: 'soojin@steelworks.com', jobTitle: 'VP of Smart Manufacturing', roleBucket: 'executive', location: 'Seoul', status: 'new', emailHealth: 'valid', emailHealthScore: 87 },
+   127→   127→
+   128→   128→    // DataVault Analytics (comp-20)
+   129→   129→    { id: 'cont-51', companyId: 'comp-20', name: 'Marcus Johnson', email: 'marcus@datavault.io', jobTitle: 'CEO & Founder', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/marcusjohnson', location: 'Austin', status: 'ready', emailHealth: 'valid', emailHealthScore: 96 },
+   130→   130→    { id: 'cont-52', companyId: 'comp-20', name: 'Priya Patel', email: 'priya.p@datavault.io', jobTitle: 'Head of AI/ML', roleBucket: 'manager', location: 'Austin', status: 'new', emailHealth: 'valid', emailHealthScore: 91 },
+   131→   131→
+   132→   132→    // QuickBite Foods (comp-21)
+   133→   133→    { id: 'cont-53', companyId: 'comp-21', name: 'Arjun Kapoor', email: 'arjun.kapoor@quickbitefoods.com', jobTitle: 'VP of Supply Chain', roleBucket: 'executive', location: 'Mumbai', status: 'new', emailHealth: 'valid', emailHealthScore: 85 },
+   134→   134→    { id: 'cont-54', companyId: 'comp-21', name: 'Meera Shah', email: 'meera.s@quickbitefoods.com', jobTitle: 'Head of IT', roleBucket: 'manager', location: 'Mumbai', status: 'new', emailHealth: 'risky', emailHealthScore: 50 },
+   135→   135→
+   136→   136→    // PrimeReal Estate (comp-22)
+   137→   137→    { id: 'cont-55', companyId: 'comp-22', name: 'Oliver Bennett', email: 'o.bennett@primerealestate.com', jobTitle: 'Managing Director', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/oliverbennett', location: 'Manchester', status: 'researching', emailHealth: 'valid', emailHealthScore: 90 },
+   138→   138→    { id: 'cont-56', companyId: 'comp-22', name: 'Hannah Brooks', email: 'hannah.b@primerealestate.com', jobTitle: 'Head of PropTech', roleBucket: 'director', location: 'Manchester', status: 'new', emailHealth: 'valid', emailHealthScore: 86 },
+   139→   139→
+   140→   140→    // SafeGuard Insurance (comp-23)
+   141→   141→    { id: 'cont-57', companyId: 'comp-23', name: 'Richard Taylor', email: 'r.taylor@safeguardinsurance.com', jobTitle: 'SVP of Claims Technology', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/richardtaylor', location: 'Hartford', status: 'contacted', emailHealth: 'valid', emailHealthScore: 93 },
+   142→   142→    { id: 'cont-58', companyId: 'comp-23', name: 'Lisa Adams', email: 'lisa.a@safeguardinsurance.com', jobTitle: 'Director of Digital Claims', roleBucket: 'director', location: 'Hartford', status: 'ready', emailHealth: 'valid', emailHealthScore: 89 },
+   143→   143→
+   144→   144→    // MarineTech Solutions (comp-24)
+   145→   145→    { id: 'cont-59', companyId: 'comp-24', name: 'Erik Larsen', email: 'erik.l@marinetech.com', jobTitle: 'CEO', roleBucket: 'executive', linkedinUrl: 'https://linkedin.com/in/eriklarsen', location: 'Oslo', status: 'new', emailHealth: 'valid', emailHealthScore: 91 },
+   146→   146→    { id: 'cont-60', companyId: 'comp-24', name: 'Ingrid Haugen', email: 'ingrid@marinetech.com', jobTitle: 'CTO', roleBucket: 'executive', location: 'Oslo', status: 'new', emailHealth: 'valid', emailHealthScore: 87 },
+   147→   147→  ];
+   148→   148→
+   149→   149→  for (const c of contacts) {
+   150→   150→    await db.contact.upsert({ where: { id: c.id }, update: c, create: c });
+   151→   151→  }
+   152→   152→  console.log(`Created ${contacts.length} contacts`);
+   153→   153→
+   154→   154→  // Company Notes
+   155→   155→  await db.companyNote.createMany({ data: [
+   156→   156→    { companyId: 'comp-1', body: 'ABC Manufacturing is expanding their digital initiatives. They recently announced a $50M investment in automation technologies. Key decision maker is John Smith (CIO) who is driving the digital transformation agenda across all 12 manufacturing facilities.', noteType: 'research' },
+   157→   157→    { companyId: 'comp-1', body: 'Had a brief conversation with Mary Wilson at the manufacturing tech summit. She mentioned they are evaluating AI solutions for supply chain optimization. Very interested in proof of concepts and pilot programs.', noteType: 'call_note' },
+   158→   158→    { companyId: 'comp-1', body: 'Raj Kumar (CTO) presented at the Industry 4.0 conference last week about their cloud migration roadmap. Key takeaway: they are moving away from SAP legacy systems and looking for modern alternatives.', noteType: 'follow_up' },
+   159→   159→    { companyId: 'comp-4', body: 'Sarah Chen responded positively to our initial outreach about healthcare workflow automation. She wants to schedule a discovery call next week to discuss specific pain points in their claims processing workflow.', noteType: 'follow_up' },
+   160→   160→    { companyId: 'comp-4', body: 'HealthPlus Networks operates 12 hospitals and 200+ outpatient clinics across the Northeast. They process approximately 50,000 insurance claims per month with a 15% error rate that they want to reduce.', noteType: 'research' },
+   161→   161→    { companyId: 'comp-2', body: 'TechVision is a growing mid-market IT services company in Bangalore. They might be a potential partner rather than a client. Their AI/ML team has 40+ engineers working on NLP and computer vision projects.', noteType: 'research' },
+   162→   162→    { companyId: 'comp-9', body: 'NexGen Pharma is undergoing a major digital transformation initiative called "Lab of the Future". They are investing in AI for drug discovery, clinical trial optimization, and regulatory document automation.', noteType: 'research' },
+   163→   163→    { companyId: 'comp-9', body: 'Dr. Elena Fischer confirmed they are looking for partners to help automate their regulatory submission pipeline. Current process takes 6-8 months, target is to reduce to 2 months.', noteType: 'call_note' },
+   164→   164→    { companyId: 'comp-7', body: 'GreenEnergy Systems just secured a $200M Series C round. They are expanding into energy storage analytics and need better data infrastructure to support real-time monitoring of 5000+ solar installations.', noteType: 'research' },
+   165→   165→    { companyId: 'comp-10', body: 'CyberShield is looking for AI capabilities to enhance their threat detection platform. They currently process 10 billion events per day and need better pattern recognition and anomaly detection.', noteType: 'follow_up' },
+   166→   166→    { companyId: 'comp-13', body: 'SkyRocket Media is building a content recommendation engine and needs NLP/ML expertise. Jake Morrison mentioned they are open to outsourcing their AI infrastructure development.', noteType: 'call_note' },
+   167→   167→    { companyId: 'comp-17', body: 'BioGenetics Lab published a paper on using AI for protein structure prediction. Dr. Jennifer Wu leads a team of 30 computational biologists. They are looking to scale their ML pipeline.', noteType: 'research' },
+   168→   168→    { companyId: 'comp-20', body: 'DataVault Analytics is a fast-growing startup in the data observability space. They just raised Series B ($45M). Marcus Johnson is looking for strategic technology partners for their enterprise offering.', noteType: 'research' },
+   169→   169→    { companyId: 'comp-23', body: 'SafeGuard Insurance processes 2M+ claims annually. Richard Taylor mentioned they are spending $15M/year on manual claims processing and want to automate 60% within 18 months.', noteType: 'call_note' },
+   170→   170→    { companyId: 'comp-15', body: 'FinTech Innovations is building a next-generation fraud detection system. Wei Lin is very interested in our AI capabilities and wants to explore a partnership model.', noteType: 'follow_up' },
+   171→   171→  ]});
+   172→   172→  console.log('Created 15 company notes');
+   173→   173→
+   174→   174→  // Research Cards
+   175→   175→  await db.companyResearchCard.upsert({
+   176→   176→    where: { companyId: 'comp-1' },
+   177→   177→    update: {},
+   178→   178→    create: { companyId: 'comp-1', businessOverview: 'Global manufacturing company with $2B+ annual revenue. Major operations in automotive and industrial equipment manufacturing across 12 facilities in 6 countries. Currently undergoing significant digital transformation with a $50M investment commitment.', currentTechLandscape: 'Legacy ERP systems (SAP ECC 6.0), limited cloud adoption, manual shop floor processes, on-premise data centers. Recently started Microsoft Azure migration. Using IBM Maximo for asset management.', potentialChallenges: 'Integration complexity between legacy and new systems. Skills gap in data analytics and AI. Resistance to change from shop floor workers. Strict compliance requirements for automotive manufacturing.', possibleOpportunities: 'AI-powered quality inspection using computer vision, predictive maintenance reducing downtime by 40%, supply chain optimization with demand forecasting, automated reporting dashboards for real-time visibility.', relevantServices: 'AI Process Automation, Cloud Modernization, Data Analytics & BI', keyDecisionMakers: 'John Smith (CIO), Mary Wilson (VP Tech), Raj Kumar (CTO), Tom Bradley (Dir Digital Transformation)', lastInteraction: 'Met Mary Wilson at Manufacturing Tech Summit, July 2026', nextAction: 'Send AI automation introduction email to John Smith', confidenceScore: 85 },
+   179→   179→  });
+   180→   180→  await db.companyResearchCard.upsert({
+   181→   181→    where: { companyId: 'comp-4' },
+   182→   182→    update: {},
+   183→   183→    create: { companyId: 'comp-4', businessOverview: 'Regional healthcare network with 12 hospitals and 200+ clinics across the US Northeast. 15,000+ employees including 3,000+ physicians. Focus on patient care quality and operational efficiency. Annual revenue of $4.5B.', currentTechLandscape: 'Epic EHR system as primary clinical platform, limited AI/ML capabilities, data silos across facilities, manual insurance claims processing, Cognos for basic reporting.', potentialChallenges: 'HIPAA compliance requirements for any AI solution, data security and patient privacy concerns, physician adoption resistance for new technology, integration with existing Epic system.', possibleOpportunities: 'AI-powered document processing for insurance claims (50K/month volume), patient flow optimization reducing wait times, automated scheduling systems, clinical documentation improvement using NLP.', relevantServices: 'AI Process Automation, Document Intelligence, Data Analytics & BI', keyDecisionMakers: 'Sarah Chen (VP Ops), Dr. Michael Lee (CMO), Karen Rodriguez (Dir IT), David Park (Head Data Analytics)', lastInteraction: 'Email sent, Sarah replied with interest in discovery call', nextAction: 'Schedule discovery call for healthcare automation', confidenceScore: 78 },
+   184→   184→  });
+   185→   185→  await db.companyResearchCard.upsert({
+   186→   186→    where: { companyId: 'comp-9' },
+   187→   187→    update: {},
+   188→   188→    create: { companyId: 'comp-9', businessOverview: 'Global pharmaceutical company headquartered in Basel, Switzerland. $18B annual revenue. 25,000+ employees across 40 countries. Major R&D investments in oncology, immunology, and rare diseases. "Lab of the Future" initiative underway.', currentTechLandscape: 'SAP S/4HANA for enterprise, Veeva Vault for R&D, AWS as primary cloud provider, Python/R for analytics, limited MLOps infrastructure. Heavy reliance on manual processes for regulatory submissions.', potentialChallenges: 'FDA/EMA regulatory compliance for AI in drug development, data governance across 40+ countries, long validation cycles for production systems, integration with existing Veeva and SAP platforms.', possibleOpportunities: 'Regulatory document automation (reduce submission time from 6-8 months to 2 months), AI-assisted drug discovery pipeline, clinical trial data analysis automation, intelligent document processing for pharmacovigilance.', relevantServices: 'AI Process Automation, Document Intelligence, Cloud Modernization', keyDecisionMakers: 'Dr. Elena Fischer (VP R&D Digital), Marc Dubois (Global IT Dir), Sophie Laurent (Head Data Science)', lastInteraction: 'Dr. Fischer confirmed interest in regulatory automation partnership', nextAction: 'Prepare regulatory automation capability deck and send to Dr. Fischer', confidenceScore: 82 },
+   189→   189→  });
+   190→   190→  await db.companyResearchCard.upsert({
+   191→   191→    where: { companyId: 'comp-20' },
+   192→   192→    update: {},
+   193→   193→    create: { companyId: 'comp-20', businessOverview: 'Fast-growing data observability startup, Series B funded ($45M). 120 employees, primarily engineers. Building enterprise-grade data quality monitoring and anomaly detection platform. Customers include Fortune 500 companies in finance and healthcare.', currentTechLandscape: 'Modern tech stack - Kubernetes, Apache Kafka, ClickHouse, Python/Go microservices. Self-built ML pipeline for anomaly detection. Looking to enhance with advanced AI/LLM capabilities.', potentialChallenges: 'Scaling ML inference to handle petabyte-scale data volumes, maintaining real-time performance, competing with established players like Monte Carlo and Bigeye.', possibleOpportunities: 'Advanced AI-powered anomaly detection, LLM-based natural language querying of data issues, automated root cause analysis, intelligent alerting with reduced noise.', relevantServices: 'AI Process Automation, Data Analytics & BI', keyDecisionMakers: 'Marcus Johnson (CEO), Priya Patel (Head AI/ML)', lastInteraction: 'Marcus expressed interest in exploring AI partnership at SaaStr Annual', nextAction: 'Send technical capability overview to Marcus with specific AI/ML use cases', confidenceScore: 80 },
+   194→   194→  });
+   195→   195→  console.log('Created 4 research cards');
+   196→   196→
+   197→   197→  // Opportunities
+   198→   198→  await db.opportunity.createMany({ data: [
+   199→   199→    { companyId: 'comp-1', title: 'AI Process Automation for Quality Inspection', description: 'ABC Manufacturing is investing $50M in digital transformation. AI automation for quality inspection using computer vision could be a strong entry point, potentially saving $5M+ annually in defect-related costs.', targetContactId: 'cont-1', status: 'qualified', nextAction: 'Send tailored AI automation email to CIO John Smith' },
+   200→   200→    { companyId: 'comp-1', title: 'Cloud Migration Support', description: 'They recently started Azure migration from SAP ECC 6.0. Could offer cloud modernization and application modernization services to accelerate their timeline.', targetContactId: 'cont-3', status: 'researching', nextAction: 'Research their current Azure migration status and prepare proposal' },
+   201→   201→    { companyId: 'comp-1', title: 'Predictive Maintenance Platform', description: 'Build a predictive maintenance system using IoT sensor data from manufacturing equipment. Could reduce unplanned downtime by 40% and save millions in lost production.', targetContactId: 'cont-5', status: 'new', nextAction: 'Draft predictive maintenance capability overview' },
+   202→   202→    { companyId: 'comp-4', title: 'Healthcare Document AI for Claims', description: 'Insurance claims processing automation could save significant time for their back-office operations. 50K claims/month with 15% error rate represents major efficiency opportunity.', targetContactId: 'cont-14', status: 'proposal', nextAction: 'Prepare proposal document for document AI solution' },
+   203→   203→    { companyId: 'comp-4', title: 'Patient Flow Optimization', description: 'AI-powered patient flow system to reduce wait times and optimize resource allocation across 12 hospitals. Estimated 25% improvement in patient throughput.', targetContactId: 'cont-15', status: 'researching', nextAction: 'Gather more details on current patient flow challenges' },
+   204→   204→    { companyId: 'comp-7', title: 'Sustainability Analytics Platform', description: 'GreenEnergy needs better data analytics for their sustainability reporting and carbon tracking across 5000+ solar installations. Real-time monitoring dashboard with predictive analytics.', targetContactId: 'cont-23', status: 'researching', nextAction: 'Prepare capability deck on data analytics for energy sector' },
+   205→   205→    { companyId: 'comp-9', title: 'Regulatory Submission Automation', description: 'Automate the regulatory document preparation and submission pipeline. Target: reduce submission time from 6-8 months to 2 months. High-value opportunity with pharma margins.', targetContactId: 'cont-28', status: 'qualified', nextAction: 'Send regulatory automation capability deck to Dr. Fischer' },
+   206→   206→    { companyId: 'comp-10', title: 'AI-Enhanced Threat Detection', description: 'Enhance CyberShield\'s threat detection with advanced AI/ML capabilities. They process 10B events/day and need better pattern recognition for zero-day threats.', targetContactId: 'cont-31', status: 'new', nextAction: 'Research their current detection capabilities and tech stack' },
+   207→   207→    { companyId: 'comp-13', title: 'Content Recommendation Engine', description: 'Build an NLP-powered content recommendation system for SkyRocket Media\'s digital platforms. Needs to handle multi-language content and real-time personalization.', targetContactId: 'cont-37', status: 'researching', nextAction: 'Prepare NLP/ML capability overview for media industry' },
+   208→   208→    { companyId: 'comp-17', title: 'ML Pipeline Scaling for Drug Discovery', description: 'Scale BioGenetics Lab\'s ML infrastructure for protein structure prediction and drug discovery. Need to handle increasing model complexity and data volumes.', targetContactId: 'cont-45', status: 'qualified', nextAction: 'Prepare ML infrastructure proposal for computational biology' },
+   209→   209→    { companyId: 'comp-20', title: 'Advanced Anomaly Detection', description: 'Build next-gen anomaly detection using LLMs and advanced ML for DataVault\'s data observability platform. Natural language querying of data issues.', targetContactId: 'cont-51', status: 'new', nextAction: 'Send technical capability overview to Marcus' },
+   210→   210→    { companyId: 'comp-23', title: 'Claims Processing Automation', description: 'Automate 60% of their 2M+ annual insurance claims processing. $15M/year currently spent on manual processing. AI-powered document extraction and decision support.', targetContactId: 'cont-57', status: 'proposal', nextAction: 'Finalize claims automation proposal for Richard Taylor' },
+   211→   211→  ]});
+   212→   212→  console.log('Created 12 opportunities');
+   213→   213→
+   214→   214→  // Timeline Entries
+   215→   215→  const now = Date.now();
+   216→   216→  await db.timelineEntry.createMany({ data: [
+   217→   217→    { companyId: 'comp-1', action: 'Company Created', details: 'Imported from Manufacturing_Leads_Q2.csv', createdAt: new Date(now - 12*24*60*60*1000) },
+   218→   218→    { companyId: 'comp-1', action: 'Research Updated', details: 'Added business overview and technology landscape research', createdAt: new Date(now - 10*24*60*60*1000) },
+   219→   219→    { companyId: 'comp-1', action: 'Contact Added', details: 'Added Tom Bradley (Director of Digital Transformation)', createdAt: new Date(now - 8*24*60*60*1000) },
+   220→   220→    { companyId: 'comp-1', action: 'Note Added', details: 'Call note from Manufacturing Tech Summit with Mary Wilson', createdAt: new Date(now - 6*24*60*60*1000) },
+   221→   221→    { companyId: 'comp-1', action: 'Opportunity Created', details: 'AI Process Automation opportunity identified ($5M+ potential)', createdAt: new Date(now - 4*24*60*60*1000) },
+   222→   222→    { companyId: 'comp-1', action: 'Email Drafted', details: 'Drafted AI automation introduction email for John Smith', createdAt: new Date(now - 2*24*60*60*1000) },
+   223→   223→    { companyId: 'comp-4', action: 'Company Created', details: 'Imported from Healthcare_Leads.csv', createdAt: new Date(now - 10*24*60*60*1000) },
+   224→   224→    { companyId: 'comp-4', action: 'Research Updated', details: 'Added healthcare network research and tech landscape', createdAt: new Date(now - 8*24*60*60*1000) },
+   225→   225→    { companyId: 'comp-4', action: 'Email Sent', details: 'Initial outreach email sent to Sarah Chen', createdAt: new Date(now - 4*24*60*60*1000) },
+   226→   226→    { companyId: 'comp-4', action: 'Reply Received', details: 'Sarah Chen replied positively, wants discovery call', createdAt: new Date(now - 2*24*60*60*1000) },
+   227→   227→    { companyId: 'comp-4', action: 'Opportunity Created', details: 'Healthcare Document AI for Claims opportunity created', createdAt: new Date(now - 1*24*60*60*1000) },
+   228→   228→    { companyId: 'comp-9', action: 'Company Created', details: 'Imported from Pharma_Global_Leaders.csv', createdAt: new Date(now - 15*24*60*60*1000) },
+   229→   229→    { companyId: 'comp-9', action: 'Research Updated', details: 'Added "Lab of the Future" initiative research', createdAt: new Date(now - 12*24*60*60*1000) },
+   230→   230→    { companyId: 'comp-9', action: 'Opportunity Created', details: 'Regulatory Submission Automation opportunity identified', createdAt: new Date(now - 8*24*60*60*1000) },
+   231→   231→    { companyId: 'comp-9', action: 'Call Completed', details: 'Dr. Fischer confirmed interest in regulatory automation', createdAt: new Date(now - 3*24*60*60*1000) },
+   232→   232→    { companyId: 'comp-2', action: 'Company Created', details: 'Imported from India_IT_Companies.csv', createdAt: new Date(now - 8*24*60*60*1000) },
+   233→   233→    { companyId: 'comp-2', action: 'Note Added', details: 'Potential partnership evaluation note added', createdAt: new Date(now - 5*24*60*60*1000) },
+   234→   234→    { companyId: 'comp-7', action: 'Company Created', details: 'Imported from Energy_Sector_Leads.csv', createdAt: new Date(now - 6*24*60*60*1000) },
+   235→   235→    { companyId: 'comp-7', action: 'Research Updated', details: 'Added Series C funding and expansion research', createdAt: new Date(now - 3*24*60*60*1000) },
+   236→   236→    { companyId: 'comp-3', action: 'Company Created', details: 'Imported from Finance_Sector_Q3.csv', createdAt: new Date(now - 14*24*60*60*1000) },
+   237→   237→    { companyId: 'comp-20', action: 'Company Created', details: 'Imported from US_Tech_Startups_SeriesB.csv', createdAt: new Date(now - 7*24*60*60*1000) },
+   238→   238→    { companyId: 'comp-20', action: 'Research Updated', details: 'Added data observability platform and funding details', createdAt: new Date(now - 5*24*60*60*1000) },
+   239→   239→    { companyId: 'comp-23', action: 'Company Created', details: 'Imported from Insurance_Tech_Leaders.csv', createdAt: new Date(now - 9*24*60*60*1000) },
+   240→   240→    { companyId: 'comp-23', action: 'Opportunity Created', details: 'Claims Processing Automation opportunity identified ($15M impact)', createdAt: new Date(now - 4*24*60*60*1000) },
+   241→   241→    { companyId: 'comp-23', action: 'Proposal Sent', details: 'Claims automation proposal sent to Richard Taylor', createdAt: new Date(now - 1*24*60*60*1000) },
+   242→   242→  ]});
+   243→   243→  console.log('Created 25 timeline entries');
+   244→   244→
+   245→   245→  // Email Health Checks
+   246→   246→  await db.emailHealthCheck.createMany({ data: [
+   247→   247→    { contactId: 'cont-1', status: 'valid', score: 95, actionRecommendation: 'allow', syntaxOk: true, domainOk: true, mxOk: true, disposableOk: true },
+   248→   248→    { contactId: 'cont-2', status: 'valid', score: 92, actionRecommendation: 'allow', syntaxOk: true, domainOk: true, mxOk: true, disposableOk: true },
+   249→   249→    { contactId: 'cont-4', status: 'invalid', score: 0, actionRecommendation: 'block', syntaxOk: false, domainOk: false, mxOk: false, disposableOk: false },
+   250→   250→    { contactId: 'cont-10', status: 'risky', score: 62, actionRecommendation: 'review', syntaxOk: true, domainOk: true, mxOk: false, disposableOk: true },
+   251→   251→    { contactId: 'cont-17', status: 'risky', score: 55, actionRecommendation: 'review', syntaxOk: true, domainOk: true, mxOk: false, disposableOk: true },
+   252→   252→    { contactId: 'cont-22', status: 'invalid', score: 8, actionRecommendation: 'block', syntaxOk: true, domainOk: false, mxOk: false, disposableOk: false },
+   253→   253→    { contactId: 'cont-24', status: 'risky', score: 58, actionRecommendation: 'review', syntaxOk: true, domainOk: true, mxOk: false, disposableOk: true },
+   254→   254→    { contactId: 'cont-34', status: 'risky', score: 60, actionRecommendation: 'review', syntaxOk: true, domainOk: true, mxOk: false, disposableOk: true },
+   255→   255→    { contactId: 'cont-40', status: 'invalid', score: 3, actionRecommendation: 'block', syntaxOk: false, domainOk: false, mxOk: false, disposableOk: false },
+   256→   256→    { contactId: 'cont-44', status: 'risky', score: 54, actionRecommendation: 'review', syntaxOk: true, domainOk: true, mxOk: false, disposableOk: true },
+   257→   257→    { contactId: 'cont-48', status: 'invalid', score: 5, actionRecommendation: 'block', syntaxOk: false, domainOk: false, mxOk: false, disposableOk: false },
+   258→   258→    { contactId: 'cont-54', status: 'risky', score: 50, actionRecommendation: 'review', syntaxOk: true, domainOk: true, mxOk: false, disposableOk: true },
+   259→   259→  ]});
+   260→   260→  console.log('Created 12 health checks');
+   261→   261→
+   262→   262→  // Import Batches
+   263→   263→  await db.importBatch.createMany({ data: [
+   264→   264→    { fileName: 'Manufacturing_Leads_Q2.csv', fileHash: 'sha256-abc123', totalRows: 12500, acceptedRows: 11800, duplicateRows: 520, invalidRows: 180, status: 'completed' },
+   265→   265→    { fileName: 'Healthcare_Leads.csv', fileHash: 'sha256-def456', totalRows: 3400, acceptedRows: 3200, duplicateRows: 150, invalidRows: 50, status: 'completed' },
+   266→   266→    { fileName: 'India_IT_Companies.csv', fileHash: 'sha256-ghi789', totalRows: 890, acceptedRows: 850, duplicateRows: 30, invalidRows: 10, status: 'completed' },
+   267→   267→    { fileName: 'Pharma_Global_Leaders.csv', fileHash: 'sha256-jkl012', totalRows: 6200, acceptedRows: 5850, duplicateRows: 280, invalidRows: 70, status: 'completed' },
+   268→   268→    { fileName: 'Finance_Sector_Q3.csv', fileHash: 'sha256-mno345', totalRows: 18500, acceptedRows: 17200, duplicateRows: 950, invalidRows: 350, status: 'completed' },
+   269→   269→    { fileName: 'Energy_Sector_Leads.csv', fileHash: 'sha256-pqr678', totalRows: 2100, acceptedRows: 1980, duplicateRows: 85, invalidRows: 35, status: 'completed' },
+   270→   270→    { fileName: 'US_Tech_Startups_SeriesB.csv', fileHash: 'sha256-stu901', totalRows: 4500, acceptedRows: 4200, duplicateRows: 220, invalidRows: 80, status: 'completed' },
+   271→   271→    { fileName: 'Insurance_Tech_Leaders.csv', fileHash: 'sha256-vwx234', totalRows: 7800, acceptedRows: 7350, duplicateRows: 340, invalidRows: 110, status: 'completed' },
+   272→   272→  ]});
+   273→   273→  console.log('Created 8 import batches');
+   274→   274→
+   275→   275→  // Capability Documents
+   276→   276→  await db.capabilityDocument.createMany({ data: [
+   277→   277→    { id: 'cap-1', title: 'AI Process Automation', docType: 'service', description: 'End-to-end AI-powered process automation services', content: 'Our AI Process Automation services help enterprises eliminate manual workflows, reduce processing time by 60-80%, and improve accuracy across document processing, data extraction, and decision workflows.' },
+   278→   278→    { id: 'cap-2', title: 'Cloud Modernization', docType: 'service', description: 'Comprehensive cloud migration and modernization services', content: 'We help organizations migrate legacy applications to modern cloud architectures. Specializing in AWS, Azure, and GCP platforms with zero-downtime strategies and cost optimization.' },
+   279→   279→    { id: 'cap-3', title: 'Data Analytics & BI', docType: 'service', description: 'Advanced analytics and business intelligence solutions', content: 'Transform raw data into actionable business intelligence with modern data platforms and real-time analytics dashboards. From data warehousing to self-service BI for business users.' },
+   280→   280→    { id: 'cap-4', title: 'Document Intelligence', docType: 'service', description: 'AI-powered document processing and extraction', content: 'Extract structured data from unstructured documents using advanced NLP and computer vision. Supports invoices, contracts, medical records, regulatory documents, and custom formats.' },
+   281→   281→    { id: 'cap-5', title: 'Machine Learning Engineering', docType: 'service', description: 'Production-grade ML pipeline development and MLOps', content: 'Design, build, and deploy production ML systems with robust MLOps practices. Model training, versioning, monitoring, and scaling for enterprise workloads.' },
+   282→   282→    { id: 'cap-6', title: 'Natural Language Processing', docType: 'service', description: 'Advanced NLP solutions for text understanding and generation', content: 'Custom NLP solutions including sentiment analysis, entity recognition, document summarization, chatbots, and content recommendation engines.' },
+   283→   283→  ]});
+   284→   284→  console.log('Created 6 capability documents');
+   285→   285→
+   286→   286→  // Capability Snippets
+   287→   287→  await db.capabilitySnippet.createMany({ data: [
+   288→   288→    { documentId: 'cap-1', snippetType: 'capability', title: 'Document Intelligence', content: 'AI-powered extraction and processing of invoices, purchase orders, contracts, and compliance documents. Reduces manual data entry by 80%.', industries: 'Manufacturing, Finance, Healthcare', outcomes: '80% reduction in manual processing, 99.5% accuracy' },
+   289→   289→    { documentId: 'cap-1', snippetType: 'case_study', title: 'Manufacturing QC Automation', content: 'Implemented AI-powered quality inspection for a Fortune 500 manufacturer. Reduced defect detection time from 45 minutes to 3 minutes per unit.', industries: 'Manufacturing', outcomes: '15x faster inspection, $2.5M annual savings' },
+   290→   290→    { documentId: 'cap-1', snippetType: 'case_study', title: 'Insurance Claims Automation', content: 'Automated claims processing for a top-10 US insurer. Processes 200K+ claims/month with 98.7% accuracy, reducing processing time from 45 minutes to 3 minutes per claim.', industries: 'Insurance, Finance', outcomes: '95% cost reduction, 15x faster processing' },
+   291→   291→    { documentId: 'cap-2', snippetType: 'capability', title: 'Application Migration', content: 'Systematic migration of legacy applications to cloud-native architectures with zero-downtime strategies. Specialized in SAP, Oracle, and custom application modernization.', industries: 'Technology, Finance, Healthcare, Manufacturing', outcomes: 'Zero downtime migration, 40% cost reduction' },
+   292→   292→    { documentId: 'cap-3', snippetType: 'capability', title: 'Executive Dashboards', content: 'Real-time executive dashboards consolidating data from multiple sources into actionable insights. Self-service BI for business users with drag-and-drop report building.', industries: 'All Industries', outcomes: '70% reduction in report generation time' },
+   293→   293→    { documentId: 'cap-4', snippetType: 'capability', title: 'Regulatory Document Processing', content: 'Automated extraction and validation of regulatory submission documents. Supports FDA, EMA, and global regulatory formats with compliance-aware processing.', industries: 'Pharmaceuticals, Healthcare, Finance', outcomes: '75% faster document preparation, 99% compliance rate' },
+   294→   294→    { documentId: 'cap-5', snippetType: 'capability', title: 'MLOps Platform', content: 'End-to-end ML lifecycle management from data preparation to model deployment and monitoring. Supports TensorFlow, PyTorch, and scikit-learn with automated retraining pipelines.', industries: 'Technology, Finance, Healthcare', outcomes: '3x faster model deployment, 50% reduction in ML operations cost' },
+   295→   295→    { documentId: 'cap-6', snippetType: 'capability', title: 'Sentiment Analysis', content: 'Real-time sentiment analysis for customer feedback, social media, and support tickets. Multi-language support with industry-specific fine-tuning.', industries: 'Media, Retail, Healthcare', outcomes: '92% accuracy, real-time processing' },
+   296→   296→  ]});
+   297→   297→  console.log('Created 8 capability snippets');
+   298→   298→
+   299→   299→  // User Preferences
+   300→   300→  await db.userPreferences.upsert({ where: { id: 'pref-1' }, update: {}, create: { id: 'pref-1' } });
+   301→   301→  console.log('Created user preferences');
+   302→   302→
+   303→   303→  console.log('\nDatabase seeded successfully!');
+   304→   304→  console.log(`Summary: ${companies.length} companies, ${contacts.length} contacts, 15 notes, 4 research cards, 12 opportunities, 25 timeline entries, 12 health checks, 8 import batches, 6 capability docs, 8 snippets`);
+   305→   305→}
+   306→   306→
+   307→   307→seed().catch(console.error).finally(() => process.exit(0));

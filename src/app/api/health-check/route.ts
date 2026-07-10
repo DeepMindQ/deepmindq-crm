@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { validateEmail } from "@/lib/email-verification";
 
-const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
+// ---------------------------------------------------------------------------
+// POST /api/health-check
+// ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,60 +35,41 @@ export async function POST(request: NextRequest) {
     }
 
     let validCount = 0;
+    let riskyCount = 0;
     let invalidCount = 0;
 
     for (const contact of contacts) {
       const email = contact.email!;
-      const syntaxOk = EMAIL_REGEX.test(email);
 
-      // Simple domain check: does the domain part have at least one dot?
-      const domainPart = email.split("@")[1] || "";
-      const domainParts = domainPart.split(".");
-      const domainOk = domainParts.length >= 2 && domainParts[domainParts.length - 1].length >= 2;
+      // Run comprehensive validation via the shared engine
+      const result = await validateEmail(email);
 
-      // MX check is not possible without DNS lookup in this environment, default to true if syntax and domain ok
-      const mxOk = syntaxOk && domainOk;
+      // Map nullable DNS results to booleans for the DB schema
+      const mxOk = result.mxOk ?? false;
 
-      // Disposable check: simple heuristic - known disposable patterns
-      const disposableDomains = [
-        "mailinator.com", "guerrillamail.com", "tempmail.com",
-        "throwaway.email", "yopmail.com", "sharklasers.com",
-        "guerrillamailblock.com", "grr.la", "dispostable.com",
-        "trashmail.com", "10minutemail.com",
-      ];
-      const disposableOk = !disposableDomains.includes(domainPart.toLowerCase());
-
-      const isValid = syntaxOk && domainOk && disposableOk;
-      const score = isValid ? 100 : syntaxOk ? 50 : 0;
-      const status = isValid ? "valid" : syntaxOk ? "risky" : "invalid";
-      const actionRecommendation = isValid
-        ? "Email is valid and safe to send."
-        : syntaxOk
-          ? "Email syntax is valid but domain may have issues. Verify before sending."
-          : "Email format is invalid. Do not send to this address.";
-
-      if (isValid) validCount++;
+      if (result.status === "valid") validCount++;
+      else if (result.status === "risky") riskyCount++;
       else invalidCount++;
 
       await db.$transaction([
         db.contact.update({
           where: { id: contact.id },
           data: {
-            emailHealth: status,
-            emailHealthScore: score,
+            emailHealth: result.status,
+            emailHealthScore: result.score,
             lastValidatedAt: new Date(),
           },
         }),
         db.emailHealthCheck.create({
           data: {
             contactId: contact.id,
-            status,
-            score,
-            actionRecommendation,
-            syntaxOk,
-            domainOk,
+            status: result.status,
+            score: result.score,
+            actionRecommendation: result.recommendation,
+            syntaxOk: result.syntaxOk,
+            domainOk: result.domainOk,
             mxOk,
-            disposableOk,
+            disposableOk: result.disposableOk,
           },
         }),
       ]);
@@ -94,13 +78,14 @@ export async function POST(request: NextRequest) {
     await db.timelineEntry.create({
       data: {
         action: "health_check_run",
-        details: `Email health check completed: ${validCount} valid, ${invalidCount} invalid/risky out of ${contacts.length} contacts`,
+        details: `Email health check completed: ${validCount} valid, ${riskyCount} risky, ${invalidCount} invalid out of ${contacts.length} contacts`,
       },
     });
 
     return NextResponse.json({
       checked: contacts.length,
       valid: validCount,
+      risky: riskyCount,
       invalid: invalidCount,
     });
   } catch (error) {

@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, ShieldCheck, Sparkles, Plus, Archive, Mail, Phone, MapPin,
-  Building2, Linkedin, Copy, RefreshCw, FileText, Clock, Loader2,
+  Building2, Linkedin, Copy, RefreshCw, FileText, Clock, Loader2, X, AlertTriangle,
+  CheckCircle2, XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
@@ -21,6 +22,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
 
 /* ── Helpers ── */
 
@@ -47,6 +49,9 @@ export default function ContactDetailScreen() {
   const [noteOpen, setNoteOpen] = useState(false)
   const [noteBody, setNoteBody] = useState('')
   const [noteType, setNoteType] = useState('')
+
+  // Delete note confirmation state
+  const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null)
 
   const [editOpen, setEditOpen] = useState(false)
   const [editForm, setEditForm] = useState({
@@ -149,6 +154,29 @@ export default function ContactDetailScreen() {
       toast.success('Draft regenerated')
     },
     onError: (e: Error) => toast.error(e.message),
+  })
+
+  // ── Update Draft Status mutation ──
+  const updateDraftStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      fetch(`/api/drafts/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      }).then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Failed to update draft') })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
+      toast.success('Draft status updated')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  // ── Delete Note mutation ──
+  const deleteNoteMutation = useMutation({
+    mutationFn: (noteId: string) =>
+      fetch(`/api/notes?id=${noteId}&type=contact`, { method: 'DELETE' }).then(r => r.json()),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['contact', selectedContactId] }); setDeleteNoteId(null); toast.success('Note deleted') },
+    onError: () => toast.error('Failed to delete note'),
   })
 
   /* ── Handlers ── */
@@ -288,6 +316,16 @@ export default function ContactDetailScreen() {
               >
                 <Archive className="size-3.5 mr-1.5" /> Archive
               </Button>
+              {data.companyId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs gap-1.5 border-gray-200 text-gray-600 rounded-lg"
+                  onClick={() => { useAppStore.getState().setSelectedCompanyId(data.companyId); setActiveView('company-profile') }}
+                >
+                  <Building2 className="size-3.5" /> View Company
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -402,7 +440,16 @@ export default function ContactDetailScreen() {
             <div className="space-y-3">
               {notes.map((n: any) => (
                 <div key={n.id} className="rounded-xl bg-white p-5 card-rest slide-up">
-                  <p className="text-sm text-gray-700 leading-relaxed">{n.body}</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm text-gray-700 leading-relaxed flex-1">{n.body}</p>
+                    <button
+                      onClick={() => setDeleteNoteId(n.id)}
+                      className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
+                      title="Delete note"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
                   <div className="flex items-center gap-2 mt-3">
                     {n.noteType && (
                       <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-[11px] font-normal border-0 capitalize">
@@ -513,6 +560,28 @@ export default function ContactDetailScreen() {
                     >
                       <Copy className="size-3 mr-1" /> Copy
                     </Button>
+                    {d.status === 'draft' && (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-md"
+                          onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'sent' })}
+                          disabled={updateDraftStatus.isPending}
+                        >
+                          <CheckCircle2 className="size-3 mr-1" /> Mark Sent
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md"
+                          onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'rejected' })}
+                          disabled={updateDraftStatus.isPending}
+                        >
+                          <XCircle className="size-3 mr-1" /> Reject
+                        </Button>
+                      </div>
+                    )}
                     <span className="text-[11px] text-gray-400 ml-auto">
                       {formatDistanceToNow(new Date(d.createdAt), { addSuffix: true })}
                     </span>
@@ -523,6 +592,29 @@ export default function ContactDetailScreen() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* ── Delete Note Confirmation Dialog ── */}
+      <Dialog open={!!deleteNoteId} onOpenChange={(open) => { if (!open) setDeleteNoteId(null) }}>
+        <DialogContent className="sm:max-w-sm rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900 flex items-center gap-2">
+              <AlertTriangle className="size-4 text-red-500" /> Delete Note
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">Are you sure you want to delete this note? This action cannot be undone.</p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteNoteId(null)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+            <Button
+              onClick={() => deleteNoteMutation.mutate(deleteNoteId!)}
+              disabled={deleteNoteMutation.isPending}
+              className="bg-red-600 text-white hover:bg-red-700 press-scale"
+            >
+              {deleteNoteMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ════════════ Edit Contact Dialog ════════════ */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Building2, Globe, MapPin, Users, Plus, Target, StickyNote, FileText,
   Sparkles, Mail, Phone, ExternalLink, Linkedin, DollarSign, Calendar,
-  CheckCircle2, XCircle, Clock, BarChart3, Loader2,
+  CheckCircle2, XCircle, Clock, BarChart3, Loader2, X, AlertTriangle,
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import { formatDistanceToNow } from 'date-fns'
@@ -55,11 +55,22 @@ const researchColors = [
 ]
 
 const STATUS_CYCLE = ['new', 'researching', 'contacted', 'qualified', 'ready', 'archived'] as const
-
-
+const OPP_STATUS_CYCLE = ['researching', 'contacted', 'qualified', 'ready', 'won', 'lost'] as const
 
 const ROLE_BUCKETS = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'] as const
 const OPP_STATUSES = ['researching', 'contacted', 'proposed', 'negotiation', 'won', 'lost'] as const
+
+const oppStatusVariant = (s: string) => {
+  switch (s) {
+    case 'researching': return 'bg-blue-50 text-blue-700 border-blue-200'
+    case 'contacted': return 'bg-violet-50 text-violet-700 border-violet-200'
+    case 'qualified': return 'bg-amber-50 text-amber-700 border-amber-200'
+    case 'ready': return 'bg-cyan-50 text-cyan-700 border-cyan-200'
+    case 'won': return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    case 'lost': return 'bg-red-50 text-red-700 border-red-200'
+    default: return 'bg-gray-100 text-gray-600 border-gray-200'
+  }
+}
 
 export default function CompanyProfileScreen() {
   const { selectedCompanyId, setActiveView } = useAppStore()
@@ -69,6 +80,9 @@ export default function CompanyProfileScreen() {
   const [noteOpen, setNoteOpen] = useState(false)
   const [noteBody, setNoteBody] = useState('')
   const [noteType, setNoteType] = useState('')
+
+  // Delete note confirmation state
+  const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null)
 
   // Contact dialog state
   const [contactOpen, setContactOpen] = useState(false)
@@ -168,6 +182,29 @@ export default function CompanyProfileScreen() {
     },
     onError: (err) => toast.error(err.message || 'Failed to add opportunity'),
   })
+
+  // ── Update Opportunity Status mutation ──
+  const updateOppMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      fetch(`/api/opportunities`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status }) }).then(r => r.json()),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); toast.success('Opportunity updated') },
+    onError: () => toast.error('Failed to update opportunity'),
+  })
+
+  // ── Delete Note mutation ──
+  const deleteNoteMutation = useMutation({
+    mutationFn: (noteId: string) =>
+      fetch(`/api/notes?id=${noteId}&type=company`, { method: 'DELETE' }).then(r => r.json()),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); setDeleteNoteId(null); toast.success('Note deleted') },
+    onError: () => toast.error('Failed to delete note'),
+  })
+
+  // ── Opportunity status cycle handler ──
+  const handleOppStatusCycle = (oppId: string, currentStatus: string) => {
+    const currentIdx = OPP_STATUS_CYCLE.indexOf(currentStatus as typeof OPP_STATUS_CYCLE[number])
+    const nextIdx = (currentIdx + 1) % OPP_STATUS_CYCLE.length
+    updateOppMutation.mutate({ id: oppId, status: OPP_STATUS_CYCLE[nextIdx] })
+  }
 
   // ── Update Company Status mutation ──
   const updateCompanyStatus = useMutation({
@@ -422,7 +459,15 @@ export default function CompanyProfileScreen() {
                       {o.closeDate && <span className="flex items-center gap-1"><Calendar className="size-3" />{o.closeDate}</span>}
                     </div>
                   </div>
-                  <span className={`shrink-0 inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border ${statusBg(o.status)}`}>{o.status}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleOppStatusCycle(o.id, o.status) }}
+                    disabled={updateOppMutation.isPending}
+                    className={`shrink-0 inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border transition-opacity hover:opacity-80 ${oppStatusVariant(o.status)} ${updateOppMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    title="Click to cycle status"
+                  >
+                    {updateOppMutation.isPending ? <Loader2 className="size-3 animate-spin inline mr-1" /> : null}
+                    {o.status}
+                  </button>
                 </div>
               ))}
             </div>
@@ -472,7 +517,16 @@ export default function CompanyProfileScreen() {
             <div className="space-y-3">
               {notes.map((n: any) => (
                 <div key={n.id} className="rounded-xl bg-white p-5 card-rest slide-up">
-                  <p className="text-sm text-gray-700 leading-relaxed">{n.body}</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm text-gray-700 leading-relaxed flex-1">{n.body}</p>
+                    <button
+                      onClick={() => setDeleteNoteId(n.id)}
+                      className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
+                      title="Delete note"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
                   <div className="flex items-center gap-2 mt-3">
                     {n.noteType && <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-[11px] font-normal border-0 capitalize">{n.noteType}</Badge>}
                     <span className="text-[11px] text-gray-400">{formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}</span>
@@ -483,6 +537,29 @@ export default function CompanyProfileScreen() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* ── Delete Note Confirmation Dialog ── */}
+      <Dialog open={!!deleteNoteId} onOpenChange={(open) => { if (!open) setDeleteNoteId(null) }}>
+        <DialogContent className="sm:max-w-sm rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900 flex items-center gap-2">
+              <AlertTriangle className="size-4 text-red-500" /> Delete Note
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">Are you sure you want to delete this note? This action cannot be undone.</p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteNoteId(null)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+            <Button
+              onClick={() => deleteNoteMutation.mutate(deleteNoteId!)}
+              disabled={deleteNoteMutation.isPending}
+              className="bg-red-600 text-white hover:bg-red-700 press-scale"
+            >
+              {deleteNoteMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Add Note Dialog (existing) ── */}
       <Dialog open={noteOpen} onOpenChange={setNoteOpen}>

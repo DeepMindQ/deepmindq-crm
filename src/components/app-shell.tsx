@@ -1,11 +1,12 @@
 'use client'
 
 import * as React from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import {
   LayoutDashboard, Building2, Users, Upload, Settings, Search,
-  Bell, HelpCircle, LogOut, ChevronDown, Command, X, CheckCircle2, Mail, Sparkles,
+  Bell, HelpCircle, LogOut, ChevronDown, Command, X, CheckCircle2, Sparkles,
   BookOpen, MailPlus,
 } from 'lucide-react'
 import {
@@ -24,6 +25,9 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from 'sonner'
 import { CommandPalette } from '@/components/shared/command-palette'
 import { useAppStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -66,6 +70,13 @@ const contentTransition = { duration: 0.2, ease: [0.16, 1, 0.3, 1] }
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { activeView, searchQuery, setActiveView, setSearchQuery } = useAppStore()
   const [showNotifications, setShowNotifications] = React.useState(false)
+  const [showHelp, setShowHelp] = React.useState(false)
+
+  const { data: notifData, isLoading: notifLoading } = useQuery({
+    queryKey: ['recent-notifications'],
+    queryFn: () => fetch('/api/timeline?limit=5').then(r => r.json()),
+  })
+  const notifications = notifData?.entries?.slice(0, 5) || []
 
   const isNavActive = (view: ActiveView): boolean => {
     if (view === 'companies' && activeView === 'company-profile') return true
@@ -185,11 +196,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* Notification bell */}
           <button onClick={() => setShowNotifications((prev) => !prev)} className="relative p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors press-scale">
             <Bell className="size-4" />
-            <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-white" />
+            {notifications.length > 0 && (
+              <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-white" />
+            )}
           </button>
 
           {/* Help */}
-          <button className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors press-scale">
+          <button onClick={() => setShowHelp(true)} className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors press-scale">
             <HelpCircle className="size-4" />
           </button>
 
@@ -209,10 +222,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="text-xs text-gray-500">ravi@deepmindq.com</p>
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="rounded-lg text-sm text-gray-700 cursor-pointer">
+              <DropdownMenuItem className="rounded-lg text-sm text-gray-700 cursor-pointer" onClick={() => setShowHelp(true)}>
                 <HelpCircle className="size-4 mr-2 text-gray-400" /> Help & Documentation
               </DropdownMenuItem>
-              <DropdownMenuItem className="rounded-lg text-sm text-red-600 cursor-pointer">
+              <DropdownMenuItem className="rounded-lg text-sm text-red-600 cursor-pointer" onClick={() => toast.info('Sign out is not configured in demo mode')}>
                 <LogOut className="size-4 mr-2" /> Sign Out
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -252,31 +265,44 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <X className="size-4 text-gray-400" />
                 </button>
               </div>
-              <div className="p-3 space-y-1">
-                <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-                  <div className="size-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0"><CheckCircle2 className="size-4 text-emerald-600" /></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">Import completed</p>
-                    <p className="text-[11px] text-gray-500">12 companies and 45 contacts imported successfully</p>
-                  </div>
-                  <span className="text-[10px] text-gray-400">2m ago</span>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-                  <div className="size-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0"><Mail className="size-4 text-blue-600" /></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">Email generated</p>
-                    <p className="text-[11px] text-gray-500">Draft created for John at Acme Corp</p>
-                  </div>
-                  <span className="text-[10px] text-gray-400">15m ago</span>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-                  <div className="size-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0"><Sparkles className="size-4 text-amber-600" /></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">Research ready</p>
-                    <p className="text-[11px] text-gray-500">AI research card generated for TechStart Inc</p>
-                  </div>
-                  <span className="text-[10px] text-gray-400">1h ago</span>
-                </div>
+              <div className="p-3 space-y-1 max-h-[calc(100%-3.5rem)] overflow-y-auto">
+                {notifLoading
+                  ? Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-lg">
+                        <Skeleton className="size-8 rounded-lg shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <Skeleton className="h-3.5 w-3/4 rounded" />
+                          <Skeleton className="h-3 w-full rounded" />
+                        </div>
+                      </div>
+                    ))
+                  : notifications.length === 0
+                    ? <p className="text-sm text-gray-400 text-center py-8">No recent activity</p>
+                    : notifications.map((n: any) => {
+                        const iconMap: Record<string, { bg: string; icon: React.ElementType; color: string }> = {
+                          import: { bg: 'bg-emerald-50', icon: CheckCircle2, color: 'text-emerald-600' },
+                          email: { bg: 'bg-blue-50', icon: MailPlus, color: 'text-blue-600' },
+                          research: { bg: 'bg-amber-50', icon: Sparkles, color: 'text-amber-600' },
+                        }
+                        const type = (n.type || n.action || '').toLowerCase().includes('import') ? 'import'
+                          : (n.type || n.action || '').toLowerCase().includes('email') ? 'email'
+                          : (n.type || n.action || '').toLowerCase().includes('research') ? 'research'
+                          : 'import'
+                        const cfg = iconMap[type] || iconMap.import
+                        const IconComp = cfg.icon
+                        const timeAgo = n.createdAt ? new Date(n.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
+                        return (
+                          <div key={n.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                            <div className={`size-8 rounded-lg ${cfg.bg} flex items-center justify-center shrink-0`}><IconComp className={`size-4 ${cfg.color}`} /></div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{n.title || n.description || n.action || 'Activity'}</p>
+                              {n.description && <p className="text-[11px] text-gray-500 truncate">{n.description}</p>}
+                            </div>
+                            {timeAgo && <span className="text-[10px] text-gray-400 shrink-0">{timeAgo}</span>}
+                          </div>
+                        )
+                      })
+                }
               </div>
             </motion.div>
           )}
@@ -284,6 +310,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </SidebarInset>
 
       <CommandPalette />
+
+      {/* Help Dialog */}
+      <Dialog open={showHelp} onOpenChange={setShowHelp}>
+        <DialogContent className="sm:max-w-md rounded-xl p-6">
+          <DialogHeader><DialogTitle className="text-gray-900">Help & Documentation</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2 text-sm text-gray-700">
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-2">Keyboard Shortcuts:</h4>
+              <ul className="space-y-1.5 text-gray-600">
+                <li className="flex items-center gap-2"><kbd className="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[11px] font-medium text-gray-500">Cmd/Ctrl + K</kbd> Open command palette</li>
+                <li className="flex items-center gap-2"><kbd className="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[11px] font-medium text-gray-500">Cmd/Ctrl + B</kbd> Toggle sidebar</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-2">Getting Started:</h4>
+              <ol className="list-decimal list-inside space-y-1.5 text-gray-600">
+                <li>Import companies via CSV or add manually</li>
+                <li>Generate AI research cards for companies</li>
+                <li>Validate email addresses</li>
+                <li>Generate personalized outreach emails</li>
+                <li>Track opportunities through the pipeline</li>
+              </ol>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   )
 }

@@ -1,0 +1,603 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState } from 'react'
+     4→     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→     5→import {
+     6→     6→  ArrowLeft, Building2, Globe, MapPin, Users, Plus, Target, StickyNote, FileText,
+     7→     7→  Sparkles, Mail, Phone, ExternalLink, Linkedin, DollarSign, Calendar,
+     8→     8→  CheckCircle2, XCircle, Clock, BarChart3, Loader2,
+     9→     9→} from 'lucide-react'
+    10→    10→import { useAppStore } from '@/lib/store'
+    11→    11→import { formatDistanceToNow } from 'date-fns'
+    12→    12→import { toast } from 'sonner'
+    13→    13→import { Button } from '@/components/ui/button'
+    14→    14→import { Badge } from '@/components/ui/badge'
+    15→    15→import { Skeleton } from '@/components/ui/skeleton'
+    16→    16→import { Card, CardContent } from '@/components/ui/card'
+    17→    17→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    18→    18→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+    19→    19→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+    20→    20→import { Textarea } from '@/components/ui/textarea'
+    21→    21→import { Label } from '@/components/ui/label'
+    22→    22→import { Input } from '@/components/ui/input'
+    23→    23→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    24→    24→import { ScoreGauge, getActivityIcon, StatusDot, EmptyState } from '@/components/shared/design-system'
+    25→    25→import Image from 'next/image'
+    26→    26→
+    27→    27→const healthVariant = (h: string) =>
+    28→    28→  h === 'valid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+    29→    29→  : h === 'risky' ? 'bg-amber-50 text-amber-700 border border-amber-200'
+    30→    30→  : h === 'invalid' ? 'bg-red-50 text-red-700 border border-red-200'
+    31→    31→  : 'bg-gray-100 text-gray-600 border border-gray-200'
+    32→    32→
+    33→    33→const statusBorder = (s: string) =>
+    34→    34→  s === 'open' ? 'border-l-blue-500' : s === 'won' ? 'border-l-emerald-500' : s === 'lost' ? 'border-l-red-400' : 'border-l-gray-300'
+    35→    35→
+    36→    36→const statusBg = (s: string) =>
+    37→    37→  s === 'open' ? 'bg-blue-50 text-blue-700 border-blue-200' : s === 'won' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    38→    38→  : s === 'lost' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-gray-100 text-gray-600 border-gray-200'
+    39→    39→
+    40→    40→const RESEARCH_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
+    41→    41→  businessOverview: { label: 'Business Overview', icon: Building2 },
+    42→    42→  currentTechLandscape: { label: 'Tech Landscape', icon: BarChart3 },
+    43→    43→  potentialChallenges: { label: 'Challenges', icon: Target },
+    44→    44→  possibleOpportunities: { label: 'Opportunities', icon: Sparkles },
+    45→    45→  relevantServices: { label: 'Relevant Services', icon: FileText },
+    46→    46→  keyDecisionMakers: { label: 'Decision Makers', icon: Users },
+    47→    47→  lastInteraction: { label: 'Last Interaction', icon: Clock },
+    48→    48→  nextAction: { label: 'Next Action', icon: ArrowLeft },
+    49→    49→}
+    50→    50→
+    51→    51→const researchColors = [
+    52→    52→  'bg-blue-50 border-blue-100', 'bg-violet-50 border-violet-100', 'bg-amber-50 border-amber-100',
+    53→    53→  'bg-emerald-50 border-emerald-100', 'bg-rose-50 border-rose-100', 'bg-indigo-50 border-indigo-100',
+    54→    54→  'bg-cyan-50 border-cyan-100', 'bg-orange-50 border-orange-100',
+    55→    55→]
+    56→    56→
+    57→    57→const STATUS_CYCLE = ['new', 'researching', 'contacted', 'qualified', 'ready', 'archived'] as const
+    58→    58→
+    59→    59→
+    60→    60→
+    61→    61→const ROLE_BUCKETS = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'] as const
+    62→    62→const OPP_STATUSES = ['researching', 'contacted', 'proposed', 'negotiation', 'won', 'lost'] as const
+    63→    63→
+    64→    64→export default function CompanyProfileScreen() {
+    65→    65→  const { selectedCompanyId, setActiveView } = useAppStore()
+    66→    66→  const qc = useQueryClient()
+    67→    67→
+    68→    68→  // Note dialog state
+    69→    69→  const [noteOpen, setNoteOpen] = useState(false)
+    70→    70→  const [noteBody, setNoteBody] = useState('')
+    71→    71→  const [noteType, setNoteType] = useState('')
+    72→    72→
+    73→    73→  // Contact dialog state
+    74→    74→  const [contactOpen, setContactOpen] = useState(false)
+    75→    75→  const [contactForm, setContactForm] = useState({
+    76→    76→    name: '',
+    77→    77→    email: '',
+    78→    78→    jobTitle: '',
+    79→    79→    roleBucket: '',
+    80→    80→    phone: '',
+    81→    81→    linkedinUrl: '',
+    82→    82→  })
+    83→    83→
+    84→    84→  // Opportunity dialog state
+    85→    85→  const [oppOpen, setOppOpen] = useState(false)
+    86→    86→  const [oppForm, setOppForm] = useState({
+    87→    87→    title: '',
+    88→    88→    description: '',
+    89→    89→    status: 'researching',
+    90→    90→    nextAction: '',
+    91→    91→  })
+    92→    92→
+    93→    93→  const { data, isLoading } = useQuery({
+    94→    94→    queryKey: ['company', selectedCompanyId],
+    95→    95→    queryFn: () => fetch(`/api/companies/${selectedCompanyId}`).then(r => r.json()),
+    96→    96→    enabled: !!selectedCompanyId,
+    97→    97→  })
+    98→    98→
+    99→    99→  // ── Add Note mutation (existing) ──
+   100→   100→  const addNote = useMutation({
+   101→   101→    mutationFn: (body: { body: string; noteType: string }) =>
+   102→   102→      fetch('/api/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, companyId: selectedCompanyId }) }).then(r => r.json()),
+   103→   103→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company'] }); setNoteOpen(false); setNoteBody(''); setNoteType(''); toast.success('Note added') },
+   104→   104→    onError: () => toast.error('Failed to add note'),
+   105→   105→  })
+   106→   106→
+   107→   107→  // ── Generate Research mutation (AI-powered) ──
+   108→   108→  const generateResearch = useMutation({
+   109→   109→    mutationFn: async () => {
+   110→   110→      const res = await fetch('/api/research', {
+   111→   111→        method: 'POST',
+   112→   112→        headers: { 'Content-Type': 'application/json' },
+   113→   113→        body: JSON.stringify({ companyId: selectedCompanyId, action: 'generate' }),
+   114→   114→      })
+   115→   115→      if (!res.ok) {
+   116→   116→        const err = await res.json().catch(() => ({ error: 'Failed to generate research' }))
+   117→   117→        throw new Error(err.error || 'Failed to generate research')
+   118→   118→      }
+   119→   119→      const result = await res.json()
+   120→   120→      if (result._usedLlm === false) {
+   121→   121→        toast.info('Generated with templates — configure AI key in Settings for AI-powered research')
+   122→   122→      }
+   123→   123→      return result
+   124→   124→    },
+   125→   125→    onSuccess: () => {
+   126→   126→      qc.invalidateQueries({ queryKey: ['company'] })
+   127→   127→      toast.success('Research generated successfully')
+   128→   128→    },
+   129→   129→    onError: (err) => toast.error(err.message || 'Failed to generate research'),
+   130→   130→  })
+   131→   131→
+   132→   132→  // ── Add Contact mutation ──
+   133→   133→  const addContact = useMutation({
+   134→   134→    mutationFn: (form: { name: string; email: string; jobTitle: string; roleBucket: string; phone: string; linkedinUrl: string }) =>
+   135→   135→      fetch('/api/contacts', {
+   136→   136→        method: 'POST',
+   137→   137→        headers: { 'Content-Type': 'application/json' },
+   138→   138→        body: JSON.stringify({ ...form, companyId: selectedCompanyId }),
+   139→   139→      }).then(r => {
+   140→   140→        if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add contact') })
+   141→   141→        return r.json()
+   142→   142→      }),
+   143→   143→    onSuccess: () => {
+   144→   144→      qc.invalidateQueries({ queryKey: ['company'] })
+   145→   145→      setContactOpen(false)
+   146→   146→      setContactForm({ name: '', email: '', jobTitle: '', roleBucket: '', phone: '', linkedinUrl: '' })
+   147→   147→      toast.success('Contact added successfully')
+   148→   148→    },
+   149→   149→    onError: (err) => toast.error(err.message || 'Failed to add contact'),
+   150→   150→  })
+   151→   151→
+   152→   152→  // ── Add Opportunity mutation ──
+   153→   153→  const addOpportunity = useMutation({
+   154→   154→    mutationFn: (form: { title: string; description: string; status: string; nextAction: string }) =>
+   155→   155→      fetch('/api/opportunities', {
+   156→   156→        method: 'POST',
+   157→   157→        headers: { 'Content-Type': 'application/json' },
+   158→   158→        body: JSON.stringify({ companyId: selectedCompanyId, ...form }),
+   159→   159→      }).then(r => {
+   160→   160→        if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add opportunity') })
+   161→   161→        return r.json()
+   162→   162→      }),
+   163→   163→    onSuccess: () => {
+   164→   164→      qc.invalidateQueries({ queryKey: ['company'] })
+   165→   165→      setOppOpen(false)
+   166→   166→      setOppForm({ title: '', description: '', status: 'researching', nextAction: '' })
+   167→   167→      toast.success('Opportunity created successfully')
+   168→   168→    },
+   169→   169→    onError: (err) => toast.error(err.message || 'Failed to add opportunity'),
+   170→   170→  })
+   171→   171→
+   172→   172→  // ── Update Company Status mutation ──
+   173→   173→  const updateCompanyStatus = useMutation({
+   174→   174→    mutationFn: async (newStatus: string) => {
+   175→   175→      const res = await fetch(`/api/companies/${selectedCompanyId}`, {
+   176→   176→        method: 'PATCH',
+   177→   177→        headers: { 'Content-Type': 'application/json' },
+   178→   178→        body: JSON.stringify({ status: newStatus }),
+   179→   179→      })
+   180→   180→      if (!res.ok) throw new Error('Failed to update status')
+   181→   181→
+   182→   182→      // Also create a timeline entry
+   183→   183→      await fetch('/api/timeline', {
+   184→   184→        method: 'POST',
+   185→   185→        headers: { 'Content-Type': 'application/json' },
+   186→   186→        body: JSON.stringify({
+   187→   187→          companyId: selectedCompanyId,
+   188→   188→          action: 'status_changed',
+   189→   189→          details: `Company status changed from "${data.status}" to "${newStatus}"`,
+   190→   190→        }),
+   191→   191→      })
+   192→   192→
+   193→   193→      return res.json()
+   194→   194→    },
+   195→   195→    onSuccess: () => {
+   196→   196→      qc.invalidateQueries({ queryKey: ['company'] })
+   197→   197→      toast.success('Status updated')
+   198→   198→    },
+   199→   199→    onError: () => toast.error('Failed to update status'),
+   200→   200→  })
+   201→   201→
+   202→   202→  // ── Status cycle handler ──
+   203→   203→  const handleStatusCycle = () => {
+   204→   204→    const current = data.status as string
+   205→   205→    const currentIdx = STATUS_CYCLE.indexOf(current as typeof STATUS_CYCLE[number])
+   206→   206→    const nextIdx = (currentIdx + 1) % STATUS_CYCLE.length
+   207→   207→    const newStatus = STATUS_CYCLE[nextIdx]
+   208→   208→    updateCompanyStatus.mutate(newStatus)
+   209→   209→  }
+   210→   210→
+   211→   211→  // ── Generate Email handler ──
+   212→   212→  const handleGenerateEmail = () => {
+   213→   213→    if (contacts.length === 0) {
+   214→   214→      toast.error('Add contacts first to generate emails')
+   215→   215→      return
+   216→   216→    }
+   217→   217→    const firstContactId = contacts[0].id
+   218→   218→    useAppStore.getState().setSelectedContactId(firstContactId)
+   219→   219→    setActiveView('email-generation')
+   220→   220→  }
+   221→   221→
+   222→   222→  // ── Contact form submit ──
+   223→   223→  const handleContactSubmit = () => {
+   224→   224→    if (!contactForm.name.trim()) return
+   225→   225→    addContact.mutate(contactForm)
+   226→   226→  }
+   227→   227→
+   228→   228→  // ── Opportunity form submit ──
+   229→   229→  const handleOppSubmit = () => {
+   230→   230→    if (!oppForm.title.trim()) return
+   231→   231→    addOpportunity.mutate(oppForm)
+   232→   232→  }
+   233→   233→
+   234→   234→  if (!selectedCompanyId) return <EmptyState icon={Globe} title="No company selected" description="Go back to Companies and select one." actionLabel="Back to Companies" onAction={() => setActiveView('companies')} />
+   235→   235→  if (isLoading) return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-32" /><Skeleton className="h-64" /></div>
+   236→   236→  if (!data) return <EmptyState icon={Globe} title="Company not found" description="This company may have been deleted." actionLabel="Back to Companies" onAction={() => setActiveView('companies')} />
+   237→   237→
+   238→   238→  const { contacts = [], notes = [], researchCard, opportunities = [], timeline = [] } = data
+   239→   239→
+   240→   240→  const score = data.intelligenceScore ?? 0
+   241→   241→  const segments = [
+   242→   242→    { label: 'Data Completeness', value: Math.min(100, Math.round((score * 0.4) + 20)), color: '#2563EB' },
+   243→   243→    { label: 'Contact Quality', value: Math.min(100, Math.round((score * 0.35) + 15)), color: '#059669' },
+   244→   244→    { label: 'Research Depth', value: researchCard ? Math.min(100, Math.round((score * 0.25) + 10)) : 0, color: '#D97706' },
+   245→   245→  ]
+   246→   246→
+   247→   247→  return (
+   248→   248→    <div className="space-y-6">
+   249→   249→      {/* ── Header ── */}
+   250→   250→      <div className="rounded-xl bg-white p-4 md:p-6 card-rest slide-up">
+   251→   251→        <div className="flex items-start gap-4 md:gap-5">
+   252→   252→          {/* Logo */}
+   253→   253→          <div className="size-14 rounded-xl bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+   254→   254→            {data.domain ? (
+   255→   255→              <Image src={`https://logo.clearbit.com/${data.domain}`} alt="" width={56} height={56} className="size-14 object-contain p-2" onError={e => { (e.target as HTMLImageElement).style.display='none'; (e.target as HTMLImageElement).parentElement!.innerHTML=`<span class="text-xl font-bold text-gray-400">${data.name?.charAt(0)}</span>` }} />
+   256→   256→            ) : (
+   257→   257→              <span className="text-xl font-bold text-gray-400">{data.name?.charAt(0)}</span>
+   258→   258→            )}
+   259→   259→          </div>
+   260→   260→
+   261→   261→          {/* Info */}
+   262→   262→          <div className="flex-1 min-w-0">
+   263→   263→            <div className="flex items-center gap-2 flex-wrap">
+   264→   264→              <button onClick={() => setActiveView('companies')} className="text-gray-400 hover:text-gray-700 transition-colors">
+   265→   265→                <ArrowLeft className="size-4" />
+   266→   266→              </button>
+   267→   267→              <h2 className="text-xl font-bold text-gray-900 tracking-tight truncate">{data.name}</h2>
+   268→   268→              {data.industry && <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-xs font-normal border-0">{data.industry}</Badge>}
+   269→   269→              <button onClick={handleStatusCycle} disabled={updateCompanyStatus.isPending}
+   270→   270→                className={`text-[11px] font-medium px-2 py-0.5 rounded-md border ${statusBg(data.status)} ${updateCompanyStatus.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}>
+   271→   271→                {updateCompanyStatus.isPending ? <Loader2 className="size-3 animate-spin inline" /> : null}
+   272→   272→                {data.status}
+   273→   273→              </button>
+   274→   274→            </div>
+   275→   275→            <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 flex-wrap">
+   276→   276→              {data.domain && <span className="flex items-center gap-1"><Globe className="size-3.5" />{data.domain}</span>}
+   277→   277→              {data.country && <span className="flex items-center gap-1"><MapPin className="size-3.5" />{data.country}</span>}
+   278→   278→              {data.employeeSize && <span>{data.employeeSize} employees</span>}
+   279→   279→            </div>
+   280→   280→
+   281→   281→            {/* Action buttons */}
+   282→   282→            <div className="flex items-center gap-2 mt-4 flex-wrap">
+   283→   283→              <Button data-action="generate-research" size="sm" className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
+   284→   284→                {generateResearch.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Sparkles className="size-3.5 mr-1.5" />}
+   285→   285→                {generateResearch.isPending ? 'Generating...' : 'Generate Research'}
+   286→   286→              </Button>
+   287→   287→              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={() => setNoteOpen(true)}>
+   288→   288→                <Plus className="size-3.5 mr-1.5" /> Add Note
+   289→   289→              </Button>
+   290→   290→              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={() => setContactOpen(true)}>
+   291→   291→                <Plus className="size-3.5 sm:mr-1.5" /> <span className="hidden sm:inline">Add Contact</span>
+   292→   292→              </Button>
+   293→   293→              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={handleGenerateEmail}>
+   294→   294→                <Mail className="size-3.5 mr-1.5" /> Generate Email
+   295→   295→              </Button>
+   296→   296→            </div>
+   297→   297→          </div>
+   298→   298→
+   299→   299→          {/* Score Gauge */}
+   300→   300→          <div className="hidden md:block">
+   301→   301→            <ScoreGauge score={score} size={100} strokeWidth={8} segments={segments} />
+   302→   302→          </div>
+   303→   303→        </div>
+   304→   304→      </div>
+   305→   305→
+   306→   306→      {/* ── Tabs ── */}
+   307→   307→      <Tabs defaultValue="overview">
+   308→   308→        <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 overflow-x-auto">
+   309→   309→          {['overview', 'contacts', 'opportunities', 'timeline', 'notes'].map(tab => (
+   310→   310→            <TabsTrigger key={tab} value={tab}
+   311→   311→              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5">
+   312→   312→              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+   313→   313→              {tab === 'contacts' && contacts.length > 0 && <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{contacts.length}</span>}
+   314→   314→              {tab === 'opportunities' && opportunities.length > 0 && <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{opportunities.length}</span>}
+   315→   315→              {tab === 'notes' && notes.length > 0 && <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{notes.length}</span>}
+   316→   316→            </TabsTrigger>
+   317→   317→          ))}
+   318→   318→        </TabsList>
+   319→   319→
+   320→   320→        {/* Overview */}
+   321→   321→        <TabsContent value="overview" className="space-y-6 mt-5">
+   322→   322→          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+   323→   323→            {([
+   324→   324→              ['Website', data.website, Globe], ['Industry', data.industry, BarChart3], ['Employees', data.employeeSize, Users],
+   325→   325→              ['Location', data.location ?? data.country, MapPin], ['Status', data.status, CheckCircle2], ['Freshness', data.dataFreshness, Clock],
+   326→   326→            ] as const).map(([label, val, Icon]) => (
+   327→   327→              <div key={label} className="rounded-lg bg-white p-4 card-rest">
+   328→   328→                <div className="flex items-center gap-2 mb-1">
+   329→   329→                  <Icon className="size-3.5 text-gray-400" />
+   330→   330→                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{label}</p>
+   331→   331→                </div>
+   332→   332→                <p className="text-sm font-semibold text-gray-900 capitalize">{val || '—'}</p>
+   333→   333→              </div>
+   334→   334→            ))}
+   335→   335→          </div>
+   336→   336→
+   337→   337→          {/* Research Card */}
+   338→   338→          <div className="rounded-xl bg-white card-rest overflow-hidden">
+   339→   339→            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+   340→   340→              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+   341→   341→                <FileText className="size-4 text-gray-400" /> AI Research Card
+   342→   342→              </h3>
+   343→   343→              {!researchCard && (
+   344→   344→                <Button size="sm" className="h-7 text-xs bg-gray-900 text-white hover:bg-gray-800 rounded-md press-scale" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
+   345→   345→                  {generateResearch.isPending ? <Loader2 className="size-3 mr-1 animate-spin" /> : <Sparkles className="size-3 mr-1" />}
+   346→   346→                  {generateResearch.isPending ? 'Generating...' : 'Generate'}
+   347→   347→                </Button>
+   348→   348→              )}
+   349→   349→            </div>
+   350→   350→            <div className="p-6">
+   351→   351→              {researchCard ? (
+   352→   352→                <div className="grid gap-4 md:grid-cols-2">
+   353→   353→                  {(Object.entries(RESEARCH_LABELS) as [keyof typeof researchCard, typeof RESEARCH_LABELS[string]][]).map(([key, cfg], idx) =>
+   354→   354→                    researchCard[key] ? (
+   355→   355→                      <div key={key} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 50}ms` }}>
+   356→   356→                        <div className="flex items-center gap-2 mb-2">
+   357→   357→                          <cfg.icon className="size-3.5 text-gray-500" />
+   358→   358→                          <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
+   359→   359→                        </div>
+   360→   360→                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{researchCard[key]}</p>
+   361→   361→                      </div>
+   362→   362→                    ) : null,
+   363→   363→                  )}
+   364→   364→                </div>
+   365→   365→              ) : (
+   366→   366→                <EmptyState
+   367→   367→                  icon={FileText}
+   368→   368→                  title="No research generated yet"
+   369→   369→                  description="Click Generate to create an AI-powered research card with business overview, tech landscape, challenges, and opportunities."
+   370→   370→                  className="py-10"
+   371→   371→                />
+   372→   372→              )}
+   373→   373→            </div>
+   374→   374→          </div>
+   375→   375→        </TabsContent>
+   376→   376→
+   377→   377→        {/* Contacts */}
+   378→   378→        <TabsContent value="contacts" className="mt-5">
+   379→   379→          {contacts.length === 0 ? (
+   380→   380→            <EmptyState icon={Users} title="No contacts found" description="Add contacts to this company to start tracking outreach." actionLabel="Add Contact" onAction={() => setContactOpen(true)} />
+   381→   381→          ) : (
+   382→   382→            <div className="rounded-xl bg-white card-rest overflow-hidden">
+   383→   383→              <Table>
+   384→   384→                <TableHeader>
+   385→   385→                  <TableRow className="border-gray-100 hover:bg-transparent">
+   386→   386→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Name</TableHead>
+   387→   387→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Title</TableHead>
+   388→   388→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Email</TableHead>
+   389→   389→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Health</TableHead>
+   390→   390→                  </TableRow>
+   391→   391→                </TableHeader>
+   392→   392→                <TableBody>
+   393→   393→                  {contacts.map((c: any) => (
+   394→   394→                    <TableRow key={c.id} className="table-row-hover border-gray-50 cursor-pointer" onClick={() => { useAppStore.getState().setSelectedContactId(c.id); setActiveView('contact-profile') }}>
+   395→   395→                      <TableCell className="font-medium text-gray-900 text-sm">{c.name}</TableCell>
+   396→   396→                      <TableCell className="text-sm text-gray-500">{c.jobTitle || '—'}</TableCell>
+   397→   397→                      <TableCell className="text-sm text-gray-500 font-mono">{c.email || '—'}</TableCell>
+   398→   398→                      <TableCell>
+   399→   399→                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${healthVariant(c.emailHealth)}`}>{c.emailHealth || 'unknown'}</span>
+   400→   400→                      </TableCell>
+   401→   401→                    </TableRow>
+   402→   402→                  ))}
+   403→   403→                </TableBody>
+   404→   404→              </Table>
+   405→   405→            </div>
+   406→   406→          )}
+   407→   407→        </TabsContent>
+   408→   408→
+   409→   409→        {/* Opportunities */}
+   410→   410→        <TabsContent value="opportunities" className="mt-5">
+   411→   411→          {opportunities.length === 0 ? (
+   412→   412→            <EmptyState icon={Target} title="No opportunities yet" description="Create opportunities to track potential deals with this company." actionLabel="Add Opportunity" onAction={() => setOppOpen(true)} />
+   413→   413→          ) : (
+   414→   414→            <div className="grid gap-3">
+   415→   415→              {opportunities.map((o: any) => (
+   416→   416→                <div key={o.id} className={`rounded-xl bg-white card-rest border-l-[3px] ${statusBorder(o.status)} p-5 flex items-start justify-between gap-4`}>
+   417→   417→                  <div className="min-w-0">
+   418→   418→                    <p className="text-sm font-semibold text-gray-900">{o.title}</p>
+   419→   419→                    {o.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{o.description}</p>}
+   420→   420→                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+   421→   421→                      {o.value && <span className="flex items-center gap-1"><DollarSign className="size-3" />{o.value}</span>}
+   422→   422→                      {o.closeDate && <span className="flex items-center gap-1"><Calendar className="size-3" />{o.closeDate}</span>}
+   423→   423→                    </div>
+   424→   424→                  </div>
+   425→   425→                  <span className={`shrink-0 inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border ${statusBg(o.status)}`}>{o.status}</span>
+   426→   426→                </div>
+   427→   427→              ))}
+   428→   428→            </div>
+   429→   429→          )}
+   430→   430→        </TabsContent>
+   431→   431→
+   432→   432→        {/* Timeline */}
+   433→   433→        <TabsContent value="timeline" className="mt-5">
+   434→   434→          {timeline.length === 0 ? (
+   435→   435→            <EmptyState icon={Clock} title="No timeline entries" description="Activity will appear here as you interact with this company." />
+   436→   436→          ) : (
+   437→   437→            <div className="relative pl-6">
+   438→   438→              <div className="absolute left-[7px] top-1 bottom-1 border-l-2 border-gray-200" />
+   439→   439→              <div className="space-y-4">
+   440→   440→                {timeline.map((t: any) => {
+   441→   441→                  const iconData = getActivityIcon(t.action)
+   442→   442→                  const Icon = iconData.icon
+   443→   443→                  return (
+   444→   444→                    <div key={t.id} className="relative flex items-start gap-4 slide-up">
+   445→   445→                      <div className="absolute -left-6 top-1 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
+   446→   446→                      <div className={`shrink-0 mt-0.5 rounded-lg p-1.5 ${iconData.bg}`}>
+   447→   447→                        <Icon className={`size-3.5 ${iconData.color}`} />
+   448→   448→                      </div>
+   449→   449→                      <div className="min-w-0">
+   450→   450→                        <p className="text-sm font-medium text-gray-900 capitalize">{t.action.replace(/_/g, ' ')}</p>
+   451→   451→                        {t.details && <p className="text-sm text-gray-500 mt-0.5">{t.details}</p>}
+   452→   452→                        <p className="text-[11px] text-gray-400 mt-1">{formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}</p>
+   453→   453→                      </div>
+   454→   454→                    </div>
+   455→   455→                  )
+   456→   456→                })}
+   457→   457→              </div>
+   458→   458→            </div>
+   459→   459→          )}
+   460→   460→        </TabsContent>
+   461→   461→
+   462→   462→        {/* Notes */}
+   463→   463→        <TabsContent value="notes" className="mt-5">
+   464→   464→          <div className="flex justify-end mb-4">
+   465→   465→            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale" onClick={() => setNoteOpen(true)}>
+   466→   466→              <Plus className="size-3.5 mr-1.5" /> Add Note
+   467→   467→            </Button>
+   468→   468→          </div>
+   469→   469→          {notes.length === 0 ? (
+   470→   470→            <EmptyState icon={StickyNote} title="No notes yet" description="Add notes to track conversations, insights, and action items." actionLabel="Add Note" onAction={() => setNoteOpen(true)} />
+   471→   471→          ) : (
+   472→   472→            <div className="space-y-3">
+   473→   473→              {notes.map((n: any) => (
+   474→   474→                <div key={n.id} className="rounded-xl bg-white p-5 card-rest slide-up">
+   475→   475→                  <p className="text-sm text-gray-700 leading-relaxed">{n.body}</p>
+   476→   476→                  <div className="flex items-center gap-2 mt-3">
+   477→   477→                    {n.noteType && <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-[11px] font-normal border-0 capitalize">{n.noteType}</Badge>}
+   478→   478→                    <span className="text-[11px] text-gray-400">{formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}</span>
+   479→   479→                  </div>
+   480→   480→                </div>
+   481→   481→              ))}
+   482→   482→            </div>
+   483→   483→          )}
+   484→   484→        </TabsContent>
+   485→   485→      </Tabs>
+   486→   486→
+   487→   487→      {/* ── Add Note Dialog (existing) ── */}
+   488→   488→      <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
+   489→   489→        <DialogContent className="sm:max-w-md rounded-xl">
+   490→   490→          <DialogHeader><DialogTitle className="text-gray-900">Add Note</DialogTitle></DialogHeader>
+   491→   491→          <div className="space-y-4 py-1">
+   492→   492→            <div className="space-y-1.5">
+   493→   493→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Type</Label>
+   494→   494→              <Select value={noteType} onValueChange={setNoteType}>
+   495→   495→                <SelectTrigger className="w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
+   496→   496→                <SelectContent>
+   497→   497→                  <SelectItem value="call">Call</SelectItem>
+   498→   498→                  <SelectItem value="meeting">Meeting</SelectItem>
+   499→   499→                  <SelectItem value="research">Research</SelectItem>
+   500→   500→                  <SelectItem value="general">General</SelectItem>
+   501→   501→                </SelectContent>
+   502→   502→              </Select>
+   503→   503→            </div>
+   504→   504→            <div className="space-y-1.5">
+   505→   505→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Note</Label>
+   506→   506→              <Textarea value={noteBody} onChange={e => setNoteBody(e.target.value)} rows={3} placeholder="Write your note..." className="resize-none" />
+   507→   507→            </div>
+   508→   508→          </div>
+   509→   509→          <DialogFooter className="gap-2 sm:gap-0">
+   510→   510→            <Button variant="outline" onClick={() => setNoteOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+   511→   511→            <Button onClick={() => addNote.mutate({ body: noteBody, noteType: noteType })} disabled={!noteBody.trim() || addNote.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">Save</Button>
+   512→   512→          </DialogFooter>
+   513→   513→        </DialogContent>
+   514→   514→      </Dialog>
+   515→   515→
+   516→   516→      {/* ── Add Contact Dialog ── */}
+   517→   517→      <Dialog open={contactOpen} onOpenChange={setContactOpen}>
+   518→   518→        <DialogContent className="sm:max-w-md rounded-xl">
+   519→   519→          <DialogHeader><DialogTitle className="text-gray-900">Add Contact</DialogTitle></DialogHeader>
+   520→   520→          <div className="space-y-4 py-1">
+   521→   521→            <div className="space-y-1.5">
+   522→   522→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name *</Label>
+   523→   523→              <Input value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" />
+   524→   524→            </div>
+   525→   525→            <div className="space-y-1.5">
+   526→   526→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</Label>
+   527→   527→              <Input type="email" value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder="email@company.com" />
+   528→   528→            </div>
+   529→   529→            <div className="grid grid-cols-2 gap-3">
+   530→   530→              <div className="space-y-1.5">
+   531→   531→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</Label>
+   532→   532→                <Input value={contactForm.jobTitle} onChange={e => setContactForm(f => ({ ...f, jobTitle: e.target.value }))} placeholder="e.g. VP of Engineering" />
+   533→   533→              </div>
+   534→   534→              <div className="space-y-1.5">
+   535→   535→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Role Bucket</Label>
+   536→   536→                <Select value={contactForm.roleBucket} onValueChange={v => setContactForm(f => ({ ...f, roleBucket: v }))}>
+   537→   537→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select role" /></SelectTrigger>
+   538→   538→                  <SelectContent>
+   539→   539→                    {ROLE_BUCKETS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+   540→   540→                  </SelectContent>
+   541→   541→                </Select>
+   542→   542→              </div>
+   543→   543→            </div>
+   544→   544→            <div className="space-y-1.5">
+   545→   545→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</Label>
+   546→   546→              <Input type="tel" value={contactForm.phone} onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 (555) 000-0000" />
+   547→   547→            </div>
+   548→   548→            <div className="space-y-1.5">
+   549→   549→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">LinkedIn URL</Label>
+   550→   550→              <Input value={contactForm.linkedinUrl} onChange={e => setContactForm(f => ({ ...f, linkedinUrl: e.target.value }))} placeholder="https://linkedin.com/in/..." />
+   551→   551→            </div>
+   552→   552→          </div>
+   553→   553→          <DialogFooter className="gap-2 sm:gap-0">
+   554→   554→            <Button variant="outline" onClick={() => setContactOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+   555→   555→            <Button onClick={handleContactSubmit} disabled={!contactForm.name.trim() || addContact.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">
+   556→   556→              {addContact.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+   557→   557→              Add Contact
+   558→   558→            </Button>
+   559→   559→          </DialogFooter>
+   560→   560→        </DialogContent>
+   561→   561→      </Dialog>
+   562→   562→
+   563→   563→      {/* ── Add Opportunity Dialog ── */}
+   564→   564→      <Dialog open={oppOpen} onOpenChange={setOppOpen}>
+   565→   565→        <DialogContent className="sm:max-w-md rounded-xl">
+   566→   566→          <DialogHeader><DialogTitle className="text-gray-900">Add Opportunity</DialogTitle></DialogHeader>
+   567→   567→          <div className="space-y-4 py-1">
+   568→   568→            <div className="space-y-1.5">
+   569→   569→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Title *</Label>
+   570→   570→              <Input value={oppForm.title} onChange={e => setOppForm(f => ({ ...f, title: e.target.value }))} placeholder="Opportunity title" />
+   571→   571→            </div>
+   572→   572→            <div className="space-y-1.5">
+   573→   573→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Description</Label>
+   574→   574→              <Textarea value={oppForm.description} onChange={e => setOppForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Describe the opportunity..." className="resize-none" />
+   575→   575→            </div>
+   576→   576→            <div className="grid grid-cols-2 gap-3">
+   577→   577→              <div className="space-y-1.5">
+   578→   578→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</Label>
+   579→   579→                <Select value={oppForm.status} onValueChange={v => setOppForm(f => ({ ...f, status: v }))}>
+   580→   580→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select status" /></SelectTrigger>
+   581→   581→                  <SelectContent>
+   582→   582→                    {OPP_STATUSES.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
+   583→   583→                  </SelectContent>
+   584→   584→                </Select>
+   585→   585→              </div>
+   586→   586→              <div className="space-y-1.5">
+   587→   587→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Next Action</Label>
+   588→   588→                <Input value={oppForm.nextAction} onChange={e => setOppForm(f => ({ ...f, nextAction: e.target.value }))} placeholder="What's next?" />
+   589→   589→              </div>
+   590→   590→            </div>
+   591→   591→          </div>
+   592→   592→          <DialogFooter className="gap-2 sm:gap-0">
+   593→   593→            <Button variant="outline" onClick={() => setOppOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+   594→   594→            <Button onClick={handleOppSubmit} disabled={!oppForm.title.trim() || addOpportunity.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">
+   595→   595→              {addOpportunity.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+   596→   596→              Create Opportunity
+   597→   597→            </Button>
+   598→   598→          </DialogFooter>
+   599→   599→        </DialogContent>
+   600→   600→      </Dialog>
+   601→   601→    </div>
+   602→   602→  )
+   603→   603→}

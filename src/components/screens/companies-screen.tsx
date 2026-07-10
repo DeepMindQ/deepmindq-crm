@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Search, MoreHorizontal, ExternalLink, Building2, ChevronLeft, ChevronRight,
-  Sparkles, Users, Mail, Eye, Archive, Trash2, FileDown, ArrowUpDown, X, Loader2, ArrowRight,
+  Sparkles, Users, Eye, Archive, Trash2, ArrowUpDown, X, Loader2, ArrowRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,11 +30,14 @@ import Image from 'next/image'
 const statusStyle: Record<string, string> = {
   new: 'bg-gray-100 text-gray-600 border-gray-200',
   researching: 'bg-amber-50 text-amber-700 border-amber-200',
+  qualified: 'bg-purple-50 text-purple-700 border-purple-200',
   ready: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   contacted: 'bg-blue-50 text-blue-700 border-blue-200',
+  won: 'bg-green-50 text-green-700 border-green-200',
+  lost: 'bg-red-50 text-red-700 border-red-200',
   archived: 'bg-gray-50 text-gray-400 border-gray-200',
 }
-const statusOptions = ['new', 'researching', 'ready', 'contacted', 'archived']
+const statusOptions = ['new', 'researching', 'qualified', 'ready', 'contacted', 'won', 'lost', 'archived']
 
 export function CompaniesScreen() {
   const { setSelectedCompanyId, setActiveView, companyStatusFilter } = useAppStore()
@@ -126,7 +129,7 @@ export function CompaniesScreen() {
           <SelectTrigger className="w-36 h-9 bg-white border-gray-200 rounded-lg text-sm"><SelectValue placeholder="Industry" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Industries</SelectItem>
-            {['Manufacturing','Technology','Finance','Healthcare','Education','Retail','Energy','Logistics'].map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+            {['SaaS','FinTech','HealthTech','E-commerce','EdTech','AI/ML','Cybersecurity','Manufacturing','Logistics','PropTech'].map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={status} onValueChange={v => { setStatus(v); setPage(1) }}>
@@ -182,7 +185,7 @@ export function CompaniesScreen() {
                           <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
                             <Checkbox checked={selected.has(c.id)} onCheckedChange={() => toggleOne(c.id)} className="size-4" />
                           </td>
-                          <td className="px-4 py-2.5 cursor-pointer" onClick={() => { setSelectedCompanyId(c.id); setActiveView('company-profile') }}>
+                          <td className="px-4 py-2.5 cursor-pointer" onClick={() => { if (expandedRow === c.id) setExpandedRow(null); else { setExpandedRow(c.id); setSelectedCompanyId(c.id); setActiveView('company-profile') } }}>
                             <div className="flex items-center gap-3">
                               <div className="size-8 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
                                 {c.domain ? (
@@ -237,7 +240,7 @@ export function CompaniesScreen() {
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 {c.website && (
-                                  <DropdownMenuItem onClick={e => e.stopPropagation()} className="rounded-lg text-sm">
+                                  <DropdownMenuItem onClick={e => { e.stopPropagation(); window.open(c.website || `https://${c.domain}`, '_blank') }} className="rounded-lg text-sm">
                                     <ExternalLink className="size-3.5 mr-2 text-gray-400" /> Visit Website
                                   </DropdownMenuItem>
                                 )}
@@ -337,7 +340,7 @@ export function CompaniesScreen() {
                 <Label className="text-sm font-medium text-gray-700">Industry</Label>
                 <Select value={form.industry} onValueChange={v => setForm({ ...form, industry: v })}>
                   <SelectTrigger className="border-gray-200 rounded-lg"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>{['Manufacturing','Technology','Finance','Healthcare','Education','Retail','Energy','Logistics'].map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
+                  <SelectContent>{['SaaS','FinTech','HealthTech','E-commerce','EdTech','AI/ML','Cybersecurity','Manufacturing','Logistics','PropTech'].map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>

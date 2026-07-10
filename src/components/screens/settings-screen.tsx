@@ -87,16 +87,51 @@ export function SettingsScreen() {
 
   const handleExport = useMutation({
     mutationFn: async () => {
-      const res = await fetch('/api/export')
-      const data = await res.json()
-      const csv = `=== COMPANIES ===\n${data.companies}\n\n=== CONTACTS ===\n${data.contacts}`
-      const blob = new Blob([csv], { type: 'text/csv' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a'); a.href = url; a.download = 'deepmindq-export.csv'; a.click()
-      URL.revokeObjectURL(url)
+      // Download companies CSV
+      const compRes = await fetch('/api/export?type=companies')
+      const compBlob = await compRes.blob()
+      const compUrl = URL.createObjectURL(compBlob)
+      const a = document.createElement('a')
+      a.href = compUrl
+      a.download = 'deepmindq-companies.csv'
+      a.click()
+      URL.revokeObjectURL(compUrl)
+
+      // Download contacts CSV
+      const contRes = await fetch('/api/export?type=contacts')
+      const contBlob = await contRes.blob()
+      const contUrl = URL.createObjectURL(contBlob)
+      const b = document.createElement('a')
+      b.href = contUrl
+      b.download = 'deepmindq-contacts.csv'
+      b.click()
+      URL.revokeObjectURL(contUrl)
     },
-    onSuccess: () => toast.success('Data exported successfully'),
+    onSuccess: () => toast.success('Companies and contacts exported as CSV'),
     onError: () => toast.error('Export failed'),
+  })
+
+  const testAiMutation = useMutation({
+    mutationFn: async () => {
+      // Get any contact to test with
+      const contactsRes = await fetch('/api/contacts?pageSize=1')
+      const contactsData = await contactsRes.json()
+      if (!contactsData.contacts?.length) throw new Error('No contacts to test with')
+
+      const contactId = contactsData.contacts[0].id
+      const res = await fetch(`/api/contacts/${contactId}/generate-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tone: form.tone, emailLength: 'short', ctaStyle: 'soft' }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Test failed' }))
+        throw new Error(err.error || 'Test failed')
+      }
+      return res.json()
+    },
+    onSuccess: (data) => toast.success(`AI connection works! Generated email with score ${data.matchScore}%`),
+    onError: (e: Error) => toast.error(`AI test failed: ${e.message}`),
   })
 
   const handleHealthCheck = useMutation({
@@ -235,6 +270,13 @@ export function SettingsScreen() {
                 </button>
               </div>
               <p className="text-[11px] text-gray-400 mt-1.5">Your API key is encrypted and stored securely. It is never shared.</p>
+            </div>
+            <div className="pt-2">
+              <Button variant="outline" size="sm" className="border-gray-200 text-gray-600 rounded-lg text-xs" onClick={() => testAiMutation.mutate()} disabled={testAiMutation.isPending || !form.aiApiKey}>
+                {testAiMutation.isPending ? <Loader2 className="size-3 mr-1.5 animate-spin" /> : <Stethoscope className="size-3 mr-1.5" />}
+                Test AI Connection
+              </Button>
+              <p className="text-[11px] text-gray-400 mt-1.5">Sends a test email generation request to verify your API key works.</p>
             </div>
             <div className="pt-1 flex justify-end">
               <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={() => savePrefs.mutate({ aiProvider: form.aiProvider, aiModel: form.aiModel, aiApiKey: form.aiApiKey })} disabled={savePrefs.isPending}>

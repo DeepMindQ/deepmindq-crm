@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { Mail, Sparkles, Copy, RefreshCw, Save, User, CheckCircle2, Loader2 } from 'lucide-react'
+import { Mail, Sparkles, Copy, RefreshCw, User, CheckCircle2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -54,9 +54,15 @@ function confidenceBadgeClasses(confidence: string | undefined) {
 
 export default function EmailGenerationScreen() {
   const { selectedContactId, setSelectedContactId } = useAppStore()
-  const [tone, setTone] = useState<Tone>('professional-casual')
-  const [emailLength, setEmailLength] = useState<EmailLength>('medium')
-  const [ctaStyle, setCtaStyle] = useState<CtaStyle>('soft')
+
+  const { data: prefs } = useQuery({
+    queryKey: ['preferences'],
+    queryFn: () => fetch('/api/preferences').then(r => r.json()),
+  })
+
+  const [tone, setTone] = useState<Tone>((prefs?.tone as Tone) || 'professional-casual')
+  const [emailLength, setEmailLength] = useState<EmailLength>((prefs?.emailLength as EmailLength) || 'medium')
+  const [ctaStyle, setCtaStyle] = useState<CtaStyle>((prefs?.ctaStyle as CtaStyle) || 'soft')
   const [generatedSubject, setGeneratedSubject] = useState('')
   const [generatedBody, setGeneratedBody] = useState('')
   const [lastDraftId, setLastDraftId] = useState<string | null>(null)
@@ -120,14 +126,6 @@ export default function EmailGenerationScreen() {
       toast.success('Copied to clipboard')
     } catch {
       toast.error('Failed to copy to clipboard')
-    }
-  }
-
-  const handleSaveDraft = () => {
-    if (lastDraftId) {
-      toast.success('Draft already saved')
-    } else {
-      toast.info('Generate an email first to save it as a draft')
     }
   }
 
@@ -390,11 +388,16 @@ export default function EmailGenerationScreen() {
                     Copy Email
                   </Button>
                   <Button
-                    onClick={handleSaveDraft}
-                    className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale gap-2"
+                    disabled={!!lastDraftId}
+                    className={cn(
+                      'rounded-lg gap-2 press-scale',
+                      lastDraftId
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50'
+                        : 'bg-amber-600 hover:bg-amber-700 text-white'
+                    )}
                   >
-                    <Save className="size-4" />
-                    Save as Draft
+                    <CheckCircle2 className="size-4" />
+                    {lastDraftId ? 'Draft Auto-Saved' : 'Save as Draft'}
                   </Button>
                 </div>
               </div>

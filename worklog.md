@@ -62,3 +62,39 @@ Stage Summary:
 - Pipeline distribution: New:22, Researching:12, Contacted:9, Qualified:3, Ready:1, Won:1, Lost:1
 - Email health distribution: 129 healthy, 47 risky, 14 invalid
 - All 8 core API endpoints verified working with real data
+
+---
+Task ID: 2b
+Agent: Main + 4 subagents
+Task: Fix all broken interactions, add missing features, setup testing
+
+Work Log:
+- Fixed "Visit Website" button to open actual URL in new tab
+- Fixed expanded row toggle on companies table
+- Updated industry list to match real DB data (SaaS, FinTech, HealthTech, etc.)
+- Added qualified/won/lost to status options
+- Removed dead imports (Mail, FileDown)
+- Replaced 3 hardcoded notifications with real timeline API data
+- Fixed notification dot to show/hide based on data
+- Added Help dialog with keyboard shortcuts and getting started guide
+- Fixed Sign Out to show toast
+- Synced email generation screen with Settings preferences
+- Fixed "Save as Draft" to show "Draft Auto-Saved" state
+- Added "Test AI Connection" button in Settings AI Config
+- Fixed CSV Export to download proper separate CSV files
+- Added opportunity status cycling on company profile
+- Added note deletion (company + contact) with confirmation dialog
+- Added "View Company" button on contact detail screen
+- Added draft status management (mark as sent/rejected)
+- Created GET /api/timeline endpoint
+- Created DELETE /api/notes endpoint
+- Created PATCH /api/drafts/[id] endpoint
+- Setup vitest testing infrastructure
+- Wrote 76 tests (52 API + 24 utils) — ALL PASSING
+- Full API verification: 32/32 checks passing
+
+Stage Summary:
+- 0 broken interactions remaining
+- 3 new API routes created
+- 76 automated tests passing
+- All screens fully functional with real data

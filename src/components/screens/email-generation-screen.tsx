@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { Mail, Sparkles, Copy, RefreshCw, User, CheckCircle2, Loader2 } from 'lucide-react'
+import { Mail, Sparkles, Copy, RefreshCw, User, CheckCircle2, Loader2, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -63,6 +63,7 @@ export default function EmailGenerationScreen() {
   const [tone, setTone] = useState<Tone>((prefs?.tone as Tone) || 'professional-casual')
   const [emailLength, setEmailLength] = useState<EmailLength>((prefs?.emailLength as EmailLength) || 'medium')
   const [ctaStyle, setCtaStyle] = useState<CtaStyle>((prefs?.ctaStyle as CtaStyle) || 'soft')
+  const [contactSearch, setContactSearch] = useState('')
   const [generatedSubject, setGeneratedSubject] = useState('')
   const [generatedBody, setGeneratedBody] = useState('')
   const [lastDraftId, setLastDraftId] = useState<string | null>(null)
@@ -72,11 +73,14 @@ export default function EmailGenerationScreen() {
   const [draftContactId, setDraftContactId] = useState<string | null>(null)
 
   const { data: contactsData, isLoading: contactsLoading } = useQuery({
-    queryKey: ['contacts', 'email-gen-sidebar'],
-    queryFn: () => fetch('/api/contacts?pageSize=10').then(r => r.json()),
+    queryKey: ['contacts', 'email-gen-sidebar', contactSearch],
+    queryFn: () => {
+      const p = new URLSearchParams({ pageSize: '50' })
+      if (contactSearch) p.set('search', contactSearch)
+      return fetch(`/api/contacts?${p}`).then(r => r.json())
+    },
   })
 
-  // Fetch a specific contact if selectedContactId is set but not in the sidebar list
   const contacts = (contactsData?.contacts ?? []) as any[]
   const selectedContact = contacts.find((c: any) => c.id === selectedContactId) ?? null
 
@@ -184,6 +188,17 @@ export default function EmailGenerationScreen() {
         <div className="flex-1 overflow-y-auto">
           <div className="px-4 pt-4 pb-2">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Select Contact</h3>
+          </div>
+          <div className="px-3 pb-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-gray-400" />
+              <Input
+                placeholder="Search contacts..."
+                value={contactSearch}
+                onChange={e => setContactSearch(e.target.value)}
+                className="pl-8 h-8 bg-gray-100 border-gray-200 rounded-lg text-xs focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
+              />
+            </div>
           </div>
 
           {contactsLoading ? (

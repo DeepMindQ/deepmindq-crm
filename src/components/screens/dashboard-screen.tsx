@@ -90,14 +90,16 @@ export function DashboardScreen() {
 
   const completeMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch('/api/opportunities', {
+      fetch(`/api/opportunities/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: 'won' }),
+        body: JSON.stringify({ status: 'won' }),
       }).then(r => r.json()),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['dashboard'] })
+      toast.success('Opportunity marked as won')
     },
+    onError: () => toast.error('Failed to update opportunity'),
   })
 
   if (isLoading) return <SkeletonGrid cols={4} panels={3} />

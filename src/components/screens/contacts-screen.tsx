@@ -199,7 +199,7 @@ export default function ContactsScreen() {
             </TableHeader>
             <TableBody>
               {contacts.map((c: any) => (
-                <TableRow key={c.id} className="table-row-hover border-b border-gray-50 last:border-b-0 group">
+                <TableRow key={c.id} className="table-row-hover border-b border-gray-50 last:border-b-0 group cursor-pointer" onClick={() => { useAppStore.getState().setSelectedContactId(c.id); useAppStore.getState().setActiveView('contact-profile') }}>
                   <TableCell>
                     <div className="flex items-center gap-2.5">
                       <div className="size-7 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 text-[11px] font-semibold shrink-0">

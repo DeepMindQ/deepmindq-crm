@@ -78,15 +78,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   })
   const notifications = notifData?.entries?.slice(0, 5) || []
 
+  const breadcrumbItems = React.useMemo(() => {
+    if (activeView === 'company-profile') {
+      return [
+        { label: 'Companies', view: 'companies' as ActiveView },
+        { label: 'Company Profile', isPage: true },
+      ]
+    }
+    if (activeView === 'contact-profile') {
+      return [
+        { label: 'Contacts', view: 'contacts' as ActiveView },
+        { label: 'Contact Profile', isPage: true },
+      ]
+    }
+    return [{ label: pageTitles[activeView], isPage: true }]
+  }, [activeView])
+
   const isNavActive = (view: ActiveView): boolean => {
     if (view === 'companies' && activeView === 'company-profile') return true
+    if (view === 'contacts' && activeView === 'contact-profile') return true
     return activeView === view
   }
-
-  const breadcrumbItems: { label: string; isPage?: boolean }[] =
-    activeView === 'company-profile'
-      ? [{ label: 'Companies' }, { label: 'Company Profile', isPage: true }]
-      : [{ label: pageTitles[activeView], isPage: true }]
 
   return (
     <SidebarProvider>
@@ -167,7 +179,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     ) : (
                       <BreadcrumbLink
                         href="#"
-                        onClick={(e) => { e.preventDefault(); setActiveView('companies') }}
+                        onClick={(e) => { e.preventDefault(); if ('view' in item && item.view) setActiveView(item.view) }}
                         className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
                       >
                         {item.label}
@@ -179,7 +191,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </BreadcrumbList>
           </Breadcrumb>
 
-          <div className="flex-1" />
+
+          <div className="flex-1"></div>
 
           {/* Cmd+K Search */}
           <button

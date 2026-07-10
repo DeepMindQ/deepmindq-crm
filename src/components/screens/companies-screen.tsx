@@ -50,7 +50,6 @@ export function CompaniesScreen() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [showAdd, setShowAdd] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [statusDialog, setStatusDialog] = useState<{ open: boolean; id: string; current: string }>({ open: false, id: '', current: '' })
   const [form, setForm] = useState({ name: '', domain: '', industry: '', employeeSize: '', country: '', location: '', website: '', linkedinUrl: '' })
 
@@ -177,15 +176,12 @@ export function CompaniesScreen() {
                 ? Array.from({ length: 6 }).map((_, i) => (
                     <tr key={i} className="border-b border-gray-50"><td colSpan={7} className="px-4 py-2"><Skeleton className="h-12 w-full rounded-lg" /></td></tr>
                   ))
-                : companies.map((c: any) => {
-                    const isExpanded = expandedRow === c.id
-                    return (
-                      <>
-                        <tr key={c.id} className={cn('table-row-hover border-b border-gray-50 transition-colors', isExpanded && 'bg-amber-50/30')}>
+                : companies.map((c: any) => (
+                      <tr key={c.id} className="table-row-hover border-b border-gray-50 transition-colors">
                           <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
                             <Checkbox checked={selected.has(c.id)} onCheckedChange={() => toggleOne(c.id)} className="size-4" />
                           </td>
-                          <td className="px-4 py-2.5 cursor-pointer" onClick={() => { if (expandedRow === c.id) setExpandedRow(null); else { setExpandedRow(c.id); setSelectedCompanyId(c.id); setActiveView('company-profile') } }}>
+                          <td className="px-4 py-2.5 cursor-pointer" onClick={() => { setSelectedCompanyId(c.id); setActiveView('company-profile') }}>
                             <div className="flex items-center gap-3">
                               <div className="size-8 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
                                 {c.domain ? (
@@ -223,9 +219,9 @@ export function CompaniesScreen() {
                               {c.status}
                             </button>
                           </td>
-                          <td className="px-4 py-2.5">
+                          <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
                             <DropdownMenu>
-                              <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+                              <DropdownMenuTrigger asChild>
                                 <button className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"><MoreHorizontal className="size-4 text-gray-400" /></button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5 elevation-float">
@@ -251,27 +247,7 @@ export function CompaniesScreen() {
                             </DropdownMenu>
                           </td>
                         </tr>
-                        {/* Expanded Row — Quick Preview */}
-                        {isExpanded && (
-                          <tr key={`${c.id}-expanded`}>
-                            <td colSpan={7} className="px-8 py-4 bg-amber-50/20">
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                                <div><span className="text-gray-400 block mb-0.5">Country</span><span className="font-medium text-gray-900">{c.country || '—'}</span></div>
-                                <div><span className="text-gray-400 block mb-0.5">Employees</span><span className="font-medium text-gray-900">{c.employeeSize || '—'}</span></div>
-                                <div><span className="text-gray-400 block mb-0.5">Location</span><span className="font-medium text-gray-900">{c.location || '—'}</span></div>
-                                <div><span className="text-gray-400 block mb-0.5">Contacts</span><span className="font-medium text-gray-900">{c._count?.contacts || 0}</span></div>
-                              </div>
-                              <div className="flex gap-2 mt-3">
-                                <Button size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md" onClick={() => { setSelectedCompanyId(c.id); setActiveView('company-profile') }}>
-                                  Full Profile <ArrowRight className="size-3 ml-1" />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </>
-                    )
-                  })}
+                  ))}
             </tbody>
           </table>
         </div>

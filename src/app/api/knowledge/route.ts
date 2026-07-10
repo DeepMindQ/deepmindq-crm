@@ -5,16 +5,19 @@ import { db } from "@/lib/db";
 // Helpers
 // ---------------------------------------------------------------------------
 
-function classifyChunk(text: string): string {
+const SNIPPET_TYPES = ["capability", "case_study", "outcome", "service"] as const;
+
+type SnippetType = (typeof SNIPPET_TYPES)[number];
+
+function classifyChunk(text: string): SnippetType {
   const lower = text.toLowerCase();
 
   if (
     lower.includes("case study") ||
     lower.includes("results") ||
-    lower.includes("outcome") ||
     lower.includes("achieved")
   ) {
-    return "Case Study";
+    return "case_study";
   }
 
   if (
@@ -23,7 +26,7 @@ function classifyChunk(text: string): string {
     lower.includes("offering") ||
     lower.includes("provide")
   ) {
-    return "Service";
+    return "service";
   }
 
   if (
@@ -32,20 +35,20 @@ function classifyChunk(text: string): string {
     lower.includes("platform") ||
     lower.includes("technology")
   ) {
-    return "Capability";
+    return "capability";
   }
 
-  return "Outcome";
+  return "outcome";
 }
 
-function extractSnippets(content: string): { title: string; content: string; snippetType: string }[] {
+function extractSnippets(content: string): { title: string; content: string; snippetType: SnippetType }[] {
   // Split by double newlines (paragraphs) or lines starting with heading markers
   const chunks = content
     .split(/\n\n+|\n(?=#{1,6}\s)/)
     .map((s) => s.trim())
     .filter((s) => s.length > 50);
 
-  return chunks.map((chunk) => {
+  const snippets = chunks.map((chunk) => {
     const firstLine = chunk.split(/\n/)[0].trim();
     const title =
       firstLine.length > 0
@@ -60,6 +63,9 @@ function extractSnippets(content: string): { title: string; content: string; sni
       snippetType: classifyChunk(chunk),
     };
   });
+
+  // Cap at 5 snippets as specified
+  return snippets.slice(0, 5);
 }
 
 // ---------------------------------------------------------------------------
@@ -156,7 +162,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Auto-extract snippets from the document content
+    // Auto-extract 3-5 snippets from the document content
     const snippetData = extractSnippets(content);
 
     if (snippetData.length > 0) {
@@ -170,10 +176,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json(
-      { ...doc, snippetCount: snippetData.length },
-      { status: 201 },
-    );
+    // Return the created document with snippets included
+    const createdDoc = await db.capabilityDocument.findUnique({
+      where: { id: doc.id },
+      include: { snippets: { orderBy: { createdAt: "desc" } } },
+    });
+
+    return NextResponse.json(createdDoc, { status: 201 });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

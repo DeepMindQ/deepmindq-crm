@@ -72,15 +72,16 @@ export async function POST(request: NextRequest) {
             disposableOk: result.disposableOk,
           },
         }),
+        db.timelineEntry.create({
+          data: {
+            contactId: contact.id,
+            companyId: contact.companyId,
+            action: "email_health_check",
+            details: `Email health check: ${result.status} (score ${result.score}) — ${result.recommendation}`,
+          },
+        }),
       ]);
     }
-
-    await db.timelineEntry.create({
-      data: {
-        action: "health_check_run",
-        details: `Email health check completed: ${validCount} valid, ${riskyCount} risky, ${invalidCount} invalid out of ${contacts.length} contacts`,
-      },
-    });
 
     return NextResponse.json({
       checked: contacts.length,

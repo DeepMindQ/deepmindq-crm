@@ -1,0 +1,484 @@
+     1→---
+     2→Task ID: 1.1
+     3→Agent: Main
+     4→Task: Build AI Engine for DeepMindQ
+     5→
+     6→Work Log:
+     7→- Analyzed all 15+ API routes — found they already use real Prisma queries, not mock data
+     8→- Verified AI email generation uses real LLM calls (OpenAI/Gemini/Groq) with template fallback
+     9→- Verified research generation uses real LLM calls with template fallback
+    10→- Verified knowledge library does real file upload + snippet extraction
+    11→- Confirmed imports create real Company/Contact records
+    12→- Confirmed export generates real CSV from DB
+    13→- Confirmed dashboard does real aggregate queries
+    14→
+    15→Stage Summary:
+    16→- AI Engine was ALREADY wired — it uses LLM APIs when API key is configured in Settings, with intelligent template fallback
+    17→- Template fallback generates contextual emails using company/industry/contact data
+    18→- Research generation creates full 9-field research cards with company-specific context
+    19→
+    20→---
+    21→Task ID: 1.2
+    22→Agent: Main
+    23→Task: Build Email Verification Engine
+    24→
+    25→Work Log:
+    26→- Created /src/lib/email-verification.ts — comprehensive verification engine
+    27→- Implemented RFC 5322 syntax check
+    28→- Added 65+ disposable domain detections
+    29→- Implemented real DNS MX record lookup via dns.resolveMx() with 5s timeout
+    30→- Implemented SPF record check via dns.resolveTxt()
+    31→- Implemented DMARC record check on _dmarc subdomain
+    32→- Built TLD trust scoring (high/medium/low tiers)
+    33→- Created weighted scoring algorithm (syntax 25, domain 15, MX 25, disposable 15, SPF 10, DMARC 10 + TLD bonus)
+    34→- Updated /api/contacts/[id]/validate to use shared engine
+    35→- Updated /api/health-check to use shared engine
+    36→- Fixed short-circuit bug: disposable domains now skip DNS lookups
+    37→
+    38→Stage Summary:
+    39→- Email verification engine at /src/lib/email-verification.ts
+    40→- Real DNS lookups for MX, SPF, DMARC records
+    41→- Graceful failure handling — DNS timeouts return null, not crashes
+    42→- Verified: google.com MX=true, fake domains MX=null, mailinator.com disposable=true
+    43→
+    44→---
+    45→Task ID: 4
+    46→Agent: Main  
+    47→Task: Seed database with comprehensive realistic data
+    48→
+    49→Work Log:
+    50→- Created /scripts/seed-data.ts (107KB seed script)
+    51→- Seeded 50 companies across 10 industries, 8 countries
+    52→- Seeded 255 contacts (4-6 per company) with diverse names, titles, emails
+    53→- Seeded 40 opportunities across 6 pipeline stages
+    54→- Seeded 18 research cards with full 9-field content
+    55→- Seeded 6 capability documents with 45 snippets
+    56→- Seeded 101 notes (76 company + 25 contact)
+    57→- Seeded 110 timeline entries across 30 days
+    58→- Seeded 18 email drafts and 35 health checks
+    59→
+    60→Stage Summary:
+    61→- Database fully populated: 49 active companies, 235 active contacts
+    62→- Pipeline distribution: New:22, Researching:12, Contacted:9, Qualified:3, Ready:1, Won:1, Lost:1
+    63→- Email health distribution: 129 healthy, 47 risky, 14 invalid
+    64→- All 8 core API endpoints verified working with real data
+    65→
+    66→---
+    67→Task ID: 2b
+    68→Agent: Main + 4 subagents
+    69→Task: Fix all broken interactions, add missing features, setup testing
+    70→
+    71→Work Log:
+    72→- Fixed "Visit Website" button to open actual URL in new tab
+    73→- Fixed expanded row toggle on companies table
+    74→- Updated industry list to match real DB data (SaaS, FinTech, HealthTech, etc.)
+    75→- Added qualified/won/lost to status options
+    76→- Removed dead imports (Mail, FileDown)
+    77→- Replaced 3 hardcoded notifications with real timeline API data
+    78→- Fixed notification dot to show/hide based on data
+    79→- Added Help dialog with keyboard shortcuts and getting started guide
+    80→- Fixed Sign Out to show toast
+    81→- Synced email generation screen with Settings preferences
+    82→- Fixed "Save as Draft" to show "Draft Auto-Saved" state
+    83→- Added "Test AI Connection" button in Settings AI Config
+    84→- Fixed CSV Export to download proper separate CSV files
+    85→- Added opportunity status cycling on company profile
+    86→- Added note deletion (company + contact) with confirmation dialog
+    87→- Added "View Company" button on contact detail screen
+    88→- Added draft status management (mark as sent/rejected)
+    89→- Created GET /api/timeline endpoint
+    90→- Created DELETE /api/notes endpoint
+    91→- Created PATCH /api/drafts/[id] endpoint
+    92→- Setup vitest testing infrastructure
+    93→- Wrote 76 tests (52 API + 24 utils) — ALL PASSING
+    94→- Full API verification: 32/32 checks passing
+    95→
+    96→---
+    97→Task ID: 14
+    98→Agent: Testing Infrastructure Setup
+    99→Task: Set up complete Vitest testing infrastructure
+   100→
+   101→Work Log:
+   102→- Installed @vitejs/plugin-react@6.0.3 and @testing-library/user-event@14.6.1 (vitest, jsdom, @testing-library/react, @testing-library/jest-dom already present)
+   103→- Rewrote vitest.config.ts: added react() plugin, switched environment to jsdom, pointed setupFiles to src/test/setup.ts, set include to src/**/*.test.{ts,tsx}
+   104→- Created src/test/setup.ts importing @testing-library/jest-dom/vitest
+   105→- Verified test scripts already present in package.json ("test": "vitest run", "test:watch": "vitest")
+   106→- Created smoke test at src/lib/email-verification.test.ts with 13 tests across 3 describe blocks:
+   107→  - checkSyntax (5 tests): valid email, no @, no domain, spaces, plus-addressing edge case
+   108→  - extractDomain (3 tests): normal domain, subdomain, missing @ (empty string)
+   109→  - isDisposableDomain (5 tests): mailinator.com=true, gmail.com=false, guerrillamail.com=true, full email string=false, empty string=false
+   110→- All 13 tests passing (bunx vitest run)
+   111→
+   112→Stage Summary:
+   113→- Vitest infrastructure fully configured for React component + unit testing
+   114→- Smoke test validates email-verification pure functions
+   115→- Test include path changed from tests/ to src/ to co-locate tests with source
+   116→
+   117→Stage Summary:
+   118→- 0 broken interactions remaining
+   119→- 3 new API routes created
+   120→- 76 automated tests passing
+   121→- All screens fully functional with real data
+   122→
+   123→---
+   124→Task ID: 7
+   125→Agent: Backend Preferences API
+   126→Task: Fix Preferences API route
+   127→
+   128→Work Log:
+   129→- Read and verified /src/app/api/preferences/route.ts against UserPreferences schema
+   130→- GET was correct: findFirst → create with defaults if missing → return record
+   131→- PUT had a minor inefficiency: when no record existed it did create(empty) then update(data) — two DB writes
+   132→- Fixed PUT to create(data) directly when no record exists — single DB write
+   133→- Kept findFirst approach (not hardcoded id) to remain compatible with already-seeded databases that have a cuid-generated id
+   134→- Allowed fields whitelist matches all 11 mutable fields on UserPreferences model
+   135→- Error handling and JSON response structure verified correct
+   136→
+   137→Stage Summary:
+   138→- Preferences API route verified and optimized
+   139→- GET: returns singleton with auto-created defaults
+   140→- PUT: atomic upsert (findFirst + update or create) with field whitelisting
+   141→
+   142→---
+   143→Task ID: 1
+   144→Agent: Backend Notes API
+   145→Task: Fix Notes API route at /src/app/api/notes/route.ts
+   146→
+   147→Work Log:
+   148→- Read existing route.ts — had DELETE and POST but was MISSING the GET handler entirely
+   149→- Read Prisma schema — confirmed CompanyNote and ContactNote models, plus TimelineEntry model
+   150→- Added GET handler: supports companyId/contactId filters, limit (default 50, max 200), includes company/contact relation, adds _type discriminator, combines + sorts when no filter
+   151→- Fixed DELETE handler: removed required `type` query param (spec only requires `id`), now auto-detects CompanyNote vs ContactNote by looking up in both tables; for contact notes, fetches contact to get companyId for timeline entry
+   152→- Improved POST handler: added `include: { company: true }` and `include: { contact: true }` to create calls so response includes the relation; added `_type` discriminator to response; contact lookup now includes company relation to get companyId
+   153→- Verified file reads back correctly with all three handlers (GET, POST, DELETE)
+   154→
+   155→Stage Summary:
+   156→- GET /api/notes — NEW: lists notes with companyId/contactId filters, limit, relations, _type discriminator
+   157→- POST /api/notes — IMPROVED: now includes relation in response + _type discriminator
+   158→- DELETE /api/notes — FIXED: removed mandatory `type` param, auto-detects note model by ID lookup
+   159→
+   160→---
+   161→Task ID: 8
+   162→Agent: Backend Health Check API
+   163→Task: Fix Health Check API
+   164→
+   165→Work Log:
+   166→- Read and analyzed /src/app/api/health-check/route.ts
+   167→- Read Prisma schema to verify EmailHealthCheck and TimelineEntry models
+   168→- Read /src/lib/email-verification.ts to confirm validateEmail return shape
+   169→- Identified bug: TimelineEntry was created as a single aggregate entry after the loop instead of one per-contact entry
+   170→- Fixed: Moved TimelineEntry.create inside the per-contact transaction with contactId and companyId
+   171→- Verified: checkAll correctly filters archivedAt: null and email not null
+   172→- Verified: contactIds path correctly uses id: { in: contactIds }
+   173→- Verified: mxOk null→false mapping handles schema Boolean requirement
+   174→- Verified: contact.emailHealth, contact.emailHealthScore, contact.lastValidatedAt updated correctly
+   175→- Verified: return shape { checked, valid, invalid, risky } matches spec
+   176→
+   177→Stage Summary:
+   178→- Single bug found and fixed: TimelineEntry now created per-contact (inside transaction) with contactId, companyId, and per-contact details instead of one aggregate entry
+   179→- All other logic was already correct: batch validation, email verification integration, contact updates, error handling
+   180→
+   181→---
+   182→Task ID: 5
+   183→Agent: Backend Export API
+   184→Task: Fix Export API route
+   185→
+   186→Work Log:
+   187→- Read existing /src/app/api/export/route.ts and prisma/schema.prisma
+   188→- Identified 5 issues in the existing export route:
+   189→  1. Companies CSV had wrong columns: included `ID` and `Contacts Count` (not in spec), missing `Intelligence Score` and `Data Freshness`, `LinkedIn URL` instead of `LinkedIn`
+   190→  2. Contacts CSV had wrong columns: included `ID` and `Archived At` (not in spec), missing `Health Score`, `Role Bucket` instead of `Role`, wrong column order
+   191→  3. Contacts query did not filter out archived records (missing `where: { archivedAt: null }`)
+   192→  4. Default (no type param) returned JSON instead of CSV download
+   193→  5. Unnecessary `_count` include on companies query
+   194→- Rewrote buildCompaniesCSV: correct 12-column header, maps `intelligenceScore` and `dataFreshness`, removed ID/Contacts Count/_count include
+   195→- Rewrote buildContactsCSV: correct 11-column header, added `where: { archivedAt: null }`, added `emailHealthScore` as Health Score, renamed Role Bucket to Role
+   196→- Fixed default GET behavior: falls through to companies CSV download (not JSON)
+   197→- Updated escapeCSV type signature to accept `number` for integer fields like scores
+   198→- Verified all Prisma field names match schema exactly
+   199→
+   200→Stage Summary:
+   201→- GET ?type=companies → CSV download with 12 columns (Name, Domain, Industry, Employee Size, Country, Location, Website, LinkedIn, Status, Intelligence Score, Data Freshness, Created At)
+   202→- GET ?type=contacts → CSV download with 11 columns, filters archived contacts, joins company name
+   203→- GET (no type) → defaults to companies CSV download
+   204→- All responses use Content-Type: text/csv and Content-Disposition attachment header
+   205→
+   206→---
+   207→Task ID: 10
+   208→Agent: Backend Timeline API
+   209→Task: Verify and fix Timeline API route
+   210→
+   211→Work Log:
+   212→- Read /src/app/api/timeline/route.ts
+   213→- Found 1 issue: default limit was 20, requirement specifies 50
+   214→- Fixed: changed `parseInt(searchParams.get("limit") || "20")` → `"50"` on line 7
+   215→- Verified all other requirements already met:
+   216→  - GET handler present with companyId/contactId filters
+   217→  - Company relation included (select id, name)
+   218→  - Contact relation included (select id, name)
+   219→  - Ordered by createdAt desc
+   220→  - Limit capped at 100
+   221→- Read file back to confirm fix applied correctly
+   222→
+   223→Stage Summary:
+   224→- 1 bug fixed: limit default 20 → 50
+   225→- Timeline API route fully compliant with spec
+   226→
+   227→---
+   228→Task ID: 11
+   229→Agent: Frontend Command Palette
+   230→Task: Fix Command Palette component
+   231→
+   232→Work Log:
+   233→- Analyzed existing /src/components/shared/command-palette.tsx — found 6 major issues
+   234→- Verified shadcn Command/CommandDialog components exist and use Dialog internally
+   235→- Verified API response shapes: companies returns `{ companies: [...] }`, contacts returns `{ contacts: [...] }`
+   236→- Verified store has setSelectedCompanyId, setSelectedContactId, setActiveView
+   237→- Verified ActiveView type includes all 9 views including knowledge-library
+   238→- Rewrote entire component from scratch:
+   239→
+   240→Issues fixed:
+   241→1. Was using custom div-based UI with manual backdrop → Now uses CommandDialog (which wraps Dialog from @/components/ui/dialog) + CommandInput/CommandList/CommandGroup/CommandItem from @/components/ui/command
+   242→2. Was missing company/contact search entirely → Added debounced (250ms) parallel fetch to /api/companies?search=X&pageSize=5 and /api/contacts?search=X&pageSize=5 with AbortController cleanup
+   243→3. Was missing "Go to Knowledge" navigation action → Added knowledge-library view with BookOpen icon
+   244→4. Was missing "Go to AI Emails" in proper nav list → Added email-generation view (was present but in wrong structure)
+   245→5. Company selection only called setActiveView → Now calls setSelectedCompanyId(id) + setActiveView('company-profile')
+   246→6. Contact selection only called setActiveView → Now calls setSelectedContactId(id) + setActiveView('contact-profile')
+   247→7. Manual keyboard handling (arrow keys, escape, enter) → Removed; cmdk handles all keyboard navigation natively
+   248→8. Manual state management for selected index → Removed; cmdk handles selection internally
+   249→
+   250→Navigation commands (all 7): Dashboard, Companies, Contacts, AI Emails, Knowledge, Import, Settings
+   251→
+   252→Stage Summary:
+   253→- Command palette fully rewritten using shadcn CommandDialog + cmdk
+   254→- Searches companies and contacts via API with 250ms debounce
+   255→- Company selection sets store ID and navigates to company-profile
+   256→- Contact selection sets store ID and navigates to contact-profile
+   257→- All 7 navigation actions present with icons and keyboard shortcut hints
+   258→- Dialog overlay via @/components/ui/dialog (used internally by CommandDialog)
+   259→
+   260→---
+   261→Task ID: 4
+   262→Agent: Backend Knowledge API
+   263→Task: Fix Knowledge API routes
+   264→
+   265→Work Log:
+   266→- Read /src/app/api/knowledge/route.ts, /src/app/api/knowledge/[id]/route.ts, prisma/schema.prisma, src/lib/db.ts
+   267→- Verified [id]/route.ts DELETE handler: already correct (checks existence, deletes document, cascades to snippets via schema `onDelete: Cascade`, returns `{ success: true }`)
+   268→- Verified [id]/route.ts GET handler: already correct (returns single document with snippets ordered by createdAt desc)
+   269→- Found 3 issues in route.ts POST handler:
+   270→  1. `classifyChunk` returned PascalCase snippet types (`'Case Study'`, `'Service'`, `'Capability'`, `'Outcome'`) but spec requires lowercase underscored types (`'capability'`, `'case_study'`, `'service'`, `'outcome'`)
+   271→  2. No cap on snippet count — spec requires 3-5 snippets but code created unlimited
+   272→  3. POST returned raw doc + snippetCount instead of the created document with its snippet relations
+   273→- Fixed classifyChunk: changed all return values to `'capability'`, `'case_study'`, `'service'`, `'outcome'`; added `SNIPPET_TYPES` const and `SnippetType` type for type safety
+   274→- Fixed extractSnippets: added `snippets.slice(0, 5)` to cap at 5; updated return type to use `SnippetType`
+   275→- Fixed POST response: now does a second `findUnique` with `include: { snippets }` and returns the full document with relations (status 201)
+   276→- Removed `'outcome'` keyword from case_study classifier (was causing misclassification — "outcome" text would match case_study before reaching the default outcome fallback)
+   277→- Verified GET handler: correct — returns `{ documents, snippets }` when `?include=snippets`, otherwise returns document array with counts
+   278→
+   279→Stage Summary:
+   280→- route.ts GET: no changes needed — already supports `?include=snippets` with `{ documents, snippets }` response
+   281→- route.ts POST: 3 fixes — lowercase snippet types, capped at 5 snippets, returns full document with snippet relations
+   282→- [id]/route.ts DELETE: no changes needed — already correct with cascade delete and `{ success: true }` response
+   283→
+   284→---
+   285→Task ID: 9
+   286→Agent: Backend Drafts + Reset APIs
+   287→Task: Fix Drafts and Reset API routes
+   288→
+   289→Work Log:
+   290→- Read /src/app/api/drafts/[id]/route.ts — PATCH handler existed but was incomplete, DELETE handler was missing entirely
+   291→- Read /src/app/api/reset/route.ts — existed but missing CompanyResearchSource, CustomFieldValue, CustomFieldDefinition tables
+   292→- Read prisma/schema.prisma to verify all 15 models and FK relationships
+   293→- Fixed PATCH /api/drafts/[id]:
+   294→  - Was: required `status` field, only accepted `status` and `rejectReason`
+   295→  - Now: accepts `subject`, `body`, `status`, `rejectReason` — all optional partial updates
+   296→  - Removed mandatory status requirement (was 400 error if missing)
+   297→  - Status validation still enforced when status IS provided (draft/sent/rejected)
+   298→  - Added `include: { contact: true }` to return contact relation with updated draft
+   299→  - Kept 404 check before update
+   300→- Added DELETE /api/drafts/[id]:
+   301→  - Looks up draft by ID, returns 404 if not found
+   302→  - Deletes draft, returns `{ success: true }`
+   303→  - Proper error handling with 500 response
+   304→- Fixed DELETE /api/reset:
+   305→  - Added missing tables: companyResearchSource, customFieldValue, customFieldDefinition
+   306→  - Verified FK-safe delete order: leaf tables first (timeline, notes, health checks, drafts, research sources/cards, opportunities, capability snippets), then parents (capability documents, contacts, companies), then standalone (import batch)
+   307→  - UserPreferences intentionally preserved
+   308→  - All 15 data tables now cleared in single transaction
+   309→
+   310→Stage Summary:
+   311→- PATCH /api/drafts/[id] — FIXED: now supports subject, body, status, rejectReason as optional partial updates with contact relation
+   312→- DELETE /api/drafts/[id] — ADDED: delete draft by ID with 404 check, returns { success: true }
+   313→- DELETE /api/reset — FIXED: now clears all 15 data tables in correct FK order, preserves UserPreferences
+   314→
+   315→---
+   316→Task ID: 16
+   317→Agent: Email Validation Route Fix
+   318→Task: Fix Email Validation route at /src/app/api/contacts/[id]/validate/route.ts
+   319→
+   320→Work Log:
+   321→- Read existing route.ts — all 8 of 9 requirements were already correctly implemented
+   322→- Read /src/lib/email-verification.ts to confirm validateEmail return shape (EmailValidationResult)
+   323→- Read prisma/schema.prisma to verify EmailHealthCheck (status, score, actionRecommendation, syntaxOk, domainOk, mxOk, disposableOk), Contact (emailHealth, emailHealthScore, lastValidatedAt), and TimelineEntry models
+   324→- Found 1 issue: Requirement #9 "Return the validation result with contact info" was not met — response was missing contact identification data
+   325→- Fixed: Added `contact` object (id, name, email, company name) to both response paths (no-email and validation result)
+   326→- Verified file reads back correctly with all 9 requirements satisfied
+   327→
+   328→Stage Summary:
+   329→- 1 issue fixed: both JSON responses now include `contact: { id, name, email, company }` per spec
+   330→- All 9 requirements verified: POST handler, contact fetch, validateEmail call, EmailHealthCheck create (all fields), contact update (emailHealth, emailHealthScore, lastValidatedAt), TimelineEntry create (action: email_validated), response with contact info
+   331→- No other issues found — mxOk null→false mapping, error handling, no-email early path all correct
+   332→
+   333→---
+   334→Task ID: 6
+   335→Agent: Backend Import API
+   336→Task: Fix Import API route at /src/app/api/imports/route.ts
+   337→
+   338→Work Log:
+   339→- Read existing /src/app/api/imports/route.ts (309 lines)
+   340→- Read prisma/schema.prisma to verify ImportBatch, Company, Contact, TimelineEntry models
+   341→- Read /src/lib/db.ts to confirm db client export
+   342→- Verified all 3 requirements against the spec:
+   343→
+   344→  GET handler:
+   345→  - Uses db.importBatch.findMany with orderBy: { createdAt: "desc" } — CORRECT
+   346→  - Returns JSON array of ImportBatch records
+   347→  - Has try/catch with 500 error response
+   348→
+   349→  POST FormData (stageImport):
+   350→  - Parses file from FormData, validates CSV extension (rejects .xlsx/.xls/other)
+   351→  - Custom CSV parser handles quoted fields and escaped double-quotes correctly
+   352→  - Generates 8-char hex fileHash from buffer, checks fileHash uniqueness (409 on duplicate)
+   353→  - Requires header + at least 1 data row (400 if missing)
+   354→  - Creates ImportBatch with status "staged", acceptedRows/duplicateRows/invalidRows all 0
+   355→  - Returns { id, fileName, totalRows, columns, previewRows } with status 201
+   356→  - Response includes all required fields { id, fileName, totalRows } plus extras (columns, previewRows)
+   357→
+   358→  POST JSON (executeImport):
+   359→  - Content-Type routing: application/json → check action === "execute" → executeImport()
+   360→  - Validates batchId, mapping, rows are present (400 if missing)
+   361→  - Verifies batch exists by ID (404 if not found)
+   362→  - val() helper safely extracts row values by mapped column index with trim + undefined fallback
+   363→  - Requires both companyName and contactName per row (invalid++ if missing)
+   364→  - Company dedup: findFirst by name → create if not found
+   365→  - Contact dedup: findFirst by companyId + name + optional email (duplicates++ if exists)
+   366→  - Creates Contact with companyId, name, email, jobTitle, phone, location (all mapped via val())
+   367→  - Updates ImportBatch: acceptedRows, duplicateRows, invalidRows, status → "completed"
+   368→  - Creates TimelineEntry with action "Import Completed" and detailed summary
+   369→  - Returns { success: true, accepted, duplicates, invalid }
+   370→
+   371→  CSV parser verification:
+   372→  - Handles quoted fields: `a,"b,c",d` → ['a', 'b,c', 'd']
+   373→  - Handles escaped quotes: `a,"b""c",d` → ['a', 'b"c', 'd']
+   374→  - Trims each field value
+   375→
+   376→- All Prisma field names match schema exactly (ImportBatch.fileHash @unique, Contact.companyId FK, etc.)
+   377→- No bugs found — code meets all requirements
+   378→
+   379→Stage Summary:
+   380→- 0 issues found — Import API route is fully compliant with spec
+   381→- GET: lists ImportBatch records ordered by createdAt desc
+   382→- POST FormData: parses CSV, deduplicates by fileHash, creates staged ImportBatch, returns { id, fileName, totalRows }
+   383→- POST JSON: executes import with field mapping, Company find-or-create, Contact dedup, count tracking, batch status update to "completed"
+   384→- Timeline entry created as side effect of import execution
+   385→
+   386→---
+   387→Task ID: 3
+   388→Agent: Backend Research API
+   389→Task: Fix Research API route at /src/app/api/research/route.ts
+   390→
+   391→Work Log:
+   392→- Read existing route.ts — had a monolithic `callLLM()` function instead of separate provider helpers
+   393→- Read /src/app/api/contacts/[id]/generate-email/route.ts for the LLM calling pattern (callOpenAI, callGemini, callGroq)
+   394→- Read prisma/schema.prisma to verify CompanyResearchCard, TimelineEntry, Company, UserPreferences models
+   395→- Verified frontend caller at company-profile-screen.tsx sends `{ companyId, action: 'generate' }`
+   396→
+   397→Issues found and fixed:
+   398→1. **Monolithic LLM helper** — Replaced single `callLLM()` with separate `callOpenAI()`, `callGemini()`, `callGroq()` functions matching the email generation route pattern exactly (same URL patterns, headers, body structures, error handling)
+   399→2. **Default POST behavior** — Changed so POST with just `{ companyId }` triggers generation (default path). The old code required `action: "generate"` explicitly; manual save (no action) was the default. Now generation is the default, and manual save requires `action: "save"`. Frontend still sends `action: "generate"` which falls through correctly to generation.
+   400→3. **Improved fallback templates** — Enhanced `generateFallbackResearch()` with industry-specific insights (7 industries: software, healthcare, finance, manufacturing, retail, education, real estate) and employee-size-aware context (enterprise >1000, mid-size >200, SMB >0, unknown). Each industry has tailored tech landscape, challenges, and opportunities.
+   401→4. **Better error response** — Error handler now returns the actual error message instead of a generic string
+   402→
+   403→Verified all requirements:
+   404→- ✅ POST with `companyId` (required) generates research
+   405→- ✅ Reads UserPreferences via `db.userPreferences.findFirst()` for AI provider/key/model
+   406→- ✅ Tries LLM call via separate callOpenAI/callGemini/callGroq matching email route pattern
+   407→- ✅ If no AI key or LLM fails, generates intelligent template-based research using name, industry, domain, employeeSize, country
+   408→- ✅ Upserts CompanyResearchCard with companyId as unique key
+   409→- ✅ Updates company.intelligenceScore (+25, capped at 99) and company.dataFreshness ("fresh")
+   410→- ✅ Creates TimelineEntry with "research_generated" action and provider details
+   411→- ✅ Returns research card data with `_usedLlm` flag
+   412→
+   413→Stage Summary:
+   414→- Research API route fully rewritten with separate callOpenAI/callGemini/callGroq helpers
+   415→- Default POST behavior is now AI/template generation (was manual save before)
+   416→- Industry-specific fallback templates for 7 industries with size-aware context
+   417→- Backward compatible: frontend `action: "generate"` still works, manual save available via `action: "save"`
+   418→
+   419→---
+   420→Task ID: 2
+   421→Agent: Backend Opportunities API
+   422→Task: Fix Opportunities API routes
+   423→
+   424→Work Log:
+   425→- Read existing /src/app/api/opportunities/route.ts and /src/app/api/opportunities/[id]/route.ts
+   426→- Read prisma/schema.prisma to verify Opportunity and TimelineEntry models
+   427→
+   428→Issues found in route.ts (collection):
+   429→1. **GET: companyId was required** — Spec says companyId is optional filter. Changed to only add to `where` clause when provided.
+   430→2. **GET: No pagination** — Added `page` (default 1) and `pageSize` (default 20, max 100) query params with skip/take, and parallel `count()` query. Returns `{ data, pagination: { page, pageSize, total, totalPages } }`.
+   431→3. **GET: Missing company relation** — Added `include: { company: true }` to findMany.
+   432→4. **POST: Missing company relation in response** — Added `include: { company: true }` to create.
+   433→5. **PATCH handler in collection route** — Removed. PATCH for a single opportunity belongs in [id]/route.ts only.
+   434→
+   435→Issues found in [id]/route.ts:
+   436→1. **PATCH: TimelineEntry created on every update** — Spec says "Create TimelineEntry if status changes." Fixed: only creates TimelineEntry when `data.status !== undefined && data.status !== existing.status`. Details now include old and new status values.
+   437→2. **PATCH: Missing company relation in response** — Added `include: { company: true }` to the update query.
+   438→3. **PATCH: Missing error handling** — Added try/catch with 500 response.
+   439→4. **GET: Missing error handling** — Added try/catch with 500 response.
+   440→5. **DELETE: Generic timeline details** — Changed from `Opportunity deleted` to `Opportunity "${existing.title}" deleted`.
+   441→6. **DELETE: Missing error handling** — Added try/catch with 500 response.
+   442→
+   443→Verified both files read back correctly.
+   444→
+   445→Stage Summary:
+   446→- GET /api/opportunities — FIXED: optional companyId filter, pagination (page/pageSize), company relation included, returns `{ data, pagination }` envelope
+   447→- POST /api/opportunities — FIXED: company relation included in response; TimelineEntry created
+   448→- PATCH /api/opportunities/[id] — FIXED: TimelineEntry only when status changes, company relation in response, proper error handling
+   449→- GET /api/opportunities/[id] — FIXED: added try/catch error handling
+   450→- DELETE /api/opportunities/[id] — FIXED: includes opportunity title in timeline details, proper error handling
+   451→
+   452→---
+   453→Task ID: 13
+   454→Agent: Frontend Contact Detail Screen
+   455→Task: Complete Contact Detail screen with all 7 required feature areas
+   456→
+   457→Work Log:
+   458→- Read full 730-line contact-detail-screen.tsx and verified against all 7 requirements
+   459→- Read API routes (/api/contacts/[id], /api/contacts/[id]/validate) and Prisma schema (Contact, EmailHealthCheck, Draft models) to understand available data fields
+   460→- Found 6 issues and fixed all:
+   461→
+   462→1. **Company name not clickable in header** — Was a static `<Badge>`. Changed to a `<button>` that calls `setSelectedCompanyId(data.companyId)` + `setActiveView('company-profile')`
+   463→2. **Status badge missing from header** — Contact `status` field was never displayed. Added blue status badge next to job title (hidden for "new" status to avoid clutter)
+   464→3. **Email health badge missing from header** — Was only in the Overview tab. Added compact email health badge with score in the header info row
+   465→4. **Phone and location not in header** — Were only in the Overview grid. Added them to the header info row with icons (Mail, Phone, MapPin)
+   466→5. **Email Health section missing detailed breakdown** — Only showed status/score/date. Added 4-card grid showing Syntax, Domain, MX Record, and Not Disposable check results (green check / red X icons) plus Recommendation text block
+   467→6. **Drafts tab missing confidence score and click-to-expand** — Added `confidenceScore` display ("Conf X%") and `expandedDraftId` state for expand/collapse toggle. Draft body now shows `line-clamp-2` when collapsed and full `whitespace-pre-wrap` when expanded. Action buttons (Regenerate, Copy, Mark Sent, Reject) now only visible when expanded to reduce clutter. Added ChevronDown/ChevronUp icons.
+   468→
+   469→- Cleaned up unused `UserCircle` import
+   470→- Verified all 7 feature areas work correctly:
+   471→  1. Header: ✅ Back button, name, email, job title, clickable company, phone, location, LinkedIn, status badge, email health badge with score
+   472→  2. Edit: ✅ Dialog → PATCH /api/contacts/[id] with name, email, jobTitle, roleBucket, phone, location, linkedinUrl
+   473→  3. Email Health: ✅ Score breakdown (syntax/domain/mx/disposable), recommendation, "Validate Email" → POST /api/contacts/[id]/validate
+   474→  4. Drafts: ✅ Subject, match score, confidence, status, date, click-to-expand full body
+   475→  5. Notes: ✅ List with delete, "Add Note" → POST /api/notes, Delete → DELETE /api/notes?id=X
+   476→  6. Timeline: ✅ Activity tab with timeline entries, icons, details, relative timestamps
+   477→  7. Actions: ✅ "Generate Email" → email-generation view, "Archive" → DELETE /api/contacts/[id]
+   478→
+   479→Stage Summary:
+   480→- 6 issues fixed in contact-detail-screen.tsx
+   481→- All 7 required feature areas fully implemented and wired to real API data
+   482→- Screen properly uses useAppStore for selectedContactId and setActiveView
+   483→- File verified at 796 lines with all features present
+   484→

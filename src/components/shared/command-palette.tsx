@@ -1,175 +1,196 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
-  LayoutDashboard, Building2, Users, Upload, Settings, Search, ArrowRight, Mail,
+  LayoutDashboard, Building2, Users, Upload, Settings, Mail, BookOpen,
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
-import type { ActiveView } from '@/lib/types'
+import type { ActiveView, Company, Contact } from '@/lib/types'
+import {
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandShortcut,
+} from '@/components/ui/command'
 
-const commands = [
-  { id: 'dashboard', label: 'Go to Dashboard', icon: LayoutDashboard, view: 'dashboard' as ActiveView, shortcut: 'G D' },
-  { id: 'companies', label: 'Go to Companies', icon: Building2, view: 'companies' as ActiveView, shortcut: 'G C' },
-  { id: 'contacts', label: 'Go to Contacts', icon: Users, view: 'contacts' as ActiveView, shortcut: 'G T' },
-  { id: 'import', label: 'Import Data', icon: Upload, view: 'import' as ActiveView, shortcut: 'G I' },
-  { id: 'settings', label: 'Open Settings', icon: Settings, view: 'settings' as ActiveView, shortcut: 'G S' },
-  { id: 'email-generation', label: 'AI Emails', icon: Mail, view: 'email-generation' as ActiveView, shortcut: 'G E' },
+const navCommands: {
+  id: string
+  label: string
+  icon: typeof LayoutDashboard
+  view: ActiveView
+  shortcut: string
+}[] = [
+  { id: 'dashboard', label: 'Go to Dashboard', icon: LayoutDashboard, view: 'dashboard', shortcut: '⌘1' },
+  { id: 'companies', label: 'Go to Companies', icon: Building2, view: 'companies', shortcut: '⌘2' },
+  { id: 'contacts', label: 'Go to Contacts', icon: Users, view: 'contacts', shortcut: '⌘3' },
+  { id: 'email-generation', label: 'Go to AI Emails', icon: Mail, view: 'email-generation', shortcut: '⌘4' },
+  { id: 'knowledge-library', label: 'Go to Knowledge', icon: BookOpen, view: 'knowledge-library', shortcut: '⌘5' },
+  { id: 'import', label: 'Go to Import', icon: Upload, view: 'import', shortcut: '⌘6' },
+  { id: 'settings', label: 'Go to Settings', icon: Settings, view: 'settings', shortcut: '⌘7' },
 ]
-
-// Map shortcut second keys to view IDs for the G+key global shortcuts
-const G_KEY_MAP: Record<string, ActiveView> = {
-  d: 'dashboard',
-  c: 'companies',
-  t: 'contacts',
-  i: 'import',
-  s: 'settings',
-  e: 'email-generation',
-}
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState(0)
-  const { setActiveView } = useAppStore()
-  const gPendingRef = useRef(false)
-  const gTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [companies, setCompanies] = useState<Company[]>([])
+  const [contacts, setContacts] = useState<Contact[]>([])
 
-  const filtered = commands.filter(c =>
-    c.label.toLowerCase().includes(query.toLowerCase())
-  )
+  const { setActiveView, setSelectedCompanyId, setSelectedContactId } = useAppStore()
 
-  const toggle = useCallback(() => {
-    setOpen(p => !p)
-    setQuery('')
-    setSelected(0)
-  }, [])
-
-  // Global keyboard shortcut listener: Cmd/Ctrl+K for palette, G+key for navigation
+  // Cmd+K / Ctrl+K global listener
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      // Ignore events when typing in inputs/textareas (except when palette is open)
-      const tag = (e.target as HTMLElement)?.tagName
-      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable
-
-      // Cmd/Ctrl+K: toggle palette
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
-        toggle()
-        return
-      }
-
-      // If palette is open, handle palette-specific keys
-      if (open) {
-        if (e.key === 'Escape') { setOpen(false); setQuery('') }
-        if (e.key === 'ArrowDown') { e.preventDefault(); setSelected(s => Math.min(s + 1, filtered.length - 1)) }
-        if (e.key === 'ArrowUp') { e.preventDefault(); setSelected(s => Math.max(s - 1, 0)) }
-        if (e.key === 'Enter' && filtered[selected]) {
-          setActiveView(filtered[selected].view)
-          setOpen(false)
-          setQuery('')
-        }
-        return
-      }
-
-      // When palette is closed and not in an input: handle G+key shortcuts
-      if (isInput) return
-
-      const key = e.key.toLowerCase()
-
-      if (key === 'g' && !gPendingRef.current) {
-        // First press of G — start the timer
-        gPendingRef.current = true
-        if (gTimerRef.current) clearTimeout(gTimerRef.current)
-        gTimerRef.current = setTimeout(() => {
-          gPendingRef.current = false
-        }, 500)
-        return
-      }
-
-      if (gPendingRef.current && key !== 'g') {
-        // G was pressed, now a second key — check if it's a valid shortcut
-        const targetView = G_KEY_MAP[key]
-        gPendingRef.current = false
-        if (gTimerRef.current) clearTimeout(gTimerRef.current)
-
-        if (targetView) {
-          e.preventDefault()
-          useAppStore.getState().setActiveView(targetView)
-        }
+        setOpen((prev) => !prev)
       }
     }
-
     document.addEventListener('keydown', down)
-    return () => {
-      document.removeEventListener('keydown', down)
-      if (gTimerRef.current) clearTimeout(gTimerRef.current)
-    }
-  }, [open, filtered, selected, setActiveView, toggle])
+    return () => document.removeEventListener('keydown', down)
+  }, [])
 
-  if (!open) return null
+  // Reset search state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setQuery('')
+      setCompanies([])
+      setContacts([])
+    }
+  }, [open])
+
+  // Debounced search for companies and contacts
+  useEffect(() => {
+    const trimmed = query.trim()
+    if (!trimmed) {
+      setCompanies([])
+      setContacts([])
+      return
+    }
+
+    const controller = new AbortController()
+    const timer = setTimeout(async () => {
+      try {
+        const q = encodeURIComponent(trimmed)
+        const [compRes, contRes] = await Promise.all([
+          fetch(`/api/companies?search=${q}&pageSize=5`, { signal: controller.signal }),
+          fetch(`/api/contacts?search=${q}&pageSize=5`, { signal: controller.signal }),
+        ])
+        if (!controller.signal.aborted) {
+          const compData = await compRes.json()
+          const contData = await contRes.json()
+          setCompanies(compData.companies ?? [])
+          setContacts(contData.contacts ?? [])
+        }
+      } catch {
+        // Ignore aborted or failed requests
+      }
+    }, 250)
+
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [query])
+
+  const handleSelectNav = useCallback(
+    (view: ActiveView) => {
+      setActiveView(view)
+      setOpen(false)
+    },
+    [setActiveView]
+  )
+
+  const handleSelectCompany = useCallback(
+    (id: string) => {
+      setSelectedCompanyId(id)
+      setActiveView('company-profile')
+      setOpen(false)
+    },
+    [setSelectedCompanyId, setActiveView]
+  )
+
+  const handleSelectContact = useCallback(
+    (id: string) => {
+      setSelectedContactId(id)
+      setActiveView('contact-profile')
+      setOpen(false)
+    },
+    [setSelectedContactId, setActiveView]
+  )
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-50 bg-black/20 backdrop-blur-[2px]"
-        onClick={() => { setOpen(false); setQuery('') }}
+    <CommandDialog open={open} onOpenChange={setOpen}>
+      <CommandInput
+        placeholder="Search companies, contacts, or type a command..."
+        value={query}
+        onValueChange={setQuery}
       />
-      {/* Dialog */}
-      <div className="fixed inset-x-0 top-[15%] z-50 mx-auto max-w-lg px-4">
-        <div className="rounded-2xl bg-white elevation-modal border border-gray-200/80 overflow-hidden scale-in">
-          {/* Search input */}
-          <div className="flex items-center gap-3 px-4 border-b border-gray-100">
-            <Search className="size-4 text-gray-400 shrink-0" />
-            <input
-              autoFocus
-              value={query}
-              onChange={e => { setQuery(e.target.value); setSelected(0) }}
-              placeholder="Type a command or search..."
-              className="flex-1 py-3.5 text-sm text-gray-900 placeholder:text-gray-400 bg-transparent outline-none"
-            />
-            <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-medium text-gray-400">
-              ESC
-            </kbd>
-          </div>
-          {/* Results */}
-          <div className="p-2 max-h-64 overflow-y-auto">
-            {filtered.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-8">No results found</p>
-            ) : (
-              filtered.map((cmd, i) => {
-                const Icon = cmd.icon
-                return (
-                  <button
-                    key={cmd.id}
-                    onClick={() => { setActiveView(cmd.view); setOpen(false); setQuery('') }}
-                    onMouseEnter={() => setSelected(i)}
-                    className={`w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
-                      i === selected ? 'bg-amber-50 text-amber-900' : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Icon className={`size-4 shrink-0 ${i === selected ? 'text-amber-600' : 'text-gray-400'}`} />
-                    <span className="flex-1 font-medium">{cmd.label}</span>
-                    <kbd className={`hidden sm:inline-flex items-center gap-0.5 rounded border px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
-                      i === selected ? 'border-amber-200 bg-amber-100 text-amber-700' : 'border-gray-200 bg-gray-50 text-gray-400'
-                    }`}>
-                      {cmd.shortcut}
-                    </kbd>
-                    <ArrowRight className={`size-3 transition-opacity ${i === selected ? 'opacity-100 text-amber-600' : 'opacity-0'}`} />
-                  </button>
-                )
-              })
-            )}
-          </div>
-          {/* Footer hint */}
-          <div className="border-t border-gray-100 px-4 py-2 flex items-center gap-4 text-[10px] text-gray-400">
-            <span>↑↓ Navigate</span>
-            <span>↵ Select</span>
-            <span>esc Close</span>
-            <span className="hidden sm:inline border-l border-gray-200 pl-4">⌘K Open</span>
-          </div>
-        </div>
-      </div>
-    </>
+      <CommandList>
+        <CommandEmpty>No results found.</CommandEmpty>
+
+        {/* Search results: Companies */}
+        {companies.length > 0 && (
+          <CommandGroup heading="Companies">
+            {companies.map((company) => (
+              <CommandItem
+                key={company.id}
+                value={`company-${company.name}-${company.id}`}
+                onSelect={() => handleSelectCompany(company.id)}
+              >
+                <Building2 className="size-4 text-muted-foreground" />
+                <span className="flex-1 truncate">{company.name}</span>
+                {company.industry && (
+                  <span className="hidden sm:inline text-xs text-muted-foreground">
+                    {company.industry}
+                  </span>
+                )}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {/* Search results: Contacts */}
+        {contacts.length > 0 && (
+          <CommandGroup heading="Contacts">
+            {contacts.map((contact) => (
+              <CommandItem
+                key={contact.id}
+                value={`contact-${contact.name}-${contact.id}`}
+                onSelect={() => handleSelectContact(contact.id)}
+              >
+                <Users className="size-4 text-muted-foreground" />
+                <span className="flex-1 truncate">{contact.name}</span>
+                {contact.company && (
+                  <span className="hidden sm:inline text-xs text-muted-foreground">
+                    at {contact.company.name}
+                  </span>
+                )}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {/* Navigation commands */}
+        <CommandGroup heading="Navigation">
+          {navCommands.map((cmd) => {
+            const Icon = cmd.icon
+            return (
+              <CommandItem
+                key={cmd.id}
+                value={cmd.label}
+                onSelect={() => handleSelectNav(cmd.view)}
+              >
+                <Icon className="size-4 text-muted-foreground" />
+                <span>{cmd.label}</span>
+                <CommandShortcut>{cmd.shortcut}</CommandShortcut>
+              </CommandItem>
+            )
+          })}
+        </CommandGroup>
+      </CommandList>
+    </CommandDialog>
   )
 }

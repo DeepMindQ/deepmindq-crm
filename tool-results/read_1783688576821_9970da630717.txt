@@ -1,0 +1,757 @@
+     1→'use client'
+     2→
+     3→import { useState } from 'react'
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import {
+     6→  ArrowLeft, Building2, Globe, MapPin, Users, Plus, Target, StickyNote, FileText,
+     7→  Sparkles, Mail, Phone, ExternalLink, Linkedin, DollarSign, Calendar,
+     8→  CheckCircle2, XCircle, Clock, BarChart3, Loader2, X, AlertTriangle, Trash2,
+     9→} from 'lucide-react'
+    10→import { useAppStore } from '@/lib/store'
+    11→import { formatDistanceToNow } from 'date-fns'
+    12→import { toast } from 'sonner'
+    13→import { Button } from '@/components/ui/button'
+    14→import { Badge } from '@/components/ui/badge'
+    15→import { Skeleton } from '@/components/ui/skeleton'
+    16→import { Card, CardContent } from '@/components/ui/card'
+    17→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    18→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+    19→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+    20→import { Textarea } from '@/components/ui/textarea'
+    21→import { Label } from '@/components/ui/label'
+    22→import { Input } from '@/components/ui/input'
+    23→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    24→import { ScoreGauge, getActivityIcon, StatusDot, EmptyState } from '@/components/shared/design-system'
+    25→import Image from 'next/image'
+    26→
+    27→const healthVariant = (h: string) =>
+    28→  h === 'valid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+    29→  : h === 'risky' ? 'bg-amber-50 text-amber-700 border border-amber-200'
+    30→  : h === 'invalid' ? 'bg-red-50 text-red-700 border border-red-200'
+    31→  : 'bg-gray-100 text-gray-600 border border-gray-200'
+    32→
+    33→const statusBorder = (s: string) =>
+    34→  s === 'open' ? 'border-l-blue-500' : s === 'won' ? 'border-l-emerald-500' : s === 'lost' ? 'border-l-red-400' : 'border-l-gray-300'
+    35→
+    36→const statusBg = (s: string) =>
+    37→  s === 'open' ? 'bg-blue-50 text-blue-700 border-blue-200' : s === 'won' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    38→  : s === 'lost' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-gray-100 text-gray-600 border-gray-200'
+    39→
+    40→const RESEARCH_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
+    41→  businessOverview: { label: 'Business Overview', icon: Building2 },
+    42→  currentTechLandscape: { label: 'Tech Landscape', icon: BarChart3 },
+    43→  potentialChallenges: { label: 'Challenges', icon: Target },
+    44→  possibleOpportunities: { label: 'Opportunities', icon: Sparkles },
+    45→  relevantServices: { label: 'Relevant Services', icon: FileText },
+    46→  keyDecisionMakers: { label: 'Decision Makers', icon: Users },
+    47→  lastInteraction: { label: 'Last Interaction', icon: Clock },
+    48→  nextAction: { label: 'Next Action', icon: ArrowLeft },
+    49→}
+    50→
+    51→const researchColors = [
+    52→  'bg-blue-50 border-blue-100', 'bg-violet-50 border-violet-100', 'bg-amber-50 border-amber-100',
+    53→  'bg-emerald-50 border-emerald-100', 'bg-rose-50 border-rose-100', 'bg-indigo-50 border-indigo-100',
+    54→  'bg-cyan-50 border-cyan-100', 'bg-orange-50 border-orange-100',
+    55→]
+    56→
+    57→const STATUS_CYCLE = ['new', 'researching', 'contacted', 'qualified', 'ready', 'won', 'lost'] as const
+    58→const OPP_STATUS_CYCLE = ['researching', 'contacted', 'qualified', 'proposed', 'negotiation', 'won', 'lost'] as const
+    59→
+    60→const ROLE_BUCKETS = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'] as const
+    61→const OPP_STATUSES = ['researching', 'contacted', 'proposed', 'negotiation', 'won', 'lost'] as const
+    62→
+    63→const oppStatusVariant = (s: string) => {
+    64→  switch (s) {
+    65→    case 'researching': return 'bg-blue-50 text-blue-700 border-blue-200'
+    66→    case 'contacted': return 'bg-violet-50 text-violet-700 border-violet-200'
+    67→    case 'qualified': return 'bg-amber-50 text-amber-700 border-amber-200'
+    68→    case 'ready': return 'bg-cyan-50 text-cyan-700 border-cyan-200'
+    69→    case 'won': return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    70→    case 'lost': return 'bg-red-50 text-red-700 border-red-200'
+    71→    default: return 'bg-gray-100 text-gray-600 border-gray-200'
+    72→  }
+    73→}
+    74→
+    75→export default function CompanyProfileScreen() {
+    76→  const { selectedCompanyId, setActiveView } = useAppStore()
+    77→  const qc = useQueryClient()
+    78→
+    79→  // Note dialog state
+    80→  const [noteOpen, setNoteOpen] = useState(false)
+    81→  const [noteBody, setNoteBody] = useState('')
+    82→  const [noteType, setNoteType] = useState('')
+    83→
+    84→  // Delete note confirmation state
+    85→  const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null)
+    86→
+    87→  // Contact dialog state
+    88→  const [contactOpen, setContactOpen] = useState(false)
+    89→  const [contactForm, setContactForm] = useState({
+    90→    name: '',
+    91→    email: '',
+    92→    jobTitle: '',
+    93→    roleBucket: '',
+    94→    phone: '',
+    95→    linkedinUrl: '',
+    96→  })
+    97→
+    98→  // Opportunity dialog state
+    99→  const [oppOpen, setOppOpen] = useState(false)
+   100→  const [oppForm, setOppForm] = useState({
+   101→    title: '',
+   102→    description: '',
+   103→    status: 'researching',
+   104→    nextAction: '',
+   105→  })
+   106→
+   107→  const { data, isLoading } = useQuery({
+   108→    queryKey: ['company', selectedCompanyId],
+   109→    queryFn: () => fetch(`/api/companies/${selectedCompanyId}`).then(r => r.json()),
+   110→    enabled: !!selectedCompanyId,
+   111→  })
+   112→
+   113→  // ── Add Note mutation (existing) ──
+   114→  const addNote = useMutation({
+   115→    mutationFn: (body: { body: string; noteType: string }) =>
+   116→      fetch('/api/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, companyId: selectedCompanyId }) }).then(r => r.json()),
+   117→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company'] }); setNoteOpen(false); setNoteBody(''); setNoteType(''); toast.success('Note added') },
+   118→    onError: () => toast.error('Failed to add note'),
+   119→  })
+   120→
+   121→  // ── Generate Research mutation (AI-powered) ──
+   122→  const generateResearch = useMutation({
+   123→    mutationFn: async () => {
+   124→      const res = await fetch('/api/research', {
+   125→        method: 'POST',
+   126→        headers: { 'Content-Type': 'application/json' },
+   127→        body: JSON.stringify({ companyId: selectedCompanyId, action: 'generate' }),
+   128→      })
+   129→      if (!res.ok) {
+   130→        const err = await res.json().catch(() => ({ error: 'Failed to generate research' }))
+   131→        throw new Error(err.error || 'Failed to generate research')
+   132→      }
+   133→      const result = await res.json()
+   134→      if (result._usedLlm === false) {
+   135→        toast.info('Generated with templates — configure AI key in Settings for AI-powered research')
+   136→      }
+   137→      return result
+   138→    },
+   139→    onSuccess: () => {
+   140→      qc.invalidateQueries({ queryKey: ['company'] })
+   141→      toast.success('Research generated successfully')
+   142→    },
+   143→    onError: (err) => toast.error(err.message || 'Failed to generate research'),
+   144→  })
+   145→
+   146→  // ── Add Contact mutation ──
+   147→  const addContact = useMutation({
+   148→    mutationFn: (form: { name: string; email: string; jobTitle: string; roleBucket: string; phone: string; linkedinUrl: string }) =>
+   149→      fetch('/api/contacts', {
+   150→        method: 'POST',
+   151→        headers: { 'Content-Type': 'application/json' },
+   152→        body: JSON.stringify({ ...form, companyId: selectedCompanyId }),
+   153→      }).then(r => {
+   154→        if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add contact') })
+   155→        return r.json()
+   156→      }),
+   157→    onSuccess: () => {
+   158→      qc.invalidateQueries({ queryKey: ['company'] })
+   159→      setContactOpen(false)
+   160→      setContactForm({ name: '', email: '', jobTitle: '', roleBucket: '', phone: '', linkedinUrl: '' })
+   161→      toast.success('Contact added successfully')
+   162→    },
+   163→    onError: (err) => toast.error(err.message || 'Failed to add contact'),
+   164→  })
+   165→
+   166→  // ── Add Opportunity mutation ──
+   167→  const addOpportunity = useMutation({
+   168→    mutationFn: (form: { title: string; description: string; status: string; nextAction: string }) =>
+   169→      fetch('/api/opportunities', {
+   170→        method: 'POST',
+   171→        headers: { 'Content-Type': 'application/json' },
+   172→        body: JSON.stringify({ companyId: selectedCompanyId, ...form }),
+   173→      }).then(r => {
+   174→        if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add opportunity') })
+   175→        return r.json()
+   176→      }),
+   177→    onSuccess: () => {
+   178→      qc.invalidateQueries({ queryKey: ['company'] })
+   179→      setOppOpen(false)
+   180→      setOppForm({ title: '', description: '', status: 'researching', nextAction: '' })
+   181→      toast.success('Opportunity created successfully')
+   182→    },
+   183→    onError: (err) => toast.error(err.message || 'Failed to add opportunity'),
+   184→  })
+   185→
+   186→  // ── Update Opportunity Status mutation ──
+   187→  const updateOppMutation = useMutation({
+   188→    mutationFn: ({ id, status }: { id: string; status: string }) =>
+   189→      fetch(`/api/opportunities/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }).then(r => r.json()),
+   190→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); toast.success('Opportunity updated') },
+   191→    onError: () => toast.error('Failed to update opportunity'),
+   192→  })
+   193→
+   194→  // ── Delete Opportunity mutation ──
+   195→  const deleteOppMutation = useMutation({
+   196→    mutationFn: (oppId: string) =>
+   197→      fetch(`/api/opportunities/${oppId}`, { method: 'DELETE' }).then(r => r.json()),
+   198→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); toast.success('Opportunity deleted') },
+   199→    onError: () => toast.error('Failed to delete opportunity'),
+   200→  })
+   201→
+   202→  // ── Delete Note mutation ──
+   203→  const deleteNoteMutation = useMutation({
+   204→    mutationFn: (noteId: string) =>
+   205→      fetch(`/api/notes?id=${noteId}&type=company`, { method: 'DELETE' }).then(r => r.json()),
+   206→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); setDeleteNoteId(null); toast.success('Note deleted') },
+   207→    onError: () => toast.error('Failed to delete note'),
+   208→  })
+   209→
+   210→  // ── Opportunity status cycle handler ──
+   211→  const handleOppStatusCycle = (oppId: string, currentStatus: string) => {
+   212→    const currentIdx = OPP_STATUS_CYCLE.indexOf(currentStatus as typeof OPP_STATUS_CYCLE[number])
+   213→    const nextIdx = (currentIdx + 1) % OPP_STATUS_CYCLE.length
+   214→    updateOppMutation.mutate({ id: oppId, status: OPP_STATUS_CYCLE[nextIdx] })
+   215→  }
+   216→
+   217→  // ── Update Company Status mutation ──
+   218→  const updateCompanyStatus = useMutation({
+   219→    mutationFn: async (newStatus: string) => {
+   220→      const res = await fetch(`/api/companies/${selectedCompanyId}`, {
+   221→        method: 'PATCH',
+   222→        headers: { 'Content-Type': 'application/json' },
+   223→        body: JSON.stringify({ status: newStatus }),
+   224→      })
+   225→      if (!res.ok) throw new Error('Failed to update status')
+   226→
+   227→      // Also create a timeline entry
+   228→      await fetch('/api/timeline', {
+   229→        method: 'POST',
+   230→        headers: { 'Content-Type': 'application/json' },
+   231→        body: JSON.stringify({
+   232→          companyId: selectedCompanyId,
+   233→          action: 'status_changed',
+   234→          details: `Company status changed from "${data.status}" to "${newStatus}"`,
+   235→        }),
+   236→      })
+   237→
+   238→      return res.json()
+   239→    },
+   240→    onSuccess: () => {
+   241→      qc.invalidateQueries({ queryKey: ['company'] })
+   242→      toast.success('Status updated')
+   243→    },
+   244→    onError: () => toast.error('Failed to update status'),
+   245→  })
+   246→
+   247→  // ── Status cycle handler ──
+   248→  const handleStatusCycle = () => {
+   249→    const current = data.status as string
+   250→    const currentIdx = STATUS_CYCLE.indexOf(current as typeof STATUS_CYCLE[number])
+   251→    const nextIdx = (currentIdx + 1) % STATUS_CYCLE.length
+   252→    const newStatus = STATUS_CYCLE[nextIdx]
+   253→    updateCompanyStatus.mutate(newStatus)
+   254→  }
+   255→
+   256→  // ── Generate Email handler ──
+   257→  const handleGenerateEmail = () => {
+   258→    if (contacts.length === 0) {
+   259→      toast.error('Add contacts first to generate emails')
+   260→      return
+   261→    }
+   262→    const firstContactId = contacts[0].id
+   263→    useAppStore.getState().setSelectedContactId(firstContactId)
+   264→    setActiveView('email-generation')
+   265→  }
+   266→
+   267→  // ── Contact form submit ──
+   268→  const handleContactSubmit = () => {
+   269→    if (!contactForm.name.trim()) return
+   270→    addContact.mutate(contactForm)
+   271→  }
+   272→
+   273→  // ── Opportunity form submit ──
+   274→  const handleOppSubmit = () => {
+   275→    if (!oppForm.title.trim()) return
+   276→    addOpportunity.mutate(oppForm)
+   277→  }
+   278→
+   279→  if (!selectedCompanyId) return <EmptyState icon={Globe} title="No company selected" description="Go back to Companies and select one." actionLabel="Back to Companies" onAction={() => setActiveView('companies')} />
+   280→  if (isLoading) return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-32" /><Skeleton className="h-64" /></div>
+   281→  if (!data) return <EmptyState icon={Globe} title="Company not found" description="This company may have been deleted." actionLabel="Back to Companies" onAction={() => setActiveView('companies')} />
+   282→
+   283→  const { contacts = [], notes = [], researchCard, opportunities = [], timeline = [] } = data
+   284→
+   285→  const score = data.intelligenceScore ?? 0
+   286→  const segments = [
+   287→    { label: 'Data Completeness', value: Math.min(100, Math.round((score * 0.4) + 20)), color: '#2563EB' },
+   288→    { label: 'Contact Quality', value: Math.min(100, Math.round((score * 0.35) + 15)), color: '#059669' },
+   289→    { label: 'Research Depth', value: researchCard ? Math.min(100, Math.round((score * 0.25) + 10)) : 0, color: '#D97706' },
+   290→  ]
+   291→
+   292→  return (
+   293→    <div className="space-y-6">
+   294→      {/* ── Header ── */}
+   295→      <div className="rounded-xl bg-white p-4 md:p-6 card-rest slide-up">
+   296→        <div className="flex items-start gap-4 md:gap-5">
+   297→          {/* Logo */}
+   298→          <div className="size-14 rounded-xl bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+   299→            {data.domain ? (
+   300→              <Image src={`https://logo.clearbit.com/${data.domain}`} alt="" width={56} height={56} className="size-14 object-contain p-2" onError={e => { (e.target as HTMLImageElement).style.display='none'; (e.target as HTMLImageElement).parentElement!.innerHTML=`<span class="text-xl font-bold text-gray-400">${data.name?.charAt(0)}</span>` }} />
+   301→            ) : (
+   302→              <span className="text-xl font-bold text-gray-400">{data.name?.charAt(0)}</span>
+   303→            )}
+   304→          </div>
+   305→
+   306→          {/* Info */}
+   307→          <div className="flex-1 min-w-0">
+   308→            <div className="flex items-center gap-2 flex-wrap">
+   309→              <button onClick={() => setActiveView('companies')} className="text-gray-400 hover:text-gray-700 transition-colors">
+   310→                <ArrowLeft className="size-4" />
+   311→              </button>
+   312→              <h2 className="text-xl font-bold text-gray-900 tracking-tight truncate">{data.name}</h2>
+   313→              {data.industry && <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-xs font-normal border-0">{data.industry}</Badge>}
+   314→              <button onClick={handleStatusCycle} disabled={updateCompanyStatus.isPending}
+   315→                className={`text-[11px] font-medium px-2 py-0.5 rounded-md border ${statusBg(data.status)} ${updateCompanyStatus.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}>
+   316→                {updateCompanyStatus.isPending ? <Loader2 className="size-3 animate-spin inline" /> : null}
+   317→                {data.status}
+   318→              </button>
+   319→            </div>
+   320→            <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 flex-wrap">
+   321→              {data.domain && <span className="flex items-center gap-1"><Globe className="size-3.5" />{data.domain}</span>}
+   322→              {data.location && <span className="flex items-center gap-1"><MapPin className="size-3.5" />{data.location}</span>}
+   323→              {data.country && <span className="flex items-center gap-1"><MapPin className="size-3.5" />{data.country}</span>}
+   324→              {data.employeeSize && <span className="flex items-center gap-1"><Users className="size-3.5" />{data.employeeSize} employees</span>}
+   325→              {data.website && (
+   326→                <a href={data.website.startsWith('http') ? data.website : `https://${data.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors">
+   327→                  <ExternalLink className="size-3.5" />Website
+   328→                </a>
+   329→              )}
+   330→              {data.linkedinUrl && (
+   331→                <a href={data.linkedinUrl.startsWith('http') ? data.linkedinUrl : `https://${data.linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors">
+   332→                  <Linkedin className="size-3.5" />LinkedIn
+   333→                </a>
+   334→              )}
+   335→              {data.dataFreshness && (
+   336→                <span className="flex items-center gap-1.5">
+   337→                  <StatusDot status={data.dataFreshness === 'fresh' ? 'fresh' : data.dataFreshness === 'stale' ? 'stale' : data.dataFreshness === 'old' ? 'old' : 'unknown'} />
+   338→                  <span className="capitalize">{data.dataFreshness}</span>
+   339→                </span>
+   340→              )}
+   341→            </div>
+   342→
+   343→            {/* Action buttons */}
+   344→            <div className="flex items-center gap-2 mt-4 flex-wrap">
+   345→              <Button data-action="generate-research" size="sm" className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
+   346→                {generateResearch.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Sparkles className="size-3.5 mr-1.5" />}
+   347→                {generateResearch.isPending ? 'Generating...' : 'Generate Research'}
+   348→              </Button>
+   349→              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={() => setNoteOpen(true)}>
+   350→                <Plus className="size-3.5 mr-1.5" /> Add Note
+   351→              </Button>
+   352→              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={() => setContactOpen(true)}>
+   353→                <Plus className="size-3.5 sm:mr-1.5" /> <span className="hidden sm:inline">Add Contact</span>
+   354→              </Button>
+   355→              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={handleGenerateEmail}>
+   356→                <Mail className="size-3.5 mr-1.5" /> Generate Email
+   357→              </Button>
+   358→            </div>
+   359→          </div>
+   360→
+   361→          {/* Score Gauge */}
+   362→          <div className="hidden md:block">
+   363→            <ScoreGauge score={score} size={100} strokeWidth={8} segments={segments} />
+   364→          </div>
+   365→        </div>
+   366→      </div>
+   367→
+   368→      {/* ── Tabs ── */}
+   369→      <Tabs defaultValue="overview">
+   370→        <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 overflow-x-auto">
+   371→          {['overview', 'contacts', 'research', 'opportunities', 'timeline', 'notes'].map(tab => (
+   372→            <TabsTrigger key={tab} value={tab}
+   373→              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5">
+   374→              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+   375→              {tab === 'contacts' && contacts.length > 0 && <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{contacts.length}</span>}
+   376→              {tab === 'opportunities' && opportunities.length > 0 && <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{opportunities.length}</span>}
+   377→              {tab === 'notes' && notes.length > 0 && <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{notes.length}</span>}
+   378→            </TabsTrigger>
+   379→          ))}
+   380→        </TabsList>
+   381→
+   382→        {/* Overview */}
+   383→        <TabsContent value="overview" className="space-y-6 mt-5">
+   384→          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+   385→            {([
+   386→              ['Website', data.website, Globe], ['Industry', data.industry, BarChart3], ['Employees', data.employeeSize, Users],
+   387→              ['Location', data.location ?? data.country, MapPin], ['Status', data.status, CheckCircle2], ['Freshness', data.dataFreshness, Clock],
+   388→            ] as const).map(([label, val, Icon]) => (
+   389→              <div key={label} className="rounded-lg bg-white p-4 card-rest">
+   390→                <div className="flex items-center gap-2 mb-1">
+   391→                  <Icon className="size-3.5 text-gray-400" />
+   392→                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{label}</p>
+   393→                </div>
+   394→                <p className="text-sm font-semibold text-gray-900 capitalize">{val || '—'}</p>
+   395→              </div>
+   396→            ))}
+   397→          </div>
+   398→
+   399→          {/* Quick Research Preview */}
+   400→          {researchCard ? (
+   401→            <div className="rounded-xl bg-white card-rest overflow-hidden">
+   402→              <div className="px-6 py-4 border-b border-gray-100">
+   403→                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+   404→                  <FileText className="size-4 text-gray-400" /> Research Summary
+   405→                </h3>
+   406→              </div>
+   407→              <div className="p-6">
+   408→                <div className="grid gap-4 md:grid-cols-2">
+   409→                  {(Object.entries(RESEARCH_LABELS) as [keyof typeof researchCard, typeof RESEARCH_LABELS[string]][]).map(([key, cfg], idx) =>
+   410→                    researchCard[key] ? (
+   411→                      <div key={key} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 50}ms` }}>
+   412→                        <div className="flex items-center gap-2 mb-2">
+   413→                          <cfg.icon className="size-3.5 text-gray-500" />
+   414→                          <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
+   415→                        </div>
+   416→                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap line-clamp-3">{researchCard[key]}</p>
+   417→                      </div>
+   418→                    ) : null,
+   419→                  )}
+   420→                </div>
+   421→              </div>
+   422→            </div>
+   423→          ) : null}
+   424→        </TabsContent>
+   425→
+   426→        {/* Contacts */}
+   427→        <TabsContent value="contacts" className="mt-5">
+   428→          <div className="flex justify-end mb-4">
+   429→            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale" onClick={() => setContactOpen(true)}>
+   430→              <Plus className="size-3.5 mr-1.5" /> Add Contact
+   431→            </Button>
+   432→          </div>
+   433→          {contacts.length === 0 ? (
+   434→            <EmptyState icon={Users} title="No contacts found" description="Add contacts to this company to start tracking outreach." actionLabel="Add Contact" onAction={() => setContactOpen(true)} />
+   435→          ) : (
+   436→            <div className="rounded-xl bg-white card-rest overflow-hidden">
+   437→              <Table>
+   438→                <TableHeader>
+   439→                  <TableRow className="border-gray-100 hover:bg-transparent">
+   440→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Name</TableHead>
+   441→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Title</TableHead>
+   442→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Email</TableHead>
+   443→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Health</TableHead>
+   444→                  </TableRow>
+   445→                </TableHeader>
+   446→                <TableBody>
+   447→                  {contacts.map((c: any) => (
+   448→                    <TableRow key={c.id} className="table-row-hover border-gray-50 cursor-pointer" onClick={() => { useAppStore.getState().setSelectedContactId(c.id); setActiveView('contact-profile') }}>
+   449→                      <TableCell className="font-medium text-gray-900 text-sm">{c.name}</TableCell>
+   450→                      <TableCell className="text-sm text-gray-500">{c.jobTitle || '—'}</TableCell>
+   451→                      <TableCell className="text-sm text-gray-500 font-mono">{c.email || '—'}</TableCell>
+   452→                      <TableCell>
+   453→                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${healthVariant(c.emailHealth)}`}>{c.emailHealth || 'unknown'}</span>
+   454→                      </TableCell>
+   455→                    </TableRow>
+   456→                  ))}
+   457→                </TableBody>
+   458→              </Table>
+   459→            </div>
+   460→          )}
+   461→        </TabsContent>
+   462→
+   463→        {/* Research */}
+   464→        <TabsContent value="research" className="mt-5">
+   465→          <div className="rounded-xl bg-white card-rest overflow-hidden">
+   466→            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+   467→              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+   468→                <Sparkles className="size-4 text-amber-500" /> AI Research Card
+   469→              </h3>
+   470→              <Button size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md press-scale shadow-xs" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
+   471→                {generateResearch.isPending ? <Loader2 className="size-3 mr-1 animate-spin" /> : <Sparkles className="size-3 mr-1" />}
+   472→                {generateResearch.isPending ? 'Generating...' : researchCard ? 'Regenerate' : 'Generate AI Research'}
+   473→              </Button>
+   474→            </div>
+   475→            <div className="p-6">
+   476→              {researchCard ? (
+   477→                <>
+   478→                  {researchCard.lastResearchedAt && (
+   479→                    <p className="text-xs text-gray-400 mb-4">Last researched {formatDistanceToNow(new Date(researchCard.lastResearchedAt), { addSuffix: true })}</p>
+   480→                  )}
+   481→                  <div className="grid gap-4 md:grid-cols-2">
+   482→                    {(Object.entries(RESEARCH_LABELS) as [keyof typeof researchCard, typeof RESEARCH_LABELS[string]][]).map(([key, cfg], idx) =>
+   483→                      researchCard[key] ? (
+   484→                        <div key={key} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 50}ms` }}>
+   485→                          <div className="flex items-center gap-2 mb-2">
+   486→                            <cfg.icon className="size-3.5 text-gray-500" />
+   487→                            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
+   488→                          </div>
+   489→                          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{researchCard[key]}</p>
+   490→                        </div>
+   491→                      ) : null,
+   492→                    )}
+   493→                  </div>
+   494→                </>
+   495→              ) : (
+   496→                <EmptyState
+   497→                  icon={FileText}
+   498→                  title="No research generated yet"
+   499→                  description="Click Generate AI Research to create an AI-powered research card with business overview, tech landscape, challenges, and opportunities."
+   500→                  className="py-10"
+   501→                />
+   502→              )}
+   503→            </div>
+   504→          </div>
+   505→        </TabsContent>
+   506→
+   507→        {/* Opportunities */}
+   508→        <TabsContent value="opportunities" className="mt-5">
+   509→          <div className="flex justify-end mb-4">
+   510→            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale" onClick={() => setOppOpen(true)}>
+   511→              <Plus className="size-3.5 mr-1.5" /> Add Opportunity
+   512→            </Button>
+   513→          </div>
+   514→          {opportunities.length === 0 ? (
+   515→            <EmptyState icon={Target} title="No opportunities yet" description="Create opportunities to track potential deals with this company." actionLabel="Add Opportunity" onAction={() => setOppOpen(true)} />
+   516→          ) : (
+   517→            <div className="grid gap-3">
+   518→              {opportunities.map((o: any) => (
+   519→                <div key={o.id} className={`rounded-xl bg-white card-rest border-l-[3px] ${statusBorder(o.status)} p-5 flex items-start justify-between gap-4`}>
+   520→                  <div className="min-w-0">
+   521→                    <p className="text-sm font-semibold text-gray-900">{o.title}</p>
+   522→                    {o.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{o.description}</p>}
+   523→                    {o.nextAction && <p className="text-xs text-gray-400 mt-1">Next: {o.nextAction}</p>}
+   524→                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+   525→                      {o.value && <span className="flex items-center gap-1"><DollarSign className="size-3" />{o.value}</span>}
+   526→                      {o.closeDate && <span className="flex items-center gap-1"><Calendar className="size-3" />{o.closeDate}</span>}
+   527→                    </div>
+   528→                  </div>
+   529→                  <div className="flex items-center gap-2 shrink-0">
+   530→                    <button
+   531→                      onClick={(e) => { e.stopPropagation(); handleOppStatusCycle(o.id, o.status) }}
+   532→                      disabled={updateOppMutation.isPending}
+   533→                      className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border transition-opacity hover:opacity-80 ${oppStatusVariant(o.status)} ${updateOppMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+   534→                      title="Click to cycle status"
+   535→                    >
+   536→                      {updateOppMutation.isPending ? <Loader2 className="size-3 animate-spin inline mr-1" /> : null}
+   537→                      {o.status}
+   538→                    </button>
+   539→                    <button
+   540→                      onClick={(e) => { e.stopPropagation(); deleteOppMutation.mutate(o.id) }}
+   541→                      disabled={deleteOppMutation.isPending}
+   542→                      className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-50"
+   543→                      title="Delete opportunity"
+   544→                    >
+   545→                      {deleteOppMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+   546→                    </button>
+   547→                  </div>
+   548→                </div>
+   549→              ))}
+   550→            </div>
+   551→          )}
+   552→        </TabsContent>
+   553→
+   554→        {/* Timeline */}
+   555→        <TabsContent value="timeline" className="mt-5">
+   556→          {timeline.length === 0 ? (
+   557→            <EmptyState icon={Clock} title="No timeline entries" description="Activity will appear here as you interact with this company." />
+   558→          ) : (
+   559→            <div className="relative pl-6">
+   560→              <div className="absolute left-[7px] top-1 bottom-1 border-l-2 border-gray-200" />
+   561→              <div className="space-y-4">
+   562→                {timeline.map((t: any) => {
+   563→                  const iconData = getActivityIcon(t.action)
+   564→                  const Icon = iconData.icon
+   565→                  return (
+   566→                    <div key={t.id} className="relative flex items-start gap-4 slide-up">
+   567→                      <div className="absolute -left-6 top-1 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
+   568→                      <div className={`shrink-0 mt-0.5 rounded-lg p-1.5 ${iconData.bg}`}>
+   569→                        <Icon className={`size-3.5 ${iconData.color}`} />
+   570→                      </div>
+   571→                      <div className="min-w-0">
+   572→                        <p className="text-sm font-medium text-gray-900 capitalize">{t.action.replace(/_/g, ' ')}</p>
+   573→                        {t.details && <p className="text-sm text-gray-500 mt-0.5">{t.details}</p>}
+   574→                        <p className="text-[11px] text-gray-400 mt-1">{formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}</p>
+   575→                      </div>
+   576→                    </div>
+   577→                  )
+   578→                })}
+   579→              </div>
+   580→            </div>
+   581→          )}
+   582→        </TabsContent>
+   583→
+   584→        {/* Notes */}
+   585→        <TabsContent value="notes" className="mt-5">
+   586→          <div className="flex justify-end mb-4">
+   587→            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale" onClick={() => setNoteOpen(true)}>
+   588→              <Plus className="size-3.5 mr-1.5" /> Add Note
+   589→            </Button>
+   590→          </div>
+   591→          {notes.length === 0 ? (
+   592→            <EmptyState icon={StickyNote} title="No notes yet" description="Add notes to track conversations, insights, and action items." actionLabel="Add Note" onAction={() => setNoteOpen(true)} />
+   593→          ) : (
+   594→            <div className="space-y-3">
+   595→              {notes.map((n: any) => (
+   596→                <div key={n.id} className="rounded-xl bg-white p-5 card-rest slide-up">
+   597→                  <div className="flex items-start justify-between gap-3">
+   598→                    <p className="text-sm text-gray-700 leading-relaxed flex-1">{n.body}</p>
+   599→                    <button
+   600→                      onClick={() => setDeleteNoteId(n.id)}
+   601→                      className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
+   602→                      title="Delete note"
+   603→                    >
+   604→                      <X className="size-3.5" />
+   605→                    </button>
+   606→                  </div>
+   607→                  <div className="flex items-center gap-2 mt-3">
+   608→                    {n.noteType && <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-[11px] font-normal border-0 capitalize">{n.noteType}</Badge>}
+   609→                    <span className="text-[11px] text-gray-400">{formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}</span>
+   610→                  </div>
+   611→                </div>
+   612→              ))}
+   613→            </div>
+   614→          )}
+   615→        </TabsContent>
+   616→      </Tabs>
+   617→
+   618→      {/* ── Delete Note Confirmation Dialog ── */}
+   619→      <Dialog open={!!deleteNoteId} onOpenChange={(open) => { if (!open) setDeleteNoteId(null) }}>
+   620→        <DialogContent className="sm:max-w-sm rounded-xl">
+   621→          <DialogHeader>
+   622→            <DialogTitle className="text-gray-900 flex items-center gap-2">
+   623→              <AlertTriangle className="size-4 text-red-500" /> Delete Note
+   624→            </DialogTitle>
+   625→          </DialogHeader>
+   626→          <p className="text-sm text-gray-600">Are you sure you want to delete this note? This action cannot be undone.</p>
+   627→          <DialogFooter className="gap-2 sm:gap-0">
+   628→            <Button variant="outline" onClick={() => setDeleteNoteId(null)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+   629→            <Button
+   630→              onClick={() => deleteNoteMutation.mutate(deleteNoteId!)}
+   631→              disabled={deleteNoteMutation.isPending}
+   632→              className="bg-red-600 text-white hover:bg-red-700 press-scale"
+   633→            >
+   634→              {deleteNoteMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+   635→              Delete
+   636→            </Button>
+   637→          </DialogFooter>
+   638→        </DialogContent>
+   639→      </Dialog>
+   640→
+   641→      {/* ── Add Note Dialog (existing) ── */}
+   642→      <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
+   643→        <DialogContent className="sm:max-w-md rounded-xl">
+   644→          <DialogHeader><DialogTitle className="text-gray-900">Add Note</DialogTitle></DialogHeader>
+   645→          <div className="space-y-4 py-1">
+   646→            <div className="space-y-1.5">
+   647→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Type</Label>
+   648→              <Select value={noteType} onValueChange={setNoteType}>
+   649→                <SelectTrigger className="w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
+   650→                <SelectContent>
+   651→                  <SelectItem value="call">Call</SelectItem>
+   652→                  <SelectItem value="meeting">Meeting</SelectItem>
+   653→                  <SelectItem value="research">Research</SelectItem>
+   654→                  <SelectItem value="general">General</SelectItem>
+   655→                </SelectContent>
+   656→              </Select>
+   657→            </div>
+   658→            <div className="space-y-1.5">
+   659→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Note</Label>
+   660→              <Textarea value={noteBody} onChange={e => setNoteBody(e.target.value)} rows={3} placeholder="Write your note..." className="resize-none" />
+   661→            </div>
+   662→          </div>
+   663→          <DialogFooter className="gap-2 sm:gap-0">
+   664→            <Button variant="outline" onClick={() => setNoteOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+   665→            <Button onClick={() => addNote.mutate({ body: noteBody, noteType: noteType })} disabled={!noteBody.trim() || addNote.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">Save</Button>
+   666→          </DialogFooter>
+   667→        </DialogContent>
+   668→      </Dialog>
+   669→
+   670→      {/* ── Add Contact Dialog ── */}
+   671→      <Dialog open={contactOpen} onOpenChange={setContactOpen}>
+   672→        <DialogContent className="sm:max-w-md rounded-xl">
+   673→          <DialogHeader><DialogTitle className="text-gray-900">Add Contact</DialogTitle></DialogHeader>
+   674→          <div className="space-y-4 py-1">
+   675→            <div className="space-y-1.5">
+   676→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name *</Label>
+   677→              <Input value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" />
+   678→            </div>
+   679→            <div className="space-y-1.5">
+   680→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</Label>
+   681→              <Input type="email" value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder="email@company.com" />
+   682→            </div>
+   683→            <div className="grid grid-cols-2 gap-3">
+   684→              <div className="space-y-1.5">
+   685→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</Label>
+   686→                <Input value={contactForm.jobTitle} onChange={e => setContactForm(f => ({ ...f, jobTitle: e.target.value }))} placeholder="e.g. VP of Engineering" />
+   687→              </div>
+   688→              <div className="space-y-1.5">
+   689→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Role Bucket</Label>
+   690→                <Select value={contactForm.roleBucket} onValueChange={v => setContactForm(f => ({ ...f, roleBucket: v }))}>
+   691→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select role" /></SelectTrigger>
+   692→                  <SelectContent>
+   693→                    {ROLE_BUCKETS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+   694→                  </SelectContent>
+   695→                </Select>
+   696→              </div>
+   697→            </div>
+   698→            <div className="space-y-1.5">
+   699→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</Label>
+   700→              <Input type="tel" value={contactForm.phone} onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 (555) 000-0000" />
+   701→            </div>
+   702→            <div className="space-y-1.5">
+   703→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">LinkedIn URL</Label>
+   704→              <Input value={contactForm.linkedinUrl} onChange={e => setContactForm(f => ({ ...f, linkedinUrl: e.target.value }))} placeholder="https://linkedin.com/in/..." />
+   705→            </div>
+   706→          </div>
+   707→          <DialogFooter className="gap-2 sm:gap-0">
+   708→            <Button variant="outline" onClick={() => setContactOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+   709→            <Button onClick={handleContactSubmit} disabled={!contactForm.name.trim() || addContact.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">
+   710→              {addContact.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+   711→              Add Contact
+   712→            </Button>
+   713→          </DialogFooter>
+   714→        </DialogContent>
+   715→      </Dialog>
+   716→
+   717→      {/* ── Add Opportunity Dialog ── */}
+   718→      <Dialog open={oppOpen} onOpenChange={setOppOpen}>
+   719→        <DialogContent className="sm:max-w-md rounded-xl">
+   720→          <DialogHeader><DialogTitle className="text-gray-900">Add Opportunity</DialogTitle></DialogHeader>
+   721→          <div className="space-y-4 py-1">
+   722→            <div className="space-y-1.5">
+   723→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Title *</Label>
+   724→              <Input value={oppForm.title} onChange={e => setOppForm(f => ({ ...f, title: e.target.value }))} placeholder="Opportunity title" />
+   725→            </div>
+   726→            <div className="space-y-1.5">
+   727→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Description</Label>
+   728→              <Textarea value={oppForm.description} onChange={e => setOppForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Describe the opportunity..." className="resize-none" />
+   729→            </div>
+   730→            <div className="grid grid-cols-2 gap-3">
+   731→              <div className="space-y-1.5">
+   732→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</Label>
+   733→                <Select value={oppForm.status} onValueChange={v => setOppForm(f => ({ ...f, status: v }))}>
+   734→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select status" /></SelectTrigger>
+   735→                  <SelectContent>
+   736→                    {OPP_STATUSES.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
+   737→                  </SelectContent>
+   738→                </Select>
+   739→              </div>
+   740→              <div className="space-y-1.5">
+   741→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Next Action</Label>
+   742→                <Input value={oppForm.nextAction} onChange={e => setOppForm(f => ({ ...f, nextAction: e.target.value }))} placeholder="What's next?" />
+   743→              </div>
+   744→            </div>
+   745→          </div>
+   746→          <DialogFooter className="gap-2 sm:gap-0">
+   747→            <Button variant="outline" onClick={() => setOppOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+   748→            <Button onClick={handleOppSubmit} disabled={!oppForm.title.trim() || addOpportunity.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">
+   749→              {addOpportunity.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+   750→              Create Opportunity
+   751→            </Button>
+   752→          </DialogFooter>
+   753→        </DialogContent>
+   754→      </Dialog>
+   755→    </div>
+   756→  )
+   757→}

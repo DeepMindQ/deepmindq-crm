@@ -1,0 +1,730 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState } from 'react'
+     4→     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→     5→import {
+     6→     6→  ArrowLeft, ShieldCheck, Sparkles, Plus, Archive, Mail, Phone, MapPin,
+     7→     7→  Building2, Linkedin, Copy, RefreshCw, FileText, Clock, Loader2, X, AlertTriangle,
+     8→     8→  CheckCircle2, XCircle,
+     9→     9→} from 'lucide-react'
+    10→    10→import { toast } from 'sonner'
+    11→    11→import { formatDistanceToNow } from 'date-fns'
+    12→    12→import { useAppStore } from '@/lib/store'
+    13→    13→import { EmptyState, getActivityIcon } from '@/components/shared/design-system'
+    14→    14→import { cn } from '@/lib/utils'
+    15→    15→import { Button } from '@/components/ui/button'
+    16→    16→import { Badge } from '@/components/ui/badge'
+    17→    17→import { Skeleton } from '@/components/ui/skeleton'
+    18→    18→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    19→    19→import {
+    20→    20→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+    21→    21→} from '@/components/ui/dialog'
+    22→    22→import { Textarea } from '@/components/ui/textarea'
+    23→    23→import { Label } from '@/components/ui/label'
+    24→    24→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    25→    25→import { Input } from '@/components/ui/input'
+    26→    26→
+    27→    27→/* ── Helpers ── */
+    28→    28→
+    29→    29→const healthVariant = (h: string) =>
+    30→    30→  h === 'valid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+    31→    31→  : h === 'risky' ? 'bg-amber-50 text-amber-700 border border-amber-200'
+    32→    32→  : h === 'invalid' ? 'bg-red-50 text-red-700 border border-red-200'
+    33→    33→  : 'bg-gray-100 text-gray-600 border border-gray-200'
+    34→    34→
+    35→    35→const draftStatusVariant = (s: string) =>
+    36→    36→  s === 'sent' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+    37→    37→  : s === 'rejected' ? 'bg-red-50 text-red-700 border border-red-200'
+    38→    38→  : 'bg-gray-100 text-gray-600 border border-gray-200'
+    39→    39→
+    40→    40→const matchScoreColor = (score: number | null) =>
+    41→    41→  score == null ? 'text-gray-400' : score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-red-500'
+    42→    42→
+    43→    43→/* ── Component ── */
+    44→    44→
+    45→    45→export default function ContactDetailScreen() {
+    46→    46→  const { selectedContactId, setActiveView } = useAppStore()
+    47→    47→  const qc = useQueryClient()
+    48→    48→
+    49→    49→  const [noteOpen, setNoteOpen] = useState(false)
+    50→    50→  const [noteBody, setNoteBody] = useState('')
+    51→    51→  const [noteType, setNoteType] = useState('')
+    52→    52→
+    53→    53→  // Delete note confirmation state
+    54→    54→  const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null)
+    55→    55→
+    56→    56→  const [editOpen, setEditOpen] = useState(false)
+    57→    57→  const [editForm, setEditForm] = useState({
+    58→    58→    name: '',
+    59→    59→    email: '',
+    60→    60→    jobTitle: '',
+    61→    61→    roleBucket: '',
+    62→    62→    phone: '',
+    63→    63→    location: '',
+    64→    64→    linkedinUrl: '',
+    65→    65→  })
+    66→    66→
+    67→    67→  /* ── Query ── */
+    68→    68→  const { data, isLoading } = useQuery({
+    69→    69→    queryKey: ['contact', selectedContactId],
+    70→    70→    queryFn: () => fetch(`/api/contacts/${selectedContactId}`).then(r => r.json()),
+    71→    71→    enabled: !!selectedContactId,
+    72→    72→  })
+    73→    73→
+    74→    74→  /* ── Mutations ── */
+    75→    75→  const addNote = useMutation({
+    76→    76→    mutationFn: (body: { body: string; noteType: string }) =>
+    77→    77→      fetch('/api/notes', {
+    78→    78→        method: 'POST',
+    79→    79→        headers: { 'Content-Type': 'application/json' },
+    80→    80→        body: JSON.stringify({ ...body, contactId: selectedContactId }),
+    81→    81→      }).then(r => r.json()),
+    82→    82→    onSuccess: () => {
+    83→    83→      qc.invalidateQueries({ queryKey: ['contact'] })
+    84→    84→      setNoteOpen(false)
+    85→    85→      setNoteBody('')
+    86→    86→      setNoteType('')
+    87→    87→      toast.success('Note added')
+    88→    88→    },
+    89→    89→    onError: () => toast.error('Failed to add note'),
+    90→    90→  })
+    91→    91→
+    92→    92→  const archiveContact = useMutation({
+    93→    93→    mutationFn: () =>
+    94→    94→      fetch(`/api/contacts/${selectedContactId}`, { method: 'DELETE' }).then(r => r.json()),
+    95→    95→    onSuccess: () => {
+    96→    96→      qc.invalidateQueries({ queryKey: ['contact'] })
+    97→    97→      qc.invalidateQueries({ queryKey: ['contacts'] })
+    98→    98→      toast.success('Contact archived')
+    99→    99→      setActiveView('contacts')
+   100→   100→    },
+   101→   101→    onError: () => toast.error('Failed to archive contact'),
+   102→   102→  })
+   103→   103→
+   104→   104→  const editContact = useMutation({
+   105→   105→    mutationFn: (form: typeof editForm) =>
+   106→   106→      fetch(`/api/contacts/${selectedContactId}`, {
+   107→   107→        method: 'PATCH',
+   108→   108→        headers: { 'Content-Type': 'application/json' },
+   109→   109→        body: JSON.stringify(form),
+   110→   110→      }).then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Failed to update contact') })),
+   111→   111→    onSuccess: () => {
+   112→   112→      qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
+   113→   113→      qc.invalidateQueries({ queryKey: ['contacts'] })
+   114→   114→      setEditOpen(false)
+   115→   115→      toast.success('Contact updated')
+   116→   116→    },
+   117→   117→    onError: (e: Error) => toast.error(e.message),
+   118→   118→  })
+   119→   119→
+   120→   120→  const openEditDialog = () => {
+   121→   121→    setEditForm({
+   122→   122→      name: data.name || '',
+   123→   123→      email: data.email || '',
+   124→   124→      jobTitle: data.jobTitle || '',
+   125→   125→      roleBucket: data.roleBucket || '',
+   126→   126→      phone: data.phone || '',
+   127→   127→      location: data.location || '',
+   128→   128→      linkedinUrl: data.linkedinUrl || '',
+   129→   129→    })
+   130→   130→    setEditOpen(true)
+   131→   131→  }
+   132→   132→
+   133→   133→  const validateEmail = useMutation({
+   134→   134→    mutationFn: () =>
+   135→   135→      fetch(`/api/contacts/${selectedContactId}/validate`, {
+   136→   136→        method: 'POST',
+   137→   137→      }).then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Validation failed') })),
+   138→   138→    onSuccess: () => {
+   139→   139→      qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
+   140→   140→      toast.success('Email validated')
+   141→   141→    },
+   142→   142→    onError: (e: Error) => toast.error(e.message),
+   143→   143→  })
+   144→   144→
+   145→   145→  const regenerateDraft = useMutation({
+   146→   146→    mutationFn: () =>
+   147→   147→      fetch(`/api/contacts/${selectedContactId}/generate-email`, {
+   148→   148→        method: 'POST',
+   149→   149→        headers: { 'Content-Type': 'application/json' },
+   150→   150→        body: JSON.stringify({}),
+   151→   151→      }).then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Regeneration failed') })),
+   152→   152→    onSuccess: () => {
+   153→   153→      qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
+   154→   154→      toast.success('Draft regenerated')
+   155→   155→    },
+   156→   156→    onError: (e: Error) => toast.error(e.message),
+   157→   157→  })
+   158→   158→
+   159→   159→  // ── Update Draft Status mutation ──
+   160→   160→  const updateDraftStatus = useMutation({
+   161→   161→    mutationFn: ({ id, status }: { id: string; status: string }) =>
+   162→   162→      fetch(`/api/drafts/${id}`, {
+   163→   163→        method: 'PATCH',
+   164→   164→        headers: { 'Content-Type': 'application/json' },
+   165→   165→        body: JSON.stringify({ status }),
+   166→   166→      }).then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Failed to update draft') })),
+   167→   167→    onSuccess: () => {
+   168→   168→      qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
+   169→   169→      toast.success('Draft status updated')
+   170→   170→    },
+   171→   171→    onError: (e: Error) => toast.error(e.message),
+   172→   172→  })
+   173→   173→
+   174→   174→  // ── Delete Note mutation ──
+   175→   175→  const deleteNoteMutation = useMutation({
+   176→   176→    mutationFn: (noteId: string) =>
+   177→   177→      fetch(`/api/notes?id=${noteId}&type=contact`, { method: 'DELETE' }).then(r => r.json()),
+   178→   178→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['contact', selectedContactId] }); setDeleteNoteId(null); toast.success('Note deleted') },
+   179→   179→    onError: () => toast.error('Failed to delete note'),
+   180→   180→  })
+   181→   181→
+   182→   182→  /* ── Handlers ── */
+   183→   183→  const handleGenerateEmail = () => {
+   184→   184→    useAppStore.getState().setSelectedContactId(selectedContactId)
+   185→   185→    useAppStore.getState().setActiveView('email-generation')
+   186→   186→  }
+   187→   187→
+   188→   188→  /* ── Guards ── */
+   189→   189→  if (!selectedContactId) {
+   190→   190→    return (
+   191→   191→      <EmptyState
+   192→   192→        icon={Mail}
+   193→   193→        title="No contact selected"
+   194→   194→        description="Go back to Contacts and select one."
+   195→   195→        actionLabel="Back to Contacts"
+   196→   196→        onAction={() => setActiveView('contacts')}
+   197→   197→      />
+   198→   198→    )
+   199→   199→  }
+   200→   200→
+   201→   201→  if (isLoading) {
+   202→   202→    return (
+   203→   203→      <div className="space-y-4">
+   204→   204→        <Skeleton className="h-8 w-48" />
+   205→   205→        <Skeleton className="h-32" />
+   206→   206→        <Skeleton className="h-64" />
+   207→   207→      </div>
+   208→   208→    )
+   209→   209→  }
+   210→   210→
+   211→   211→  if (!data) {
+   212→   212→    return (
+   213→   213→      <EmptyState
+   214→   214→        icon={Mail}
+   215→   215→        title="Contact not found"
+   216→   216→        description="This contact may have been deleted."
+   217→   217→        actionLabel="Back to Contacts"
+   218→   218→        onAction={() => setActiveView('contacts')}
+   219→   219→      />
+   220→   220→    )
+   221→   221→  }
+   222→   222→
+   223→   223→  const { notes = [], timeline = [], drafts = [], healthChecks = [] } = data
+   224→   224→  const latestCheck = healthChecks[0] ?? null
+   225→   225→
+   226→   226→  return (
+   227→   227→    <div className="space-y-6">
+   228→   228→      {/* ════════════ Header ════════════ */}
+   229→   229→      <div className="rounded-xl bg-white p-4 md:p-6 card-rest slide-up">
+   230→   230→        <div className="flex items-start gap-4 md:gap-5">
+   231→   231→          {/* Avatar */}
+   232→   232→          <div className="size-12 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+   233→   233→            <span className="text-lg font-bold text-amber-700">{data.name?.charAt(0)?.toUpperCase()}</span>
+   234→   234→          </div>
+   235→   235→
+   236→   236→          {/* Info */}
+   237→   237→          <div className="flex-1 min-w-0">
+   238→   238→            <div className="flex items-center gap-2 flex-wrap">
+   239→   239→              <button
+   240→   240→                onClick={() => setActiveView('contacts')}
+   241→   241→                className="text-gray-400 hover:text-gray-700 transition-colors"
+   242→   242→              >
+   243→   243→                <ArrowLeft className="size-4" />
+   244→   244→              </button>
+   245→   245→              <h2 className="text-xl font-bold text-gray-900 tracking-tight truncate">{data.name}</h2>
+   246→   246→              {data.jobTitle && (
+   247→   247→                <span className="text-sm text-gray-500">{data.jobTitle}</span>
+   248→   248→              )}
+   249→   249→            </div>
+   250→   250→
+   251→   251→            <div className="flex items-center gap-3 mt-2 flex-wrap">
+   252→   252→              {data.company?.name && (
+   253→   253→                <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-xs font-normal border-0">
+   254→   254→                  {data.company.name}
+   255→   255→                </Badge>
+   256→   256→              )}
+   257→   257→              {data.email && (
+   258→   258→                <span className="text-xs font-mono text-gray-500">{data.email}</span>
+   259→   259→              )}
+   260→   260→              {data.linkedinUrl && (
+   261→   261→                <a
+   262→   262→                  href={data.linkedinUrl}
+   263→   263→                  target="_blank"
+   264→   264→                  rel="noopener noreferrer"
+   265→   265→                  className="text-gray-400 hover:text-blue-600 transition-colors"
+   266→   266→                >
+   267→   267→                  <Linkedin className="size-3.5" />
+   268→   268→                </a>
+   269→   269→              )}
+   270→   270→            </div>
+   271→   271→
+   272→   272→            {/* Action Buttons */}
+   273→   273→            <div className="flex items-center gap-2 mt-4 flex-wrap">
+   274→   274→              <Button
+   275→   275→                size="sm"
+   276→   276→                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg press-scale shadow-xs"
+   277→   277→                onClick={() => validateEmail.mutate()}
+   278→   278→                disabled={validateEmail.isPending}
+   279→   279→              >
+   280→   280→                {validateEmail.isPending ? (
+   281→   281→                  <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+   282→   282→                ) : (
+   283→   283→                  <ShieldCheck className="size-3.5 mr-1.5" />
+   284→   284→                )}
+   285→   285→                {validateEmail.isPending ? 'Validating...' : 'Validate Email'}
+   286→   286→              </Button>
+   287→   287→              <Button
+   288→   288→                size="sm"
+   289→   289→                className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg press-scale shadow-xs"
+   290→   290→                onClick={handleGenerateEmail}
+   291→   291→              >
+   292→   292→                <Sparkles className="size-3.5 mr-1.5" /> Generate Email
+   293→   293→              </Button>
+   294→   294→              <Button
+   295→   295→                size="sm"
+   296→   296→                variant="outline"
+   297→   297→                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg"
+   298→   298→                onClick={() => setNoteOpen(true)}
+   299→   299→              >
+   300→   300→                <Plus className="size-3.5 mr-1.5" /> Add Note
+   301→   301→              </Button>
+   302→   302→              <Button
+   303→   303→                size="sm"
+   304→   304→                variant="outline"
+   305→   305→                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg"
+   306→   306→                onClick={openEditDialog}
+   307→   307→              >
+   308→   308→                <FileText className="size-3.5 mr-1.5" /> Edit
+   309→   309→              </Button>
+   310→   310→              <Button
+   311→   311→                size="sm"
+   312→   312→                variant="outline"
+   313→   313→                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg"
+   314→   314→                onClick={() => archiveContact.mutate()}
+   315→   315→                disabled={archiveContact.isPending}
+   316→   316→              >
+   317→   317→                <Archive className="size-3.5 mr-1.5" /> Archive
+   318→   318→              </Button>
+   319→   319→              {data.companyId && (
+   320→   320→                <Button
+   321→   321→                  variant="outline"
+   322→   322→                  size="sm"
+   323→   323→                  className="h-8 text-xs gap-1.5 border-gray-200 text-gray-600 rounded-lg"
+   324→   324→                  onClick={() => { useAppStore.getState().setSelectedCompanyId(data.companyId); setActiveView('company-profile') }}
+   325→   325→                >
+   326→   326→                  <Building2 className="size-3.5" /> View Company
+   327→   327→                </Button>
+   328→   328→              )}
+   329→   329→            </div>
+   330→   330→          </div>
+   331→   331→        </div>
+   332→   332→      </div>
+   333→   333→
+   334→   334→      {/* ════════════ Tabs ════════════ */}
+   335→   335→      <Tabs defaultValue="overview">
+   336→   336→        <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 overflow-x-auto">
+   337→   337→          {['overview', 'notes', 'activity', 'drafts'].map((tab) => (
+   338→   338→            <TabsTrigger
+   339→   339→              key={tab}
+   340→   340→              value={tab}
+   341→   341→              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5"
+   342→   342→            >
+   343→   343→              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+   344→   344→              {tab === 'notes' && notes.length > 0 && (
+   345→   345→                <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{notes.length}</span>
+   346→   346→              )}
+   347→   347→              {tab === 'activity' && timeline.length > 0 && (
+   348→   348→                <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{timeline.length}</span>
+   349→   349→              )}
+   350→   350→              {tab === 'drafts' && drafts.length > 0 && (
+   351→   351→                <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{drafts.length}</span>
+   352→   352→              )}
+   353→   353→            </TabsTrigger>
+   354→   354→          ))}
+   355→   355→        </TabsList>
+   356→   356→
+   357→   357→        {/* ── Overview ── */}
+   358→   358→        <TabsContent value="overview" className="space-y-6 mt-5">
+   359→   359→          {/* Info Grid */}
+   360→   360→          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+   361→   361→            {([
+   362→   362→              ['Email', data.email, Mail],
+   363→   363→              ['Phone', data.phone, Phone],
+   364→   364→              ['Job Title', data.jobTitle, FileText],
+   365→   365→              ['Role', data.roleBucket, Building2],
+   366→   366→              ['Company', data.company?.name, Building2],
+   367→   367→              ['Location', data.location, MapPin],
+   368→   368→            ] as const).map(([label, val, Icon]) => (
+   369→   369→              <div key={label} className="rounded-xl bg-white p-6 card-rest">
+   370→   370→                <div className="flex items-center gap-2 mb-1">
+   371→   371→                  <Icon className="size-3.5 text-gray-400" />
+   372→   372→                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{label}</p>
+   373→   373→                </div>
+   374→   374→                <p className="text-sm font-semibold text-gray-900 capitalize">{val || '—'}</p>
+   375→   375→              </div>
+   376→   376→            ))}
+   377→   377→          </div>
+   378→   378→
+   379→   379→          {/* Email Health */}
+   380→   380→          <div className="rounded-xl bg-white p-6 card-rest">
+   381→   381→            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-4">
+   382→   382→              <ShieldCheck className="size-4 text-gray-400" /> Email Health
+   383→   383→            </h3>
+   384→   384→            {data.emailHealth ? (
+   385→   385→              <div className="flex items-center gap-4 flex-wrap">
+   386→   386→                <span className={cn('inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium', healthVariant(data.emailHealth))}>
+   387→   387→                  {data.emailHealth}
+   388→   388→                </span>
+   389→   389→                {data.emailHealthScore != null && (
+   390→   390→                  <span className="text-sm text-gray-500">
+   391→   391→                    Score: <span className="font-semibold text-gray-900">{data.emailHealthScore}/100</span>
+   392→   392→                  </span>
+   393→   393→                )}
+   394→   394→                {data.lastValidatedAt && (
+   395→   395→                  <span className="text-xs text-gray-400 flex items-center gap-1">
+   396→   396→                    <Clock className="size-3" />
+   397→   397→                    Last validated {formatDistanceToNow(new Date(data.lastValidatedAt), { addSuffix: true })}
+   398→   398→                  </span>
+   399→   399→                )}
+   400→   400→              </div>
+   401→   401→            ) : latestCheck ? (
+   402→   402→              <div className="flex items-center gap-4 flex-wrap">
+   403→   403→                <span className={cn('inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium', healthVariant(latestCheck.status))}>
+   404→   404→                  {latestCheck.status}
+   405→   405→                </span>
+   406→   406→                <span className="text-sm text-gray-500">
+   407→   407→                  Score: <span className="font-semibold text-gray-900">{latestCheck.score}/100</span>
+   408→   408→                </span>
+   409→   409→                <span className="text-xs text-gray-400 flex items-center gap-1">
+   410→   410→                  <Clock className="size-3" />
+   411→   411→                  Last validated {formatDistanceToNow(new Date(latestCheck.checkedAt), { addSuffix: true })}
+   412→   412→                </span>
+   413→   413→              </div>
+   414→   414→            ) : (
+   415→   415→              <p className="text-sm text-gray-500">No email validation performed yet.</p>
+   416→   416→            )}
+   417→   417→          </div>
+   418→   418→        </TabsContent>
+   419→   419→
+   420→   420→        {/* ── Notes ── */}
+   421→   421→        <TabsContent value="notes" className="mt-5">
+   422→   422→          <div className="flex justify-end mb-4">
+   423→   423→            <Button
+   424→   424→              size="sm"
+   425→   425→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale"
+   426→   426→              onClick={() => setNoteOpen(true)}
+   427→   427→            >
+   428→   428→              <Plus className="size-3.5 mr-1.5" /> Add Note
+   429→   429→            </Button>
+   430→   430→          </div>
+   431→   431→          {notes.length === 0 ? (
+   432→   432→            <EmptyState
+   433→   433→              icon={FileText}
+   434→   434→              title="No notes yet"
+   435→   435→              description="Add notes to track conversations, insights, and action items for this contact."
+   436→   436→              actionLabel="Add Note"
+   437→   437→              onAction={() => setNoteOpen(true)}
+   438→   438→            />
+   439→   439→          ) : (
+   440→   440→            <div className="space-y-3">
+   441→   441→              {notes.map((n: any) => (
+   442→   442→                <div key={n.id} className="rounded-xl bg-white p-5 card-rest slide-up">
+   443→   443→                  <div className="flex items-start justify-between gap-3">
+   444→   444→                    <p className="text-sm text-gray-700 leading-relaxed flex-1">{n.body}</p>
+   445→   445→                    <button
+   446→   446→                      onClick={() => setDeleteNoteId(n.id)}
+   447→   447→                      className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
+   448→   448→                      title="Delete note"
+   449→   449→                    >
+   450→   450→                      <X className="size-3.5" />
+   451→   451→                    </button>
+   452→   452→                  </div>
+   453→   453→                  <div className="flex items-center gap-2 mt-3">
+   454→   454→                    {n.noteType && (
+   455→   455→                      <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-[11px] font-normal border-0 capitalize">
+   456→   456→                        {n.noteType}
+   457→   457→                      </Badge>
+   458→   458→                    )}
+   459→   459→                    <span className="text-[11px] text-gray-400">
+   460→   460→                      {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+   461→   461→                    </span>
+   462→   462→                  </div>
+   463→   463→                </div>
+   464→   464→              ))}
+   465→   465→            </div>
+   466→   466→          )}
+   467→   467→        </TabsContent>
+   468→   468→
+   469→   469→        {/* ── Activity ── */}
+   470→   470→        <TabsContent value="activity" className="mt-5">
+   471→   471→          {timeline.length === 0 ? (
+   472→   472→            <EmptyState
+   473→   473→              icon={Clock}
+   474→   474→              title="No activity yet"
+   475→   475→              description="Activity will appear here as you interact with this contact."
+   476→   476→            />
+   477→   477→          ) : (
+   478→   478→            <div className="relative pl-6">
+   479→   479→              <div className="absolute left-[7px] top-1 bottom-1 border-l-2 border-gray-200" />
+   480→   480→              <div className="space-y-4">
+   481→   481→                {timeline.map((t: any) => {
+   482→   482→                  const iconData = getActivityIcon(t.action)
+   483→   483→                  const Icon = iconData.icon
+   484→   484→                  return (
+   485→   485→                    <div key={t.id} className="relative flex items-start gap-4 slide-up">
+   486→   486→                      <div className="absolute -left-6 top-1 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
+   487→   487→                      <div className={cn('shrink-0 mt-0.5 rounded-lg p-1.5', iconData.bg)}>
+   488→   488→                        <Icon className={cn('size-3.5', iconData.color)} />
+   489→   489→                      </div>
+   490→   490→                      <div className="min-w-0">
+   491→   491→                        <p className="text-sm font-medium text-gray-900 capitalize">
+   492→   492→                          {t.action.replace(/_/g, ' ')}
+   493→   493→                        </p>
+   494→   494→                        {t.details && (
+   495→   495→                          <p className="text-sm text-gray-500 mt-0.5">{t.details}</p>
+   496→   496→                        )}
+   497→   497→                        <p className="text-[11px] text-gray-400 mt-1">
+   498→   498→                          {formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}
+   499→   499→                        </p>
+   500→   500→                      </div>
+   501→   501→                    </div>
+   502→   502→                  )
+   503→   503→                })}
+   504→   504→              </div>
+   505→   505→            </div>
+   506→   506→          )}
+   507→   507→        </TabsContent>
+   508→   508→
+   509→   509→        {/* ── Drafts ── */}
+   510→   510→        <TabsContent value="drafts" className="mt-5">
+   511→   511→          {drafts.length === 0 ? (
+   512→   512→            <EmptyState
+   513→   513→              icon={Sparkles}
+   514→   514→              title="No drafts yet"
+   515→   515→              description="Generate AI-powered email drafts for this contact to get started."
+   516→   516→            />
+   517→   517→          ) : (
+   518→   518→            <div className="space-y-3">
+   519→   519→              {drafts.map((d: any) => (
+   520→   520→                <div key={d.id} className="rounded-xl bg-white p-5 card-rest slide-up">
+   521→   521→                  <div className="flex items-start justify-between gap-3">
+   522→   522→                    <div className="min-w-0 flex-1">
+   523→   523→                      <p className="text-sm font-semibold text-gray-900 truncate">{d.subject || 'Untitled Draft'}</p>
+   524→   524→                      <p className="text-sm text-gray-500 mt-1 line-clamp-2 leading-relaxed">{d.body}</p>
+   525→   525→                    </div>
+   526→   526→                    <div className="flex items-center gap-2 shrink-0">
+   527→   527→                      {d.matchScore != null && (
+   528→   528→                        <span className={cn('text-xs font-semibold', matchScoreColor(d.matchScore))}>
+   529→   529→                          {d.matchScore}%
+   530→   530→                        </span>
+   531→   531→                      )}
+   532→   532→                      <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border', draftStatusVariant(d.status))}>
+   533→   533→                        {d.status}
+   534→   534→                      </span>
+   535→   535→                    </div>
+   536→   536→                  </div>
+   537→   537→                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+   538→   538→                    <Button
+   539→   539→                      size="sm"
+   540→   540→                      variant="outline"
+   541→   541→                      className="h-7 text-xs border-gray-200 text-gray-600 rounded-md"
+   542→   542→                      onClick={() => regenerateDraft.mutate()}
+   543→   543→                      disabled={regenerateDraft.isPending}
+   544→   544→                    >
+   545→   545→                      {regenerateDraft.isPending ? (
+   546→   546→                        <Loader2 className="size-3 mr-1 animate-spin" />
+   547→   547→                      ) : (
+   548→   548→                        <RefreshCw className="size-3 mr-1" />
+   549→   549→                      )}
+   550→   550→                      {regenerateDraft.isPending ? 'Regenerating...' : 'Regenerate'}
+   551→   551→                    </Button>
+   552→   552→                    <Button
+   553→   553→                      size="sm"
+   554→   554→                      variant="outline"
+   555→   555→                      className="h-7 text-xs border-gray-200 text-gray-600 rounded-md"
+   556→   556→                      onClick={() => {
+   557→   557→                        navigator.clipboard.writeText(d.body)
+   558→   558→                        toast.success('Draft copied to clipboard')
+   559→   559→                      }}
+   560→   560→                    >
+   561→   561→                      <Copy className="size-3 mr-1" /> Copy
+   562→   562→                    </Button>
+   563→   563→                    {d.status === 'draft' && (
+   564→   564→                      <div className="flex items-center gap-1">
+   565→   565→                        <Button
+   566→   566→                          size="sm"
+   567→   567→                          variant="outline"
+   568→   568→                          className="h-7 text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-md"
+   569→   569→                          onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'sent' })}
+   570→   570→                          disabled={updateDraftStatus.isPending}
+   571→   571→                        >
+   572→   572→                          <CheckCircle2 className="size-3 mr-1" /> Mark Sent
+   573→   573→                        </Button>
+   574→   574→                        <Button
+   575→   575→                          size="sm"
+   576→   576→                          variant="outline"
+   577→   577→                          className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md"
+   578→   578→                          onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'rejected' })}
+   579→   579→                          disabled={updateDraftStatus.isPending}
+   580→   580→                        >
+   581→   581→                          <XCircle className="size-3 mr-1" /> Reject
+   582→   582→                        </Button>
+   583→   583→                      </div>
+   584→   584→                    )}
+   585→   585→                    <span className="text-[11px] text-gray-400 ml-auto">
+   586→   586→                      {formatDistanceToNow(new Date(d.createdAt), { addSuffix: true })}
+   587→   587→                    </span>
+   588→   588→                  </div>
+   589→   589→                </div>
+   590→   590→              ))}
+   591→   591→            </div>
+   592→   592→          )}
+   593→   593→        </TabsContent>
+   594→   594→      </Tabs>
+   595→   595→
+   596→   596→      {/* ── Delete Note Confirmation Dialog ── */}
+   597→   597→      <Dialog open={!!deleteNoteId} onOpenChange={(open) => { if (!open) setDeleteNoteId(null) }}>
+   598→   598→        <DialogContent className="sm:max-w-sm rounded-xl">
+   599→   599→          <DialogHeader>
+   600→   600→            <DialogTitle className="text-gray-900 flex items-center gap-2">
+   601→   601→              <AlertTriangle className="size-4 text-red-500" /> Delete Note
+   602→   602→            </DialogTitle>
+   603→   603→          </DialogHeader>
+   604→   604→          <p className="text-sm text-gray-600">Are you sure you want to delete this note? This action cannot be undone.</p>
+   605→   605→          <DialogFooter className="gap-2 sm:gap-0">
+   606→   606→            <Button variant="outline" onClick={() => setDeleteNoteId(null)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+   607→   607→            <Button
+   608→   608→              onClick={() => deleteNoteMutation.mutate(deleteNoteId!)}
+   609→   609→              disabled={deleteNoteMutation.isPending}
+   610→   610→              className="bg-red-600 text-white hover:bg-red-700 press-scale"
+   611→   611→            >
+   612→   612→              {deleteNoteMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+   613→   613→              Delete
+   614→   614→            </Button>
+   615→   615→          </DialogFooter>
+   616→   616→        </DialogContent>
+   617→   617→      </Dialog>
+   618→   618→
+   619→   619→      {/* ════════════ Edit Contact Dialog ════════════ */}
+   620→   620→      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+   621→   621→        <DialogContent className="sm:max-w-md rounded-xl">
+   622→   622→          <DialogHeader>
+   623→   623→            <DialogTitle className="text-gray-900">Edit Contact</DialogTitle>
+   624→   624→          </DialogHeader>
+   625→   625→          <div className="space-y-4 py-1">
+   626→   626→            <div className="space-y-1.5">
+   627→   627→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name *</Label>
+   628→   628→              <Input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" />
+   629→   629→            </div>
+   630→   630→            <div className="space-y-1.5">
+   631→   631→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</Label>
+   632→   632→              <Input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} placeholder="email@company.com" />
+   633→   633→            </div>
+   634→   634→            <div className="grid grid-cols-2 gap-3">
+   635→   635→              <div className="space-y-1.5">
+   636→   636→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</Label>
+   637→   637→                <Input value={editForm.jobTitle} onChange={e => setEditForm(f => ({ ...f, jobTitle: e.target.value }))} placeholder="e.g. VP Engineering" />
+   638→   638→              </div>
+   639→   639→              <div className="space-y-1.5">
+   640→   640→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Role Bucket</Label>
+   641→   641→                <Select value={editForm.roleBucket} onValueChange={v => setEditForm(f => ({ ...f, roleBucket: v }))}>
+   642→   642→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select role" /></SelectTrigger>
+   643→   643→                  <SelectContent>
+   644→   644→                    {['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+   645→   645→                  </SelectContent>
+   646→   646→                </Select>
+   647→   647→              </div>
+   648→   648→            </div>
+   649→   649→            <div className="grid grid-cols-2 gap-3">
+   650→   650→              <div className="space-y-1.5">
+   651→   651→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</Label>
+   652→   652→                <Input type="tel" value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 (555) 000-0000" />
+   653→   653→              </div>
+   654→   654→              <div className="space-y-1.5">
+   655→   655→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Location</Label>
+   656→   656→                <Input value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} placeholder="City, Country" />
+   657→   657→              </div>
+   658→   658→            </div>
+   659→   659→            <div className="space-y-1.5">
+   660→   660→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">LinkedIn URL</Label>
+   661→   661→              <Input value={editForm.linkedinUrl} onChange={e => setEditForm(f => ({ ...f, linkedinUrl: e.target.value }))} placeholder="https://linkedin.com/in/..." />
+   662→   662→            </div>
+   663→   663→          </div>
+   664→   664→          <DialogFooter className="gap-2 sm:gap-0">
+   665→   665→            <Button variant="outline" onClick={() => setEditOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+   666→   666→            <Button
+   667→   667→              onClick={() => editContact.mutate(editForm)}
+   668→   668→              disabled={!editForm.name.trim() || editContact.isPending}
+   669→   669→              className="bg-gray-900 text-white hover:bg-gray-800 press-scale"
+   670→   670→            >
+   671→   671→              {editContact.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+   672→   672→              Save Changes
+   673→   673→            </Button>
+   674→   674→          </DialogFooter>
+   675→   675→        </DialogContent>
+   676→   676→      </Dialog>
+   677→   677→
+   678→   678→      {/* ════════════ Add Note Dialog ════════════ */}
+   679→   679→      <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
+   680→   680→        <DialogContent className="sm:max-w-md rounded-xl">
+   681→   681→          <DialogHeader>
+   682→   682→            <DialogTitle className="text-gray-900">Add Note</DialogTitle>
+   683→   683→          </DialogHeader>
+   684→   684→          <div className="space-y-4 py-1">
+   685→   685→            <div className="space-y-1.5">
+   686→   686→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Type</Label>
+   687→   687→              <Select value={noteType} onValueChange={setNoteType}>
+   688→   688→                <SelectTrigger className="w-full">
+   689→   689→                  <SelectValue placeholder="Select type" />
+   690→   690→                </SelectTrigger>
+   691→   691→                <SelectContent>
+   692→   692→                  <SelectItem value="call">Call</SelectItem>
+   693→   693→                  <SelectItem value="meeting">Meeting</SelectItem>
+   694→   694→                  <SelectItem value="research">Research</SelectItem>
+   695→   695→                  <SelectItem value="general">General</SelectItem>
+   696→   696→                </SelectContent>
+   697→   697→              </Select>
+   698→   698→            </div>
+   699→   699→            <div className="space-y-1.5">
+   700→   700→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Note</Label>
+   701→   701→              <Textarea
+   702→   702→                value={noteBody}
+   703→   703→                onChange={(e) => setNoteBody(e.target.value)}
+   704→   704→                rows={3}
+   705→   705→                placeholder="Write your note..."
+   706→   706→                className="resize-none"
+   707→   707→              />
+   708→   708→            </div>
+   709→   709→          </div>
+   710→   710→          <DialogFooter className="gap-2 sm:gap-0">
+   711→   711→            <Button
+   712→   712→              variant="outline"
+   713→   713→              onClick={() => setNoteOpen(false)}
+   714→   714→              className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900"
+   715→   715→            >
+   716→   716→              Cancel
+   717→   717→            </Button>
+   718→   718→            <Button
+   719→   719→              onClick={() => addNote.mutate({ body: noteBody, noteType: noteType })}
+   720→   720→              disabled={!noteBody.trim() || addNote.isPending}
+   721→   721→              className="bg-gray-900 text-white hover:bg-gray-800 press-scale"
+   722→   722→            >
+   723→   723→              Save
+   724→   724→            </Button>
+   725→   725→          </DialogFooter>
+   726→   726→        </DialogContent>
+   727→   727→      </Dialog>
+   728→   728→    </div>
+   729→   729→  )
+   730→   730→}

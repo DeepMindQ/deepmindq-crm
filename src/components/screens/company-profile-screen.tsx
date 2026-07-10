@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Building2, Globe, MapPin, Users, Plus, Target, StickyNote, FileText,
   Sparkles, Mail, Phone, ExternalLink, Linkedin, DollarSign, Calendar,
-  CheckCircle2, XCircle, Clock, BarChart3, Loader2, X, AlertTriangle,
+  CheckCircle2, Clock, BarChart3, Loader2, X, AlertTriangle, Trash2,
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import { formatDistanceToNow } from 'date-fns'
@@ -13,7 +13,6 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -54,8 +53,8 @@ const researchColors = [
   'bg-cyan-50 border-cyan-100', 'bg-orange-50 border-orange-100',
 ]
 
-const STATUS_CYCLE = ['new', 'researching', 'contacted', 'qualified', 'ready', 'archived'] as const
-const OPP_STATUS_CYCLE = ['researching', 'contacted', 'qualified', 'ready', 'won', 'lost'] as const
+const STATUS_CYCLE = ['new', 'researching', 'contacted', 'qualified', 'ready', 'won', 'lost'] as const
+const OPP_STATUS_CYCLE = ['researching', 'contacted', 'qualified', 'proposed', 'negotiation', 'won', 'lost'] as const
 
 const ROLE_BUCKETS = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'] as const
 const OPP_STATUSES = ['researching', 'contacted', 'proposed', 'negotiation', 'won', 'lost'] as const
@@ -65,6 +64,8 @@ const oppStatusVariant = (s: string) => {
     case 'researching': return 'bg-blue-50 text-blue-700 border-blue-200'
     case 'contacted': return 'bg-violet-50 text-violet-700 border-violet-200'
     case 'qualified': return 'bg-amber-50 text-amber-700 border-amber-200'
+    case 'proposed': return 'bg-indigo-50 text-indigo-700 border-indigo-200'
+    case 'negotiation': return 'bg-orange-50 text-orange-700 border-orange-200'
     case 'ready': return 'bg-cyan-50 text-cyan-700 border-cyan-200'
     case 'won': return 'bg-emerald-50 text-emerald-700 border-emerald-200'
     case 'lost': return 'bg-red-50 text-red-700 border-red-200'
@@ -186,9 +187,17 @@ export default function CompanyProfileScreen() {
   // ── Update Opportunity Status mutation ──
   const updateOppMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
-      fetch(`/api/opportunities`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status }) }).then(r => r.json()),
+      fetch(`/api/opportunities/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }).then(r => r.json()),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); toast.success('Opportunity updated') },
     onError: () => toast.error('Failed to update opportunity'),
+  })
+
+  // ── Delete Opportunity mutation ──
+  const deleteOppMutation = useMutation({
+    mutationFn: (oppId: string) =>
+      fetch(`/api/opportunities/${oppId}`, { method: 'DELETE' }).then(r => r.json()),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); toast.success('Opportunity deleted') },
+    onError: () => toast.error('Failed to delete opportunity'),
   })
 
   // ── Delete Note mutation ──
@@ -311,8 +320,25 @@ export default function CompanyProfileScreen() {
             </div>
             <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 flex-wrap">
               {data.domain && <span className="flex items-center gap-1"><Globe className="size-3.5" />{data.domain}</span>}
+              {data.location && <span className="flex items-center gap-1"><MapPin className="size-3.5" />{data.location}</span>}
               {data.country && <span className="flex items-center gap-1"><MapPin className="size-3.5" />{data.country}</span>}
-              {data.employeeSize && <span>{data.employeeSize} employees</span>}
+              {data.employeeSize && <span className="flex items-center gap-1"><Users className="size-3.5" />{data.employeeSize} employees</span>}
+              {data.website && (
+                <a href={data.website.startsWith('http') ? data.website : `https://${data.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors">
+                  <ExternalLink className="size-3.5" />Website
+                </a>
+              )}
+              {data.linkedinUrl && (
+                <a href={data.linkedinUrl.startsWith('http') ? data.linkedinUrl : `https://${data.linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors">
+                  <Linkedin className="size-3.5" />LinkedIn
+                </a>
+              )}
+              {data.dataFreshness && (
+                <span className="flex items-center gap-1.5">
+                  <StatusDot status={data.dataFreshness === 'fresh' ? 'fresh' : data.dataFreshness === 'stale' ? 'stale' : data.dataFreshness === 'old' ? 'old' : 'unknown'} />
+                  <span className="capitalize">{data.dataFreshness}</span>
+                </span>
+              )}
             </div>
 
             {/* Action buttons */}
@@ -343,7 +369,7 @@ export default function CompanyProfileScreen() {
       {/* ── Tabs ── */}
       <Tabs defaultValue="overview">
         <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 overflow-x-auto">
-          {['overview', 'contacts', 'opportunities', 'timeline', 'notes'].map(tab => (
+          {['overview', 'contacts', 'research', 'opportunities', 'timeline', 'notes'].map(tab => (
             <TabsTrigger key={tab} value={tab}
               className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5">
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -371,21 +397,15 @@ export default function CompanyProfileScreen() {
             ))}
           </div>
 
-          {/* Research Card */}
-          <div className="rounded-xl bg-white card-rest overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                <FileText className="size-4 text-gray-400" /> AI Research Card
-              </h3>
-              {!researchCard && (
-                <Button size="sm" className="h-7 text-xs bg-gray-900 text-white hover:bg-gray-800 rounded-md press-scale" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
-                  {generateResearch.isPending ? <Loader2 className="size-3 mr-1 animate-spin" /> : <Sparkles className="size-3 mr-1" />}
-                  {generateResearch.isPending ? 'Generating...' : 'Generate'}
-                </Button>
-              )}
-            </div>
-            <div className="p-6">
-              {researchCard ? (
+          {/* Quick Research Preview */}
+          {researchCard ? (
+            <div className="rounded-xl bg-white card-rest overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100">
+                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  <FileText className="size-4 text-gray-400" /> Research Summary
+                </h3>
+              </div>
+              <div className="p-6">
                 <div className="grid gap-4 md:grid-cols-2">
                   {(Object.entries(RESEARCH_LABELS) as [keyof typeof researchCard, typeof RESEARCH_LABELS[string]][]).map(([key, cfg], idx) =>
                     researchCard[key] ? (
@@ -394,25 +414,23 @@ export default function CompanyProfileScreen() {
                           <cfg.icon className="size-3.5 text-gray-500" />
                           <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
                         </div>
-                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{researchCard[key]}</p>
+                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap line-clamp-3">{researchCard[key]}</p>
                       </div>
                     ) : null,
                   )}
                 </div>
-              ) : (
-                <EmptyState
-                  icon={FileText}
-                  title="No research generated yet"
-                  description="Click Generate to create an AI-powered research card with business overview, tech landscape, challenges, and opportunities."
-                  className="py-10"
-                />
-              )}
+              </div>
             </div>
-          </div>
+          ) : null}
         </TabsContent>
 
         {/* Contacts */}
         <TabsContent value="contacts" className="mt-5">
+          <div className="flex justify-end mb-4">
+            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale" onClick={() => setContactOpen(true)}>
+              <Plus className="size-3.5 mr-1.5" /> Add Contact
+            </Button>
+          </div>
           {contacts.length === 0 ? (
             <EmptyState icon={Users} title="No contacts found" description="Add contacts to this company to start tracking outreach." actionLabel="Add Contact" onAction={() => setContactOpen(true)} />
           ) : (
@@ -443,8 +461,57 @@ export default function CompanyProfileScreen() {
           )}
         </TabsContent>
 
+        {/* Research */}
+        <TabsContent value="research" className="mt-5">
+          <div className="rounded-xl bg-white card-rest overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <Sparkles className="size-4 text-amber-500" /> AI Research Card
+              </h3>
+              <Button size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md press-scale shadow-xs" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
+                {generateResearch.isPending ? <Loader2 className="size-3 mr-1 animate-spin" /> : <Sparkles className="size-3 mr-1" />}
+                {generateResearch.isPending ? 'Generating...' : researchCard ? 'Regenerate' : 'Generate AI Research'}
+              </Button>
+            </div>
+            <div className="p-6">
+              {researchCard ? (
+                <>
+                  {researchCard.lastResearchedAt && (
+                    <p className="text-xs text-gray-400 mb-4">Last researched {formatDistanceToNow(new Date(researchCard.lastResearchedAt), { addSuffix: true })}</p>
+                  )}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {(Object.entries(RESEARCH_LABELS) as [keyof typeof researchCard, typeof RESEARCH_LABELS[string]][]).map(([key, cfg], idx) =>
+                      researchCard[key] ? (
+                        <div key={key} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 50}ms` }}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <cfg.icon className="size-3.5 text-gray-500" />
+                            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
+                          </div>
+                          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{researchCard[key]}</p>
+                        </div>
+                      ) : null,
+                    )}
+                  </div>
+                </>
+              ) : (
+                <EmptyState
+                  icon={FileText}
+                  title="No research generated yet"
+                  description="Click Generate AI Research to create an AI-powered research card with business overview, tech landscape, challenges, and opportunities."
+                  className="py-10"
+                />
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
         {/* Opportunities */}
         <TabsContent value="opportunities" className="mt-5">
+          <div className="flex justify-end mb-4">
+            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale" onClick={() => setOppOpen(true)}>
+              <Plus className="size-3.5 mr-1.5" /> Add Opportunity
+            </Button>
+          </div>
           {opportunities.length === 0 ? (
             <EmptyState icon={Target} title="No opportunities yet" description="Create opportunities to track potential deals with this company." actionLabel="Add Opportunity" onAction={() => setOppOpen(true)} />
           ) : (
@@ -454,20 +521,31 @@ export default function CompanyProfileScreen() {
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900">{o.title}</p>
                     {o.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{o.description}</p>}
+                    {o.nextAction && <p className="text-xs text-gray-400 mt-1">Next: {o.nextAction}</p>}
                     <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
                       {o.value && <span className="flex items-center gap-1"><DollarSign className="size-3" />{o.value}</span>}
                       {o.closeDate && <span className="flex items-center gap-1"><Calendar className="size-3" />{o.closeDate}</span>}
                     </div>
                   </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleOppStatusCycle(o.id, o.status) }}
-                    disabled={updateOppMutation.isPending}
-                    className={`shrink-0 inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border transition-opacity hover:opacity-80 ${oppStatusVariant(o.status)} ${updateOppMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                    title="Click to cycle status"
-                  >
-                    {updateOppMutation.isPending ? <Loader2 className="size-3 animate-spin inline mr-1" /> : null}
-                    {o.status}
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleOppStatusCycle(o.id, o.status) }}
+                      disabled={updateOppMutation.isPending}
+                      className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border transition-opacity hover:opacity-80 ${oppStatusVariant(o.status)} ${updateOppMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      title="Click to cycle status"
+                    >
+                      {updateOppMutation.isPending ? <Loader2 className="size-3 animate-spin inline mr-1" /> : null}
+                      {o.status}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteOppMutation.mutate(o.id) }}
+                      disabled={deleteOppMutation.isPending}
+                      className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-50"
+                      title="Delete opportunity"
+                    >
+                      {deleteOppMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

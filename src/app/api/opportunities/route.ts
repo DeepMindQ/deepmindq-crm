@@ -5,20 +5,34 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get("companyId");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+    const pageSize = Math.min(
+      100,
+      Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10) || 20)
+    );
 
-    if (!companyId) {
-      return NextResponse.json(
-        { error: "companyId query parameter is required" },
-        { status: 400 }
-      );
-    }
+    const where = companyId ? { companyId } : {};
 
-    const opportunities = await db.opportunity.findMany({
-      where: { companyId },
-      orderBy: { createdAt: "desc" },
+    const [opportunities, total] = await Promise.all([
+      db.opportunity.findMany({
+        where,
+        include: { company: true },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      db.opportunity.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      data: opportunities,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
     });
-
-    return NextResponse.json(opportunities);
   } catch (error) {
     console.error("Failed to fetch opportunities:", error);
     return NextResponse.json(
@@ -61,6 +75,7 @@ export async function POST(request: NextRequest) {
         status: status?.trim() || "researching",
         nextAction: nextAction?.trim() || null,
       },
+      include: { company: true },
     });
 
     await db.timelineEntry.create({
@@ -76,54 +91,6 @@ export async function POST(request: NextRequest) {
     console.error("Failed to create opportunity:", error);
     return NextResponse.json(
       { error: "Failed to create opportunity" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PATCH(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { id, ...updateData } = body;
-
-    if (!id || typeof id !== "string") {
-      return NextResponse.json(
-        { error: "Opportunity ID is required" },
-        { status: 400 }
-      );
-    }
-
-    const existing = await db.opportunity.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json({ error: "Opportunity not found" }, { status: 404 });
-    }
-
-    const allowedFields = ["title", "description", "targetContactId", "status", "nextAction"];
-    const data: Record<string, unknown> = {};
-    for (const field of allowedFields) {
-      if (updateData[field] !== undefined) {
-        data[field] = updateData[field];
-      }
-    }
-
-    const updated = await db.opportunity.update({
-      where: { id },
-      data,
-    });
-
-    await db.timelineEntry.create({
-      data: {
-        companyId: existing.companyId,
-        action: "opportunity_updated",
-        details: `Opportunity "${updated.title}" status changed to "${updated.status}"`,
-      },
-    });
-
-    return NextResponse.json(updated);
-  } catch (error) {
-    console.error("Failed to update opportunity:", error);
-    return NextResponse.json(
-      { error: "Failed to update opportunity" },
       { status: 500 }
     );
   }

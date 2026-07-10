@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
+// UserPreferences is a singleton model — there should be exactly one row.
+// findFirst handles both fresh installs and already-seeded databases
+// (which may have a cuid-generated id).
+
 export async function GET() {
   try {
     let prefs = await db.userPreferences.findFirst();
 
     if (!prefs) {
-      prefs = await db.userPreferences.create({
-        data: {},
-      });
+      prefs = await db.userPreferences.create({ data: {} });
     }
 
     return NextResponse.json(prefs);
@@ -24,12 +26,6 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-
-    let prefs = await db.userPreferences.findFirst();
-
-    if (!prefs) {
-      prefs = await db.userPreferences.create({ data: {} });
-    }
 
     const allowedFields = [
       "tone",
@@ -52,12 +48,19 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    const updated = await db.userPreferences.update({
-      where: { id: prefs.id },
-      data,
-    });
+    const existing = await db.userPreferences.findFirst();
 
-    return NextResponse.json(updated);
+    let result;
+    if (existing) {
+      result = await db.userPreferences.update({
+        where: { id: existing.id },
+        data,
+      });
+    } else {
+      result = await db.userPreferences.create({ data });
+    }
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Failed to update preferences:", error);
     return NextResponse.json(

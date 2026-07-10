@@ -52,7 +52,12 @@ export async function POST(
         },
       })
 
-      return NextResponse.json({ status: 'invalid', score: 0, checkId: check.id })
+      return NextResponse.json({
+        status: 'invalid',
+        score: 0,
+        checkId: check.id,
+        contact: { id: contact.id, name: contact.name, email: contact.email },
+      })
     }
 
     // Run comprehensive validation via the shared engine
@@ -100,6 +105,12 @@ export async function POST(
       score: result.score,
       checkId: check.id,
       actionRecommendation: result.recommendation,
+      contact: {
+        id: contact.id,
+        name: contact.name,
+        email: contact.email,
+        company: contact.company?.name ?? null,
+      },
       details: {
         syntaxOk: result.syntaxOk,
         domainOk: result.domainOk,

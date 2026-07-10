@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, ShieldCheck, Sparkles, Plus, Archive, Mail, Phone, MapPin,
   Building2, Linkedin, Copy, RefreshCw, FileText, Clock, Loader2, X, AlertTriangle,
-  CheckCircle2, XCircle,
+  CheckCircle2, XCircle, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
@@ -52,6 +52,7 @@ export default function ContactDetailScreen() {
 
   // Delete note confirmation state
   const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null)
+  const [expandedDraftId, setExpandedDraftId] = useState<string | null>(null)
 
   const [editOpen, setEditOpen] = useState(false)
   const [editForm, setEditForm] = useState({
@@ -246,16 +247,40 @@ export default function ContactDetailScreen() {
               {data.jobTitle && (
                 <span className="text-sm text-gray-500">{data.jobTitle}</span>
               )}
+              {data.status && data.status !== 'new' && (
+                <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-medium capitalize">
+                  {data.status}
+                </Badge>
+              )}
             </div>
 
             <div className="flex items-center gap-3 mt-2 flex-wrap">
               {data.company?.name && (
-                <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-xs font-normal border-0">
+                <button
+                  onClick={() => { useAppStore.getState().setSelectedCompanyId(data.companyId); setActiveView('company-profile') }}
+                  className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 hover:bg-gray-200 text-xs font-normal border-0 rounded-md px-2 py-0.5 transition-colors"
+                >
+                  <Building2 className="size-3" />
                   {data.company.name}
-                </Badge>
+                </button>
               )}
               {data.email && (
-                <span className="text-xs font-mono text-gray-500">{data.email}</span>
+                <span className="text-xs font-mono text-gray-500 flex items-center gap-1">
+                  <Mail className="size-3" />
+                  {data.email}
+                </span>
+              )}
+              {data.phone && (
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <Phone className="size-3" />
+                  {data.phone}
+                </span>
+              )}
+              {data.location && (
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <MapPin className="size-3" />
+                  {data.location}
+                </span>
               )}
               {data.linkedinUrl && (
                 <a
@@ -266,6 +291,13 @@ export default function ContactDetailScreen() {
                 >
                   <Linkedin className="size-3.5" />
                 </a>
+              )}
+              {data.emailHealth && data.emailHealth !== 'unknown' && (
+                <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium gap-1', healthVariant(data.emailHealth))}>
+                  <ShieldCheck className="size-3" />
+                  {data.emailHealth}
+                  {data.emailHealthScore != null && <span className="font-bold">{data.emailHealthScore}</span>}
+                </span>
               )}
             </div>
 
@@ -381,36 +413,45 @@ export default function ContactDetailScreen() {
             <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-4">
               <ShieldCheck className="size-4 text-gray-400" /> Email Health
             </h3>
-            {data.emailHealth ? (
-              <div className="flex items-center gap-4 flex-wrap">
-                <span className={cn('inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium', healthVariant(data.emailHealth))}>
-                  {data.emailHealth}
-                </span>
-                {data.emailHealthScore != null && (
-                  <span className="text-sm text-gray-500">
-                    Score: <span className="font-semibold text-gray-900">{data.emailHealthScore}/100</span>
+            {latestCheck ? (
+              <>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <span className={cn('inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium', healthVariant(latestCheck.status))}>
+                    {latestCheck.status}
                   </span>
-                )}
-                {data.lastValidatedAt && (
+                  <span className="text-sm text-gray-500">
+                    Score: <span className="font-semibold text-gray-900">{latestCheck.score}/100</span>
+                  </span>
                   <span className="text-xs text-gray-400 flex items-center gap-1">
                     <Clock className="size-3" />
-                    Last validated {formatDistanceToNow(new Date(data.lastValidatedAt), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(latestCheck.checkedAt), { addSuffix: true })}
                   </span>
+                </div>
+                {/* Score Breakdown */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+                  {([
+                    ['Syntax', latestCheck.syntaxOk],
+                    ['Domain', latestCheck.domainOk],
+                    ['MX Record', latestCheck.mxOk],
+                    ['Not Disposable', latestCheck.disposableOk],
+                  ] as const).map(([label, ok]) => (
+                    <div key={label} className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2">
+                      {ok ? (
+                        <CheckCircle2 className="size-4 text-emerald-500" />
+                      ) : (
+                        <XCircle className="size-4 text-red-400" />
+                      )}
+                      <span className="text-xs font-medium text-gray-700">{label}</span>
+                    </div>
+                  ))}
+                </div>
+                {latestCheck.actionRecommendation && (
+                  <div className="mt-4 rounded-lg bg-blue-50 border border-blue-100 px-4 py-3">
+                    <p className="text-xs font-semibold text-blue-700 mb-1">Recommendation</p>
+                    <p className="text-sm text-blue-800 leading-relaxed">{latestCheck.actionRecommendation}</p>
+                  </div>
                 )}
-              </div>
-            ) : latestCheck ? (
-              <div className="flex items-center gap-4 flex-wrap">
-                <span className={cn('inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium', healthVariant(latestCheck.status))}>
-                  {latestCheck.status}
-                </span>
-                <span className="text-sm text-gray-500">
-                  Score: <span className="font-semibold text-gray-900">{latestCheck.score}/100</span>
-                </span>
-                <span className="text-xs text-gray-400 flex items-center gap-1">
-                  <Clock className="size-3" />
-                  Last validated {formatDistanceToNow(new Date(latestCheck.checkedAt), { addSuffix: true })}
-                </span>
-              </div>
+              </>
             ) : (
               <p className="text-sm text-gray-500">No email validation performed yet.</p>
             )}
@@ -516,78 +557,103 @@ export default function ContactDetailScreen() {
             />
           ) : (
             <div className="space-y-3">
-              {drafts.map((d: any) => (
-                <div key={d.id} className="rounded-xl bg-white p-5 card-rest slide-up">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{d.subject || 'Untitled Draft'}</p>
-                      <p className="text-sm text-gray-500 mt-1 line-clamp-2 leading-relaxed">{d.body}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {d.matchScore != null && (
-                        <span className={cn('text-xs font-semibold', matchScoreColor(d.matchScore))}>
-                          {d.matchScore}%
+              {drafts.map((d: any) => {
+                const isExpanded = expandedDraftId === d.id
+                return (
+                <div key={d.id} className="rounded-xl bg-white card-rest slide-up">
+                  {/* Draft header - always visible, clickable to expand */}
+                  <button
+                    className="w-full p-5 text-left"
+                    onClick={() => setExpandedDraftId(isExpanded ? null : d.id)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{d.subject || 'Untitled Draft'}</p>
+                          {isExpanded ? <ChevronUp className="size-3.5 text-gray-400 shrink-0" /> : <ChevronDown className="size-3.5 text-gray-400 shrink-0" />}
+                        </div>
+                        <p className={cn('text-sm text-gray-500 mt-1 leading-relaxed whitespace-pre-wrap', isExpanded ? '' : 'line-clamp-2')}>{d.body}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {d.matchScore != null && (
+                          <span className={cn('text-xs font-semibold', matchScoreColor(d.matchScore))}>
+                            Match {d.matchScore}%
+                          </span>
+                        )}
+                        {d.confidenceScore != null && (
+                          <span className="text-xs font-medium text-gray-400">
+                            Conf {d.confidenceScore}%
+                          </span>
+                        )}
+                        <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border', draftStatusVariant(d.status))}>
+                          {d.status}
                         </span>
+                      </div>
+                    </div>
+                    {!isExpanded && (
+                      <span className="text-[11px] text-gray-400 mt-2 block">
+                        {formatDistanceToNow(new Date(d.createdAt), { addSuffix: true })}
+                      </span>
+                    )}
+                  </button>
+                  {/* Expanded actions */}
+                  {isExpanded && (
+                    <div className="flex items-center gap-2 px-5 pb-4 pt-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs border-gray-200 text-gray-600 rounded-md"
+                        onClick={() => regenerateDraft.mutate()}
+                        disabled={regenerateDraft.isPending}
+                      >
+                        {regenerateDraft.isPending ? (
+                          <Loader2 className="size-3 mr-1 animate-spin" />
+                        ) : (
+                          <RefreshCw className="size-3 mr-1" />
+                        )}
+                        {regenerateDraft.isPending ? 'Regenerating...' : 'Regenerate'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs border-gray-200 text-gray-600 rounded-md"
+                        onClick={() => {
+                          navigator.clipboard.writeText(d.body)
+                          toast.success('Draft copied to clipboard')
+                        }}
+                      >
+                        <Copy className="size-3 mr-1" /> Copy
+                      </Button>
+                      {d.status === 'draft' && (
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-md"
+                            onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'sent' })}
+                            disabled={updateDraftStatus.isPending}
+                          >
+                            <CheckCircle2 className="size-3 mr-1" /> Mark Sent
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md"
+                            onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'rejected' })}
+                            disabled={updateDraftStatus.isPending}
+                          >
+                            <XCircle className="size-3 mr-1" /> Reject
+                          </Button>
+                        </div>
                       )}
-                      <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border', draftStatusVariant(d.status))}>
-                        {d.status}
+                      <span className="text-[11px] text-gray-400 ml-auto">
+                        {formatDistanceToNow(new Date(d.createdAt), { addSuffix: true })}
                       </span>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs border-gray-200 text-gray-600 rounded-md"
-                      onClick={() => regenerateDraft.mutate()}
-                      disabled={regenerateDraft.isPending}
-                    >
-                      {regenerateDraft.isPending ? (
-                        <Loader2 className="size-3 mr-1 animate-spin" />
-                      ) : (
-                        <RefreshCw className="size-3 mr-1" />
-                      )}
-                      {regenerateDraft.isPending ? 'Regenerating...' : 'Regenerate'}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs border-gray-200 text-gray-600 rounded-md"
-                      onClick={() => {
-                        navigator.clipboard.writeText(d.body)
-                        toast.success('Draft copied to clipboard')
-                      }}
-                    >
-                      <Copy className="size-3 mr-1" /> Copy
-                    </Button>
-                    {d.status === 'draft' && (
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-md"
-                          onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'sent' })}
-                          disabled={updateDraftStatus.isPending}
-                        >
-                          <CheckCircle2 className="size-3 mr-1" /> Mark Sent
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md"
-                          onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'rejected' })}
-                          disabled={updateDraftStatus.isPending}
-                        >
-                          <XCircle className="size-3 mr-1" /> Reject
-                        </Button>
-                      </div>
-                    )}
-                    <span className="text-[11px] text-gray-400 ml-auto">
-                      {formatDistanceToNow(new Date(d.createdAt), { addSuffix: true })}
-                    </span>
-                  </div>
+                  )}
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </TabsContent>

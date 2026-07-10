@@ -4,12 +4,14 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Eye, EyeOff, Download, Stethoscope, Save, Loader2, Mail,
-  Cpu, Database, Trash2, AlertTriangle, Settings,
+  Cpu, Database, Trash2, AlertTriangle, Settings, Sparkles,
+  ExternalLink, CheckCircle2, XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -19,104 +21,168 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { useAppStore } from '@/lib/store'
+
+/* ═══════════════════════════════════════════════════════════════
+   Constants & Defaults
+   ═══════════════════════════════════════════════════════════════ */
 
 const DEFAULTS = {
-  tone: 'professional-casual', emailLength: 'medium', openerStyle: 'Hi [First Name]',
-  signOff: 'Regards, Ravi', avoidPhrases: '', ctaStyle: 'soft',
-  aiProvider: 'openai', aiModel: 'gpt-4o-mini', aiApiKey: '',
+  tone: 'professional-casual',
+  emailLength: 'medium',
+  openerStyle: 'Hi [First Name]',
+  signOff: 'Regards, Ravi',
+  avoidPhrases: '',
+  ctaStyle: 'soft',
+  aiProvider: 'openai',
+  aiModel: 'gpt-4o-mini',
+  aiApiKey: '',
 }
 
-const sampleEmail = (tone: string, length: string, cta: string) => {
-  const opener = 'Hi John,'
-  const bodies: Record<string, string> = {
-    'professional-casual': "I've been following Acme Corp's recent expansion into the APAC market, and it's impressive how you've scaled operations across three new regions this quarter. Our team at DeepMindQ has helped similar manufacturing companies optimize their supply chain visibility — resulting in an average 34% reduction in lead times.",
-    formal: "I am writing to introduce DeepMindQ's enterprise intelligence platform. We specialize in helping manufacturing organizations streamline their procurement and supply chain operations. Our recent work with companies in your sector has demonstrated measurable improvements in operational efficiency.",
-    direct: "Your APAC expansion is exactly the kind of challenge we solve. We helped three manufacturers cut supply chain lead times by 34% this quarter. Worth a 15-minute call?",
+const TOGGLE_ACTIVE = 'bg-amber-600 text-white shadow-xs'
+const TOGGLE_INACTIVE = 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+
+/* ═══════════════════════════════════════════════════════════════
+   Live Email Preview Generator
+   ═══════════════════════════════════════════════════════════════ */
+
+function generateLivePreview(tone: string, length: string, cta: string, opener: string, signOff: string) {
+  const firstName = 'John'
+  const companyName = 'Acme Corp'
+  const jobTitle = 'VP of Operations'
+
+  const bodies: Record<string, Record<string, string>> = {
+    'professional-casual': {
+      short: `Hi ${firstName},\n\nI came across ${companyName} and was impressed by your work in the ${jobTitle} space. I'd love to explore how we might be able to add value.\n\nWould a quick 10-minute chat work this week?\n\n${signOff}`,
+      medium: `Hi ${firstName},\n\nI've been following ${companyName}'s recent momentum in the ${jobTitle} domain, and it caught my attention. Our team has helped similar organizations streamline their operations with measurable results — think 30-40% efficiency gains in the first quarter.\n\n${cta === 'direct' ? 'Could we schedule a 15-minute call this Thursday at 2 PM to discuss a potential fit?' : "Would you be open to a brief conversation this week to explore if there's alignment?"}\n\n${signOff}`,
+      detailed: `Hi ${firstName},\n\nI hope this message finds you well. I've been researching ${companyName} and I'm genuinely impressed by the direction you're taking in the ${jobTitle} area. The market signals suggest this is a particularly exciting time for your team.\n\nAt DeepMindQ, we've been working with organizations facing similar challenges to what I imagine ${companyName} is navigating. Our approach combines AI-driven intelligence with hands-on strategic consulting, and the results have been compelling — our clients typically see significant improvements in their key metrics within the first quarter of engagement.\n\n${cta === 'direct' ? `I'd love to show you a brief 15-minute demo of what this could look like for ${companyName}. Could we schedule a call this Thursday?` : "Would you be open to exploring this further? I'd be happy to share some relevant case studies."}\n\n${signOff}`,
+    },
+    formal: {
+      short: `Dear ${firstName},\n\nI am writing to introduce DeepMindQ and explore a potential collaboration with ${companyName}.\n\n${cta === 'direct' ? 'May I request a brief meeting at your earliest convenience?' : `I would welcome the opportunity to discuss how our services might align with ${companyName}'s objectives.`}\n\n${signOff}`,
+      medium: `Dear ${firstName},\n\nI am writing to introduce DeepMindQ's enterprise intelligence platform. We specialize in helping organizations in the ${jobTitle} space streamline their operations. Our recent work with similar companies has demonstrated measurable improvements in operational efficiency.\n\n${cta === 'direct' ? 'May I request a brief meeting at your earliest convenience?' : `I would welcome the opportunity to discuss how our services might align with ${companyName}'s strategic objectives.`}\n\n${signOff}`,
+      detailed: `Dear ${firstName},\n\nI am writing to introduce DeepMindQ and explore a potential collaboration with ${companyName}.\n\nOur firm specializes in AI-powered sales intelligence and strategic consulting. We have observed ${companyName}'s growth trajectory and believe there may be compelling synergies worth discussing.\n\nAt DeepMindQ, we have developed a comprehensive approach to helping organizations like yours achieve operational excellence. Our methodology is grounded in data-driven insights and has been validated across multiple industry verticals.\n\n${cta === 'direct' ? 'May I request a brief meeting at your earliest convenience to discuss this in more detail?' : `I would welcome the opportunity to schedule an introductory conversation at your convenience.`}\n\n${signOff}`,
+    },
+    direct: {
+      short: `${firstName},\n\n${companyName} looks like it's doing great things. Quick question: have you considered optimizing your ${jobTitle} workflow? We've helped teams like yours 3x their output.\n\n${cta === 'direct' ? "Let's talk Thursday 2 PM — 15 minutes max." : "Open to a chat if you're curious?"}\n\n${signOff}`,
+      medium: `${firstName},\n\nI notice ${companyName} is growing fast in the ${jobTitle} space. That usually means process bottlenecks — the kind we solve.\n\nWe've helped similar companies cut lead times by 34%. ${companyName} could benefit from the same approach.\n\n${cta === 'direct' ? "Let's cut to it — 15 min call this Thursday?" : "Worth 15 minutes of your time this week to explore if there's a fit."}\n\n${signOff}`,
+      detailed: `${firstName},\n\nI notice ${companyName} is growing fast in the ${jobTitle} space. That usually means process bottlenecks — the kind we solve.\n\nWe've helped three companies in your space this quarter alone. Average result: 34% reduction in lead times, 28% cost savings on procurement.\n\n${cta === 'direct' ? 'Thursday 2 PM — can you make 15 minutes?' : `If you're curious, I have a short demo showing exactly how this works for companies like ${companyName}.`}\n\n${signOff}`,
+    },
   }
+
+  const toneBodies = bodies[tone] || bodies['professional-casual']
+  const body = toneBodies[length || 'medium'] || toneBodies['medium']
   const ctas: Record<string, string> = {
-    soft: "Would you be open to a brief 15-minute conversation this week to explore if there's a fit?",
-    direct: "Can we schedule a 15-minute call this Thursday at 2 PM IST?",
+    soft: `Soft Ask — "Would you be open to a brief conversation this week?"`,
+    direct: `Direct Ask — "Can we schedule a 15-minute call this Thursday?"`,
   }
-  let body = bodies[tone] || bodies['professional-casual']
-  if (length === 'short') body = body.split('.').slice(0, 2).join('.') + '.'
-  const ctaText = ctas[cta] || ctas.soft
-  return `${opener}\n\n${body}\n\n${ctaText}\n\nRegards,\nRavi`
+  const subject = `${cta === 'direct' ? 'Direct' : 'Quick'} question about ${companyName}'s ${jobTitle} strategy`
+
+  return { subject, body, ctaDescription: ctas[cta] || ctas.soft }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Toggle Button Group (reusable)
+   ═══════════════════════════════════════════════════════════════ */
+
+function SettingsToggleGroup<T extends string>({
+  label,
+  description,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  description?: string
+  options: { value: T; label: string }[]
+  value: T
+  onChange: (v: T) => void
+}) {
+  return (
+    <div>
+      <label className="text-xs font-medium text-gray-700 block mb-1.5">{label}</label>
+      {description && <p className="text-[11px] text-gray-400 mb-2">{description}</p>}
+      <div className="flex items-center gap-2 flex-wrap">
+        {options.map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              'px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
+              value === opt.value ? TOGGLE_ACTIVE : TOGGLE_INACTIVE,
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Main Settings Screen
+   ═══════════════════════════════════════════════════════════════ */
 
 export function SettingsScreen() {
   const qc = useQueryClient()
+  const { setActiveView } = useAppStore()
   const [draft, setDraft] = useState<Record<string, string> | null>(null)
   const [showKey, setShowKey] = useState(false)
   const [dangerOpen, setDangerOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('email')
+  const [aiTestResult, setAiTestResult] = useState<{
+    success: boolean
+    email?: { subject: string; body: string }
+    score?: number
+    error?: string
+  } | null>(null)
+  const [justSavedAi, setJustSavedAi] = useState(false)
 
+  // ── Preferences ──
   const { data: prefs, isLoading } = useQuery({
     queryKey: ['preferences'],
     queryFn: () => fetch('/api/preferences').then(r => r.json()),
   })
 
   const form = { ...DEFAULTS, ...prefs, ...draft }
-
-  // Saved values (what's on the server)
   const savedValues = useMemo(() => ({ ...DEFAULTS, ...prefs }), [prefs])
-
-  // Current form values
   const currentValues = useMemo(() => ({ ...DEFAULTS, ...prefs, ...draft }), [prefs, draft])
 
-  // Track unsaved changes
+  // ── Unsaved changes tracking ──
   const hasChanges = useMemo(() => {
     if (!draft) return false
     return Object.keys(draft).some(k => (draft as any)[k] !== (savedValues as any)[k])
   }, [draft, savedValues])
 
-  // Discard changes handler
   const handleDiscard = useCallback(() => { setDraft(null) }, [])
 
-  // Warn before leaving with unsaved changes
   useEffect(() => {
     window.onbeforeunload = hasChanges ? () => '' : null
     return () => { window.onbeforeunload = null }
   }, [hasChanges])
 
+  // ── Save preferences ──
   const savePrefs = useMutation({
     mutationFn: (data: Record<string, string>) =>
-      fetch('/api/preferences', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-    onSuccess: () => { toast.success('Preferences saved'); setDraft(null); qc.invalidateQueries({ queryKey: ['preferences'] }) },
+      fetch('/api/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }).then(r => r.json()),
+    onSuccess: () => {
+      toast.success('Preferences saved')
+      setDraft(null)
+      qc.invalidateQueries({ queryKey: ['preferences'] })
+    },
     onError: () => toast.error('Failed to save preferences'),
   })
 
-  const handleExport = useMutation({
-    mutationFn: async () => {
-      // Download companies CSV
-      const compRes = await fetch('/api/export?type=companies')
-      const compBlob = await compRes.blob()
-      const compUrl = URL.createObjectURL(compBlob)
-      const a = document.createElement('a')
-      a.href = compUrl
-      a.download = 'deepmindq-companies.csv'
-      a.click()
-      URL.revokeObjectURL(compUrl)
-
-      // Download contacts CSV
-      const contRes = await fetch('/api/export?type=contacts')
-      const contBlob = await contRes.blob()
-      const contUrl = URL.createObjectURL(contBlob)
-      const b = document.createElement('a')
-      b.href = contUrl
-      b.download = 'deepmindq-contacts.csv'
-      b.click()
-      URL.revokeObjectURL(contUrl)
-    },
-    onSuccess: () => toast.success('Companies and contacts exported as CSV'),
-    onError: () => toast.error('Export failed'),
-  })
-
+  // ── Test AI Connection ──
   const testAiMutation = useMutation({
     mutationFn: async () => {
-      // Get any contact to test with
       const contactsRes = await fetch('/api/contacts?pageSize=1')
       const contactsData = await contactsRes.json()
-      if (!contactsData.contacts?.length) throw new Error('No contacts to test with')
+      if (!contactsData.contacts?.length) throw new Error('No contacts in database to test with. Add a contact first.')
 
       const contactId = contactsData.contacts[0].id
       const res = await fetch(`/api/contacts/${contactId}/generate-email`, {
@@ -130,45 +196,148 @@ export function SettingsScreen() {
       }
       return res.json()
     },
-    onSuccess: (data) => toast.success(`AI connection works! Generated email with score ${data.matchScore}%`),
-    onError: (e: Error) => toast.error(`AI test failed: ${e.message}`),
+    onSuccess: (data) => {
+      setAiTestResult({
+        success: true,
+        email: { subject: data.subject, body: data.body },
+        score: data.matchScore,
+      })
+      toast.success(`AI connection successful! Generated test email with ${data.matchScore}% match score`)
+    },
+    onError: (e: Error) => {
+      setAiTestResult({ success: false, error: e.message })
+      toast.error(`AI test failed: ${e.message}`)
+    },
   })
 
+  // ── Export CSV ──
+  const handleExport = useMutation({
+    mutationFn: async () => {
+      const compRes = await fetch('/api/export?type=companies')
+      const compBlob = await compRes.blob()
+      const compUrl = URL.createObjectURL(compBlob)
+      const a = document.createElement('a')
+      a.href = compUrl
+      a.download = 'deepmindq-companies.csv'
+      a.click()
+      URL.revokeObjectURL(compUrl)
+
+      const contRes = await fetch('/api/export?type=contacts')
+      const contBlob = await contRes.blob()
+      const contUrl = URL.createObjectURL(contBlob)
+      const b = document.createElement('a')
+      b.href = contUrl
+      b.download = 'deepmindq-contacts.csv'
+      b.click()
+      URL.revokeObjectURL(contUrl)
+    },
+    onSuccess: () => toast.success('Companies and contacts exported as CSV successfully'),
+    onError: () => toast.error('Export failed — please try again'),
+  })
+
+  // ── Health Check ──
   const handleHealthCheck = useMutation({
-    mutationFn: () => fetch('/api/health-check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ checkAll: true }) }).then(r => r.json()),
-    onSuccess: (d) => toast.success(`Health check complete: ${d.valid} valid, ${d.invalid} invalid out of ${d.checked}`),
+    mutationFn: () =>
+      fetch('/api/health-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checkAll: true }),
+      }).then(r => r.json()),
+    onSuccess: (d) =>
+      toast.success(`Health check complete: ${d.valid} valid, ${d.invalid} invalid out of ${d.checked} emails`),
     onError: () => toast.error('Health check failed'),
   })
 
+  // ── Delete All Data ──
   const handleDeleteAll = useMutation({
     mutationFn: () => fetch('/api/reset', { method: 'DELETE' }).then(r => r.json()),
-    onSuccess: () => { toast.success('All data deleted'); setDangerOpen(false); qc.invalidateQueries({ queryKey: ['companies'] }); qc.invalidateQueries({ queryKey: ['contacts'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }) },
+    onSuccess: () => {
+      toast.success('All data deleted successfully')
+      setDangerOpen(false)
+      qc.invalidateQueries({ queryKey: ['companies'] })
+      qc.invalidateQueries({ queryKey: ['contacts'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
     onError: () => toast.error('Failed to delete data'),
   })
 
-  const set = (k: string, v: string) => setDraft(p => ({ ...(p || {}), [k]: v }))
+  const set = (k: string, v: string) => {
+    setDraft(p => ({ ...(p || {}), [k]: v }))
+    setJustSavedAi(false)
+  }
 
-  if (isLoading) return <div className="space-y-4">{[...Array(3)].map((_, i) => <div key={i} className="h-48 rounded-xl bg-gray-100 animate-pulse" />)}</div>
+  const handleSaveAiConfig = () => {
+    savePrefs.mutate({ aiProvider: form.aiProvider, aiModel: form.aiModel, aiApiKey: form.aiApiKey })
+    setJustSavedAi(true)
+    setAiTestResult(null)
+  }
+
+  const handleSaveEmailStyle = () => {
+    savePrefs.mutate({
+      tone: form.tone,
+      emailLength: form.emailLength,
+      openerStyle: form.openerStyle,
+      signOff: form.signOff,
+      avoidPhrases: form.avoidPhrases,
+      ctaStyle: form.ctaStyle,
+    })
+  }
+
+  // ── Loading state ──
+  if (isLoading) {
+    return (
+      <div className="max-w-3xl space-y-6">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="h-56 rounded-xl bg-gray-100 animate-pulse" />
+        ))}
+      </div>
+    )
+  }
+
+  // ── Live preview data ──
+  const preview = generateLivePreview(form.tone, form.emailLength, form.ctaStyle, form.openerStyle, form.signOff)
 
   return (
     <div className="max-w-3xl">
-      {/* Unsaved changes warning bar */}
+      {/* ═══════════════════════════════════════════════════════
+          Unsaved Changes Warning Bar
+         ═══════════════════════════════════════════════════════ */}
       {hasChanges && (
-        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 animate-in slide-in-from-top-2 duration-200">
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 animate-in slide-in-from-top-2 duration-200">
           <p className="text-sm text-amber-800 font-medium">You have unsaved changes</p>
           <div className="flex items-center gap-2 self-end">
-            <Button variant="outline" size="sm" className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-100 rounded-md" onClick={handleDiscard}>Discard</Button>
-            <Button size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md" onClick={() => savePrefs.mutate(currentValues)} disabled={savePrefs.isPending}>
-              {savePrefs.isPending ? <Loader2 className="size-3 mr-1 animate-spin" /> : null} Save
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-100 rounded-lg"
+              onClick={handleDiscard}
+            >
+              Discard
+            </Button>
+            <Button
+              size="sm"
+              className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale"
+              onClick={() => savePrefs.mutate(currentValues)}
+              disabled={savePrefs.isPending}
+            >
+              {savePrefs.isPending && <Loader2 className="size-3 mr-1 animate-spin" />}
+              Save All
             </Button>
           </div>
         </div>
       )}
+
+      {/* ═══════════════════════════════════════════════════════
+          Header
+         ═══════════════════════════════════════════════════════ */}
       <div className="mb-6">
         <h1 className="text-lg font-bold text-gray-900 tracking-tight">Settings</h1>
-        <p className="text-sm text-gray-500">Configure your workspace, AI preferences, and data management.</p>
+        <p className="text-sm text-gray-500 mt-0.5">Configure your workspace, AI preferences, and data management.</p>
       </div>
 
+      {/* ═══════════════════════════════════════════════════════
+          Tabs
+         ═══════════════════════════════════════════════════════ */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 mb-6 overflow-x-auto">
           {[
@@ -177,78 +346,157 @@ export function SettingsScreen() {
             { value: 'data', label: 'Data', icon: Database },
             { value: 'danger', label: 'Advanced', icon: AlertTriangle },
           ].map(tab => (
-            <TabsTrigger key={tab.value} value={tab.value}
-              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-2 sm:px-3 py-2 flex items-center gap-1.5 whitespace-nowrap">
-              <tab.icon className="size-3.5" /> <span className="hidden sm:inline">{tab.label}</span>
+            <TabsTrigger
+              key={tab.value}
+              value={tab.value}
+              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-2 sm:px-3 py-2 flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <tab.icon className="size-3.5" />
+              <span className="hidden sm:inline">{tab.label}</span>
             </TabsTrigger>
           ))}
         </TabsList>
 
-        {/* ── Email Style ── */}
+        {/* ═══════════════════════════════════════════════════════
+            Tab: Email Style
+           ═══════════════════════════════════════════════════════ */}
         <TabsContent value="email" className="space-y-6">
-          <div className="rounded-xl bg-white card-rest p-6 space-y-5">
+          <div className="rounded-xl bg-white card-rest p-6 space-y-6">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Email Generation Preferences</h3>
-              <p className="text-xs text-gray-500 mt-0.5">These settings control how AI generates outreach emails.</p>
+              <p className="text-xs text-gray-500 mt-0.5">These settings control how AI generates outreach emails for your contacts.</p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[
-                { label: 'Tone', key: 'tone', opts: ['Formal', 'Professional-Casual', 'Direct'], vals: ['formal', 'professional-casual', 'direct'] },
-                { label: 'Length', key: 'emailLength', opts: ['Short', 'Medium', 'Detailed'], vals: ['short', 'medium', 'detailed'] },
-                { label: 'CTA Style', key: 'ctaStyle', opts: ['Soft', 'Direct'], vals: ['soft', 'direct'] },
-              ].map(({ label, key, opts, vals }) => (
-                <div key={key}>
-                  <label className="text-xs font-medium text-gray-700 block mb-1.5">{label}</label>
-                  <Select value={form[key]} onValueChange={v => set(key, v)}>
-                    <SelectTrigger className="h-9 border-gray-200 rounded-lg text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>{opts.map((o, i) => <SelectItem key={vals[i]} value={vals[i]}>{o}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-              ))}
-            </div>
+
+            {/* Toggle Selectors */}
+            <SettingsToggleGroup
+              label="Tone"
+              description="The voice and personality of your emails"
+              options={[
+                { value: 'formal', label: 'Formal' },
+                { value: 'professional-casual', label: 'Professional-Casual' },
+                { value: 'direct', label: 'Direct' },
+              ]}
+              value={form.tone}
+              onChange={v => set('tone', v)}
+            />
+
+            <SettingsToggleGroup
+              label="Length"
+              description="How long the generated emails should be"
+              options={[
+                { value: 'short', label: 'Short' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'detailed', label: 'Detailed' },
+              ]}
+              value={form.emailLength}
+              onChange={v => set('emailLength', v)}
+            />
+
+            <SettingsToggleGroup
+              label="CTA Style"
+              description="How the call-to-action is framed"
+              options={[
+                { value: 'soft', label: 'Soft Ask' },
+                { value: 'direct', label: 'Direct Ask' },
+              ]}
+              value={form.ctaStyle}
+              onChange={v => set('ctaStyle', v)}
+            />
+
+            <Separator className="bg-gray-100" />
+
+            {/* Text Inputs */}
             <div>
               <label className="text-xs font-medium text-gray-700 block mb-1.5">Opener Style</label>
-              <Input value={form.openerStyle} onChange={e => set('openerStyle', e.target.value)} className="h-9 border-gray-200 rounded-lg text-sm" />
+              <Input
+                value={form.openerStyle}
+                onChange={e => set('openerStyle', e.target.value)}
+                className="h-9 border-gray-200 rounded-lg text-sm"
+                placeholder="Hi [First Name]"
+              />
+              <p className="text-[11px] text-gray-400 mt-1">How each email begins. Use [First Name] as a placeholder.</p>
             </div>
+
             <div>
               <label className="text-xs font-medium text-gray-700 block mb-1.5">Sign-off</label>
-              <Input value={form.signOff} onChange={e => set('signOff', e.target.value)} className="h-9 border-gray-200 rounded-lg text-sm" />
+              <Input
+                value={form.signOff}
+                onChange={e => set('signOff', e.target.value)}
+                className="h-9 border-gray-200 rounded-lg text-sm"
+                placeholder="Regards, Ravi"
+              />
             </div>
+
             <div>
               <label className="text-xs font-medium text-gray-700 block mb-1.5">Avoid Phrases</label>
-              <Textarea value={form.avoidPhrases} onChange={e => set('avoidPhrases', e.target.value)} rows={2} className="border-gray-200 rounded-lg resize-none text-sm" placeholder="One phrase per line..." />
+              <Textarea
+                value={form.avoidPhrases}
+                onChange={e => set('avoidPhrases', e.target.value)}
+                rows={3}
+                className="border-gray-200 rounded-lg resize-none text-sm"
+                placeholder="One phrase per line. These will be excluded from generated emails."
+              />
+              <p className="text-[11px] text-gray-400 mt-1">Phrases the AI should avoid using in generated emails.</p>
             </div>
-            <div className="pt-1 flex justify-end">
-              <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={() => savePrefs.mutate({ tone: form.tone, emailLength: form.emailLength, openerStyle: form.openerStyle, signOff: form.signOff, avoidPhrases: form.avoidPhrases, ctaStyle: form.ctaStyle })} disabled={savePrefs.isPending}>
-                {savePrefs.isPending ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <Save className="size-3.5 mr-1.5" />} Save Preferences
+
+            <div className="flex justify-end">
+              <Button
+                className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale"
+                onClick={handleSaveEmailStyle}
+                disabled={savePrefs.isPending}
+              >
+                {savePrefs.isPending ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <Save className="size-3.5 mr-1.5" />}
+                Save Preferences
               </Button>
             </div>
           </div>
 
           {/* Live Preview */}
-          <div className="rounded-xl bg-white card-rest p-6">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Mail className="size-4 text-gray-400" /> Email Preview
-            </h3>
-            <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-5">
-              <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">{sampleEmail(form.tone, form.emailLength, form.ctaStyle)}</pre>
+          <div className="rounded-xl bg-white card-rest p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <Mail className="size-4 text-gray-400" />
+                Live Email Preview
+              </h3>
+              <Badge className="bg-gray-100 text-gray-500 border border-gray-200 text-[10px]">
+                Sample · John at Acme Corp
+              </Badge>
             </div>
-            <p className="text-[11px] text-gray-400 mt-2">This is a sample preview. Actual emails will be personalized per contact.</p>
+            <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-5 space-y-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-1">Subject</p>
+                <p className="text-sm font-semibold text-gray-900">{preview.subject}</p>
+              </div>
+              <Separator className="bg-gray-200/60" />
+              <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
+                {preview.body}
+              </pre>
+            </div>
+            <p className="text-[11px] text-gray-400">
+              This is a sample preview. Actual emails will be personalized per contact using AI and research data.
+            </p>
           </div>
         </TabsContent>
 
-        {/* ── AI Config ── */}
+        {/* ═══════════════════════════════════════════════════════
+            Tab: AI Configuration
+           ═══════════════════════════════════════════════════════ */}
         <TabsContent value="ai" className="space-y-6">
-          <div className="rounded-xl bg-white card-rest p-6 space-y-5">
+          <div className="rounded-xl bg-white card-rest p-6 space-y-6">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">AI Provider Configuration</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Set your AI provider and model for email generation and research.</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Configure your AI provider and API key for intelligent, personalized email generation.
+              </p>
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-medium text-gray-700 block mb-1.5">AI Provider</label>
                 <Select value={form.aiProvider} onValueChange={v => set('aiProvider', v)}>
-                  <SelectTrigger className="h-9 border-gray-200 rounded-lg text-sm"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9 border-gray-200 rounded-lg text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="openai">OpenAI</SelectItem>
                     <SelectItem value="gemini">Google Gemini</SelectItem>
@@ -258,86 +506,247 @@ export function SettingsScreen() {
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-700 block mb-1.5">Model</label>
-                <Input value={form.aiModel} onChange={e => set('aiModel', e.target.value)} className="h-9 border-gray-200 rounded-lg text-sm" />
+                <Input
+                  value={form.aiModel}
+                  onChange={e => set('aiModel', e.target.value)}
+                  className="h-9 border-gray-200 rounded-lg text-sm"
+                  placeholder="gpt-4o-mini"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  {form.aiProvider === 'openai' && 'e.g. gpt-4o-mini, gpt-4o, gpt-3.5-turbo'}
+                  {form.aiProvider === 'gemini' && 'e.g. gemini-2.0-flash, gemini-1.5-pro'}
+                  {form.aiProvider === 'groq' && 'e.g. llama-3.3-70b-versatile, mixtral-8x7b-32768'}
+                </p>
               </div>
             </div>
+
             <div>
               <label className="text-xs font-medium text-gray-700 block mb-1.5">API Key</label>
               <div className="relative">
-                <Input type={showKey ? 'text' : 'password'} value={form.aiApiKey} onChange={e => set('aiApiKey', e.target.value)} className="h-9 pr-10 border-gray-200 rounded-lg text-sm font-mono" placeholder="sk-..." />
-                <button type="button" className="absolute right-0 top-0 h-9 px-3 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors" onClick={() => setShowKey(p => !p)}>
+                <Input
+                  type={showKey ? 'text' : 'password'}
+                  value={form.aiApiKey}
+                  onChange={e => set('aiApiKey', e.target.value)}
+                  className="h-9 pr-10 border-gray-200 rounded-lg text-sm font-mono"
+                  placeholder="sk-..."
+                />
+                <button
+                  type="button"
+                  className="absolute right-0 top-0 h-9 px-3 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+                  onClick={() => setShowKey(p => !p)}
+                >
                   {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
-              <p className="text-[11px] text-gray-400 mt-1.5">Your API key is encrypted and stored securely. It is never shared.</p>
+              <p className="text-[11px] text-gray-400 mt-1.5">
+                Your API key is encrypted and stored securely. It is never shared or transmitted to third parties.
+              </p>
             </div>
-            <div className="pt-2">
-              <Button variant="outline" size="sm" className="border-gray-200 text-gray-600 rounded-lg text-xs" onClick={() => testAiMutation.mutate()} disabled={testAiMutation.isPending || !form.aiApiKey}>
-                {testAiMutation.isPending ? <Loader2 className="size-3 mr-1.5 animate-spin" /> : <Stethoscope className="size-3 mr-1.5" />}
-                Test AI Connection
-              </Button>
-              <p className="text-[11px] text-gray-400 mt-1.5">Sends a test email generation request to verify your API key works.</p>
+
+            <Separator className="bg-gray-100" />
+
+            {/* Test Connection */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900">Test AI Connection</h4>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Sends a test email generation request using your first contact to verify the API key works.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-gray-200 text-gray-600 rounded-lg text-xs shrink-0"
+                  onClick={() => { setAiTestResult(null); testAiMutation.mutate() }}
+                  disabled={testAiMutation.isPending || !form.aiApiKey}
+                >
+                  {testAiMutation.isPending ? (
+                    <><Loader2 className="size-3 mr-1.5 animate-spin" /> Testing...</>
+                  ) : (
+                    <><Stethoscope className="size-3 mr-1.5" /> Test Connection</>
+                  )}
+                </Button>
+              </div>
+
+              {/* Test Result */}
+              {aiTestResult && (
+                <div className={cn(
+                  'rounded-xl border p-4 space-y-3 animate-in fade-in-0 slide-in-from-bottom-1 duration-200',
+                  aiTestResult.success
+                    ? 'bg-emerald-50/50 border-emerald-200'
+                    : 'bg-red-50/50 border-red-200'
+                )}>
+                  <div className="flex items-center gap-2">
+                    {aiTestResult.success ? (
+                      <>
+                        <CheckCircle2 className="size-4 text-emerald-600" />
+                        <span className="text-sm font-semibold text-emerald-800">Connection Successful</span>
+                        {aiTestResult.score != null && (
+                          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]">
+                            {aiTestResult.score}% match
+                          </Badge>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="size-4 text-red-600" />
+                        <span className="text-sm font-semibold text-red-800">Connection Failed</span>
+                      </>
+                    )}
+                  </div>
+
+                  {aiTestResult.success && aiTestResult.email && (
+                    <div className="rounded-lg bg-white border border-emerald-100 p-4 space-y-2">
+                      <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Generated Preview</p>
+                      <p className="text-sm font-semibold text-gray-900">{aiTestResult.email.subject}</p>
+                      <pre className="text-xs text-gray-600 whitespace-pre-wrap font-sans leading-relaxed max-h-32 overflow-y-auto">
+                        {aiTestResult.email.body}
+                      </pre>
+                      <button
+                        onClick={() => { setActiveView('email-generation') }}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-800 transition-colors mt-1"
+                      >
+                        <ExternalLink className="size-3" />
+                        View generated email in AI Emails
+                      </button>
+                    </div>
+                  )}
+
+                  {!aiTestResult.success && aiTestResult.error && (
+                    <p className="text-xs text-red-700 bg-white/60 rounded-lg p-3 border border-red-100">
+                      {aiTestResult.error}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Post-save suggestion */}
+              {justSavedAi && !aiTestResult && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 animate-in fade-in-0 duration-200">
+                  <Sparkles className="size-3.5 text-blue-600 shrink-0" />
+                  <p className="text-xs text-blue-800">
+                    AI config saved.{' '}
+                    <button
+                      onClick={() => testAiMutation.mutate()}
+                      className="font-medium underline underline-offset-2 hover:text-blue-900"
+                    >
+                      Test the connection now
+                    </button>
+                    {' '}to make sure everything works.
+                  </p>
+                </div>
+              )}
             </div>
-            <div className="pt-1 flex justify-end">
-              <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={() => savePrefs.mutate({ aiProvider: form.aiProvider, aiModel: form.aiModel, aiApiKey: form.aiApiKey })} disabled={savePrefs.isPending}>
-                {savePrefs.isPending ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <Save className="size-3.5 mr-1.5" />} Save AI Config
+
+            <div className="flex justify-end">
+              <Button
+                className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale"
+                onClick={handleSaveAiConfig}
+                disabled={savePrefs.isPending}
+              >
+                {savePrefs.isPending ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <Save className="size-3.5 mr-1.5" />}
+                Save AI Config
               </Button>
             </div>
           </div>
         </TabsContent>
 
-        {/* ── Data Management ── */}
+        {/* ═══════════════════════════════════════════════════════
+            Tab: Data Management
+           ═══════════════════════════════════════════════════════ */}
         <TabsContent value="data" className="space-y-6">
           <div className="rounded-xl bg-white card-rest p-6 space-y-5">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Data Management</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Export your data or run maintenance tasks.</p>
+              <p className="text-xs text-gray-500 mt-0.5">Export your data or run maintenance tasks on your database.</p>
             </div>
-            <div className="grid gap-3">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+
+            <div className="grid gap-4">
+              {/* Export CSV */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-gray-200 hover:bg-gray-50/50 transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="size-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0"><Download className="size-4 text-blue-600" /></div>
+                  <div className="size-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                    <Download className="size-4.5 text-blue-600" />
+                  </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Export All Data</p>
-                    <p className="text-xs text-gray-500">Download companies and contacts as CSV</p>
+                    <p className="text-sm font-semibold text-gray-900">Export All Data as CSV</p>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                      Downloads two CSV files — one for all companies and one for all contacts. Includes all fields, scores, and metadata.
+                    </p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="text-xs border-gray-200 text-gray-600 rounded-lg shrink-0" onClick={() => handleExport.mutate()} disabled={handleExport.isPending}>
-                  {handleExport.isPending ? <Loader2 className="size-3.5 animate-spin" /> : 'Export'}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs border-gray-200 text-gray-600 rounded-lg shrink-0 self-end sm:self-auto"
+                  onClick={() => handleExport.mutate()}
+                  disabled={handleExport.isPending}
+                >
+                  {handleExport.isPending ? <Loader2 className="size-3.5 animate-spin mr-1" /> : <Download className="size-3.5 mr-1.5" />}
+                  Export
                 </Button>
               </div>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+
+              {/* Health Check */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-gray-200 hover:bg-gray-50/50 transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="size-9 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0"><Stethoscope className="size-4 text-emerald-600" /></div>
+                  <div className="size-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                    <Stethoscope className="size-4.5 text-emerald-600" />
+                  </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Run Email Health Check</p>
-                    <p className="text-xs text-gray-500">Validate all email addresses in your database</p>
+                    <p className="text-sm font-semibold text-gray-900">Run Email Health Check</p>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                      Validates all email addresses in your database. Checks syntax, domain, MX records, and disposable email detection. Updates health scores.
+                    </p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="text-xs border-gray-200 text-gray-600 rounded-lg shrink-0" onClick={() => handleHealthCheck.mutate()} disabled={handleHealthCheck.isPending}>
-                  {handleHealthCheck.isPending ? <Loader2 className="size-3.5 animate-spin" /> : 'Run Check'}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs border-gray-200 text-gray-600 rounded-lg shrink-0 self-end sm:self-auto"
+                  onClick={() => handleHealthCheck.mutate()}
+                  disabled={handleHealthCheck.isPending}
+                >
+                  {handleHealthCheck.isPending ? <Loader2 className="size-3.5 animate-spin mr-1" /> : <Stethoscope className="size-3.5 mr-1.5" />}
+                  Run Check
                 </Button>
               </div>
             </div>
           </div>
         </TabsContent>
 
-        {/* ── Danger Zone ── */}
+        {/* ═══════════════════════════════════════════════════════
+            Tab: Advanced / Danger Zone
+           ═══════════════════════════════════════════════════════ */}
         <TabsContent value="danger" className="space-y-6">
-          <div className="rounded-xl border border-red-200 bg-white p-6 space-y-4">
+          <div className="rounded-xl border border-red-200 bg-white p-6 space-y-5">
             <div>
               <h3 className="text-sm font-semibold text-red-700 flex items-center gap-2">
-                <AlertTriangle className="size-4" /> Danger Zone
+                <AlertTriangle className="size-4" />
+                Danger Zone
               </h3>
-              <p className="text-xs text-gray-500 mt-0.5">Irreversible and destructive actions.</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Irreversible and destructive actions. Proceed with extreme caution.
+              </p>
             </div>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-lg border border-red-200 bg-red-50/30">
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-red-200 bg-red-50/30">
               <div>
-                <p className="text-sm font-medium text-gray-900">Delete All Data</p>
-                <p className="text-xs text-gray-500">Permanently remove all companies, contacts, and notes. This cannot be undone.</p>
+                <p className="text-sm font-semibold text-gray-900">Delete All Data</p>
+                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                  Permanently remove all companies, contacts, notes, research cards, drafts, and opportunities.
+                  This action cannot be undone. Consider exporting your data first.
+                </p>
               </div>
-              <Button variant="outline" size="sm" className="text-xs border-red-300 text-red-600 hover:bg-red-50 rounded-lg shrink-0 self-end sm:self-auto" onClick={() => setDangerOpen(true)}>
-                <Trash2 className="size-3.5 mr-1" /> Delete All
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs border-red-300 text-red-600 hover:bg-red-50 rounded-lg shrink-0 self-end sm:self-auto"
+                onClick={() => setDangerOpen(true)}
+              >
+                <Trash2 className="size-3.5 mr-1" />
+                Delete All
               </Button>
             </div>
           </div>
@@ -347,17 +756,40 @@ export function SettingsScreen() {
       <Separator className="bg-gray-100 my-8" />
       <p className="text-center text-xs text-gray-400 pb-4">DeepMindQ v1.0 — AI-Powered Sales Intelligence</p>
 
-      {/* Danger Dialog */}
+      {/* ═══════════════════════════════════════════════════════
+          Delete Confirmation Dialog
+         ═══════════════════════════════════════════════════════ */}
       <Dialog open={dangerOpen} onOpenChange={setDangerOpen}>
         <DialogContent className="sm:max-w-md rounded-xl">
           <DialogHeader>
-            <DialogTitle className="text-red-700">Delete All Data?</DialogTitle>
-            <DialogDescription className="text-sm text-gray-500">This will permanently delete all companies, contacts, notes, research cards, and opportunities. This action cannot be undone.</DialogDescription>
+            <DialogTitle className="text-red-700 flex items-center gap-2">
+              <AlertTriangle className="size-5" />
+              Delete All Data?
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500 leading-relaxed">
+              This will permanently delete all companies, contacts, notes, research cards, drafts, and opportunities from your database.
+              This action <span className="font-semibold text-red-600">cannot be undone</span>.
+            </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDangerOpen(false)} className="border-gray-200 text-gray-600">Cancel</Button>
-            <Button variant="destructive" className="bg-red-600 hover:bg-red-700 text-white rounded-lg" onClick={() => handleDeleteAll.mutate()} disabled={handleDeleteAll.isPending}>
-              {handleDeleteAll.isPending ? <Loader2 className="size-3.5 animate-spin mr-1" /> : <Trash2 className="size-3.5 mr-1" />} Yes, Delete Everything
+          <DialogFooter className="gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setDangerOpen(false)}
+              className="border-gray-200 text-gray-600 rounded-lg"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="bg-red-600 hover:bg-red-700 text-white rounded-lg"
+              onClick={() => handleDeleteAll.mutate()}
+              disabled={handleDeleteAll.isPending}
+            >
+              {handleDeleteAll.isPending ? (
+                <><Loader2 className="size-3.5 animate-spin mr-1" /> Deleting...</>
+              ) : (
+                <><Trash2 className="size-3.5 mr-1" /> Yes, Delete Everything</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

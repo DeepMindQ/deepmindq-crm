@@ -1,0 +1,758 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState } from 'react'
+     4→     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→     5→import {
+     6→     6→  ArrowLeft, Building2, Globe, MapPin, Users, Plus, Target, StickyNote, FileText,
+     7→     7→  Sparkles, Mail, Phone, ExternalLink, Linkedin, DollarSign, Calendar,
+     8→     8→  CheckCircle2, Clock, BarChart3, Loader2, X, AlertTriangle, Trash2,
+     9→     9→} from 'lucide-react'
+    10→    10→import { useAppStore } from '@/lib/store'
+    11→    11→import { formatDistanceToNow } from 'date-fns'
+    12→    12→import { toast } from 'sonner'
+    13→    13→import { Button } from '@/components/ui/button'
+    14→    14→import { Badge } from '@/components/ui/badge'
+    15→    15→import { Skeleton } from '@/components/ui/skeleton'
+    16→    16→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    17→    17→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+    18→    18→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+    19→    19→import { Textarea } from '@/components/ui/textarea'
+    20→    20→import { Label } from '@/components/ui/label'
+    21→    21→import { Input } from '@/components/ui/input'
+    22→    22→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    23→    23→import { ScoreGauge, getActivityIcon, StatusDot, EmptyState } from '@/components/shared/design-system'
+    24→    24→import Image from 'next/image'
+    25→    25→
+    26→    26→const healthVariant = (h: string) =>
+    27→    27→  h === 'valid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+    28→    28→  : h === 'risky' ? 'bg-amber-50 text-amber-700 border border-amber-200'
+    29→    29→  : h === 'invalid' ? 'bg-red-50 text-red-700 border border-red-200'
+    30→    30→  : 'bg-gray-100 text-gray-600 border border-gray-200'
+    31→    31→
+    32→    32→const statusBorder = (s: string) =>
+    33→    33→  s === 'open' ? 'border-l-blue-500' : s === 'won' ? 'border-l-emerald-500' : s === 'lost' ? 'border-l-red-400' : 'border-l-gray-300'
+    34→    34→
+    35→    35→const statusBg = (s: string) =>
+    36→    36→  s === 'open' ? 'bg-blue-50 text-blue-700 border-blue-200' : s === 'won' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    37→    37→  : s === 'lost' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-gray-100 text-gray-600 border-gray-200'
+    38→    38→
+    39→    39→const RESEARCH_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
+    40→    40→  businessOverview: { label: 'Business Overview', icon: Building2 },
+    41→    41→  currentTechLandscape: { label: 'Tech Landscape', icon: BarChart3 },
+    42→    42→  potentialChallenges: { label: 'Challenges', icon: Target },
+    43→    43→  possibleOpportunities: { label: 'Opportunities', icon: Sparkles },
+    44→    44→  relevantServices: { label: 'Relevant Services', icon: FileText },
+    45→    45→  keyDecisionMakers: { label: 'Decision Makers', icon: Users },
+    46→    46→  lastInteraction: { label: 'Last Interaction', icon: Clock },
+    47→    47→  nextAction: { label: 'Next Action', icon: ArrowLeft },
+    48→    48→}
+    49→    49→
+    50→    50→const researchColors = [
+    51→    51→  'bg-blue-50 border-blue-100', 'bg-violet-50 border-violet-100', 'bg-amber-50 border-amber-100',
+    52→    52→  'bg-emerald-50 border-emerald-100', 'bg-rose-50 border-rose-100', 'bg-indigo-50 border-indigo-100',
+    53→    53→  'bg-cyan-50 border-cyan-100', 'bg-orange-50 border-orange-100',
+    54→    54→]
+    55→    55→
+    56→    56→const STATUS_CYCLE = ['new', 'researching', 'contacted', 'qualified', 'ready', 'won', 'lost'] as const
+    57→    57→const OPP_STATUS_CYCLE = ['researching', 'contacted', 'qualified', 'proposed', 'negotiation', 'won', 'lost'] as const
+    58→    58→
+    59→    59→const ROLE_BUCKETS = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'] as const
+    60→    60→const OPP_STATUSES = ['researching', 'contacted', 'proposed', 'negotiation', 'won', 'lost'] as const
+    61→    61→
+    62→    62→const oppStatusVariant = (s: string) => {
+    63→    63→  switch (s) {
+    64→    64→    case 'researching': return 'bg-blue-50 text-blue-700 border-blue-200'
+    65→    65→    case 'contacted': return 'bg-violet-50 text-violet-700 border-violet-200'
+    66→    66→    case 'qualified': return 'bg-amber-50 text-amber-700 border-amber-200'
+    67→    67→    case 'proposed': return 'bg-indigo-50 text-indigo-700 border-indigo-200'
+    68→    68→    case 'negotiation': return 'bg-orange-50 text-orange-700 border-orange-200'
+    69→    69→    case 'ready': return 'bg-cyan-50 text-cyan-700 border-cyan-200'
+    70→    70→    case 'won': return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    71→    71→    case 'lost': return 'bg-red-50 text-red-700 border-red-200'
+    72→    72→    default: return 'bg-gray-100 text-gray-600 border-gray-200'
+    73→    73→  }
+    74→    74→}
+    75→    75→
+    76→    76→export default function CompanyProfileScreen() {
+    77→    77→  const { selectedCompanyId, setActiveView } = useAppStore()
+    78→    78→  const qc = useQueryClient()
+    79→    79→
+    80→    80→  // Note dialog state
+    81→    81→  const [noteOpen, setNoteOpen] = useState(false)
+    82→    82→  const [noteBody, setNoteBody] = useState('')
+    83→    83→  const [noteType, setNoteType] = useState('')
+    84→    84→
+    85→    85→  // Delete note confirmation state
+    86→    86→  const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null)
+    87→    87→
+    88→    88→  // Contact dialog state
+    89→    89→  const [contactOpen, setContactOpen] = useState(false)
+    90→    90→  const [contactForm, setContactForm] = useState({
+    91→    91→    name: '',
+    92→    92→    email: '',
+    93→    93→    jobTitle: '',
+    94→    94→    roleBucket: '',
+    95→    95→    phone: '',
+    96→    96→    linkedinUrl: '',
+    97→    97→  })
+    98→    98→
+    99→    99→  // Opportunity dialog state
+   100→   100→  const [oppOpen, setOppOpen] = useState(false)
+   101→   101→  const [oppForm, setOppForm] = useState({
+   102→   102→    title: '',
+   103→   103→    description: '',
+   104→   104→    status: 'researching',
+   105→   105→    nextAction: '',
+   106→   106→  })
+   107→   107→
+   108→   108→  const { data, isLoading } = useQuery({
+   109→   109→    queryKey: ['company', selectedCompanyId],
+   110→   110→    queryFn: () => fetch(`/api/companies/${selectedCompanyId}`).then(r => r.json()),
+   111→   111→    enabled: !!selectedCompanyId,
+   112→   112→  })
+   113→   113→
+   114→   114→  // ── Add Note mutation (existing) ──
+   115→   115→  const addNote = useMutation({
+   116→   116→    mutationFn: (body: { body: string; noteType: string }) =>
+   117→   117→      fetch('/api/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, companyId: selectedCompanyId }) }).then(r => r.json()),
+   118→   118→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company'] }); setNoteOpen(false); setNoteBody(''); setNoteType(''); toast.success('Note added') },
+   119→   119→    onError: () => toast.error('Failed to add note'),
+   120→   120→  })
+   121→   121→
+   122→   122→  // ── Generate Research mutation (AI-powered) ──
+   123→   123→  const generateResearch = useMutation({
+   124→   124→    mutationFn: async () => {
+   125→   125→      const res = await fetch('/api/research', {
+   126→   126→        method: 'POST',
+   127→   127→        headers: { 'Content-Type': 'application/json' },
+   128→   128→        body: JSON.stringify({ companyId: selectedCompanyId, action: 'generate' }),
+   129→   129→      })
+   130→   130→      if (!res.ok) {
+   131→   131→        const err = await res.json().catch(() => ({ error: 'Failed to generate research' }))
+   132→   132→        throw new Error(err.error || 'Failed to generate research')
+   133→   133→      }
+   134→   134→      const result = await res.json()
+   135→   135→      if (result._usedLlm === false) {
+   136→   136→        toast.info('Generated with templates — configure AI key in Settings for AI-powered research')
+   137→   137→      }
+   138→   138→      return result
+   139→   139→    },
+   140→   140→    onSuccess: () => {
+   141→   141→      qc.invalidateQueries({ queryKey: ['company'] })
+   142→   142→      toast.success('Research generated successfully')
+   143→   143→    },
+   144→   144→    onError: (err) => toast.error(err.message || 'Failed to generate research'),
+   145→   145→  })
+   146→   146→
+   147→   147→  // ── Add Contact mutation ──
+   148→   148→  const addContact = useMutation({
+   149→   149→    mutationFn: (form: { name: string; email: string; jobTitle: string; roleBucket: string; phone: string; linkedinUrl: string }) =>
+   150→   150→      fetch('/api/contacts', {
+   151→   151→        method: 'POST',
+   152→   152→        headers: { 'Content-Type': 'application/json' },
+   153→   153→        body: JSON.stringify({ ...form, companyId: selectedCompanyId }),
+   154→   154→      }).then(r => {
+   155→   155→        if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add contact') })
+   156→   156→        return r.json()
+   157→   157→      }),
+   158→   158→    onSuccess: () => {
+   159→   159→      qc.invalidateQueries({ queryKey: ['company'] })
+   160→   160→      setContactOpen(false)
+   161→   161→      setContactForm({ name: '', email: '', jobTitle: '', roleBucket: '', phone: '', linkedinUrl: '' })
+   162→   162→      toast.success('Contact added successfully')
+   163→   163→    },
+   164→   164→    onError: (err) => toast.error(err.message || 'Failed to add contact'),
+   165→   165→  })
+   166→   166→
+   167→   167→  // ── Add Opportunity mutation ──
+   168→   168→  const addOpportunity = useMutation({
+   169→   169→    mutationFn: (form: { title: string; description: string; status: string; nextAction: string }) =>
+   170→   170→      fetch('/api/opportunities', {
+   171→   171→        method: 'POST',
+   172→   172→        headers: { 'Content-Type': 'application/json' },
+   173→   173→        body: JSON.stringify({ companyId: selectedCompanyId, ...form }),
+   174→   174→      }).then(r => {
+   175→   175→        if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add opportunity') })
+   176→   176→        return r.json()
+   177→   177→      }),
+   178→   178→    onSuccess: () => {
+   179→   179→      qc.invalidateQueries({ queryKey: ['company'] })
+   180→   180→      setOppOpen(false)
+   181→   181→      setOppForm({ title: '', description: '', status: 'researching', nextAction: '' })
+   182→   182→      toast.success('Opportunity created successfully')
+   183→   183→    },
+   184→   184→    onError: (err) => toast.error(err.message || 'Failed to add opportunity'),
+   185→   185→  })
+   186→   186→
+   187→   187→  // ── Update Opportunity Status mutation ──
+   188→   188→  const updateOppMutation = useMutation({
+   189→   189→    mutationFn: ({ id, status }: { id: string; status: string }) =>
+   190→   190→      fetch(`/api/opportunities/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }).then(r => r.json()),
+   191→   191→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); toast.success('Opportunity updated') },
+   192→   192→    onError: () => toast.error('Failed to update opportunity'),
+   193→   193→  })
+   194→   194→
+   195→   195→  // ── Delete Opportunity mutation ──
+   196→   196→  const deleteOppMutation = useMutation({
+   197→   197→    mutationFn: (oppId: string) =>
+   198→   198→      fetch(`/api/opportunities/${oppId}`, { method: 'DELETE' }).then(r => r.json()),
+   199→   199→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); toast.success('Opportunity deleted') },
+   200→   200→    onError: () => toast.error('Failed to delete opportunity'),
+   201→   201→  })
+   202→   202→
+   203→   203→  // ── Delete Note mutation ──
+   204→   204→  const deleteNoteMutation = useMutation({
+   205→   205→    mutationFn: (noteId: string) =>
+   206→   206→      fetch(`/api/notes?id=${noteId}&type=company`, { method: 'DELETE' }).then(r => r.json()),
+   207→   207→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); setDeleteNoteId(null); toast.success('Note deleted') },
+   208→   208→    onError: () => toast.error('Failed to delete note'),
+   209→   209→  })
+   210→   210→
+   211→   211→  // ── Opportunity status cycle handler ──
+   212→   212→  const handleOppStatusCycle = (oppId: string, currentStatus: string) => {
+   213→   213→    const currentIdx = OPP_STATUS_CYCLE.indexOf(currentStatus as typeof OPP_STATUS_CYCLE[number])
+   214→   214→    const nextIdx = (currentIdx + 1) % OPP_STATUS_CYCLE.length
+   215→   215→    updateOppMutation.mutate({ id: oppId, status: OPP_STATUS_CYCLE[nextIdx] })
+   216→   216→  }
+   217→   217→
+   218→   218→  // ── Update Company Status mutation ──
+   219→   219→  const updateCompanyStatus = useMutation({
+   220→   220→    mutationFn: async (newStatus: string) => {
+   221→   221→      const res = await fetch(`/api/companies/${selectedCompanyId}`, {
+   222→   222→        method: 'PATCH',
+   223→   223→        headers: { 'Content-Type': 'application/json' },
+   224→   224→        body: JSON.stringify({ status: newStatus }),
+   225→   225→      })
+   226→   226→      if (!res.ok) throw new Error('Failed to update status')
+   227→   227→
+   228→   228→      // Also create a timeline entry
+   229→   229→      await fetch('/api/timeline', {
+   230→   230→        method: 'POST',
+   231→   231→        headers: { 'Content-Type': 'application/json' },
+   232→   232→        body: JSON.stringify({
+   233→   233→          companyId: selectedCompanyId,
+   234→   234→          action: 'status_changed',
+   235→   235→          details: `Company status changed from "${data.status}" to "${newStatus}"`,
+   236→   236→        }),
+   237→   237→      })
+   238→   238→
+   239→   239→      return res.json()
+   240→   240→    },
+   241→   241→    onSuccess: () => {
+   242→   242→      qc.invalidateQueries({ queryKey: ['company'] })
+   243→   243→      toast.success('Status updated')
+   244→   244→    },
+   245→   245→    onError: () => toast.error('Failed to update status'),
+   246→   246→  })
+   247→   247→
+   248→   248→  // ── Status cycle handler ──
+   249→   249→  const handleStatusCycle = () => {
+   250→   250→    const current = data.status as string
+   251→   251→    const currentIdx = STATUS_CYCLE.indexOf(current as typeof STATUS_CYCLE[number])
+   252→   252→    const nextIdx = (currentIdx + 1) % STATUS_CYCLE.length
+   253→   253→    const newStatus = STATUS_CYCLE[nextIdx]
+   254→   254→    updateCompanyStatus.mutate(newStatus)
+   255→   255→  }
+   256→   256→
+   257→   257→  // ── Generate Email handler ──
+   258→   258→  const handleGenerateEmail = () => {
+   259→   259→    if (contacts.length === 0) {
+   260→   260→      toast.error('Add contacts first to generate emails')
+   261→   261→      return
+   262→   262→    }
+   263→   263→    const firstContactId = contacts[0].id
+   264→   264→    useAppStore.getState().setSelectedContactId(firstContactId)
+   265→   265→    setActiveView('email-generation')
+   266→   266→  }
+   267→   267→
+   268→   268→  // ── Contact form submit ──
+   269→   269→  const handleContactSubmit = () => {
+   270→   270→    if (!contactForm.name.trim()) return
+   271→   271→    addContact.mutate(contactForm)
+   272→   272→  }
+   273→   273→
+   274→   274→  // ── Opportunity form submit ──
+   275→   275→  const handleOppSubmit = () => {
+   276→   276→    if (!oppForm.title.trim()) return
+   277→   277→    addOpportunity.mutate(oppForm)
+   278→   278→  }
+   279→   279→
+   280→   280→  if (!selectedCompanyId) return <EmptyState icon={Globe} title="No company selected" description="Go back to Companies and select one." actionLabel="Back to Companies" onAction={() => setActiveView('companies')} />
+   281→   281→  if (isLoading) return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-32" /><Skeleton className="h-64" /></div>
+   282→   282→  if (!data) return <EmptyState icon={Globe} title="Company not found" description="This company may have been deleted." actionLabel="Back to Companies" onAction={() => setActiveView('companies')} />
+   283→   283→
+   284→   284→  const { contacts = [], notes = [], researchCard, opportunities = [], timeline = [] } = data
+   285→   285→
+   286→   286→  const score = data.intelligenceScore ?? 0
+   287→   287→  const segments = [
+   288→   288→    { label: 'Data Completeness', value: Math.min(100, Math.round((score * 0.4) + 20)), color: '#2563EB' },
+   289→   289→    { label: 'Contact Quality', value: Math.min(100, Math.round((score * 0.35) + 15)), color: '#059669' },
+   290→   290→    { label: 'Research Depth', value: researchCard ? Math.min(100, Math.round((score * 0.25) + 10)) : 0, color: '#D97706' },
+   291→   291→  ]
+   292→   292→
+   293→   293→  return (
+   294→   294→    <div className="space-y-6">
+   295→   295→      {/* ── Header ── */}
+   296→   296→      <div className="rounded-xl bg-white p-4 md:p-6 card-rest slide-up">
+   297→   297→        <div className="flex items-start gap-4 md:gap-5">
+   298→   298→          {/* Logo */}
+   299→   299→          <div className="size-14 rounded-xl bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+   300→   300→            {data.domain ? (
+   301→   301→              <Image src={`https://logo.clearbit.com/${data.domain}`} alt="" width={56} height={56} className="size-14 object-contain p-2" onError={e => { (e.target as HTMLImageElement).style.display='none'; (e.target as HTMLImageElement).parentElement!.innerHTML=`<span class="text-xl font-bold text-gray-400">${data.name?.charAt(0)}</span>` }} />
+   302→   302→            ) : (
+   303→   303→              <span className="text-xl font-bold text-gray-400">{data.name?.charAt(0)}</span>
+   304→   304→            )}
+   305→   305→          </div>
+   306→   306→
+   307→   307→          {/* Info */}
+   308→   308→          <div className="flex-1 min-w-0">
+   309→   309→            <div className="flex items-center gap-2 flex-wrap">
+   310→   310→              <button onClick={() => setActiveView('companies')} className="text-gray-400 hover:text-gray-700 transition-colors">
+   311→   311→                <ArrowLeft className="size-4" />
+   312→   312→              </button>
+   313→   313→              <h2 className="text-xl font-bold text-gray-900 tracking-tight truncate">{data.name}</h2>
+   314→   314→              {data.industry && <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-xs font-normal border-0">{data.industry}</Badge>}
+   315→   315→              <button onClick={handleStatusCycle} disabled={updateCompanyStatus.isPending}
+   316→   316→                className={`text-[11px] font-medium px-2 py-0.5 rounded-md border ${statusBg(data.status)} ${updateCompanyStatus.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}>
+   317→   317→                {updateCompanyStatus.isPending ? <Loader2 className="size-3 animate-spin inline" /> : null}
+   318→   318→                {data.status}
+   319→   319→              </button>
+   320→   320→            </div>
+   321→   321→            <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 flex-wrap">
+   322→   322→              {data.domain && <span className="flex items-center gap-1"><Globe className="size-3.5" />{data.domain}</span>}
+   323→   323→              {data.location && <span className="flex items-center gap-1"><MapPin className="size-3.5" />{data.location}</span>}
+   324→   324→              {data.country && <span className="flex items-center gap-1"><MapPin className="size-3.5" />{data.country}</span>}
+   325→   325→              {data.employeeSize && <span className="flex items-center gap-1"><Users className="size-3.5" />{data.employeeSize} employees</span>}
+   326→   326→              {data.website && (
+   327→   327→                <a href={data.website.startsWith('http') ? data.website : `https://${data.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors">
+   328→   328→                  <ExternalLink className="size-3.5" />Website
+   329→   329→                </a>
+   330→   330→              )}
+   331→   331→              {data.linkedinUrl && (
+   332→   332→                <a href={data.linkedinUrl.startsWith('http') ? data.linkedinUrl : `https://${data.linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors">
+   333→   333→                  <Linkedin className="size-3.5" />LinkedIn
+   334→   334→                </a>
+   335→   335→              )}
+   336→   336→              {data.dataFreshness && (
+   337→   337→                <span className="flex items-center gap-1.5">
+   338→   338→                  <StatusDot status={data.dataFreshness === 'fresh' ? 'fresh' : data.dataFreshness === 'stale' ? 'stale' : data.dataFreshness === 'old' ? 'old' : 'unknown'} />
+   339→   339→                  <span className="capitalize">{data.dataFreshness}</span>
+   340→   340→                </span>
+   341→   341→              )}
+   342→   342→            </div>
+   343→   343→
+   344→   344→            {/* Action buttons */}
+   345→   345→            <div className="flex items-center gap-2 mt-4 flex-wrap">
+   346→   346→              <Button data-action="generate-research" size="sm" className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
+   347→   347→                {generateResearch.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Sparkles className="size-3.5 mr-1.5" />}
+   348→   348→                {generateResearch.isPending ? 'Generating...' : 'Generate Research'}
+   349→   349→              </Button>
+   350→   350→              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={() => setNoteOpen(true)}>
+   351→   351→                <Plus className="size-3.5 mr-1.5" /> Add Note
+   352→   352→              </Button>
+   353→   353→              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={() => setContactOpen(true)}>
+   354→   354→                <Plus className="size-3.5 sm:mr-1.5" /> <span className="hidden sm:inline">Add Contact</span>
+   355→   355→              </Button>
+   356→   356→              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={handleGenerateEmail}>
+   357→   357→                <Mail className="size-3.5 mr-1.5" /> Generate Email
+   358→   358→              </Button>
+   359→   359→            </div>
+   360→   360→          </div>
+   361→   361→
+   362→   362→          {/* Score Gauge */}
+   363→   363→          <div className="hidden md:block">
+   364→   364→            <ScoreGauge score={score} size={100} strokeWidth={8} segments={segments} />
+   365→   365→          </div>
+   366→   366→        </div>
+   367→   367→      </div>
+   368→   368→
+   369→   369→      {/* ── Tabs ── */}
+   370→   370→      <Tabs defaultValue="overview">
+   371→   371→        <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 overflow-x-auto">
+   372→   372→          {['overview', 'contacts', 'research', 'opportunities', 'timeline', 'notes'].map(tab => (
+   373→   373→            <TabsTrigger key={tab} value={tab}
+   374→   374→              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5">
+   375→   375→              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+   376→   376→              {tab === 'contacts' && contacts.length > 0 && <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{contacts.length}</span>}
+   377→   377→              {tab === 'opportunities' && opportunities.length > 0 && <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{opportunities.length}</span>}
+   378→   378→              {tab === 'notes' && notes.length > 0 && <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{notes.length}</span>}
+   379→   379→            </TabsTrigger>
+   380→   380→          ))}
+   381→   381→        </TabsList>
+   382→   382→
+   383→   383→        {/* Overview */}
+   384→   384→        <TabsContent value="overview" className="space-y-6 mt-5">
+   385→   385→          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+   386→   386→            {([
+   387→   387→              ['Website', data.website, Globe], ['Industry', data.industry, BarChart3], ['Employees', data.employeeSize, Users],
+   388→   388→              ['Location', data.location ?? data.country, MapPin], ['Status', data.status, CheckCircle2], ['Freshness', data.dataFreshness, Clock],
+   389→   389→            ] as const).map(([label, val, Icon]) => (
+   390→   390→              <div key={label} className="rounded-lg bg-white p-4 card-rest">
+   391→   391→                <div className="flex items-center gap-2 mb-1">
+   392→   392→                  <Icon className="size-3.5 text-gray-400" />
+   393→   393→                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{label}</p>
+   394→   394→                </div>
+   395→   395→                <p className="text-sm font-semibold text-gray-900 capitalize">{val || '—'}</p>
+   396→   396→              </div>
+   397→   397→            ))}
+   398→   398→          </div>
+   399→   399→
+   400→   400→          {/* Quick Research Preview */}
+   401→   401→          {researchCard ? (
+   402→   402→            <div className="rounded-xl bg-white card-rest overflow-hidden">
+   403→   403→              <div className="px-6 py-4 border-b border-gray-100">
+   404→   404→                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+   405→   405→                  <FileText className="size-4 text-gray-400" /> Research Summary
+   406→   406→                </h3>
+   407→   407→              </div>
+   408→   408→              <div className="p-6">
+   409→   409→                <div className="grid gap-4 md:grid-cols-2">
+   410→   410→                  {(Object.entries(RESEARCH_LABELS) as [keyof typeof researchCard, typeof RESEARCH_LABELS[string]][]).map(([key, cfg], idx) =>
+   411→   411→                    researchCard[key] ? (
+   412→   412→                      <div key={key} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 50}ms` }}>
+   413→   413→                        <div className="flex items-center gap-2 mb-2">
+   414→   414→                          <cfg.icon className="size-3.5 text-gray-500" />
+   415→   415→                          <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
+   416→   416→                        </div>
+   417→   417→                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap line-clamp-3">{researchCard[key]}</p>
+   418→   418→                      </div>
+   419→   419→                    ) : null,
+   420→   420→                  )}
+   421→   421→                </div>
+   422→   422→              </div>
+   423→   423→            </div>
+   424→   424→          ) : null}
+   425→   425→        </TabsContent>
+   426→   426→
+   427→   427→        {/* Contacts */}
+   428→   428→        <TabsContent value="contacts" className="mt-5">
+   429→   429→          <div className="flex justify-end mb-4">
+   430→   430→            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale" onClick={() => setContactOpen(true)}>
+   431→   431→              <Plus className="size-3.5 mr-1.5" /> Add Contact
+   432→   432→            </Button>
+   433→   433→          </div>
+   434→   434→          {contacts.length === 0 ? (
+   435→   435→            <EmptyState icon={Users} title="No contacts found" description="Add contacts to this company to start tracking outreach." actionLabel="Add Contact" onAction={() => setContactOpen(true)} />
+   436→   436→          ) : (
+   437→   437→            <div className="rounded-xl bg-white card-rest overflow-hidden">
+   438→   438→              <Table>
+   439→   439→                <TableHeader>
+   440→   440→                  <TableRow className="border-gray-100 hover:bg-transparent">
+   441→   441→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Name</TableHead>
+   442→   442→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Title</TableHead>
+   443→   443→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Email</TableHead>
+   444→   444→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Health</TableHead>
+   445→   445→                  </TableRow>
+   446→   446→                </TableHeader>
+   447→   447→                <TableBody>
+   448→   448→                  {contacts.map((c: any) => (
+   449→   449→                    <TableRow key={c.id} className="table-row-hover border-gray-50 cursor-pointer" onClick={() => { useAppStore.getState().setSelectedContactId(c.id); setActiveView('contact-profile') }}>
+   450→   450→                      <TableCell className="font-medium text-gray-900 text-sm">{c.name}</TableCell>
+   451→   451→                      <TableCell className="text-sm text-gray-500">{c.jobTitle || '—'}</TableCell>
+   452→   452→                      <TableCell className="text-sm text-gray-500 font-mono">{c.email || '—'}</TableCell>
+   453→   453→                      <TableCell>
+   454→   454→                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${healthVariant(c.emailHealth)}`}>{c.emailHealth || 'unknown'}</span>
+   455→   455→                      </TableCell>
+   456→   456→                    </TableRow>
+   457→   457→                  ))}
+   458→   458→                </TableBody>
+   459→   459→              </Table>
+   460→   460→            </div>
+   461→   461→          )}
+   462→   462→        </TabsContent>
+   463→   463→
+   464→   464→        {/* Research */}
+   465→   465→        <TabsContent value="research" className="mt-5">
+   466→   466→          <div className="rounded-xl bg-white card-rest overflow-hidden">
+   467→   467→            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+   468→   468→              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+   469→   469→                <Sparkles className="size-4 text-amber-500" /> AI Research Card
+   470→   470→              </h3>
+   471→   471→              <Button size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md press-scale shadow-xs" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
+   472→   472→                {generateResearch.isPending ? <Loader2 className="size-3 mr-1 animate-spin" /> : <Sparkles className="size-3 mr-1" />}
+   473→   473→                {generateResearch.isPending ? 'Generating...' : researchCard ? 'Regenerate' : 'Generate AI Research'}
+   474→   474→              </Button>
+   475→   475→            </div>
+   476→   476→            <div className="p-6">
+   477→   477→              {researchCard ? (
+   478→   478→                <>
+   479→   479→                  {researchCard.lastResearchedAt && (
+   480→   480→                    <p className="text-xs text-gray-400 mb-4">Last researched {formatDistanceToNow(new Date(researchCard.lastResearchedAt), { addSuffix: true })}</p>
+   481→   481→                  )}
+   482→   482→                  <div className="grid gap-4 md:grid-cols-2">
+   483→   483→                    {(Object.entries(RESEARCH_LABELS) as [keyof typeof researchCard, typeof RESEARCH_LABELS[string]][]).map(([key, cfg], idx) =>
+   484→   484→                      researchCard[key] ? (
+   485→   485→                        <div key={key} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 50}ms` }}>
+   486→   486→                          <div className="flex items-center gap-2 mb-2">
+   487→   487→                            <cfg.icon className="size-3.5 text-gray-500" />
+   488→   488→                            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
+   489→   489→                          </div>
+   490→   490→                          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{researchCard[key]}</p>
+   491→   491→                        </div>
+   492→   492→                      ) : null,
+   493→   493→                    )}
+   494→   494→                  </div>
+   495→   495→                </>
+   496→   496→              ) : (
+   497→   497→                <EmptyState
+   498→   498→                  icon={FileText}
+   499→   499→                  title="No research generated yet"
+   500→   500→                  description="Click Generate AI Research to create an AI-powered research card with business overview, tech landscape, challenges, and opportunities."
+   501→   501→                  className="py-10"
+   502→   502→                />
+   503→   503→              )}
+   504→   504→            </div>
+   505→   505→          </div>
+   506→   506→        </TabsContent>
+   507→   507→
+   508→   508→        {/* Opportunities */}
+   509→   509→        <TabsContent value="opportunities" className="mt-5">
+   510→   510→          <div className="flex justify-end mb-4">
+   511→   511→            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale" onClick={() => setOppOpen(true)}>
+   512→   512→              <Plus className="size-3.5 mr-1.5" /> Add Opportunity
+   513→   513→            </Button>
+   514→   514→          </div>
+   515→   515→          {opportunities.length === 0 ? (
+   516→   516→            <EmptyState icon={Target} title="No opportunities yet" description="Create opportunities to track potential deals with this company." actionLabel="Add Opportunity" onAction={() => setOppOpen(true)} />
+   517→   517→          ) : (
+   518→   518→            <div className="grid gap-3">
+   519→   519→              {opportunities.map((o: any) => (
+   520→   520→                <div key={o.id} className={`rounded-xl bg-white card-rest border-l-[3px] ${statusBorder(o.status)} p-5 flex items-start justify-between gap-4`}>
+   521→   521→                  <div className="min-w-0">
+   522→   522→                    <p className="text-sm font-semibold text-gray-900">{o.title}</p>
+   523→   523→                    {o.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{o.description}</p>}
+   524→   524→                    {o.nextAction && <p className="text-xs text-gray-400 mt-1">Next: {o.nextAction}</p>}
+   525→   525→                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+   526→   526→                      {o.value && <span className="flex items-center gap-1"><DollarSign className="size-3" />{o.value}</span>}
+   527→   527→                      {o.closeDate && <span className="flex items-center gap-1"><Calendar className="size-3" />{o.closeDate}</span>}
+   528→   528→                    </div>
+   529→   529→                  </div>
+   530→   530→                  <div className="flex items-center gap-2 shrink-0">
+   531→   531→                    <button
+   532→   532→                      onClick={(e) => { e.stopPropagation(); handleOppStatusCycle(o.id, o.status) }}
+   533→   533→                      disabled={updateOppMutation.isPending}
+   534→   534→                      className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border transition-opacity hover:opacity-80 ${oppStatusVariant(o.status)} ${updateOppMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+   535→   535→                      title="Click to cycle status"
+   536→   536→                    >
+   537→   537→                      {updateOppMutation.isPending ? <Loader2 className="size-3 animate-spin inline mr-1" /> : null}
+   538→   538→                      {o.status}
+   539→   539→                    </button>
+   540→   540→                    <button
+   541→   541→                      onClick={(e) => { e.stopPropagation(); deleteOppMutation.mutate(o.id) }}
+   542→   542→                      disabled={deleteOppMutation.isPending}
+   543→   543→                      className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-50"
+   544→   544→                      title="Delete opportunity"
+   545→   545→                    >
+   546→   546→                      {deleteOppMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+   547→   547→                    </button>
+   548→   548→                  </div>
+   549→   549→                </div>
+   550→   550→              ))}
+   551→   551→            </div>
+   552→   552→          )}
+   553→   553→        </TabsContent>
+   554→   554→
+   555→   555→        {/* Timeline */}
+   556→   556→        <TabsContent value="timeline" className="mt-5">
+   557→   557→          {timeline.length === 0 ? (
+   558→   558→            <EmptyState icon={Clock} title="No timeline entries" description="Activity will appear here as you interact with this company." />
+   559→   559→          ) : (
+   560→   560→            <div className="relative pl-6">
+   561→   561→              <div className="absolute left-[7px] top-1 bottom-1 border-l-2 border-gray-200" />
+   562→   562→              <div className="space-y-4">
+   563→   563→                {timeline.map((t: any) => {
+   564→   564→                  const iconData = getActivityIcon(t.action)
+   565→   565→                  const Icon = iconData.icon
+   566→   566→                  return (
+   567→   567→                    <div key={t.id} className="relative flex items-start gap-4 slide-up">
+   568→   568→                      <div className="absolute -left-6 top-1 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
+   569→   569→                      <div className={`shrink-0 mt-0.5 rounded-lg p-1.5 ${iconData.bg}`}>
+   570→   570→                        <Icon className={`size-3.5 ${iconData.color}`} />
+   571→   571→                      </div>
+   572→   572→                      <div className="min-w-0">
+   573→   573→                        <p className="text-sm font-medium text-gray-900 capitalize">{t.action.replace(/_/g, ' ')}</p>
+   574→   574→                        {t.details && <p className="text-sm text-gray-500 mt-0.5">{t.details}</p>}
+   575→   575→                        <p className="text-[11px] text-gray-400 mt-1">{formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}</p>
+   576→   576→                      </div>
+   577→   577→                    </div>
+   578→   578→                  )
+   579→   579→                })}
+   580→   580→              </div>
+   581→   581→            </div>
+   582→   582→          )}
+   583→   583→        </TabsContent>
+   584→   584→
+   585→   585→        {/* Notes */}
+   586→   586→        <TabsContent value="notes" className="mt-5">
+   587→   587→          <div className="flex justify-end mb-4">
+   588→   588→            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale" onClick={() => setNoteOpen(true)}>
+   589→   589→              <Plus className="size-3.5 mr-1.5" /> Add Note
+   590→   590→            </Button>
+   591→   591→          </div>
+   592→   592→          {notes.length === 0 ? (
+   593→   593→            <EmptyState icon={StickyNote} title="No notes yet" description="Add notes to track conversations, insights, and action items." actionLabel="Add Note" onAction={() => setNoteOpen(true)} />
+   594→   594→          ) : (
+   595→   595→            <div className="space-y-3">
+   596→   596→              {notes.map((n: any) => (
+   597→   597→                <div key={n.id} className="rounded-xl bg-white p-5 card-rest slide-up">
+   598→   598→                  <div className="flex items-start justify-between gap-3">
+   599→   599→                    <p className="text-sm text-gray-700 leading-relaxed flex-1">{n.body}</p>
+   600→   600→                    <button
+   601→   601→                      onClick={() => setDeleteNoteId(n.id)}
+   602→   602→                      className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
+   603→   603→                      title="Delete note"
+   604→   604→                    >
+   605→   605→                      <X className="size-3.5" />
+   606→   606→                    </button>
+   607→   607→                  </div>
+   608→   608→                  <div className="flex items-center gap-2 mt-3">
+   609→   609→                    {n.noteType && <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-[11px] font-normal border-0 capitalize">{n.noteType}</Badge>}
+   610→   610→                    <span className="text-[11px] text-gray-400">{formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}</span>
+   611→   611→                  </div>
+   612→   612→                </div>
+   613→   613→              ))}
+   614→   614→            </div>
+   615→   615→          )}
+   616→   616→        </TabsContent>
+   617→   617→      </Tabs>
+   618→   618→
+   619→   619→      {/* ── Delete Note Confirmation Dialog ── */}
+   620→   620→      <Dialog open={!!deleteNoteId} onOpenChange={(open) => { if (!open) setDeleteNoteId(null) }}>
+   621→   621→        <DialogContent className="sm:max-w-sm rounded-xl">
+   622→   622→          <DialogHeader>
+   623→   623→            <DialogTitle className="text-gray-900 flex items-center gap-2">
+   624→   624→              <AlertTriangle className="size-4 text-red-500" /> Delete Note
+   625→   625→            </DialogTitle>
+   626→   626→          </DialogHeader>
+   627→   627→          <p className="text-sm text-gray-600">Are you sure you want to delete this note? This action cannot be undone.</p>
+   628→   628→          <DialogFooter className="gap-2 sm:gap-0">
+   629→   629→            <Button variant="outline" onClick={() => setDeleteNoteId(null)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+   630→   630→            <Button
+   631→   631→              onClick={() => deleteNoteMutation.mutate(deleteNoteId!)}
+   632→   632→              disabled={deleteNoteMutation.isPending}
+   633→   633→              className="bg-red-600 text-white hover:bg-red-700 press-scale"
+   634→   634→            >
+   635→   635→              {deleteNoteMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+   636→   636→              Delete
+   637→   637→            </Button>
+   638→   638→          </DialogFooter>
+   639→   639→        </DialogContent>
+   640→   640→      </Dialog>
+   641→   641→
+   642→   642→      {/* ── Add Note Dialog (existing) ── */}
+   643→   643→      <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
+   644→   644→        <DialogContent className="sm:max-w-md rounded-xl">
+   645→   645→          <DialogHeader><DialogTitle className="text-gray-900">Add Note</DialogTitle></DialogHeader>
+   646→   646→          <div className="space-y-4 py-1">
+   647→   647→            <div className="space-y-1.5">
+   648→   648→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Type</Label>
+   649→   649→              <Select value={noteType} onValueChange={setNoteType}>
+   650→   650→                <SelectTrigger className="w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
+   651→   651→                <SelectContent>
+   652→   652→                  <SelectItem value="call">Call</SelectItem>
+   653→   653→                  <SelectItem value="meeting">Meeting</SelectItem>
+   654→   654→                  <SelectItem value="research">Research</SelectItem>
+   655→   655→                  <SelectItem value="general">General</SelectItem>
+   656→   656→                </SelectContent>
+   657→   657→              </Select>
+   658→   658→            </div>
+   659→   659→            <div className="space-y-1.5">
+   660→   660→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Note</Label>
+   661→   661→              <Textarea value={noteBody} onChange={e => setNoteBody(e.target.value)} rows={3} placeholder="Write your note..." className="resize-none" />
+   662→   662→            </div>
+   663→   663→          </div>
+   664→   664→          <DialogFooter className="gap-2 sm:gap-0">
+   665→   665→            <Button variant="outline" onClick={() => setNoteOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+   666→   666→            <Button onClick={() => addNote.mutate({ body: noteBody, noteType: noteType })} disabled={!noteBody.trim() || addNote.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">Save</Button>
+   667→   667→          </DialogFooter>
+   668→   668→        </DialogContent>
+   669→   669→      </Dialog>
+   670→   670→
+   671→   671→      {/* ── Add Contact Dialog ── */}
+   672→   672→      <Dialog open={contactOpen} onOpenChange={setContactOpen}>
+   673→   673→        <DialogContent className="sm:max-w-md rounded-xl">
+   674→   674→          <DialogHeader><DialogTitle className="text-gray-900">Add Contact</DialogTitle></DialogHeader>
+   675→   675→          <div className="space-y-4 py-1">
+   676→   676→            <div className="space-y-1.5">
+   677→   677→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name *</Label>
+   678→   678→              <Input value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" />
+   679→   679→            </div>
+   680→   680→            <div className="space-y-1.5">
+   681→   681→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</Label>
+   682→   682→              <Input type="email" value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder="email@company.com" />
+   683→   683→            </div>
+   684→   684→            <div className="grid grid-cols-2 gap-3">
+   685→   685→              <div className="space-y-1.5">
+   686→   686→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</Label>
+   687→   687→                <Input value={contactForm.jobTitle} onChange={e => setContactForm(f => ({ ...f, jobTitle: e.target.value }))} placeholder="e.g. VP of Engineering" />
+   688→   688→              </div>
+   689→   689→              <div className="space-y-1.5">
+   690→   690→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Role Bucket</Label>
+   691→   691→                <Select value={contactForm.roleBucket} onValueChange={v => setContactForm(f => ({ ...f, roleBucket: v }))}>
+   692→   692→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select role" /></SelectTrigger>
+   693→   693→                  <SelectContent>
+   694→   694→                    {ROLE_BUCKETS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+   695→   695→                  </SelectContent>
+   696→   696→                </Select>
+   697→   697→              </div>
+   698→   698→            </div>
+   699→   699→            <div className="space-y-1.5">
+   700→   700→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</Label>
+   701→   701→              <Input type="tel" value={contactForm.phone} onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 (555) 000-0000" />
+   702→   702→            </div>
+   703→   703→            <div className="space-y-1.5">
+   704→   704→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">LinkedIn URL</Label>
+   705→   705→              <Input value={contactForm.linkedinUrl} onChange={e => setContactForm(f => ({ ...f, linkedinUrl: e.target.value }))} placeholder="https://linkedin.com/in/..." />
+   706→   706→            </div>
+   707→   707→          </div>
+   708→   708→          <DialogFooter className="gap-2 sm:gap-0">
+   709→   709→            <Button variant="outline" onClick={() => setContactOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+   710→   710→            <Button onClick={handleContactSubmit} disabled={!contactForm.name.trim() || addContact.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">
+   711→   711→              {addContact.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+   712→   712→              Add Contact
+   713→   713→            </Button>
+   714→   714→          </DialogFooter>
+   715→   715→        </DialogContent>
+   716→   716→      </Dialog>
+   717→   717→
+   718→   718→      {/* ── Add Opportunity Dialog ── */}
+   719→   719→      <Dialog open={oppOpen} onOpenChange={setOppOpen}>
+   720→   720→        <DialogContent className="sm:max-w-md rounded-xl">
+   721→   721→          <DialogHeader><DialogTitle className="text-gray-900">Add Opportunity</DialogTitle></DialogHeader>
+   722→   722→          <div className="space-y-4 py-1">
+   723→   723→            <div className="space-y-1.5">
+   724→   724→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Title *</Label>
+   725→   725→              <Input value={oppForm.title} onChange={e => setOppForm(f => ({ ...f, title: e.target.value }))} placeholder="Opportunity title" />
+   726→   726→            </div>
+   727→   727→            <div className="space-y-1.5">
+   728→   728→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Description</Label>
+   729→   729→              <Textarea value={oppForm.description} onChange={e => setOppForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Describe the opportunity..." className="resize-none" />
+   730→   730→            </div>
+   731→   731→            <div className="grid grid-cols-2 gap-3">
+   732→   732→              <div className="space-y-1.5">
+   733→   733→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</Label>
+   734→   734→                <Select value={oppForm.status} onValueChange={v => setOppForm(f => ({ ...f, status: v }))}>
+   735→   735→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select status" /></SelectTrigger>
+   736→   736→                  <SelectContent>
+   737→   737→                    {OPP_STATUSES.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
+   738→   738→                  </SelectContent>
+   739→   739→                </Select>
+   740→   740→              </div>
+   741→   741→              <div className="space-y-1.5">
+   742→   742→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Next Action</Label>
+   743→   743→                <Input value={oppForm.nextAction} onChange={e => setOppForm(f => ({ ...f, nextAction: e.target.value }))} placeholder="What's next?" />
+   744→   744→              </div>
+   745→   745→            </div>
+   746→   746→          </div>
+   747→   747→          <DialogFooter className="gap-2 sm:gap-0">
+   748→   748→            <Button variant="outline" onClick={() => setOppOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+   749→   749→            <Button onClick={handleOppSubmit} disabled={!oppForm.title.trim() || addOpportunity.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">
+   750→   750→              {addOpportunity.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+   751→   751→              Create Opportunity
+   752→   752→            </Button>
+   753→   753→          </DialogFooter>
+   754→   754→        </DialogContent>
+   755→   755→      </Dialog>
+   756→   756→    </div>
+   757→   757→  )
+   758→   758→}

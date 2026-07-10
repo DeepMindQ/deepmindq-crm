@@ -1,48 +1,67 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { AppShell } from '@/components/app-shell'
 import { useAppStore } from '@/lib/store'
-import { DashboardScreen } from '@/components/screens/dashboard-screen'
-import { CompaniesScreen } from '@/components/screens/companies-screen'
-import CompanyProfileScreen from '@/components/screens/company-profile-screen'
-import ContactsScreen from '@/components/screens/contacts-screen'
-import ContactDetailScreen from '@/components/screens/contact-detail-screen'
-import EmailGenerationScreen from '@/components/screens/email-generation-screen'
-import KnowledgeLibraryScreen from '@/components/screens/knowledge-library-screen'
-import ImportScreen from '@/components/screens/import-screen'
-import { SettingsScreen } from '@/components/screens/settings-screen'
+import type { ActiveView } from '@/lib/types'
+import { SkeletonGrid } from '@/components/shared/design-system'
 
-function AppContent() {
-  const { activeView } = useAppStore()
+const DashboardScreen = dynamic(
+  () => import('@/components/screens/dashboard-screen').then(m => ({ default: m.DashboardScreen })),
+  { loading: () => <SkeletonGrid />, ssr: false }
+)
+const CompaniesScreen = dynamic(
+  () => import('@/components/screens/companies-screen').then(m => ({ default: m.CompaniesScreen })),
+  { loading: () => <SkeletonGrid />, ssr: false }
+)
+const CompanyProfileScreen = dynamic(
+  () => import('@/components/screens/company-profile-screen'),
+  { loading: () => <SkeletonGrid panels={1} />, ssr: false }
+)
+const ContactsScreen = dynamic(
+  () => import('@/components/screens/contacts-screen'),
+  { loading: () => <SkeletonGrid />, ssr: false }
+)
+const ContactDetailScreen = dynamic(
+  () => import('@/components/screens/contact-detail-screen'),
+  { loading: () => <SkeletonGrid panels={1} />, ssr: false }
+)
+const EmailGenerationScreen = dynamic(
+  () => import('@/components/screens/email-generation-screen').then(m => ({ default: m.EmailGenerationScreen })),
+  { loading: () => <SkeletonGrid panels={1} />, ssr: false }
+)
+const KnowledgeLibraryScreen = dynamic(
+  () => import('@/components/screens/knowledge-library-screen').then(m => ({ default: m.KnowledgeLibraryScreen })),
+  { loading: () => <SkeletonGrid panels={1} />, ssr: false }
+)
+const ImportScreen = dynamic(
+  () => import('@/components/screens/import-screen'),
+  { loading: () => <SkeletonGrid panels={1} />, ssr: false }
+)
+const SettingsScreen = dynamic(
+  () => import('@/components/screens/settings-screen').then(m => ({ default: m.SettingsScreen })),
+  { loading: () => <SkeletonGrid panels={1} />, ssr: false }
+)
 
-  switch (activeView) {
-    case 'dashboard':
-      return <DashboardScreen />
-    case 'companies':
-      return <CompaniesScreen />
-    case 'company-profile':
-      return <CompanyProfileScreen />
-    case 'contacts':
-      return <ContactsScreen />
-    case 'contact-profile':
-      return <ContactDetailScreen />
-    case 'email-generation':
-      return <EmailGenerationScreen />
-    case 'knowledge-library':
-      return <KnowledgeLibraryScreen />
-    case 'import':
-      return <ImportScreen />
-    case 'settings':
-      return <SettingsScreen />
-    default:
-      return <DashboardScreen />
-  }
+const screenMap: Record<ActiveView, React.ComponentType> = {
+  dashboard: DashboardScreen,
+  companies: CompaniesScreen,
+  'company-profile': CompanyProfileScreen,
+  contacts: ContactsScreen,
+  'contact-profile': ContactDetailScreen,
+  'email-generation': EmailGenerationScreen,
+  'knowledge-library': KnowledgeLibraryScreen,
+  import: ImportScreen,
+  settings: SettingsScreen,
 }
 
 export default function HomePage() {
+  const { activeView } = useAppStore()
+  const ActiveScreen = screenMap[activeView]
+
   return (
     <AppShell>
-      <AppContent />
+      <ActiveScreen />
     </AppShell>
   )
 }

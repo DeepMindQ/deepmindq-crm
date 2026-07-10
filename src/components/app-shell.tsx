@@ -7,7 +7,7 @@ import Image from 'next/image'
 import {
   LayoutDashboard, Building2, Users, Upload, Settings, Search,
   Bell, HelpCircle, LogOut, ChevronDown, Command, X, CheckCircle2, Sparkles,
-  BookOpen, MailPlus,
+  BookOpen, MailPlus, Target, TrendingUp,
 } from 'lucide-react'
 import {
   SidebarProvider, Sidebar, SidebarHeader, SidebarContent,
@@ -68,31 +68,77 @@ const contentVariants = { initial: { opacity: 0, y: 4 }, animate: { opacity: 1, 
 const contentTransition = { duration: 0.2, ease: [0.16, 1, 0.3, 1] }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { activeView, searchQuery, setActiveView, setSearchQuery } = useAppStore()
+  const {
+    activeView, selectedCompanyId, selectedContactId, companyStatusFilter,
+    setActiveView, setSearchQuery,
+  } = useAppStore()
   const [showNotifications, setShowNotifications] = React.useState(false)
   const [showHelp, setShowHelp] = React.useState(false)
 
+  // ── Notifications ──
   const { data: notifData, isLoading: notifLoading } = useQuery({
     queryKey: ['recent-notifications'],
     queryFn: () => fetch('/api/timeline?limit=5').then(r => r.json()),
   })
-  const notifications = notifData?.entries?.slice(0, 5) || []
+  const notifications = Array.isArray(notifData) ? notifData.slice(0, 5) : notifData?.entries?.slice(0, 5) || []
 
+  // ── Pipeline indicator data (dashboard stats) ──
+  const { data: dashData } = useQuery({
+    queryKey: ['dashboard-pipeline-brief'],
+    queryFn: () => fetch('/api/dashboard').then(r => r.json()),
+    refetchInterval: 60_000,
+  })
+
+  // ── Fetch company name for dynamic breadcrumb ──
+  const { data: companyBrief } = useQuery({
+    queryKey: ['company-breadcrumb', selectedCompanyId],
+    queryFn: () => fetch(`/api/companies/${selectedCompanyId}`).then(r => r.json()),
+    enabled: activeView === 'company-profile' && !!selectedCompanyId,
+    staleTime: 30_000,
+  })
+
+  // ── Fetch contact name for dynamic breadcrumb ──
+  const { data: contactBrief } = useQuery({
+    queryKey: ['contact-breadcrumb', selectedContactId],
+    queryFn: () => fetch(`/api/contacts/${selectedContactId}`).then(r => r.json()),
+    enabled: activeView === 'contact-profile' && !!selectedContactId,
+    staleTime: 30_000,
+  })
+
+  // ── Dynamic breadcrumbs with entity names ──
   const breadcrumbItems = React.useMemo(() => {
     if (activeView === 'company-profile') {
+      const companyName = companyBrief?.name || 'Company'
       return [
-        { label: 'Companies', view: 'companies' as ActiveView },
-        { label: 'Company Profile', isPage: true },
+        {
+          label: 'Companies',
+          view: 'companies' as ActiveView,
+          hint: companyStatusFilter && companyStatusFilter !== 'all' ? `filtered: ${companyStatusFilter}` : undefined,
+        },
+        { label: companyName, isPage: true },
       ]
     }
     if (activeView === 'contact-profile') {
+      const contactName = contactBrief?.name || 'Contact'
       return [
-        { label: 'Contacts', view: 'contacts' as ActiveView },
-        { label: 'Contact Profile', isPage: true },
+        {
+          label: 'Contacts',
+          view: 'contacts' as ActiveView,
+        },
+        { label: contactName, isPage: true },
       ]
     }
     return [{ label: pageTitles[activeView], isPage: true }]
-  }, [activeView])
+  }, [activeView, companyBrief?.name, contactBrief?.name, companyStatusFilter])
+
+  // ── Pipeline summary for header indicator ──
+  const pipelineCount = React.useMemo(() => {
+    if (!dashData?.pipeline) return null
+    const active = dashData.pipeline.filter((p: { label: string; count: number }) =>
+      !['won', 'lost'].includes(p.label.toLowerCase())
+    )
+    return active.reduce((sum: number, p: { count: number }) => sum + p.count, 0)
+  }, [dashData?.pipeline])
 
   const isNavActive = (view: ActiveView): boolean => {
     if (view === 'companies' && activeView === 'company-profile') return true
@@ -167,23 +213,41 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <SidebarTrigger className="-ml-1.5 text-gray-400 hover:text-gray-900 transition-colors" />
           <Separator orientation="vertical" className="mx-1 h-4 bg-gray-200/80" />
 
-          {/* Breadcrumbs */}
+          {/* Breadcrumbs — dynamic with entity names */}
           <Breadcrumb className="hidden sm:flex">
             <BreadcrumbList>
               {breadcrumbItems.map((item, i) => (
-                <React.Fragment key={item.label}>
+                <React.Fragment key={`${item.label}-${i}`}>
                   {i > 0 && <BreadcrumbSeparator />}
                   <BreadcrumbItem>
                     {item.isPage ? (
-                      <BreadcrumbPage className="text-sm font-medium text-gray-900">{item.label}</BreadcrumbPage>
+                      <BreadcrumbPage className="text-sm font-medium text-gray-900 max-w-[200px] truncate">{item.label}</BreadcrumbPage>
                     ) : (
-                      <BreadcrumbLink
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); if ('view' in item && item.view) setActiveView(item.view) }}
-                        className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
-                      >
-                        {item.label}
-                      </BreadcrumbLink>
+                      <div className="flex items-center gap-1.5">
+                        <BreadcrumbLink
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            if ('view' in item && item.view) {
+                              // Navigation context preservation: if going to companies,
+                              // keep the current filter context
+                              setActiveView(item.view)
+                            }
+                          }}
+                          className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+                        >
+                          {item.label}
+                        </BreadcrumbLink>
+                        {/* Filter context indicator */}
+                        {'hint' in item && item.hint && (
+                          <Badge
+                            variant="outline"
+                            className="hidden lg:inline-flex h-4 text-[9px] font-medium px-1.5 border-gray-200 text-gray-400 bg-gray-50 rounded-full normal-case tracking-normal"
+                          >
+                            {item.hint}
+                          </Badge>
+                        )}
+                      </div>
                     )}
                   </BreadcrumbItem>
                 </React.Fragment>
@@ -193,6 +257,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 
           <div className="flex-1"></div>
+
+          {/* ── Pipeline Indicator ── */}
+          {pipelineCount !== null && pipelineCount > 0 && (
+            <button
+              onClick={() => setActiveView('dashboard')}
+              className="hidden lg:flex items-center gap-2 h-8 rounded-lg border border-amber-200/60 bg-amber-50/60 px-3 text-xs text-amber-700 hover:bg-amber-50 transition-colors cursor-pointer group"
+              title={`${pipelineCount} active companies in pipeline`}
+            >
+              <Target className="size-3.5 text-amber-500" />
+              <span className="font-medium tabular-nums">{pipelineCount}</span>
+              <span className="text-amber-500 hidden xl:inline">in pipeline</span>
+            </button>
+          )}
 
           {/* Cmd+K Search */}
           <button
@@ -254,7 +331,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               initial="initial"
               animate="animate"
               exit="exit"
-              transition={contentTransition}
+              transition={contentTransition as any}
               className="mx-auto h-full max-w-7xl"
             >
               {children}

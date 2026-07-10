@@ -6,6 +6,7 @@ import {
   ArrowLeft, Building2, Globe, MapPin, Users, Plus, Target, StickyNote, FileText,
   Sparkles, Mail, Phone, ExternalLink, Linkedin, DollarSign, Calendar,
   CheckCircle2, Clock, BarChart3, Loader2, X, AlertTriangle, Trash2,
+  ChevronRight, Cpu,
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import { formatDistanceToNow } from 'date-fns'
@@ -23,6 +24,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScoreGauge, getActivityIcon, StatusDot, EmptyState } from '@/components/shared/design-system'
 import Image from 'next/image'
 
+/* ═══════════════════════════════════════════════════════════════
+   Constants & Helpers
+   ═══════════════════════════════════════════════════════════════ */
+
 const healthVariant = (h: string) =>
   h === 'valid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
   : h === 'risky' ? 'bg-amber-50 text-amber-700 border border-amber-200'
@@ -31,33 +36,6 @@ const healthVariant = (h: string) =>
 
 const statusBorder = (s: string) =>
   s === 'open' ? 'border-l-blue-500' : s === 'won' ? 'border-l-emerald-500' : s === 'lost' ? 'border-l-red-400' : 'border-l-gray-300'
-
-const statusBg = (s: string) =>
-  s === 'open' ? 'bg-blue-50 text-blue-700 border-blue-200' : s === 'won' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-  : s === 'lost' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-gray-100 text-gray-600 border-gray-200'
-
-const RESEARCH_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
-  businessOverview: { label: 'Business Overview', icon: Building2 },
-  currentTechLandscape: { label: 'Tech Landscape', icon: BarChart3 },
-  potentialChallenges: { label: 'Challenges', icon: Target },
-  possibleOpportunities: { label: 'Opportunities', icon: Sparkles },
-  relevantServices: { label: 'Relevant Services', icon: FileText },
-  keyDecisionMakers: { label: 'Decision Makers', icon: Users },
-  lastInteraction: { label: 'Last Interaction', icon: Clock },
-  nextAction: { label: 'Next Action', icon: ArrowLeft },
-}
-
-const researchColors = [
-  'bg-blue-50 border-blue-100', 'bg-violet-50 border-violet-100', 'bg-amber-50 border-amber-100',
-  'bg-emerald-50 border-emerald-100', 'bg-rose-50 border-rose-100', 'bg-indigo-50 border-indigo-100',
-  'bg-cyan-50 border-cyan-100', 'bg-orange-50 border-orange-100',
-]
-
-const STATUS_CYCLE = ['new', 'researching', 'contacted', 'qualified', 'ready', 'won', 'lost'] as const
-const OPP_STATUS_CYCLE = ['researching', 'contacted', 'qualified', 'proposed', 'negotiation', 'won', 'lost'] as const
-
-const ROLE_BUCKETS = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'] as const
-const OPP_STATUSES = ['researching', 'contacted', 'proposed', 'negotiation', 'won', 'lost'] as const
 
 const oppStatusVariant = (s: string) => {
   switch (s) {
@@ -73,53 +51,89 @@ const oppStatusVariant = (s: string) => {
   }
 }
 
+const companyStatusVariant = (s: string) =>
+  s === 'open' ? 'bg-blue-50 text-blue-700 border-blue-200' : s === 'won' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+  : s === 'lost' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-gray-100 text-gray-600 border-gray-200'
+
+const RESEARCH_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
+  businessOverview: { label: 'Business Overview', icon: Building2 },
+  currentTechLandscape: { label: 'Tech Landscape', icon: BarChart3 },
+  potentialChallenges: { label: 'Challenges', icon: Target },
+  possibleOpportunities: { label: 'Opportunities', icon: Sparkles },
+  relevantServices: { label: 'Relevant Services', icon: FileText },
+  keyDecisionMakers: { label: 'Decision Makers', icon: Users },
+  lastInteraction: { label: 'Last Interaction', icon: Clock },
+  nextAction: { label: 'Next Action', icon: ChevronRight },
+}
+
+const researchColors = [
+  'bg-blue-50 border-blue-100', 'bg-violet-50 border-violet-100', 'bg-amber-50 border-amber-100',
+  'bg-emerald-50 border-emerald-100', 'bg-rose-50 border-rose-100', 'bg-indigo-50 border-indigo-100',
+  'bg-cyan-50 border-cyan-100', 'bg-orange-50 border-orange-100',
+]
+
+const STATUS_CYCLE = ['new', 'researching', 'contacted', 'qualified', 'ready', 'won', 'lost'] as const
+const OPP_STATUS_CYCLE = ['researching', 'contacted', 'qualified', 'proposed', 'negotiation', 'won', 'lost'] as const
+const ROLE_BUCKETS = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'] as const
+const OPP_STATUSES = ['researching', 'contacted', 'proposed', 'negotiation', 'won', 'lost'] as const
+
+/* ═══════════════════════════════════════════════════════════════
+   Company Profile Screen
+   ═══════════════════════════════════════════════════════════════ */
+
 export default function CompanyProfileScreen() {
-  const { selectedCompanyId, setActiveView } = useAppStore()
+  const { selectedCompanyId, setSelectedContactId, setActiveView, setCompanyStatusFilter } = useAppStore()
   const qc = useQueryClient()
 
-  // Note dialog state
+  // ── Dialog states ──
   const [noteOpen, setNoteOpen] = useState(false)
   const [noteBody, setNoteBody] = useState('')
   const [noteType, setNoteType] = useState('')
-
-  // Delete note confirmation state
   const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null)
-
-  // Contact dialog state
   const [contactOpen, setContactOpen] = useState(false)
   const [contactForm, setContactForm] = useState({
-    name: '',
-    email: '',
-    jobTitle: '',
-    roleBucket: '',
-    phone: '',
-    linkedinUrl: '',
+    name: '', email: '', jobTitle: '', roleBucket: '', phone: '', linkedinUrl: '',
   })
-
-  // Opportunity dialog state
   const [oppOpen, setOppOpen] = useState(false)
   const [oppForm, setOppForm] = useState({
-    title: '',
-    description: '',
-    status: 'researching',
-    nextAction: '',
+    title: '', description: '', status: 'researching', nextAction: '', targetContactId: '',
   })
 
+  // ── Active tab ──
+  const [activeTab, setActiveTab] = useState('overview')
+
+  // ── Fetch company (includes contacts, notes, research, opportunities, timeline) ──
   const { data, isLoading } = useQuery({
     queryKey: ['company', selectedCompanyId],
     queryFn: () => fetch(`/api/companies/${selectedCompanyId}`).then(r => r.json()),
     enabled: !!selectedCompanyId,
   })
 
-  // ── Add Note mutation (existing) ──
+  // ── Fetch AI provider info for research tab ──
+  const { data: prefs } = useQuery({
+    queryKey: ['preferences'],
+    queryFn: () => fetch('/api/preferences').then(r => r.json()),
+    staleTime: 30_000,
+  })
+
+  // ── Mutations ──
+
   const addNote = useMutation({
     mutationFn: (body: { body: string; noteType: string }) =>
-      fetch('/api/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, companyId: selectedCompanyId }) }).then(r => r.json()),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company'] }); setNoteOpen(false); setNoteBody(''); setNoteType(''); toast.success('Note added') },
+      fetch('/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, companyId: selectedCompanyId }),
+      }).then(r => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
+      qc.invalidateQueries({ queryKey: ['company'] })
+      setNoteOpen(false); setNoteBody(''); setNoteType('')
+      toast.success('Note added')
+    },
     onError: () => toast.error('Failed to add note'),
   })
 
-  // ── Generate Research mutation (AI-powered) ──
   const generateResearch = useMutation({
     mutationFn: async () => {
       const res = await fetch('/api/research', {
@@ -131,20 +145,20 @@ export default function CompanyProfileScreen() {
         const err = await res.json().catch(() => ({ error: 'Failed to generate research' }))
         throw new Error(err.error || 'Failed to generate research')
       }
-      const result = await res.json()
+      return res.json()
+    },
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
+      qc.invalidateQueries({ queryKey: ['company-breadcrumb', selectedCompanyId] })
       if (result._usedLlm === false) {
         toast.info('Generated with templates — configure AI key in Settings for AI-powered research')
+      } else {
+        toast.success('AI research generated successfully')
       }
-      return result
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['company'] })
-      toast.success('Research generated successfully')
     },
     onError: (err) => toast.error(err.message || 'Failed to generate research'),
   })
 
-  // ── Add Contact mutation ──
   const addContact = useMutation({
     mutationFn: (form: { name: string; email: string; jobTitle: string; roleBucket: string; phone: string; linkedinUrl: string }) =>
       fetch('/api/contacts', {
@@ -156,7 +170,7 @@ export default function CompanyProfileScreen() {
         return r.json()
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['company'] })
+      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
       setContactOpen(false)
       setContactForm({ name: '', email: '', jobTitle: '', roleBucket: '', phone: '', linkedinUrl: '' })
       toast.success('Contact added successfully')
@@ -164,9 +178,8 @@ export default function CompanyProfileScreen() {
     onError: (err) => toast.error(err.message || 'Failed to add contact'),
   })
 
-  // ── Add Opportunity mutation ──
   const addOpportunity = useMutation({
-    mutationFn: (form: { title: string; description: string; status: string; nextAction: string }) =>
+    mutationFn: (form: { title: string; description: string; status: string; nextAction: string; targetContactId?: string }) =>
       fetch('/api/opportunities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -176,15 +189,14 @@ export default function CompanyProfileScreen() {
         return r.json()
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['company'] })
+      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
       setOppOpen(false)
-      setOppForm({ title: '', description: '', status: 'researching', nextAction: '' })
+      setOppForm({ title: '', description: '', status: 'researching', nextAction: '', targetContactId: '' })
       toast.success('Opportunity created successfully')
     },
     onError: (err) => toast.error(err.message || 'Failed to add opportunity'),
   })
 
-  // ── Update Opportunity Status mutation ──
   const updateOppMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       fetch(`/api/opportunities/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }).then(r => r.json()),
@@ -192,7 +204,6 @@ export default function CompanyProfileScreen() {
     onError: () => toast.error('Failed to update opportunity'),
   })
 
-  // ── Delete Opportunity mutation ──
   const deleteOppMutation = useMutation({
     mutationFn: (oppId: string) =>
       fetch(`/api/opportunities/${oppId}`, { method: 'DELETE' }).then(r => r.json()),
@@ -200,22 +211,13 @@ export default function CompanyProfileScreen() {
     onError: () => toast.error('Failed to delete opportunity'),
   })
 
-  // ── Delete Note mutation ──
   const deleteNoteMutation = useMutation({
     mutationFn: (noteId: string) =>
-      fetch(`/api/notes?id=${noteId}&type=company`, { method: 'DELETE' }).then(r => r.json()),
+      fetch(`/api/notes?id=${noteId}`, { method: 'DELETE' }).then(r => r.json()),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); setDeleteNoteId(null); toast.success('Note deleted') },
     onError: () => toast.error('Failed to delete note'),
   })
 
-  // ── Opportunity status cycle handler ──
-  const handleOppStatusCycle = (oppId: string, currentStatus: string) => {
-    const currentIdx = OPP_STATUS_CYCLE.indexOf(currentStatus as typeof OPP_STATUS_CYCLE[number])
-    const nextIdx = (currentIdx + 1) % OPP_STATUS_CYCLE.length
-    updateOppMutation.mutate({ id: oppId, status: OPP_STATUS_CYCLE[nextIdx] })
-  }
-
-  // ── Update Company Status mutation ──
   const updateCompanyStatus = useMutation({
     mutationFn: async (newStatus: string) => {
       const res = await fetch(`/api/companies/${selectedCompanyId}`, {
@@ -224,118 +226,241 @@ export default function CompanyProfileScreen() {
         body: JSON.stringify({ status: newStatus }),
       })
       if (!res.ok) throw new Error('Failed to update status')
-
-      // Also create a timeline entry
-      await fetch('/api/timeline', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyId: selectedCompanyId,
-          action: 'status_changed',
-          details: `Company status changed from "${data.status}" to "${newStatus}"`,
-        }),
-      })
-
       return res.json()
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['company'] })
+      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
+      qc.invalidateQueries({ queryKey: ['company-breadcrumb', selectedCompanyId] })
       toast.success('Status updated')
     },
     onError: () => toast.error('Failed to update status'),
   })
 
-  // ── Status cycle handler ──
+  // ── Handlers ──
+
+  const handleOppStatusCycle = (oppId: string, currentStatus: string) => {
+    const currentIdx = OPP_STATUS_CYCLE.indexOf(currentStatus as typeof OPP_STATUS_CYCLE[number])
+    const nextIdx = (currentIdx + 1) % OPP_STATUS_CYCLE.length
+    updateOppMutation.mutate({ id: oppId, status: OPP_STATUS_CYCLE[nextIdx] })
+  }
+
   const handleStatusCycle = () => {
+    if (!data) return
     const current = data.status as string
     const currentIdx = STATUS_CYCLE.indexOf(current as typeof STATUS_CYCLE[number])
     const nextIdx = (currentIdx + 1) % STATUS_CYCLE.length
-    const newStatus = STATUS_CYCLE[nextIdx]
-    updateCompanyStatus.mutate(newStatus)
+    updateCompanyStatus.mutate(STATUS_CYCLE[nextIdx])
   }
 
-  // ── Generate Email handler ──
-  const handleGenerateEmail = () => {
-    if (contacts.length === 0) {
-      toast.error('Add contacts first to generate emails')
-      return
-    }
-    const firstContactId = contacts[0].id
-    useAppStore.getState().setSelectedContactId(firstContactId)
+  const handleGenerateEmail = (contactId: string) => {
+    setSelectedContactId(contactId)
     setActiveView('email-generation')
   }
 
-  // ── Contact form submit ──
+  const handleViewContact = (contactId: string) => {
+    setSelectedContactId(contactId)
+    setActiveView('contact-profile')
+  }
+
+  const handleViewAllContacts = () => {
+    setActiveView('contacts')
+  }
+
   const handleContactSubmit = () => {
     if (!contactForm.name.trim()) return
     addContact.mutate(contactForm)
   }
 
-  // ── Opportunity form submit ──
   const handleOppSubmit = () => {
     if (!oppForm.title.trim()) return
     addOpportunity.mutate(oppForm)
   }
 
-  if (!selectedCompanyId) return <EmptyState icon={Globe} title="No company selected" description="Go back to Companies and select one." actionLabel="Back to Companies" onAction={() => setActiveView('companies')} />
-  if (isLoading) return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-32" /><Skeleton className="h-64" /></div>
-  if (!data) return <EmptyState icon={Globe} title="Company not found" description="This company may have been deleted." actionLabel="Back to Companies" onAction={() => setActiveView('companies')} />
+  const handleBack = () => {
+    setActiveView('companies')
+  }
+
+  // ── Guard states ──
+
+  if (!selectedCompanyId) {
+    return (
+      <EmptyState
+        icon={Globe}
+        title="No company selected"
+        description="Go back to Companies and select one."
+        actionLabel="Back to Companies"
+        onAction={() => setActiveView('companies')}
+      />
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-40 w-full rounded-xl" />
+        <div className="flex gap-2">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-9 w-24 rounded-lg" />)}
+        </div>
+        <Skeleton className="h-64 w-full rounded-xl" />
+        <Skeleton className="h-48 w-full rounded-xl" />
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <EmptyState
+        icon={Globe}
+        title="Company not found"
+        description="This company may have been deleted."
+        actionLabel="Back to Companies"
+        onAction={() => setActiveView('companies')}
+      />
+    )
+  }
 
   const { contacts = [], notes = [], researchCard, opportunities = [], timeline = [] } = data
-
   const score = data.intelligenceScore ?? 0
+
   const segments = [
     { label: 'Data Completeness', value: Math.min(100, Math.round((score * 0.4) + 20)), color: '#2563EB' },
     { label: 'Contact Quality', value: Math.min(100, Math.round((score * 0.35) + 15)), color: '#059669' },
     { label: 'Research Depth', value: researchCard ? Math.min(100, Math.round((score * 0.25) + 10)) : 0, color: '#D97706' },
   ]
 
+  // Resolve target contact names for opportunities
+  const contactMap: Record<string, string> = {}
+  for (const c of contacts) { contactMap[c.id] = c.name }
+
+  const aiProviderLabel = prefs?.aiProvider
+    ? prefs.aiProvider.charAt(0).toUpperCase() + prefs.aiProvider.slice(1)
+    : null
+  const hasAiKey = !!prefs?.aiApiKey
+
+  /* ═══════════════════════════════════════════════════════════════
+     Render
+     ═══════════════════════════════════════════════════════════════ */
+
   return (
     <div className="space-y-6">
-      {/* ── Header ── */}
+      {/* ══════════════════════════════════════════════════════════
+          HEADER — Back button, Company card, Score Gauge
+          ══════════════════════════════════════════════════════════ */}
       <div className="rounded-xl bg-white p-4 md:p-6 card-rest slide-up">
         <div className="flex items-start gap-4 md:gap-5">
-          {/* Logo */}
-          <div className="size-14 rounded-xl bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+          {/* Company Logo */}
+          <div className="size-14 rounded-xl bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center border border-gray-200/60">
             {data.domain ? (
-              <Image src={`https://logo.clearbit.com/${data.domain}`} alt="" width={56} height={56} className="size-14 object-contain p-2" onError={e => { (e.target as HTMLImageElement).style.display='none'; (e.target as HTMLImageElement).parentElement!.innerHTML=`<span class="text-xl font-bold text-gray-400">${data.name?.charAt(0)}</span>` }} />
+              <Image
+                src={`https://logo.clearbit.com/${data.domain}`}
+                alt=""
+                width={56}
+                height={56}
+                className="size-14 object-contain p-2"
+                onError={e => {
+                  const el = e.target as HTMLImageElement
+                  el.style.display = 'none'
+                  if (el.parentElement) {
+                    el.parentElement.innerHTML = `<span class="text-xl font-bold text-gray-400">${data.name?.charAt(0)}</span>`
+                  }
+                }}
+              />
             ) : (
               <span className="text-xl font-bold text-gray-400">{data.name?.charAt(0)}</span>
             )}
           </div>
 
-          {/* Info */}
+          {/* Info Block */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={() => setActiveView('companies')} className="text-gray-400 hover:text-gray-700 transition-colors">
-                <ArrowLeft className="size-4" />
+            {/* Back button + Company Name */}
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <button
+                onClick={handleBack}
+                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors group rounded-md px-1.5 py-0.5 -ml-1.5 hover:bg-gray-100"
+              >
+                <ArrowLeft className="size-4 group-hover:-translate-x-0.5 transition-transform" />
+                <span className="hidden sm:inline">Back</span>
               </button>
+              <span className="text-gray-300">/</span>
               <h2 className="text-xl font-bold text-gray-900 tracking-tight truncate">{data.name}</h2>
-              {data.industry && <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-xs font-normal border-0">{data.industry}</Badge>}
-              <button onClick={handleStatusCycle} disabled={updateCompanyStatus.isPending}
-                className={`text-[11px] font-medium px-2 py-0.5 rounded-md border ${statusBg(data.status)} ${updateCompanyStatus.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}>
+              {data.industry && (
+                <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-xs font-normal border-0 rounded-md">
+                  {data.industry}
+                </Badge>
+              )}
+              <button
+                onClick={handleStatusCycle}
+                disabled={updateCompanyStatus.isPending}
+                className={`text-[11px] font-medium px-2 py-0.5 rounded-md border capitalize ${companyStatusVariant(data.status)} ${updateCompanyStatus.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'} transition-opacity`}
+                title="Click to cycle status"
+              >
                 {updateCompanyStatus.isPending ? <Loader2 className="size-3 animate-spin inline" /> : null}
                 {data.status}
               </button>
             </div>
-            <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 flex-wrap">
-              {data.domain && <span className="flex items-center gap-1"><Globe className="size-3.5" />{data.domain}</span>}
-              {data.location && <span className="flex items-center gap-1"><MapPin className="size-3.5" />{data.location}</span>}
-              {data.country && <span className="flex items-center gap-1"><MapPin className="size-3.5" />{data.country}</span>}
-              {data.employeeSize && <span className="flex items-center gap-1"><Users className="size-3.5" />{data.employeeSize} employees</span>}
+
+            {/* Metadata row */}
+            <div className="flex items-center gap-x-5 gap-y-1.5 mt-2.5 text-sm text-gray-500 flex-wrap">
+              {data.domain && (
+                <span className="flex items-center gap-1.5">
+                  <Globe className="size-3.5 text-gray-400" />
+                  <a
+                    href={`https://${data.domain}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-gray-900 transition-colors"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {data.domain}
+                  </a>
+                </span>
+              )}
+              {data.location && (
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="size-3.5 text-gray-400" />
+                  {data.location}
+                </span>
+              )}
+              {data.country && data.location !== data.country && (
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="size-3.5 text-gray-400" />
+                  {data.country}
+                </span>
+              )}
+              {data.employeeSize && (
+                <span className="flex items-center gap-1.5">
+                  <Users className="size-3.5 text-gray-400" />
+                  {data.employeeSize} employees
+                </span>
+              )}
               {data.website && (
-                <a href={data.website.startsWith('http') ? data.website : `https://${data.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors">
+                <a
+                  href={data.website.startsWith('http') ? data.website : `https://${data.website}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-amber-600 hover:text-amber-700 transition-colors"
+                  onClick={e => e.stopPropagation()}
+                >
                   <ExternalLink className="size-3.5" />Website
                 </a>
               )}
               {data.linkedinUrl && (
-                <a href={data.linkedinUrl.startsWith('http') ? data.linkedinUrl : `https://${data.linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors">
+                <a
+                  href={data.linkedinUrl.startsWith('http') ? data.linkedinUrl : `https://${data.linkedinUrl}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 transition-colors"
+                  onClick={e => e.stopPropagation()}
+                >
                   <Linkedin className="size-3.5" />LinkedIn
                 </a>
               )}
               {data.dataFreshness && (
                 <span className="flex items-center gap-1.5">
-                  <StatusDot status={data.dataFreshness === 'fresh' ? 'fresh' : data.dataFreshness === 'stale' ? 'stale' : data.dataFreshness === 'old' ? 'old' : 'unknown'} />
+                  <StatusDot
+                    status={data.dataFreshness === 'fresh' ? 'fresh' : data.dataFreshness === 'stale' ? 'stale' : data.dataFreshness === 'old' ? 'old' : 'unknown'}
+                    pulse={data.dataFreshness === 'fresh'}
+                  />
                   <span className="capitalize">{data.dataFreshness}</span>
                 </span>
               )}
@@ -343,52 +468,155 @@ export default function CompanyProfileScreen() {
 
             {/* Action buttons */}
             <div className="flex items-center gap-2 mt-4 flex-wrap">
-              <Button data-action="generate-research" size="sm" className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
-                {generateResearch.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Sparkles className="size-3.5 mr-1.5" />}
-                {generateResearch.isPending ? 'Generating...' : 'Generate Research'}
+              <Button
+                data-action="generate-research"
+                size="sm"
+                className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+                onClick={() => generateResearch.mutate()}
+                disabled={generateResearch.isPending}
+              >
+                {generateResearch.isPending
+                  ? <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                  : <Sparkles className="size-3.5 mr-1.5" />
+                }
+                {generateResearch.isPending ? 'Generating...' : 'Generate AI Research'}
               </Button>
-              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={() => setNoteOpen(true)}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900"
+                onClick={() => setNoteOpen(true)}
+              >
                 <Plus className="size-3.5 mr-1.5" /> Add Note
               </Button>
-              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={() => setContactOpen(true)}>
-                <Plus className="size-3.5 sm:mr-1.5" /> <span className="hidden sm:inline">Add Contact</span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900"
+                onClick={() => setContactOpen(true)}
+              >
+                <Plus className="size-3.5 mr-1.5" /> Add Contact
               </Button>
-              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={handleGenerateEmail}>
-                <Mail className="size-3.5 mr-1.5" /> Generate Email
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900"
+                onClick={() => setOppOpen(true)}
+              >
+                <Target className="size-3.5 mr-1.5" /> Add Opportunity
               </Button>
+              {contacts.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 hover:text-amber-800"
+                  onClick={() => handleGenerateEmail(contacts[0].id)}
+                >
+                  <Mail className="size-3.5 mr-1.5" /> Generate Email
+                </Button>
+              )}
             </div>
           </div>
 
-          {/* Score Gauge */}
-          <div className="hidden md:block">
-            <ScoreGauge score={score} size={100} strokeWidth={8} segments={segments} />
+          {/* Score Gauge — desktop only */}
+          <div className="hidden lg:block shrink-0">
+            <ScoreGauge
+              score={score}
+              size={108}
+              strokeWidth={9}
+              label="Intel Score"
+              sublabel={researchCard ? 'Research complete' : 'Generate research'}
+              segments={segments}
+            />
+          </div>
+        </div>
+
+        {/* Quick stats strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5 border-t border-gray-100">
+          <div className="flex items-center gap-3 rounded-lg bg-gray-50/80 p-3">
+            <div className="flex size-9 rounded-lg bg-blue-50 items-center justify-center shrink-0">
+              <Users className="size-4 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-gray-900 tabular-nums">{contacts.length}</p>
+              <p className="text-[11px] text-gray-500 uppercase tracking-wider font-medium">Contacts</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-lg bg-gray-50/80 p-3">
+            <div className="flex size-9 rounded-lg bg-amber-50 items-center justify-center shrink-0">
+              <Target className="size-4 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-gray-900 tabular-nums">{opportunities.length}</p>
+              <p className="text-[11px] text-gray-500 uppercase tracking-wider font-medium">Opportunities</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-lg bg-gray-50/80 p-3">
+            <div className="flex size-9 rounded-lg bg-violet-50 items-center justify-center shrink-0">
+              <StickyNote className="size-4 text-violet-600" />
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-gray-900 tabular-nums">{notes.length}</p>
+              <p className="text-[11px] text-gray-500 uppercase tracking-wider font-medium">Notes</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-lg bg-gray-50/80 p-3">
+            <div className="flex size-9 rounded-lg bg-emerald-50 items-center justify-center shrink-0">
+              {researchCard ? <CheckCircle2 className="size-4 text-emerald-600" /> : <FileText className="size-4 text-gray-400" />}
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-gray-900">
+                {researchCard ? `${researchCard.confidenceScore || 0}%` : '—'}
+              </p>
+              <p className="text-[11px] text-gray-500 uppercase tracking-wider font-medium">Research</p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── Tabs ── */}
-      <Tabs defaultValue="overview">
+      {/* ══════════════════════════════════════════════════════════
+          TABS
+          ══════════════════════════════════════════════════════════ */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 overflow-x-auto">
-          {['overview', 'contacts', 'research', 'opportunities', 'timeline', 'notes'].map(tab => (
-            <TabsTrigger key={tab} value={tab}
-              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5">
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              {tab === 'contacts' && contacts.length > 0 && <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{contacts.length}</span>}
-              {tab === 'opportunities' && opportunities.length > 0 && <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{opportunities.length}</span>}
-              {tab === 'notes' && notes.length > 0 && <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{notes.length}</span>}
+          {[
+            { key: 'overview', label: 'Overview' },
+            { key: 'contacts', label: 'Contacts', count: contacts.length },
+            { key: 'research', label: 'Research' },
+            { key: 'opportunities', label: 'Opportunities', count: opportunities.length },
+            { key: 'notes', label: 'Notes', count: notes.length },
+            { key: 'activity', label: 'Activity', count: timeline.length },
+          ].map(tab => (
+            <TabsTrigger
+              key={tab.key}
+              value={tab.key}
+              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5"
+            >
+              {tab.label}
+              {tab.count !== undefined && tab.count > 0 && (
+                <span className="ml-1.5 text-[10px] bg-gray-200 data-[state=active]:bg-amber-100 data-[state=active]:text-amber-700 text-gray-600 px-1.5 rounded-full tabular-nums font-medium">
+                  {tab.count}
+                </span>
+              )}
             </TabsTrigger>
           ))}
         </TabsList>
 
-        {/* Overview */}
+        {/* ──────────────────────────────────────────────────────────
+            TAB: OVERVIEW
+            ────────────────────────────────────────────────────────── */}
         <TabsContent value="overview" className="space-y-6 mt-5">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 slide-up">
             {([
-              ['Website', data.website, Globe], ['Industry', data.industry, BarChart3], ['Employees', data.employeeSize, Users],
-              ['Location', data.location ?? data.country, MapPin], ['Status', data.status, CheckCircle2], ['Freshness', data.dataFreshness, Clock],
+              ['Website', data.website, Globe],
+              ['Industry', data.industry, BarChart3],
+              ['Employees', data.employeeSize, Users],
+              ['Location', data.location ?? data.country, MapPin],
+              ['Status', data.status, CheckCircle2],
+              ['Freshness', data.dataFreshness, Clock],
             ] as const).map(([label, val, Icon]) => (
-              <div key={label} className="rounded-lg bg-white p-4 card-rest">
-                <div className="flex items-center gap-2 mb-1">
+              <div key={label} className="rounded-xl bg-white p-4 card-rest">
+                <div className="flex items-center gap-2 mb-1.5">
                   <Icon className="size-3.5 text-gray-400" />
                   <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{label}</p>
                 </div>
@@ -397,19 +625,119 @@ export default function CompanyProfileScreen() {
             ))}
           </div>
 
-          {/* Quick Research Preview */}
+          {/* Contacts Quick View */}
+          <div className="rounded-xl bg-white card-rest overflow-hidden slide-up" style={{ animationDelay: '50ms' }}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <Users className="size-4 text-gray-400" />
+                Key Contacts
+                <span className="text-xs font-normal text-gray-400">{contacts.length} total</span>
+              </h3>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md"
+                  onClick={handleViewAllContacts}
+                >
+                  View All
+                  <ChevronRight className="size-3 ml-0.5" />
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md press-scale shadow-xs"
+                  onClick={() => setContactOpen(true)}
+                >
+                  <Plus className="size-3 mr-1" /> Add
+                </Button>
+              </div>
+            </div>
+            {contacts.length === 0 ? (
+              <div className="px-6 py-8 text-center">
+                <Users className="size-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">No contacts yet</p>
+                <Button size="sm" variant="outline" className="mt-3 h-7 text-xs rounded-md border-gray-200 text-gray-600" onClick={() => setContactOpen(true)}>
+                  <Plus className="size-3 mr-1" /> Add your first contact
+                </Button>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {contacts.slice(0, 5).map((c: any) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center gap-4 px-6 py-3 hover:bg-gray-50/80 transition-colors cursor-pointer group"
+                    onClick={() => handleViewContact(c.id)}
+                  >
+                    <div className="flex size-9 rounded-full bg-gray-100 items-center justify-center shrink-0 text-xs font-semibold text-gray-600">
+                      {c.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 group-hover:text-amber-700 transition-colors truncate">
+                        {c.name}
+                        <ChevronRight className="size-3 inline ml-1 text-gray-300 group-hover:text-amber-500 transition-colors" />
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">{c.jobTitle || 'No title'}</p>
+                    </div>
+                    <div className="hidden sm:flex items-center gap-3 shrink-0">
+                      {c.email && (
+                        <span className="text-xs text-gray-400 font-mono truncate max-w-[180px]">{c.email}</span>
+                      )}
+                      {c.emailHealth && (
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium ${healthVariant(c.emailHealth)}`}>
+                          {c.emailHealth}
+                        </span>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => { e.stopPropagation(); handleGenerateEmail(c.id) }}
+                    >
+                      <Mail className="size-3.5 mr-1" /> Email
+                    </Button>
+                  </div>
+                ))}
+                {contacts.length > 5 && (
+                  <button
+                    onClick={handleViewAllContacts}
+                    className="w-full px-6 py-3 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50/50 transition-colors font-medium text-center"
+                  >
+                    View all {contacts.length} contacts →
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Research Quick Preview */}
           {researchCard ? (
-            <div className="rounded-xl bg-white card-rest overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100">
+            <div className="rounded-xl bg-white card-rest overflow-hidden slide-up" style={{ animationDelay: '100ms' }}>
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  <FileText className="size-4 text-gray-400" /> Research Summary
+                  <Sparkles className="size-4 text-amber-500" />
+                  Research Summary
+                  {researchCard.confidenceScore && (
+                    <span className="text-[11px] font-medium text-gray-400">
+                      {researchCard.confidenceScore}% confidence
+                    </span>
+                  )}
                 </h3>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md"
+                  onClick={() => setActiveTab('research')}
+                >
+                  View Full Research
+                  <ChevronRight className="size-3 ml-0.5" />
+                </Button>
               </div>
               <div className="p-6">
                 <div className="grid gap-4 md:grid-cols-2">
-                  {(Object.entries(RESEARCH_LABELS) as [keyof typeof researchCard, typeof RESEARCH_LABELS[string]][]).map(([key, cfg], idx) =>
+                  {(Object.entries(RESEARCH_LABELS) as [keyof typeof researchCard, typeof RESEARCH_LABELS[string]][]).slice(0, 4).map(([key, cfg], idx) =>
                     researchCard[key] ? (
-                      <div key={key} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 50}ms` }}>
+                      <div key={String(key)} className={`rounded-lg border p-4 ${researchColors[idx]} slide-up`} style={{ animationDelay: `${idx * 40}ms` }}>
                         <div className="flex items-center gap-2 mb-2">
                           <cfg.icon className="size-3.5 text-gray-500" />
                           <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
@@ -421,37 +749,140 @@ export default function CompanyProfileScreen() {
                 </div>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="rounded-xl bg-gradient-to-br from-amber-50/80 to-orange-50/40 border border-amber-100/60 p-8 text-center slide-up" style={{ animationDelay: '100ms' }}>
+              <div className="flex size-12 rounded-xl bg-amber-100 items-center justify-center mx-auto mb-3">
+                <Sparkles className="size-6 text-amber-600" />
+              </div>
+              <h3 className="text-sm font-semibold text-gray-900 mb-1">No research generated yet</h3>
+              <p className="text-sm text-gray-500 mb-4 max-w-md mx-auto">
+                Generate an AI-powered research card with business overview, tech landscape, challenges, and opportunities.
+              </p>
+              <Button
+                size="sm"
+                className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+                onClick={() => { generateResearch.mutate(); setActiveTab('research') }}
+                disabled={generateResearch.isPending}
+              >
+                {generateResearch.isPending
+                  ? <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                  : <Sparkles className="size-3.5 mr-1.5" />
+                }
+                Generate AI Research
+              </Button>
+            </div>
+          )}
+
+          {/* Opportunities Quick View */}
+          {opportunities.length > 0 && (
+            <div className="rounded-xl bg-white card-rest overflow-hidden slide-up" style={{ animationDelay: '150ms' }}>
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  <Target className="size-4 text-gray-400" />
+                  Active Opportunities
+                </h3>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md"
+                  onClick={() => setActiveTab('opportunities')}
+                >
+                  View All
+                  <ChevronRight className="size-3 ml-0.5" />
+                </Button>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {opportunities.slice(0, 3).map((o: any) => (
+                  <div key={o.id} className="flex items-center gap-4 px-6 py-3">
+                    <div className={`w-0.5 h-8 rounded-full shrink-0 ${
+                      o.status === 'won' ? 'bg-emerald-400' : o.status === 'lost' ? 'bg-red-300' : 'bg-amber-400'
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{o.title}</p>
+                      {o.nextAction && <p className="text-xs text-gray-400 mt-0.5">Next: {o.nextAction}</p>}
+                    </div>
+                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium capitalize border ${oppStatusVariant(o.status)}`}>
+                      {o.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </TabsContent>
 
-        {/* Contacts */}
+        {/* ──────────────────────────────────────────────────────────
+            TAB: CONTACTS
+            ────────────────────────────────────────────────────────── */}
         <TabsContent value="contacts" className="mt-5">
-          <div className="flex justify-end mb-4">
-            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale" onClick={() => setContactOpen(true)}>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-gray-500">
+              {contacts.length} contact{contacts.length !== 1 ? 's' : ''} at {data.name}
+            </p>
+            <Button
+              size="sm"
+              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+              onClick={() => setContactOpen(true)}
+            >
               <Plus className="size-3.5 mr-1.5" /> Add Contact
             </Button>
           </div>
           {contacts.length === 0 ? (
-            <EmptyState icon={Users} title="No contacts found" description="Add contacts to this company to start tracking outreach." actionLabel="Add Contact" onAction={() => setContactOpen(true)} />
+            <EmptyState
+              icon={Users}
+              title="No contacts found"
+              description="Add contacts to this company to start tracking outreach and engagement."
+              actionLabel="Add Contact"
+              onAction={() => setContactOpen(true)}
+            />
           ) : (
-            <div className="rounded-xl bg-white card-rest overflow-hidden">
+            <div className="rounded-xl bg-white card-rest overflow-hidden slide-up">
               <Table>
                 <TableHeader>
                   <TableRow className="border-gray-100 hover:bg-transparent">
                     <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Name</TableHead>
-                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Title</TableHead>
-                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Email</TableHead>
+                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Title</TableHead>
+                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Email</TableHead>
                     <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Health</TableHead>
+                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {contacts.map((c: any) => (
-                    <TableRow key={c.id} className="table-row-hover border-gray-50 cursor-pointer" onClick={() => { useAppStore.getState().setSelectedContactId(c.id); setActiveView('contact-profile') }}>
-                      <TableCell className="font-medium text-gray-900 text-sm">{c.name}</TableCell>
-                      <TableCell className="text-sm text-gray-500">{c.jobTitle || '—'}</TableCell>
-                      <TableCell className="text-sm text-gray-500 font-mono">{c.email || '—'}</TableCell>
+                    <TableRow
+                      key={c.id}
+                      className="table-row-hover border-gray-50 cursor-pointer group"
+                      onClick={() => handleViewContact(c.id)}
+                    >
                       <TableCell>
-                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${healthVariant(c.emailHealth)}`}>{c.emailHealth || 'unknown'}</span>
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-8 rounded-full bg-gray-100 items-center justify-center shrink-0 text-[11px] font-semibold text-gray-600">
+                            {c.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-900 text-sm group-hover:text-amber-700 transition-colors">{c.name}</span>
+                            {c.roleBucket && (
+                              <p className="text-[11px] text-gray-400 mt-0.5">{c.roleBucket}</p>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500 hidden md:table-cell">{c.jobTitle || '—'}</TableCell>
+                      <TableCell className="text-sm text-gray-500 font-mono hidden lg:table-cell">{c.email || '—'}</TableCell>
+                      <TableCell>
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${healthVariant(c.emailHealth)}`}>
+                          {c.emailHealth || 'unknown'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md"
+                          onClick={(e) => { e.stopPropagation(); handleGenerateEmail(c.id) }}
+                        >
+                          <Mail className="size-3.5 mr-1" /> Generate Email
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -461,28 +892,75 @@ export default function CompanyProfileScreen() {
           )}
         </TabsContent>
 
-        {/* Research */}
+        {/* ──────────────────────────────────────────────────────────
+            TAB: RESEARCH
+            ────────────────────────────────────────────────────────── */}
         <TabsContent value="research" className="mt-5">
-          <div className="rounded-xl bg-white card-rest overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                <Sparkles className="size-4 text-amber-500" /> AI Research Card
-              </h3>
-              <Button size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md press-scale shadow-xs" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
-                {generateResearch.isPending ? <Loader2 className="size-3 mr-1 animate-spin" /> : <Sparkles className="size-3 mr-1" />}
+          <div className="rounded-xl bg-white card-rest overflow-hidden slide-up">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  <Sparkles className="size-4 text-amber-500" /> AI Research Card
+                </h3>
+                {/* AI Provider badge */}
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] font-medium rounded-full px-2 py-0.5 ${hasAiKey ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-500'}`}
+                >
+                  <Cpu className="size-2.5 mr-1" />
+                  {hasAiKey ? `Powered by ${aiProviderLabel || 'AI'}` : 'Template-based (configure AI in Settings)'}
+                </Badge>
+              </div>
+              <Button
+                size="sm"
+                className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md press-scale shadow-xs"
+                onClick={() => generateResearch.mutate()}
+                disabled={generateResearch.isPending}
+              >
+                {generateResearch.isPending
+                  ? <Loader2 className="size-3 mr-1 animate-spin" />
+                  : <Sparkles className="size-3 mr-1" />
+                }
                 {generateResearch.isPending ? 'Generating...' : researchCard ? 'Regenerate' : 'Generate AI Research'}
               </Button>
             </div>
             <div className="p-6">
               {researchCard ? (
-                <>
-                  {researchCard.lastResearchedAt && (
-                    <p className="text-xs text-gray-400 mb-4">Last researched {formatDistanceToNow(new Date(researchCard.lastResearchedAt), { addSuffix: true })}</p>
+                <div className="space-y-5">
+                  {/* Confidence score bar */}
+                  {researchCard.confidenceScore != null && (
+                    <div className="flex items-center gap-4 p-4 rounded-lg bg-gray-50/80 border border-gray-100">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Confidence Score</p>
+                          <span className="text-sm font-bold text-gray-900 tabular-nums">{researchCard.confidenceScore}%</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-700 ease-out"
+                            style={{
+                              width: `${researchCard.confidenceScore}%`,
+                              backgroundColor: researchCard.confidenceScore >= 75 ? '#059669' : researchCard.confidenceScore >= 50 ? '#D97706' : '#DC2626',
+                            }}
+                          />
+                        </div>
+                      </div>
+                      {researchCard.lastResearchedAt && (
+                        <div className="text-right shrink-0">
+                          <p className="text-[11px] text-gray-400">Last researched</p>
+                          <p className="text-xs font-medium text-gray-600">
+                            {formatDistanceToNow(new Date(researchCard.lastResearchedAt), { addSuffix: true })}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   )}
+
+                  {/* Research sections grid */}
                   <div className="grid gap-4 md:grid-cols-2">
                     {(Object.entries(RESEARCH_LABELS) as [keyof typeof researchCard, typeof RESEARCH_LABELS[string]][]).map(([key, cfg], idx) =>
                       researchCard[key] ? (
-                        <div key={key} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 50}ms` }}>
+                        <div key={String(key)} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 50}ms` }}>
                           <div className="flex items-center gap-2 mb-2">
                             <cfg.icon className="size-3.5 text-gray-500" />
                             <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
@@ -492,12 +970,14 @@ export default function CompanyProfileScreen() {
                       ) : null,
                     )}
                   </div>
-                </>
+                </div>
               ) : (
                 <EmptyState
                   icon={FileText}
                   title="No research generated yet"
                   description="Click Generate AI Research to create an AI-powered research card with business overview, tech landscape, challenges, and opportunities."
+                  actionLabel="Generate AI Research"
+                  onAction={() => generateResearch.mutate()}
                   className="py-10"
                 />
               )}
@@ -505,33 +985,70 @@ export default function CompanyProfileScreen() {
           </div>
         </TabsContent>
 
-        {/* Opportunities */}
+        {/* ──────────────────────────────────────────────────────────
+            TAB: OPPORTUNITIES
+            ────────────────────────────────────────────────────────── */}
         <TabsContent value="opportunities" className="mt-5">
-          <div className="flex justify-end mb-4">
-            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale" onClick={() => setOppOpen(true)}>
-              <Plus className="size-3.5 mr-1.5" /> Add Opportunity
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-gray-500">
+              {opportunities.length} opportunit{opportunities.length !== 1 ? 'ies' : 'y'} for {data.name}
+            </p>
+            <Button
+              size="sm"
+              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+              onClick={() => setOppOpen(true)}
+            >
+              <Plus className="size-3.5 mr-1.5" /> Create Opportunity
             </Button>
           </div>
           {opportunities.length === 0 ? (
-            <EmptyState icon={Target} title="No opportunities yet" description="Create opportunities to track potential deals with this company." actionLabel="Add Opportunity" onAction={() => setOppOpen(true)} />
+            <EmptyState
+              icon={Target}
+              title="No opportunities yet"
+              description="Create opportunities to track potential deals and engagement with this company."
+              actionLabel="Create Opportunity"
+              onAction={() => setOppOpen(true)}
+            />
           ) : (
             <div className="grid gap-3">
-              {opportunities.map((o: any) => (
-                <div key={o.id} className={`rounded-xl bg-white card-rest border-l-[3px] ${statusBorder(o.status)} p-5 flex items-start justify-between gap-4`}>
-                  <div className="min-w-0">
+              {opportunities.map((o: any, idx: number) => (
+                <div
+                  key={o.id}
+                  className={`rounded-xl bg-white card-interactive border-l-[3px] ${statusBorder(o.status)} p-5 flex items-start justify-between gap-4 slide-up`}
+                  style={{ animationDelay: `${idx * 30}ms` }}
+                >
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-gray-900">{o.title}</p>
                     {o.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{o.description}</p>}
-                    {o.nextAction && <p className="text-xs text-gray-400 mt-1">Next: {o.nextAction}</p>}
+                    {o.nextAction && (
+                      <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                        <ChevronRight className="size-3 text-amber-400" />
+                        {o.nextAction}
+                      </p>
+                    )}
+                    {/* Target contact link */}
+                    {o.targetContactId && contactMap[o.targetContactId] && (
+                      <button
+                        onClick={() => handleViewContact(o.targetContactId)}
+                        className="inline-flex items-center gap-1.5 mt-2 text-xs text-amber-600 hover:text-amber-700 transition-colors"
+                      >
+                        <Users className="size-3" />
+                        {contactMap[o.targetContactId]}
+                        <ChevronRight className="size-3" />
+                      </button>
+                    )}
                     <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-                      {o.value && <span className="flex items-center gap-1"><DollarSign className="size-3" />{o.value}</span>}
-                      {o.closeDate && <span className="flex items-center gap-1"><Calendar className="size-3" />{o.closeDate}</span>}
+                      <span className="flex items-center gap-1">
+                        <Calendar className="size-3" />
+                        {formatDistanceToNow(new Date(o.createdAt), { addSuffix: true })}
+                      </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={(e) => { e.stopPropagation(); handleOppStatusCycle(o.id, o.status) }}
                       disabled={updateOppMutation.isPending}
-                      className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border transition-opacity hover:opacity-80 ${oppStatusVariant(o.status)} ${updateOppMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      className={`inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-medium capitalize border transition-all hover:opacity-80 ${oppStatusVariant(o.status)} ${updateOppMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                       title="Click to cycle status"
                     >
                       {updateOppMutation.isPending ? <Loader2 className="size-3 animate-spin inline mr-1" /> : null}
@@ -552,27 +1069,125 @@ export default function CompanyProfileScreen() {
           )}
         </TabsContent>
 
-        {/* Timeline */}
-        <TabsContent value="timeline" className="mt-5">
-          {timeline.length === 0 ? (
-            <EmptyState icon={Clock} title="No timeline entries" description="Activity will appear here as you interact with this company." />
+        {/* ──────────────────────────────────────────────────────────
+            TAB: NOTES — Timeline style
+            ────────────────────────────────────────────────────────── */}
+        <TabsContent value="notes" className="mt-5">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-gray-500">
+              {notes.length} note{notes.length !== 1 ? 's' : ''}
+            </p>
+            <Button
+              size="sm"
+              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+              onClick={() => setNoteOpen(true)}
+            >
+              <Plus className="size-3.5 mr-1.5" /> Add Note
+            </Button>
+          </div>
+          {notes.length === 0 ? (
+            <EmptyState
+              icon={StickyNote}
+              title="No notes yet"
+              description="Add notes to track conversations, insights, and action items for this company."
+              actionLabel="Add Note"
+              onAction={() => setNoteOpen(true)}
+            />
           ) : (
             <div className="relative pl-6">
-              <div className="absolute left-[7px] top-1 bottom-1 border-l-2 border-gray-200" />
+              {/* Timeline connector line */}
+              <div className="absolute left-[7px] top-2 bottom-2 border-l-2 border-gray-200" />
               <div className="space-y-4">
-                {timeline.map((t: any) => {
+                {notes.map((n: any, idx: number) => (
+                  <div
+                    key={n.id}
+                    className="relative flex items-start gap-4 slide-up"
+                    style={{ animationDelay: `${idx * 30}ms` }}
+                  >
+                    {/* Timeline dot */}
+                    <div className="absolute -left-6 top-2 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
+                    {/* Note card */}
+                    <div className="flex-1 rounded-xl bg-white p-5 card-rest min-w-0">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap flex-1">{n.body}</p>
+                        <button
+                          onClick={() => setDeleteNoteId(n.id)}
+                          className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
+                          title="Delete note"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 mt-3">
+                        {n.noteType && (
+                          <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-[11px] font-normal border-0 rounded-md capitalize">
+                            {n.noteType}
+                          </Badge>
+                        )}
+                        <span className="text-[11px] text-gray-400">
+                          {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ──────────────────────────────────────────────────────────
+            TAB: ACTIVITY — Timeline entries
+            ────────────────────────────────────────────────────────── */}
+        <TabsContent value="activity" className="mt-5">
+          {timeline.length === 0 ? (
+            <EmptyState
+              icon={Clock}
+              title="No activity yet"
+              description="Activity will appear here as you interact with this company — adding contacts, generating research, and more."
+            />
+          ) : (
+            <div className="relative pl-6">
+              {/* Timeline connector */}
+              <div className="absolute left-[7px] top-2 bottom-2 border-l-2 border-gray-200" />
+              <div className="space-y-4">
+                {timeline.map((t: any, idx: number) => {
                   const iconData = getActivityIcon(t.action)
                   const Icon = iconData.icon
                   return (
-                    <div key={t.id} className="relative flex items-start gap-4 slide-up">
-                      <div className="absolute -left-6 top-1 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
+                    <div
+                      key={t.id}
+                      className="relative flex items-start gap-4 slide-up"
+                      style={{ animationDelay: `${idx * 30}ms` }}
+                    >
+                      {/* Timeline dot */}
+                      <div className="absolute -left-6 top-1.5 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
+                      {/* Activity icon */}
                       <div className={`shrink-0 mt-0.5 rounded-lg p-1.5 ${iconData.bg}`}>
                         <Icon className={`size-3.5 ${iconData.color}`} />
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900 capitalize">{t.action.replace(/_/g, ' ')}</p>
-                        {t.details && <p className="text-sm text-gray-500 mt-0.5">{t.details}</p>}
-                        <p className="text-[11px] text-gray-400 mt-1">{formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}</p>
+                      {/* Content */}
+                      <div className="min-w-0 flex-1 rounded-lg bg-white p-4 card-rest">
+                        <p className="text-sm font-medium text-gray-900 capitalize">
+                          {t.action.replace(/_/g, ' ')}
+                        </p>
+                        {t.details && (
+                          <p className="text-sm text-gray-500 mt-0.5">{t.details}</p>
+                        )}
+                        {/* Cross-nav: if activity references a contact, make it clickable */}
+                        {t.contact && (
+                          <button
+                            onClick={() => handleViewContact(t.contact.id)}
+                            className="inline-flex items-center gap-1 mt-1.5 text-xs text-amber-600 hover:text-amber-700 transition-colors"
+                          >
+                            <Users className="size-3" />
+                            {t.contact.name}
+                            <ChevronRight className="size-3" />
+                          </button>
+                        )}
+                        <p className="text-[11px] text-gray-400 mt-1.5">
+                          {formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}
+                        </p>
                       </div>
                     </div>
                   )
@@ -581,42 +1196,13 @@ export default function CompanyProfileScreen() {
             </div>
           )}
         </TabsContent>
-
-        {/* Notes */}
-        <TabsContent value="notes" className="mt-5">
-          <div className="flex justify-end mb-4">
-            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale" onClick={() => setNoteOpen(true)}>
-              <Plus className="size-3.5 mr-1.5" /> Add Note
-            </Button>
-          </div>
-          {notes.length === 0 ? (
-            <EmptyState icon={StickyNote} title="No notes yet" description="Add notes to track conversations, insights, and action items." actionLabel="Add Note" onAction={() => setNoteOpen(true)} />
-          ) : (
-            <div className="space-y-3">
-              {notes.map((n: any) => (
-                <div key={n.id} className="rounded-xl bg-white p-5 card-rest slide-up">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm text-gray-700 leading-relaxed flex-1">{n.body}</p>
-                    <button
-                      onClick={() => setDeleteNoteId(n.id)}
-                      className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
-                      title="Delete note"
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2 mt-3">
-                    {n.noteType && <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-[11px] font-normal border-0 capitalize">{n.noteType}</Badge>}
-                    <span className="text-[11px] text-gray-400">{formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </TabsContent>
       </Tabs>
 
-      {/* ── Delete Note Confirmation Dialog ── */}
+      {/* ══════════════════════════════════════════════════════════
+          DIALOGS
+          ══════════════════════════════════════════════════════════ */}
+
+      {/* Delete Note Confirmation */}
       <Dialog open={!!deleteNoteId} onOpenChange={(open) => { if (!open) setDeleteNoteId(null) }}>
         <DialogContent className="sm:max-w-sm rounded-xl">
           <DialogHeader>
@@ -639,7 +1225,7 @@ export default function CompanyProfileScreen() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Add Note Dialog (existing) ── */}
+      {/* Add Note Dialog */}
       <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
         <DialogContent className="sm:max-w-md rounded-xl">
           <DialogHeader><DialogTitle className="text-gray-900">Add Note</DialogTitle></DialogHeader>
@@ -663,15 +1249,20 @@ export default function CompanyProfileScreen() {
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setNoteOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
-            <Button onClick={() => addNote.mutate({ body: noteBody, noteType: noteType })} disabled={!noteBody.trim() || addNote.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">Save</Button>
+            <Button onClick={() => addNote.mutate({ body: noteBody, noteType: noteType })} disabled={!noteBody.trim() || addNote.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">Save Note</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ── Add Contact Dialog ── */}
+      {/* Add Contact Dialog — pre-fills company */}
       <Dialog open={contactOpen} onOpenChange={setContactOpen}>
         <DialogContent className="sm:max-w-md rounded-xl">
-          <DialogHeader><DialogTitle className="text-gray-900">Add Contact</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-gray-900">Add Contact</DialogTitle>
+            <p className="text-xs text-gray-500 mt-1">
+              Adding to <span className="font-medium text-gray-700">{data.name}</span>
+            </p>
+          </DialogHeader>
           <div className="space-y-4 py-1">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name *</Label>
@@ -679,7 +1270,7 @@ export default function CompanyProfileScreen() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</Label>
-              <Input type="email" value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder="email@company.com" />
+              <Input type="email" value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder={`name@${data.domain || 'company.com'}`} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -715,10 +1306,15 @@ export default function CompanyProfileScreen() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Add Opportunity Dialog ── */}
+      {/* Add Opportunity Dialog — can link to target contact */}
       <Dialog open={oppOpen} onOpenChange={setOppOpen}>
         <DialogContent className="sm:max-w-md rounded-xl">
-          <DialogHeader><DialogTitle className="text-gray-900">Add Opportunity</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-gray-900">Create Opportunity</DialogTitle>
+            <p className="text-xs text-gray-500 mt-1">
+              For <span className="font-medium text-gray-700">{data.name}</span>
+            </p>
+          </DialogHeader>
           <div className="space-y-4 py-1">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Title *</Label>
@@ -739,9 +1335,28 @@ export default function CompanyProfileScreen() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Next Action</Label>
-                <Input value={oppForm.nextAction} onChange={e => setOppForm(f => ({ ...f, nextAction: e.target.value }))} placeholder="What's next?" />
+                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Target Contact</Label>
+                <Select
+                  value={oppForm.targetContactId || ''}
+                  onValueChange={v => setOppForm(f => ({ ...f, targetContactId: v === '__none__' ? '' : v }))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select contact (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No contact</SelectItem>
+                    {contacts.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}{c.jobTitle ? ` — ${c.jobTitle}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Next Action</Label>
+              <Input value={oppForm.nextAction} onChange={e => setOppForm(f => ({ ...f, nextAction: e.target.value }))} placeholder="What's the next step?" />
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">

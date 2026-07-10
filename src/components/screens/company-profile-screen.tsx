@@ -314,7 +314,7 @@ export default function CompanyProfileScreen() {
 
             {/* Action buttons */}
             <div className="flex items-center gap-2 mt-4 flex-wrap">
-              <Button size="sm" className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
+              <Button data-action="generate-research" size="sm" className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
                 {generateResearch.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Sparkles className="size-3.5 mr-1.5" />}
                 {generateResearch.isPending ? 'Generating...' : 'Generate Research'}
               </Button>

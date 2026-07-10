@@ -80,7 +80,45 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(docs);
+    if (include === "snippets") {
+      // Return { documents, snippets } format for the knowledge library screen
+      const allSnippets = docs.flatMap((d) =>
+        (d as any).snippets.map((s: any) => ({
+          id: s.id,
+          documentId: s.documentId,
+          type: s.snippetType,
+          title: s.title,
+          content: s.content,
+          industries: s.industries ? s.industries.split(",").map((i: string) => i.trim()).filter(Boolean) : null,
+          outcomes: s.outcomes ? s.outcomes.split(",").map((o: string) => o.trim()).filter(Boolean) : null,
+        }))
+      );
+
+      const documents = docs.map((d) => ({
+        id: d.id,
+        title: d.title,
+        description: d.description,
+        fileType: d.docType,
+        fileName: d.fileName,
+        snippetCount: (d as any).snippets?.length ?? 0,
+        createdAt: d.createdAt,
+      }));
+
+      return NextResponse.json({ documents, snippets: allSnippets });
+    }
+
+    // Default: return array of documents with snippet counts
+    const formatted = docs.map((d) => ({
+      id: d.id,
+      title: d.title,
+      description: d.description,
+      fileType: d.docType,
+      fileName: d.fileName,
+      snippetCount: (d as any)._count?.snippets ?? 0,
+      createdAt: d.createdAt,
+    }));
+
+    return NextResponse.json(formatted);
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

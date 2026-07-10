@@ -38,7 +38,7 @@ export default function ContactsScreen() {
   const [dlgOpen, setDlgOpen] = useState(false)
   const [sortKey, setSortKey] = useState('name')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
-  const [form, setForm] = useState({ name: '', email: '', jobTitle: '', roleBucket: '', company: '', linkedinUrl: '' })
+  const [form, setForm] = useState({ name: '', email: '', jobTitle: '', roleBucket: '', companyId: '', linkedinUrl: '' })
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const timerRef = useRef<ReturnType<typeof setTimeout>>()
 
@@ -71,7 +71,7 @@ export default function ContactsScreen() {
     mutationFn: (f: typeof form) =>
       fetch('/api/contacts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(f) })
         .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error) })),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['contacts'] }); setDlgOpen(false); setForm({ name: '', email: '', jobTitle: '', roleBucket: '', company: '', linkedinUrl: '' }); toast.success('Contact added') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['contacts'] }); setDlgOpen(false); setForm({ name: '', email: '', jobTitle: '', roleBucket: '', companyId: '', linkedinUrl: '' }); toast.success('Contact added') },
     onError: (e: Error) => toast.error(e.message),
   })
 
@@ -100,6 +100,14 @@ export default function ContactsScreen() {
   const contacts = data?.contacts ?? []
   const total = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / 20))
+  // Fetch companies for the add contact dialog
+  const { data: companiesList } = useQuery({
+    queryKey: ['companies', 'contact-dialog'],
+    queryFn: () => fetch('/api/companies?pageSize=100').then(r => r.json()).then(d => d.companies ?? []),
+  })
+
+  const companyName = companiesList?.find((c: any) => c.id === form.companyId)?.name || ''
+
   const updateField = (k: keyof typeof form, v: string) => setForm(p => ({ ...p, [k]: v }))
   const updateEditField = (k: keyof typeof editForm, v: string) => setEditForm(p => ({ ...p, [k]: v }))
 
@@ -113,6 +121,8 @@ export default function ContactsScreen() {
       company: typeof c.company === 'string' ? c.company : c.company?.name || '',
       linkedinUrl: c.linkedinUrl || '',
     })
+    // Pre-select company in add form if coming from a company context
+    if (c.company?.id) setForm(p => ({ ...p, companyId: c.company.id }))
     setEditOpen(true)
   }
 
@@ -295,8 +305,13 @@ export default function ContactsScreen() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label className="text-sm font-medium text-gray-700">Company</Label>
-                <Input value={form.company} onChange={e => updateField('company', e.target.value)} placeholder="Company name" className="border-gray-200 rounded-lg h-9 text-sm" />
+                <Label className="text-sm font-medium text-gray-700">Company *</Label>
+                <Select value={form.companyId} onValueChange={v => updateField('companyId', v)}>
+                  <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm"><SelectValue placeholder="Select company" /></SelectTrigger>
+                  <SelectContent>
+                    {(companiesList || []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid gap-1.5">
                 <Label className="text-sm font-medium text-gray-700">LinkedIn</Label>
@@ -306,7 +321,7 @@ export default function ContactsScreen() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDlgOpen(false)} className="border-gray-200 text-gray-600 hover:bg-gray-50">Cancel</Button>
-            <Button onClick={() => addContact.mutate(form)} disabled={!form.name.trim() || addContact.isPending} className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale">
+            <Button onClick={() => addContact.mutate(form)} disabled={!form.name.trim() || !form.companyId || addContact.isPending} className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale">
               {addContact.isPending ? 'Adding...' : 'Add Contact'}
             </Button>
           </DialogFooter>

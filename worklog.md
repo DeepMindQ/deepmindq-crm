@@ -41,3 +41,32 @@ Stage Summary:
 - Knowledge library auto-extracts snippets on document upload
 - All screens have responsive mobile/tablet layouts
 - Build passes cleanly with 24 API routes
+
+---
+Task ID: 2
+Agent: main
+Task: Production hardening - data verification, API format fixes, polish
+
+Work Log:
+- Verified all API routes use shared db singleton (no new PrismaClient() anywhere)
+- Ran full seed: 48 active companies (2 archived), 215 contacts, 43 opportunities, 295 timeline, 52 notes, 17 research cards, 8 docs, 51 snippets
+- Fixed knowledge API to return {documents, snippets} format when include=snippets (was returning raw array)
+- Fixed contacts screen Add Contact dialog: replaced free-text company name with company Select dropdown that sends companyId
+- Fixed companies screen "Generate Research" dropdown to navigate to company profile and trigger research generation
+- Added data-action="generate-research" attribute to company profile research button
+- Disabled Prisma query logging in production (was logging all queries)
+- Final production build: all 24 API routes compile cleanly
+- Production API verification: Dashboard (48 cos, 215 contacts, 114 healthy, 7 pipeline stages, 8 tasks, 20 activities), Companies (48), Contacts (215), Knowledge (8 docs, 51 snippets), Export (9K+38K chars CSV), Preferences (OK)
+
+Stage Summary:
+- Application is fully production-ready with real data
+- All screens show live data from SQLite via Prisma
+- Dashboard KPIs, pipeline funnel, sparklines, tasks, and activity feed all powered by real database queries
+- Companies list with search, filter, sort, pagination, status toggle, bulk delete
+- Contacts list with search, filter, health validation, email generation, edit, archive
+- Company profile with research generation, add contact/opportunity, notes, status cycling
+- Contact detail with email validation, AI email generation, drafts, notes, activity timeline
+- Knowledge library with document upload, auto-snippet extraction, search, delete
+- Import wizard with CSV parsing, column mapping, preview, staged import with real record creation
+- Settings with email style config, AI provider config, data export, health check, danger zone
+- Command palette with keyboard shortcuts (Cmd+K / Ctrl+K)

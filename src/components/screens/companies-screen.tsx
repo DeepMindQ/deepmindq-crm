@@ -232,7 +232,7 @@ export function CompaniesScreen() {
                                 <DropdownMenuItem onClick={e => { e.stopPropagation(); setSelectedCompanyId(c.id); setActiveView('company-profile') }} className="rounded-lg text-sm">
                                   <Users className="size-3.5 mr-2 text-gray-400" /> View Contacts
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={e => { e.stopPropagation(); toast.info('Research triggered!') }} className="rounded-lg text-sm">
+                                <DropdownMenuItem onClick={e => { e.stopPropagation(); setSelectedCompanyId(c.id); setActiveView('company-profile'); setTimeout(() => { document.querySelector<HTMLButtonElement>('[data-action="generate-research"]')?.click() }, 300) }} className="rounded-lg text-sm">
                                   <Sparkles className="size-3.5 mr-2 text-indigo-400" /> Generate Research
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />

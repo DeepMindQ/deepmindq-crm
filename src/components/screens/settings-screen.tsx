@@ -18,8 +18,10 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
-} from '@/components/ui/dialog'
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/lib/store'
 
@@ -31,7 +33,7 @@ const DEFAULTS = {
   tone: 'professional-casual',
   emailLength: 'medium',
   openerStyle: 'Hi [First Name]',
-  signOff: 'Regards, Ravi',
+  signOff: 'Best regards',
   avoidPhrases: '',
   ctaStyle: 'soft',
   aiProvider: 'openai',
@@ -129,6 +131,7 @@ export function SettingsScreen() {
   const [draft, setDraft] = useState<Record<string, string> | null>(null)
   const [showKey, setShowKey] = useState(false)
   const [dangerOpen, setDangerOpen] = useState(false)
+  const [healthCheckOpen, setHealthCheckOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('email')
   const [aiTestResult, setAiTestResult] = useState<{
     success: boolean
@@ -139,7 +142,7 @@ export function SettingsScreen() {
   const [justSavedAi, setJustSavedAi] = useState(false)
 
   // ── Preferences ──
-  const { data: prefs, isLoading } = useQuery({
+  const { data: prefs, isLoading, error: prefsError } = useQuery({
     queryKey: ['preferences'],
     queryFn: () => fetch('/api/preferences').then(r => r.json()),
   })
@@ -160,6 +163,25 @@ export function SettingsScreen() {
     window.onbeforeunload = hasChanges ? () => '' : null
     return () => { window.onbeforeunload = null }
   }, [hasChanges])
+
+  // ── API Key validation ──
+  const apiKeyValidation = useMemo(() => {
+    const key = form.aiApiKey
+    if (!key) return null
+    if (form.aiProvider === 'openai' && !key.startsWith('sk-')) {
+      return 'OpenAI keys typically start with "sk-"'
+    }
+    if (form.aiProvider === 'gemini' && !key.startsWith('AIza')) {
+      return 'Gemini keys typically start with "AIza"'
+    }
+    if (form.aiProvider === 'groq' && !key.startsWith('gsk_')) {
+      return 'Groq keys typically start with "gsk_"'
+    }
+    if (key.length < 10) {
+      return 'API key seems too short'
+    }
+    return null
+  }, [form.aiApiKey, form.aiProvider])
 
   // ── Save preferences ──
   const savePrefs = useMutation({
@@ -243,9 +265,14 @@ export function SettingsScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ checkAll: true }),
       }).then(r => r.json()),
-    onSuccess: (d) =>
-      toast.success(`Health check complete: ${d.valid} valid, ${d.invalid} invalid out of ${d.checked} emails`),
-    onError: () => toast.error('Health check failed'),
+    onSuccess: (d) => {
+      setHealthCheckOpen(false)
+      toast.success(`Health check complete: ${d.valid} valid, ${d.invalid} invalid out of ${d.checked} emails`)
+    },
+    onError: () => {
+      setHealthCheckOpen(false)
+      toast.error('Health check failed')
+    },
   })
 
   // ── Delete All Data ──
@@ -290,6 +317,21 @@ export function SettingsScreen() {
         {[...Array(3)].map((_, i) => (
           <div key={i} className="h-56 rounded-xl bg-gray-100 animate-pulse" />
         ))}
+      </div>
+    )
+  }
+
+  // ── Error state ──
+  if (prefsError) {
+    return (
+      <div className="max-w-3xl">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 flex items-start gap-3">
+          <AlertTriangle className="size-5 text-red-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-red-700">Failed to load settings</p>
+            <p className="text-xs text-red-500 mt-1">Please try refreshing the page.</p>
+          </div>
+        </div>
       </div>
     )
   }
@@ -423,7 +465,7 @@ export function SettingsScreen() {
                 value={form.signOff}
                 onChange={e => set('signOff', e.target.value)}
                 className="h-9 border-gray-200 rounded-lg text-sm"
-                placeholder="Regards, Ravi"
+                placeholder="Best regards"
               />
             </div>
 
@@ -527,7 +569,10 @@ export function SettingsScreen() {
                   type={showKey ? 'text' : 'password'}
                   value={form.aiApiKey}
                   onChange={e => set('aiApiKey', e.target.value)}
-                  className="h-9 pr-10 border-gray-200 rounded-lg text-sm font-mono"
+                  className={cn(
+                    'h-9 pr-10 border-gray-200 rounded-lg text-sm font-mono',
+                    apiKeyValidation && 'border-amber-300 focus:border-amber-400 focus:ring-amber-100'
+                  )}
                   placeholder="sk-..."
                 />
                 <button
@@ -538,6 +583,12 @@ export function SettingsScreen() {
                   {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
+              {apiKeyValidation && (
+                <p className="text-[11px] text-amber-600 mt-1.5 flex items-center gap-1">
+                  <AlertTriangle className="size-3 shrink-0" />
+                  {apiKeyValidation}
+                </p>
+              )}
               <p className="text-[11px] text-gray-400 mt-1.5">
                 Your API key is encrypted and stored securely. It is never shared or transmitted to third parties.
               </p>
@@ -701,16 +752,41 @@ export function SettingsScreen() {
                     </p>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs border-gray-200 text-gray-600 rounded-lg shrink-0 self-end sm:self-auto"
-                  onClick={() => handleHealthCheck.mutate()}
-                  disabled={handleHealthCheck.isPending}
-                >
-                  {handleHealthCheck.isPending ? <Loader2 className="size-3.5 animate-spin mr-1" /> : <Stethoscope className="size-3.5 mr-1.5" />}
-                  Run Check
-                </Button>
+                <AlertDialog open={healthCheckOpen} onOpenChange={setHealthCheckOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs border-gray-200 text-gray-600 rounded-lg shrink-0 self-end sm:self-auto"
+                      disabled={handleHealthCheck.isPending}
+                    >
+                      {handleHealthCheck.isPending ? <Loader2 className="size-3.5 animate-spin mr-1" /> : <Stethoscope className="size-3.5 mr-1.5" />}
+                      Run Check
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Run Email Health Check?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will validate all email addresses in your database by checking syntax, domain, MX records, and disposable email detection.
+                        This may take a moment depending on the number of contacts.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleHealthCheck.mutate()}
+                        disabled={handleHealthCheck.isPending}
+                      >
+                        {handleHealthCheck.isPending ? (
+                          <><Loader2 className="size-3.5 mr-1.5 animate-spin" /> Checking...</>
+                        ) : (
+                          'Run Check'
+                        )}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           </div>
@@ -739,15 +815,44 @@ export function SettingsScreen() {
                   This action cannot be undone. Consider exporting your data first.
                 </p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs border-red-300 text-red-600 hover:bg-red-50 rounded-lg shrink-0 self-end sm:self-auto"
-                onClick={() => setDangerOpen(true)}
-              >
-                <Trash2 className="size-3.5 mr-1" />
-                Delete All
-              </Button>
+              <AlertDialog open={dangerOpen} onOpenChange={setDangerOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-red-300 text-red-600 hover:bg-red-50 rounded-lg shrink-0 self-end sm:self-auto"
+                  >
+                    <Trash2 className="size-3.5 mr-1" />
+                    Delete All
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-red-700 flex items-center gap-2">
+                      <AlertTriangle className="size-5" />
+                      Delete All Data?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="leading-relaxed">
+                      This will permanently delete all companies, contacts, notes, research cards, drafts, and opportunities from your database.
+                      This action <span className="font-semibold text-red-600">cannot be undone</span>. Consider exporting your data first.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="gap-2 pt-2">
+                    <AlertDialogCancel className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg">Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => handleDeleteAll.mutate()}
+                      disabled={handleDeleteAll.isPending}
+                      className="bg-red-600 hover:bg-red-700 text-white rounded-lg"
+                    >
+                      {handleDeleteAll.isPending ? (
+                        <><Loader2 className="size-3.5 mr-1 animate-spin" /> Deleting...</>
+                      ) : (
+                        <><Trash2 className="size-3.5 mr-1" /> Yes, Delete Everything</>
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </TabsContent>
@@ -755,45 +860,6 @@ export function SettingsScreen() {
 
       <Separator className="bg-gray-100 my-8" />
       <p className="text-center text-xs text-gray-400 pb-4">DeepMindQ v1.0 — AI-Powered Sales Intelligence</p>
-
-      {/* ═══════════════════════════════════════════════════════
-          Delete Confirmation Dialog
-         ═══════════════════════════════════════════════════════ */}
-      <Dialog open={dangerOpen} onOpenChange={setDangerOpen}>
-        <DialogContent className="sm:max-w-md rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="text-red-700 flex items-center gap-2">
-              <AlertTriangle className="size-5" />
-              Delete All Data?
-            </DialogTitle>
-            <DialogDescription className="text-sm text-gray-500 leading-relaxed">
-              This will permanently delete all companies, contacts, notes, research cards, drafts, and opportunities from your database.
-              This action <span className="font-semibold text-red-600">cannot be undone</span>.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 pt-2">
-            <Button
-              variant="outline"
-              onClick={() => setDangerOpen(false)}
-              className="border-gray-200 text-gray-600 rounded-lg"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              className="bg-red-600 hover:bg-red-700 text-white rounded-lg"
-              onClick={() => handleDeleteAll.mutate()}
-              disabled={handleDeleteAll.isPending}
-            >
-              {handleDeleteAll.isPending ? (
-                <><Loader2 className="size-3.5 animate-spin mr-1" /> Deleting...</>
-              ) : (
-                <><Trash2 className="size-3.5 mr-1" /> Yes, Delete Everything</>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

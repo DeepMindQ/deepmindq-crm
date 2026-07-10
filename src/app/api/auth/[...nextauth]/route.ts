@@ -1,9 +1,9 @@
+import { NextRequest } from "next/server"
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
-import bcrypt from "bcryptjs"
 
-const handler = NextAuth({
+export const authOptions = {
   adapter: PrismaAdapter({} as any),
   providers: [
     Credentials({
@@ -26,24 +26,41 @@ const handler = NextAuth({
       },
     }),
   ],
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt" as const },
   pages: {
     signIn: "/login",
   },
   callbacks: {
-    async session({ session, token }) {
+    async session({ session, token }: { session: any; token: any }) {
       if (token && session.user) {
         session.user.id = token.sub as string
       }
       return session
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user }: { token: any; user?: any }) {
       if (user) {
         token.sub = user.id
       }
       return token
     },
   },
-})
+}
 
-export { handler as GET, handler as POST }
+const { handlers } = NextAuth(authOptions)
+
+// Wrap NextAuth handlers to satisfy Next.js 16 route handler type constraint
+async function GET(
+  request: NextRequest,
+  _context: { params: Promise<{ nextauth: string[] }> }
+) {
+  return handlers.GET(request as any) as unknown as Response
+}
+
+async function POST(
+  request: NextRequest,
+  _context: { params: Promise<{ nextauth: string[] }> }
+) {
+  return handlers.POST(request as any) as unknown as Response
+}
+
+export { GET, POST }

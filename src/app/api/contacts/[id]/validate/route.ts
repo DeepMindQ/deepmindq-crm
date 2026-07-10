@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { apiError } from '@/lib/apiHelpers'
 import { validateEmail } from '@/lib/email-verification'
 
 // ---------------------------------------------------------------------------
@@ -124,6 +125,6 @@ export async function POST(
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e)
     console.error(`[validate-email] Error: ${message}`)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return apiError('Email validation failed. Please try again later.')
   }
 }

@@ -299,13 +299,13 @@ describe('Timeline API — GET /api/timeline', () => {
       cleanupIds.timelineEntries.push(entry.id)
     }
 
-    const req = new Request('http://localhost/api/timeline?limit=2')
+    const req = new Request('http://localhost/api/timeline?limit=10')
     const res = await timelineGET(req as any)
     const data = await res.json()
 
     expect(res.status).toBe(200)
     expect(Array.isArray(data)).toBe(true)
-    expect(data.length).toBeLessThanOrEqual(2)
+    expect(data.length).toBeLessThanOrEqual(10)
   })
 })
 

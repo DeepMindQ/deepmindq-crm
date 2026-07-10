@@ -8,26 +8,34 @@ datasource db {
 }
 
 model Company {
-  id              String   @id @default(cuid())
-  name            String
-  domain          String?
-  linkedinUrl     String?
-  website         String?
-  industry        String?
-  employeeSize    String?
-  country         String?
-  location        String?
-  status          String   @default("new")
+  id                String   @id @default(cuid())
+  name              String
+  domain            String?
+  linkedinUrl       String?
+  website           String?
+  industry          String?
+  employeeSize      String?
+  country           String?
+  location          String?
+  status            String   @default("new")
   intelligenceScore Int?
-  dataFreshness   String?
-  lastUpdatedAt   DateTime @updatedAt
-  createdAt       DateTime @default(now())
+  dataFreshness     String?
+  lastUpdatedAt     DateTime @updatedAt
+  createdAt         DateTime @default(now())
 
-  contacts        Contact[]
-  notes           CompanyNote[]
-  researchCard    CompanyResearchCard?
-  opportunities   Opportunity[]
-  timeline        TimelineEntry[]
+  contacts          Contact[]
+  notes             CompanyNote[]
+  researchCard      CompanyResearchCard?
+  opportunities     Opportunity[]
+  timeline          TimelineEntry[]
+  researchSources   CompanyResearchSource[]
+  customFieldValues CustomFieldValue[]
+
+  @@index([name])
+  @@index([domain])
+  @@index([industry])
+  @@index([status])
+  @@index([country])
 }
 
 model Contact {
@@ -49,15 +57,18 @@ model Contact {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  notes           ContactNote[]
-  timeline        TimelineEntry[]
-  drafts          Draft[]
-  healthChecks    EmailHealthCheck[]
+  company             Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  notes               ContactNote[]
+  timeline            TimelineEntry[]
+  drafts              Draft[]
+  healthChecks        EmailHealthCheck[]
+  targetedOpportunities Opportunity[] @relation("TargetContact")
+  customFieldValues   CustomFieldValue[]
 
   @@index([companyId])
   @@index([email])
   @@index([status])
+  @@index([roleBucket])
 }
 
 model CompanyNote {
@@ -66,6 +77,7 @@ model CompanyNote {
   body      String
   noteType  String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -78,6 +90,7 @@ model ContactNote {
   body      String
   noteType  String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
@@ -85,23 +98,21 @@ model ContactNote {
 }
 
 model CompanyResearchCard {
-  id                   String   @id @default(cuid())
-  companyId            String   @unique
-  businessOverview     String?
-  currentTechLandscape String?
-  potentialChallenges  String?
+  id                    String   @id @default(cuid())
+  companyId             String   @unique
+  businessOverview      String?
+  currentTechLandscape  String?
+  potentialChallenges   String?
   possibleOpportunities String?
-  relevantServices     String?
-  keyDecisionMakers    String?
-  lastInteraction      String?
-  nextAction           String?
-  confidenceScore      Int?
-  lastResearchedAt     DateTime @updatedAt
-  createdAt            DateTime @default(now())
+  relevantServices      String?
+  keyDecisionMakers     String?
+  lastInteraction       String?
+  nextAction            String?
+  confidenceScore       Int?
+  lastResearchedAt      DateTime @updatedAt
+  createdAt             DateTime @default(now())
 
-  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 model CompanyResearchSource {
@@ -112,38 +123,44 @@ model CompanyResearchSource {
   excerpt   String?
   createdAt DateTime @default(now())
 
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   @@index([companyId])
+  @@index([sourceType])
 }
 
 model Opportunity {
-  id          String   @id @default(cuid())
-  companyId   String
-  title       String
-  description String?
+  id              String   @id @default(cuid())
+  companyId       String
+  title           String
+  description     String?
   targetContactId String?
-  status      String   @default("researching")
-  nextAction  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status          String   @default("researching")
+  nextAction      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  targetContact Contact?  @relation("TargetContact", fields: [targetContactId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
+  @@index([status])
+  @@index([targetContactId])
 }
 
 model TimelineEntry {
-  id          String   @id @default(cuid())
-  companyId   String?
-  contactId   String?
-  action      String
-  details     String?
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  companyId String?
+  contactId String?
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
 
-  company     Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  contact     Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contact Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
-  @@index([companyId])
-  @@index([contactId])
+  @@index([companyId, createdAt])
+  @@index([contactId, createdAt])
 }
 
 model CapabilityDocument {
@@ -156,7 +173,9 @@ model CapabilityDocument {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  snippets    CapabilitySnippet[]
+  snippets CapabilitySnippet[]
+
+  @@index([docType])
 }
 
 model CapabilitySnippet {
@@ -169,7 +188,7 @@ model CapabilitySnippet {
   outcomes    String?
   createdAt   DateTime @default(now())
 
-  document    CapabilityDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document CapabilityDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@index([documentId])
   @@index([snippetType])
@@ -189,42 +208,47 @@ model Draft {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  contact         Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@index([contactId])
+  @@index([status])
 }
 
 model EmailHealthCheck {
-  id              String   @id @default(cuid())
-  contactId       String
-  status          String
-  score           Int
-  actionRecommendation String?
-  syntaxOk        Boolean  @default(false)
-  domainOk        Boolean  @default(false)
-  mxOk            Boolean  @default(false)
-  disposableOk    Boolean  @default(false)
-  checkedAt       DateTime @default(now())
+  id                    String   @id @default(cuid())
+  contactId             String
+  status                String
+  score                 Int
+  actionRecommendation  String?
+  syntaxOk              Boolean  @default(false)
+  domainOk              Boolean  @default(false)
+  mxOk                  Boolean  @default(false)
+  disposableOk          Boolean  @default(false)
+  checkedAt             DateTime @default(now())
 
-  contact         Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@index([contactId])
 }
 
 model ImportBatch {
-  id              String   @id @default(cuid())
-  fileName        String
-  fileHash        String   @unique
-  totalRows       Int      @default(0)
-  acceptedRows    Int      @default(0)
-  duplicateRows   Int      @default(0)
-  invalidRows     Int      @default(0)
-  status          String   @default("staged")
-  createdAt       DateTime @default(now())
+  id            String   @id @default(cuid())
+  fileName      String
+  fileHash      String   @unique
+  totalRows     Int      @default(0)
+  acceptedRows  Int      @default(0)
+  duplicateRows Int      @default(0)
+  invalidRows   Int      @default(0)
+  status        String   @default("staged")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([status])
+  @@index([createdAt])
 }
 
+// Singleton pattern: API layer enforces only one row exists.
+// SQLite does not support @@unique([]), so uniqueness is enforced in application code.
 model UserPreferences {
   id              String   @id @default(cuid())
   tone            String   @default("professional-casual")
@@ -241,25 +265,32 @@ model UserPreferences {
 }
 
 model CustomFieldDefinition {
-  id              String   @id @default(cuid())
-  entityType      String
-  sourceHeader    String
-  internalKey     String
-  displayName     String
-  dataType        String   @default("text")
-  isSearchable    Boolean  @default(false)
-  isFilterable    Boolean  @default(false)
-  createdAt       DateTime @default(now())
+  id           String   @id @default(cuid())
+  entityType   String
+  sourceHeader String
+  internalKey  String
+  displayName  String
+  dataType     String   @default("text")
+  isSearchable Boolean  @default(false)
+  isFilterable Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  fieldValues CustomFieldValue[]
 }
 
 model CustomFieldValue {
-  id              String   @id @default(cuid())
-  fieldId         String
-  contactId       String?
-  companyId       String?
-  rawValue        String?
-  createdAt       DateTime @default(now())
+  id        String   @id @default(cuid())
+  fieldId   String
+  contactId String?
+  companyId String?
+  rawValue  String?
+  createdAt DateTime @default(now())
 
+  field   CustomFieldDefinition @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  contact Contact?              @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  company Company?              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([fieldId])
   @@index([contactId])
   @@index([companyId])
 }

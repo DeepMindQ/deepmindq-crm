@@ -136,13 +136,13 @@ describe('POST /api/health-check', () => {
   })
 
   it('creates EmailHealthCheck records in the database', async () => {
-    await seedContact('hc-record-test@example.com')
+    const { contact } = await seedContact('hc-record-test@example.com')
 
     const beforeCount = await db.emailHealthCheck.count()
 
     const req = makeRequest('http://localhost:3000/api/health-check', {
       method: 'POST',
-      body: JSON.stringify({ checkAll: true }),
+      body: JSON.stringify({ contactIds: [contact.id] }),
       headers: { 'Content-Type': 'application/json' },
     })
     await healthCheckPOST(req)
@@ -168,7 +168,7 @@ describe('POST /api/health-check', () => {
 
     const req = makeRequest('http://localhost:3000/api/health-check', {
       method: 'POST',
-      body: JSON.stringify({ checkAll: true }),
+      body: JSON.stringify({ contactIds: [contact.id] }),
       headers: { 'Content-Type': 'application/json' },
     })
     await healthCheckPOST(req)
@@ -346,6 +346,11 @@ describe('POST /api/knowledge', () => {
       parts.push('')
       parts.push('Created by integration test')
 
+      parts.push(`--${boundary}`)
+      parts.push('Content-Disposition: form-data; name="docType"')
+      parts.push('')
+      parts.push('documentation')
+
       parts.push(`--${boundary}--`)
       const body = parts.join('\r\n')
 
@@ -364,7 +369,7 @@ describe('POST /api/knowledge', () => {
       expect(data.id).toBeDefined()
       expect(data.title).toBe('Uploaded Test Document')
       expect(data.fileName).toBe('test-upload.txt')
-      expect(data.docType).toBe('TXT')
+      expect(data.docType).toBe('DOCUMENTATION')
 
       // Register for cleanup
       cleanup.documentIds.push(data.id)

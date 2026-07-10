@@ -1,10 +1,10 @@
 :81 {
         @transform_port_query {
-                query XTransformPort=*
+                query XTransformPort=8080
         }
 
         handle @transform_port_query {
-                reverse_proxy localhost:{query.XTransformPort} {
+                reverse_proxy localhost:8080 {
                         header_up Host {host}
                         header_up X-Forwarded-For {remote_host}
                         header_up X-Forwarded-Proto {scheme}

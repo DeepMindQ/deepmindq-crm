@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { apiError, apiSuccess, validateBody, sanitize, safeInt } from "@/lib/apiHelpers";
+import { createKnowledgeDocSchema } from "@/lib/validations";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -42,7 +44,6 @@ function classifyChunk(text: string): SnippetType {
 }
 
 function extractSnippets(content: string): { title: string; content: string; snippetType: SnippetType }[] {
-  // Split by double newlines (paragraphs) or lines starting with heading markers
   const chunks = content
     .split(/\n\n+|\n(?=#{1,6}\s)/)
     .map((s) => s.trim())
@@ -54,7 +55,7 @@ function extractSnippets(content: string): { title: string; content: string; sni
       firstLine.length > 0
         ? firstLine.length > 80
           ? firstLine.slice(0, 77) + "..."
-          : firstLine.replace(/^#+\s*/, "") // strip heading markers
+          : firstLine.replace(/^#+\s*/, "")
         : "Untitled Snippet";
 
     return {
@@ -64,20 +65,25 @@ function extractSnippets(content: string): { title: string; content: string; sni
     };
   });
 
-  // Cap at 5 snippets as specified
   return snippets.slice(0, 5);
 }
 
 // ---------------------------------------------------------------------------
-// GET – list capability documents, optionally including snippets
+// GET – list capability documents, optionally including snippets (paginated)
 // ---------------------------------------------------------------------------
+
+const MAX_PAGE_SIZE = 50;
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const include = searchParams.get("include");
+    const page = Math.max(1, safeInt(searchParams.get("page"), 1));
+    const skip = (page - 1) * MAX_PAGE_SIZE;
 
     const docs = await db.capabilityDocument.findMany({
+      take: MAX_PAGE_SIZE,
+      skip,
       orderBy: { createdAt: "desc" },
       include: {
         ...(include === "snippets"
@@ -87,7 +93,6 @@ export async function GET(request: NextRequest) {
     });
 
     if (include === "snippets") {
-      // Return { documents, snippets } format for the knowledge library screen
       const allSnippets = docs.flatMap((d) =>
         (d as any).snippets.map((s: any) => ({
           id: s.id,
@@ -110,10 +115,9 @@ export async function GET(request: NextRequest) {
         createdAt: d.createdAt,
       }));
 
-      return NextResponse.json({ documents, snippets: allSnippets });
+      return apiSuccess({ documents, snippets: allSnippets });
     }
 
-    // Default: return array of documents with snippet counts
     const formatted = docs.map((d) => ({
       id: d.id,
       title: d.title,
@@ -124,10 +128,9 @@ export async function GET(request: NextRequest) {
       createdAt: d.createdAt,
     }));
 
-    return NextResponse.json(formatted);
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiSuccess(formatted);
+  } catch {
+    return apiError("Failed to fetch documents");
   }
 }
 
@@ -135,13 +138,20 @@ export async function GET(request: NextRequest) {
 // POST – create document & auto-extract snippets
 // ---------------------------------------------------------------------------
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
 export async function POST(req: NextRequest) {
   try {
     const fd = await req.formData();
     const file = fd.get("file") as File | null;
 
     if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+      return apiError("No file uploaded", 400);
+    }
+
+    // C9: Enforce 10 MB file size limit before reading
+    if (file.size > MAX_FILE_SIZE) {
+      return apiError("File size exceeds the 10 MB limit", 400);
     }
 
     // Only accept plain text file formats
@@ -151,26 +161,34 @@ export async function POST(req: NextRequest) {
 
     if (blockedExtensions.some((ext) => fileName.endsWith(ext))) {
       const ext = fileName.split(".").pop()!.toUpperCase();
-      return NextResponse.json(
-        { error: `.${ext} files are not supported. Only .txt and .md files can be uploaded. Use a PDF/DOCX to text converter first.` },
-        { status: 400 }
+      return apiError(
+        `.${ext} files are not supported. Only .txt and .md files can be uploaded. Use a PDF/DOCX to text converter first.`,
+        400,
       );
     }
 
     if (!allowedExtensions.some((ext) => fileName.endsWith(ext))) {
-      return NextResponse.json(
-        { error: "Unsupported file type. Only .txt and .md files are accepted." },
-        { status: 400 }
-      );
+      return apiError("Unsupported file type. Only .txt and .md files are accepted.", 400);
     }
 
-    const title =
-      (fd.get("title") as string) ||
-      file.name?.replace(/\.[^.]+$/, "") ||
-      "Untitled";
-    const description = (fd.get("description") as string) || "";
+    const rawTitle = (fd.get("title") as string) || file.name?.replace(/\.[^.]+$/, "") || "Untitled";
+    const rawDescription = (fd.get("description") as string) || "";
+    const rawDocType = (fd.get("docType") as string) || file.name?.split(".").pop()?.toUpperCase() || "TXT";
+
+    // Validate with Zod
+    const parsed = validateBody(createKnowledgeDocSchema, {
+      title: rawTitle,
+      docType: rawDocType.toLowerCase(),
+      description: rawDescription,
+    });
+    if (parsed instanceof Response) {
+      return parsed;
+    }
+
+    const title = sanitize(parsed.title);
+    const description = sanitize(parsed.description ?? "");
+    const docType = parsed.docType.toUpperCase();
     const content = await file.text();
-    const docType = file.name?.split(".").pop()?.toUpperCase() || "TXT";
 
     const doc = await db.capabilityDocument.create({
       data: {
@@ -182,7 +200,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Auto-extract 3-5 snippets from the document content
     const snippetData = extractSnippets(content);
 
     if (snippetData.length > 0) {
@@ -196,15 +213,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Return the created document with snippets included
     const createdDoc = await db.capabilityDocument.findUnique({
       where: { id: doc.id },
       include: { snippets: { orderBy: { createdAt: "desc" } } },
     });
 
-    return NextResponse.json(createdDoc, { status: 201 });
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiSuccess(createdDoc, 201);
+  } catch {
+    return apiError("Failed to create document");
   }
 }

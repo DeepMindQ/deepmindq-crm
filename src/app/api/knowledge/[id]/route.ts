@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { apiError, apiSuccess } from "@/lib/apiHelpers";
 
 // ---------------------------------------------------------------------------
 // GET – single capability document with snippets
@@ -18,13 +19,12 @@ export async function GET(
     });
 
     if (!doc) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return apiError("Not found", 404);
     }
 
-    return NextResponse.json(doc);
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiSuccess(doc);
+  } catch {
+    return apiError("Failed to fetch document");
   }
 }
 
@@ -39,17 +39,17 @@ export async function DELETE(
   try {
     const { id } = await params;
 
+    // Confirm the document exists first
     const doc = await db.capabilityDocument.findUnique({ where: { id } });
     if (!doc) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return apiError("Not found", 404);
     }
 
     // Snippets are deleted automatically via onDelete: Cascade
     await db.capabilityDocument.delete({ where: { id } });
 
-    return NextResponse.json({ success: true });
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiSuccess({ success: true });
+  } catch {
+    return apiError("Failed to delete document");
   }
 }

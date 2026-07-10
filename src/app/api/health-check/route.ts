@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { apiError, apiSuccess } from "@/lib/apiHelpers";
 import { validateEmail } from "@/lib/email-verification";
 
 // ---------------------------------------------------------------------------
@@ -14,11 +15,13 @@ export async function POST(request: NextRequest) {
     let contacts;
 
     if (checkAll) {
+      // H14: Limit to first 100 contacts
       contacts = await db.contact.findMany({
         where: {
           archivedAt: null,
           email: { not: null },
         },
+        take: 100,
       });
     } else if (contactIds && Array.isArray(contactIds) && contactIds.length > 0) {
       contacts = await db.contact.findMany({
@@ -28,10 +31,7 @@ export async function POST(request: NextRequest) {
         },
       });
     } else {
-      return NextResponse.json(
-        { error: "Provide contactIds array or set checkAll to true" },
-        { status: 400 }
-      );
+      return apiError("Provide contactIds array or set checkAll to true", 400);
     }
 
     let validCount = 0;
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
             data: {
               contactId: contact.id,
               companyId: contact.companyId,
-              action: "email_health_check",
+              action: "email_validated",
               details: `Email health check: ${result.status} (score ${result.score}) — ${result.recommendation}`,
             },
           }),
@@ -96,17 +96,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       checked: contacts.length,
       valid: validCount,
       risky: riskyCount,
       invalid: invalidCount,
     });
-  } catch (error) {
-    console.error("Failed to run health check:", error);
-    return NextResponse.json(
-      { error: "Failed to run health check" },
-      { status: 500 }
-    );
+  } catch {
+    return apiError("Failed to run health check");
   }
 }

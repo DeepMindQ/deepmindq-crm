@@ -26,24 +26,28 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
+import { getHealthVariant, getDraftStatusVariant, ROLE_BUCKETS } from '@/lib/constants'
+import type { Contact, ContactNote, TimelineEntry, Draft, EmailHealthCheck } from '@/lib/types'
 
-/* ── Style helpers ── */
+/* ── Local types ── */
 
-const healthVariant = (h: string) =>
-  h === 'valid'
-    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-    : h === 'risky'
-      ? 'bg-amber-50 text-amber-700 border border-amber-200'
-      : h === 'invalid'
-        ? 'bg-red-50 text-red-700 border border-red-200'
-        : 'bg-gray-100 text-gray-600 border border-gray-200'
+interface ContactDraft extends Draft {
+  sourceType?: string | null
+  isTemplateBased?: boolean | null
+  confidence?: string | null
+}
 
-const draftStatusVariant = (s: string) =>
-  s === 'sent'
-    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-    : s === 'rejected'
-      ? 'bg-red-50 text-red-700 border border-red-200'
-      : 'bg-gray-100 text-gray-600 border border-gray-200'
+interface GeneratedEmailResult {
+  subject: string
+  body: string
+  matchScore: number | null
+  confidence: string | null
+  tone: string | null
+  emailLength: string | null
+  ctaStyle: string | null
+}
+
+/* ── Style helper ── */
 
 const matchScoreColor = (score: number | null) =>
   score == null
@@ -53,8 +57,6 @@ const matchScoreColor = (score: number | null) =>
       : score >= 60
         ? 'text-amber-600'
         : 'text-red-500'
-
-const ROLES = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other']
 
 /* ── Component ── */
 
@@ -68,6 +70,7 @@ export default function ContactDetailScreen() {
   const [noteBody, setNoteBody] = useState('')
   const [noteType, setNoteType] = useState('')
   const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null)
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false)
   const [expandedDraftId, setExpandedDraftId] = useState<string | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [editForm, setEditForm] = useState({
@@ -76,16 +79,20 @@ export default function ContactDetailScreen() {
   })
 
   /* ── Validation detailed result ── */
-  const [validationDetail, setValidationDetail] = useState<any>(null)
+  const [validationDetail, setValidationDetail] = useState<EmailHealthCheck | null>(null)
   const [showValidation, setShowValidation] = useState(false)
 
   /* ── Generate email result ── */
-  const [generatedEmail, setGeneratedEmail] = useState<any>(null)
+  const [generatedEmail, setGeneratedEmail] = useState<GeneratedEmailResult | null>(null)
 
   /* ── Query ── */
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery<Contact>({
     queryKey: ['contact', selectedContactId],
-    queryFn: () => fetch(`/api/contacts/${selectedContactId}`).then(r => r.json()),
+    queryFn: () =>
+      fetch(`/api/contacts/${selectedContactId}`).then(r => {
+        if (!r.ok) throw new Error('Failed to load contact')
+        return r.json()
+      }),
     enabled: !!selectedContactId,
   })
 
@@ -97,7 +104,24 @@ export default function ContactDetailScreen() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...body, contactId: selectedContactId }),
-      }).then(r => r.json()),
+      }).then(r => {
+        if (!r.ok) throw new Error('Failed to add note')
+        return r.json()
+      }),
+    onMutate: async (vars) => {
+      await qc.cancelQueries({ queryKey: ['contact', selectedContactId] })
+      const prev = qc.getQueryData<Contact>(['contact', selectedContactId])
+      if (prev) {
+        qc.setQueryData<Contact>(['contact', selectedContactId], {
+          ...prev,
+          notes: [
+            ...(prev.notes ?? []),
+            { id: `temp-${Date.now()}`, contactId: selectedContactId!, body: vars.body, noteType: vars.noteType as ContactNote['noteType'], createdAt: new Date().toISOString() },
+          ],
+        })
+      }
+      return { prev }
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
       setNoteOpen(false)
@@ -105,23 +129,52 @@ export default function ContactDetailScreen() {
       setNoteType('')
       toast.success('Note added')
     },
-    onError: () => toast.error('Failed to add note'),
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['contact', selectedContactId], ctx.prev)
+      toast.error('Failed to add note')
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
+    },
   })
 
   const deleteNoteMutation = useMutation({
     mutationFn: (noteId: string) =>
-      fetch(`/api/notes/${noteId}`, { method: 'DELETE' }).then(r => r.json()),
+      fetch(`/api/notes/${noteId}`, { method: 'DELETE' }).then(r => {
+        if (!r.ok) throw new Error('Failed to delete note')
+        return r.json()
+      }),
+    onMutate: async (noteId) => {
+      await qc.cancelQueries({ queryKey: ['contact', selectedContactId] })
+      const prev = qc.getQueryData<Contact>(['contact', selectedContactId])
+      if (prev) {
+        qc.setQueryData<Contact>(['contact', selectedContactId], {
+          ...prev,
+          notes: (prev.notes ?? []).filter(n => n.id !== noteId),
+        })
+      }
+      return { prev }
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
       setDeleteNoteId(null)
       toast.success('Note deleted')
     },
-    onError: () => toast.error('Failed to delete note'),
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['contact', selectedContactId], ctx.prev)
+      toast.error('Failed to delete note')
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
+    },
   })
 
   const archiveContact = useMutation({
     mutationFn: () =>
-      fetch(`/api/contacts/${selectedContactId}`, { method: 'DELETE' }).then(r => r.json()),
+      fetch(`/api/contacts/${selectedContactId}`, { method: 'DELETE' }).then(r => {
+        if (!r.ok) throw new Error('Failed to archive contact')
+        return r.json()
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contact'] })
       qc.invalidateQueries({ queryKey: ['contacts'] })
@@ -138,14 +191,29 @@ export default function ContactDetailScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
-        .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Failed to update contact') })),
+        .then(r => r.ok ? r.json() : r.json().then((e: { error?: string }) => { throw new Error(e.error || 'Failed to update contact') })),
+    onMutate: async (form) => {
+      await qc.cancelQueries({ queryKey: ['contact', selectedContactId] })
+      const prev = qc.getQueryData<Contact>(['contact', selectedContactId])
+      if (prev) {
+        qc.setQueryData<Contact>(['contact', selectedContactId], { ...prev, ...form } as Contact)
+      }
+      return { prev }
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
       qc.invalidateQueries({ queryKey: ['contacts'] })
       setEditOpen(false)
       toast.success('Contact updated')
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['contact', selectedContactId], ctx.prev)
+      toast.error(e.message)
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
+      qc.invalidateQueries({ queryKey: ['contacts'] })
+    },
   })
 
   const validateEmail = useMutation({
@@ -153,8 +221,8 @@ export default function ContactDetailScreen() {
       fetch(`/api/contacts/${selectedContactId}/validate`, {
         method: 'POST',
       })
-        .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Validation failed') })),
-    onSuccess: (result) => {
+        .then(r => r.ok ? r.json() : r.json().then((e: { error?: string }) => { throw new Error(e.error || 'Validation failed') })),
+    onSuccess: (result: EmailHealthCheck) => {
       qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
       setValidationDetail(result)
       setShowValidation(true)
@@ -170,8 +238,8 @@ export default function ContactDetailScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       })
-        .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Generation failed') })),
-    onSuccess: (result) => {
+        .then(r => r.ok ? r.json() : r.json().then((e: { error?: string }) => { throw new Error(e.error || 'Generation failed') })),
+    onSuccess: (result: GeneratedEmailResult) => {
       qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
       setGeneratedEmail(result)
       toast.success('Email generated')
@@ -186,7 +254,7 @@ export default function ContactDetailScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       })
-        .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Regeneration failed') })),
+        .then(r => r.ok ? r.json() : r.json().then((e: { error?: string }) => { throw new Error(e.error || 'Regeneration failed') })),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
       toast.success('Draft regenerated')
@@ -201,7 +269,7 @@ export default function ContactDetailScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       })
-        .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Failed to update draft') })),
+        .then(r => r.ok ? r.json() : r.json().then((e: { error?: string }) => { throw new Error(e.error || 'Failed to update draft') })),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
       toast.success('Draft status updated')
@@ -210,6 +278,15 @@ export default function ContactDetailScreen() {
   })
 
   /* ── Helpers ── */
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success('Copied to clipboard')
+    } catch {
+      toast.error('Failed to copy to clipboard')
+    }
+  }
 
   const openEditDialog = () => {
     if (!data) return
@@ -277,6 +354,28 @@ export default function ContactDetailScreen() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-xl bg-red-50 border border-red-200 p-5 flex items-start gap-3">
+          <AlertTriangle className="size-5 text-red-500 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-red-900">Failed to load contact</p>
+            <p className="text-sm text-red-700 mt-0.5">{error.message}</p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-red-200 text-red-700 hover:bg-red-50 shrink-0"
+            onClick={() => refetch()}
+          >
+            <RefreshCw className="size-3.5 mr-1.5" /> Retry
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   if (!data) {
     return (
       <EmptyState
@@ -289,7 +388,10 @@ export default function ContactDetailScreen() {
     )
   }
 
-  const { notes = [], timeline = [], drafts = [], healthChecks = [] } = data
+  const notes = data.notes ?? []
+  const timeline = data.timeline ?? []
+  const drafts = (data.drafts ?? []) as ContactDraft[]
+  const healthChecks = data.healthChecks ?? []
   const latestCheck = healthChecks[0] ?? null
   const hasDrafts = drafts.length > 0
 
@@ -328,7 +430,7 @@ export default function ContactDetailScreen() {
                 </Badge>
               )}
               {hasDrafts && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 px-2 py-0.5 text-[10px] font-medium">
+                <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 text-violet-600 border border-violet-200 px-2 py-0.5 text-[10px] font-medium">
                   <Sparkles className="size-2.5" />
                   AI Drafts
                 </span>
@@ -376,7 +478,7 @@ export default function ContactDetailScreen() {
                 </a>
               )}
               {data.emailHealth && data.emailHealth !== 'unknown' && (
-                <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium gap-1', healthVariant(data.emailHealth))}>
+                <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium gap-1', getHealthVariant(data.emailHealth))}>
                   <ShieldCheck className="size-3" />
                   {data.emailHealth}
                   {data.emailHealthScore != null && (
@@ -402,7 +504,7 @@ export default function ContactDetailScreen() {
               </Button>
               <Button
                 size="sm"
-                className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg press-scale shadow-xs"
+                className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
                 onClick={() => { setTab('ai-emails'); generateEmail.mutate() }}
                 disabled={generateEmail.isPending}
               >
@@ -438,6 +540,14 @@ export default function ContactDetailScreen() {
                   <Building2 className="size-3.5" /> View Company
                 </Button>
               )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs border-red-200 text-red-500 hover:bg-red-50 hover:text-red-700 rounded-lg ml-auto"
+                onClick={() => setArchiveConfirmOpen(true)}
+              >
+                <Archive className="size-3.5 mr-1.5" /> Archive
+              </Button>
             </div>
           </div>
         </div>
@@ -446,19 +556,19 @@ export default function ContactDetailScreen() {
       {/* ════════════ Tabs ════════════ */}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 overflow-x-auto">
-          {[
+          {([
             { key: 'overview', label: 'Overview' },
             { key: 'ai-emails', label: 'AI Emails', count: drafts.length },
             { key: 'notes', label: 'Notes', count: notes.length },
             { key: 'activity', label: 'Activity', count: timeline.length },
-          ].map(({ key, label, count }) => (
+          ]).map(({ key, label, count }) => (
             <TabsTrigger
               key={key}
               value={key}
               className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5"
             >
               {label}
-              {count > 0 && (
+              {count != null && count > 0 && (
                 <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full tabular-nums">
                   {count}
                 </span>
@@ -553,7 +663,7 @@ export default function ContactDetailScreen() {
 
             {latestCheck || validationDetail ? (() => {
               const check = validationDetail || latestCheck
-              const score = check.score ?? check.emailHealthScore ?? 0
+              const score = check.score ?? 0
               return (
                 <>
                   <div className="flex flex-col sm:flex-row items-center gap-8">
@@ -562,7 +672,7 @@ export default function ContactDetailScreen() {
                       size={140}
                       strokeWidth={12}
                       label={check.status || 'unknown'}
-                      sublabel={`Checked ${formatDistanceToNow(new Date(check.checkedAt || check.createdAt), { addSuffix: true })}`}
+                      sublabel={`Checked ${formatDistanceToNow(new Date(check.checkedAt), { addSuffix: true })}`}
                       segments={[
                         { label: 'Syntax', value: check.syntaxOk ? 100 : 0, color: check.syntaxOk ? '#059669' : '#DC2626' },
                         { label: 'Domain', value: check.domainOk ? 100 : 0, color: check.domainOk ? '#059669' : '#DC2626' },
@@ -626,11 +736,11 @@ export default function ContactDetailScreen() {
         <TabsContent value="ai-emails" className="mt-5">
           {/* Generate result banner */}
           {generatedEmail && (
-            <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-5 mb-5 slide-up">
+            <div className="rounded-xl bg-violet-50 border border-violet-100 p-5 mb-5 slide-up">
               <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="size-4 text-indigo-600" />
-                <h4 className="text-sm font-semibold text-indigo-900">Just Generated</h4>
-                <Badge className="bg-indigo-100 text-indigo-700 border border-indigo-200 text-[10px] font-medium">
+                <Sparkles className="size-4 text-violet-600" />
+                <h4 className="text-sm font-semibold text-violet-900">Just Generated</h4>
+                <Badge className="bg-violet-100 text-violet-700 border border-violet-200 text-[10px] font-medium">
                   AI Generated
                 </Badge>
               </div>
@@ -664,10 +774,7 @@ export default function ContactDetailScreen() {
                   size="sm"
                   variant="outline"
                   className="h-7 text-xs border-gray-200 text-gray-600 rounded-md ml-auto"
-                  onClick={() => {
-                    navigator.clipboard.writeText(generatedEmail.body)
-                    toast.success('Copied to clipboard')
-                  }}
+                  onClick={() => copyToClipboard(generatedEmail.body)}
                 >
                   <Copy className="size-3 mr-1" /> Copy
                 </Button>
@@ -714,7 +821,7 @@ export default function ContactDetailScreen() {
             />
           ) : (
             <div className="space-y-3">
-              {drafts.map((d: any) => {
+              {drafts.map((d) => {
                 const isExpanded = expandedDraftId === d.id
                 const isTemplate = d.sourceType === 'template' || d.isTemplateBased
                 return (
@@ -735,7 +842,7 @@ export default function ContactDetailScreen() {
                                 Template
                               </Badge>
                             ) : (
-                              <Badge className="bg-indigo-50 text-indigo-600 border border-indigo-200 text-[10px] font-medium inline-flex items-center gap-0.5">
+                              <Badge className="bg-violet-50 text-violet-600 border border-violet-200 text-[10px] font-medium inline-flex items-center gap-0.5">
                                 <Sparkles className="size-2.5" /> AI
                               </Badge>
                             )}
@@ -764,7 +871,7 @@ export default function ContactDetailScreen() {
                           )}
                           <span className={cn(
                             'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border',
-                            draftStatusVariant(d.status),
+                            getDraftStatusVariant(d.status),
                           )}>
                             {d.status}
                           </span>
@@ -797,10 +904,7 @@ export default function ContactDetailScreen() {
                           size="sm"
                           variant="outline"
                           className="h-7 text-xs border-gray-200 text-gray-600 rounded-md"
-                          onClick={() => {
-                            navigator.clipboard.writeText(d.body)
-                            toast.success('Draft copied to clipboard')
-                          }}
+                          onClick={() => copyToClipboard(d.body)}
                         >
                           <Copy className="size-3 mr-1" /> Copy
                         </Button>
@@ -859,13 +963,14 @@ export default function ContactDetailScreen() {
             />
           ) : (
             <div className="space-y-3">
-              {notes.map((n: any) => (
+              {notes.map((n) => (
                 <div key={n.id} className="rounded-xl bg-white p-5 card-rest slide-up">
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-sm text-gray-700 leading-relaxed flex-1">{n.body}</p>
                     <button
                       onClick={() => setDeleteNoteId(n.id)}
                       className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
+                      aria-label="Delete note"
                       title="Delete note"
                     >
                       <X className="size-3.5" />
@@ -899,7 +1004,7 @@ export default function ContactDetailScreen() {
             <div className="relative pl-6">
               <div className="absolute left-[7px] top-1 bottom-1 border-l-2 border-gray-200" />
               <div className="space-y-4">
-                {timeline.map((t: any) => {
+                {timeline.map((t) => {
                   const iconData = getActivityIcon(t.action)
                   const Icon = iconData.icon
                   return (
@@ -927,6 +1032,37 @@ export default function ContactDetailScreen() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* ════════════ Archive Contact Confirmation ════════════ */}
+      <Dialog open={archiveConfirmOpen} onOpenChange={setArchiveConfirmOpen}>
+        <DialogContent className="sm:max-w-sm rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900 flex items-center gap-2">
+              <Archive className="size-4 text-red-500" /> Archive Contact
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Are you sure you want to archive <strong>{data.name}</strong>? This will remove them from the active list.
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setArchiveConfirmOpen(false)}
+              className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => archiveContact.mutate()}
+              disabled={archiveContact.isPending}
+              className="bg-red-600 text-white hover:bg-red-700 press-scale"
+            >
+              {archiveContact.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+              Archive
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ════════════ Delete Note Confirmation ════════════ */}
       <Dialog open={!!deleteNoteId} onOpenChange={(open) => { if (!open) setDeleteNoteId(null) }}>
@@ -1002,7 +1138,7 @@ export default function ContactDetailScreen() {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    {ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                    {ROLE_BUCKETS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

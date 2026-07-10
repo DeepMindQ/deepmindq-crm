@@ -1,5 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { apiError, apiSuccess, validateBody, sanitizeFields, safeInt } from "@/lib/apiHelpers";
+import { updateCompanySchema } from "@/lib/validations";
+import { DATA_FRESHNESS_VALUES } from "@/lib/constants";
 
 export async function GET(
   _request: NextRequest,
@@ -14,16 +17,20 @@ export async function GET(
         contacts: {
           where: { archivedAt: null },
           orderBy: { createdAt: "desc" },
+          take: 50,
         },
         notes: {
           orderBy: { createdAt: "desc" },
+          take: 50,
         },
         researchCard: true,
         opportunities: {
           orderBy: { createdAt: "desc" },
+          take: 50,
         },
         timeline: {
           orderBy: { createdAt: "desc" },
+          take: 50,
           include: {
             contact: { select: { id: true, name: true } },
           },
@@ -32,16 +39,13 @@ export async function GET(
     });
 
     if (!company) {
-      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+      return apiError("Company not found", 404);
     }
 
-    return NextResponse.json(company);
+    return apiSuccess(company);
   } catch (error) {
     console.error("Failed to fetch company:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch company" },
-      { status: 500 }
-    );
+    return apiError("Failed to fetch company", 500);
   }
 }
 
@@ -55,58 +59,59 @@ export async function PATCH(
 
     const company = await db.company.findUnique({ where: { id } });
     if (!company) {
-      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+      return apiError("Company not found", 404);
     }
 
-    const allowedFields = [
-      "name",
-      "domain",
-      "linkedinUrl",
-      "website",
-      "industry",
-      "employeeSize",
-      "country",
-      "location",
-      "status",
-      "intelligenceScore",
-      "dataFreshness",
-    ];
-
-    const VALID_STATUSES = ["new", "researching", "qualified", "ready", "contacted", "won", "lost", "archived"];
-
-    // Validate status if provided
-    if (body.status !== undefined && !VALID_STATUSES.includes(body.status)) {
-      return NextResponse.json(
-        { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    // Validate intelligenceScore if provided
-    if (body.intelligenceScore !== undefined) {
-      if (typeof body.intelligenceScore !== "number" || !Number.isInteger(body.intelligenceScore) || body.intelligenceScore < 0 || body.intelligenceScore > 100) {
-        return NextResponse.json(
-          { error: "intelligenceScore must be an integer between 0 and 100" },
-          { status: 400 }
+    // Validate extra fields not covered by the schema
+    if (body.dataFreshness !== undefined) {
+      if (!DATA_FRESHNESS_VALUES.includes(body.dataFreshness)) {
+        return apiError(
+          `Invalid dataFreshness. Must be one of: ${DATA_FRESHNESS_VALUES.join(", ")}`,
+          400
         );
       }
     }
 
-    const data: Record<string, unknown> = {};
-    for (const field of allowedFields) {
-      if (body[field] !== undefined) {
-        // Trim string fields
-        if (typeof body[field] === "string") {
-          data[field] = (body[field] as string).trim();
-        } else {
-          data[field] = body[field];
-        }
+    if (body.intelligenceScore !== undefined) {
+      if (
+        typeof body.intelligenceScore !== "number" ||
+        !Number.isInteger(body.intelligenceScore) ||
+        body.intelligenceScore < 0 ||
+        body.intelligenceScore > 100
+      ) {
+        return apiError("intelligenceScore must be an integer between 0 and 100", 400);
+      }
+    }
+
+    // Validate body with Zod schema (covers name, domain, website, linkedinUrl, industry, employeeSize, country, location, status)
+    const data = validateBody(updateCompanySchema, body);
+    if (data instanceof Response) return data;
+
+    // Sanitize string fields
+    const sanitized = sanitizeFields(
+      { ...data } as unknown as Record<string, unknown>,
+      ["name", "domain", "website", "linkedinUrl", "industry", "country", "location"]
+    );
+
+    // Merge schema-validated data with extra validated fields
+    const updateData: Record<string, unknown> = { ...sanitized };
+    if (body.dataFreshness !== undefined) {
+      updateData.dataFreshness = body.dataFreshness;
+    }
+    if (body.intelligenceScore !== undefined) {
+      updateData.intelligenceScore = body.intelligenceScore;
+    }
+
+    // Remove undefined / empty string fields that should be null
+    for (const field of ["domain", "website", "linkedinUrl", "industry", "country", "location"]) {
+      if (updateData[field] === "") {
+        updateData[field] = null;
       }
     }
 
     const updated = await db.company.update({
       where: { id },
-      data,
+      data: updateData,
     });
 
     await db.timelineEntry.create({
@@ -117,13 +122,10 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json(updated);
+    return apiSuccess(updated);
   } catch (error) {
     console.error("Failed to update company:", error);
-    return NextResponse.json(
-      { error: "Failed to update company" },
-      { status: 500 }
-    );
+    return apiError("Failed to update company", 500);
   }
 }
 
@@ -136,7 +138,7 @@ export async function DELETE(
 
     const company = await db.company.findUnique({ where: { id } });
     if (!company) {
-      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+      return apiError("Company not found", 404);
     }
 
     const archived = await db.company.update({
@@ -152,12 +154,9 @@ export async function DELETE(
       },
     });
 
-    return NextResponse.json(archived);
+    return apiSuccess(archived);
   } catch (error) {
     console.error("Failed to archive company:", error);
-    return NextResponse.json(
-      { error: "Failed to archive company" },
-      { status: 500 }
-    );
+    return apiError("Failed to archive company", 500);
   }
 }

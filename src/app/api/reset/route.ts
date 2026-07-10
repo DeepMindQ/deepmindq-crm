@@ -1,8 +1,29 @@
-import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { apiError, apiSuccess } from "@/lib/apiHelpers";
 
-export async function DELETE() {
+// ---------------------------------------------------------------------------
+// DELETE /api/reset — destructive reset, requires confirmation
+// ---------------------------------------------------------------------------
+
+export async function DELETE(request: NextRequest) {
   try {
+    // C3: Require explicit confirmation in the request body
+    let confirm = false;
+    try {
+      const body = await request.json();
+      confirm = body?.confirm === true;
+    } catch {
+      // No JSON body or invalid JSON
+    }
+
+    if (!confirm) {
+      return apiError(
+        "Confirmation required. Send { \"confirm\": true } in the request body to proceed with the reset.",
+        400,
+      );
+    }
+
     await db.$transaction([
       // Leaf tables first (no FK deps, or only nullable FK deps)
       db.timelineEntry.deleteMany(),
@@ -27,12 +48,8 @@ export async function DELETE() {
       // UserPreferences is intentionally kept
     ]);
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Failed to reset database:", error);
-    return NextResponse.json(
-      { error: "Failed to reset database" },
-      { status: 500 }
-    );
+    return apiSuccess({ success: true });
+  } catch {
+    return apiError("Failed to reset database");
   }
 }

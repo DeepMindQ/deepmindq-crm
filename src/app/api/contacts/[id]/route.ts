@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { apiError, apiSuccess, validateBody, sanitizeFields } from "@/lib/apiHelpers";
+import { updateContactSchema } from "@/lib/validations";
 
 export async function GET(
   _request: NextRequest,
@@ -14,33 +16,34 @@ export async function GET(
         company: true,
         notes: {
           orderBy: { createdAt: "desc" },
+          take: 20,
         },
         timeline: {
           orderBy: { createdAt: "desc" },
+          take: 20,
           include: {
             company: { select: { id: true, name: true } },
           },
         },
         healthChecks: {
           orderBy: { checkedAt: "desc" },
+          take: 20,
         },
         drafts: {
           orderBy: { createdAt: "desc" },
+          take: 20,
         },
       },
     });
 
     if (!contact) {
-      return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+      return apiError("Contact not found", 404);
     }
 
-    return NextResponse.json(contact);
+    return apiSuccess(contact);
   } catch (error) {
     console.error("Failed to fetch contact:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch contact" },
-      { status: 500 }
-    );
+    return apiError("Failed to fetch contact", 500);
   }
 }
 
@@ -54,79 +57,59 @@ export async function PATCH(
 
     const contact = await db.contact.findUnique({ where: { id } });
     if (!contact) {
-      return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+      return apiError("Contact not found", 404);
     }
 
-    const allowedFields = [
-      "name",
-      "email",
-      "jobTitle",
-      "roleBucket",
-      "linkedinUrl",
-      "phone",
-      "location",
-      "status",
-      "emailHealth",
-      "emailHealthScore",
-      "lastContactedAt",
-      "lastValidatedAt",
-    ];
+    // Validate body with Zod schema
+    const data = validateBody(updateContactSchema, body);
+    if (data instanceof Response) return data;
 
-    const VALID_STATUSES = ["new", "active", "archived"];
-    const VALID_EMAIL_HEALTH = ["valid", "risky", "invalid", "unknown"];
-
-    // Validate status if provided
-    if (body.status !== undefined && !VALID_STATUSES.includes(body.status)) {
-      return NextResponse.json(
-        { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    // Validate emailHealth if provided
-    if (body.emailHealth !== undefined && !VALID_EMAIL_HEALTH.includes(body.emailHealth)) {
-      return NextResponse.json(
-        { error: `Invalid emailHealth. Must be one of: ${VALID_EMAIL_HEALTH.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    // Validate emailHealthScore if provided
+    // Validate emailHealthScore if provided (not in schema)
     if (body.emailHealthScore !== undefined) {
-      if (typeof body.emailHealthScore !== "number" || !Number.isInteger(body.emailHealthScore) || body.emailHealthScore < 0 || body.emailHealthScore > 100) {
-        return NextResponse.json(
-          { error: "emailHealthScore must be an integer between 0 and 100" },
-          { status: 400 }
-        );
+      if (
+        typeof body.emailHealthScore !== "number" ||
+        !Number.isInteger(body.emailHealthScore) ||
+        body.emailHealthScore < 0 ||
+        body.emailHealthScore > 100
+      ) {
+        return apiError("emailHealthScore must be an integer between 0 and 100", 400);
       }
     }
 
-    // Validate email format if provided
-    if (body.email !== undefined && body.email !== null) {
-      const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
-      if (!emailRegex.test(body.email)) {
-        return NextResponse.json(
-          { error: "Invalid email format" },
-          { status: 400 }
-        );
-      }
+    // Validate emailHealth if provided (not in schema)
+    const VALID_EMAIL_HEALTH = ["valid", "risky", "invalid", "unknown"];
+    if (body.emailHealth !== undefined && !VALID_EMAIL_HEALTH.includes(body.emailHealth)) {
+      return apiError(
+        `Invalid emailHealth. Must be one of: ${VALID_EMAIL_HEALTH.join(", ")}`,
+        400
+      );
     }
 
-    const data: Record<string, unknown> = {};
-    for (const field of allowedFields) {
-      if (body[field] !== undefined) {
-        // Trim string fields
-        if (typeof body[field] === "string") {
-          data[field] = (body[field] as string).trim();
-        } else {
-          data[field] = body[field];
-        }
+    // Sanitize string fields
+    const sanitized = sanitizeFields(
+      { ...data } as unknown as Record<string, unknown>,
+      ["name", "email", "jobTitle", "linkedinUrl", "phone", "location"]
+    );
+
+    // Merge schema-validated data with extra validated fields
+    const updateData: Record<string, unknown> = { ...sanitized };
+    if (body.emailHealthScore !== undefined) {
+      updateData.emailHealthScore = body.emailHealthScore;
+    }
+    if (body.emailHealth !== undefined) {
+      updateData.emailHealth = body.emailHealth;
+    }
+
+    // Remove empty strings that should be null
+    for (const field of ["email", "linkedinUrl"]) {
+      if (updateData[field] === "") {
+        updateData[field] = null;
       }
     }
 
     const updated = await db.contact.update({
       where: { id },
-      data,
+      data: updateData,
     });
 
     await db.timelineEntry.create({
@@ -138,13 +121,10 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json(updated);
+    return apiSuccess(updated);
   } catch (error) {
     console.error("Failed to update contact:", error);
-    return NextResponse.json(
-      { error: "Failed to update contact" },
-      { status: 500 }
-    );
+    return apiError("Failed to update contact", 500);
   }
 }
 
@@ -157,7 +137,12 @@ export async function DELETE(
 
     const contact = await db.contact.findUnique({ where: { id } });
     if (!contact) {
-      return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+      return apiError("Contact not found", 404);
+    }
+
+    // Check if already archived
+    if (contact.archivedAt !== null) {
+      return apiError("Contact is already archived", 409);
     }
 
     const archived = await db.contact.update({
@@ -174,12 +159,9 @@ export async function DELETE(
       },
     });
 
-    return NextResponse.json(archived);
+    return apiSuccess(archived);
   } catch (error) {
     console.error("Failed to archive contact:", error);
-    return NextResponse.json(
-      { error: "Failed to archive contact" },
-      { status: 500 }
-    );
+    return apiError("Failed to archive contact", 500);
   }
 }

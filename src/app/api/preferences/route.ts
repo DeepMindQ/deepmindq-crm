@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { apiError, apiSuccess, validateBody } from "@/lib/apiHelpers";
+import { updatePreferencesSchema } from "@/lib/validations";
 
 // UserPreferences is a singleton model — there should be exactly one row.
-// findFirst handles both fresh installs and already-seeded databases
-// (which may have a cuid-generated id).
 
 export async function GET() {
   try {
@@ -13,13 +13,12 @@ export async function GET() {
       prefs = await db.userPreferences.create({ data: {} });
     }
 
-    return NextResponse.json(prefs);
-  } catch (error) {
-    console.error("Failed to fetch preferences:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch preferences" },
-      { status: 500 }
-    );
+    // C4: Omit aiApiKey from the response to prevent API key leak
+    const { aiApiKey: _omitted, ...safePrefs } = prefs;
+
+    return apiSuccess(safePrefs);
+  } catch {
+    return apiError("Failed to fetch preferences");
   }
 }
 
@@ -27,45 +26,28 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const allowedFields = [
-      "tone",
-      "emailLength",
-      "openerStyle",
-      "signOff",
-      "avoidPhrases",
-      "exampleEmail",
-      "ctaStyle",
-      "aiProvider",
-      "aiModel",
-      "aiApiKey",
-      "scoringWeights",
-    ];
-
-    const data: Record<string, unknown> = {};
-    for (const field of allowedFields) {
-      if (body[field] !== undefined) {
-        data[field] = body[field];
-      }
+    // Validate with Zod schema
+    const parsed = validateBody(updatePreferencesSchema, body);
+    if (parsed instanceof Response) {
+      return parsed;
     }
 
+    const updateData: Record<string, unknown> = { ...parsed };
+
+    // H5: Use upsert to fix race condition — find the existing record first
     const existing = await db.userPreferences.findFirst();
 
-    let result;
-    if (existing) {
-      result = await db.userPreferences.update({
-        where: { id: existing.id },
-        data,
-      });
-    } else {
-      result = await db.userPreferences.create({ data });
-    }
+    const result = await db.userPreferences.upsert({
+      where: { id: existing?.id || '_singleton_' },
+      update: updateData,
+      create: { id: existing?.id || '_singleton_', ...updateData },
+    });
 
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("Failed to update preferences:", error);
-    return NextResponse.json(
-      { error: "Failed to update preferences" },
-      { status: 500 }
-    );
+    // C4: Omit aiApiKey from the response
+    const { aiApiKey: _omitted, ...safeResult } = result;
+
+    return apiSuccess(safeResult);
+  } catch {
+    return apiError("Failed to update preferences");
   }
 }

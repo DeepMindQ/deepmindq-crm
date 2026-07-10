@@ -1,19 +1,24 @@
 import { NextResponse } from 'next/server'
 
 export function middleware(request: Request) {
-  const { pathname } = request.nextUrl
+  const { pathname } = new URL(request.url)
 
   // Allow public routes
-  const publicPaths = ['/', '/login', '/api/auth', '/favicon.ico']
-  if (publicPaths.some(p => pathname === p) || pathname.startsWith('/api/')) {
-    return NextResponse.next()
-  }
+  const publicPaths = ['/', '/login', '/favicon.ico']
+  if (publicPaths.some(p => pathname === p)) return NextResponse.next()
 
-  // Redirect unauthenticated users to login
-  // For now, allow all access (auth is credentials-based, not session)
+  // Allow Next.js internals
+  if (pathname.startsWith('/_next') || pathname.startsWith('/api/auth')) return NextResponse.next()
+
+  // API routes: skip auth for demo (auth middleware layer handles it)
+  if (pathname.startsWith('/api/')) return NextResponse.next()
+
+  // Protect /app routes (auth disabled for demo — allow all)
+  if (pathname.startsWith('/app')) return NextResponse.next()
+
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/((?!api/).*)*'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }

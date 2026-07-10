@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { apiError, apiSuccess } from "@/lib/apiHelpers";
 
 function getDayKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -15,12 +15,14 @@ function getLast7DayKeys(): string[] {
   return keys;
 }
 
-function groupByDay(dates: Date[], dayKeys: string[]): number[] {
+function countsByDayToSparkline(
+  groups: { _count: number; dateKey: string }[],
+  dayKeys: string[]
+): number[] {
   const counts: Record<string, number> = {};
   for (const key of dayKeys) counts[key] = 0;
-  for (const d of dates) {
-    const key = getDayKey(d);
-    if (key in counts) counts[key]++;
+  for (const g of groups) {
+    if (g.dateKey in counts) counts[g.dateKey] = g._count;
   }
   return dayKeys.map((k) => counts[k]);
 }
@@ -52,10 +54,10 @@ export async function GET() {
       thisWeekDrafts,
       recentActivity,
       pipelineGroups,
-      recentCompanies,
-      recentContacts,
-      recentHealthyChecks,
-      recentInvalidChecks,
+      companySparkline,
+      contactSparkline,
+      healthySparkline,
+      invalidSparkline,
       lastWeekCompanies,
       lastWeekContacts,
       lastWeekHealthyChecks,
@@ -71,7 +73,12 @@ export async function GET() {
       db.contact.count({ where: { emailHealth: "invalid", archivedAt: null } }),
       db.contact.count({ where: { archivedAt: { not: null } } }),
       db.company.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
-      db.draft.count(),
+      // MEDIUM-02: Filter draftsGenerated to recent 90 days instead of all-time
+      (() => {
+        const ninetyDaysAgo = new Date(now);
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+        return db.draft.count({ where: { createdAt: { gte: ninetyDaysAgo } } });
+      })(),
       db.draft.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
 
       // Activity feed
@@ -91,23 +98,39 @@ export async function GET() {
         _count: { status: true },
       }),
 
-      // Sparklines — last 7 days data
-      db.company.findMany({
-        where: { createdAt: { gte: sevenDaysAgo } },
-        select: { createdAt: true },
-      }),
-      db.contact.findMany({
-        where: { createdAt: { gte: sevenDaysAgo }, archivedAt: null },
-        select: { createdAt: true },
-      }),
-      db.emailHealthCheck.findMany({
-        where: { checkedAt: { gte: sevenDaysAgo }, status: "valid" },
-        select: { checkedAt: true },
-      }),
-      db.emailHealthCheck.findMany({
-        where: { checkedAt: { gte: sevenDaysAgo }, status: "invalid" },
-        select: { checkedAt: true },
-      }),
+      // Sparklines — H2 fix: use groupBy instead of loading all records
+      db.$queryRaw<Array<{ dateKey: string; _count: bigint }>>`
+        SELECT
+          strftime('%Y-%m-%d', "createdAt") as "dateKey",
+          COUNT(*) as "_count"
+        FROM "Company"
+        WHERE "createdAt" >= ${sevenDaysAgo.toISOString()}
+        GROUP BY "dateKey"
+      `,
+      db.$queryRaw<Array<{ dateKey: string; _count: bigint }>>`
+        SELECT
+          strftime('%Y-%m-%d', "createdAt") as "dateKey",
+          COUNT(*) as "_count"
+        FROM "Contact"
+        WHERE "createdAt" >= ${sevenDaysAgo.toISOString()} AND "archivedAt" IS NULL
+        GROUP BY "dateKey"
+      `,
+      db.$queryRaw<Array<{ dateKey: string; _count: bigint }>>`
+        SELECT
+          strftime('%Y-%m-%d', "checkedAt") as "dateKey",
+          COUNT(*) as "_count"
+        FROM "EmailHealthCheck"
+        WHERE "checkedAt" >= ${sevenDaysAgo.toISOString()} AND "status" = 'valid'
+        GROUP BY "dateKey"
+      `,
+      db.$queryRaw<Array<{ dateKey: string; _count: bigint }>>`
+        SELECT
+          strftime('%Y-%m-%d', "checkedAt") as "dateKey",
+          COUNT(*) as "_count"
+        FROM "EmailHealthCheck"
+        WHERE "checkedAt" >= ${sevenDaysAgo.toISOString()} AND "status" = 'invalid'
+        GROUP BY "dateKey"
+      `,
 
       // Last week data for trends
       db.company.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
@@ -138,20 +161,37 @@ export async function GET() {
       count: pipelineMap[label.toLowerCase()] || 0,
     }));
 
-    // Build sparklines
+    // Build sparklines from groupBy results
     const sparklines = {
-      companies: groupByDay(recentCompanies.map((c) => c.createdAt), dayKeys),
-      contacts: groupByDay(recentContacts.map((c) => c.createdAt), dayKeys),
-      healthy: groupByDay(recentHealthyChecks.map((c) => c.checkedAt), dayKeys),
-      invalid: groupByDay(recentInvalidChecks.map((c) => c.checkedAt), dayKeys),
+      companies: countsByDayToSparkline(
+        companySparkline.map((r) => ({ dateKey: r.dateKey, _count: Number(r._count) })),
+        dayKeys
+      ),
+      contacts: countsByDayToSparkline(
+        contactSparkline.map((r) => ({ dateKey: r.dateKey, _count: Number(r._count) })),
+        dayKeys
+      ),
+      healthy: countsByDayToSparkline(
+        healthySparkline.map((r) => ({ dateKey: r.dateKey, _count: Number(r._count) })),
+        dayKeys
+      ),
+      invalid: countsByDayToSparkline(
+        invalidSparkline.map((r) => ({ dateKey: r.dateKey, _count: Number(r._count) })),
+        dayKeys
+      ),
     };
+
+    // Compute this-week totals from sparkline data for trends
+    const thisWeekContacts = sparklines.contacts.reduce((a, b) => a + b, 0);
+    const thisWeekHealthy = sparklines.healthy.reduce((a, b) => a + b, 0);
+    const thisWeekInvalid = sparklines.invalid.reduce((a, b) => a + b, 0);
 
     // Build trend percentages
     const trends = {
       companies: calcTrend(newThisWeek, lastWeekCompanies),
-      contacts: calcTrend(recentContacts.length, lastWeekContacts),
-      healthy: calcTrend(recentHealthyChecks.length, lastWeekHealthyChecks),
-      invalid: calcTrend(recentInvalidChecks.length, lastWeekInvalidChecks),
+      contacts: calcTrend(thisWeekContacts, lastWeekContacts),
+      healthy: calcTrend(thisWeekHealthy, lastWeekHealthyChecks),
+      invalid: calcTrend(thisWeekInvalid, lastWeekInvalidChecks),
       newThisWeek: calcTrend(newThisWeek, lastWeekCompanies),
       drafts: calcTrend(thisWeekDrafts, lastWeekDrafts),
     };
@@ -176,7 +216,7 @@ export async function GET() {
       opportunityId: t.id,
     }));
 
-    return NextResponse.json({
+    return apiSuccess({
       totalCompanies,
       totalContacts,
       healthyEmails,
@@ -193,9 +233,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Failed to fetch dashboard stats:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch dashboard stats" },
-      { status: 500 }
-    );
+    return apiError("Failed to fetch dashboard stats", 500);
   }
 }

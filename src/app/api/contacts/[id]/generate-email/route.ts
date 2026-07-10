@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { apiError, apiSuccess } from '@/lib/apiHelpers'
 
 // ---------------------------------------------------------------------------
 // LLM provider helpers
@@ -25,8 +26,7 @@ async function callOpenAI(systemPrompt: string, apiKey: string, model: string): 
     }),
   })
   if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`OpenAI API error ${res.status}: ${err}`)
+    throw new Error(`OpenAI API error ${res.status}`)
   }
   const data = await res.json()
   const text: string = data.choices?.[0]?.message?.content ?? ''
@@ -34,18 +34,21 @@ async function callOpenAI(systemPrompt: string, apiKey: string, model: string): 
 }
 
 async function callGemini(systemPrompt: string, apiKey: string, model: string): Promise<LLMResult> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
+  // C11: Use x-goog-api-key header instead of query param to avoid API key in URL
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent'
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
     body: JSON.stringify({
       contents: [{ parts: [{ text: systemPrompt + '\n\nGenerate the email now.' }] }],
       generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
     }),
   })
   if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Gemini API error ${res.status}: ${err}`)
+    throw new Error(`Gemini API error ${res.status}`)
   }
   const data = await res.json()
   const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
@@ -70,8 +73,7 @@ async function callGroq(systemPrompt: string, apiKey: string, model: string): Pr
     }),
   })
   if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Groq API error ${res.status}: ${err}`)
+    throw new Error(`Groq API error ${res.status}`)
   }
   const data = await res.json()
   const text: string = data.choices?.[0]?.message?.content ?? ''
@@ -83,13 +85,11 @@ async function callGroq(systemPrompt: string, apiKey: string, model: string): Pr
 // ---------------------------------------------------------------------------
 
 function parseLlmJson(raw: string): LLMResult {
-  // Strip markdown code fences if present
   const cleaned = raw
     .replace(/```json\s*/gi, '')
     .replace(/```\s*/g, '')
     .trim()
 
-  // Try direct parse
   try {
     const obj = JSON.parse(cleaned)
     if (obj.subject && obj.body) return { subject: obj.subject, body: obj.body }
@@ -97,7 +97,6 @@ function parseLlmJson(raw: string): LLMResult {
     // fall through
   }
 
-  // Try to find a JSON object in the text
   const match = cleaned.match(/\{[\s\S]*"subject"[\s\S]*"body"[\s\S]*\}/)
   if (match) {
     try {
@@ -177,6 +176,7 @@ function calculateScores(
 
 // ---------------------------------------------------------------------------
 // Main route handler
+// TODO: Add rate limiting (e.g., express-rate-limit or upstash/ratelimit)
 // ---------------------------------------------------------------------------
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -191,7 +191,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       include: { company: true },
     })
     if (!contact) {
-      return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
+      return apiError('Contact not found', 404)
     }
 
     // 2. Read user preferences (singleton)
@@ -211,7 +211,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const jobTitle = contact.jobTitle || 'your role'
     const industry = contact.company?.industry || 'Unknown'
 
-    // 3. Fetch knowledge library snippets (limit 5, prefer industry match)
+    // 3. H15: Fix snippet query — get relevant snippets by industry match, or empty/null industries
     const snippets = await db.capabilitySnippet.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
@@ -221,7 +221,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
               OR: [
                 { industries: { contains: contact.company.industry } },
                 { industries: { equals: '' } },
-                { industries: { not: contact.company?.industry } },
+                { industries: null },
               ],
             }
           : {}),
@@ -295,7 +295,7 @@ ${researchContext ? `${researchContext}\n` : ''}${knowledgeContext ? `${knowledg
       } catch (llmErr: unknown) {
         const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
         console.error(`[generate-email] LLM call failed (${aiProvider}): ${msg}`)
-        // Fall through to template fallback
+        // H8: Fall through to template — don't leak raw error messages
       }
     }
 
@@ -320,7 +320,7 @@ ${researchContext ? `${researchContext}\n` : ''}${knowledgeContext ? `${knowledg
     })
 
     // 9. Return
-    return NextResponse.json({
+    return apiSuccess({
       subject,
       body: emailBody,
       matchScore,
@@ -330,9 +330,8 @@ ${researchContext ? `${researchContext}\n` : ''}${knowledgeContext ? `${knowledg
       ctaStyle,
       draftId: draft.id,
     })
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : String(e)
-    console.error(`[generate-email] Unhandled error: ${message}`)
-    return NextResponse.json({ error: message }, { status: 500 })
+  } catch {
+    // H8: Don't leak raw error messages
+    return apiError('Failed to generate email')
   }
 }

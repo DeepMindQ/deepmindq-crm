@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { apiError } from "@/lib/apiHelpers";
+import { sanitizeString } from "@/lib/sanitize";
+
+// ---------------------------------------------------------------------------
+// CSV helpers
+// ---------------------------------------------------------------------------
 
 function escapeCSV(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return '""';
-  const str = String(value);
+  // MEDIUM-12: Sanitize all string fields — strip HTML tags
+  const raw = String(value);
+  const str = typeof value === 'string' ? sanitizeString(raw) : raw;
   if (str.includes(",") || str.includes('"') || str.includes("\n")) {
     return `"${str.replace(/"/g, '""')}"`;
   }
@@ -98,9 +106,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
 
+    // MEDIUM-12: Prefix with UTF-8 BOM for Excel compatibility
+    const BOM = "\uFEFF";
+
     if (type === "contacts") {
       const csv = await buildContactsCSV();
-      return new Response(csv, {
+      return new Response(BOM + csv, {
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
           "Content-Disposition": 'attachment; filename="contacts.csv"',
@@ -110,17 +121,13 @@ export async function GET(request: NextRequest) {
 
     // type === "companies" or default (no type)
     const csv = await buildCompaniesCSV();
-    return new Response(csv, {
+    return new Response(BOM + csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": 'attachment; filename="companies.csv"',
       },
     });
-  } catch (error) {
-    console.error("Failed to export data:", error);
-    return NextResponse.json(
-      { error: "Failed to export data" },
-      { status: 500 }
-    );
+  } catch {
+    return apiError("Failed to export data");
   }
 }

@@ -1,5 +1,9 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
+
+// Truncate log on start to prevent unbounded growth
+fs.writeFileSync('/tmp/next-server.log', '');
+
 const log = fs.openSync('/tmp/next-server.log', 'a');
 
 function start() {

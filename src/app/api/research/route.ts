@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { apiError, apiSuccess } from "@/lib/apiHelpers";
 
 // ---------------------------------------------------------------------------
-// LLM provider helpers (matching the generate-email route pattern)
+// LLM provider helpers
 // ---------------------------------------------------------------------------
 
 type ResearchResult = {
@@ -15,9 +16,9 @@ type ResearchResult = {
   lastInteraction: string;
   nextAction: string;
   confidenceScore: number;
-} | null;
+}
 
-async function callOpenAI(systemPrompt: string, apiKey: string, model: string): Promise<ResearchResult> {
+async function callOpenAI(systemPrompt: string, apiKey: string, model: string): Promise<ResearchResult | null> {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -35,34 +36,36 @@ async function callOpenAI(systemPrompt: string, apiKey: string, model: string): 
     }),
   });
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`OpenAI API error ${res.status}: ${err}`);
+    throw new Error(`OpenAI API error ${res.status}`);
   }
   const data = await res.json();
   const text: string = data.choices?.[0]?.message?.content ?? "";
   return parseResearchJson(text);
 }
 
-async function callGemini(systemPrompt: string, apiKey: string, model: string): Promise<ResearchResult> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+async function callGemini(systemPrompt: string, apiKey: string, model: string): Promise<ResearchResult | null> {
+  // C11: Use x-goog-api-key header instead of query param to avoid API key in URL
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent'
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,
+    },
     body: JSON.stringify({
       contents: [{ parts: [{ text: systemPrompt + "\n\nGenerate the company research now." }] }],
       generationConfig: { temperature: 0.6, maxOutputTokens: 2048 },
     }),
   });
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gemini API error ${res.status}: ${err}`);
+    throw new Error(`Gemini API error ${res.status}`);
   }
   const data = await res.json();
   const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
   return parseResearchJson(text);
 }
 
-async function callGroq(systemPrompt: string, apiKey: string, model: string): Promise<ResearchResult> {
+async function callGroq(systemPrompt: string, apiKey: string, model: string): Promise<ResearchResult | null> {
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -80,8 +83,7 @@ async function callGroq(systemPrompt: string, apiKey: string, model: string): Pr
     }),
   });
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Groq API error ${res.status}: ${err}`);
+    throw new Error(`Groq API error ${res.status}`);
   }
   const data = await res.json();
   const text: string = data.choices?.[0]?.message?.content ?? "";
@@ -92,23 +94,21 @@ async function callGroq(systemPrompt: string, apiKey: string, model: string): Pr
 // JSON extraction from LLM output (tolerant of markdown fences)
 // ---------------------------------------------------------------------------
 
-function parseResearchJson(raw: string): ResearchResult {
-  // Strip markdown code fences if present
+function parseResearchJson(raw: string): ResearchResult | null {
   const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
 
-  // Try direct parse
   try {
     const obj = JSON.parse(cleaned);
     if (obj.businessOverview) {
       return {
         businessOverview: String(obj.businessOverview),
         currentTechLandscape: String(obj.currentTechLandscape || ""),
-        potentialChallenges: obj.potentialChallenges ? String(obj.potentialChallenges) : null,
-        possibleOpportunities: obj.possibleOpportunities ? String(obj.possibleOpportunities) : null,
-        relevantServices: obj.relevantServices ? String(obj.relevantServices) : null,
-        keyDecisionMakers: obj.keyDecisionMakers ? String(obj.keyDecisionMakers) : null,
-        lastInteraction: obj.lastInteraction ? String(obj.lastInteraction) : null,
-        nextAction: obj.nextAction ? String(obj.nextAction) : null,
+        potentialChallenges: obj.potentialChallenges ? String(obj.potentialChallenges) : "",
+        possibleOpportunities: obj.possibleOpportunities ? String(obj.possibleOpportunities) : "",
+        relevantServices: obj.relevantServices ? String(obj.relevantServices) : "",
+        keyDecisionMakers: obj.keyDecisionMakers ? String(obj.keyDecisionMakers) : "",
+        lastInteraction: obj.lastInteraction ? String(obj.lastInteraction) : "",
+        nextAction: obj.nextAction ? String(obj.nextAction) : "",
         confidenceScore: typeof obj.confidenceScore === "number" ? obj.confidenceScore : 72,
       };
     }
@@ -116,7 +116,6 @@ function parseResearchJson(raw: string): ResearchResult {
     // fall through
   }
 
-  // Try to find a JSON object in the text
   const match = cleaned.match(/\{[\s\S]*"businessOverview"[\s\S]*\}/);
   if (match) {
     try {
@@ -125,12 +124,12 @@ function parseResearchJson(raw: string): ResearchResult {
         return {
           businessOverview: String(obj.businessOverview),
           currentTechLandscape: String(obj.currentTechLandscape || ""),
-          potentialChallenges: obj.potentialChallenges ? String(obj.potentialChallenges) : null,
-          possibleOpportunities: obj.possibleOpportunities ? String(obj.possibleOpportunities) : null,
-          relevantServices: obj.relevantServices ? String(obj.relevantServices) : null,
-          keyDecisionMakers: obj.keyDecisionMakers ? String(obj.keyDecisionMakers) : null,
-          lastInteraction: obj.lastInteraction ? String(obj.lastInteraction) : null,
-          nextAction: obj.nextAction ? String(obj.nextAction) : null,
+          potentialChallenges: obj.potentialChallenges ? String(obj.potentialChallenges) : "",
+          possibleOpportunities: obj.possibleOpportunities ? String(obj.possibleOpportunities) : "",
+          relevantServices: obj.relevantServices ? String(obj.relevantServices) : "",
+          keyDecisionMakers: obj.keyDecisionMakers ? String(obj.keyDecisionMakers) : "",
+          lastInteraction: obj.lastInteraction ? String(obj.lastInteraction) : "",
+          nextAction: obj.nextAction ? String(obj.nextAction) : "",
           confidenceScore: typeof obj.confidenceScore === "number" ? obj.confidenceScore : 72,
         };
       }
@@ -235,10 +234,10 @@ export async function POST(request: NextRequest) {
     const { companyId, action } = body;
 
     if (!companyId || typeof companyId !== "string") {
-      return NextResponse.json({ error: "Company ID is required" }, { status: 400 });
+      return apiError("Company ID is required", 400);
     }
 
-    // ── Manual Research Save (backward compatibility: explicit action) ──
+    // ── Manual Research Save ──
     if (action === "save") {
       const {
         businessOverview,
@@ -253,7 +252,7 @@ export async function POST(request: NextRequest) {
 
       const company = await db.company.findUnique({ where: { id: companyId } });
       if (!company) {
-        return NextResponse.json({ error: "Company not found" }, { status: 404 });
+        return apiError("Company not found", 404);
       }
 
       const researchCard = await db.companyResearchCard.upsert({
@@ -289,7 +288,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return NextResponse.json(researchCard, { status: 201 });
+      return apiSuccess(researchCard, 201);
     }
 
     // ── AI Research Generation (default behavior) ──
@@ -299,7 +298,7 @@ export async function POST(request: NextRequest) {
       include: { contacts: { where: { archivedAt: null }, take: 5, orderBy: { createdAt: "desc" } } },
     });
     if (!company) {
-      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+      return apiError("Company not found", 404);
     }
 
     // 1. Read UserPreferences from DB (singleton)
@@ -311,7 +310,7 @@ export async function POST(request: NextRequest) {
     // 2. Check for existing research to update/expand
     const existingResearch = await db.companyResearchCard.findUnique({ where: { companyId } });
 
-    // 3. Fetch relevant capability snippets for context
+    // 3. H15: Fix snippet query — get relevant snippets by industry match, or empty/null industries
     const snippets = await db.capabilitySnippet.findMany({
       take: 5,
       orderBy: { createdAt: "desc" },
@@ -319,8 +318,8 @@ export async function POST(request: NextRequest) {
         ? {
             OR: [
               { industries: { contains: company.industry } },
-              { industries: { equals: "" } },
-              { industries: { not: company.industry } },
+              { industries: '' },
+              { industries: null },
             ],
           }
         : {},
@@ -346,7 +345,7 @@ Website: ${company.website || "Unknown"}
 Status: ${company.status}${contactsContext}${knowledgeContext}`;
 
     // 5. Try LLM call
-    let researchData: ResearchResult = null;
+    let researchData: ResearchResult | null = null;
     let usedLlm = false;
 
     if (aiApiKey) {
@@ -370,7 +369,7 @@ Generate a JSON object with these fields:
 Respond ONLY with the JSON object, no additional text.`;
 
       try {
-        let result: ResearchResult = null;
+        let result: ResearchResult | null = null;
 
         if (aiProvider === "openai") {
           result = await callOpenAI(systemPrompt, aiApiKey, aiModel);
@@ -387,6 +386,7 @@ Respond ONLY with the JSON object, no additional text.`;
       } catch (llmErr: unknown) {
         const msg = llmErr instanceof Error ? llmErr.message : String(llmErr);
         console.error(`[research/generate] LLM call failed (${aiProvider}): ${msg}`);
+        // Fall through to template — H8: don't leak raw error messages
       }
     }
 
@@ -453,10 +453,9 @@ Respond ONLY with the JSON object, no additional text.`;
     });
 
     // 10. Return the research card data
-    return NextResponse.json({ ...saved, _usedLlm: usedLlm });
-  } catch (error) {
-    console.error("Failed to process research:", error);
-    const message = error instanceof Error ? error.message : "Failed to process research";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiSuccess({ ...saved, _usedLlm: usedLlm });
+  } catch {
+    // H8: Don't leak raw error messages
+    return apiError("Failed to process research");
   }
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import {
   Mail, Sparkles, Copy, RefreshCw, User, CheckCircle2, Loader2, Search,
@@ -101,10 +101,15 @@ function providerDisplayName(provider: string) {
    ═══════════════════════════════════════════════════════════════ */
 
 function AiStatusBanner({ onGoToSettings }: { onGoToSettings: () => void }) {
-  const { data: prefs } = useQuery({
+  const { data: prefs, error: prefsError } = useQuery({
     queryKey: ['preferences'],
-    queryFn: () => fetch('/api/preferences').then(r => r.json()),
+    queryFn: () => fetch('/api/preferences').then(r => {
+      if (!r.ok) throw new Error('Failed to load preferences')
+      return r.json()
+    }),
   })
+
+  if (prefsError) return null
 
   const hasKey = !!prefs?.aiApiKey
   const provider = prefs?.aiProvider || 'openai'
@@ -191,26 +196,49 @@ function ToggleGroup<T extends string>({
 export default function EmailGenerationScreen() {
   const { selectedContactId, setSelectedContactId, setSelectedCompanyId, setActiveView } = useAppStore()
 
-  // ── Capture and clear selectedContactId on mount (FIX 2) ──
+  // ── Capture and clear selectedContactId on mount ──
   const [localContactId, setLocalContactId] = useState<string | null>(selectedContactId)
   const contactId = localContactId
+
+  // Reason: we intentionally read `selectedContactId` only on mount to capture a navigated-in
+  // contact ID, then immediately clear it from the store so the sidebar isn't permanently
+  // highlighted. Re-running this effect when selectedContactId changes would defeat the purpose.
   useEffect(() => {
     if (selectedContactId) {
       setSelectedContactId(null)
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── Search debounce ──
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const [contactSearch, setContactSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [])
+
+  const handleSearchChange = (val: string) => {
+    setContactSearch(val)
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => setDebouncedSearch(val), 300)
+  }
 
   // ── Preferences for defaults ──
-  const { data: prefs } = useQuery({
+  const { data: prefs, error: prefsError } = useQuery({
     queryKey: ['preferences'],
-    queryFn: () => fetch('/api/preferences').then(r => r.json()),
+    queryFn: () => fetch('/api/preferences').then(r => {
+      if (!r.ok) throw new Error('Failed to load preferences')
+      return r.json()
+    }),
   })
 
   // ── Sync defaults from prefs once loaded ──
   const [tone, setTone] = useState<Tone>('professional-casual')
   const [emailLength, setEmailLength] = useState<EmailLength>('medium')
   const [ctaStyle, setCtaStyle] = useState<CtaStyle>('soft')
-  const [contactSearch, setContactSearch] = useState('')
   const [generatedSubject, setGeneratedSubject] = useState('')
   const [generatedBody, setGeneratedBody] = useState('')
   const [lastDraftId, setLastDraftId] = useState<string | null>(null)
@@ -219,6 +247,7 @@ export default function EmailGenerationScreen() {
   const [draftContactId, setDraftContactId] = useState<string | null>(null)
   const [isAiGenerated, setIsAiGenerated] = useState(false)
   const [aiProviderName, setAiProviderName] = useState('')
+  const [subjectSaving, setSubjectSaving] = useState(false)
 
   useEffect(() => {
     if (prefs) {
@@ -229,12 +258,15 @@ export default function EmailGenerationScreen() {
   }, [prefs])
 
   // ── Contacts ──
-  const { data: contactsData, isLoading: contactsLoading } = useQuery({
-    queryKey: ['contacts', 'email-gen-sidebar', contactSearch],
+  const { data: contactsData, isLoading: contactsLoading, error: contactsError } = useQuery({
+    queryKey: ['contacts', 'email-gen-sidebar', debouncedSearch],
     queryFn: () => {
       const p = new URLSearchParams({ pageSize: '50' })
-      if (contactSearch) p.set('search', contactSearch)
-      return fetch(`/api/contacts?${p}`).then(r => r.json())
+      if (debouncedSearch) p.set('search', debouncedSearch)
+      return fetch(`/api/contacts?${p}`).then(r => {
+        if (!r.ok) throw new Error('Failed to load contacts')
+        return r.json()
+      })
     },
   })
 
@@ -243,9 +275,12 @@ export default function EmailGenerationScreen() {
   // ── Selected contact (may need separate fetch if navigated from elsewhere) ──
   const selectedContact = contacts.find(c => c.id === contactId) ?? null
 
-  const { data: preselectedContact, isLoading: preselectedLoading } = useQuery({
+  const { data: preselectedContact, isLoading: preselectedLoading, error: preselectedError } = useQuery({
     queryKey: ['contact', contactId],
-    queryFn: () => fetch(`/api/contacts/${contactId}`).then(r => r.json()),
+    queryFn: () => fetch(`/api/contacts/${contactId}`).then(r => {
+      if (!r.ok) throw new Error('Failed to load contact')
+      return r.json()
+    }),
     enabled: !!contactId && !selectedContact,
   })
 
@@ -294,8 +329,8 @@ export default function EmailGenerationScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tone, emailLength, ctaStyle }),
       })
-        .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Generation failed') })),
-    onSuccess: (data) => {
+        .then(r => r.ok ? r.json() : r.json().then((e: { error?: string }) => { throw new Error(e.error || 'Generation failed') })),
+    onSuccess: (data: { subject?: string; body?: string; draftId?: string; matchScore?: number; confidence?: string }) => {
       setGeneratedSubject(data.subject || '')
       setGeneratedBody(data.body || '')
       setLastDraftId(data.draftId || null)
@@ -310,6 +345,31 @@ export default function EmailGenerationScreen() {
     },
     onError: (e: Error) => toast.error(e.message),
   })
+
+  // ── Save edited subject ──
+  const saveSubjectMutation = useMutation({
+    mutationFn: ({ draftId, subject }: { draftId: string; subject: string }) =>
+      fetch(`/api/drafts/${draftId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject }),
+      })
+        .then(r => r.ok ? r.json() : r.json().then((e: { error?: string }) => { throw new Error(e.error || 'Failed to save subject') })),
+    onSuccess: () => {
+      toast.success('Subject updated')
+      setSubjectSaving(false)
+    },
+    onError: (e: Error) => {
+      toast.error(e.message)
+      setSubjectSaving(false)
+    },
+  })
+
+  const handleSaveSubject = () => {
+    if (!lastDraftId) return
+    setSubjectSaving(true)
+    saveSubjectMutation.mutate({ draftId: lastDraftId, subject: generatedSubject })
+  }
 
   // ── Copy ──
   const handleCopy = async () => {
@@ -411,7 +471,7 @@ export default function EmailGenerationScreen() {
               <Input
                 placeholder="Search contacts..."
                 value={contactSearch}
-                onChange={e => setContactSearch(e.target.value)}
+                onChange={e => handleSearchChange(e.target.value)}
                 className="pl-8 h-8 bg-gray-100 border-gray-200 rounded-lg text-xs focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
               />
             </div>
@@ -422,6 +482,11 @@ export default function EmailGenerationScreen() {
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="h-16 rounded-lg bg-gray-100 animate-pulse" />
               ))}
+            </div>
+          ) : contactsError ? (
+            <div className="px-4 py-6 text-center">
+              <AlertTriangle className="size-6 text-red-400 mx-auto mb-2" />
+              <p className="text-xs text-red-500">Failed to load contacts</p>
             </div>
           ) : contacts.length === 0 ? (
             <div className="px-4 py-8 text-center">
@@ -484,12 +549,36 @@ export default function EmailGenerationScreen() {
               description="Choose a contact from the sidebar to begin crafting an AI-powered outreach email tailored to their role, company, and industry."
             />
           </div>
+        ) : preselectedError ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center space-y-3">
+              <AlertTriangle className="size-8 text-red-400 mx-auto" />
+              <p className="text-sm text-red-600 font-medium">Failed to load contact</p>
+              <p className="text-xs text-red-400">{preselectedError.message}</p>
+            </div>
+          </div>
         ) : preselectedLoading ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 className="size-6 animate-spin text-amber-600" />
           </div>
         ) : (
           <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-4 md:space-y-5">
+            {/* ── Preferences error banner ── */}
+            {prefsError && (
+              <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 flex items-center gap-3">
+                <AlertTriangle className="size-4 text-amber-500 shrink-0" />
+                <p className="text-sm text-amber-700 flex-1">Could not load AI preferences. Using defaults.</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs border-amber-200 text-amber-700 hover:bg-amber-100 shrink-0"
+                  onClick={goToSettings}
+                >
+                  Open Settings
+                </Button>
+              </div>
+            )}
+
             {/* ── Contact context header ── */}
             <div className="bg-white rounded-xl border border-gray-200/80 card-rest p-4 md:p-5">
               <div className="flex items-center justify-between">
@@ -602,12 +691,30 @@ export default function EmailGenerationScreen() {
                   {/* Subject */}
                   <div>
                     <label className="text-xs font-medium text-gray-500 block mb-1.5">Subject Line</label>
-                    <Input
-                      value={generatedSubject}
-                      onChange={e => setGeneratedSubject(e.target.value)}
-                      className="border-gray-200 rounded-lg h-10 text-sm font-semibold text-gray-900 focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
-                      placeholder="Email subject..."
-                    />
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={generatedSubject}
+                        onChange={e => setGeneratedSubject(e.target.value)}
+                        className="border-gray-200 rounded-lg h-10 text-sm font-semibold text-gray-900 focus-visible:ring-amber-500/20 focus-visible:border-amber-400 flex-1"
+                        placeholder="Email subject..."
+                      />
+                      {lastDraftId && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg h-10 shrink-0"
+                          onClick={handleSaveSubject}
+                          disabled={subjectSaving || saveSubjectMutation.isPending}
+                        >
+                          {subjectSaving || saveSubjectMutation.isPending ? (
+                            <Loader2 className="size-3.5 mr-1 animate-spin" />
+                          ) : (
+                            <Save className="size-3.5 mr-1" />
+                          )}
+                          Save Edit
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
 

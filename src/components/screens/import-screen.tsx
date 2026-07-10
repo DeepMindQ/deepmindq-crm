@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Upload, CheckCircle2, ArrowRight, ArrowLeft, RefreshCw, FileSpreadsheet,
-  AlertTriangle, Eye, UploadCloud, Loader2,
+  AlertTriangle, Eye, UploadCloud, Loader2, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import { toast } from 'sonner'
@@ -19,6 +19,8 @@ const FIELDS = ['companyName','contactName','email','jobTitle','role','linkedin'
 const FIELD_LABELS: Record<string, string> = { companyName:'Company Name', contactName:'Contact Name', email:'Email', jobTitle:'Job Title', role:'Role', linkedin:'LinkedIn', phone:'Phone', location:'Location', industry:'Industry', country:'Country' }
 
 function parseCSV(text: string): { headers: string[]; rows: string[][] } {
+  // Strip UTF-8 BOM
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1)
   const lines = text.split(/\r?\n/).filter(l => l.trim())
   if (lines.length < 2) return { headers: [], rows: [] }
   const parseLine = (line: string) => {
@@ -65,8 +67,13 @@ export default function ImportScreen() {
   const [isDragging, setIsDragging] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [batchId, setBatchId] = useState<string | null>(null)
+  const [historyPage, setHistoryPage] = useState(1)
+  const historyPageSize = 10
 
-  const { data: history } = useQuery({ queryKey: ['imports'], queryFn: () => fetch('/api/imports').then(r => r.json()) })
+  const { data: history, error: historyError } = useQuery({
+    queryKey: ['imports', historyPage, historyPageSize],
+    queryFn: () => fetch(`/api/imports?page=${historyPage}&pageSize=${historyPageSize}`).then(r => r.json()),
+  })
 
   // Stage mutation: upload file as FormData to get batchId
   const stageMutation = useMutation({
@@ -119,11 +126,18 @@ export default function ImportScreen() {
 
   const handleFile = useCallback((f: File) => {
     if (!f.name.toLowerCase().endsWith('.csv')) { toast.error('Please upload a CSV file'); return }
+    if (f.size > 10 * 1024 * 1024) {
+      toast.error('File is too large. Maximum size is 10MB.')
+      return
+    }
     setFile(f)
     setBatchId(null)
     const reader = new FileReader()
-    reader.onload = (e) => {
-      const parsed = parseCSV(e.target?.result as string)
+    reader.onload = async (e) => {
+      let text = e.target?.result as string
+      // Strip UTF-8 BOM
+      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1)
+      const parsed = parseCSV(text)
       if (parsed.headers.length === 0) { toast.error('Could not parse CSV headers'); return }
       setCsv(parsed)
       const m: Record<number, string> = {}
@@ -168,8 +182,21 @@ export default function ImportScreen() {
 
     setStep(4)
     setProgress(0)
+
+    // Deterministic progress pattern: quick ramp to ~30%, then steady increments
     let p = 0
-    const iv = setInterval(() => { p += Math.random() * 25 + 5; if (p > 90) p = 90; setProgress(Math.min(p, 90)) }, 400)
+    const stages = [15, 25, 35, 45, 55, 65, 72, 78, 83, 87, 90]
+    let stageIdx = 0
+    const iv = setInterval(() => {
+      if (stageIdx < stages.length) {
+        p = stages[stageIdx]
+        stageIdx++
+      } else {
+        p += 1
+        if (p > 95) p = 95
+      }
+      setProgress(p)
+    }, 500)
 
     executeMutation.mutate(
       { batchId, mapping: invertedMapping, rows: validRows },
@@ -179,6 +206,11 @@ export default function ImportScreen() {
 
   // Check if staging is in progress (moving from step 2 to 3)
   const isStaging = stageMutation.isPending
+
+  // Extract history items and pagination info
+  const historyItems: any[] = history?.items ?? history ?? []
+  const historyTotal = history?.total ?? 0
+  const historyTotalPages = Math.max(1, Math.ceil(historyTotal / historyPageSize))
 
   const STEPS = ['Upload', 'Map Columns', 'Review', 'Import']
 
@@ -221,7 +253,7 @@ export default function ImportScreen() {
           </div>
           <p className="text-base font-semibold text-gray-900">{isDragging ? 'Drop it here!' : 'Drop your CSV file here'}</p>
           <p className="text-sm text-gray-500 mt-1">or <span className="text-amber-600 font-medium">click to browse</span> your files</p>
-          <p className="text-xs text-gray-400 mt-3">Supports .csv files</p>
+          <p className="text-xs text-gray-400 mt-3">Supports .csv files up to 10MB</p>
           <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
         </div>
       )}
@@ -361,6 +393,7 @@ export default function ImportScreen() {
               <>
                 <div className="mx-auto max-w-md">
                   <Progress value={progress} className="h-2 [&>div]:bg-amber-500" />
+                  <p className="text-xs text-gray-400 mt-2 tabular-nums">{Math.round(progress)}%</p>
                 </div>
                 <p className="text-sm text-gray-500 animate-pulse">Importing your data...</p>
               </>
@@ -416,12 +449,25 @@ export default function ImportScreen() {
       )}
 
       {/* Import History */}
-      {history && history.length > 0 && (
+      {historyError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+          <AlertTriangle className="size-4 text-red-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-red-700">Failed to load import history</p>
+            <p className="text-xs text-red-500 mt-0.5">Please try refreshing the page.</p>
+          </div>
+        </div>
+      )}
+
+      {historyItems && historyItems.length > 0 && (
         <div className="rounded-xl bg-white card-rest">
-          <div className="p-6 pb-3">
+          <div className="p-6 pb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
               <FileSpreadsheet className="size-4 text-gray-400" /> Import History
             </h3>
+            {historyTotal > 0 && (
+              <span className="text-xs text-gray-400">{historyTotal} total</span>
+            )}
           </div>
           <div className="px-6 pb-6">
             <div className="rounded-lg border border-gray-200 overflow-x-auto">
@@ -437,7 +483,7 @@ export default function ImportScreen() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {history.map((b: any) => (
+                  {historyItems.map((b: any) => (
                     <TableRow key={b.id} className="table-row-hover">
                       <TableCell className="font-medium text-gray-900 text-sm">{b.fileName}</TableCell>
                       <TableCell className="text-sm text-gray-600 tabular-nums">{b.totalRows}</TableCell>
@@ -454,6 +500,34 @@ export default function ImportScreen() {
                 </TableBody>
               </Table>
             </div>
+            {/* Pagination Controls */}
+            {historyTotalPages > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <span className="text-xs text-gray-400">
+                  Page {historyPage} of {historyTotalPages}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs border-gray-200 text-gray-600 rounded-lg px-2"
+                    onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+                    disabled={historyPage <= 1}
+                  >
+                    <ChevronLeft className="size-3" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs border-gray-200 text-gray-600 rounded-lg px-2"
+                    onClick={() => setHistoryPage(p => Math.min(historyTotalPages, p + 1))}
+                    disabled={historyPage >= historyTotalPages}
+                  >
+                    <ChevronRight className="size-3" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

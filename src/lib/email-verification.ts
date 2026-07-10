@@ -103,6 +103,10 @@ const DISPOSABLE_DOMAINS: string[] = [
   'mailinator.net',
 ]
 
+const DISPOSABLE_DOMAIN_SET = new Set(DISPOSABLE_DOMAINS)
+// Domains that need suffix matching (e.g., mailinator.com also matches sub.mailinator.com)
+const DISPOSABLE_SUFFIXES = DISPOSABLE_DOMAINS.filter(d => d.includes('.')).map(d => '.' + d)
+
 // ---------------------------------------------------------------------------
 // TLD trust scoring
 // ---------------------------------------------------------------------------
@@ -142,9 +146,8 @@ export function extractDomain(email: string): string {
 /** Check whether the domain is a known disposable / temporary email provider. */
 export function isDisposableDomain(domain: string): boolean {
   const lower = domain.toLowerCase()
-  return DISPOSABLE_DOMAINS.some(
-    (d) => lower === d || lower.endsWith('.' + d),
-  )
+  if (DISPOSABLE_DOMAIN_SET.has(lower)) return true
+  return DISPOSABLE_SUFFIXES.some(suffix => lower.endsWith(suffix))
 }
 
 /**
@@ -153,18 +156,21 @@ export function isDisposableDomain(domain: string): boolean {
  * and `null` on timeout / DNS error (unknown).
  */
 export async function checkMxRecords(domain: string): Promise<boolean | null> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
   try {
     const records = await Promise.race([
       dns.resolveMx(domain),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('MX lookup timed out')), 5_000),
-      ),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('MX lookup timed out')), 5_000)
+      }),
     ])
     return records.length > 0
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.warn(`[email-verification] MX lookup failed for "${domain}": ${msg}`)
     return null
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId)
   }
 }
 
@@ -174,12 +180,13 @@ export async function checkMxRecords(domain: string): Promise<boolean | null> {
  * and `null` on timeout / DNS error.
  */
 export async function checkSpfRecord(domain: string): Promise<boolean | null> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
   try {
     const records = await Promise.race([
       dns.resolveTxt(domain),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('SPF lookup timed out')), 5_000),
-      ),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('SPF lookup timed out')), 5_000)
+      }),
     ])
     // TXT records come back as string[][] — flatten and search
     const txtValues = records.map((r) => r.join(''))
@@ -188,6 +195,8 @@ export async function checkSpfRecord(domain: string): Promise<boolean | null> {
     const msg = err instanceof Error ? err.message : String(err)
     console.warn(`[email-verification] SPF lookup failed for "${domain}": ${msg}`)
     return null
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId)
   }
 }
 
@@ -197,12 +206,13 @@ export async function checkSpfRecord(domain: string): Promise<boolean | null> {
  * and `null` on timeout / DNS error.
  */
 export async function checkDmarcRecord(domain: string): Promise<boolean | null> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
   try {
     const records = await Promise.race([
       dns.resolveTxt(`_dmarc.${domain}`),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('DMARC lookup timed out')), 5_000),
-      ),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('DMARC lookup timed out')), 5_000)
+      }),
     ])
     const txtValues = records.map((r) => r.join(''))
     return txtValues.some((t) => t.toLowerCase().includes('v=dmarc1'))
@@ -210,6 +220,8 @@ export async function checkDmarcRecord(domain: string): Promise<boolean | null> 
     const msg = err instanceof Error ? err.message : String(err)
     console.warn(`[email-verification] DMARC lookup failed for "${domain}": ${msg}`)
     return null
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId)
   }
 }
 
@@ -246,9 +258,9 @@ export function getTldTrustScore(domain: string): number {
  */
 export function calculateEmailScore(checks: CheckInputs): {
   score: number
-  status: string
+  status: 'valid' | 'risky' | 'invalid'
   recommendation: string
-  details: Record<string, boolean | number>
+  details: Record<string, boolean | number | string>
 } {
   let score = 0
 
@@ -326,7 +338,7 @@ export async function validateEmail(email: string): Promise<EmailValidationResul
       dmarcOk: null,
       tldScore,
       score,
-      status: status as EmailValidationResult['status'],
+      status,
       recommendation,
     }
   }
@@ -357,7 +369,7 @@ export async function validateEmail(email: string): Promise<EmailValidationResul
     dmarcOk,
     tldScore,
     score,
-    status: status as EmailValidationResult['status'],
+    status,
     recommendation,
   }
 }

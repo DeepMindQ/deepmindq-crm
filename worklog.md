@@ -101,3 +101,64 @@ Stage Summary:
 - Architecture: URL hash-based routing (deep linking, browser back button), dynamic industry/country filters, import validation for mapped columns
 - Build: Clean build, all modified files pass TypeScript check
 - Server: Running on port 8080 with auto-restart loop
+
+---
+
+# Medium & Low Issue Cleanup — Worklog
+
+## Date: 2025-07-21
+
+## Summary
+Fixed 9 remaining medium/low issues across scripts, API error handling, error boundaries, accessibility, and utilities.
+
+---
+
+## FIX H50: Delete dead stub files
+- Removed `src/components/screens/dashboard-screen.full.tsx` (dead stub)
+- Removed `src/components/screens/settings-screen.full.tsx` (dead stub)
+- Removed `tailwind.config.ts` (replaced by CSS-based Tailwind v4 config)
+
+## FIX H50: start-all.sh — PID-based process kill
+- Replaced `pkill -f "next start"` with PID-file-based kill (`/tmp/deepmindq-server.pid`)
+- Replaced `pkill -f "bridge-proxy"` with PID-file-based kill (`/tmp/deepmindq-bridge.pid`)
+- PIDs are now written to files on startup for safe targeting
+- Added exponential backoff (1s → 30s cap) to both Next.js and bridge-proxy restart loops
+
+## FIX H50: serve.sh — Exponential backoff
+- Replaced fixed `sleep 1` with exponential backoff (1s → 30s cap) to prevent tight crash loops
+
+## FIX H50: start-detached.js — Log truncation
+- Added `fs.writeFileSync('/tmp/next-server.log', '')` before opening the log file to prevent unbounded growth on repeated restarts
+
+## FIX: validate/route.ts — No raw error leakage
+- Imported `apiError` from `@/lib/apiHelpers`
+- Changed catch block from `return NextResponse.json({ error: message })` to `return apiError('Email validation failed. Please try again later.')`
+- Raw error messages are now logged to console but never sent to the client
+
+## FIX: command-palette.tsx — Store compatibility verified
+- Confirmed command palette already uses local `query` state (not removed `searchQuery` from store)
+- Confirmed `setActiveView` is called explicitly alongside `setSelectedCompanyId`/`setSelectedContactId`
+- shadcn CommandDialog (cmdk) provides built-in keyboard navigation (arrow keys, enter)
+- No changes needed
+
+## FIX: error-boundary.tsx — Proper typing & componentDidCatch
+- Replaced `props: any` with proper `ErrorBoundaryProps` interface
+- Added `componentDidCatch` to log errors and component stacks to console
+- Added "Reload Page" button alongside existing "Try Again" button in fallback UI
+
+## FIX: page.tsx — componentDidCatch on local ErrorBoundary
+- Added `componentDidCatch` to the page-level `ErrorBoundary` class to log errors and component stacks
+- ErrorBoundary wrapping was already present (no change needed)
+
+## FIX A11Y: Icon-only button aria-labels
+- `company-profile-screen.tsx`: Added `aria-label="Delete opportunity"` and `aria-label="Delete note"`
+- `contact-detail-screen.tsx`: Added `aria-label="Delete note"`
+- `knowledge-library-screen.tsx`: Added `aria-label="Clear search"` and `aria-label="Delete document"`
+- `contacts-screen.tsx`: Added `aria-label="Clear company filter"`
+
+## NEW: src/lib/date.ts utility
+- Created `relativeDate()` — wraps `formatDistanceToNow` from date-fns with `addSuffix: true`
+- Created `formatDate()` — uses `toLocaleDateString` for locale-aware formatting
+
+## BUILD: Prisma client regenerated
+- Ran `npx prisma generate` — successfully regenerated Prisma Client v6.19.2

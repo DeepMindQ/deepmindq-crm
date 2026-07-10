@@ -1,10 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { apiError, apiSuccess, safeInt, validateBody, sanitize } from "@/lib/apiHelpers";
+import { createTimelineSchema } from "@/lib/validations";
+import { TIMELINE_ACTIONS } from "@/lib/constants";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = Math.min(100, parseInt(searchParams.get("limit") || "50"));
+    const limit = Math.min(100, Math.max(1, safeInt(searchParams.get("limit"), 50, 10)));
     const companyId = searchParams.get("companyId");
     const contactId = searchParams.get("contactId");
 
@@ -22,40 +25,64 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(entries);
+    return apiSuccess(entries);
   } catch (error) {
     console.error("Failed to fetch timeline:", error);
-    return NextResponse.json({ error: "Failed to fetch timeline" }, { status: 500 });
+    return apiError("Failed to fetch timeline", 500);
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { companyId, contactId, action, details } = body;
+    const raw = await request.json();
+    const parsed = validateBody(createTimelineSchema, raw);
+    if (parsed instanceof Response) {
+      return parsed;
+    }
 
-    if (!action || typeof action !== "string" || action.trim().length === 0) {
-      return NextResponse.json(
-        { error: "Action is required" },
-        { status: 400 }
-      );
+    const { companyId, contactId, action, details } = parsed;
+
+    // Validate action is in TIMELINE_ACTIONS (defense-in-depth; schema also enforces)
+    if (!TIMELINE_ACTIONS.includes(action)) {
+      return apiError(`Invalid action. Must be one of: ${TIMELINE_ACTIONS.join(", ")}`);
+    }
+
+    // Validate companyId FK if provided
+    if (companyId) {
+      const company = await db.company.findUnique({ where: { id: companyId } });
+      if (!company) {
+        return apiError("Company not found", 404);
+      }
+    }
+
+    // Validate contactId FK if provided
+    if (contactId) {
+      const contact = await db.contact.findUnique({
+        where: { id: contactId },
+        include: { company: { select: { id: true } } },
+      });
+      if (!contact) {
+        return apiError("Contact not found", 404);
+      }
+
+      // H24: If both companyId AND contactId provided, contact must belong to that company
+      if (companyId && contact.company?.id !== companyId) {
+        return apiError("Contact does not belong to the specified company");
+      }
     }
 
     const entry = await db.timelineEntry.create({
       data: {
-        companyId: companyId || null,
-        contactId: contactId || null,
-        action: action.trim(),
-        details: details?.trim() || null,
+        companyId: companyId ?? null,
+        contactId: contactId ?? null,
+        action: sanitize(action),
+        details: details ? sanitize(details) : null,
       },
     });
 
-    return NextResponse.json(entry, { status: 201 });
+    return apiSuccess(entry, 201);
   } catch (error) {
     console.error("Failed to create timeline entry:", error);
-    return NextResponse.json(
-      { error: "Failed to create timeline entry" },
-      { status: 500 }
-    );
+    return apiError("Failed to create timeline entry", 500);
   }
 }

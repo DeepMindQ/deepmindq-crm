@@ -1,15 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { apiError, apiSuccess, safeInt, validateBody, sanitize } from "@/lib/apiHelpers";
+import { createOpportunitySchema } from "@/lib/validations";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get("companyId");
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
-    const pageSize = Math.min(
-      100,
-      Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10) || 20)
-    );
+    const page = Math.max(1, safeInt(searchParams.get("page"), 1, 10));
+    const pageSize = Math.min(100, Math.max(1, safeInt(searchParams.get("pageSize"), 20, 10)));
 
     const where = companyId ? { companyId } : {};
 
@@ -24,7 +23,7 @@ export async function GET(request: NextRequest) {
       db.opportunity.count({ where }),
     ]);
 
-    return NextResponse.json({
+    return apiSuccess({
       data: opportunities,
       pagination: {
         page,
@@ -35,45 +34,42 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Failed to fetch opportunities:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch opportunities" },
-      { status: 500 }
-    );
+    return apiError("Failed to fetch opportunities", 500);
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { companyId, title, description, targetContactId, status, nextAction } = body;
-
-    if (!companyId || typeof companyId !== "string") {
-      return NextResponse.json(
-        { error: "Company ID is required" },
-        { status: 400 }
-      );
+    const raw = await request.json();
+    const parsed = validateBody(createOpportunitySchema, raw);
+    if (parsed instanceof Response) {
+      return parsed;
     }
 
-    if (!title || typeof title !== "string" || title.trim().length === 0) {
-      return NextResponse.json(
-        { error: "Opportunity title is required" },
-        { status: 400 }
-      );
-    }
+    const { companyId, title, description, targetContactId, status, nextAction } = parsed;
 
+    // Validate company exists
     const company = await db.company.findUnique({ where: { id: companyId } });
     if (!company) {
-      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+      return apiError("Company not found", 404);
+    }
+
+    // Validate targetContactId FK if provided
+    if (targetContactId) {
+      const contact = await db.contact.findUnique({ where: { id: targetContactId } });
+      if (!contact) {
+        return apiError("Target contact not found", 404);
+      }
     }
 
     const opportunity = await db.opportunity.create({
       data: {
         companyId,
-        title: title.trim(),
-        description: description?.trim() || null,
-        targetContactId: targetContactId || null,
-        status: status?.trim() || "researching",
-        nextAction: nextAction?.trim() || null,
+        title: sanitize(title),
+        description: description ? sanitize(description) : null,
+        targetContactId: targetContactId ?? null,
+        status: status ?? "researching",
+        nextAction: nextAction ? sanitize(nextAction) : null,
       },
       include: { company: true },
     });
@@ -86,12 +82,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(opportunity, { status: 201 });
+    return apiSuccess(opportunity, 201);
   } catch (error) {
     console.error("Failed to create opportunity:", error);
-    return NextResponse.json(
-      { error: "Failed to create opportunity" },
-      { status: 500 }
-    );
+    return apiError("Failed to create opportunity", 500);
   }
 }

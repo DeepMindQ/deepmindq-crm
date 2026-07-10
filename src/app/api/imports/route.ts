@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { apiError, apiSuccess } from "@/lib/apiHelpers";
+import crypto from "crypto";
 
 // ---------------------------------------------------------------------------
 // CSV helpers
@@ -47,14 +49,9 @@ export async function GET() {
     const batches = await db.importBatch.findMany({
       orderBy: { createdAt: "desc" },
     });
-
-    return NextResponse.json(batches);
-  } catch (error) {
-    console.error("Failed to fetch import batches:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch import batches" },
-      { status: 500 },
-    );
+    return apiSuccess(batches);
+  } catch {
+    return apiError("Failed to fetch import batches");
   }
 }
 
@@ -64,9 +61,6 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    // -----------------------------------------------------------------------
-    // Determine request type by Content-Type
-    // -----------------------------------------------------------------------
     const contentType = request.headers.get("content-type") ?? "";
 
     // JSON body → execute action
@@ -77,20 +71,13 @@ export async function POST(request: NextRequest) {
         return executeImport(body);
       }
 
-      return NextResponse.json(
-        { error: "Unknown action. Use action: 'execute'." },
-        { status: 400 },
-      );
+      return apiError("Unknown action. Use action: 'execute'.", 400);
     }
 
-    // FormData body → staging / preview (existing behaviour)
+    // FormData body → staging / preview
     return stageImport(request);
-  } catch (error) {
-    console.error("Failed to process import:", error);
-    return NextResponse.json(
-      { error: "Failed to process import file" },
-      { status: 500 },
-    );
+  } catch {
+    return apiError("Failed to process import file");
   }
 }
 
@@ -98,31 +85,32 @@ export async function POST(request: NextRequest) {
 // Stage: upload CSV → parse headers + preview → create ImportBatch
 // ---------------------------------------------------------------------------
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
 async function stageImport(request: NextRequest) {
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
 
   if (!file) {
-    return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+    return apiError("No file uploaded", 400);
+  }
+
+  // C9: Enforce 10 MB file size limit before reading
+  if (file.size > MAX_FILE_SIZE) {
+    return apiError("File size exceeds the 10 MB limit", 400);
   }
 
   const fileName = file.name.toLowerCase();
 
   if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
-    return NextResponse.json(
-      {
-        error:
-          "Excel format is not supported yet. Please upload a CSV file instead.",
-      },
-      { status: 400 },
+    return apiError(
+      "Excel format is not supported yet. Please upload a CSV file instead.",
+      400,
     );
   }
 
   if (!fileName.endsWith(".csv")) {
-    return NextResponse.json(
-      { error: "Unsupported file format. Please upload a CSV file." },
-      { status: 400 },
-    );
+    return apiError("Unsupported file format. Please upload a CSV file.", 400);
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -132,11 +120,9 @@ async function stageImport(request: NextRequest) {
     .filter((line) => line.trim().length > 0);
 
   if (lines.length < 2) {
-    return NextResponse.json(
-      {
-        error: "CSV file must have a header row and at least one data row.",
-      },
-      { status: 400 },
+    return apiError(
+      "CSV file must have a header row and at least one data row.",
+      400,
     );
   }
 
@@ -149,21 +135,13 @@ async function stageImport(request: NextRequest) {
     previewRows.push(parseCSVLine(dataRows[i]));
   }
 
-  // Generate a simple hash for the file
-  let hash = 0;
-  for (let i = 0; i < buffer.length; i++) {
-    const char = buffer[i];
-    hash = ((hash << 5) - hash + char) | 0;
-  }
-  const fileHash = Math.abs(hash).toString(16).padStart(8, "0");
+  // H16: Use proper SHA-256 hash instead of weak DJB2 hash
+  const fileHash = crypto.createHash("sha256").update(buffer).digest("hex").slice(0, 16);
 
   // Check for duplicate upload
   const existing = await db.importBatch.findUnique({ where: { fileHash } });
   if (existing) {
-    return NextResponse.json(
-      { error: "This file has already been imported." },
-      { status: 409 },
-    );
+    return apiError("This file has already been imported.", 409);
   }
 
   const batch = await db.importBatch.create({
@@ -178,7 +156,7 @@ async function stageImport(request: NextRequest) {
     },
   });
 
-  return NextResponse.json(
+  return apiSuccess(
     {
       id: batch.id,
       fileName: batch.fileName,
@@ -186,7 +164,7 @@ async function stageImport(request: NextRequest) {
       columns,
       previewRows,
     },
-    { status: 201 },
+    201,
   );
 }
 
@@ -205,19 +183,18 @@ async function executeImport(body: ExecuteBody) {
   const { batchId, mapping, rows } = body;
 
   if (!batchId || !mapping || !Array.isArray(rows)) {
-    return NextResponse.json(
-      { error: "batchId, mapping, and rows are required." },
-      { status: 400 },
-    );
+    return apiError("batchId, mapping, and rows are required.", 400);
+  }
+
+  // C10: Cap rows at 1000
+  if (rows.length > 1000) {
+    return apiError("Maximum 1000 rows per import", 400);
   }
 
   // Verify the batch exists
   const batch = await db.importBatch.findUnique({ where: { id: batchId } });
   if (!batch) {
-    return NextResponse.json(
-      { error: "Import batch not found." },
-      { status: 404 },
-    );
+    return apiError("Import batch not found.", 404);
   }
 
   // Helper: safely extract a value from a row by mapped column index
@@ -227,97 +204,116 @@ async function executeImport(body: ExecuteBody) {
     return row[idx]?.trim() || undefined;
   };
 
+  // H3: Batch lookup — collect all unique company names first
+  const companyNames = new Set<string>();
+  for (const row of rows) {
+    const companyName = val(row, "companyName");
+    if (companyName) companyNames.add(companyName);
+  }
+
+  const existingCompanies = await db.company.findMany({
+    where: { name: { in: Array.from(companyNames) } },
+    select: { id: true, name: true },
+  });
+
+  const companyMap = new Map<string, string>();
+  for (const c of existingCompanies) {
+    companyMap.set(c.name, c.id);
+  }
+
   let accepted = 0;
   let duplicates = 0;
   let invalid = 0;
 
-  // Track companies that were created or had contacts added
   const affectedCompanies = new Map<string, { id: string; name: string; contactsAdded: number; wasCreated: boolean }>();
 
-  for (const row of rows) {
-    // Every row must at least have a company name
-    const companyName = val(row, "companyName");
-    const contactName = val(row, "contactName");
+  // H4: Wrap entire import loop in a transaction for atomicity
+  await db.$transaction(async (tx) => {
+    for (const row of rows) {
+      const companyName = val(row, "companyName");
+      const contactName = val(row, "contactName");
 
-    if (!companyName || !contactName) {
-      invalid++;
-      continue;
+      if (!companyName || !contactName) {
+        invalid++;
+        continue;
+      }
+
+      // Use the batch lookup map instead of N+1 queries
+      let companyId = companyMap.get(companyName);
+      let wasCreated = false;
+
+      if (!companyId) {
+        const created = await tx.company.create({
+          data: { name: companyName },
+        });
+        companyId = created.id;
+        wasCreated = true;
+        // Update the map for subsequent rows with the same company name
+        companyMap.set(companyName, companyId);
+      }
+
+      // Check for duplicate contact within the same company
+      const email = val(row, "email");
+      const existingContact = await tx.contact.findFirst({
+        where: {
+          companyId,
+          name: contactName,
+          ...(email ? { email } : {}),
+        },
+      });
+
+      if (existingContact) {
+        duplicates++;
+        continue;
+      }
+
+      await tx.contact.create({
+        data: {
+          companyId,
+          name: contactName,
+          email: email || null,
+          jobTitle: val(row, "jobTitle") || null,
+          phone: val(row, "phone") || null,
+          location: val(row, "location") || null,
+        },
+      });
+
+      accepted++;
+
+      const existing = affectedCompanies.get(companyId);
+      if (existing) {
+        existing.contactsAdded++;
+      } else {
+        affectedCompanies.set(companyId, { id: companyId, name: companyName, contactsAdded: 1, wasCreated });
+      }
     }
 
-    // Find or create company (dedup by name)
-    let company = await db.company.findFirst({
-      where: { name: companyName },
+    // Update the batch with final counts inside the same transaction
+    await tx.importBatch.update({
+      where: { id: batchId },
+      data: {
+        acceptedRows: accepted,
+        duplicateRows: duplicates,
+        invalidRows: invalid,
+        status: "completed",
+      },
     });
 
-    const wasCreated = !company;
-    if (!company) {
-      company = await db.company.create({
-        data: { name: companyName },
+    // Create a timeline entry per affected company
+    if (affectedCompanies.size > 0) {
+      await tx.timelineEntry.createMany({
+        data: Array.from(affectedCompanies.values()).map((c) => ({
+          companyId: c.id,
+          action: "import_completed",
+          details: c.wasCreated
+            ? `Company "${c.name}" created with ${c.contactsAdded} contact(s) via CSV import "${batch.fileName}".`
+            : `${c.contactsAdded} contact(s) added to "${c.name}" via CSV import "${batch.fileName}".`,
+        })),
       });
     }
-
-    // Check for duplicate contact within the same company
-    const email = val(row, "email");
-    const existingContact = await db.contact.findFirst({
-      where: {
-        companyId: company.id,
-        name: contactName,
-        ...(email ? { email } : {}),
-      },
-    });
-
-    if (existingContact) {
-      duplicates++;
-      continue;
-    }
-
-    await db.contact.create({
-      data: {
-        companyId: company.id,
-        name: contactName,
-        email: email || null,
-        jobTitle: val(row, "jobTitle") || null,
-        phone: val(row, "phone") || null,
-        location: val(row, "location") || null,
-      },
-    });
-
-    accepted++;
-
-    // Track affected company
-    const existing = affectedCompanies.get(company.id);
-    if (existing) {
-      existing.contactsAdded++;
-    } else {
-      affectedCompanies.set(company.id, { id: company.id, name: company.name, contactsAdded: 1, wasCreated });
-    }
-  }
-
-  // Update the batch with final counts
-  await db.importBatch.update({
-    where: { id: batchId },
-    data: {
-      acceptedRows: accepted,
-      duplicateRows: duplicates,
-      invalidRows: invalid,
-      status: "completed",
-    },
   });
 
-  // Create a timeline entry per affected company
-  if (affectedCompanies.size > 0) {
-    await db.timelineEntry.createMany({
-      data: Array.from(affectedCompanies.values()).map((c) => ({
-        companyId: c.id,
-        action: "import_completed",
-        details: c.wasCreated
-          ? `Company "${c.name}" created with ${c.contactsAdded} contact(s) via CSV import "${batch.fileName}".`
-          : `${c.contactsAdded} contact(s) added to "${c.name}" via CSV import "${batch.fileName}".`,
-      })),
-    });
-  }
-
-  return NextResponse.json({
+  return apiSuccess({
     success: true,
     accepted,
     duplicates,

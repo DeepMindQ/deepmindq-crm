@@ -1,0 +1,502 @@
+    30→    30→    30→import { EmptyState, SortableHeader, StatusDot } from '@/components/shared/design-system'
+    31→    31→    31→import { useAppStore } from '@/lib/store'
+    32→    32→    32→import { cn } from '@/lib/utils'
+    33→    33→    33→
+    34→    34→    34→/* ── Constants ── */
+    35→    35→    35→
+    36→    36→    36→const ROLES = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other']
+    37→    37→    37→const PAGE_SIZE = 20
+    38→    38→    38→
+    39→    39→    39→/* ── Style helpers ── */
+    40→    40→    40→
+    41→    41→    41→const healthCls = (h: string) =>
+    42→    42→    42→  h === 'valid'
+    43→    43→    43→    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+    44→    44→    44→    : h === 'risky'
+    45→    45→    45→      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+    46→    46→    46→      : h === 'invalid'
+    47→    47→    47→        ? 'bg-red-50 text-red-700 border border-red-200'
+    48→    48→    48→        : 'bg-gray-100 text-gray-500 border border-gray-200'
+    49→    49→    49→
+    50→    50→    50→const statusCls = (s: string) =>
+    51→    51→    51→  s === 'active'
+    52→    52→    52→    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+    53→    53→    53→    : s === 'archived'
+    54→    54→    54→      ? 'bg-gray-100 text-gray-400 border border-gray-200'
+    55→    55→    55→      : 'bg-amber-50 text-amber-700 border border-amber-200'
+    56→    56→    56→
+    57→    57→    57→/* ── Component ── */
+    58→    58→    58→
+    59→    59→    59→export default function ContactsScreen() {
+    60→    60→    60→  const qc = useQueryClient()
+    61→    61→    61→  const { selectedCompanyId, setSelectedCompanyId } = useAppStore()
+    62→    62→    62→
+    63→    63→    63→  /* ── Company filter from navigation ── */
+    64→    64→    64→  const [filterCompanyId, setFilterCompanyId] = useState<string | null>(null)
+    65→    65→    65→
+    66→    66→    66→  /* ── List state ── */
+    67→    67→    67→  const [page, setPage] = useState(1)
+    68→    68→    68→  const [search, setSearch] = useState('')
+    69→    69→    69→  const [status, setStatus] = useState('')
+    70→    70→    70→  const [health, setHealth] = useState('')
+    71→    71→    71→  const [sortKey, setSortKey] = useState('name')
+    72→    72→    72→  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+    73→    73→    73→  const [debouncedSearch, setDebouncedSearch] = useState('')
+    74→    74→    74→  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+    75→    75→    75→
+    76→    76→    76→  /* ── Capture selectedCompanyId on mount, then clear it ── */
+    77→    77→    77→  useEffect(() => {
+    78→    78→    78→    if (selectedCompanyId) {
+    79→    79→    79→      setFilterCompanyId(selectedCompanyId)
+    80→    80→    80→      setSelectedCompanyId(null)
+    81→    81→    81→    }
+    82→    82→    82→  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    83→    83→    83→
+    84→    84→    84→  /* ── Validation loading per contact ── */
+    85→    85→    85→  const [validatingIds, setValidatingIds] = useState<Set<string>>(new Set())
+    86→    86→    86→  const [flashIds, setFlashIds] = useState<Set<string>>(new Set())
+    87→    87→    87→
+    88→    88→    88→  /* ── Add dialog ── */
+    89→    89→    89→  const [dlgOpen, setDlgOpen] = useState(false)
+    90→    90→    90→  const [form, setForm] = useState({
+    91→    91→    91→    name: '', email: '', jobTitle: '', roleBucket: '',
+    92→    92→    92→    companyId: '', linkedinUrl: '',
+    93→    93→    93→  })
+    94→    94→    94→
+    95→    95→    95→  /* ── Edit dialog ── */
+    96→    96→    96→  const [editOpen, setEditOpen] = useState(false)
+    97→    97→    97→  const [editingContact, setEditingContact] = useState<any>(null)
+    98→    98→    98→  const [editForm, setEditForm] = useState({
+    99→    99→    99→    name: '', email: '', jobTitle: '', roleBucket: '',
+   100→   100→   100→    company: '', linkedinUrl: '',
+   101→   101→   101→  })
+   102→   102→   102→
+   103→   103→   103→  /* ── Archive confirm ── */
+   104→   104→   104→  const [archiveOpen, setArchiveOpen] = useState(false)
+   105→   105→   105→  const [archivingContact, setArchivingContact] = useState<any>(null)
+   106→   106→   106→
+   107→   107→   107→  /* ── Draft-existence cache (populated per contact in the list) ── */
+   108→   108→   108→  const [draftContacts, setDraftContacts] = useState<Set<string>>(new Set())
+   109→   109→   109→
+   110→   110→   110→  /* ── Handlers ── */
+   111→   111→   111→  const updateSearch = useCallback((v: string) => {
+   112→   112→   112→    setSearch(v)
+   113→   113→   113→    setPage(1)
+   114→   114→   114→    clearTimeout(timerRef.current)
+   115→   115→   115→    timerRef.current = setTimeout(() => setDebouncedSearch(v), 300)
+   116→   116→   116→  }, [])
+   117→   117→   117→
+   118→   118→   118→  const updateStatus = useCallback((v: string) => {
+   119→   119→   119→    setStatus(v === 'all' ? '' : v)
+   120→   120→   120→    setPage(1)
+   121→   121→   121→  }, [])
+   122→   122→   122→
+   123→   123→   123→  const updateHealth = useCallback((v: string) => {
+   124→   124→   124→    setHealth(v === 'all' ? '' : v)
+   125→   125→   125→    setPage(1)
+   126→   126→   126→  }, [])
+   127→   127→   127→
+   128→   128→   128→  const handleSort = useCallback((key: string) => {
+   129→   129→   129→    if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+   130→   130→   130→    else { setSortKey(key); setSortDir('asc') }
+   131→   131→   131→  }, [sortKey])
+   132→   132→   132→
+   133→   133→   133→  const updateField = (k: keyof typeof form, v: string) =>
+   134→   134→   134→    setForm(p => ({ ...p, [k]: v }))
+   135→   135→   135→
+   136→   136→   136→  const updateEditField = (k: keyof typeof editForm, v: string) =>
+   137→   137→   137→    setEditForm(p => ({ ...p, [k]: v }))
+   138→   138→   138→
+   139→   139→   139→  const openEditDialog = (c: any) => {
+   140→   140→   140→    setEditingContact(c)
+   141→   141→   141→    setEditForm({
+   142→   142→   142→      name: c.name || '',
+   143→   143→   143→      email: c.email || '',
+   144→   144→   144→      jobTitle: c.jobTitle || '',
+   145→   145→   145→      roleBucket: c.roleBucket || '',
+   146→   146→   146→      company: typeof c.company === 'string' ? c.company : c.company?.name || '',
+   147→   147→   147→      linkedinUrl: c.linkedinUrl || '',
+   148→   148→   148→    })
+   149→   149→   149→    if (c.company?.id) setForm(p => ({ ...p, companyId: c.company.id }))
+   150→   150→   150→    setEditOpen(true)
+   151→   151→   151→  }
+   152→   152→   152→
+   153→   153→   153→  const openArchiveConfirm = (c: any) => {
+   154→   154→   154→    setArchivingContact(c)
+   155→   155→   155→    setArchiveOpen(true)
+   156→   156→   156→  }
+   157→   157→   157→
+   158→   158→   158→  const navigateToContact = (id: string) => {
+   159→   159→   159→    useAppStore.getState().setSelectedContactId(id)
+   160→   160→   160→    useAppStore.getState().setActiveView('contact-profile')
+   161→   161→   161→  }
+   162→   162→   162→
+   163→   163→   163→  const navigateToCompany = (id: string) => {
+   164→   164→   164→    useAppStore.getState().setSelectedCompanyId(id)
+   165→   165→   165→    useAppStore.getState().setActiveView('company-profile')
+   166→   166→   166→  }
+   167→   167→   167→
+   168→   168→   168→  const navigateToEmailGen = (id: string) => {
+   169→   169→   169→    useAppStore.getState().setSelectedContactId(id)
+   170→   170→   170→    useAppStore.getState().setActiveView('email-generation')
+   171→   171→   171→  }
+   172→   172→   172→
+   173→   173→   173→  /* ── Queries ── */
+   174→   174→   174→  /* ── Fetch company name for filter banner ── */
+   175→   175→   175→  const { data: filterCompany } = useQuery({
+   176→   176→   176→    queryKey: ['company-brief-contacts', filterCompanyId],
+   177→   177→   177→    queryFn: () => fetch(`/api/companies/${filterCompanyId}`).then(r => r.json()),
+   178→   178→   178→    enabled: !!filterCompanyId,
+   179→   179→   179→  })
+   180→   180→   180→
+   181→   181→   181→  const { data, isLoading } = useQuery({
+   182→   182→   182→    queryKey: ['contacts', debouncedSearch, status, health, page, filterCompanyId],
+   183→   183→   183→    queryFn: () => {
+   184→   184→   184→      const p = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
+   185→   185→   185→      if (debouncedSearch) p.set('search', debouncedSearch)
+   186→   186→   186→      if (status) p.set('status', status)
+   187→   187→   187→      if (health) p.set('emailHealth', health)
+   188→   188→   188→      if (filterCompanyId) p.set('companyId', filterCompanyId)
+   189→   189→   189→      return fetch(`/api/contacts?${p}`).then(r => r.json())
+   190→   190→   190→    },
+   191→   191→   191→  })
+   192→   192→   192→
+   193→   193→   193→  const { data: companiesList } = useQuery({
+   194→   194→   194→    queryKey: ['companies', 'contact-dialog'],
+   195→   195→   195→    queryFn: () =>
+   196→   196→   196→      fetch('/api/companies?pageSize=100')
+   197→   197→   197→        .then(r => r.json())
+   198→   198→   198→        .then(d => d.companies ?? []),
+   199→   199→   199→  })
+   200→   200→   200→
+   201→   201→   201→  /* ── Mutations ── */
+   202→   202→   202→  const addContact = useMutation({
+   203→   203→   203→    mutationFn: (f: typeof form) =>
+   204→   204→   204→      fetch('/api/contacts', {
+   205→   205→   205→        method: 'POST',
+   206→   206→   206→        headers: { 'Content-Type': 'application/json' },
+   207→   207→   207→        body: JSON.stringify(f),
+   208→   208→   208→      })
+   209→   209→   209→        .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error) })),
+   210→   210→   210→    onSuccess: () => {
+   211→   211→   211→      qc.invalidateQueries({ queryKey: ['contacts'] })
+   212→   212→   212→      setDlgOpen(false)
+   213→   213→   213→      setForm({ name: '', email: '', jobTitle: '', roleBucket: '', companyId: '', linkedinUrl: '' })
+   214→   214→   214→      toast.success('Contact added')
+   215→   215→   215→    },
+   216→   216→   216→    onError: (e: Error) => toast.error(e.message),
+   217→   217→   217→  })
+   218→   218→   218→
+   219→   219→   219→  const validateEmail = useMutation({
+   220→   220→   220→    mutationFn: (id: string) =>
+   221→   221→   221→      fetch(`/api/contacts/${id}/validate`, { method: 'POST' }).then(r => r.json()),
+   222→   222→   222→    onMutate: (id) => {
+   223→   223→   223→      setValidatingIds(prev => new Set(prev).add(id))
+   224→   224→   224→    },
+   225→   225→   225→    onSuccess: (result, id) => {
+   226→   226→   226→      setValidatingIds(prev => {
+   227→   227→   227→        const next = new Set(prev)
+   228→   228→   228→        next.delete(id)
+   229→   229→   229→        return next
+   230→   230→   230→      })
+   231→   231→   231→      // Flash the badge to indicate update
+   232→   232→   232→      setFlashIds(prev => new Set(prev).add(id))
+   233→   233→   233→      setTimeout(() => {
+   234→   234→   234→        setFlashIds(prev => {
+   235→   235→   235→          const next = new Set(prev)
+   236→   236→   236→          next.delete(id)
+   237→   237→   237→          return next
+   238→   238→   238→        })
+   239→   239→   239→      }, 1500)
+   240→   240→   240→      qc.invalidateQueries({ queryKey: ['contacts'] })
+   241→   241→   241→      toast.success('Email validated')
+   242→   242→   242→    },
+   243→   243→   243→    onError: (_e, id) => {
+   244→   244→   244→      setValidatingIds(prev => {
+   245→   245→   245→        const next = new Set(prev)
+   246→   246→   246→        next.delete(id)
+   247→   247→   247→        return next
+   248→   248→   248→      })
+   249→   249→   249→      toast.error('Validation failed')
+   250→   250→   250→    },
+   251→   251→   251→  })
+   252→   252→   252→
+   253→   253→   253→  const editContact = useMutation({
+   254→   254→   254→    mutationFn: ({ id, ...f }: typeof editForm & { id: string }) =>
+   255→   255→   255→      fetch(`/api/contacts/${id}`, {
+   256→   256→   256→        method: 'PATCH',
+   257→   257→   257→        headers: { 'Content-Type': 'application/json' },
+   258→   258→   258→        body: JSON.stringify(f),
+   259→   259→   259→      })
+   260→   260→   260→        .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error) })),
+   261→   261→   261→    onSuccess: () => {
+   262→   262→   262→      qc.invalidateQueries({ queryKey: ['contacts'] })
+   263→   263→   263→      setEditOpen(false)
+   264→   264→   264→      setEditingContact(null)
+   265→   265→   265→      toast.success('Contact updated')
+   266→   266→   266→    },
+   267→   267→   267→    onError: (e: Error) => toast.error(e.message),
+   268→   268→   268→  })
+   269→   269→   269→
+   270→   270→   270→  const archiveContact = useMutation({
+   271→   271→   271→    mutationFn: (id: string) =>
+   272→   272→   272→      fetch(`/api/contacts/${id}`, { method: 'DELETE' })
+   273→   273→   273→        .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error) })),
+   274→   274→   274→    onSuccess: () => {
+   275→   275→   275→      qc.invalidateQueries({ queryKey: ['contacts'] })
+   276→   276→   276→      setArchiveOpen(false)
+   277→   277→   277→      setArchivingContact(null)
+   278→   278→   278→      toast.success('Contact archived')
+   279→   279→   279→    },
+   280→   280→   280→    onError: (e: Error) => toast.error(e.message),
+   281→   281→   281→  })
+   282→   282→   282→
+   283→   283→   283→  /* ── Batch email validation (FIX 7) ── */
+   284→   284→   284→  const batchValidateMutation = useMutation({
+   285→   285→   285→    mutationFn: () =>
+   286→   286→   286→      fetch('/api/health-check', {
+   287→   287→   287→        method: 'POST',
+   288→   288→   288→        headers: { 'Content-Type': 'application/json' },
+   289→   289→   289→        body: JSON.stringify({ checkAll: true }),
+   290→   290→   290→      }).then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Batch validation failed') })),
+   291→   291→   291→    onSuccess: (result) => {
+   292→   292→   292→      qc.invalidateQueries({ queryKey: ['contacts'] })
+   293→   293→   293→      const summary = result?.summary || `${result?.checked ?? 0} emails checked`
+   294→   294→   294→      toast.success(`Email validation complete: ${summary}`)
+   295→   295→   295→    },
+   296→   296→   296→    onError: (e: Error) => toast.error(e.message),
+   297→   297→   297→  })
+   298→   298→   298→
+   299→   299→   299→  /* ── Derived ── */
+   300→   300→   300→  const contacts = data?.contacts ?? []
+   301→   301→   301→  const total = data?.total ?? 0
+   302→   302→   302→  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+   303→   303→   303→
+   304→   304→   304→  // Build draft indicator set from list data
+   305→   305→   305→  if (contacts.length > 0) {
+   306→   306→   306→    const ids = new Set<string>()
+   307→   307→   307→    contacts.forEach((c: any) => {
+   308→   308→   308→      if (c._draftCount > 0) ids.add(c.id)
+   309→   309→   309→    })
+   310→   310→   310→    // Only update if different to avoid re-renders
+   311→   311→   311→    const keys = Array.from(ids).sort().join(',')
+   312→   312→   312→    const prevKeys = Array.from(draftContacts).sort().join(',')
+   313→   313→   313→    if (keys !== prevKeys) setDraftContacts(ids)
+   314→   314→   314→  }
+   315→   315→   315→
+   316→   316→   316→  /* ── Render ── */
+   317→   317→   317→  return (
+   318→   318→   318→    <div className="space-y-4">
+   319→   319→   319→      {/* ═══ Company Filter Banner ═══ */}
+   320→   320→   320→      {filterCompanyId && (
+   321→   321→   321→        <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200/80">
+   322→   322→   322→          <Building2 className="size-4 text-amber-600 shrink-0" />
+   323→   323→   323→          <p className="text-sm text-amber-800">
+   324→   324→   324→            Showing contacts for <span className="font-semibold">{filterCompany?.name || 'Company'}</span>
+   325→   325→   325→          </p>
+   326→   326→   326→          <button
+   327→   327→   327→            onClick={() => setFilterCompanyId(null)}
+   328→   328→   328→            className="ml-auto p-1 rounded-md hover:bg-amber-100 transition-colors"
+   329→   329→   329→          >
+   330→   330→   330→            <X className="size-3.5 text-amber-600" />
+   331→   331→   331→          </button>
+   332→   332→   332→        </div>
+   333→   333→   333→      )}
+   334→   334→   334→
+   335→   335→   335→      {/* ═══ Header ═══ */}
+   336→   336→   336→      <div className="flex items-center justify-between gap-3">
+   337→   337→   337→        <div className="flex items-center gap-2.5">
+   338→   338→   338→          <Users className="size-5 text-gray-400" />
+   339→   339→   339→          <h2 className="text-lg font-bold text-gray-900 tracking-tight">Contacts</h2>
+   340→   340→   340→          {total > 0 && (
+   341→   341→   341→            <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full font-semibold tabular-nums">
+   342→   342→   342→              {total}
+   343→   343→   343→            </span>
+   344→   344→   344→          )}
+   345→   345→   345→        </div>
+   346→   346→   346→        <div className="flex items-center gap-2">
+   347→   347→   347→          {/* ═══ Batch Validate Emails Button (FIX 7) ═══ */}
+   348→   348→   348→          <Button
+   349→   349→   349→            size="sm"
+   350→   350→   350→            variant="outline"
+   351→   351→   351→            className="border-gray-200 text-gray-600 rounded-lg press-scale shrink-0"
+   352→   352→   352→            onClick={() => batchValidateMutation.mutate()}
+   353→   353→   353→            disabled={batchValidateMutation.isPending}
+   354→   354→   354→          >
+   355→   355→   355→            {batchValidateMutation.isPending
+   356→   356→   356→              ? <Loader2 className="size-4 animate-spin" />
+   357→   357→   357→              : <ShieldCheck className="size-4" />
+   358→   358→   358→            }
+   359→   359→   359→            <span className="hidden sm:inline ml-1.5">{batchValidateMutation.isPending ? 'Validating...' : 'Validate Emails'}</span>
+   360→   360→   360→          </Button>
+   361→   361→   361→          <Button
+   362→   362→   362→            size="sm"
+   363→   363→   363→            onClick={() => setDlgOpen(true)}
+   364→   364→   364→            className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs shrink-0"
+   365→   365→   365→          >
+   366→   366→   366→            <Plus className="size-4" /> <span className="hidden sm:inline ml-1.5">Add Contact</span>
+   367→   367→   367→          </Button>
+   368→   368→   368→        </div>
+   369→   369→   369→      </div>
+   370→   370→   370→
+   371→   371→   371→      {/* ═══ Filters ═══ */}
+   372→   372→   372→      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
+   373→   373→   373→        <div className="relative flex-1 sm:min-w-[200px] sm:max-w-xs">
+   374→   374→   374→          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+   375→   375→   375→          <Input
+   376→   376→   376→            placeholder="Search contacts..."
+   377→   377→   377→            value={search}
+   378→   378→   378→            onChange={e => updateSearch(e.target.value)}
+   379→   379→   379→            className="bg-white border border-gray-200 rounded-lg h-9 pl-9 text-sm placeholder:text-gray-400 focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
+   380→   380→   380→          />
+   381→   381→   381→        </div>
+   382→   382→   382→        <Select value={status || 'all'} onValueChange={updateStatus}>
+   383→   383→   383→          <SelectTrigger className="border-gray-200 rounded-lg h-9 w-32 text-sm">
+   384→   384→   384→            <SelectValue placeholder="Status" />
+   385→   385→   385→          </SelectTrigger>
+   386→   386→   386→          <SelectContent>
+   387→   387→   387→            <SelectItem value="all">All Status</SelectItem>
+   388→   388→   388→            <SelectItem value="active">Active</SelectItem>
+   389→   389→   389→            <SelectItem value="inactive">Inactive</SelectItem>
+   390→   390→   390→            <SelectItem value="archived">Archived</SelectItem>
+   391→   391→   391→          </SelectContent>
+   392→   392→   392→        </Select>
+   393→   393→   393→        <Select value={health || 'all'} onValueChange={updateHealth} data-filter="health">
+   394→   394→   394→          <SelectTrigger className="border-gray-200 rounded-lg h-9 w-32 text-sm">
+   395→   395→   395→            <SelectValue placeholder="Health" />
+   396→   396→   396→          </SelectTrigger>
+   397→   397→   397→          <SelectContent>
+   398→   398→   398→            <SelectItem value="all">All Health</SelectItem>
+   399→   399→   399→            <SelectItem value="valid">Valid</SelectItem>
+   400→   400→   400→            <SelectItem value="risky">Risky</SelectItem>
+   401→   401→   401→            <SelectItem value="invalid">Invalid</SelectItem>
+   402→   402→   402→            <SelectItem value="unknown">Unknown</SelectItem>
+   403→   403→   403→          </SelectContent>
+   404→   404→   404→        </Select>
+   405→   405→   405→      </div>
+   406→   406→   406→
+   407→   407→   407→      {/* ═══ Table ═══ */}
+   408→   408→   408→      {isLoading ? (
+   409→   409→   409→        <div className="rounded-xl bg-white card-rest overflow-hidden">
+   410→   410→   410→          <div className="p-4 space-y-2">
+   411→   411→   411→            <Skeleton className="h-8 w-full rounded-lg" />
+   412→   412→   412→            {[...Array(6)].map((_, i) => (
+   413→   413→   413→              <Skeleton key={i} className="h-12 w-full rounded-lg" />
+   414→   414→   414→            ))}
+   415→   415→   415→          </div>
+   416→   416→   416→        </div>
+   417→   417→   417→      ) : contacts.length === 0 ? (
+   418→   418→   418→        <div className="rounded-xl bg-white card-rest overflow-hidden">
+   419→   419→   419→          <EmptyState
+   420→   420→   420→            icon={Users}
+   421→   421→   421→            title="No contacts found"
+   422→   422→   422→            description="Try adjusting your search or filters, or add your first contact."
+   423→   423→   423→            actionLabel="Add Contact"
+   424→   424→   424→            onAction={() => setDlgOpen(true)}
+   425→   425→   425→            secondaryActionLabel="Import CSV"
+   426→   426→   426→            onSecondaryAction={() => useAppStore.getState().setActiveView('import')}
+   427→   427→   427→          />
+   428→   428→   428→        </div>
+   429→   429→   429→      ) : (
+   430→   430→   430→        <div className="rounded-xl bg-white card-rest overflow-hidden">
+   431→   431→   431→          <Table>
+   432→   432→   432→            <TableHeader>
+   433→   433→   433→              <TableRow className="hover:bg-transparent bg-gray-50/80 border-b border-gray-200/60">
+   434→   434→   434→                <SortableHeader label="Name" sortKey="name" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+   435→   435→   435→                <th className="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-4 py-3 hidden md:table-cell">
+   436→   436→   436→                  Company
+   437→   437→   437→                </th>
+   438→   438→   438→                <th className="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-4 py-3 hidden lg:table-cell">
+   439→   439→   439→                  Job Title
+   440→   440→   440→                </th>
+   441→   441→   441→                <SortableHeader label="Email" sortKey="email" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+   442→   442→   442→                <th className="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">
+   443→   443→   443→                  Health
+   444→   444→   444→                </th>
+   445→   445→   445→                <th className="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">
+   446→   446→   446→                  Status
+   447→   447→   447→                </th>
+   448→   448→   448→                <th className="w-10 px-4 py-3" />
+   449→   449→   449→              </TableRow>
+   450→   450→   450→            </TableHeader>
+   451→   451→   451→            <TableBody>
+   452→   452→   452→              {contacts.map((c: any) => {
+   453→   453→   453→                const isValidating = validatingIds.has(c.id)
+   454→   454→   454→                const isFlashing = flashIds.has(c.id)
+   455→   455→   455→                const hasDrafts = draftContacts.has(c.id)
+   456→   456→   456→
+   457→   457→   457→                return (
+   458→   458→   458→                  <TableRow
+   459→   459→   459→                    key={c.id}
+   460→   460→   460→                    className="table-row-hover border-b border-gray-50 last:border-b-0 group cursor-pointer"
+   461→   461→   461→                    onClick={() => navigateToContact(c.id)}
+   462→   462→   462→                  >
+   463→   463→   463→                    {/* Name */}
+   464→   464→   464→                    <TableCell>
+   465→   465→   465→                      <div className="flex items-center gap-2.5">
+   466→   466→   466→                        <div className="size-7 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 text-[11px] font-semibold shrink-0">
+   467→   467→   467→                          {c.name?.charAt(0)?.toUpperCase()}
+   468→   468→   468→                        </div>
+   469→   469→   469→                        <div className="flex items-center gap-1.5 min-w-0">
+   470→   470→   470→                          <span className="text-sm font-semibold text-gray-900 truncate group-hover:text-amber-700 transition-colors duration-150">{c.name}</span>
+   471→   471→   471→                          <ChevronRight className="size-3 text-gray-300 group-hover:text-amber-500 opacity-0 group-hover:opacity-100 transition-all duration-150 shrink-0" />
+   472→   472→   472→                          {hasDrafts && (
+   473→   473→   473→                            <span
+   474→   474→   474→                              className="inline-flex items-center gap-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 px-1.5 py-px text-[10px] font-medium shrink-0"
+   475→   475→   475→                              title="AI email generated"
+   476→   476→   476→                            >
+   477→   477→   477→                              <Sparkles className="size-2.5" />
+   478→   478→   478→                              AI
+   479→   479→   479→                            </span>
+   480→   480→   480→                          )}
+   481→   481→   481→                        </div>
+   482→   482→   482→                      </div>
+   483→   483→   483→                    </TableCell>
+   484→   484→   484→
+   485→   485→   485→                    {/* Company — clickable */}
+   486→   486→   486→                    <TableCell className="hidden md:table-cell">
+   487→   487→   487→                      {c.company?.id ? (
+   488→   488→   488→                        <button
+   489→   489→   489→                          onClick={e => {
+   490→   490→   490→                            e.stopPropagation()
+   491→   491→   491→                            navigateToCompany(c.company.id)
+   492→   492→   492→                          }}
+   493→   493→   493→                          className="text-sm text-amber-600 hover:text-amber-700 font-medium transition-colors duration-150 inline-flex items-center gap-1 group/biz hover:underline underline-offset-2"
+   494→   494→   494→                        >
+   495→   495→   495→                          <Building2 className="size-3 text-gray-400 group-hover/biz:text-amber-500 transition-colors" />
+   496→   496→   496→                          {c.company.name}
+   497→   497→   497→                        </button>
+   498→   498→   498→                      ) : (
+   499→   499→   499→                        <span className="text-sm text-gray-400">—</span>
+   500→   500→   500→                      )}
+   501→   501→   501→                    </TableCell>
+   502→   502→   502→
+   503→   503→   503→                    {/* Job Title */}
+   504→   504→   504→                    <TableCell className="hidden lg:table-cell text-sm text-gray-500">
+   505→   505→   505→                      {c.jobTitle || '—'}
+   506→   506→   506→                    </TableCell>
+   507→   507→   507→
+   508→   508→   508→                    {/* Email */}
+   509→   509→   509→                    <TableCell>
+   510→   510→   510→                      <span className="text-sm text-gray-600 font-mono text-xs">{c.email || '—'}</span>
+   511→   511→   511→                    </TableCell>
+   512→   512→   512→
+   513→   513→   513→                    {/* Health with validation UX */}
+   514→   514→   514→                    <TableCell>
+   515→   515→   515→                      <div className="flex items-center gap-2">
+   516→   516→   516→                        <span
+   517→   517→   517→                          className={cn(
+   518→   518→   518→                            'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium transition-all duration-500',
+   519→   519→   519→                            healthCls(c.emailHealth),
+   520→   520→   520→                            isFlashing && 'scale-110 ring-2 ring-amber-300 shadow-amber-100 shadow-sm',
+   521→   521→   521→                          )}
+   522→   522→   522→                        >
+   523→   523→   523→                          {isValidating ? (
+   524→   524→   524→                            <Loader2 className="size-3 animate-spin mr-1" />
+   525→   525→   525→                          ) : c.emailHealth === 'valid' ? (
+   526→   526→   526→                            <CheckCircle2 className="size-3 mr-0.5" />
+   527→   527→   527→                          ) : c.emailHealth === 'invalid' ? (
+   528→   528→   528→                            <XCircle className="size-3 mr-0.5" />
+   529→   529→   529→                          ) : null}
+
+[showing lines 30-529 of 889; use offset=530 with limit to continue reading]

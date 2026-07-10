@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Search, ChevronLeft, ChevronRight, Users, Mail, ShieldCheck,
@@ -30,38 +30,31 @@ import {
 import { EmptyState, SortableHeader, StatusDot } from '@/components/shared/design-system'
 import { useAppStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { getHealthVariant, ROLE_BUCKETS } from '@/lib/constants'
+import type { Contact, Company } from '@/lib/types'
 
 /* ── Constants ── */
 
-const ROLES = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other']
 const PAGE_SIZE = 20
-
-/* ── Style helpers ── */
-
-const healthCls = (h: string) =>
-  h === 'valid'
-    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-    : h === 'risky'
-      ? 'bg-amber-50 text-amber-700 border border-amber-200'
-      : h === 'invalid'
-        ? 'bg-red-50 text-red-700 border border-red-200'
-        : 'bg-gray-100 text-gray-500 border border-gray-200'
-
-const statusCls = (s: string) =>
-  s === 'active'
-    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-    : s === 'archived'
-      ? 'bg-gray-100 text-gray-400 border border-gray-200'
-      : 'bg-amber-50 text-amber-700 border border-amber-200'
 
 /* ── Component ── */
 
+interface ContactRow {
+  id: string
+  name: string
+  email: string | null
+  jobTitle: string | null
+  roleBucket: string | null
+  linkedinUrl: string | null
+  status: string
+  emailHealth: string | null
+  company: Company | null
+  _draftCount?: number
+}
+
 export default function ContactsScreen() {
   const qc = useQueryClient()
-  const { selectedCompanyId, setSelectedCompanyId } = useAppStore()
-
-  /* ── Company filter from navigation ── */
-  const [filterCompanyId, setFilterCompanyId] = useState<string | null>(null)
+  const { setSelectedCompanyId } = useAppStore()
 
   /* ── List state ── */
   const [page, setPage] = useState(1)
@@ -74,16 +67,21 @@ export default function ContactsScreen() {
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   /* ── Capture selectedCompanyId on mount, then clear it ── */
-  useEffect(() => {
-    if (selectedCompanyId) {
-      setFilterCompanyId(selectedCompanyId)
-      setSelectedCompanyId(null)
+  const [filterCompanyId, setFilterCompanyId] = useState<string | null>(() => {
+    const id = useAppStore.getState().selectedCompanyId
+    if (id) {
+      useAppStore.getState().setSelectedCompanyId(null)
+      return id
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    return null
+  })
 
   /* ── Validation loading per contact ── */
   const [validatingIds, setValidatingIds] = useState<Set<string>>(new Set())
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set())
+
+  /* ── Batch validate confirmation ── */
+  const [batchValidateOpen, setBatchValidateOpen] = useState(false)
 
   /* ── Add dialog ── */
   const [dlgOpen, setDlgOpen] = useState(false)
@@ -94,18 +92,15 @@ export default function ContactsScreen() {
 
   /* ── Edit dialog ── */
   const [editOpen, setEditOpen] = useState(false)
-  const [editingContact, setEditingContact] = useState<any>(null)
+  const [editingContact, setEditingContact] = useState<ContactRow | null>(null)
   const [editForm, setEditForm] = useState({
     name: '', email: '', jobTitle: '', roleBucket: '',
-    company: '', linkedinUrl: '',
+    companyId: '', linkedinUrl: '',
   })
 
   /* ── Archive confirm ── */
   const [archiveOpen, setArchiveOpen] = useState(false)
-  const [archivingContact, setArchivingContact] = useState<any>(null)
-
-  /* ── Draft-existence cache (populated per contact in the list) ── */
-  const [draftContacts, setDraftContacts] = useState<Set<string>>(new Set())
+  const [archivingContact, setArchivingContact] = useState<ContactRow | null>(null)
 
   /* ── Handlers ── */
   const updateSearch = useCallback((v: string) => {
@@ -136,21 +131,20 @@ export default function ContactsScreen() {
   const updateEditField = (k: keyof typeof editForm, v: string) =>
     setEditForm(p => ({ ...p, [k]: v }))
 
-  const openEditDialog = (c: any) => {
+  const openEditDialog = (c: ContactRow) => {
     setEditingContact(c)
     setEditForm({
       name: c.name || '',
       email: c.email || '',
       jobTitle: c.jobTitle || '',
       roleBucket: c.roleBucket || '',
-      company: typeof c.company === 'string' ? c.company : c.company?.name || '',
+      companyId: c.company?.id || '',
       linkedinUrl: c.linkedinUrl || '',
     })
-    if (c.company?.id) setForm(p => ({ ...p, companyId: c.company.id }))
     setEditOpen(true)
   }
 
-  const openArchiveConfirm = (c: any) => {
+  const openArchiveConfirm = (c: ContactRow) => {
     setArchivingContact(c)
     setArchiveOpen(true)
   }
@@ -174,11 +168,14 @@ export default function ContactsScreen() {
   /* ── Fetch company name for filter banner ── */
   const { data: filterCompany } = useQuery({
     queryKey: ['company-brief-contacts', filterCompanyId],
-    queryFn: () => fetch(`/api/companies/${filterCompanyId}`).then(r => r.json()),
+    queryFn: () => fetch(`/api/companies/${filterCompanyId}`).then(r => {
+      if (!r.ok) throw new Error('Failed to load company')
+      return r.json()
+    }),
     enabled: !!filterCompanyId,
   })
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['contacts', debouncedSearch, status, health, page, filterCompanyId],
     queryFn: () => {
       const p = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
@@ -186,7 +183,10 @@ export default function ContactsScreen() {
       if (status) p.set('status', status)
       if (health) p.set('emailHealth', health)
       if (filterCompanyId) p.set('companyId', filterCompanyId)
-      return fetch(`/api/contacts?${p}`).then(r => r.json())
+      return fetch(`/api/contacts?${p}`).then(r => {
+        if (!r.ok) throw new Error('Failed to load contacts')
+        return r.json()
+      })
     },
   })
 
@@ -194,7 +194,7 @@ export default function ContactsScreen() {
     queryKey: ['companies', 'contact-dialog'],
     queryFn: () =>
       fetch('/api/companies?pageSize=100')
-        .then(r => r.json())
+        .then(r => { if (!r.ok) throw new Error('Failed to load companies'); return r.json() })
         .then(d => d.companies ?? []),
   })
 
@@ -218,11 +218,14 @@ export default function ContactsScreen() {
 
   const validateEmail = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/contacts/${id}/validate`, { method: 'POST' }).then(r => r.json()),
+      fetch(`/api/contacts/${id}/validate`, { method: 'POST' }).then(r => {
+        if (!r.ok) throw new Error('Validation request failed')
+        return r.json()
+      }),
     onMutate: (id) => {
       setValidatingIds(prev => new Set(prev).add(id))
     },
-    onSuccess: (result, id) => {
+    onSuccess: (_result, id) => {
       setValidatingIds(prev => {
         const next = new Set(prev)
         next.delete(id)
@@ -280,14 +283,17 @@ export default function ContactsScreen() {
     onError: (e: Error) => toast.error(e.message),
   })
 
-  /* ── Batch email validation (FIX 7) ── */
+  /* ── Batch email validation ── */
   const batchValidateMutation = useMutation({
     mutationFn: () =>
       fetch('/api/health-check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ checkAll: true }),
-      }).then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Batch validation failed') })),
+      }).then(r => {
+        if (!r.ok) throw new Error('Batch validation failed')
+        return r.json()
+      }),
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ['contacts'] })
       const summary = result?.summary || `${result?.checked ?? 0} emails checked`
@@ -297,21 +303,18 @@ export default function ContactsScreen() {
   })
 
   /* ── Derived ── */
-  const contacts = data?.contacts ?? []
+  const contacts: ContactRow[] = data?.contacts ?? []
   const total = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
-  // Build draft indicator set from list data
-  if (contacts.length > 0) {
+  // Build draft indicator set from list data — using useMemo (C14 fix)
+  const draftContacts = useMemo(() => {
     const ids = new Set<string>()
-    contacts.forEach((c: any) => {
-      if (c._draftCount > 0) ids.add(c.id)
+    contacts.forEach((c: ContactRow) => {
+      if (c._draftCount && c._draftCount > 0) ids.add(c.id)
     })
-    // Only update if different to avoid re-renders
-    const keys = Array.from(ids).sort().join(',')
-    const prevKeys = Array.from(draftContacts).sort().join(',')
-    if (keys !== prevKeys) setDraftContacts(ids)
-  }
+    return ids
+  }, [contacts])
 
   /* ── Render ── */
   return (
@@ -326,6 +329,7 @@ export default function ContactsScreen() {
           <button
             onClick={() => setFilterCompanyId(null)}
             className="ml-auto p-1 rounded-md hover:bg-amber-100 transition-colors"
+            aria-label="Clear company filter"
           >
             <X className="size-3.5 text-amber-600" />
           </button>
@@ -344,12 +348,12 @@ export default function ContactsScreen() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* ═══ Batch Validate Emails Button (FIX 7) ═══ */}
+          {/* ═══ Batch Validate Emails Button (H4 fix — opens confirmation) ═══ */}
           <Button
             size="sm"
             variant="outline"
             className="border-gray-200 text-gray-600 rounded-lg press-scale shrink-0"
-            onClick={() => batchValidateMutation.mutate()}
+            onClick={() => setBatchValidateOpen(true)}
             disabled={batchValidateMutation.isPending}
           >
             {batchValidateMutation.isPending
@@ -367,6 +371,13 @@ export default function ContactsScreen() {
           </Button>
         </div>
       </div>
+
+      {/* ═══ Error Banner ═══ */}
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          Failed to load contacts. Please try again.
+        </div>
+      )}
 
       {/* ═══ Filters ═══ */}
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
@@ -449,7 +460,7 @@ export default function ContactsScreen() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {contacts.map((c: any) => {
+              {contacts.map((c) => {
                 const isValidating = validatingIds.has(c.id)
                 const isFlashing = flashIds.has(c.id)
                 const hasDrafts = draftContacts.has(c.id)
@@ -488,7 +499,7 @@ export default function ContactsScreen() {
                         <button
                           onClick={e => {
                             e.stopPropagation()
-                            navigateToCompany(c.company.id)
+                            navigateToCompany(c.company!.id)
                           }}
                           className="text-sm text-amber-600 hover:text-amber-700 font-medium transition-colors duration-150 inline-flex items-center gap-1 group/biz hover:underline underline-offset-2"
                         >
@@ -515,8 +526,8 @@ export default function ContactsScreen() {
                       <div className="flex items-center gap-2">
                         <span
                           className={cn(
-                            'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium transition-all duration-500',
-                            healthCls(c.emailHealth),
+                            'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium border transition-all duration-500',
+                            getHealthVariant(c.emailHealth || 'unknown'),
                             isFlashing && 'scale-110 ring-2 ring-amber-300 shadow-amber-100 shadow-sm',
                           )}
                         >
@@ -558,8 +569,12 @@ export default function ContactsScreen() {
                     <TableCell>
                       <span
                         className={cn(
-                          'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium gap-1.5',
-                          statusCls(c.status),
+                          'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium border gap-1.5',
+                          c.status === 'active'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : c.status === 'archived'
+                              ? 'bg-gray-100 text-gray-400 border-gray-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200',
                         )}
                       >
                         <StatusDot
@@ -613,7 +628,7 @@ export default function ContactsScreen() {
                             className="rounded-lg text-sm"
                             onClick={() => navigateToEmailGen(c.id)}
                           >
-                            <Sparkles className="size-3.5 mr-2 text-indigo-500" />
+                            <Sparkles className="size-3.5 mr-2 text-amber-500" />
                             Generate Email
                           </DropdownMenuItem>
                           <DropdownMenuSeparator className="my-1" />
@@ -711,7 +726,7 @@ export default function ContactsScreen() {
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
-                    {ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                    {ROLE_BUCKETS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -724,7 +739,7 @@ export default function ContactsScreen() {
                     <SelectValue placeholder="Select company" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(companiesList || []).map((c: any) => (
+                    {(companiesList || []).map((c: Company) => (
                       <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -759,7 +774,7 @@ export default function ContactsScreen() {
         </DialogContent>
       </Dialog>
 
-      {/* ════════════ Edit Contact Dialog ════════════ */}
+      {/* ════════════ Edit Contact Dialog (H5 fix — company is now Select) ════════════ */}
       <Dialog
         open={editOpen}
         onOpenChange={(open) => { if (!open) { setEditOpen(false); setEditingContact(null) } }}
@@ -802,7 +817,7 @@ export default function ContactsScreen() {
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
-                    {ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                    {ROLE_BUCKETS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -810,12 +825,16 @@ export default function ContactsScreen() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="grid gap-1.5">
                 <Label className="text-sm font-medium text-gray-700">Company</Label>
-                <Input
-                  value={editForm.company}
-                  onChange={e => updateEditField('company', e.target.value)}
-                  placeholder="Company name"
-                  className="border-gray-200 rounded-lg h-9 text-sm"
-                />
+                <Select value={editForm.companyId} onValueChange={v => updateEditField('companyId', v)}>
+                  <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm">
+                    <SelectValue placeholder="Select company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(companiesList || []).map((c: Company) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid gap-1.5">
                 <Label className="text-sm font-medium text-gray-700">LinkedIn</Label>
@@ -880,6 +899,40 @@ export default function ContactsScreen() {
                 <Loader2 className="size-3.5 mr-1.5 animate-spin" />
               ) : null}
               {archiveContact.isPending ? 'Archiving...' : 'Archive'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ════════════ Batch Validate Confirmation (H4 fix) ════════════ */}
+      <AlertDialog
+        open={batchValidateOpen}
+        onOpenChange={setBatchValidateOpen}
+      >
+        <AlertDialogContent className="sm:max-w-md bg-white rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900">Validate All Emails?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-600">
+              This will check the health status of all email addresses in your contact list. This operation
+              may take a moment depending on the number of contacts.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-gray-200 text-gray-600 hover:bg-gray-50">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale"
+              onClick={() => {
+                setBatchValidateOpen(false)
+                batchValidateMutation.mutate()
+              }}
+              disabled={batchValidateMutation.isPending}
+            >
+              {batchValidateMutation.isPending ? (
+                <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+              ) : null}
+              {batchValidateMutation.isPending ? 'Validating...' : 'Validate All'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

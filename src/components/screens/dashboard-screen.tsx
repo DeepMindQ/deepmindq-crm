@@ -4,7 +4,9 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Building2, Users, ShieldCheck, Sparkles, ArrowRight, Clock, Target,
   Upload, Mail, BarChart3, Activity, Loader2, ChevronRight, FileSearch, ShieldAlert,
+  AlertTriangle, RefreshCw,
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/lib/store'
 import { getActivityIcon, SkeletonGrid } from '@/components/shared/design-system'
 import { formatDistanceToNow } from 'date-fns'
@@ -42,12 +44,6 @@ interface DashboardData {
     contact?: { id: string; name: string } | null
   }>
   pipeline: PipelineStage[]
-  sparklines: {
-    companies: number[]
-    contacts: number[]
-    healthy: number[]
-    invalid: number[]
-  }
   trends: {
     companies: number
     contacts: number
@@ -187,12 +183,16 @@ function BarLabel({ x, y, width, value }: { x: number; y: number; width: number;
    ═══════════════════════════════════════════════════════════════════════ */
 
 export function DashboardScreen() {
-  const { setActiveView, setSelectedCompanyId } = useAppStore()
+  const { setActiveView, setSelectedCompanyId, setSelectedContactId, setCompanyStatusFilter } = useAppStore()
 
   /* ── Data fetch ── */
-  const { data, isLoading } = useQuery<DashboardData>({
+  const { data, isLoading, error, refetch } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
-    queryFn: () => fetch('/api/dashboard').then((r) => r.json()),
+    queryFn: () =>
+      fetch('/api/dashboard').then(r => {
+        if (!r.ok) throw new Error('Failed to load dashboard data')
+        return r.json()
+      }),
     refetchInterval: 30_000,
   })
 
@@ -209,6 +209,32 @@ export function DashboardScreen() {
     )
   }
 
+  /* ── Error state ── */
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 tracking-tight">Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Sales intelligence overview</p>
+        </div>
+        <div className="rounded-xl bg-red-50 border border-red-200 p-6 flex items-start gap-4">
+          <AlertTriangle className="size-6 text-red-500 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-red-900">Failed to load dashboard</p>
+            <p className="text-sm text-red-700 mt-0.5">{error.message}</p>
+          </div>
+          <Button
+            variant="outline"
+            className="border-red-200 text-red-700 hover:bg-red-50 shrink-0"
+            onClick={() => refetch()}
+          >
+            <RefreshCw className="size-3.5 mr-1.5" /> Retry
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   /* ── Derived data ── */
   const emailHealthData: EmailHealthSlice[] = [
     { name: 'Valid', value: data.healthyEmails, color: EMAIL_HEALTH_COLORS[0] },
@@ -220,10 +246,20 @@ export function DashboardScreen() {
   const activityItems = data.recentActivity.slice(0, 8)
 
   /* ── Helpers ── */
+  function handleKpiDrillDown(view: 'companies' | 'contacts' | 'email-generation', label: string) {
+    if (view === 'companies') {
+      setCompanyStatusFilter('all')
+    }
+    setActiveView(view)
+  }
+
   function handleActivityClick(item: (typeof activityItems)[number]) {
     if (item.companyId) {
       setSelectedCompanyId(item.companyId)
       setActiveView('company-profile')
+    } else if (item.contactId) {
+      setSelectedContactId(item.contactId)
+      setActiveView('contact-profile')
     }
   }
 
@@ -262,7 +298,7 @@ export function DashboardScreen() {
                 </div>
               </div>
               <button
-                onClick={() => setActiveView(card.view)}
+                onClick={() => handleKpiDrillDown(card.view, card.label)}
                 className="mt-3 flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700 transition-colors group cursor-pointer"
               >
                 View all
@@ -385,13 +421,14 @@ export function DashboardScreen() {
             {activityItems.length > 0 ? (
               activityItems.map((item) => {
                 const { icon: ActivityIcon, color, bg } = getActivityIcon(item.action)
+                const isClickable = !!item.companyId || !!item.contactId
                 return (
                   <div
                     key={item.id}
                     className={`flex items-start gap-3 py-3 first:pt-0 last:pb-0 ${
-                      item.companyId ? 'cursor-pointer group' : ''
+                      isClickable ? 'cursor-pointer group' : ''
                     }`}
-                    onClick={() => item.companyId && handleActivityClick(item)}
+                    onClick={() => isClickable && handleActivityClick(item)}
                   >
                     <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${bg} mt-0.5`}>
                       <ActivityIcon className={`size-4 ${color}`} />
@@ -403,14 +440,19 @@ export function DashboardScreen() {
                             {item.company.name}
                           </span>
                         )}
-                        {item.company?.name && item.details ? ' — ' : ''}
+                        {item.contact?.name && !item.company?.name && (
+                          <span className="font-medium text-gray-900 group-hover:text-amber-600 transition-colors">
+                            {item.contact.name}
+                          </span>
+                        )}
+                        {(item.company?.name || item.contact?.name) && item.details ? ' — ' : ''}
                         {item.details || item.action.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
                       </p>
                       <p className="text-xs text-gray-400 mt-0.5">
                         {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
                       </p>
                     </div>
-                    {item.companyId && (
+                    {isClickable && (
                       <ChevronRight className="size-4 text-gray-300 group-hover:text-amber-400 shrink-0 mt-1 transition-colors" />
                     )}
                   </div>

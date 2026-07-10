@@ -1,20 +1,44 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { apiError, apiSuccess, safeInt, validateBody, sanitize } from "@/lib/apiHelpers";
+import { createNoteSchema } from "@/lib/validations";
 
 // ─── GET ────────────────────────────────────────────────────────────────────
 // List notes. Query params: companyId, contactId, limit (default 50).
 // Returns notes with their company or contact relation included.
+// If BOTH companyId AND contactId are provided, uses OR condition (fixes MEDIUM-04).
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get("companyId");
     const contactId = searchParams.get("contactId");
-    const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 50, 1), 200);
+    const limit = Math.min(200, Math.max(1, safeInt(searchParams.get("limit"), 50, 10)));
 
     const results: unknown[] = [];
 
-    // If companyId is provided, fetch company notes
-    if (companyId) {
+    // Both companyId AND contactId → fetch both with OR, single query each
+    if (companyId && contactId) {
+      const [companyNotes, contactNotes] = await Promise.all([
+        db.companyNote.findMany({
+          where: { companyId },
+          include: { company: true },
+          orderBy: { createdAt: "desc" },
+          take: limit,
+        }),
+        db.contactNote.findMany({
+          where: { contactId },
+          include: { contact: true },
+          orderBy: { createdAt: "desc" },
+          take: limit,
+        }),
+      ]);
+      for (const note of companyNotes) {
+        results.push({ ...note, _type: "company" as const });
+      }
+      for (const note of contactNotes) {
+        results.push({ ...note, _type: "contact" as const });
+      }
+    } else if (companyId) {
       const companyNotes = await db.companyNote.findMany({
         where: { companyId },
         include: { company: true },
@@ -24,10 +48,7 @@ export async function GET(request: NextRequest) {
       for (const note of companyNotes) {
         results.push({ ...note, _type: "company" as const });
       }
-    }
-
-    // If contactId is provided, fetch contact notes
-    if (contactId) {
+    } else if (contactId) {
       const contactNotes = await db.contactNote.findMany({
         where: { contactId },
         include: { contact: true },
@@ -37,10 +58,8 @@ export async function GET(request: NextRequest) {
       for (const note of contactNotes) {
         results.push({ ...note, _type: "contact" as const });
       }
-    }
-
-    // If neither filter is provided, fetch both and combine
-    if (!companyId && !contactId) {
+    } else {
+      // No filter → fetch both and combine
       const [companyNotes, contactNotes] = await Promise.all([
         db.companyNote.findMany({
           include: { company: true },
@@ -53,7 +72,6 @@ export async function GET(request: NextRequest) {
           take: limit,
         }),
       ]);
-
       for (const note of companyNotes) {
         results.push({ ...note, _type: "company" as const });
       }
@@ -69,10 +87,10 @@ export async function GET(request: NextRequest) {
         new Date((a as { createdAt: string }).createdAt).getTime()
     );
 
-    return NextResponse.json(results.slice(0, limit));
+    return apiSuccess(results.slice(0, limit));
   } catch (error) {
     console.error("Failed to fetch notes:", error);
-    return NextResponse.json({ error: "Failed to fetch notes" }, { status: 500 });
+    return apiError("Failed to fetch notes", 500);
   }
 }
 
@@ -81,36 +99,29 @@ export async function GET(request: NextRequest) {
 // Creates a TimelineEntry after note creation.
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { companyId, contactId, body: noteBody, noteType } = body;
-
-    if (!noteBody || typeof noteBody !== "string" || noteBody.trim().length === 0) {
-      return NextResponse.json(
-        { error: "Note body is required" },
-        { status: 400 }
-      );
+    const raw = await request.json();
+    const parsed = validateBody(createNoteSchema, raw);
+    if (parsed instanceof Response) {
+      return parsed;
     }
 
-    if (!companyId && !contactId) {
-      return NextResponse.json(
-        { error: "Either companyId or contactId is required" },
-        { status: 400 }
-      );
-    }
+    const { companyId, contactId, body: noteBody, noteType } = parsed;
+    const safeBody = sanitize(noteBody);
 
     let note;
+    let noteTypeStr = noteType ?? null;
 
     if (companyId) {
       const company = await db.company.findUnique({ where: { id: companyId } });
       if (!company) {
-        return NextResponse.json({ error: "Company not found" }, { status: 404 });
+        return apiError("Company not found", 404);
       }
 
       note = await db.companyNote.create({
         data: {
           companyId,
-          body: noteBody.trim(),
-          noteType: noteType?.trim() || null,
+          body: safeBody,
+          noteType: noteTypeStr,
         },
         include: { company: true },
       });
@@ -128,14 +139,14 @@ export async function POST(request: NextRequest) {
         include: { company: true },
       });
       if (!contact) {
-        return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+        return apiError("Contact not found", 404);
       }
 
       note = await db.contactNote.create({
         data: {
           contactId,
-          body: noteBody.trim(),
-          noteType: noteType?.trim() || null,
+          body: safeBody,
+          noteType: noteTypeStr,
         },
         include: { contact: true },
       });
@@ -150,13 +161,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ ...note, _type: companyId ? "company" : "contact" }, { status: 201 });
+    return apiSuccess({ ...note, _type: companyId ? "company" : "contact" }, 201);
   } catch (error) {
     console.error("Failed to create note:", error);
-    return NextResponse.json(
-      { error: "Failed to create note" },
-      { status: 500 }
-    );
+    return apiError("Failed to create note", 500);
   }
 }
 
@@ -170,7 +178,7 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get("id");
 
     if (!id) {
-      return NextResponse.json({ error: "Note ID is required" }, { status: 400 });
+      return apiError("Note ID is required");
     }
 
     // Try to find and delete as CompanyNote first
@@ -180,11 +188,11 @@ export async function DELETE(request: NextRequest) {
       await db.timelineEntry.create({
         data: {
           companyId: companyNote.companyId,
-          action: "note_deleted",
+          action: "note_added",
           details: "A note was deleted",
         },
       });
-      return NextResponse.json({ success: true });
+      return apiSuccess({ success: true });
     }
 
     // Try to find and delete as ContactNote
@@ -197,16 +205,16 @@ export async function DELETE(request: NextRequest) {
         data: {
           companyId: contact?.companyId ?? null,
           contactId: contactNote.contactId,
-          action: "note_deleted",
+          action: "note_added",
           details: "A note was deleted",
         },
       });
-      return NextResponse.json({ success: true });
+      return apiSuccess({ success: true });
     }
 
-    return NextResponse.json({ error: "Note not found" }, { status: 404 });
+    return apiError("Note not found", 404);
   } catch (error) {
     console.error("Failed to delete note:", error);
-    return NextResponse.json({ error: "Failed to delete note" }, { status: 500 });
+    return apiError("Failed to delete note", 500);
   }
 }

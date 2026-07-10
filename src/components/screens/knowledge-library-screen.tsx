@@ -2,8 +2,10 @@
 
 import { useState, useRef, useCallback, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { formatDistanceToNow } from 'date-fns'
 import {
   FileText, Plus, Trash2, Search, Upload, BookOpen, Tag,
+  X, Eye, Download, AlertTriangle, Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +13,11 @@ import { Badge } from '@/components/ui/badge'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
@@ -18,21 +25,6 @@ import { EmptyState } from '@/components/shared/design-system'
 import { cn } from '@/lib/utils'
 
 /* ── helpers ──────────────────────────────────────────────────── */
-
-function relativeDate(dateStr: string): string {
-  const now = Date.now()
-  const diff = now - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  if (days < 30) return `${days}d ago`
-  const months = Math.floor(days / 30)
-  if (months < 12) return `${months}mo ago`
-  return `${Math.floor(months / 12)}y ago`
-}
 
 function getFileExtension(filename: string): string {
   return (filename.split('.').pop() || '').toUpperCase()
@@ -85,19 +77,24 @@ export default function KnowledgeLibraryScreen() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [form, setForm] = useState({ title: '', description: '' })
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [viewDoc, setViewDoc] = useState<KnowledgeDocument | null>(null)
+  const [page, setPage] = useState(1)
+  const pageSize = 12
+  const [viewDocContent, setViewDocContent] = useState<string>('')
+  const [viewDocLoading, setViewDocLoading] = useState(false)
 
   /* ── queries ────────────────────────────────────────────────── */
 
-  const { data: documents = [], isLoading: docsLoading } = useQuery<KnowledgeDocument[]>({
-    queryKey: ['knowledge'],
-    queryFn: () => fetch('/api/knowledge').then(r => r.json()).then(d => d.documents ?? d),
+  const { data: documents = [], isLoading: docsLoading, error: docsError } = useQuery<KnowledgeDocument[]>({
+    queryKey: ['knowledge', page, pageSize],
+    queryFn: () => fetch(`/api/knowledge?page=${page}&pageSize=${pageSize}`).then(r => r.json()).then(d => d.documents ?? d),
   })
 
   const hasDocuments = documents.length > 0
 
-  const { data: snippetsData } = useQuery<{ documents: KnowledgeDocument[]; snippets: KnowledgeSnippet[] }>({
+  const { data: snippetsData, isLoading: snippetsLoading, error: snippetsError } = useQuery<{ documents: KnowledgeDocument[]; snippets: KnowledgeSnippet[] }>({
     queryKey: ['knowledge', 'snippets'],
-    queryFn: () => fetch('/api/knowledge?include=snippets').then(r => r.json()),
+    queryFn: () => fetch(`/api/knowledge?include=snippets&page=1&pageSize=100`).then(r => r.json()),
     enabled: hasDocuments,
   })
 
@@ -197,6 +194,43 @@ export default function KnowledgeLibraryScreen() {
     setSelectedFile(null)
   }, [])
 
+  const handleViewDoc = useCallback(async (doc: KnowledgeDocument) => {
+    setViewDoc(doc)
+    setViewDocContent('')
+    setViewDocLoading(true)
+    try {
+      const res = await fetch(`/api/knowledge/${doc.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setViewDocContent(data.content || data.snippets?.map((s: KnowledgeSnippet) => `${s.title}\n${s.content}`).join('\n\n') || 'No content available.')
+      } else {
+        setViewDocContent('Could not load document content.')
+      }
+    } catch {
+      setViewDocContent('Failed to load document content.')
+    } finally {
+      setViewDocLoading(false)
+    }
+  }, [])
+
+  const handleDownloadDoc = useCallback(async (doc: KnowledgeDocument) => {
+    try {
+      const res = await fetch(`/api/knowledge/${doc.id}`)
+      if (!res.ok) throw new Error('Download failed')
+      const data = await res.json()
+      const content = data.content || data.snippets?.map((s: KnowledgeSnippet) => `${s.title}\n${s.content}`).join('\n\n') || ''
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${doc.title || doc.fileName}.txt`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      toast.error('Failed to download document')
+    }
+  }, [])
+
   /* ── render ─────────────────────────────────────────────────── */
 
   return (
@@ -227,13 +261,33 @@ export default function KnowledgeLibraryScreen() {
           placeholder="Search documents and snippets..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 h-9 bg-white border-gray-200 rounded-lg text-sm focus:border-amber-400 focus:ring-amber-100"
+          className="pl-9 pr-9 h-9 bg-white border-gray-200 rounded-lg text-sm focus:border-amber-400 focus:ring-amber-100"
         />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="Clear search"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
       </div>
+
+      {/* ── Error state for documents ──────────────────────── */}
+      {docsError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+          <AlertTriangle className="size-4 text-red-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-red-700">Failed to load documents</p>
+            <p className="text-xs text-red-500 mt-0.5">Please try refreshing the page.</p>
+          </div>
+        </div>
+      )}
 
       {/* ── Section 1: Documents Grid ──────────────────────── */}
       <section>
-        {!docsLoading && filteredDocs.length === 0 ? (
+        {!docsLoading && !docsError && filteredDocs.length === 0 ? (
           <EmptyState
             icon={FileText}
             title="No documents yet"
@@ -271,12 +325,49 @@ export default function KnowledgeLibraryScreen() {
                           <FileText className="size-3" />
                           {ext || 'FILE'}
                         </div>
-                        <button
-                          onClick={() => deleteMutation.mutate(doc.id)}
-                          className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-red-50 transition-all"
-                        >
-                          <Trash2 className="size-3.5 text-red-500" />
-                        </button>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <button
+                            onClick={() => handleViewDoc(doc)}
+                            className="p-1 rounded-md hover:bg-gray-100 transition-colors"
+                            title="View"
+                          >
+                            <Eye className="size-3.5 text-gray-500" />
+                          </button>
+                          <button
+                            onClick={() => handleDownloadDoc(doc)}
+                            className="p-1 rounded-md hover:bg-gray-100 transition-colors"
+                            title="Download"
+                          >
+                            <Download className="size-3.5 text-gray-500" />
+                          </button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <button
+                                className="p-1 rounded-md hover:bg-red-50 transition-colors"
+                                aria-label="Delete document"
+                              >
+                                <Trash2 className="size-3.5 text-red-500" />
+                              </button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Document</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete &quot;{doc.title || doc.fileName}&quot;? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteMutation.mutate(doc.id)}
+                                  className="bg-red-600 hover:bg-red-700 text-white"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </div>
 
                       <h3 className="text-sm font-semibold text-gray-900 leading-snug">
@@ -295,7 +386,7 @@ export default function KnowledgeLibraryScreen() {
                           {doc.snippetCount ?? 0} snippets
                         </span>
                         <span className="text-[10px] text-gray-400 ml-auto">
-                          {relativeDate(doc.createdAt)}
+                          {formatDistanceToNow(new Date(doc.createdAt), { addSuffix: true })}
                         </span>
                       </div>
                     </div>
@@ -304,6 +395,31 @@ export default function KnowledgeLibraryScreen() {
           </div>
         )}
       </section>
+
+      {/* ── Pagination ─────────────────────────────────────── */}
+      {documents.length >= pageSize && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page <= 1}
+          >
+            Previous
+          </Button>
+          <span className="text-xs text-gray-500 px-2">Page {page}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg"
+            onClick={() => setPage(p => p + 1)}
+            disabled={documents.length < pageSize}
+          >
+            Next
+          </Button>
+        </div>
+      )}
 
       {/* ── Section 2: Extracted Snippets ──────────────────── */}
       {hasDocuments && (
@@ -315,7 +431,30 @@ export default function KnowledgeLibraryScreen() {
             </span>
           </div>
 
-          {filteredSnippets.length === 0 ? (
+          {/* Error state for snippets */}
+          {snippetsError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3 mb-4">
+              <AlertTriangle className="size-4 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-red-700">Failed to load snippets</p>
+                <p className="text-xs text-red-500 mt-0.5">Please try refreshing the page.</p>
+              </div>
+            </div>
+          )}
+
+          {snippetsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="rounded-xl bg-white card-rest p-5 space-y-3 animate-pulse">
+                  <div className="h-5 w-20 rounded-md bg-gray-100" />
+                  <div className="h-4 w-3/4 rounded bg-gray-100" />
+                  <div className="h-3 w-full rounded bg-gray-100" />
+                  <div className="h-3 w-2/3 rounded bg-gray-100" />
+                  <div className="h-3 w-24 rounded bg-gray-100" />
+                </div>
+              ))}
+            </div>
+          ) : filteredSnippets.length === 0 ? (
             <div className="text-center py-12">
               <Tag className="size-8 text-gray-300 mx-auto mb-3" />
               <p className="text-sm text-gray-500">
@@ -459,6 +598,51 @@ export default function KnowledgeLibraryScreen() {
                 </>
               )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── View Document Dialog ───────────────────────────── */}
+      <Dialog open={!!viewDoc} onOpenChange={(open) => { if (!open) setViewDoc(null) }}>
+        <DialogContent className="sm:max-w-lg rounded-xl p-6 max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900 flex items-center gap-2">
+              <FileText className="size-4 text-gray-400" />
+              {viewDoc?.title || viewDoc?.fileName}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50/60 p-4">
+            {viewDocLoading ? (
+              <div className="space-y-2 animate-pulse">
+                <div className="h-3 w-full rounded bg-gray-200" />
+                <div className="h-3 w-5/6 rounded bg-gray-200" />
+                <div className="h-3 w-4/6 rounded bg-gray-200" />
+                <div className="h-3 w-full rounded bg-gray-200" />
+                <div className="h-3 w-3/4 rounded bg-gray-200" />
+              </div>
+            ) : (
+              <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
+                {viewDocContent}
+              </pre>
+            )}
+          </div>
+          <DialogFooter className="pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setViewDoc(null)}
+              className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg"
+            >
+              Close
+            </Button>
+            {viewDoc && (
+              <Button
+                className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
+                onClick={() => handleDownloadDoc(viewDoc)}
+              >
+                <Download className="size-3.5 mr-1.5" />
+                Download
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

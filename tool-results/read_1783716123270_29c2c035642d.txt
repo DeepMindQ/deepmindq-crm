@@ -1,0 +1,502 @@
+    30→    30→    30→
+    31→    31→    31→const healthVariant = (h: string) =>
+    32→    32→    32→  h === 'valid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+    33→    33→    33→  : h === 'risky' ? 'bg-amber-50 text-amber-700 border border-amber-200'
+    34→    34→    34→  : h === 'invalid' ? 'bg-red-50 text-red-700 border border-red-200'
+    35→    35→    35→  : 'bg-gray-100 text-gray-600 border border-gray-200'
+    36→    36→    36→
+    37→    37→    37→const statusBorder = (s: string) =>
+    38→    38→    38→  s === 'open' ? 'border-l-blue-500' : s === 'won' ? 'border-l-emerald-500' : s === 'lost' ? 'border-l-red-400' : 'border-l-gray-300'
+    39→    39→    39→
+    40→    40→    40→const oppStatusVariant = (s: string) => {
+    41→    41→    41→  switch (s) {
+    42→    42→    42→    case 'researching': return 'bg-blue-50 text-blue-700 border-blue-200'
+    43→    43→    43→    case 'contacted': return 'bg-violet-50 text-violet-700 border-violet-200'
+    44→    44→    44→    case 'qualified': return 'bg-amber-50 text-amber-700 border-amber-200'
+    45→    45→    45→    case 'proposed': return 'bg-indigo-50 text-indigo-700 border-indigo-200'
+    46→    46→    46→    case 'negotiation': return 'bg-orange-50 text-orange-700 border-orange-200'
+    47→    47→    47→    case 'ready': return 'bg-cyan-50 text-cyan-700 border-cyan-200'
+    48→    48→    48→    case 'won': return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    49→    49→    49→    case 'lost': return 'bg-red-50 text-red-700 border-red-200'
+    50→    50→    50→    default: return 'bg-gray-100 text-gray-600 border-gray-200'
+    51→    51→    51→  }
+    52→    52→    52→}
+    53→    53→    53→
+    54→    54→    54→const companyStatusVariant = (s: string) =>
+    55→    55→    55→  s === 'open' ? 'bg-blue-50 text-blue-700 border-blue-200' : s === 'won' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    56→    56→    56→  : s === 'lost' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-gray-100 text-gray-600 border-gray-200'
+    57→    57→    57→
+    58→    58→    58→const RESEARCH_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
+    59→    59→    59→  businessOverview: { label: 'Business Overview', icon: Building2 },
+    60→    60→    60→  currentTechLandscape: { label: 'Tech Landscape', icon: BarChart3 },
+    61→    61→    61→  potentialChallenges: { label: 'Challenges', icon: Target },
+    62→    62→    62→  possibleOpportunities: { label: 'Opportunities', icon: Sparkles },
+    63→    63→    63→  relevantServices: { label: 'Relevant Services', icon: FileText },
+    64→    64→    64→  keyDecisionMakers: { label: 'Decision Makers', icon: Users },
+    65→    65→    65→  lastInteraction: { label: 'Last Interaction', icon: Clock },
+    66→    66→    66→  nextAction: { label: 'Next Action', icon: ChevronRight },
+    67→    67→    67→}
+    68→    68→    68→
+    69→    69→    69→const researchColors = [
+    70→    70→    70→  'bg-blue-50 border-blue-100', 'bg-violet-50 border-violet-100', 'bg-amber-50 border-amber-100',
+    71→    71→    71→  'bg-emerald-50 border-emerald-100', 'bg-rose-50 border-rose-100', 'bg-indigo-50 border-indigo-100',
+    72→    72→    72→  'bg-cyan-50 border-cyan-100', 'bg-orange-50 border-orange-100',
+    73→    73→    73→]
+    74→    74→    74→
+    75→    75→    75→const STATUS_CYCLE = ['new', 'researching', 'contacted', 'qualified', 'ready', 'won', 'lost'] as const
+    76→    76→    76→const OPP_STATUS_CYCLE = ['researching', 'contacted', 'qualified', 'proposed', 'negotiation', 'won', 'lost'] as const
+    77→    77→    77→const ROLE_BUCKETS = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'] as const
+    78→    78→    78→const OPP_STATUSES = ['researching', 'contacted', 'proposed', 'negotiation', 'won', 'lost'] as const
+    79→    79→    79→
+    80→    80→    80→/* ═══════════════════════════════════════════════════════════════
+    81→    81→    81→   Company Profile Screen
+    82→    82→    82→   ═══════════════════════════════════════════════════════════════ */
+    83→    83→    83→
+    84→    84→    84→export default function CompanyProfileScreen() {
+    85→    85→    85→  const { selectedCompanyId, setSelectedContactId, setActiveView, setCompanyStatusFilter } = useAppStore()
+    86→    86→    86→  const qc = useQueryClient()
+    87→    87→    87→
+    88→    88→    88→  // ── Dialog states ──
+    89→    89→    89→  const [noteOpen, setNoteOpen] = useState(false)
+    90→    90→    90→  const [noteBody, setNoteBody] = useState('')
+    91→    91→    91→  const [noteType, setNoteType] = useState('')
+    92→    92→    92→  const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null)
+    93→    93→    93→  const [contactOpen, setContactOpen] = useState(false)
+    94→    94→    94→  const [contactForm, setContactForm] = useState({
+    95→    95→    95→    name: '', email: '', jobTitle: '', roleBucket: '', phone: '', linkedinUrl: '',
+    96→    96→    96→  })
+    97→    97→    97→  const [oppOpen, setOppOpen] = useState(false)
+    98→    98→    98→  const [oppForm, setOppForm] = useState({
+    99→    99→    99→    title: '', description: '', status: 'researching', nextAction: '', targetContactId: '',
+   100→   100→   100→  })
+   101→   101→   101→
+   102→   102→   102→  // ── Active tab ──
+   103→   103→   103→  const [activeTab, setActiveTab] = useState('overview')
+   104→   104→   104→
+   105→   105→   105→  // ── Fetch company (includes contacts, notes, research, opportunities, timeline) ──
+   106→   106→   106→  const { data, isLoading } = useQuery({
+   107→   107→   107→    queryKey: ['company', selectedCompanyId],
+   108→   108→   108→    queryFn: () => fetch(`/api/companies/${selectedCompanyId}`).then(r => r.json()),
+   109→   109→   109→    enabled: !!selectedCompanyId,
+   110→   110→   110→  })
+   111→   111→   111→
+   112→   112→   112→  // ── Fetch AI provider info for research tab ──
+   113→   113→   113→  const { data: prefs } = useQuery({
+   114→   114→   114→    queryKey: ['preferences'],
+   115→   115→   115→    queryFn: () => fetch('/api/preferences').then(r => r.json()),
+   116→   116→   116→    staleTime: 30_000,
+   117→   117→   117→  })
+   118→   118→   118→
+   119→   119→   119→  // ── Mutations ──
+   120→   120→   120→
+   121→   121→   121→  const addNote = useMutation({
+   122→   122→   122→    mutationFn: (body: { body: string; noteType: string }) =>
+   123→   123→   123→      fetch('/api/notes', {
+   124→   124→   124→        method: 'POST',
+   125→   125→   125→        headers: { 'Content-Type': 'application/json' },
+   126→   126→   126→        body: JSON.stringify({ ...body, companyId: selectedCompanyId }),
+   127→   127→   127→      }).then(r => r.json()),
+   128→   128→   128→    onSuccess: () => {
+   129→   129→   129→      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
+   130→   130→   130→      qc.invalidateQueries({ queryKey: ['company'] })
+   131→   131→   131→      setNoteOpen(false); setNoteBody(''); setNoteType('')
+   132→   132→   132→      toast.success('Note added')
+   133→   133→   133→    },
+   134→   134→   134→    onError: () => toast.error('Failed to add note'),
+   135→   135→   135→  })
+   136→   136→   136→
+   137→   137→   137→  const generateResearch = useMutation({
+   138→   138→   138→    mutationFn: async () => {
+   139→   139→   139→      const res = await fetch('/api/research', {
+   140→   140→   140→        method: 'POST',
+   141→   141→   141→        headers: { 'Content-Type': 'application/json' },
+   142→   142→   142→        body: JSON.stringify({ companyId: selectedCompanyId, action: 'generate' }),
+   143→   143→   143→      })
+   144→   144→   144→      if (!res.ok) {
+   145→   145→   145→        const err = await res.json().catch(() => ({ error: 'Failed to generate research' }))
+   146→   146→   146→        throw new Error(err.error || 'Failed to generate research')
+   147→   147→   147→      }
+   148→   148→   148→      return res.json()
+   149→   149→   149→    },
+   150→   150→   150→    onSuccess: (result) => {
+   151→   151→   151→      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
+   152→   152→   152→      qc.invalidateQueries({ queryKey: ['company-breadcrumb', selectedCompanyId] })
+   153→   153→   153→      if (result._usedLlm === false) {
+   154→   154→   154→        toast.info('Generated with templates — configure AI key in Settings for AI-powered research')
+   155→   155→   155→      } else {
+   156→   156→   156→        toast.success('AI research generated successfully')
+   157→   157→   157→      }
+   158→   158→   158→    },
+   159→   159→   159→    onError: (err) => toast.error(err.message || 'Failed to generate research'),
+   160→   160→   160→  })
+   161→   161→   161→
+   162→   162→   162→  const addContact = useMutation({
+   163→   163→   163→    mutationFn: (form: { name: string; email: string; jobTitle: string; roleBucket: string; phone: string; linkedinUrl: string }) =>
+   164→   164→   164→      fetch('/api/contacts', {
+   165→   165→   165→        method: 'POST',
+   166→   166→   166→        headers: { 'Content-Type': 'application/json' },
+   167→   167→   167→        body: JSON.stringify({ ...form, companyId: selectedCompanyId }),
+   168→   168→   168→      }).then(r => {
+   169→   169→   169→        if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add contact') })
+   170→   170→   170→        return r.json()
+   171→   171→   171→      }),
+   172→   172→   172→    onSuccess: () => {
+   173→   173→   173→      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
+   174→   174→   174→      setContactOpen(false)
+   175→   175→   175→      setContactForm({ name: '', email: '', jobTitle: '', roleBucket: '', phone: '', linkedinUrl: '' })
+   176→   176→   176→      toast.success('Contact added successfully')
+   177→   177→   177→    },
+   178→   178→   178→    onError: (err) => toast.error(err.message || 'Failed to add contact'),
+   179→   179→   179→  })
+   180→   180→   180→
+   181→   181→   181→  const addOpportunity = useMutation({
+   182→   182→   182→    mutationFn: (form: { title: string; description: string; status: string; nextAction: string; targetContactId?: string }) =>
+   183→   183→   183→      fetch('/api/opportunities', {
+   184→   184→   184→        method: 'POST',
+   185→   185→   185→        headers: { 'Content-Type': 'application/json' },
+   186→   186→   186→        body: JSON.stringify({ companyId: selectedCompanyId, ...form }),
+   187→   187→   187→      }).then(r => {
+   188→   188→   188→        if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add opportunity') })
+   189→   189→   189→        return r.json()
+   190→   190→   190→      }),
+   191→   191→   191→    onSuccess: () => {
+   192→   192→   192→      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
+   193→   193→   193→      setOppOpen(false)
+   194→   194→   194→      setOppForm({ title: '', description: '', status: 'researching', nextAction: '', targetContactId: '' })
+   195→   195→   195→      toast.success('Opportunity created successfully')
+   196→   196→   196→    },
+   197→   197→   197→    onError: (err) => toast.error(err.message || 'Failed to add opportunity'),
+   198→   198→   198→  })
+   199→   199→   199→
+   200→   200→   200→  const updateOppMutation = useMutation({
+   201→   201→   201→    mutationFn: ({ id, status }: { id: string; status: string }) =>
+   202→   202→   202→      fetch(`/api/opportunities/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }).then(r => r.json()),
+   203→   203→   203→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); toast.success('Opportunity updated') },
+   204→   204→   204→    onError: () => toast.error('Failed to update opportunity'),
+   205→   205→   205→  })
+   206→   206→   206→
+   207→   207→   207→  const deleteOppMutation = useMutation({
+   208→   208→   208→    mutationFn: (oppId: string) =>
+   209→   209→   209→      fetch(`/api/opportunities/${oppId}`, { method: 'DELETE' }).then(r => r.json()),
+   210→   210→   210→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); toast.success('Opportunity deleted') },
+   211→   211→   211→    onError: () => toast.error('Failed to delete opportunity'),
+   212→   212→   212→  })
+   213→   213→   213→
+   214→   214→   214→  const deleteNoteMutation = useMutation({
+   215→   215→   215→    mutationFn: (noteId: string) =>
+   216→   216→   216→      fetch(`/api/notes?id=${noteId}`, { method: 'DELETE' }).then(r => r.json()),
+   217→   217→   217→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); setDeleteNoteId(null); toast.success('Note deleted') },
+   218→   218→   218→    onError: () => toast.error('Failed to delete note'),
+   219→   219→   219→  })
+   220→   220→   220→
+   221→   221→   221→  const updateCompanyStatus = useMutation({
+   222→   222→   222→    mutationFn: async (newStatus: string) => {
+   223→   223→   223→      const res = await fetch(`/api/companies/${selectedCompanyId}`, {
+   224→   224→   224→        method: 'PATCH',
+   225→   225→   225→        headers: { 'Content-Type': 'application/json' },
+   226→   226→   226→        body: JSON.stringify({ status: newStatus }),
+   227→   227→   227→      })
+   228→   228→   228→      if (!res.ok) throw new Error('Failed to update status')
+   229→   229→   229→      return res.json()
+   230→   230→   230→    },
+   231→   231→   231→    onSuccess: () => {
+   232→   232→   232→      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
+   233→   233→   233→      qc.invalidateQueries({ queryKey: ['company-breadcrumb', selectedCompanyId] })
+   234→   234→   234→      toast.success('Status updated')
+   235→   235→   235→    },
+   236→   236→   236→    onError: () => toast.error('Failed to update status'),
+   237→   237→   237→  })
+   238→   238→   238→
+   239→   239→   239→  // ── Handlers ──
+   240→   240→   240→
+   241→   241→   241→  const handleOppStatusCycle = (oppId: string, currentStatus: string) => {
+   242→   242→   242→    const currentIdx = OPP_STATUS_CYCLE.indexOf(currentStatus as typeof OPP_STATUS_CYCLE[number])
+   243→   243→   243→    const nextIdx = (currentIdx + 1) % OPP_STATUS_CYCLE.length
+   244→   244→   244→    updateOppMutation.mutate({ id: oppId, status: OPP_STATUS_CYCLE[nextIdx] })
+   245→   245→   245→  }
+   246→   246→   246→
+   247→   247→   247→  const handleStatusCycle = () => {
+   248→   248→   248→    if (!data) return
+   249→   249→   249→    const current = data.status as string
+   250→   250→   250→    const currentIdx = STATUS_CYCLE.indexOf(current as typeof STATUS_CYCLE[number])
+   251→   251→   251→    const nextIdx = (currentIdx + 1) % STATUS_CYCLE.length
+   252→   252→   252→    updateCompanyStatus.mutate(STATUS_CYCLE[nextIdx])
+   253→   253→   253→  }
+   254→   254→   254→
+   255→   255→   255→  const handleGenerateEmail = (contactId: string) => {
+   256→   256→   256→    setSelectedContactId(contactId)
+   257→   257→   257→    setActiveView('email-generation')
+   258→   258→   258→  }
+   259→   259→   259→
+   260→   260→   260→  const handleViewContact = (contactId: string) => {
+   261→   261→   261→    setSelectedContactId(contactId)
+   262→   262→   262→    setActiveView('contact-profile')
+   263→   263→   263→  }
+   264→   264→   264→
+   265→   265→   265→  const handleViewAllContacts = () => {
+   266→   266→   266→    setActiveView('contacts')
+   267→   267→   267→  }
+   268→   268→   268→
+   269→   269→   269→  const handleContactSubmit = () => {
+   270→   270→   270→    if (!contactForm.name.trim()) return
+   271→   271→   271→    addContact.mutate(contactForm)
+   272→   272→   272→  }
+   273→   273→   273→
+   274→   274→   274→  const handleOppSubmit = () => {
+   275→   275→   275→    if (!oppForm.title.trim()) return
+   276→   276→   276→    addOpportunity.mutate(oppForm)
+   277→   277→   277→  }
+   278→   278→   278→
+   279→   279→   279→  const handleBack = () => {
+   280→   280→   280→    setActiveView('companies')
+   281→   281→   281→  }
+   282→   282→   282→
+   283→   283→   283→  // ── Guard states ──
+   284→   284→   284→
+   285→   285→   285→  if (!selectedCompanyId) {
+   286→   286→   286→    return (
+   287→   287→   287→      <EmptyState
+   288→   288→   288→        icon={Globe}
+   289→   289→   289→        title="No company selected"
+   290→   290→   290→        description="Go back to Companies and select one."
+   291→   291→   291→        actionLabel="Back to Companies"
+   292→   292→   292→        onAction={() => setActiveView('companies')}
+   293→   293→   293→      />
+   294→   294→   294→    )
+   295→   295→   295→  }
+   296→   296→   296→
+   297→   297→   297→  if (isLoading) {
+   298→   298→   298→    return (
+   299→   299→   299→      <div className="space-y-6">
+   300→   300→   300→        <Skeleton className="h-40 w-full rounded-xl" />
+   301→   301→   301→        <div className="flex gap-2">
+   302→   302→   302→          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-9 w-24 rounded-lg" />)}
+   303→   303→   303→        </div>
+   304→   304→   304→        <Skeleton className="h-64 w-full rounded-xl" />
+   305→   305→   305→        <Skeleton className="h-48 w-full rounded-xl" />
+   306→   306→   306→      </div>
+   307→   307→   307→    )
+   308→   308→   308→  }
+   309→   309→   309→
+   310→   310→   310→  if (!data) {
+   311→   311→   311→    return (
+   312→   312→   312→      <EmptyState
+   313→   313→   313→        icon={Globe}
+   314→   314→   314→        title="Company not found"
+   315→   315→   315→        description="This company may have been deleted."
+   316→   316→   316→        actionLabel="Back to Companies"
+   317→   317→   317→        onAction={() => setActiveView('companies')}
+   318→   318→   318→      />
+   319→   319→   319→    )
+   320→   320→   320→  }
+   321→   321→   321→
+   322→   322→   322→  const { contacts = [], notes = [], researchCard, opportunities = [], timeline = [] } = data
+   323→   323→   323→  const score = data.intelligenceScore ?? 0
+   324→   324→   324→
+   325→   325→   325→  const segments = [
+   326→   326→   326→    { label: 'Data Completeness', value: Math.min(100, Math.round((score * 0.4) + 20)), color: '#2563EB' },
+   327→   327→   327→    { label: 'Contact Quality', value: Math.min(100, Math.round((score * 0.35) + 15)), color: '#059669' },
+   328→   328→   328→    { label: 'Research Depth', value: researchCard ? Math.min(100, Math.round((score * 0.25) + 10)) : 0, color: '#D97706' },
+   329→   329→   329→  ]
+   330→   330→   330→
+   331→   331→   331→  // Resolve target contact names for opportunities
+   332→   332→   332→  const contactMap: Record<string, string> = {}
+   333→   333→   333→  for (const c of contacts) { contactMap[c.id] = c.name }
+   334→   334→   334→
+   335→   335→   335→  const aiProviderLabel = prefs?.aiProvider
+   336→   336→   336→    ? prefs.aiProvider.charAt(0).toUpperCase() + prefs.aiProvider.slice(1)
+   337→   337→   337→    : null
+   338→   338→   338→  const hasAiKey = !!prefs?.aiApiKey
+   339→   339→   339→
+   340→   340→   340→  /* ═══════════════════════════════════════════════════════════════
+   341→   341→   341→     Render
+   342→   342→   342→     ═══════════════════════════════════════════════════════════════ */
+   343→   343→   343→
+   344→   344→   344→  return (
+   345→   345→   345→    <div className="space-y-6">
+   346→   346→   346→      {/* ══════════════════════════════════════════════════════════
+   347→   347→   347→          HEADER — Back button, Company card, Score Gauge
+   348→   348→   348→          ══════════════════════════════════════════════════════════ */}
+   349→   349→   349→      <div className="rounded-xl bg-white p-4 md:p-6 card-rest slide-up">
+   350→   350→   350→        <div className="flex items-start gap-4 md:gap-5">
+   351→   351→   351→          {/* Company Logo */}
+   352→   352→   352→          <div className="size-14 rounded-xl bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center border border-gray-200/60">
+   353→   353→   353→            {data.domain ? (
+   354→   354→   354→              <Image
+   355→   355→   355→                src={`https://logo.clearbit.com/${data.domain}`}
+   356→   356→   356→                alt=""
+   357→   357→   357→                width={56}
+   358→   358→   358→                height={56}
+   359→   359→   359→                className="size-14 object-contain p-2"
+   360→   360→   360→                onError={e => {
+   361→   361→   361→                  const el = e.target as HTMLImageElement
+   362→   362→   362→                  el.style.display = 'none'
+   363→   363→   363→                  if (el.parentElement) {
+   364→   364→   364→                    el.parentElement.innerHTML = `<span class="text-xl font-bold text-gray-400">${data.name?.charAt(0)}</span>`
+   365→   365→   365→                  }
+   366→   366→   366→                }}
+   367→   367→   367→              />
+   368→   368→   368→            ) : (
+   369→   369→   369→              <span className="text-xl font-bold text-gray-400">{data.name?.charAt(0)}</span>
+   370→   370→   370→            )}
+   371→   371→   371→          </div>
+   372→   372→   372→
+   373→   373→   373→          {/* Info Block */}
+   374→   374→   374→          <div className="flex-1 min-w-0">
+   375→   375→   375→            {/* Back button + Company Name */}
+   376→   376→   376→            <div className="flex items-center gap-2.5 flex-wrap">
+   377→   377→   377→              <button
+   378→   378→   378→                onClick={handleBack}
+   379→   379→   379→                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors group rounded-md px-1.5 py-0.5 -ml-1.5 hover:bg-gray-100"
+   380→   380→   380→              >
+   381→   381→   381→                <ArrowLeft className="size-4 group-hover:-translate-x-0.5 transition-transform" />
+   382→   382→   382→                <span className="hidden sm:inline">Back</span>
+   383→   383→   383→              </button>
+   384→   384→   384→              <span className="text-gray-300">/</span>
+   385→   385→   385→              <h2 className="text-xl font-bold text-gray-900 tracking-tight truncate">{data.name}</h2>
+   386→   386→   386→              {data.industry && (
+   387→   387→   387→                <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-xs font-normal border-0 rounded-md">
+   388→   388→   388→                  {data.industry}
+   389→   389→   389→                </Badge>
+   390→   390→   390→              )}
+   391→   391→   391→              <button
+   392→   392→   392→                onClick={handleStatusCycle}
+   393→   393→   393→                disabled={updateCompanyStatus.isPending}
+   394→   394→   394→                className={`text-[11px] font-medium px-2 py-0.5 rounded-md border capitalize ${companyStatusVariant(data.status)} ${updateCompanyStatus.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'} transition-opacity`}
+   395→   395→   395→                title="Click to cycle status"
+   396→   396→   396→              >
+   397→   397→   397→                {updateCompanyStatus.isPending ? <Loader2 className="size-3 animate-spin inline" /> : null}
+   398→   398→   398→                {data.status}
+   399→   399→   399→              </button>
+   400→   400→   400→            </div>
+   401→   401→   401→
+   402→   402→   402→            {/* Metadata row */}
+   403→   403→   403→            <div className="flex items-center gap-x-5 gap-y-1.5 mt-2.5 text-sm text-gray-500 flex-wrap">
+   404→   404→   404→              {data.domain && (
+   405→   405→   405→                <span className="flex items-center gap-1.5">
+   406→   406→   406→                  <Globe className="size-3.5 text-gray-400" />
+   407→   407→   407→                  <a
+   408→   408→   408→                    href={`https://${data.domain}`}
+   409→   409→   409→                    target="_blank"
+   410→   410→   410→                    rel="noopener noreferrer"
+   411→   411→   411→                    className="hover:text-gray-900 transition-colors"
+   412→   412→   412→                    onClick={e => e.stopPropagation()}
+   413→   413→   413→                  >
+   414→   414→   414→                    {data.domain}
+   415→   415→   415→                  </a>
+   416→   416→   416→                </span>
+   417→   417→   417→              )}
+   418→   418→   418→              {data.location && (
+   419→   419→   419→                <span className="flex items-center gap-1.5">
+   420→   420→   420→                  <MapPin className="size-3.5 text-gray-400" />
+   421→   421→   421→                  {data.location}
+   422→   422→   422→                </span>
+   423→   423→   423→              )}
+   424→   424→   424→              {data.country && data.location !== data.country && (
+   425→   425→   425→                <span className="flex items-center gap-1.5">
+   426→   426→   426→                  <MapPin className="size-3.5 text-gray-400" />
+   427→   427→   427→                  {data.country}
+   428→   428→   428→                </span>
+   429→   429→   429→              )}
+   430→   430→   430→              {data.employeeSize && (
+   431→   431→   431→                <span className="flex items-center gap-1.5">
+   432→   432→   432→                  <Users className="size-3.5 text-gray-400" />
+   433→   433→   433→                  {data.employeeSize} employees
+   434→   434→   434→                </span>
+   435→   435→   435→              )}
+   436→   436→   436→              {data.website && (
+   437→   437→   437→                <a
+   438→   438→   438→                  href={data.website.startsWith('http') ? data.website : `https://${data.website}`}
+   439→   439→   439→                  target="_blank"
+   440→   440→   440→                  rel="noopener noreferrer"
+   441→   441→   441→                  className="flex items-center gap-1.5 text-amber-600 hover:text-amber-700 transition-colors"
+   442→   442→   442→                  onClick={e => e.stopPropagation()}
+   443→   443→   443→                >
+   444→   444→   444→                  <ExternalLink className="size-3.5" />Website
+   445→   445→   445→                </a>
+   446→   446→   446→              )}
+   447→   447→   447→              {data.linkedinUrl && (
+   448→   448→   448→                <a
+   449→   449→   449→                  href={data.linkedinUrl.startsWith('http') ? data.linkedinUrl : `https://${data.linkedinUrl}`}
+   450→   450→   450→                  target="_blank"
+   451→   451→   451→                  rel="noopener noreferrer"
+   452→   452→   452→                  className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 transition-colors"
+   453→   453→   453→                  onClick={e => e.stopPropagation()}
+   454→   454→   454→                >
+   455→   455→   455→                  <Linkedin className="size-3.5" />LinkedIn
+   456→   456→   456→                </a>
+   457→   457→   457→              )}
+   458→   458→   458→              {data.dataFreshness && (
+   459→   459→   459→                <span className="flex items-center gap-1.5">
+   460→   460→   460→                  <StatusDot
+   461→   461→   461→                    status={data.dataFreshness === 'fresh' ? 'fresh' : data.dataFreshness === 'stale' ? 'stale' : data.dataFreshness === 'old' ? 'old' : 'unknown'}
+   462→   462→   462→                    pulse={data.dataFreshness === 'fresh'}
+   463→   463→   463→                  />
+   464→   464→   464→                  <span className="capitalize">{data.dataFreshness}</span>
+   465→   465→   465→                </span>
+   466→   466→   466→              )}
+   467→   467→   467→            </div>
+   468→   468→   468→
+   469→   469→   469→            {/* Action buttons */}
+   470→   470→   470→            <div className="flex items-center gap-2 mt-4 flex-wrap">
+   471→   471→   471→              <Button
+   472→   472→   472→                data-action="generate-research"
+   473→   473→   473→                size="sm"
+   474→   474→   474→                className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+   475→   475→   475→                onClick={() => generateResearch.mutate()}
+   476→   476→   476→                disabled={generateResearch.isPending}
+   477→   477→   477→              >
+   478→   478→   478→                {generateResearch.isPending
+   479→   479→   479→                  ? <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+   480→   480→   480→                  : <Sparkles className="size-3.5 mr-1.5" />
+   481→   481→   481→                }
+   482→   482→   482→                {generateResearch.isPending ? 'Generating...' : 'Generate AI Research'}
+   483→   483→   483→              </Button>
+   484→   484→   484→              <Button
+   485→   485→   485→                size="sm"
+   486→   486→   486→                variant="outline"
+   487→   487→   487→                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900"
+   488→   488→   488→                onClick={() => setNoteOpen(true)}
+   489→   489→   489→              >
+   490→   490→   490→                <Plus className="size-3.5 mr-1.5" /> Add Note
+   491→   491→   491→              </Button>
+   492→   492→   492→              <Button
+   493→   493→   493→                size="sm"
+   494→   494→   494→                variant="outline"
+   495→   495→   495→                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900"
+   496→   496→   496→                onClick={() => setContactOpen(true)}
+   497→   497→   497→              >
+   498→   498→   498→                <Plus className="size-3.5 mr-1.5" /> Add Contact
+   499→   499→   499→              </Button>
+   500→   500→   500→              <Button
+   501→   501→   501→                size="sm"
+   502→   502→   502→                variant="outline"
+   503→   503→   503→                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900"
+   504→   504→   504→                onClick={() => setOppOpen(true)}
+   505→   505→   505→              >
+   506→   506→   506→                <Target className="size-3.5 mr-1.5" /> Add Opportunity
+   507→   507→   507→              </Button>
+   508→   508→   508→              {contacts.length > 0 && (
+   509→   509→   509→                <Button
+   510→   510→   510→                  size="sm"
+   511→   511→   511→                  variant="outline"
+   512→   512→   512→                  className="h-8 text-xs border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 hover:text-amber-800"
+   513→   513→   513→                  onClick={() => handleGenerateEmail(contacts[0].id)}
+   514→   514→   514→                >
+   515→   515→   515→                  <Mail className="size-3.5 mr-1.5" /> Generate Email
+   516→   516→   516→                </Button>
+   517→   517→   517→              )}
+   518→   518→   518→            </div>
+   519→   519→   519→          </div>
+   520→   520→   520→
+   521→   521→   521→          {/* Score Gauge — desktop only */}
+   522→   522→   522→          <div className="hidden lg:block shrink-0">
+   523→   523→   523→            <ScoreGauge
+   524→   524→   524→              score={score}
+   525→   525→   525→              size={108}
+   526→   526→   526→              strokeWidth={9}
+   527→   527→   527→              label="Intel Score"
+   528→   528→   528→              sublabel={researchCard ? 'Research complete' : 'Generate research'}
+   529→   529→   529→              segments={segments}
+
+[showing lines 30-529 of 1384; use offset=530 with limit to continue reading]

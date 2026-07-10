@@ -1,5 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { apiError, apiSuccess, validateBody, sanitize } from "@/lib/apiHelpers";
+import { updateOpportunitySchema } from "@/lib/validations";
+import { OPPORTUNITY_STATUSES } from "@/lib/constants";
 
 export async function GET(
   request: NextRequest,
@@ -12,18 +15,12 @@ export async function GET(
       include: { company: true },
     });
     if (!opp) {
-      return NextResponse.json(
-        { error: "Opportunity not found" },
-        { status: 404 }
-      );
+      return apiError("Opportunity not found", 404);
     }
-    return NextResponse.json(opp);
+    return apiSuccess(opp);
   } catch (error) {
     console.error("Failed to fetch opportunity:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch opportunity" },
-      { status: 500 }
-    );
+    return apiError("Failed to fetch opportunity", 500);
   }
 }
 
@@ -33,25 +30,41 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
+    const raw = await request.json();
+    const parsed = validateBody(updateOpportunitySchema, raw);
+    if (parsed instanceof Response) {
+      return parsed;
+    }
 
     const existing = await db.opportunity.findUnique({
       where: { id },
       include: { company: true },
     });
     if (!existing) {
-      return NextResponse.json(
-        { error: "Opportunity not found" },
-        { status: 404 }
-      );
+      return apiError("Opportunity not found", 404);
     }
 
-    const allowed = ["title", "description", "targetContactId", "status", "nextAction"];
     const data: Record<string, unknown> = {};
-    for (const field of allowed) {
-      if (body[field] !== undefined) {
-        data[field] = body[field];
+
+    if (parsed.title !== undefined) data.title = sanitize(parsed.title);
+    if (parsed.description !== undefined) data.description = parsed.description ? sanitize(parsed.description) : undefined;
+    if (parsed.targetContactId !== undefined) {
+      if (parsed.targetContactId !== null) {
+        const contact = await db.contact.findUnique({ where: { id: parsed.targetContactId } });
+        if (!contact) {
+          return apiError("Target contact not found", 404);
+        }
       }
+      data.targetContactId = parsed.targetContactId;
+    }
+    if (parsed.status !== undefined) {
+      if (!OPPORTUNITY_STATUSES.includes(parsed.status)) {
+        return apiError(`Invalid status. Must be one of: ${OPPORTUNITY_STATUSES.join(", ")}`);
+      }
+      data.status = parsed.status;
+    }
+    if (parsed.nextAction !== undefined) {
+      data.nextAction = parsed.nextAction ? sanitize(parsed.nextAction) : null;
     }
 
     const updated = await db.opportunity.update({
@@ -71,18 +84,15 @@ export async function PATCH(
       });
     }
 
-    return NextResponse.json(updated);
+    return apiSuccess(updated);
   } catch (error) {
     console.error("Failed to update opportunity:", error);
-    return NextResponse.json(
-      { error: "Failed to update opportunity" },
-      { status: 500 }
-    );
+    return apiError("Failed to update opportunity", 500);
   }
 }
 
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -90,10 +100,7 @@ export async function DELETE(
 
     const existing = await db.opportunity.findUnique({ where: { id } });
     if (!existing) {
-      return NextResponse.json(
-        { error: "Opportunity not found" },
-        { status: 404 }
-      );
+      return apiError("Opportunity not found", 404);
     }
 
     await db.opportunity.delete({ where: { id } });
@@ -101,17 +108,14 @@ export async function DELETE(
     await db.timelineEntry.create({
       data: {
         companyId: existing.companyId,
-        action: "opportunity_deleted",
+        action: "opportunity_updated",
         details: `Opportunity "${existing.title}" deleted`,
       },
     });
 
-    return NextResponse.json({ success: true });
+    return apiSuccess({ success: true });
   } catch (error) {
     console.error("Failed to delete opportunity:", error);
-    return NextResponse.json(
-      { error: "Failed to delete opportunity" },
-      { status: 500 }
-    );
+    return apiError("Failed to delete opportunity", 500);
   }
 }

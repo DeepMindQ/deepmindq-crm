@@ -6,14 +6,11 @@ interface AppState {
   selectedCompanyId: string | null;
   selectedContactId: string | null;
   sidebarCollapsed: boolean;
-  searchQuery: string;
-  showNotifications: boolean;
   companyStatusFilter: string;
   setActiveView: (view: ActiveView) => void;
   setSelectedCompanyId: (id: string | null) => void;
   setSelectedContactId: (id: string | null) => void;
   toggleSidebar: () => void;
-  setSearchQuery: (query: string) => void;
   setCompanyStatusFilter: (filter: string) => void;
 }
 
@@ -26,9 +23,9 @@ function viewToHash(view: ActiveView, companyId?: string | null, contactId?: str
 }
 
 function hashToState(hash: string): Partial<AppState> | null {
-  const match = hash.match(/^#\/([a-z-]+)(?:\/([a-z0-9]+))?$/i);
+  const match = hash.match(/^#\/([a-z-]+)(?:\/([\w-]+))?$/);
   if (!match) return null;
-  const view = match[1] as ActiveView;
+  const view = match[1].toLowerCase() as ActiveView;
   const id = match[2] || null;
   if (view === 'company-profile') return { activeView: view, selectedCompanyId: id };
   if (view === 'contact-profile') return { activeView: view, selectedContactId: id };
@@ -53,8 +50,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedCompanyId: initialState?.selectedCompanyId || null,
   selectedContactId: initialState?.selectedContactId || null,
   sidebarCollapsed: false,
-  searchQuery: "",
-  showNotifications: true,
   companyStatusFilter: "all",
   setActiveView: (view) => {
     set({ activeView: view });
@@ -62,7 +57,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     safeHashUpdate(viewToHash(view, selectedCompanyId, selectedContactId).slice(1));
   },
   setSelectedCompanyId: (id) => {
-    set({ selectedCompanyId: id, activeView: id ? 'company-profile' : 'companies' });
+    set({ selectedCompanyId: id });
     if (id) {
       safeHashUpdate(viewToHash('company-profile', id).slice(1));
     } else {
@@ -70,7 +65,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   setSelectedContactId: (id) => {
-    set({ selectedContactId: id, activeView: id ? 'contact-profile' : 'contacts' });
+    set({ selectedContactId: id });
     if (id) {
       safeHashUpdate(viewToHash('contact-profile', id).slice(1));
     } else {
@@ -78,13 +73,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
-  setSearchQuery: (query) => set({ searchQuery: query }),
   setCompanyStatusFilter: (filter) => set({ companyStatusFilter: filter }),
 }));
 
-// Listen for browser back/forward
+// Listen for browser back/forward — store cleanup for HMR
 if (isBrowser) {
-  window.addEventListener('hashchange', () => {
+  const cleanup = () => {
+    window.removeEventListener('hashchange', hashchangeHandler);
+  };
+
+  const hashchangeHandler = () => {
     const state = hashToState(window.location.hash);
     if (state && state.activeView) {
       useAppStore.setState({
@@ -93,5 +91,12 @@ if (isBrowser) {
         ...(state.selectedContactId !== undefined ? { selectedContactId: state.selectedContactId } : {}),
       });
     }
-  });
+  };
+
+  window.addEventListener('hashchange', hashchangeHandler);
+
+  // Cleanup on HMR
+  if ((module as any).hot) {
+    (module as any).hot.dispose(cleanup);
+  }
 }

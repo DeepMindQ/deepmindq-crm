@@ -1,0 +1,910 @@
+     1→     1→import { describe, it, expect, afterEach, beforeEach } from 'vitest'
+     2→     2→import { db } from '../../../lib/db'
+     3→     3→import { GET as companiesGET, POST as companiesPOST } from '../companies/route'
+     4→     4→import { GET as contactsGET, POST as contactsPOST } from '../contacts/route'
+     5→     5→import { POST as notesPOST, DELETE as notesDELETE } from '../notes/route'
+     6→     6→import { GET as preferencesGET, PUT as preferencesPUT } from '../preferences/route'
+     7→     7→import { GET as timelineGET } from '../timeline/route'
+     8→     8→
+     9→     9→// Track IDs created during tests for cleanup
+    10→    10→const cleanupIds: {
+    11→    11→  companies: string[]
+    12→    12→  contacts: string[]
+    13→    13→  companyNotes: string[]
+    14→    14→  contactNotes: string[]
+    15→    15→  timelineEntries: string[]
+    16→    16→} = {
+    17→    17→  companies: [],
+    18→    18→  contacts: [],
+    19→    19→  companyNotes: [],
+    20→    20→  contactNotes: [],
+    21→    21→  timelineEntries: [],
+    22→    22→}
+    23→    23→
+    24→    24→beforeEach(() => {
+    25→    25→  cleanupIds.companies = []
+    26→    26→  cleanupIds.contacts = []
+    27→    27→  cleanupIds.companyNotes = []
+    28→    28→  cleanupIds.contactNotes = []
+    29→    29→  cleanupIds.timelineEntries = []
+    30→    30→})
+    31→    31→
+    32→    32→afterEach(async () => {
+    33→    33→  // Clean up in reverse dependency order
+    34→    34→  try {
+    35→    35→    if (cleanupIds.timelineEntries.length > 0) {
+    36→    36→      await db.timelineEntry.deleteMany({
+    37→    37→        where: { id: { in: cleanupIds.timelineEntries } },
+    38→    38→      })
+    39→    39→    }
+    40→    40→    if (cleanupIds.contactNotes.length > 0) {
+    41→    41→      await db.contactNote.deleteMany({
+    42→    42→        where: { id: { in: cleanupIds.contactNotes } },
+    43→    43→      })
+    44→    44→    }
+    45→    45→    if (cleanupIds.companyNotes.length > 0) {
+    46→    46→      await db.companyNote.deleteMany({
+    47→    47→        where: { id: { in: cleanupIds.companyNotes } },
+    48→    48→      })
+    49→    49→    }
+    50→    50→    if (cleanupIds.contacts.length > 0) {
+    51→    51→      await db.contact.deleteMany({
+    52→    52→        where: { id: { in: cleanupIds.contacts } },
+    53→    53→      })
+    54→    54→    }
+    55→    55→    if (cleanupIds.companies.length > 0) {
+    56→    56→      await db.company.deleteMany({
+    57→    57→        where: { id: { in: cleanupIds.companies } },
+    58→    58→      })
+    59→    59→    }
+    60→    60→  } catch (e) {
+    61→    61→    console.error('Cleanup error:', e)
+    62→    62→  }
+    63→    63→})
+    64→    64→
+    65→    65→// ===========================================================================
+    66→    66→// 1. Companies API
+    67→    67→// ===========================================================================
+    68→    68→
+    69→    69→describe('Companies API — GET', () => {
+    70→    70→  it('returns companies array with total, page, and pageSize', async () => {
+    71→    71→    const req = new Request('http://localhost/api/companies')
+    72→    72→    const res = await companiesGET(req as any)
+    73→    73→    const data = await res.json()
+    74→    74→
+    75→    75→    expect(res.status).toBe(200)
+    76→    76→    expect(Array.isArray(data.companies)).toBe(true)
+    77→    77→    expect(typeof data.total).toBe('number')
+    78→    78→    expect(typeof data.page).toBe('number')
+    79→    79→    expect(typeof data.pageSize).toBe('number')
+    80→    80→    expect(data.total).toBeGreaterThan(0)
+    81→    81→    expect(data.companies.length).toBeGreaterThan(0)
+    82→    82→  })
+    83→    83→
+    84→    84→  it('filters by search query', async () => {
+    85→    85→    // First get a company name from the DB
+    86→    86→    const existing = await db.company.findFirst({
+    87→    87→      where: { status: { not: 'archived' } },
+    88→    88→    })
+    89→    89→    expect(existing).not.toBeNull()
+    90→    90→
+    91→    91→    // Search for it by a substring of its name
+    92→    92→    const searchTerm = existing!.name.slice(0, Math.min(5, existing!.name.length))
+    93→    93→    const req = new Request(`http://localhost/api/companies?search=${encodeURIComponent(searchTerm)}`)
+    94→    94→    const res = await companiesGET(req as any)
+    95→    95→    const data = await res.json()
+    96→    96→
+    97→    97→    expect(res.status).toBe(200)
+    98→    98→    expect(data.companies.length).toBeGreaterThan(0)
+    99→    99→    // At least one result should contain the search term in name, domain, or website
+   100→   100→    const matches = data.companies.some(
+   101→   101→      (c: any) =>
+   102→   102→        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+   103→   103→        (c.domain && c.domain.toLowerCase().includes(searchTerm.toLowerCase())) ||
+   104→   104→        (c.website && c.website.toLowerCase().includes(searchTerm.toLowerCase()))
+   105→   105→    )
+   106→   106→    expect(matches).toBe(true)
+   107→   107→  })
+   108→   108→
+   109→   109→  it('filters by industry', async () => {
+   110→   110→    // Find a company with a non-null industry
+   111→   111→    const existing = await db.company.findFirst({
+   112→   112→      where: { status: { not: 'archived' }, industry: { not: null } },
+   113→   113→    })
+   114→   114→    if (!existing) return // skip if no data
+   115→   115→
+   116→   116→    const req = new Request(`http://localhost/api/companies?industry=${encodeURIComponent(existing.industry!)}`)
+   117→   117→    const res = await companiesGET(req as any)
+   118→   118→    const data = await res.json()
+   119→   119→
+   120→   120→    expect(res.status).toBe(200)
+   121→   121→    expect(data.companies.length).toBeGreaterThan(0)
+   122→   122→    for (const c of data.companies) {
+   123→   123→      expect(c.industry).toBe(existing.industry)
+   124→   124→    }
+   125→   125→  })
+   126→   126→
+   127→   127→  it('filters by status', async () => {
+   128→   128→    const req = new Request('http://localhost/api/companies?status=new')
+   129→   129→    const res = await companiesGET(req as any)
+   130→   130→    const data = await res.json()
+   131→   131→
+   132→   132→    expect(res.status).toBe(200)
+   133→   133→    for (const c of data.companies) {
+   134→   134→      expect(c.status).toBe('new')
+   135→   135→    }
+   136→   136→  })
+   137→   137→
+   138→   138→  it('excludes archived companies by default', async () => {
+   139→   139→    const req = new Request('http://localhost/api/companies')
+   140→   140→    const res = await companiesGET(req as any)
+   141→   141→    const data = await res.json()
+   142→   142→
+   143→   143→    expect(res.status).toBe(200)
+   144→   144→    for (const c of data.companies) {
+   145→   145→      expect(c.status).not.toBe('archived')
+   146→   146→    }
+   147→   147→  })
+   148→   148→
+   149→   149→  it('includes _count with contacts count per company', async () => {
+   150→   150→    const req = new Request('http://localhost/api/companies')
+   151→   151→    const res = await companiesGET(req as any)
+   152→   152→    const data = await res.json()
+   153→   153→
+   154→   154→    expect(res.status).toBe(200)
+   155→   155→    expect(data.companies.length).toBeGreaterThan(0)
+   156→   156→    for (const c of data.companies) {
+   157→   157→      expect(c._count).toBeDefined()
+   158→   158→      expect(typeof c._count.contacts).toBe('number')
+   159→   159→    }
+   160→   160→  })
+   161→   161→
+   162→   162→  it('respects pagination parameters', async () => {
+   163→   163→    const req = new Request('http://localhost/api/companies?page=1&pageSize=2')
+   164→   164→    const res = await companiesGET(req as any)
+   165→   165→    const data = await res.json()
+   166→   166→
+   167→   167→    expect(res.status).toBe(200)
+   168→   168→    expect(data.companies.length).toBeLessThanOrEqual(2)
+   169→   169→    expect(data.page).toBe(1)
+   170→   170→    expect(data.pageSize).toBe(2)
+   171→   171→  })
+   172→   172→})
+   173→   173→
+   174→   174→describe('Companies API — POST', () => {
+   175→   175→  it('creates a company successfully', async () => {
+   176→   176→    const req = new Request('http://localhost/api/companies', {
+   177→   177→      method: 'POST',
+   178→   178→      headers: { 'Content-Type': 'application/json' },
+   179→   179→      body: JSON.stringify({
+   180→   180→        name: 'Integration Test Company',
+   181→   181→        domain: 'integration-test.com',
+   182→   182→        industry: 'SaaS',
+   183→   183→        country: 'US',
+   184→   184→      }),
+   185→   185→    })
+   186→   186→
+   187→   187→    const res = await companiesPOST(req as any)
+   188→   188→    const data = await res.json()
+   189→   189→
+   190→   190→    expect(res.status).toBe(201)
+   191→   191→    expect(data.name).toBe('Integration Test Company')
+   192→   192→    expect(data.domain).toBe('integration-test.com')
+   193→   193→    expect(data.industry).toBe('SaaS')
+   194→   194→    expect(data.country).toBe('US')
+   195→   195→    expect(data.id).toBeDefined()
+   196→   196→    cleanupIds.companies.push(data.id)
+   197→   197→  })
+   198→   198→
+   199→   199→  it('rejects empty name', async () => {
+   200→   200→    const req = new Request('http://localhost/api/companies', {
+   201→   201→      method: 'POST',
+   202→   202→      headers: { 'Content-Type': 'application/json' },
+   203→   203→      body: JSON.stringify({ name: '' }),
+   204→   204→    })
+   205→   205→
+   206→   206→    const res = await companiesPOST(req as any)
+   207→   207→    const data = await res.json()
+   208→   208→
+   209→   209→    expect(res.status).toBe(400)
+   210→   210→    expect(data.error).toContain('name')
+   211→   211→  })
+   212→   212→
+   213→   213→  it('rejects missing name', async () => {
+   214→   214→    const req = new Request('http://localhost/api/companies', {
+   215→   215→      method: 'POST',
+   216→   216→      headers: { 'Content-Type': 'application/json' },
+   217→   217→      body: JSON.stringify({ domain: 'test.com' }),
+   218→   218→    })
+   219→   219→
+   220→   220→    const res = await companiesPOST(req as any)
+   221→   221→    const data = await res.json()
+   222→   222→
+   223→   223→    expect(res.status).toBe(400)
+   224→   224→    expect(data.error).toContain('name')
+   225→   225→  })
+   226→   226→
+   227→   227→  it('rejects whitespace-only name', async () => {
+   228→   228→    const req = new Request('http://localhost/api/companies', {
+   229→   229→      method: 'POST',
+   230→   230→      headers: { 'Content-Type': 'application/json' },
+   231→   231→      body: JSON.stringify({ name: '   ' }),
+   232→   232→    })
+   233→   233→
+   234→   234→    const res = await companiesPOST(req as any)
+   235→   235→    const data = await res.json()
+   236→   236→
+   237→   237→    expect(res.status).toBe(400)
+   238→   238→    expect(data.error).toContain('name')
+   239→   239→  })
+   240→   240→
+   241→   241→  it('creates a timeline entry when company is created', async () => {
+   242→   242→    const req = new Request('http://localhost/api/companies', {
+   243→   243→      method: 'POST',
+   244→   244→      headers: { 'Content-Type': 'application/json' },
+   245→   245→      body: JSON.stringify({ name: 'Timeline Test Company' }),
+   246→   246→    })
+   247→   247→
+   248→   248→    const res = await companiesPOST(req as any)
+   249→   249→    const data = await res.json()
+   250→   250→    expect(res.status).toBe(201)
+   251→   251→
+   252→   252→    const timeline = await db.timelineEntry.findFirst({
+   253→   253→      where: { companyId: data.id, action: 'company_created' },
+   254→   254→    })
+   255→   255→    expect(timeline).not.toBeNull()
+   256→   256→    expect(timeline!.details).toContain('Timeline Test Company')
+   257→   257→    if (timeline) cleanupIds.timelineEntries.push(timeline.id)
+   258→   258→    cleanupIds.companies.push(data.id)
+   259→   259→  })
+   260→   260→})
+   261→   261→
+   262→   262→// ===========================================================================
+   263→   263→// 2. Contacts API
+   264→   264→// ===========================================================================
+   265→   265→
+   266→   266→describe('Contacts API — GET', () => {
+   267→   267→  it('returns contacts array with total, page, and pageSize', async () => {
+   268→   268→    const req = new Request('http://localhost/api/contacts')
+   269→   269→    const res = await contactsGET(req as any)
+   270→   270→    const data = await res.json()
+   271→   271→
+   272→   272→    expect(res.status).toBe(200)
+   273→   273→    expect(Array.isArray(data.contacts)).toBe(true)
+   274→   274→    expect(typeof data.total).toBe('number')
+   275→   275→    expect(typeof data.page).toBe('number')
+   276→   276→    expect(typeof data.pageSize).toBe('number')
+   277→   277→    expect(data.total).toBeGreaterThan(0)
+   278→   278→    expect(data.contacts.length).toBeGreaterThan(0)
+   279→   279→  })
+   280→   280→
+   281→   281→  it('includes company relation in each contact', async () => {
+   282→   282→    const req = new Request('http://localhost/api/contacts')
+   283→   283→    const res = await contactsGET(req as any)
+   284→   284→    const data = await res.json()
+   285→   285→
+   286→   286→    expect(res.status).toBe(200)
+   287→   287→    for (const c of data.contacts) {
+   288→   288→      expect(c.company).toBeDefined()
+   289→   289→      expect(c.company.id).toBeDefined()
+   290→   290→      expect(c.company.name).toBeDefined()
+   291→   291→    }
+   292→   292→  })
+   293→   293→
+   294→   294→  it('filters by companyId', async () => {
+   295→   295→    // Get a real company with contacts
+   296→   296→    const company = await db.company.findFirst({
+   297→   297→      where: {
+   298→   298→        status: { not: 'archived' },
+   299→   299→        contacts: { some: { archivedAt: null } },
+   300→   300→      },
+   301→   301→      include: { contacts: { where: { archivedAt: null }, take: 1 } },
+   302→   302→    })
+   303→   303→    if (!company) return // skip if no data
+   304→   304→
+   305→   305→    const req = new Request(`http://localhost/api/contacts?companyId=${company.id}`)
+   306→   306→    const res = await contactsGET(req as any)
+   307→   307→    const data = await res.json()
+   308→   308→
+   309→   309→    expect(res.status).toBe(200)
+   310→   310→    expect(data.contacts.length).toBeGreaterThan(0)
+   311→   311→    for (const c of data.contacts) {
+   312→   312→      expect(c.companyId).toBe(company.id)
+   313→   313→    }
+   314→   314→  })
+   315→   315→
+   316→   316→  it('filters by search query', async () => {
+   317→   317→    const existing = await db.contact.findFirst({ where: { archivedAt: null } })
+   318→   318→    expect(existing).not.toBeNull()
+   319→   319→
+   320→   320→    const searchTerm = existing!.name.slice(0, Math.min(4, existing!.name.length))
+   321→   321→    const req = new Request(`http://localhost/api/contacts?search=${encodeURIComponent(searchTerm)}`)
+   322→   322→    const res = await contactsGET(req as any)
+   323→   323→    const data = await res.json()
+   324→   324→
+   325→   325→    expect(res.status).toBe(200)
+   326→   326→    expect(data.contacts.length).toBeGreaterThan(0)
+   327→   327→    const matches = data.contacts.some(
+   328→   328→      (c: any) =>
+   329→   329→        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+   330→   330→        (c.email && c.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+   331→   331→        (c.jobTitle && c.jobTitle.toLowerCase().includes(searchTerm.toLowerCase()))
+   332→   332→    )
+   333→   333→    expect(matches).toBe(true)
+   334→   334→  })
+   335→   335→
+   336→   336→  it('excludes archived contacts', async () => {
+   337→   337→    const req = new Request('http://localhost/api/contacts')
+   338→   338→    const res = await contactsGET(req as any)
+   339→   339→    const data = await res.json()
+   340→   340→
+   341→   341→    expect(res.status).toBe(200)
+   342→   342→    for (const c of data.contacts) {
+   343→   343→      expect(c.archivedAt).toBeNull()
+   344→   344→    }
+   345→   345→  })
+   346→   346→})
+   347→   347→
+   348→   348→describe('Contacts API — POST', () => {
+   349→   349→  let testCompanyId: string
+   350→   350→
+   351→   351→  beforeEach(async () => {
+   352→   352→    // Create a company for the contact to belong to
+   353→   353→    const company = await db.company.create({
+   354→   354→      data: { name: 'Contact Test Parent Co' },
+   355→   355→    })
+   356→   356→    testCompanyId = company.id
+   357→   357→    cleanupIds.companies.push(company.id)
+   358→   358→  })
+   359→   359→
+   360→   360→  it('creates a contact successfully', async () => {
+   361→   361→    const req = new Request('http://localhost/api/contacts', {
+   362→   362→      method: 'POST',
+   363→   363→      headers: { 'Content-Type': 'application/json' },
+   364→   364→      body: JSON.stringify({
+   365→   365→        name: 'Integration Test Contact',
+   366→   366→        email: 'test@integration.com',
+   367→   367→        jobTitle: 'CEO',
+   368→   368→        companyId: testCompanyId,
+   369→   369→      }),
+   370→   370→    })
+   371→   371→
+   372→   372→    const res = await contactsPOST(req as any)
+   373→   373→    const data = await res.json()
+   374→   374→
+   375→   375→    expect(res.status).toBe(201)
+   376→   376→    expect(data.name).toBe('Integration Test Contact')
+   377→   377→    expect(data.email).toBe('test@integration.com')
+   378→   378→    expect(data.jobTitle).toBe('CEO')
+   379→   379→    expect(data.companyId).toBe(testCompanyId)
+   380→   380→    expect(data.id).toBeDefined()
+   381→   381→    cleanupIds.contacts.push(data.id)
+   382→   382→  })
+   383→   383→
+   384→   384→  it('rejects missing name', async () => {
+   385→   385→    const req = new Request('http://localhost/api/contacts', {
+   386→   386→      method: 'POST',
+   387→   387→      headers: { 'Content-Type': 'application/json' },
+   388→   388→      body: JSON.stringify({
+   389→   389→        companyId: testCompanyId,
+   390→   390→        email: 'test@integration.com',
+   391→   391→      }),
+   392→   392→    })
+   393→   393→
+   394→   394→    const res = await contactsPOST(req as any)
+   395→   395→    const data = await res.json()
+   396→   396→
+   397→   397→    expect(res.status).toBe(400)
+   398→   398→    expect(data.error).toContain('name')
+   399→   399→  })
+   400→   400→
+   401→   401→  it('rejects empty name', async () => {
+   402→   402→    const req = new Request('http://localhost/api/contacts', {
+   403→   403→      method: 'POST',
+   404→   404→      headers: { 'Content-Type': 'application/json' },
+   405→   405→      body: JSON.stringify({
+   406→   406→        name: '',
+   407→   407→        companyId: testCompanyId,
+   408→   408→      }),
+   409→   409→    })
+   410→   410→
+   411→   411→    const res = await contactsPOST(req as any)
+   412→   412→    const data = await res.json()
+   413→   413→
+   414→   414→    expect(res.status).toBe(400)
+   415→   415→    expect(data.error).toContain('name')
+   416→   416→  })
+   417→   417→
+   418→   418→  it('rejects missing companyId', async () => {
+   419→   419→    const req = new Request('http://localhost/api/contacts', {
+   420→   420→      method: 'POST',
+   421→   421→      headers: { 'Content-Type': 'application/json' },
+   422→   422→      body: JSON.stringify({
+   423→   423→        name: 'John Doe',
+   424→   424→      }),
+   425→   425→    })
+   426→   426→
+   427→   427→    const res = await contactsPOST(req as any)
+   428→   428→    const data = await res.json()
+   429→   429→
+   430→   430→    expect(res.status).toBe(400)
+   431→   431→    expect(data.error).toContain('Company ID')
+   432→   432→  })
+   433→   433→
+   434→   434→  it('returns 404 for non-existent company', async () => {
+   435→   435→    const req = new Request('http://localhost/api/contacts', {
+   436→   436→      method: 'POST',
+   437→   437→      headers: { 'Content-Type': 'application/json' },
+   438→   438→      body: JSON.stringify({
+   439→   439→        name: 'John Doe',
+   440→   440→        companyId: 'nonexistent_company_id',
+   441→   441→      }),
+   442→   442→    })
+   443→   443→
+   444→   444→    const res = await contactsPOST(req as any)
+   445→   445→    const data = await res.json()
+   446→   446→
+   447→   447→    expect(res.status).toBe(404)
+   448→   448→    expect(data.error).toContain('not found')
+   449→   449→  })
+   450→   450→
+   451→   451→  it('creates a timeline entry when contact is created', async () => {
+   452→   452→    const req = new Request('http://localhost/api/contacts', {
+   453→   453→      method: 'POST',
+   454→   454→      headers: { 'Content-Type': 'application/json' },
+   455→   455→      body: JSON.stringify({
+   456→   456→        name: 'Timeline Contact Test',
+   457→   457→        companyId: testCompanyId,
+   458→   458→      }),
+   459→   459→    })
+   460→   460→
+   461→   461→    const res = await contactsPOST(req as any)
+   462→   462→    const data = await res.json()
+   463→   463→    expect(res.status).toBe(201)
+   464→   464→
+   465→   465→    const timeline = await db.timelineEntry.findFirst({
+   466→   466→      where: { contactId: data.id, action: 'contact_created' },
+   467→   467→    })
+   468→   468→    expect(timeline).not.toBeNull()
+   469→   469→    expect(timeline!.details).toContain('Timeline Contact Test')
+   470→   470→    if (timeline) cleanupIds.timelineEntries.push(timeline.id)
+   471→   471→    cleanupIds.contacts.push(data.id)
+   472→   472→  })
+   473→   473→})
+   474→   474→
+   475→   475→// ===========================================================================
+   476→   476→// 3. Notes API
+   477→   477→// ===========================================================================
+   478→   478→
+   479→   479→describe('Notes API — POST', () => {
+   480→   480→  it('creates a company note', async () => {
+   481→   481→    const company = await db.company.create({
+   482→   482→      data: { name: 'Note Test Company' },
+   483→   483→    })
+   484→   484→    cleanupIds.companies.push(company.id)
+   485→   485→
+   486→   486→    const req = new Request('http://localhost/api/notes', {
+   487→   487→      method: 'POST',
+   488→   488→      headers: { 'Content-Type': 'application/json' },
+   489→   489→      body: JSON.stringify({
+   490→   490→        companyId: company.id,
+   491→   491→        body: 'This is a company integration test note',
+   492→   492→        noteType: 'call',
+   493→   493→      }),
+   494→   494→    })
+   495→   495→
+   496→   496→    const res = await notesPOST(req as any)
+   497→   497→    const data = await res.json()
+   498→   498→
+   499→   499→    expect(res.status).toBe(201)
+   500→   500→    expect(data.body).toBe('This is a company integration test note')
+   501→   501→    expect(data.companyId).toBe(company.id)
+   502→   502→    expect(data.noteType).toBe('call')
+   503→   503→    expect(data.id).toBeDefined()
+   504→   504→    cleanupIds.companyNotes.push(data.id)
+   505→   505→
+   506→   506→    // Verify a timeline entry was created
+   507→   507→    const timeline = await db.timelineEntry.findFirst({
+   508→   508→      where: { companyId: company.id, action: 'note_added' },
+   509→   509→    })
+   510→   510→    expect(timeline).not.toBeNull()
+   511→   511→    if (timeline) cleanupIds.timelineEntries.push(timeline.id)
+   512→   512→  })
+   513→   513→
+   514→   514→  it('creates a contact note', async () => {
+   515→   515→    const company = await db.company.create({
+   516→   516→      data: { name: 'Contact Note Test Company' },
+   517→   517→    })
+   518→   518→    cleanupIds.companies.push(company.id)
+   519→   519→
+   520→   520→    const contact = await db.contact.create({
+   521→   521→      data: {
+   522→   522→        name: 'Contact Note Test Person',
+   523→   523→        companyId: company.id,
+   524→   524→      },
+   525→   525→    })
+   526→   526→    cleanupIds.contacts.push(contact.id)
+   527→   527→
+   528→   528→    const req = new Request('http://localhost/api/notes', {
+   529→   529→      method: 'POST',
+   530→   530→      headers: { 'Content-Type': 'application/json' },
+   531→   531→      body: JSON.stringify({
+   532→   532→        contactId: contact.id,
+   533→   533→        body: 'This is a contact integration test note',
+   534→   534→        noteType: 'meeting',
+   535→   535→      }),
+   536→   536→    })
+   537→   537→
+   538→   538→    const res = await notesPOST(req as any)
+   539→   539→    const data = await res.json()
+   540→   540→
+   541→   541→    expect(res.status).toBe(201)
+   542→   542→    expect(data.body).toBe('This is a contact integration test note')
+   543→   543→    expect(data.contactId).toBe(contact.id)
+   544→   544→    expect(data.noteType).toBe('meeting')
+   545→   545→    expect(data.id).toBeDefined()
+   546→   546→    cleanupIds.contactNotes.push(data.id)
+   547→   547→
+   548→   548→    // Verify a timeline entry was created
+   549→   549→    const timeline = await db.timelineEntry.findFirst({
+   550→   550→      where: { contactId: contact.id, action: 'note_added' },
+   551→   551→    })
+   552→   552→    expect(timeline).not.toBeNull()
+   553→   553→    if (timeline) cleanupIds.timelineEntries.push(timeline.id)
+   554→   554→  })
+   555→   555→
+   556→   556→  it('rejects missing note body', async () => {
+   557→   557→    const company = await db.company.create({
+   558→   558→      data: { name: 'Empty Note Test Company' },
+   559→   559→    })
+   560→   560→    cleanupIds.companies.push(company.id)
+   561→   561→
+   562→   562→    const req = new Request('http://localhost/api/notes', {
+   563→   563→      method: 'POST',
+   564→   564→      headers: { 'Content-Type': 'application/json' },
+   565→   565→      body: JSON.stringify({
+   566→   566→        companyId: company.id,
+   567→   567→        body: '',
+   568→   568→      }),
+   569→   569→    })
+   570→   570→
+   571→   571→    const res = await notesPOST(req as any)
+   572→   572→    const data = await res.json()
+   573→   573→
+   574→   574→    expect(res.status).toBe(400)
+   575→   575→    expect(data.error).toContain('body')
+   576→   576→  })
+   577→   577→
+   578→   578→  it('rejects missing companyId and contactId', async () => {
+   579→   579→    const req = new Request('http://localhost/api/notes', {
+   580→   580→      method: 'POST',
+   581→   581→      headers: { 'Content-Type': 'application/json' },
+   582→   582→      body: JSON.stringify({
+   583→   583→        body: 'Orphan note',
+   584→   584→      }),
+   585→   585→    })
+   586→   586→
+   587→   587→    const res = await notesPOST(req as any)
+   588→   588→    const data = await res.json()
+   589→   589→
+   590→   590→    expect(res.status).toBe(400)
+   591→   591→    expect(data.error).toContain('companyId')
+   592→   592→    expect(data.error).toContain('contactId')
+   593→   593→  })
+   594→   594→
+   595→   595→  it('returns 404 for non-existent company', async () => {
+   596→   596→    const req = new Request('http://localhost/api/notes', {
+   597→   597→      method: 'POST',
+   598→   598→      headers: { 'Content-Type': 'application/json' },
+   599→   599→      body: JSON.stringify({
+   600→   600→        companyId: 'nonexistent_company',
+   601→   601→        body: 'Note for ghost company',
+   602→   602→      }),
+   603→   603→    })
+   604→   604→
+   605→   605→    const res = await notesPOST(req as any)
+   606→   606→    const data = await res.json()
+   607→   607→
+   608→   608→    expect(res.status).toBe(404)
+   609→   609→    expect(data.error).toContain('not found')
+   610→   610→  })
+   611→   611→})
+   612→   612→
+   613→   613→describe('Notes API — DELETE', () => {
+   614→   614→  it('deletes a company note', async () => {
+   615→   615→    const company = await db.company.create({
+   616→   616→      data: { name: 'Delete Note Test Company' },
+   617→   617→    })
+   618→   618→    cleanupIds.companies.push(company.id)
+   619→   619→
+   620→   620→    const note = await db.companyNote.create({
+   621→   621→      data: {
+   622→   622→        companyId: company.id,
+   623→   623→        body: 'Note to delete',
+   624→   624→      },
+   625→   625→    })
+   626→   626→
+   627→   627→    const req = new Request(`http://localhost/api/notes?id=${note.id}&type=company`, {
+   628→   628→      method: 'DELETE',
+   629→   629→    })
+   630→   630→
+   631→   631→    const res = await notesDELETE(req as any)
+   632→   632→    const data = await res.json()
+   633→   633→
+   634→   634→    expect(res.status).toBe(200)
+   635→   635→    expect(data.success).toBe(true)
+   636→   636→
+   637→   637→    // Verify note is gone
+   638→   638→    const deleted = await db.companyNote.findUnique({ where: { id: note.id } })
+   639→   639→    expect(deleted).toBeNull()
+   640→   640→  })
+   641→   641→
+   642→   642→  it('deletes a contact note', async () => {
+   643→   643→    const company = await db.company.create({
+   644→   644→      data: { name: 'Delete Contact Note Test Co' },
+   645→   645→    })
+   646→   646→    cleanupIds.companies.push(company.id)
+   647→   647→
+   648→   648→    const contact = await db.contact.create({
+   649→   649→      data: { name: 'Delete Note Contact', companyId: company.id },
+   650→   650→    })
+   651→   651→    cleanupIds.contacts.push(contact.id)
+   652→   652→
+   653→   653→    const note = await db.contactNote.create({
+   654→   654→      data: {
+   655→   655→        contactId: contact.id,
+   656→   656→        body: 'Contact note to delete',
+   657→   657→      },
+   658→   658→    })
+   659→   659→
+   660→   660→    const req = new Request(`http://localhost/api/notes?id=${note.id}&type=contact`, {
+   661→   661→      method: 'DELETE',
+   662→   662→    })
+   663→   663→
+   664→   664→    const res = await notesDELETE(req as any)
+   665→   665→    const data = await res.json()
+   666→   666→
+   667→   667→    expect(res.status).toBe(200)
+   668→   668→    expect(data.success).toBe(true)
+   669→   669→
+   670→   670→    const deleted = await db.contactNote.findUnique({ where: { id: note.id } })
+   671→   671→    expect(deleted).toBeNull()
+   672→   672→  })
+   673→   673→
+   674→   674→  it('returns 404 for non-existent note', async () => {
+   675→   675→    const req = new Request('http://localhost/api/notes?id=nonexistent&type=company', {
+   676→   676→      method: 'DELETE',
+   677→   677→    })
+   678→   678→
+   679→   679→    const res = await notesDELETE(req as any)
+   680→   680→    expect(res.status).toBe(404)
+   681→   681→  })
+   682→   682→})
+   683→   683→
+   684→   684→// ===========================================================================
+   685→   685→// 4. Preferences API
+   686→   686→// ===========================================================================
+   687→   687→
+   688→   688→describe('Preferences API — GET', () => {
+   689→   689→  it('returns preferences object with default fields', async () => {
+   690→   690→    const req = new Request('http://localhost/api/preferences')
+   691→   691→    const res = await preferencesGET(req as any)
+   692→   692→    const data = await res.json()
+   693→   693→
+   694→   694→    expect(res.status).toBe(200)
+   695→   695→    expect(data.id).toBeDefined()
+   696→   696→    // Check for expected default fields
+   697→   697→    expect(data).toHaveProperty('tone')
+   698→   698→    expect(data).toHaveProperty('emailLength')
+   699→   699→    expect(data).toHaveProperty('openerStyle')
+   700→   700→    expect(data).toHaveProperty('signOff')
+   701→   701→    expect(data).toHaveProperty('ctaStyle')
+   702→   702→    expect(data).toHaveProperty('aiProvider')
+   703→   703→    expect(data).toHaveProperty('aiModel')
+   704→   704→  })
+   705→   705→
+   706→   706→  it('creates default preferences if none exist', async () => {
+   707→   707→    // Delete any existing preferences to test creation path
+   708→   708→    await db.userPreferences.deleteMany({})
+   709→   709→
+   710→   710→    const req = new Request('http://localhost/api/preferences')
+   711→   711→    const res = await preferencesGET(req as any)
+   712→   712→    const data = await res.json()
+   713→   713→
+   714→   714→    expect(res.status).toBe(200)
+   715→   715→    expect(data.id).toBeDefined()
+   716→   716→    expect(data.tone).toBeDefined()
+   717→   717→  })
+   718→   718→})
+   719→   719→
+   720→   720→describe('Preferences API — PUT', () => {
+   721→   721→  let originalPrefs: any
+   722→   722→
+   723→   723→  beforeEach(async () => {
+   724→   724→    originalPrefs = await db.userPreferences.findFirst()
+   725→   725→  })
+   726→   726→
+   727→   727→  afterEach(async () => {
+   728→   728→    // Restore original preferences
+   729→   729→    if (originalPrefs) {
+   730→   730→      await db.userPreferences.update({
+   731→   731→        where: { id: originalPrefs.id },
+   732→   732→        data: {
+   733→   733→          tone: originalPrefs.tone,
+   734→   734→          emailLength: originalPrefs.emailLength,
+   735→   735→          openerStyle: originalPrefs.openerStyle,
+   736→   736→          signOff: originalPrefs.signOff,
+   737→   737→          avoidPhrases: originalPrefs.avoidPhrases,
+   738→   738→          ctaStyle: originalPrefs.ctaStyle,
+   739→   739→          aiProvider: originalPrefs.aiProvider,
+   740→   740→          aiModel: originalPrefs.aiModel,
+   741→   741→          aiApiKey: originalPrefs.aiApiKey,
+   742→   742→        },
+   743→   743→      })
+   744→   744→    }
+   745→   745→  })
+   746→   746→
+   747→   747→  it('updates tone preference', async () => {
+   748→   748→    const req = new Request('http://localhost/api/preferences', {
+   749→   749→      method: 'PUT',
+   750→   750→      headers: { 'Content-Type': 'application/json' },
+   751→   751→      body: JSON.stringify({ tone: 'formal' }),
+   752→   752→    })
+   753→   753→
+   754→   754→    const res = await preferencesPUT(req as any)
+   755→   755→    const data = await res.json()
+   756→   756→
+   757→   757→    expect(res.status).toBe(200)
+   758→   758→    expect(data.tone).toBe('formal')
+   759→   759→  })
+   760→   760→
+   761→   761→  it('updates multiple fields at once', async () => {
+   762→   762→    const req = new Request('http://localhost/api/preferences', {
+   763→   763→      method: 'PUT',
+   764→   764→      headers: { 'Content-Type': 'application/json' },
+   765→   765→      body: JSON.stringify({
+   766→   766→        tone: 'casual',
+   767→   767→        emailLength: 'short',
+   768→   768→        ctaStyle: 'direct',
+   769→   769→      }),
+   770→   770→    })
+   771→   771→
+   772→   772→    const res = await preferencesPUT(req as any)
+   773→   773→    const data = await res.json()
+   774→   774→
+   775→   775→    expect(res.status).toBe(200)
+   776→   776→    expect(data.tone).toBe('casual')
+   777→   777→    expect(data.emailLength).toBe('short')
+   778→   778→    expect(data.ctaStyle).toBe('direct')
+   779→   779→  })
+   780→   780→
+   781→   781→  it('ignores non-allowed fields', async () => {
+   782→   782→    const req = new Request('http://localhost/api/preferences', {
+   783→   783→      method: 'PUT',
+   784→   784→      headers: { 'Content-Type': 'application/json' },
+   785→   785→      body: JSON.stringify({
+   786→   786→        tone: 'professional',
+   787→   787→        hackerField: 'should be ignored',
+   788→   788→        anotherBadField: 123,
+   789→   789→      }),
+   790→   790→    })
+   791→   791→
+   792→   792→    const res = await preferencesPUT(req as any)
+   793→   793→    const data = await res.json()
+   794→   794→
+   795→   795→    expect(res.status).toBe(200)
+   796→   796→    expect(data.tone).toBe('professional')
+   797→   797→    expect((data as any).hackerField).toBeUndefined()
+   798→   798→    expect((data as any).anotherBadField).toBeUndefined()
+   799→   799→  })
+   800→   800→})
+   801→   801→
+   802→   802→// ===========================================================================
+   803→   803→// 5. Timeline API
+   804→   804→// ===========================================================================
+   805→   805→
+   806→   806→describe('Timeline API — GET', () => {
+   807→   807→  it('returns timeline entries array', async () => {
+   808→   808→    const req = new Request('http://localhost/api/timeline')
+   809→   809→    const res = await timelineGET(req as any)
+   810→   810→    const data = await res.json()
+   811→   811→
+   812→   812→    expect(res.status).toBe(200)
+   813→   813→    expect(Array.isArray(data)).toBe(true)
+   814→   814→    expect(data.length).toBeGreaterThan(0)
+   815→   815→  })
+   816→   816→
+   817→   817→  it('includes company and contact relations', async () => {
+   818→   818→    const req = new Request('http://localhost/api/timeline')
+   819→   819→    const res = await timelineGET(req as any)
+   820→   820→    const data = await res.json()
+   821→   821→
+   822→   822→    expect(res.status).toBe(200)
+   823→   823→    // At least some entries should have company or contact
+   824→   824→    const withRelations = data.filter(
+   825→   825→      (e: any) => e.company || e.contact
+   826→   826→    )
+   827→   827→    expect(withRelations.length).toBeGreaterThan(0)
+   828→   828→  })
+   829→   829→
+   830→   830→  it('filters by companyId', async () => {
+   831→   831→    // Create a company and a timeline entry for it
+   832→   832→    const company = await db.company.create({
+   833→   833→      data: { name: 'Timeline Filter Test Co' },
+   834→   834→    })
+   835→   835→    cleanupIds.companies.push(company.id)
+   836→   836→
+   837→   837→    await db.timelineEntry.create({
+   838→   838→      data: {
+   839→   839→        companyId: company.id,
+   840→   840→        action: 'test_action',
+   841→   841→        details: 'Test timeline entry for filtering',
+   842→   842→      },
+   843→   843→    })
+   844→   844→
+   845→   845→    const req = new Request(`http://localhost/api/timeline?companyId=${company.id}`)
+   846→   846→    const res = await timelineGET(req as any)
+   847→   847→    const data = await res.json()
+   848→   848→
+   849→   849→    expect(res.status).toBe(200)
+   850→   850→    expect(data.length).toBeGreaterThan(0)
+   851→   851→    for (const entry of data) {
+   852→   852→      expect(entry.companyId).toBe(company.id)
+   853→   853→    }
+   854→   854→  })
+   855→   855→
+   856→   856→  it('filters by contactId', async () => {
+   857→   857→    const company = await db.company.create({
+   858→   858→      data: { name: 'Timeline Contact Filter Co' },
+   859→   859→    })
+   860→   860→    cleanupIds.companies.push(company.id)
+   861→   861→
+   862→   862→    const contact = await db.contact.create({
+   863→   863→      data: { name: 'Timeline Contact Filter Person', companyId: company.id },
+   864→   864→    })
+   865→   865→    cleanupIds.contacts.push(contact.id)
+   866→   866→
+   867→   867→    await db.timelineEntry.create({
+   868→   868→      data: {
+   869→   869→        companyId: company.id,
+   870→   870→        contactId: contact.id,
+   871→   871→        action: 'contact_test_action',
+   872→   872→        details: 'Test timeline entry for contact filtering',
+   873→   873→      },
+   874→   874→    })
+   875→   875→
+   876→   876→    const req = new Request(`http://localhost/api/timeline?contactId=${contact.id}`)
+   877→   877→    const res = await timelineGET(req as any)
+   878→   878→    const data = await res.json()
+   879→   879→
+   880→   880→    expect(res.status).toBe(200)
+   881→   881→    expect(data.length).toBeGreaterThan(0)
+   882→   882→    for (const entry of data) {
+   883→   883→      expect(entry.contactId).toBe(contact.id)
+   884→   884→    }
+   885→   885→  })
+   886→   886→
+   887→   887→  it('respects limit parameter', async () => {
+   888→   888→    const req = new Request('http://localhost/api/timeline?limit=3')
+   889→   889→    const res = await timelineGET(req as any)
+   890→   890→    const data = await res.json()
+   891→   891→
+   892→   892→    expect(res.status).toBe(200)
+   893→   893→    expect(data.length).toBeLessThanOrEqual(3)
+   894→   894→  })
+   895→   895→
+   896→   896→  it('returns entries ordered by createdAt desc', async () => {
+   897→   897→    const req = new Request('http://localhost/api/timeline?limit=10')
+   898→   898→    const res = await timelineGET(req as any)
+   899→   899→    const data = await res.json()
+   900→   900→
+   901→   901→    expect(res.status).toBe(200)
+   902→   902→    if (data.length >= 2) {
+   903→   903→      for (let i = 1; i < data.length; i++) {
+   904→   904→        const prev = new Date(data[i - 1].createdAt).getTime()
+   905→   905→        const curr = new Date(data[i].createdAt).getTime()
+   906→   906→        expect(prev).toBeGreaterThanOrEqual(curr)
+   907→   907→      }
+   908→   908→    }
+   909→   909→  })
+   910→   910→})

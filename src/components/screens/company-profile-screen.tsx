@@ -6,7 +6,7 @@ import {
   ArrowLeft, Building2, Globe, MapPin, Users, Plus, Target, StickyNote, FileText,
   Sparkles, Mail, Phone, ExternalLink, Linkedin, DollarSign, Calendar,
   CheckCircle2, Clock, BarChart3, Loader2, X, AlertTriangle, Trash2,
-  ChevronRight, Cpu,
+  ChevronRight, Cpu, Pencil,
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import { formatDistanceToNow } from 'date-fns'
@@ -21,39 +21,22 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from '@/components/ui/alert-dialog'
 import { ScoreGauge, getActivityIcon, StatusDot, EmptyState } from '@/components/shared/design-system'
+import {
+  getHealthVariant, getStatusBorder, getOppStatusVariant, getCompanyStatusVariant,
+  DEFAULT_INDUSTRIES, EMPLOYEE_SIZES, ROLE_BUCKETS,
+} from '@/lib/constants'
+import { fetchApi } from '@/lib/fetchApi'
 import Image from 'next/image'
+import type { Company, Contact, Opportunity, CompanyNote, CompanyResearchCard, TimelineEntry, CompanyStatus } from '@/lib/types'
 
 /* ═══════════════════════════════════════════════════════════════
    Constants & Helpers
    ═══════════════════════════════════════════════════════════════ */
-
-const healthVariant = (h: string) =>
-  h === 'valid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-  : h === 'risky' ? 'bg-amber-50 text-amber-700 border border-amber-200'
-  : h === 'invalid' ? 'bg-red-50 text-red-700 border border-red-200'
-  : 'bg-gray-100 text-gray-600 border border-gray-200'
-
-const statusBorder = (s: string) =>
-  s === 'open' ? 'border-l-blue-500' : s === 'won' ? 'border-l-emerald-500' : s === 'lost' ? 'border-l-red-400' : 'border-l-gray-300'
-
-const oppStatusVariant = (s: string) => {
-  switch (s) {
-    case 'researching': return 'bg-blue-50 text-blue-700 border-blue-200'
-    case 'contacted': return 'bg-violet-50 text-violet-700 border-violet-200'
-    case 'qualified': return 'bg-amber-50 text-amber-700 border-amber-200'
-    case 'proposed': return 'bg-indigo-50 text-indigo-700 border-indigo-200'
-    case 'negotiation': return 'bg-orange-50 text-orange-700 border-orange-200'
-    case 'ready': return 'bg-cyan-50 text-cyan-700 border-cyan-200'
-    case 'won': return 'bg-emerald-50 text-emerald-700 border-emerald-200'
-    case 'lost': return 'bg-red-50 text-red-700 border-red-200'
-    default: return 'bg-gray-100 text-gray-600 border-gray-200'
-  }
-}
-
-const companyStatusVariant = (s: string) =>
-  s === 'open' ? 'bg-blue-50 text-blue-700 border-blue-200' : s === 'won' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-  : s === 'lost' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-gray-100 text-gray-600 border-gray-200'
 
 const RESEARCH_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
   businessOverview: { label: 'Business Overview', icon: Building2 },
@@ -72,17 +55,28 @@ const researchColors = [
   'bg-cyan-50 border-cyan-100', 'bg-orange-50 border-orange-100',
 ]
 
-const STATUS_CYCLE = ['new', 'researching', 'contacted', 'qualified', 'ready', 'won', 'lost'] as const
+const STATUS_CYCLE: readonly string[] = ['new', 'researching', 'contacted', 'qualified', 'ready', 'won', 'lost']
 const OPP_STATUS_CYCLE = ['researching', 'contacted', 'qualified', 'proposed', 'negotiation', 'won', 'lost'] as const
-const ROLE_BUCKETS = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'] as const
 const OPP_STATUSES = ['researching', 'contacted', 'proposed', 'negotiation', 'won', 'lost'] as const
+
+const handleLogoError = (e: React.SyntheticEvent<HTMLImageElement>, name: string, sizeClass: string) => {
+  const img = e.currentTarget
+  const parent = img.parentElement
+  if (parent) {
+    parent.innerHTML = ''
+    const span = document.createElement('span')
+    span.className = `flex items-center justify-center ${sizeClass} rounded-lg bg-gray-100 text-gray-400 font-semibold`
+    span.textContent = (name || '?').charAt(0).toUpperCase()
+    parent.appendChild(span)
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════
    Company Profile Screen
    ═══════════════════════════════════════════════════════════════ */
 
 export default function CompanyProfileScreen() {
-  const { selectedCompanyId, setSelectedContactId, setActiveView, setCompanyStatusFilter } = useAppStore()
+  const { selectedCompanyId, setSelectedContactId, setActiveView } = useAppStore()
   const qc = useQueryClient()
 
   // ── Dialog states ──
@@ -98,23 +92,71 @@ export default function CompanyProfileScreen() {
   const [oppForm, setOppForm] = useState({
     title: '', description: '', status: 'researching', nextAction: '', targetContactId: '',
   })
+  const [statusConfirmOpen, setStatusConfirmOpen] = useState(false)
+  const [editCompanyOpen, setEditCompanyOpen] = useState(false)
+  const [editForm, setEditForm] = useState({
+    name: '', domain: '', industry: '', website: '', linkedinUrl: '',
+    employeeSize: '', country: '', location: '',
+  })
+
+  const openEditCompanyDialog = () => {
+    if (data) {
+      setEditForm({
+        name: data.name || '',
+        domain: data.domain || '',
+        industry: data.industry || '',
+        website: data.website || '',
+        linkedinUrl: data.linkedinUrl || '',
+        employeeSize: data.employeeSize || '',
+        country: data.country || '',
+        location: data.location || '',
+      })
+    }
+    setEditCompanyOpen(true)
+  }
+  const [emailContactId, setEmailContactId] = useState('')
 
   // ── Active tab ──
   const [activeTab, setActiveTab] = useState('overview')
 
   // ── Fetch company (includes contacts, notes, research, opportunities, timeline) ──
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['company', selectedCompanyId],
-    queryFn: () => fetch(`/api/companies/${selectedCompanyId}`).then(r => r.json()),
+    queryFn: () => fetch(`/api/companies/${selectedCompanyId}`).then(r => {
+      if (!r.ok) throw new Error('Failed to load company')
+      return r.json()
+    }),
     enabled: !!selectedCompanyId,
   })
 
   // ── Fetch AI provider info for research tab ──
   const { data: prefs } = useQuery({
     queryKey: ['preferences'],
-    queryFn: () => fetch('/api/preferences').then(r => r.json()),
+    queryFn: () => fetch('/api/preferences').then(r => {
+      if (!r.ok) throw new Error('Failed to load preferences')
+      return r.json()
+    }),
     staleTime: 30_000,
   })
+
+  // Default email contact: use emailContactId if set, otherwise fall back to first contact
+  // (contacts is defined below in a query hook; this line is safe because it runs inside a callback that executes after render)
+  const getResolvedEmailContactId = () => emailContactId || (contacts && contacts[0]?.id) || ''
+
+  // ── Fetch industries for edit form ──
+  const { data: meta } = useQuery({
+    queryKey: ['companies-meta'],
+    queryFn: () => fetch('/api/companies/meta').then(r => {
+      if (!r.ok) throw new Error('Failed to load metadata')
+      return r.json()
+    }),
+    enabled: editCompanyOpen,
+  })
+
+  const editIndustries = (() => {
+    const api: string[] = meta?.industries || []
+    return [...new Set([...DEFAULT_INDUSTRIES, ...api])].sort((a, b) => a.localeCompare(b))
+  })()
 
   // ── Mutations ──
 
@@ -124,7 +166,7 @@ export default function CompanyProfileScreen() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...body, companyId: selectedCompanyId }),
-      }).then(r => r.json()),
+      }).then(r => { if (!r.ok) throw new Error('Request failed'); return r.json() }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
       qc.invalidateQueries({ queryKey: ['company'] })
@@ -165,10 +207,7 @@ export default function CompanyProfileScreen() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, companyId: selectedCompanyId }),
-      }).then(r => {
-        if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add contact') })
-        return r.json()
-      }),
+      }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add contact') }); return r.json() }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
       setContactOpen(false)
@@ -184,10 +223,7 @@ export default function CompanyProfileScreen() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId: selectedCompanyId, ...form }),
-      }).then(r => {
-        if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add opportunity') })
-        return r.json()
-      }),
+      }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add opportunity') }); return r.json() }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
       setOppOpen(false)
@@ -198,22 +234,25 @@ export default function CompanyProfileScreen() {
   })
 
   const updateOppMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      fetch(`/api/opportunities/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }).then(r => r.json()),
+    mutationFn: ({ id, status: newStatus }: { id: string; status: string }) =>
+      fetch(`/api/opportunities/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) })
+        .then(r => { if (!r.ok) throw new Error('Request failed'); return r.json() }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); toast.success('Opportunity updated') },
     onError: () => toast.error('Failed to update opportunity'),
   })
 
   const deleteOppMutation = useMutation({
     mutationFn: (oppId: string) =>
-      fetch(`/api/opportunities/${oppId}`, { method: 'DELETE' }).then(r => r.json()),
+      fetch(`/api/opportunities/${oppId}`, { method: 'DELETE' })
+        .then(r => { if (!r.ok) throw new Error('Request failed'); return r.json() }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); toast.success('Opportunity deleted') },
     onError: () => toast.error('Failed to delete opportunity'),
   })
 
   const deleteNoteMutation = useMutation({
     mutationFn: (noteId: string) =>
-      fetch(`/api/notes?id=${noteId}`, { method: 'DELETE' }).then(r => r.json()),
+      fetch(`/api/notes?id=${noteId}`, { method: 'DELETE' })
+        .then(r => { if (!r.ok) throw new Error('Request failed'); return r.json() }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); setDeleteNoteId(null); toast.success('Note deleted') },
     onError: () => toast.error('Failed to delete note'),
   })
@@ -225,15 +264,38 @@ export default function CompanyProfileScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       })
-      if (!res.ok) throw new Error('Failed to update status')
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to update status' }))
+        throw new Error(err.error || 'Failed to update status')
+      }
       return res.json()
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
       qc.invalidateQueries({ queryKey: ['company-breadcrumb', selectedCompanyId] })
+      setStatusConfirmOpen(false)
       toast.success('Status updated')
     },
-    onError: () => toast.error('Failed to update status'),
+    onError: () => { setStatusConfirmOpen(false); toast.error('Failed to update status') },
+  })
+
+  const editCompanyMutation = useMutation({
+    mutationFn: async (form: typeof editForm) => {
+      const { error } = await fetchApi(`/api/companies/${selectedCompanyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (error) throw new Error(error)
+      return null
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
+      qc.invalidateQueries({ queryKey: ['company-breadcrumb', selectedCompanyId] })
+      setEditCompanyOpen(false)
+      toast.success('Company updated')
+    },
+    onError: (err) => toast.error(err.message || 'Failed to update company'),
   })
 
   // ── Handlers ──
@@ -244,12 +306,19 @@ export default function CompanyProfileScreen() {
     updateOppMutation.mutate({ id: oppId, status: OPP_STATUS_CYCLE[nextIdx] })
   }
 
-  const handleStatusCycle = () => {
-    if (!data) return
+  const getNextStatus = (): string | null => {
+    if (!data) return null
     const current = data.status as string
-    const currentIdx = STATUS_CYCLE.indexOf(current as typeof STATUS_CYCLE[number])
+    const currentIdx = STATUS_CYCLE.indexOf(current)
     const nextIdx = (currentIdx + 1) % STATUS_CYCLE.length
-    updateCompanyStatus.mutate(STATUS_CYCLE[nextIdx])
+    return STATUS_CYCLE[nextIdx]
+  }
+
+  const handleStatusCycle = () => {
+    const next = getNextStatus()
+    if (next) {
+      updateCompanyStatus.mutate(next)
+    }
   }
 
   const handleGenerateEmail = (contactId: string) => {
@@ -274,6 +343,11 @@ export default function CompanyProfileScreen() {
   const handleOppSubmit = () => {
     if (!oppForm.title.trim()) return
     addOpportunity.mutate(oppForm)
+  }
+
+  const handleEditCompanySubmit = () => {
+    if (!editForm.name.trim()) return
+    editCompanyMutation.mutate(editForm)
   }
 
   const handleBack = () => {
@@ -307,6 +381,19 @@ export default function CompanyProfileScreen() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          Failed to load company. Please try again.
+        </div>
+        <Button variant="outline" onClick={handleBack} className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg">
+          <ArrowLeft className="size-4 mr-1.5" /> Back to Companies
+        </Button>
+      </div>
+    )
+  }
+
   if (!data) {
     return (
       <EmptyState
@@ -319,7 +406,11 @@ export default function CompanyProfileScreen() {
     )
   }
 
-  const { contacts = [], notes = [], researchCard, opportunities = [], timeline = [] } = data
+  const contacts: Contact[] = data.contacts || []
+  const notes: CompanyNote[] = data.notes || []
+  const researchCard: CompanyResearchCard | null = data.researchCard || null
+  const opportunities: Opportunity[] = data.opportunities || []
+  const timeline: TimelineEntry[] = data.timeline || []
   const score = data.intelligenceScore ?? 0
 
   const segments = [
@@ -336,6 +427,8 @@ export default function CompanyProfileScreen() {
     ? prefs.aiProvider.charAt(0).toUpperCase() + prefs.aiProvider.slice(1)
     : null
   const hasAiKey = !!prefs?.aiApiKey
+
+  const nextStatus = getNextStatus()
 
   /* ═══════════════════════════════════════════════════════════════
      Render
@@ -357,13 +450,7 @@ export default function CompanyProfileScreen() {
                 width={56}
                 height={56}
                 className="size-14 object-contain p-2"
-                onError={e => {
-                  const el = e.target as HTMLImageElement
-                  el.style.display = 'none'
-                  if (el.parentElement) {
-                    el.parentElement.innerHTML = `<span class="text-xl font-bold text-gray-400">${data.name?.charAt(0)}</span>`
-                  }
-                }}
+                onError={e => handleLogoError(e, data.name, 'size-14 text-xl')}
               />
             ) : (
               <span className="text-xl font-bold text-gray-400">{data.name?.charAt(0)}</span>
@@ -389,10 +476,10 @@ export default function CompanyProfileScreen() {
                 </Badge>
               )}
               <button
-                onClick={handleStatusCycle}
+                onClick={() => setStatusConfirmOpen(true)}
                 disabled={updateCompanyStatus.isPending}
-                className={`text-[11px] font-medium px-2 py-0.5 rounded-md border capitalize ${companyStatusVariant(data.status)} ${updateCompanyStatus.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'} transition-opacity`}
-                title="Click to cycle status"
+                className={`text-[11px] font-medium px-2 py-0.5 rounded-md border capitalize ${getCompanyStatusVariant(data.status)} ${updateCompanyStatus.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'} transition-opacity`}
+                title="Click to change status"
               >
                 {updateCompanyStatus.isPending ? <Loader2 className="size-3 animate-spin inline" /> : null}
                 {data.status}
@@ -469,6 +556,14 @@ export default function CompanyProfileScreen() {
             {/* Action buttons */}
             <div className="flex items-center gap-2 mt-4 flex-wrap">
               <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900"
+                onClick={() => setEditCompanyOpen(true)}
+              >
+                <Pencil className="size-3.5 mr-1.5" /> Edit Company
+              </Button>
+              <Button
                 data-action="generate-research"
                 size="sm"
                 className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
@@ -506,14 +601,29 @@ export default function CompanyProfileScreen() {
                 <Target className="size-3.5 mr-1.5" /> Add Opportunity
               </Button>
               {contacts.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 hover:text-amber-800"
-                  onClick={() => handleGenerateEmail(contacts[0].id)}
-                >
-                  <Mail className="size-3.5 mr-1.5" /> Generate Email
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Select value={getResolvedEmailContactId()} onValueChange={setEmailContactId}>
+                    <SelectTrigger className="h-8 w-auto min-w-[140px] text-xs border-gray-200 rounded-lg">
+                      <SelectValue placeholder="Select contact" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contacts.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}{c.jobTitle ? ` — ${c.jobTitle}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 hover:text-amber-800"
+                    onClick={() => handleGenerateEmail(getResolvedEmailContactId())}
+                    disabled={!getResolvedEmailContactId()}
+                  >
+                    <Mail className="size-3.5 mr-1.5" /> Generate Email
+                  </Button>
+                </div>
               )}
             </div>
           </div>
@@ -662,7 +772,7 @@ export default function CompanyProfileScreen() {
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
-                {contacts.slice(0, 5).map((c: any) => (
+                {contacts.slice(0, 5).map((c) => (
                   <div
                     key={c.id}
                     className="flex items-center gap-4 px-6 py-3 hover:bg-gray-50/80 transition-colors cursor-pointer group"
@@ -683,7 +793,7 @@ export default function CompanyProfileScreen() {
                         <span className="text-xs text-gray-400 font-mono truncate max-w-[180px]">{c.email}</span>
                       )}
                       {c.emailHealth && (
-                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium ${healthVariant(c.emailHealth)}`}>
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium border ${getHealthVariant(c.emailHealth)}`}>
                           {c.emailHealth}
                         </span>
                       )}
@@ -735,14 +845,14 @@ export default function CompanyProfileScreen() {
               </div>
               <div className="p-6">
                 <div className="grid gap-4 md:grid-cols-2">
-                  {(Object.entries(RESEARCH_LABELS) as [keyof typeof researchCard, typeof RESEARCH_LABELS[string]][]).slice(0, 4).map(([key, cfg], idx) =>
-                    researchCard[key] ? (
+                  {(Object.entries(RESEARCH_LABELS) as [string, typeof RESEARCH_LABELS[string]][]).slice(0, 4).map(([key, cfg], idx) =>
+                    (researchCard as unknown as Record<string, unknown>)[key] ? (
                       <div key={String(key)} className={`rounded-lg border p-4 ${researchColors[idx]} slide-up`} style={{ animationDelay: `${idx * 40}ms` }}>
                         <div className="flex items-center gap-2 mb-2">
                           <cfg.icon className="size-3.5 text-gray-500" />
                           <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
                         </div>
-                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap line-clamp-3">{researchCard[key]}</p>
+                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap line-clamp-3">{String((researchCard as unknown as Record<string, unknown>)[key])}</p>
                       </div>
                     ) : null,
                   )}
@@ -792,7 +902,7 @@ export default function CompanyProfileScreen() {
                 </Button>
               </div>
               <div className="divide-y divide-gray-50">
-                {opportunities.slice(0, 3).map((o: any) => (
+                {opportunities.slice(0, 3).map((o) => (
                   <div key={o.id} className="flex items-center gap-4 px-6 py-3">
                     <div className={`w-0.5 h-8 rounded-full shrink-0 ${
                       o.status === 'won' ? 'bg-emerald-400' : o.status === 'lost' ? 'bg-red-300' : 'bg-amber-400'
@@ -801,7 +911,7 @@ export default function CompanyProfileScreen() {
                       <p className="text-sm font-medium text-gray-900 truncate">{o.title}</p>
                       {o.nextAction && <p className="text-xs text-gray-400 mt-0.5">Next: {o.nextAction}</p>}
                     </div>
-                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium capitalize border ${oppStatusVariant(o.status)}`}>
+                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium capitalize border ${getOppStatusVariant(o.status)}`}>
                       {o.status}
                     </span>
                   </div>
@@ -859,7 +969,7 @@ export default function CompanyProfileScreen() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {contacts.map((c: any) => (
+                  {contacts.map((c) => (
                     <TableRow
                       key={c.id}
                       className="table-row-hover border-gray-50 cursor-pointer group"
@@ -881,7 +991,7 @@ export default function CompanyProfileScreen() {
                       <TableCell className="text-sm text-gray-500 hidden md:table-cell">{c.jobTitle || '—'}</TableCell>
                       <TableCell className="text-sm text-gray-500 font-mono hidden lg:table-cell">{c.email || '—'}</TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${healthVariant(c.emailHealth)}`}>
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium border ${getHealthVariant(c.emailHealth)}`}>
                           {c.emailHealth || 'unknown'}
                         </span>
                       </TableCell>
@@ -969,14 +1079,14 @@ export default function CompanyProfileScreen() {
 
                   {/* Research sections grid */}
                   <div className="grid gap-4 md:grid-cols-2">
-                    {(Object.entries(RESEARCH_LABELS) as [keyof typeof researchCard, typeof RESEARCH_LABELS[string]][]).map(([key, cfg], idx) =>
-                      researchCard[key] ? (
+                    {(Object.entries(RESEARCH_LABELS) as [string, typeof RESEARCH_LABELS[string]][]).map(([key, cfg], idx) =>
+                      (researchCard as unknown as Record<string, unknown>)[key] ? (
                         <div key={String(key)} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 50}ms` }}>
                           <div className="flex items-center gap-2 mb-2">
                             <cfg.icon className="size-3.5 text-gray-500" />
                             <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
                           </div>
-                          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{researchCard[key]}</p>
+                          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{String((researchCard as unknown as Record<string, unknown>)[key])}</p>
                         </div>
                       ) : null,
                     )}
@@ -1022,10 +1132,10 @@ export default function CompanyProfileScreen() {
             />
           ) : (
             <div className="grid gap-3">
-              {opportunities.map((o: any, idx: number) => (
+              {opportunities.map((o, idx) => (
                 <div
                   key={o.id}
-                  className={`rounded-xl bg-white card-interactive border-l-[3px] ${statusBorder(o.status)} p-5 flex items-start justify-between gap-4 slide-up`}
+                  className={`rounded-xl bg-white card-interactive border-l-[3px] ${getStatusBorder(o.status)} p-5 flex items-start justify-between gap-4 slide-up`}
                   style={{ animationDelay: `${idx * 30}ms` }}
                 >
                   <div className="min-w-0 flex-1">
@@ -1040,7 +1150,7 @@ export default function CompanyProfileScreen() {
                     {/* Target contact link */}
                     {o.targetContactId && contactMap[o.targetContactId] && (
                       <button
-                        onClick={() => handleViewContact(o.targetContactId)}
+                        onClick={() => handleViewContact(o.targetContactId!)}
                         className="inline-flex items-center gap-1.5 mt-2 text-xs text-amber-600 hover:text-amber-700 transition-colors"
                       >
                         <Users className="size-3" />
@@ -1059,7 +1169,7 @@ export default function CompanyProfileScreen() {
                     <button
                       onClick={(e) => { e.stopPropagation(); handleOppStatusCycle(o.id, o.status) }}
                       disabled={updateOppMutation.isPending}
-                      className={`inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-medium capitalize border transition-all hover:opacity-80 ${oppStatusVariant(o.status)} ${updateOppMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      className={`inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-medium capitalize border transition-all hover:opacity-80 ${getOppStatusVariant(o.status)} ${updateOppMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                       title="Click to cycle status"
                     >
                       {updateOppMutation.isPending ? <Loader2 className="size-3 animate-spin inline mr-1" /> : null}
@@ -1069,6 +1179,7 @@ export default function CompanyProfileScreen() {
                       onClick={(e) => { e.stopPropagation(); deleteOppMutation.mutate(o.id) }}
                       disabled={deleteOppMutation.isPending}
                       className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-50"
+                      aria-label="Delete opportunity"
                       title="Delete opportunity"
                     >
                       {deleteOppMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
@@ -1109,7 +1220,7 @@ export default function CompanyProfileScreen() {
               {/* Timeline connector line */}
               <div className="absolute left-[7px] top-2 bottom-2 border-l-2 border-gray-200" />
               <div className="space-y-4">
-                {notes.map((n: any, idx: number) => (
+                {notes.map((n, idx) => (
                   <div
                     key={n.id}
                     className="relative flex items-start gap-4 slide-up"
@@ -1124,6 +1235,7 @@ export default function CompanyProfileScreen() {
                         <button
                           onClick={() => setDeleteNoteId(n.id)}
                           className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
+                          aria-label="Delete note"
                           title="Delete note"
                         >
                           <X className="size-3.5" />
@@ -1162,7 +1274,7 @@ export default function CompanyProfileScreen() {
               {/* Timeline connector */}
               <div className="absolute left-[7px] top-2 bottom-2 border-l-2 border-gray-200" />
               <div className="space-y-4">
-                {timeline.map((t: any, idx: number) => {
+                {timeline.map((t, idx) => {
                   const iconData = getActivityIcon(t.action)
                   const Icon = iconData.icon
                   return (
@@ -1188,11 +1300,11 @@ export default function CompanyProfileScreen() {
                         {/* Cross-nav: if activity references a contact, make it clickable */}
                         {t.contact && (
                           <button
-                            onClick={() => handleViewContact(t.contact.id)}
+                            onClick={() => handleViewContact(t.contact!.id)}
                             className="inline-flex items-center gap-1 mt-1.5 text-xs text-amber-600 hover:text-amber-700 transition-colors"
                           >
                             <Users className="size-3" />
-                            {t.contact.name}
+                            {t.contact!.name}
                             <ChevronRight className="size-3" />
                           </button>
                         )}
@@ -1212,6 +1324,30 @@ export default function CompanyProfileScreen() {
       {/* ══════════════════════════════════════════════════════════
           DIALOGS
           ══════════════════════════════════════════════════════════ */}
+
+      {/* Status Cycle Confirmation (C2 fix) */}
+      <AlertDialog open={statusConfirmOpen} onOpenChange={setStatusConfirmOpen}>
+        <AlertDialogContent className="rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change Company Status</AlertDialogTitle>
+            <AlertDialogDescription>
+              Change status from <span className="font-semibold text-gray-900 capitalize">{data.status}</span> to{' '}
+              <span className="font-semibold text-gray-900 capitalize">{nextStatus}</span>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-lg" disabled={updateCompanyStatus.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-lg bg-amber-600 hover:bg-amber-700 text-white"
+              onClick={handleStatusCycle}
+              disabled={updateCompanyStatus.isPending}
+            >
+              {updateCompanyStatus.isPending ? <Loader2 className="size-4 mr-2 animate-spin" /> : null}
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Note Confirmation */}
       <Dialog open={!!deleteNoteId} onOpenChange={(open) => { if (!open) setDeleteNoteId(null) }}>
@@ -1260,7 +1396,73 @@ export default function CompanyProfileScreen() {
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setNoteOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
-            <Button onClick={() => addNote.mutate({ body: noteBody, noteType: noteType })} disabled={!noteBody.trim() || addNote.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">Save Note</Button>
+            <Button onClick={() => addNote.mutate({ body: noteBody, noteType: noteType })} disabled={!noteBody.trim() || addNote.isPending} className="bg-amber-600 hover:bg-amber-700 text-white press-scale">Save Note</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Company Dialog (H7 fix) */}
+      <Dialog open={editCompanyOpen} onOpenChange={setEditCompanyOpen}>
+        <DialogContent className="sm:max-w-md rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900">Edit Company</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-1.5">
+              <Label className="text-sm font-medium text-gray-700">Name</Label>
+              <Input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} placeholder="Company name" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label className="text-sm font-medium text-gray-700">Domain</Label>
+                <Input value={editForm.domain} onChange={e => setEditForm(f => ({ ...f, domain: e.target.value }))} placeholder="example.com" />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-sm font-medium text-gray-700">Industry</Label>
+                <Select value={editForm.industry} onValueChange={v => setEditForm(f => ({ ...f, industry: v }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    {editIndustries.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label className="text-sm font-medium text-gray-700">Website</Label>
+                <Input value={editForm.website} onChange={e => setEditForm(f => ({ ...f, website: e.target.value }))} placeholder="https://..." />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-sm font-medium text-gray-700">LinkedIn</Label>
+                <Input value={editForm.linkedinUrl} onChange={e => setEditForm(f => ({ ...f, linkedinUrl: e.target.value }))} placeholder="https://linkedin.com/..." />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label className="text-sm font-medium text-gray-700">Employee Size</Label>
+                <Select value={editForm.employeeSize} onValueChange={v => setEditForm(f => ({ ...f, employeeSize: v }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    {EMPLOYEE_SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-sm font-medium text-gray-700">Country</Label>
+                <Input value={editForm.country} onChange={e => setEditForm(f => ({ ...f, country: e.target.value }))} placeholder="USA" />
+              </div>
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-sm font-medium text-gray-700">Location</Label>
+              <Input value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} placeholder="San Francisco, CA" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setEditCompanyOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+            <Button onClick={handleEditCompanySubmit} disabled={!editForm.name.trim() || editCompanyMutation.isPending} className="bg-amber-600 hover:bg-amber-700 text-white press-scale">
+              {editCompanyMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+              Save Changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1309,7 +1511,7 @@ export default function CompanyProfileScreen() {
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setContactOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
-            <Button onClick={handleContactSubmit} disabled={!contactForm.name.trim() || addContact.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">
+            <Button onClick={handleContactSubmit} disabled={!contactForm.name.trim() || addContact.isPending} className="bg-amber-600 hover:bg-amber-700 text-white press-scale">
               {addContact.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
               Add Contact
             </Button>
@@ -1356,7 +1558,7 @@ export default function CompanyProfileScreen() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">No contact</SelectItem>
-                    {contacts.map((c: any) => (
+                    {contacts.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name}{c.jobTitle ? ` — ${c.jobTitle}` : ''}
                       </SelectItem>
@@ -1372,7 +1574,7 @@ export default function CompanyProfileScreen() {
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setOppOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
-            <Button onClick={handleOppSubmit} disabled={!oppForm.title.trim() || addOpportunity.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">
+            <Button onClick={handleOppSubmit} disabled={!oppForm.title.trim() || addOpportunity.isPending} className="bg-amber-600 hover:bg-amber-700 text-white press-scale">
               {addOpportunity.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
               Create Opportunity
             </Button>

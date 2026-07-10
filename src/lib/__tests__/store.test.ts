@@ -9,8 +9,6 @@ describe('useAppStore', () => {
       selectedCompanyId: null,
       selectedContactId: null,
       sidebarCollapsed: false,
-      searchQuery: '',
-      showNotifications: true,
       companyStatusFilter: 'all',
     })
   })
@@ -34,16 +32,6 @@ describe('useAppStore', () => {
     it('has sidebarCollapsed set to false', () => {
       const state = useAppStore.getState()
       expect(state.sidebarCollapsed).toBe(false)
-    })
-
-    it('has searchQuery set to empty string', () => {
-      const state = useAppStore.getState()
-      expect(state.searchQuery).toBe('')
-    })
-
-    it('has showNotifications set to true', () => {
-      const state = useAppStore.getState()
-      expect(state.showNotifications).toBe(true)
     })
 
     it('has companyStatusFilter set to "all"', () => {
@@ -78,7 +66,6 @@ describe('useAppStore', () => {
       const state = useAppStore.getState()
       expect(state.selectedCompanyId).toBeNull()
       expect(state.selectedContactId).toBeNull()
-      expect(state.searchQuery).toBe('')
     })
   })
 
@@ -98,6 +85,12 @@ describe('useAppStore', () => {
       useAppStore.getState().setSelectedCompanyId('company-123')
       expect(useAppStore.getState().selectedContactId).toBeNull()
     })
+
+    it('does not auto-set activeView — callers must call setActiveView separately', () => {
+      useAppStore.getState().setSelectedCompanyId('company-123')
+      // activeView should remain as set by beforeEach, not change to 'company-profile'
+      expect(useAppStore.getState().activeView).toBe('dashboard')
+    })
   })
 
   describe('setSelectedContactId', () => {
@@ -115,27 +108,6 @@ describe('useAppStore', () => {
     it('does not affect selectedCompanyId', () => {
       useAppStore.getState().setSelectedContactId('contact-456')
       expect(useAppStore.getState().selectedCompanyId).toBeNull()
-    })
-  })
-
-  describe('setSearchQuery', () => {
-    it('changes searchQuery to a new string', () => {
-      useAppStore.getState().setSearchQuery('Acme Corp')
-      expect(useAppStore.getState().searchQuery).toBe('Acme Corp')
-    })
-
-    it('can clear searchQuery by setting empty string', () => {
-      useAppStore.getState().setSearchQuery('Acme Corp')
-      useAppStore.getState().setSearchQuery('')
-      expect(useAppStore.getState().searchQuery).toBe('')
-    })
-
-    it('does not affect other state fields', () => {
-      useAppStore.getState().setSearchQuery('test')
-      const state = useAppStore.getState()
-      expect(state.activeView).toBe('dashboard')
-      expect(state.selectedCompanyId).toBeNull()
-      expect(state.selectedContactId).toBeNull()
     })
   })
 

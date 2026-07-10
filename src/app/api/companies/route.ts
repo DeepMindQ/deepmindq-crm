@@ -1,18 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { apiError, apiSuccess, validateBody, sanitizeFields, safeInt } from "@/lib/apiHelpers";
+import { createCompanySchema } from "@/lib/validations";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search") || "";
+    let search = searchParams.get("search") || "";
+    search = search.replace(/<[^>]*>/g, '').trim();
     const industry = searchParams.get("industry") || "";
     const status = searchParams.get("status") || "";
     const country = searchParams.get("country") || "";
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
-    const pageSize = Math.min(
-      100,
-      Math.max(1, parseInt(searchParams.get("pageSize") || "20"))
-    );
+    const page = Math.max(1, safeInt(searchParams.get("page"), 1));
+    const pageSize = Math.min(100, Math.max(1, safeInt(searchParams.get("pageSize"), 20)));
 
     const where: Record<string, unknown> = {
       status: { not: "archived" },
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       notes: undefined,
     }));
 
-    return NextResponse.json({
+    return apiSuccess({
       companies: formatted,
       total,
       page,
@@ -67,35 +67,31 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Failed to fetch companies:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch companies" },
-      { status: 500 }
-    );
+    return apiError("Failed to fetch companies", 500);
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, domain, industry, employeeSize, country, location, website, linkedinUrl } = body;
+    const data = validateBody(createCompanySchema, body);
+    if (data instanceof Response) return data;
 
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return NextResponse.json(
-        { error: "Company name is required" },
-        { status: 400 }
-      );
-    }
+    const sanitized = sanitizeFields(
+      { ...data } as unknown as Record<string, unknown>,
+      ["name", "domain", "website", "linkedinUrl"]
+    );
 
     const company = await db.company.create({
       data: {
-        name: name.trim(),
-        domain: domain?.trim() || null,
-        industry: industry?.trim() || null,
-        employeeSize: employeeSize?.trim() || null,
-        country: country?.trim() || null,
-        location: location?.trim() || null,
-        website: website?.trim() || null,
-        linkedinUrl: linkedinUrl?.trim() || null,
+        name: sanitized.name || data.name,
+        domain: sanitized.domain || null,
+        industry: data.industry || null,
+        employeeSize: data.employeeSize || null,
+        country: data.country || null,
+        location: data.location || null,
+        website: sanitized.website || null,
+        linkedinUrl: sanitized.linkedinUrl || null,
       },
     });
 
@@ -107,12 +103,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(company, { status: 201 });
+    return apiSuccess(company, 201);
   } catch (error) {
     console.error("Failed to create company:", error);
-    return NextResponse.json(
-      { error: "Failed to create company" },
-      { status: 500 }
-    );
+    return apiError("Failed to create company", 500);
   }
 }

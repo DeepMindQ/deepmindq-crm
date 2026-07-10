@@ -56,33 +56,7 @@ const researchColors = [
 
 const STATUS_CYCLE = ['new', 'researching', 'contacted', 'qualified', 'ready', 'archived'] as const
 
-/** Generate realistic research text client-side based on company data */
-function generateClientSideResearch(company: { name: string; industry: string | null; domain: string | null; employeeSize: string | null; country: string | null; website: string | null }) {
-  const name = company.name
-  const industry = company.industry || 'technology'
-  const domain = company.domain || 'their website'
-  const size = company.employeeSize || '50-200'
-  const country = company.country || 'the US'
 
-  return {
-    businessOverview:
-      `${name} is a ${industry.toLowerCase()}-sector company operating primarily in ${country}. With approximately ${size} employees, the organization has established itself as a notable player in the ${industry.toLowerCase()} space. Their digital presence through ${domain} reflects an active and growing business. The company appears to be in a growth phase, investing in both talent and infrastructure to expand its market reach. Their value proposition centers around delivering innovative solutions tailored to their target market's evolving needs.`,
-    currentTechLandscape:
-      `Based on publicly available information, ${name} likely leverages a modern technology stack common in the ${industry.toLowerCase()} sector. This typically includes cloud-native infrastructure (AWS/GCP/Azure), containerized deployments, and data-driven decision making tools. Their web presence suggests investment in digital marketing and customer-facing platforms. Companies of this scale often use CRM systems (Salesforce/HubSpot), project management tools, and collaboration platforms to maintain operational efficiency. Their tech maturity indicates readiness for advanced solutions and integrations.`,
-    potentialChallenges:
-      `Key challenges for ${name} may include: (1) Scaling their existing technology infrastructure to support growth while maintaining reliability and performance. (2) Attracting and retaining skilled technical talent in a competitive market. (3) Managing data privacy and compliance requirements across multiple jurisdictions. (4) Differentiating their offerings in an increasingly crowded ${industry.toLowerCase()} market. (5) Balancing innovation velocity with operational stability and security. These challenges present opportunities for strategic partnerships and service engagements.`,
-    possibleOpportunities:
-      `Several strategic opportunities exist for ${name}: (1) Expanding into adjacent market segments or geographies. (2) Leveraging AI/ML capabilities to enhance their product/service offerings and create competitive moats. (3) Building strategic partnerships to accelerate go-to-market and distribution. (4) Investing in automation to improve operational efficiency and reduce costs. (5) Enhancing their data analytics capabilities for better customer insights and decision making. (6) Developing thought leadership content to strengthen their market positioning and brand authority.`,
-    relevantServices:
-      `Based on ${name}'s profile, the following services could be highly relevant: (1) Technology consulting and digital transformation advisory. (2) Cloud infrastructure optimization and migration support. (3) Data engineering and analytics platform development. (4) Cybersecurity assessment and compliance consulting. (5) Talent acquisition strategy and technical recruitment support. (6) Marketing technology stack optimization and implementation. (7) Process automation and workflow digitization. These services align with their growth trajectory and likely operational needs.`,
-    keyDecisionMakers:
-      `Typical key decision makers at a company of ${name}'s profile (${size} employees, ${industry.toLowerCase()} sector) include: (1) CEO/Founder/Co-Founder — for strategic direction and major purchasing decisions. (2) CTO/VP of Engineering — for technology-related engagements and tooling decisions. (3) VP of Sales/Revenue — for sales enablement and CRM-related solutions. (4) Head of Operations/COO — for process optimization and efficiency initiatives. (5) CFO — for budget approval on significant engagements. (6) Head of Marketing/CMO — for marketing technology and brand-related services. Identifying and building relationships with these stakeholders will be critical for successful engagement.`,
-    lastInteraction:
-      `No prior interactions have been recorded with ${name}. This represents a fresh engagement opportunity. Initial outreach should focus on establishing contact with relevant decision makers, understanding their current priorities and pain points, and positioning relevant services that align with their business objectives. A warm introduction through mutual connections or a well-crafted personalized outreach email would be the recommended first step.`,
-    nextAction:
-      `Recommended next steps for engaging ${name}: (1) Research and identify key contacts and decision makers through LinkedIn and the company website. (2) Add identified contacts to the system and validate their email addresses. (3) Craft a personalized outreach email referencing their recent activities, industry trends, and specific value propositions. (4) Schedule a follow-up cadence — initial email, follow-up after 3-5 business days, then a different channel attempt. (5) Prepare a tailored capabilities deck highlighting relevant case studies and outcomes in the ${industry.toLowerCase()} sector. (6) Set a 30-day engagement goal with specific milestones.`,
-  }
-}
 
 const ROLE_BUCKETS = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'] as const
 const OPP_STATUSES = ['researching', 'contacted', 'proposed', 'negotiation', 'won', 'lost'] as const
@@ -130,31 +104,23 @@ export default function CompanyProfileScreen() {
     onError: () => toast.error('Failed to add note'),
   })
 
-  // ── Generate Research mutation ──
+  // ── Generate Research mutation (AI-powered) ──
   const generateResearch = useMutation({
     mutationFn: async () => {
-      // Generate research client-side
-      const research = generateClientSideResearch({
-        name: data.name,
-        industry: data.industry,
-        domain: data.domain,
-        employeeSize: data.employeeSize,
-        country: data.country,
-        website: data.website,
-      })
-      // Simulate a small delay so the user sees the loading state
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      // POST to the API
       const res = await fetch('/api/research', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyId: selectedCompanyId, ...research }),
+        body: JSON.stringify({ companyId: selectedCompanyId, action: 'generate' }),
       })
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Failed to save research' }))
-        throw new Error(err.error || 'Failed to save research')
+        const err = await res.json().catch(() => ({ error: 'Failed to generate research' }))
+        throw new Error(err.error || 'Failed to generate research')
       }
-      return res.json()
+      const result = await res.json()
+      if (result._usedLlm === false) {
+        toast.info('Generated with templates — configure AI key in Settings for AI-powered research')
+      }
+      return result
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['company'] })

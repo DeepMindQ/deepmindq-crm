@@ -1,0 +1,637 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState } from 'react'
+     4→     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→     5→import {
+     6→     6→  ArrowLeft, Building2, Globe, MapPin, Users, Plus, Target, StickyNote, FileText,
+     7→     7→  Sparkles, Mail, Phone, ExternalLink, Linkedin, DollarSign, Calendar,
+     8→     8→  CheckCircle2, XCircle, Clock, BarChart3, Loader2,
+     9→     9→} from 'lucide-react'
+    10→    10→import { useAppStore } from '@/lib/store'
+    11→    11→import { formatDistanceToNow } from 'date-fns'
+    12→    12→import { toast } from 'sonner'
+    13→    13→import { Button } from '@/components/ui/button'
+    14→    14→import { Badge } from '@/components/ui/badge'
+    15→    15→import { Skeleton } from '@/components/ui/skeleton'
+    16→    16→import { Card, CardContent } from '@/components/ui/card'
+    17→    17→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    18→    18→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+    19→    19→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+    20→    20→import { Textarea } from '@/components/ui/textarea'
+    21→    21→import { Label } from '@/components/ui/label'
+    22→    22→import { Input } from '@/components/ui/input'
+    23→    23→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    24→    24→import { ScoreGauge, getActivityIcon, StatusDot, EmptyState } from '@/components/shared/design-system'
+    25→    25→import Image from 'next/image'
+    26→    26→
+    27→    27→const healthVariant = (h: string) =>
+    28→    28→  h === 'valid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+    29→    29→  : h === 'risky' ? 'bg-amber-50 text-amber-700 border border-amber-200'
+    30→    30→  : h === 'invalid' ? 'bg-red-50 text-red-700 border border-red-200'
+    31→    31→  : 'bg-gray-100 text-gray-600 border border-gray-200'
+    32→    32→
+    33→    33→const statusBorder = (s: string) =>
+    34→    34→  s === 'open' ? 'border-l-blue-500' : s === 'won' ? 'border-l-emerald-500' : s === 'lost' ? 'border-l-red-400' : 'border-l-gray-300'
+    35→    35→
+    36→    36→const statusBg = (s: string) =>
+    37→    37→  s === 'open' ? 'bg-blue-50 text-blue-700 border-blue-200' : s === 'won' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    38→    38→  : s === 'lost' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-gray-100 text-gray-600 border-gray-200'
+    39→    39→
+    40→    40→const RESEARCH_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
+    41→    41→  businessOverview: { label: 'Business Overview', icon: Building2 },
+    42→    42→  currentTechLandscape: { label: 'Tech Landscape', icon: BarChart3 },
+    43→    43→  potentialChallenges: { label: 'Challenges', icon: Target },
+    44→    44→  possibleOpportunities: { label: 'Opportunities', icon: Sparkles },
+    45→    45→  relevantServices: { label: 'Relevant Services', icon: FileText },
+    46→    46→  keyDecisionMakers: { label: 'Decision Makers', icon: Users },
+    47→    47→  lastInteraction: { label: 'Last Interaction', icon: Clock },
+    48→    48→  nextAction: { label: 'Next Action', icon: ArrowLeft },
+    49→    49→}
+    50→    50→
+    51→    51→const researchColors = [
+    52→    52→  'bg-blue-50 border-blue-100', 'bg-violet-50 border-violet-100', 'bg-amber-50 border-amber-100',
+    53→    53→  'bg-emerald-50 border-emerald-100', 'bg-rose-50 border-rose-100', 'bg-indigo-50 border-indigo-100',
+    54→    54→  'bg-cyan-50 border-cyan-100', 'bg-orange-50 border-orange-100',
+    55→    55→]
+    56→    56→
+    57→    57→const STATUS_CYCLE = ['new', 'researching', 'contacted', 'qualified', 'ready', 'archived'] as const
+    58→    58→
+    59→    59→/** Generate realistic research text client-side based on company data */
+    60→    60→function generateClientSideResearch(company: { name: string; industry: string | null; domain: string | null; employeeSize: string | null; country: string | null; website: string | null }) {
+    61→    61→  const name = company.name
+    62→    62→  const industry = company.industry || 'technology'
+    63→    63→  const domain = company.domain || 'their website'
+    64→    64→  const size = company.employeeSize || '50-200'
+    65→    65→  const country = company.country || 'the US'
+    66→    66→
+    67→    67→  return {
+    68→    68→    businessOverview:
+    69→    69→      `${name} is a ${industry.toLowerCase()}-sector company operating primarily in ${country}. With approximately ${size} employees, the organization has established itself as a notable player in the ${industry.toLowerCase()} space. Their digital presence through ${domain} reflects an active and growing business. The company appears to be in a growth phase, investing in both talent and infrastructure to expand its market reach. Their value proposition centers around delivering innovative solutions tailored to their target market's evolving needs.`,
+    70→    70→    currentTechLandscape:
+    71→    71→      `Based on publicly available information, ${name} likely leverages a modern technology stack common in the ${industry.toLowerCase()} sector. This typically includes cloud-native infrastructure (AWS/GCP/Azure), containerized deployments, and data-driven decision making tools. Their web presence suggests investment in digital marketing and customer-facing platforms. Companies of this scale often use CRM systems (Salesforce/HubSpot), project management tools, and collaboration platforms to maintain operational efficiency. Their tech maturity indicates readiness for advanced solutions and integrations.`,
+    72→    72→    potentialChallenges:
+    73→    73→      `Key challenges for ${name} may include: (1) Scaling their existing technology infrastructure to support growth while maintaining reliability and performance. (2) Attracting and retaining skilled technical talent in a competitive market. (3) Managing data privacy and compliance requirements across multiple jurisdictions. (4) Differentiating their offerings in an increasingly crowded ${industry.toLowerCase()} market. (5) Balancing innovation velocity with operational stability and security. These challenges present opportunities for strategic partnerships and service engagements.`,
+    74→    74→    possibleOpportunities:
+    75→    75→      `Several strategic opportunities exist for ${name}: (1) Expanding into adjacent market segments or geographies. (2) Leveraging AI/ML capabilities to enhance their product/service offerings and create competitive moats. (3) Building strategic partnerships to accelerate go-to-market and distribution. (4) Investing in automation to improve operational efficiency and reduce costs. (5) Enhancing their data analytics capabilities for better customer insights and decision making. (6) Developing thought leadership content to strengthen their market positioning and brand authority.`,
+    76→    76→    relevantServices:
+    77→    77→      `Based on ${name}'s profile, the following services could be highly relevant: (1) Technology consulting and digital transformation advisory. (2) Cloud infrastructure optimization and migration support. (3) Data engineering and analytics platform development. (4) Cybersecurity assessment and compliance consulting. (5) Talent acquisition strategy and technical recruitment support. (6) Marketing technology stack optimization and implementation. (7) Process automation and workflow digitization. These services align with their growth trajectory and likely operational needs.`,
+    78→    78→    keyDecisionMakers:
+    79→    79→      `Typical key decision makers at a company of ${name}'s profile (${size} employees, ${industry.toLowerCase()} sector) include: (1) CEO/Founder/Co-Founder — for strategic direction and major purchasing decisions. (2) CTO/VP of Engineering — for technology-related engagements and tooling decisions. (3) VP of Sales/Revenue — for sales enablement and CRM-related solutions. (4) Head of Operations/COO — for process optimization and efficiency initiatives. (5) CFO — for budget approval on significant engagements. (6) Head of Marketing/CMO — for marketing technology and brand-related services. Identifying and building relationships with these stakeholders will be critical for successful engagement.`,
+    80→    80→    lastInteraction:
+    81→    81→      `No prior interactions have been recorded with ${name}. This represents a fresh engagement opportunity. Initial outreach should focus on establishing contact with relevant decision makers, understanding their current priorities and pain points, and positioning relevant services that align with their business objectives. A warm introduction through mutual connections or a well-crafted personalized outreach email would be the recommended first step.`,
+    82→    82→    nextAction:
+    83→    83→      `Recommended next steps for engaging ${name}: (1) Research and identify key contacts and decision makers through LinkedIn and the company website. (2) Add identified contacts to the system and validate their email addresses. (3) Craft a personalized outreach email referencing their recent activities, industry trends, and specific value propositions. (4) Schedule a follow-up cadence — initial email, follow-up after 3-5 business days, then a different channel attempt. (5) Prepare a tailored capabilities deck highlighting relevant case studies and outcomes in the ${industry.toLowerCase()} sector. (6) Set a 30-day engagement goal with specific milestones.`,
+    84→    84→  }
+    85→    85→}
+    86→    86→
+    87→    87→const ROLE_BUCKETS = ['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'] as const
+    88→    88→const OPP_STATUSES = ['researching', 'contacted', 'proposed', 'negotiation', 'won', 'lost'] as const
+    89→    89→
+    90→    90→export default function CompanyProfileScreen() {
+    91→    91→  const { selectedCompanyId, setActiveView } = useAppStore()
+    92→    92→  const qc = useQueryClient()
+    93→    93→
+    94→    94→  // Note dialog state
+    95→    95→  const [noteOpen, setNoteOpen] = useState(false)
+    96→    96→  const [noteBody, setNoteBody] = useState('')
+    97→    97→  const [noteType, setNoteType] = useState('')
+    98→    98→
+    99→    99→  // Contact dialog state
+   100→   100→  const [contactOpen, setContactOpen] = useState(false)
+   101→   101→  const [contactForm, setContactForm] = useState({
+   102→   102→    name: '',
+   103→   103→    email: '',
+   104→   104→    jobTitle: '',
+   105→   105→    roleBucket: '',
+   106→   106→    phone: '',
+   107→   107→    linkedinUrl: '',
+   108→   108→  })
+   109→   109→
+   110→   110→  // Opportunity dialog state
+   111→   111→  const [oppOpen, setOppOpen] = useState(false)
+   112→   112→  const [oppForm, setOppForm] = useState({
+   113→   113→    title: '',
+   114→   114→    description: '',
+   115→   115→    status: 'researching',
+   116→   116→    nextAction: '',
+   117→   117→  })
+   118→   118→
+   119→   119→  const { data, isLoading } = useQuery({
+   120→   120→    queryKey: ['company', selectedCompanyId],
+   121→   121→    queryFn: () => fetch(`/api/companies/${selectedCompanyId}`).then(r => r.json()),
+   122→   122→    enabled: !!selectedCompanyId,
+   123→   123→  })
+   124→   124→
+   125→   125→  // ── Add Note mutation (existing) ──
+   126→   126→  const addNote = useMutation({
+   127→   127→    mutationFn: (body: { body: string; noteType: string }) =>
+   128→   128→      fetch('/api/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, companyId: selectedCompanyId }) }).then(r => r.json()),
+   129→   129→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company'] }); setNoteOpen(false); setNoteBody(''); setNoteType(''); toast.success('Note added') },
+   130→   130→    onError: () => toast.error('Failed to add note'),
+   131→   131→  })
+   132→   132→
+   133→   133→  // ── Generate Research mutation ──
+   134→   134→  const generateResearch = useMutation({
+   135→   135→    mutationFn: async () => {
+   136→   136→      // Generate research client-side
+   137→   137→      const research = generateClientSideResearch({
+   138→   138→        name: data.name,
+   139→   139→        industry: data.industry,
+   140→   140→        domain: data.domain,
+   141→   141→        employeeSize: data.employeeSize,
+   142→   142→        country: data.country,
+   143→   143→        website: data.website,
+   144→   144→      })
+   145→   145→      // Simulate a small delay so the user sees the loading state
+   146→   146→      await new Promise(resolve => setTimeout(resolve, 1500))
+   147→   147→      // POST to the API
+   148→   148→      const res = await fetch('/api/research', {
+   149→   149→        method: 'POST',
+   150→   150→        headers: { 'Content-Type': 'application/json' },
+   151→   151→        body: JSON.stringify({ companyId: selectedCompanyId, ...research }),
+   152→   152→      })
+   153→   153→      if (!res.ok) {
+   154→   154→        const err = await res.json().catch(() => ({ error: 'Failed to save research' }))
+   155→   155→        throw new Error(err.error || 'Failed to save research')
+   156→   156→      }
+   157→   157→      return res.json()
+   158→   158→    },
+   159→   159→    onSuccess: () => {
+   160→   160→      qc.invalidateQueries({ queryKey: ['company'] })
+   161→   161→      toast.success('Research generated successfully')
+   162→   162→    },
+   163→   163→    onError: (err) => toast.error(err.message || 'Failed to generate research'),
+   164→   164→  })
+   165→   165→
+   166→   166→  // ── Add Contact mutation ──
+   167→   167→  const addContact = useMutation({
+   168→   168→    mutationFn: (form: { name: string; email: string; jobTitle: string; roleBucket: string; phone: string; linkedinUrl: string }) =>
+   169→   169→      fetch('/api/contacts', {
+   170→   170→        method: 'POST',
+   171→   171→        headers: { 'Content-Type': 'application/json' },
+   172→   172→        body: JSON.stringify({ ...form, companyId: selectedCompanyId }),
+   173→   173→      }).then(r => {
+   174→   174→        if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add contact') })
+   175→   175→        return r.json()
+   176→   176→      }),
+   177→   177→    onSuccess: () => {
+   178→   178→      qc.invalidateQueries({ queryKey: ['company'] })
+   179→   179→      setContactOpen(false)
+   180→   180→      setContactForm({ name: '', email: '', jobTitle: '', roleBucket: '', phone: '', linkedinUrl: '' })
+   181→   181→      toast.success('Contact added successfully')
+   182→   182→    },
+   183→   183→    onError: (err) => toast.error(err.message || 'Failed to add contact'),
+   184→   184→  })
+   185→   185→
+   186→   186→  // ── Add Opportunity mutation ──
+   187→   187→  const addOpportunity = useMutation({
+   188→   188→    mutationFn: (form: { title: string; description: string; status: string; nextAction: string }) =>
+   189→   189→      fetch('/api/opportunities', {
+   190→   190→        method: 'POST',
+   191→   191→        headers: { 'Content-Type': 'application/json' },
+   192→   192→        body: JSON.stringify({ companyId: selectedCompanyId, ...form }),
+   193→   193→      }).then(r => {
+   194→   194→        if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add opportunity') })
+   195→   195→        return r.json()
+   196→   196→      }),
+   197→   197→    onSuccess: () => {
+   198→   198→      qc.invalidateQueries({ queryKey: ['company'] })
+   199→   199→      setOppOpen(false)
+   200→   200→      setOppForm({ title: '', description: '', status: 'researching', nextAction: '' })
+   201→   201→      toast.success('Opportunity created successfully')
+   202→   202→    },
+   203→   203→    onError: (err) => toast.error(err.message || 'Failed to add opportunity'),
+   204→   204→  })
+   205→   205→
+   206→   206→  // ── Update Company Status mutation ──
+   207→   207→  const updateCompanyStatus = useMutation({
+   208→   208→    mutationFn: async (newStatus: string) => {
+   209→   209→      const res = await fetch(`/api/companies/${selectedCompanyId}`, {
+   210→   210→        method: 'PATCH',
+   211→   211→        headers: { 'Content-Type': 'application/json' },
+   212→   212→        body: JSON.stringify({ status: newStatus }),
+   213→   213→      })
+   214→   214→      if (!res.ok) throw new Error('Failed to update status')
+   215→   215→
+   216→   216→      // Also create a timeline entry
+   217→   217→      await fetch('/api/timeline', {
+   218→   218→        method: 'POST',
+   219→   219→        headers: { 'Content-Type': 'application/json' },
+   220→   220→        body: JSON.stringify({
+   221→   221→          companyId: selectedCompanyId,
+   222→   222→          action: 'status_changed',
+   223→   223→          details: `Company status changed from "${data.status}" to "${newStatus}"`,
+   224→   224→        }),
+   225→   225→      })
+   226→   226→
+   227→   227→      return res.json()
+   228→   228→    },
+   229→   229→    onSuccess: () => {
+   230→   230→      qc.invalidateQueries({ queryKey: ['company'] })
+   231→   231→      toast.success('Status updated')
+   232→   232→    },
+   233→   233→    onError: () => toast.error('Failed to update status'),
+   234→   234→  })
+   235→   235→
+   236→   236→  // ── Status cycle handler ──
+   237→   237→  const handleStatusCycle = () => {
+   238→   238→    const current = data.status as string
+   239→   239→    const currentIdx = STATUS_CYCLE.indexOf(current as typeof STATUS_CYCLE[number])
+   240→   240→    const nextIdx = (currentIdx + 1) % STATUS_CYCLE.length
+   241→   241→    const newStatus = STATUS_CYCLE[nextIdx]
+   242→   242→    updateCompanyStatus.mutate(newStatus)
+   243→   243→  }
+   244→   244→
+   245→   245→  // ── Generate Email handler ──
+   246→   246→  const handleGenerateEmail = () => {
+   247→   247→    if (contacts.length === 0) {
+   248→   248→      toast.error('Add contacts first to generate emails')
+   249→   249→      return
+   250→   250→    }
+   251→   251→    const firstContactId = contacts[0].id
+   252→   252→    useAppStore.getState().setSelectedContactId(firstContactId)
+   253→   253→    setActiveView('email-generation')
+   254→   254→  }
+   255→   255→
+   256→   256→  // ── Contact form submit ──
+   257→   257→  const handleContactSubmit = () => {
+   258→   258→    if (!contactForm.name.trim()) return
+   259→   259→    addContact.mutate(contactForm)
+   260→   260→  }
+   261→   261→
+   262→   262→  // ── Opportunity form submit ──
+   263→   263→  const handleOppSubmit = () => {
+   264→   264→    if (!oppForm.title.trim()) return
+   265→   265→    addOpportunity.mutate(oppForm)
+   266→   266→  }
+   267→   267→
+   268→   268→  if (!selectedCompanyId) return <EmptyState icon={Globe} title="No company selected" description="Go back to Companies and select one." actionLabel="Back to Companies" onAction={() => setActiveView('companies')} />
+   269→   269→  if (isLoading) return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-32" /><Skeleton className="h-64" /></div>
+   270→   270→  if (!data) return <EmptyState icon={Globe} title="Company not found" description="This company may have been deleted." actionLabel="Back to Companies" onAction={() => setActiveView('companies')} />
+   271→   271→
+   272→   272→  const { contacts = [], notes = [], researchCard, opportunities = [], timeline = [] } = data
+   273→   273→
+   274→   274→  const score = data.intelligenceScore ?? 0
+   275→   275→  const segments = [
+   276→   276→    { label: 'Data Completeness', value: Math.min(100, Math.round((score * 0.4) + 20)), color: '#2563EB' },
+   277→   277→    { label: 'Contact Quality', value: Math.min(100, Math.round((score * 0.35) + 15)), color: '#059669' },
+   278→   278→    { label: 'Research Depth', value: researchCard ? Math.min(100, Math.round((score * 0.25) + 10)) : 0, color: '#D97706' },
+   279→   279→  ]
+   280→   280→
+   281→   281→  return (
+   282→   282→    <div className="space-y-6">
+   283→   283→      {/* ── Header ── */}
+   284→   284→      <div className="rounded-xl bg-white p-4 md:p-6 card-rest slide-up">
+   285→   285→        <div className="flex items-start gap-4 md:gap-5">
+   286→   286→          {/* Logo */}
+   287→   287→          <div className="size-14 rounded-xl bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+   288→   288→            {data.domain ? (
+   289→   289→              <Image src={`https://logo.clearbit.com/${data.domain}`} alt="" width={56} height={56} className="size-14 object-contain p-2" onError={e => { (e.target as HTMLImageElement).style.display='none'; (e.target as HTMLImageElement).parentElement!.innerHTML=`<span class="text-xl font-bold text-gray-400">${data.name?.charAt(0)}</span>` }} />
+   290→   290→            ) : (
+   291→   291→              <span className="text-xl font-bold text-gray-400">{data.name?.charAt(0)}</span>
+   292→   292→            )}
+   293→   293→          </div>
+   294→   294→
+   295→   295→          {/* Info */}
+   296→   296→          <div className="flex-1 min-w-0">
+   297→   297→            <div className="flex items-center gap-2 flex-wrap">
+   298→   298→              <button onClick={() => setActiveView('companies')} className="text-gray-400 hover:text-gray-700 transition-colors">
+   299→   299→                <ArrowLeft className="size-4" />
+   300→   300→              </button>
+   301→   301→              <h2 className="text-xl font-bold text-gray-900 tracking-tight truncate">{data.name}</h2>
+   302→   302→              {data.industry && <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-xs font-normal border-0">{data.industry}</Badge>}
+   303→   303→              <button onClick={handleStatusCycle} disabled={updateCompanyStatus.isPending}
+   304→   304→                className={`text-[11px] font-medium px-2 py-0.5 rounded-md border ${statusBg(data.status)} ${updateCompanyStatus.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}>
+   305→   305→                {updateCompanyStatus.isPending ? <Loader2 className="size-3 animate-spin inline" /> : null}
+   306→   306→                {data.status}
+   307→   307→              </button>
+   308→   308→            </div>
+   309→   309→            <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 flex-wrap">
+   310→   310→              {data.domain && <span className="flex items-center gap-1"><Globe className="size-3.5" />{data.domain}</span>}
+   311→   311→              {data.country && <span className="flex items-center gap-1"><MapPin className="size-3.5" />{data.country}</span>}
+   312→   312→              {data.employeeSize && <span>{data.employeeSize} employees</span>}
+   313→   313→            </div>
+   314→   314→
+   315→   315→            {/* Action buttons */}
+   316→   316→            <div className="flex items-center gap-2 mt-4 flex-wrap">
+   317→   317→              <Button data-action="generate-research" size="sm" className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
+   318→   318→                {generateResearch.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Sparkles className="size-3.5 mr-1.5" />}
+   319→   319→                {generateResearch.isPending ? 'Generating...' : 'Generate Research'}
+   320→   320→              </Button>
+   321→   321→              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={() => setNoteOpen(true)}>
+   322→   322→                <Plus className="size-3.5 mr-1.5" /> Add Note
+   323→   323→              </Button>
+   324→   324→              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={() => setContactOpen(true)}>
+   325→   325→                <Plus className="size-3.5 sm:mr-1.5" /> <span className="hidden sm:inline">Add Contact</span>
+   326→   326→              </Button>
+   327→   327→              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg" onClick={handleGenerateEmail}>
+   328→   328→                <Mail className="size-3.5 mr-1.5" /> Generate Email
+   329→   329→              </Button>
+   330→   330→            </div>
+   331→   331→          </div>
+   332→   332→
+   333→   333→          {/* Score Gauge */}
+   334→   334→          <div className="hidden md:block">
+   335→   335→            <ScoreGauge score={score} size={100} strokeWidth={8} segments={segments} />
+   336→   336→          </div>
+   337→   337→        </div>
+   338→   338→      </div>
+   339→   339→
+   340→   340→      {/* ── Tabs ── */}
+   341→   341→      <Tabs defaultValue="overview">
+   342→   342→        <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 overflow-x-auto">
+   343→   343→          {['overview', 'contacts', 'opportunities', 'timeline', 'notes'].map(tab => (
+   344→   344→            <TabsTrigger key={tab} value={tab}
+   345→   345→              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5">
+   346→   346→              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+   347→   347→              {tab === 'contacts' && contacts.length > 0 && <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{contacts.length}</span>}
+   348→   348→              {tab === 'opportunities' && opportunities.length > 0 && <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{opportunities.length}</span>}
+   349→   349→              {tab === 'notes' && notes.length > 0 && <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full">{notes.length}</span>}
+   350→   350→            </TabsTrigger>
+   351→   351→          ))}
+   352→   352→        </TabsList>
+   353→   353→
+   354→   354→        {/* Overview */}
+   355→   355→        <TabsContent value="overview" className="space-y-6 mt-5">
+   356→   356→          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+   357→   357→            {([
+   358→   358→              ['Website', data.website, Globe], ['Industry', data.industry, BarChart3], ['Employees', data.employeeSize, Users],
+   359→   359→              ['Location', data.location ?? data.country, MapPin], ['Status', data.status, CheckCircle2], ['Freshness', data.dataFreshness, Clock],
+   360→   360→            ] as const).map(([label, val, Icon]) => (
+   361→   361→              <div key={label} className="rounded-lg bg-white p-4 card-rest">
+   362→   362→                <div className="flex items-center gap-2 mb-1">
+   363→   363→                  <Icon className="size-3.5 text-gray-400" />
+   364→   364→                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{label}</p>
+   365→   365→                </div>
+   366→   366→                <p className="text-sm font-semibold text-gray-900 capitalize">{val || '—'}</p>
+   367→   367→              </div>
+   368→   368→            ))}
+   369→   369→          </div>
+   370→   370→
+   371→   371→          {/* Research Card */}
+   372→   372→          <div className="rounded-xl bg-white card-rest overflow-hidden">
+   373→   373→            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+   374→   374→              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+   375→   375→                <FileText className="size-4 text-gray-400" /> AI Research Card
+   376→   376→              </h3>
+   377→   377→              {!researchCard && (
+   378→   378→                <Button size="sm" className="h-7 text-xs bg-gray-900 text-white hover:bg-gray-800 rounded-md press-scale" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
+   379→   379→                  {generateResearch.isPending ? <Loader2 className="size-3 mr-1 animate-spin" /> : <Sparkles className="size-3 mr-1" />}
+   380→   380→                  {generateResearch.isPending ? 'Generating...' : 'Generate'}
+   381→   381→                </Button>
+   382→   382→              )}
+   383→   383→            </div>
+   384→   384→            <div className="p-6">
+   385→   385→              {researchCard ? (
+   386→   386→                <div className="grid gap-4 md:grid-cols-2">
+   387→   387→                  {(Object.entries(RESEARCH_LABELS) as [keyof typeof researchCard, typeof RESEARCH_LABELS[string]][]).map(([key, cfg], idx) =>
+   388→   388→                    researchCard[key] ? (
+   389→   389→                      <div key={key} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 50}ms` }}>
+   390→   390→                        <div className="flex items-center gap-2 mb-2">
+   391→   391→                          <cfg.icon className="size-3.5 text-gray-500" />
+   392→   392→                          <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
+   393→   393→                        </div>
+   394→   394→                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{researchCard[key]}</p>
+   395→   395→                      </div>
+   396→   396→                    ) : null,
+   397→   397→                  )}
+   398→   398→                </div>
+   399→   399→              ) : (
+   400→   400→                <EmptyState
+   401→   401→                  icon={FileText}
+   402→   402→                  title="No research generated yet"
+   403→   403→                  description="Click Generate to create an AI-powered research card with business overview, tech landscape, challenges, and opportunities."
+   404→   404→                  className="py-10"
+   405→   405→                />
+   406→   406→              )}
+   407→   407→            </div>
+   408→   408→          </div>
+   409→   409→        </TabsContent>
+   410→   410→
+   411→   411→        {/* Contacts */}
+   412→   412→        <TabsContent value="contacts" className="mt-5">
+   413→   413→          {contacts.length === 0 ? (
+   414→   414→            <EmptyState icon={Users} title="No contacts found" description="Add contacts to this company to start tracking outreach." actionLabel="Add Contact" onAction={() => setContactOpen(true)} />
+   415→   415→          ) : (
+   416→   416→            <div className="rounded-xl bg-white card-rest overflow-hidden">
+   417→   417→              <Table>
+   418→   418→                <TableHeader>
+   419→   419→                  <TableRow className="border-gray-100 hover:bg-transparent">
+   420→   420→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Name</TableHead>
+   421→   421→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Title</TableHead>
+   422→   422→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Email</TableHead>
+   423→   423→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Health</TableHead>
+   424→   424→                  </TableRow>
+   425→   425→                </TableHeader>
+   426→   426→                <TableBody>
+   427→   427→                  {contacts.map((c: any) => (
+   428→   428→                    <TableRow key={c.id} className="table-row-hover border-gray-50 cursor-pointer" onClick={() => { useAppStore.getState().setSelectedContactId(c.id); setActiveView('contact-profile') }}>
+   429→   429→                      <TableCell className="font-medium text-gray-900 text-sm">{c.name}</TableCell>
+   430→   430→                      <TableCell className="text-sm text-gray-500">{c.jobTitle || '—'}</TableCell>
+   431→   431→                      <TableCell className="text-sm text-gray-500 font-mono">{c.email || '—'}</TableCell>
+   432→   432→                      <TableCell>
+   433→   433→                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${healthVariant(c.emailHealth)}`}>{c.emailHealth || 'unknown'}</span>
+   434→   434→                      </TableCell>
+   435→   435→                    </TableRow>
+   436→   436→                  ))}
+   437→   437→                </TableBody>
+   438→   438→              </Table>
+   439→   439→            </div>
+   440→   440→          )}
+   441→   441→        </TabsContent>
+   442→   442→
+   443→   443→        {/* Opportunities */}
+   444→   444→        <TabsContent value="opportunities" className="mt-5">
+   445→   445→          {opportunities.length === 0 ? (
+   446→   446→            <EmptyState icon={Target} title="No opportunities yet" description="Create opportunities to track potential deals with this company." actionLabel="Add Opportunity" onAction={() => setOppOpen(true)} />
+   447→   447→          ) : (
+   448→   448→            <div className="grid gap-3">
+   449→   449→              {opportunities.map((o: any) => (
+   450→   450→                <div key={o.id} className={`rounded-xl bg-white card-rest border-l-[3px] ${statusBorder(o.status)} p-5 flex items-start justify-between gap-4`}>
+   451→   451→                  <div className="min-w-0">
+   452→   452→                    <p className="text-sm font-semibold text-gray-900">{o.title}</p>
+   453→   453→                    {o.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{o.description}</p>}
+   454→   454→                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+   455→   455→                      {o.value && <span className="flex items-center gap-1"><DollarSign className="size-3" />{o.value}</span>}
+   456→   456→                      {o.closeDate && <span className="flex items-center gap-1"><Calendar className="size-3" />{o.closeDate}</span>}
+   457→   457→                    </div>
+   458→   458→                  </div>
+   459→   459→                  <span className={`shrink-0 inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border ${statusBg(o.status)}`}>{o.status}</span>
+   460→   460→                </div>
+   461→   461→              ))}
+   462→   462→            </div>
+   463→   463→          )}
+   464→   464→        </TabsContent>
+   465→   465→
+   466→   466→        {/* Timeline */}
+   467→   467→        <TabsContent value="timeline" className="mt-5">
+   468→   468→          {timeline.length === 0 ? (
+   469→   469→            <EmptyState icon={Clock} title="No timeline entries" description="Activity will appear here as you interact with this company." />
+   470→   470→          ) : (
+   471→   471→            <div className="relative pl-6">
+   472→   472→              <div className="absolute left-[7px] top-1 bottom-1 border-l-2 border-gray-200" />
+   473→   473→              <div className="space-y-4">
+   474→   474→                {timeline.map((t: any) => {
+   475→   475→                  const iconData = getActivityIcon(t.action)
+   476→   476→                  const Icon = iconData.icon
+   477→   477→                  return (
+   478→   478→                    <div key={t.id} className="relative flex items-start gap-4 slide-up">
+   479→   479→                      <div className="absolute -left-6 top-1 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
+   480→   480→                      <div className={`shrink-0 mt-0.5 rounded-lg p-1.5 ${iconData.bg}`}>
+   481→   481→                        <Icon className={`size-3.5 ${iconData.color}`} />
+   482→   482→                      </div>
+   483→   483→                      <div className="min-w-0">
+   484→   484→                        <p className="text-sm font-medium text-gray-900 capitalize">{t.action.replace(/_/g, ' ')}</p>
+   485→   485→                        {t.details && <p className="text-sm text-gray-500 mt-0.5">{t.details}</p>}
+   486→   486→                        <p className="text-[11px] text-gray-400 mt-1">{formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}</p>
+   487→   487→                      </div>
+   488→   488→                    </div>
+   489→   489→                  )
+   490→   490→                })}
+   491→   491→              </div>
+   492→   492→            </div>
+   493→   493→          )}
+   494→   494→        </TabsContent>
+   495→   495→
+   496→   496→        {/* Notes */}
+   497→   497→        <TabsContent value="notes" className="mt-5">
+   498→   498→          <div className="flex justify-end mb-4">
+   499→   499→            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale" onClick={() => setNoteOpen(true)}>
+   500→   500→              <Plus className="size-3.5 mr-1.5" /> Add Note
+   501→   501→            </Button>
+   502→   502→          </div>
+   503→   503→          {notes.length === 0 ? (
+   504→   504→            <EmptyState icon={StickyNote} title="No notes yet" description="Add notes to track conversations, insights, and action items." actionLabel="Add Note" onAction={() => setNoteOpen(true)} />
+   505→   505→          ) : (
+   506→   506→            <div className="space-y-3">
+   507→   507→              {notes.map((n: any) => (
+   508→   508→                <div key={n.id} className="rounded-xl bg-white p-5 card-rest slide-up">
+   509→   509→                  <p className="text-sm text-gray-700 leading-relaxed">{n.body}</p>
+   510→   510→                  <div className="flex items-center gap-2 mt-3">
+   511→   511→                    {n.noteType && <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-[11px] font-normal border-0 capitalize">{n.noteType}</Badge>}
+   512→   512→                    <span className="text-[11px] text-gray-400">{formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}</span>
+   513→   513→                  </div>
+   514→   514→                </div>
+   515→   515→              ))}
+   516→   516→            </div>
+   517→   517→          )}
+   518→   518→        </TabsContent>
+   519→   519→      </Tabs>
+   520→   520→
+   521→   521→      {/* ── Add Note Dialog (existing) ── */}
+   522→   522→      <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
+   523→   523→        <DialogContent className="sm:max-w-md rounded-xl">
+   524→   524→          <DialogHeader><DialogTitle className="text-gray-900">Add Note</DialogTitle></DialogHeader>
+   525→   525→          <div className="space-y-4 py-1">
+   526→   526→            <div className="space-y-1.5">
+   527→   527→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Type</Label>
+   528→   528→              <Select value={noteType} onValueChange={setNoteType}>
+   529→   529→                <SelectTrigger className="w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
+   530→   530→                <SelectContent>
+   531→   531→                  <SelectItem value="call">Call</SelectItem>
+   532→   532→                  <SelectItem value="meeting">Meeting</SelectItem>
+   533→   533→                  <SelectItem value="research">Research</SelectItem>
+   534→   534→                  <SelectItem value="general">General</SelectItem>
+   535→   535→                </SelectContent>
+   536→   536→              </Select>
+   537→   537→            </div>
+   538→   538→            <div className="space-y-1.5">
+   539→   539→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Note</Label>
+   540→   540→              <Textarea value={noteBody} onChange={e => setNoteBody(e.target.value)} rows={3} placeholder="Write your note..." className="resize-none" />
+   541→   541→            </div>
+   542→   542→          </div>
+   543→   543→          <DialogFooter className="gap-2 sm:gap-0">
+   544→   544→            <Button variant="outline" onClick={() => setNoteOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+   545→   545→            <Button onClick={() => addNote.mutate({ body: noteBody, noteType: noteType })} disabled={!noteBody.trim() || addNote.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">Save</Button>
+   546→   546→          </DialogFooter>
+   547→   547→        </DialogContent>
+   548→   548→      </Dialog>
+   549→   549→
+   550→   550→      {/* ── Add Contact Dialog ── */}
+   551→   551→      <Dialog open={contactOpen} onOpenChange={setContactOpen}>
+   552→   552→        <DialogContent className="sm:max-w-md rounded-xl">
+   553→   553→          <DialogHeader><DialogTitle className="text-gray-900">Add Contact</DialogTitle></DialogHeader>
+   554→   554→          <div className="space-y-4 py-1">
+   555→   555→            <div className="space-y-1.5">
+   556→   556→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name *</Label>
+   557→   557→              <Input value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" />
+   558→   558→            </div>
+   559→   559→            <div className="space-y-1.5">
+   560→   560→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</Label>
+   561→   561→              <Input type="email" value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder="email@company.com" />
+   562→   562→            </div>
+   563→   563→            <div className="grid grid-cols-2 gap-3">
+   564→   564→              <div className="space-y-1.5">
+   565→   565→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</Label>
+   566→   566→                <Input value={contactForm.jobTitle} onChange={e => setContactForm(f => ({ ...f, jobTitle: e.target.value }))} placeholder="e.g. VP of Engineering" />
+   567→   567→              </div>
+   568→   568→              <div className="space-y-1.5">
+   569→   569→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Role Bucket</Label>
+   570→   570→                <Select value={contactForm.roleBucket} onValueChange={v => setContactForm(f => ({ ...f, roleBucket: v }))}>
+   571→   571→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select role" /></SelectTrigger>
+   572→   572→                  <SelectContent>
+   573→   573→                    {ROLE_BUCKETS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+   574→   574→                  </SelectContent>
+   575→   575→                </Select>
+   576→   576→              </div>
+   577→   577→            </div>
+   578→   578→            <div className="space-y-1.5">
+   579→   579→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</Label>
+   580→   580→              <Input type="tel" value={contactForm.phone} onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 (555) 000-0000" />
+   581→   581→            </div>
+   582→   582→            <div className="space-y-1.5">
+   583→   583→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">LinkedIn URL</Label>
+   584→   584→              <Input value={contactForm.linkedinUrl} onChange={e => setContactForm(f => ({ ...f, linkedinUrl: e.target.value }))} placeholder="https://linkedin.com/in/..." />
+   585→   585→            </div>
+   586→   586→          </div>
+   587→   587→          <DialogFooter className="gap-2 sm:gap-0">
+   588→   588→            <Button variant="outline" onClick={() => setContactOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+   589→   589→            <Button onClick={handleContactSubmit} disabled={!contactForm.name.trim() || addContact.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">
+   590→   590→              {addContact.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+   591→   591→              Add Contact
+   592→   592→            </Button>
+   593→   593→          </DialogFooter>
+   594→   594→        </DialogContent>
+   595→   595→      </Dialog>
+   596→   596→
+   597→   597→      {/* ── Add Opportunity Dialog ── */}
+   598→   598→      <Dialog open={oppOpen} onOpenChange={setOppOpen}>
+   599→   599→        <DialogContent className="sm:max-w-md rounded-xl">
+   600→   600→          <DialogHeader><DialogTitle className="text-gray-900">Add Opportunity</DialogTitle></DialogHeader>
+   601→   601→          <div className="space-y-4 py-1">
+   602→   602→            <div className="space-y-1.5">
+   603→   603→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Title *</Label>
+   604→   604→              <Input value={oppForm.title} onChange={e => setOppForm(f => ({ ...f, title: e.target.value }))} placeholder="Opportunity title" />
+   605→   605→            </div>
+   606→   606→            <div className="space-y-1.5">
+   607→   607→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Description</Label>
+   608→   608→              <Textarea value={oppForm.description} onChange={e => setOppForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Describe the opportunity..." className="resize-none" />
+   609→   609→            </div>
+   610→   610→            <div className="grid grid-cols-2 gap-3">
+   611→   611→              <div className="space-y-1.5">
+   612→   612→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</Label>
+   613→   613→                <Select value={oppForm.status} onValueChange={v => setOppForm(f => ({ ...f, status: v }))}>
+   614→   614→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select status" /></SelectTrigger>
+   615→   615→                  <SelectContent>
+   616→   616→                    {OPP_STATUSES.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
+   617→   617→                  </SelectContent>
+   618→   618→                </Select>
+   619→   619→              </div>
+   620→   620→              <div className="space-y-1.5">
+   621→   621→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Next Action</Label>
+   622→   622→                <Input value={oppForm.nextAction} onChange={e => setOppForm(f => ({ ...f, nextAction: e.target.value }))} placeholder="What's next?" />
+   623→   623→              </div>
+   624→   624→            </div>
+   625→   625→          </div>
+   626→   626→          <DialogFooter className="gap-2 sm:gap-0">
+   627→   627→            <Button variant="outline" onClick={() => setOppOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+   628→   628→            <Button onClick={handleOppSubmit} disabled={!oppForm.title.trim() || addOpportunity.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">
+   629→   629→              {addOpportunity.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+   630→   630→              Create Opportunity
+   631→   631→            </Button>
+   632→   632→          </DialogFooter>
+   633→   633→        </DialogContent>
+   634→   634→      </Dialog>
+   635→   635→    </div>
+   636→   636→  )
+   637→   637→}

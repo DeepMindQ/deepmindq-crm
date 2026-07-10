@@ -48,6 +48,17 @@ export default function ContactDetailScreen() {
   const [noteBody, setNoteBody] = useState('')
   const [noteType, setNoteType] = useState('')
 
+  const [editOpen, setEditOpen] = useState(false)
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    jobTitle: '',
+    roleBucket: '',
+    phone: '',
+    location: '',
+    linkedinUrl: '',
+  })
+
   /* ── Query ── */
   const { data, isLoading } = useQuery({
     queryKey: ['contact', selectedContactId],
@@ -84,6 +95,35 @@ export default function ContactDetailScreen() {
     },
     onError: () => toast.error('Failed to archive contact'),
   })
+
+  const editContact = useMutation({
+    mutationFn: (form: typeof editForm) =>
+      fetch(`/api/contacts/${selectedContactId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      }).then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Failed to update contact') })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contact', selectedContactId] })
+      qc.invalidateQueries({ queryKey: ['contacts'] })
+      setEditOpen(false)
+      toast.success('Contact updated')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const openEditDialog = () => {
+    setEditForm({
+      name: data.name || '',
+      email: data.email || '',
+      jobTitle: data.jobTitle || '',
+      roleBucket: data.roleBucket || '',
+      phone: data.phone || '',
+      location: data.location || '',
+      linkedinUrl: data.linkedinUrl || '',
+    })
+    setEditOpen(true)
+  }
 
   const validateEmail = useMutation({
     mutationFn: () =>
@@ -230,6 +270,14 @@ export default function ContactDetailScreen() {
                 onClick={() => setNoteOpen(true)}
               >
                 <Plus className="size-3.5 mr-1.5" /> Add Note
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg"
+                onClick={openEditDialog}
+              >
+                <FileText className="size-3.5 mr-1.5" /> Edit
               </Button>
               <Button
                 size="sm"
@@ -475,6 +523,65 @@ export default function ContactDetailScreen() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* ════════════ Edit Contact Dialog ════════════ */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-md rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900">Edit Contact</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name *</Label>
+              <Input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</Label>
+              <Input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} placeholder="email@company.com" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</Label>
+                <Input value={editForm.jobTitle} onChange={e => setEditForm(f => ({ ...f, jobTitle: e.target.value }))} placeholder="e.g. VP Engineering" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Role Bucket</Label>
+                <Select value={editForm.roleBucket} onValueChange={v => setEditForm(f => ({ ...f, roleBucket: v }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Select role" /></SelectTrigger>
+                  <SelectContent>
+                    {['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</Label>
+                <Input type="tel" value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 (555) 000-0000" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Location</Label>
+                <Input value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} placeholder="City, Country" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">LinkedIn URL</Label>
+              <Input value={editForm.linkedinUrl} onChange={e => setEditForm(f => ({ ...f, linkedinUrl: e.target.value }))} placeholder="https://linkedin.com/in/..." />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setEditOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+            <Button
+              onClick={() => editContact.mutate(editForm)}
+              disabled={!editForm.name.trim() || editContact.isPending}
+              className="bg-gray-900 text-white hover:bg-gray-800 press-scale"
+            >
+              {editContact.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ════════════ Add Note Dialog ════════════ */}
       <Dialog open={noteOpen} onOpenChange={setNoteOpen}>

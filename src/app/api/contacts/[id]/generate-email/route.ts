@@ -220,8 +220,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           ? {
               OR: [
                 { industries: { contains: contact.company.industry } },
-                { industries: { isEmpty: true } },
                 { industries: { equals: '' } },
+                { industries: { not: contact.company?.industry } },
               ],
             }
           : {}),

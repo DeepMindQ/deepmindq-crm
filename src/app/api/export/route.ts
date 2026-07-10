@@ -12,6 +12,7 @@ function escapeCSV(value: string | number | null | undefined): string {
 
 async function buildCompaniesCSV(): Promise<string> {
   const companies = await db.company.findMany({
+    where: { status: { not: "archived" } },
     orderBy: { createdAt: "desc" },
   });
 

@@ -72,10 +72,55 @@ export async function PATCH(
       "lastValidatedAt",
     ];
 
+    const VALID_STATUSES = ["new", "active", "archived"];
+    const VALID_EMAIL_HEALTH = ["valid", "risky", "invalid", "unknown"];
+
+    // Validate status if provided
+    if (body.status !== undefined && !VALID_STATUSES.includes(body.status)) {
+      return NextResponse.json(
+        { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate emailHealth if provided
+    if (body.emailHealth !== undefined && !VALID_EMAIL_HEALTH.includes(body.emailHealth)) {
+      return NextResponse.json(
+        { error: `Invalid emailHealth. Must be one of: ${VALID_EMAIL_HEALTH.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate emailHealthScore if provided
+    if (body.emailHealthScore !== undefined) {
+      if (typeof body.emailHealthScore !== "number" || !Number.isInteger(body.emailHealthScore) || body.emailHealthScore < 0 || body.emailHealthScore > 100) {
+        return NextResponse.json(
+          { error: "emailHealthScore must be an integer between 0 and 100" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate email format if provided
+    if (body.email !== undefined && body.email !== null) {
+      const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(body.email)) {
+        return NextResponse.json(
+          { error: "Invalid email format" },
+          { status: 400 }
+        );
+      }
+    }
+
     const data: Record<string, unknown> = {};
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
-        data[field] = body[field];
+        // Trim string fields
+        if (typeof body[field] === "string") {
+          data[field] = (body[field] as string).trim();
+        } else {
+          data[field] = body[field];
+        }
       }
     }
 

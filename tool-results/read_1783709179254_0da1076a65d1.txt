@@ -4,7 +4,7 @@
      4→import { useQuery, useMutation } from '@tanstack/react-query'
      5→import {
      6→  Mail, Sparkles, Copy, RefreshCw, User, CheckCircle2, Loader2, Search,
-     7→  ExternalLink, Zap, AlertTriangle, Building2, Eye, Save,
+     7→  ExternalLink, Zap, AlertTriangle, Building2, Eye, Save, ChevronRight,
      8→} from 'lucide-react'
      9→import { Button } from '@/components/ui/button'
     10→import { Input } from '@/components/ui/input'
@@ -429,7 +429,7 @@
    429→                    key={c.id}
    430→                    onClick={() => selectContact(c)}
    431→                    className={cn(
-   432→                      'w-full p-3 rounded-lg cursor-pointer transition-colors flex items-center gap-2.5 text-left',
+   432→                      'w-full p-3 rounded-lg cursor-pointer transition-colors flex items-center gap-2.5 text-left group',
    433→                      isActive
    434→                        ? 'bg-amber-50 border border-amber-200/80'
    435→                        : 'hover:bg-gray-100/60 border border-transparent'
@@ -448,208 +448,226 @@
    448→                        </Badge>
    449→                      </div>
    450→                    </div>
-   451→                  </button>
-   452→                )
-   453→              })}
-   454→            </div>
-   455→          )}
-   456→        </div>
-   457→      </aside>
-   458→
-   459→      {/* ═══════════════════════════════════════════════════════
-   460→          Main Area
-   461→         ═══════════════════════════════════════════════════════ */}
-   462→      <main className="flex-1 overflow-y-auto min-h-0">
-   463→        {!activeContact && !preselectedLoading ? (
-   464→          <div className="h-full">
-   465→            <EmptyState
-   466→              icon={Mail}
-   467→              title="Select a contact to generate a personalized email"
-   468→              description="Choose a contact from the sidebar to begin crafting an AI-powered outreach email tailored to their role, company, and industry."
-   469→            />
-   470→          </div>
-   471→        ) : preselectedLoading ? (
-   472→          <div className="flex items-center justify-center h-full">
-   473→            <Loader2 className="size-6 animate-spin text-amber-600" />
-   474→          </div>
-   475→        ) : (
-   476→          <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-4 md:space-y-5">
-   477→            {/* ── Contact context header ── */}
-   478→            <div className="bg-white rounded-xl border border-gray-200/80 card-rest p-4 md:p-5">
-   479→              <div className="flex items-center justify-between">
-   480→                <div className="flex items-center gap-3 min-w-0">
-   481→                  <div className="size-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 text-sm font-bold shrink-0">
-   482→                    {activeContact?.name?.charAt(0)?.toUpperCase()}
-   483→                  </div>
-   484→                  <div className="min-w-0">
-   485→                    <div className="flex items-center gap-2">
-   486→                      <button
-   487→                        onClick={goToContactProfile}
-   488→                        className="text-sm font-semibold text-gray-900 hover:text-amber-700 transition-colors truncate"
-   489→                      >
-   490→                        {activeContact?.name}
-   491→                      </button>
-   492→                      {activeContact?.company && (
-   493→                        <>
-   494→                          <span className="text-gray-300">·</span>
-   495→                          <button
-   496→                            onClick={() => goToCompanyProfile(activeContact.company?.id || activeContact.companyId || '')}
-   497→                            className="text-sm text-gray-500 hover:text-amber-700 transition-colors flex items-center gap-1 truncate"
-   498→                          >
-   499→                            <Building2 className="size-3" />
-   500→                            {activeContact.company.name}
-   501→                          </button>
-   502→                        </>
-   503→                      )}
-   504→                    </div>
-   505→                    <p className="text-xs text-gray-400 mt-0.5">
-   506→                      {activeContact?.email} {activeContact?.jobTitle ? `· ${activeContact.jobTitle}` : ''}
-   507→                    </p>
-   508→                  </div>
-   509→                </div>
-   510→                <button
-   511→                  onClick={goToContactProfile}
-   512→                  className="hidden sm:flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-800 transition-colors shrink-0"
-   513→                >
-   514→                  <Eye className="size-3.5" />
-   515→                  View Profile
-   516→                </button>
-   517→              </div>
-   518→            </div>
-   519→
-   520→            {/* ── Configuration Panel ── */}
-   521→            <ToggleGroup
-   522→              label="Email Tone"
-   523→              description="Choose the voice and style of your outreach message"
-   524→              options={TONE_OPTIONS}
-   525→              value={tone}
-   526→              onChange={setTone}
-   527→            />
-   528→
-   529→            <ToggleGroup
-   530→              label="Email Length"
-   531→              description="How detailed should the generated email be?"
-   532→              options={LENGTH_OPTIONS}
-   533→              value={emailLength}
-   534→              onChange={setEmailLength}
-   535→            />
-   536→
-   537→            <ToggleGroup
-   538→              label="CTA Style"
-   539→              description="How should the call-to-action be framed?"
-   540→              options={CTA_OPTIONS}
-   541→              value={ctaStyle}
-   542→              onChange={setCtaStyle}
-   543→            />
-   544→
-   545→            {/* ── Generate Button ── */}
-   546→            <Button
-   547→              onClick={() => generateMutation.mutate()}
-   548→              disabled={generateMutation.isPending}
-   549→              className="w-full h-13 bg-amber-600 hover:bg-amber-700 text-white rounded-xl press-scale shadow-sm text-base font-semibold gap-2.5 transition-all duration-200"
-   550→            >
-   551→              {generateMutation.isPending ? (
-   552→                <>
-   553→                  <Loader2 className="size-5 animate-spin" />
-   554→                  Generating with {providerDisplayName(prefs?.aiProvider || 'openai')}...
-   555→                </>
-   556→              ) : (
-   557→                <>
-   558→                  <Sparkles className="size-5" />
-   559→                  Generate Email
-   560→                </>
-   561→              )}
-   562→            </Button>
-   563→
-   564→            {/* ── Generated Draft ── */}
-   565→            {hasDraft && (
-   566→              <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
-   567→                {/* Generation source + Badges */}
-   568→                <div className="bg-white rounded-xl border border-gray-200/80 card-rest p-4 md:p-5 space-y-3">
-   569→                  <div className="flex items-center justify-between flex-wrap gap-2">
-   570→                    <div className="flex items-center gap-2">
-   571→                      <Badge className={cn('text-[11px] font-semibold px-2.5 py-1 border', matchScoreClasses(lastMatchScore))}>
-   572→                        Match: {lastMatchScore != null ? `${lastMatchScore}%` : '—'}
-   573→                      </Badge>
-   574→                      <Badge className={cn('text-[11px] font-semibold px-2.5 py-1 border', confidenceClasses(lastConfidence))}>
-   575→                        Confidence: {lastConfidence ? lastConfidence.charAt(0).toUpperCase() + lastConfidence.slice(1) : '—'}
-   576→                      </Badge>
-   577→                    </div>
-   578→                    <p className="text-[11px] text-gray-400 font-medium">
-   579→                      {isAiGenerated
-   580→                        ? <span className="flex items-center gap-1"><Zap className="size-3 text-emerald-500" /> Generated by {aiProviderName}</span>
-   581→                        : <span className="flex items-center gap-1"><AlertTriangle className="size-3 text-amber-500" /> Template-based (<button onClick={goToSettings} className="text-amber-600 hover:underline">configure AI</button>)</span>
-   582→                      }
-   583→                    </p>
-   584→                  </div>
-   585→
-   586→                  {/* Subject */}
-   587→                  <div>
-   588→                    <label className="text-xs font-medium text-gray-500 block mb-1.5">Subject Line</label>
-   589→                    <Input
-   590→                      value={generatedSubject}
-   591→                      onChange={e => setGeneratedSubject(e.target.value)}
-   592→                      className="border-gray-200 rounded-lg h-10 text-sm font-semibold text-gray-900 focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
-   593→                      placeholder="Email subject..."
-   594→                    />
-   595→                  </div>
-   596→                </div>
-   597→
-   598→                {/* Body */}
-   599→                <div className="bg-gray-50/60 border border-gray-200/80 rounded-xl p-5 md:p-6">
-   600→                  <label className="text-xs font-medium text-gray-500 block mb-2">Email Body</label>
-   601→                  <pre className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed font-sans">
-   602→                    {generatedBody}
-   603→                  </pre>
-   604→                </div>
-   605→
-   606→                {/* Action Row */}
-   607→                <div className="flex items-center gap-2 flex-wrap">
-   608→                  <Button
-   609→                    variant="outline"
-   610→                    onClick={() => generateMutation.mutate()}
-   611→                    disabled={generateMutation.isPending}
-   612→                    className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg gap-2"
-   613→                  >
-   614→                    <RefreshCw className={cn('size-4', generateMutation.isPending && 'animate-spin')} />
-   615→                    Regenerate
-   616→                  </Button>
-   617→                  <Button
-   618→                    variant="outline"
-   619→                    onClick={handleCopy}
-   620→                    className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg gap-2"
-   621→                  >
-   622→                    <Copy className="size-4" />
-   623→                    Copy Email
-   624→                  </Button>
-   625→                  <Button
-   626→                    disabled={!!lastDraftId}
-   627→                    className={cn(
-   628→                      'rounded-lg gap-2 press-scale',
-   629→                      lastDraftId
-   630→                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50'
-   631→                        : 'bg-amber-600 hover:bg-amber-700 text-white'
-   632→                    )}
-   633→                  >
-   634→                    <Save className="size-4" />
-   635→                    {lastDraftId ? 'Draft Auto-Saved' : 'Save as Draft'}
-   636→                  </Button>
-   637→                  <button
-   638→                    onClick={goToContactProfile}
-   639→                    className="ml-auto flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-800 transition-colors"
+   451→                    <button
+   452→                      onClick={(e) => { e.stopPropagation(); setSelectedContactId(c.id); setActiveView('contact-profile') }}
+   453→                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-amber-600 transition-all duration-150 shrink-0 p-1 rounded-md hover:bg-amber-50"
+   454→                      title="View contact profile"
+   455→                    >
+   456→                      <ChevronRight className="size-3.5" />
+   457→                    </button>
+   458→                  </button>
+   459→                )
+   460→              })}
+   461→            </div>
+   462→          )}
+   463→        </div>
+   464→      </aside>
+   465→
+   466→      {/* ═══════════════════════════════════════════════════════
+   467→          Main Area
+   468→         ═══════════════════════════════════════════════════════ */}
+   469→      <main className="flex-1 overflow-y-auto min-h-0">
+   470→        {!activeContact && !preselectedLoading ? (
+   471→          <div className="h-full">
+   472→            <EmptyState
+   473→              icon={Mail}
+   474→              title="Select a contact to generate a personalized email"
+   475→              description="Choose a contact from the sidebar to begin crafting an AI-powered outreach email tailored to their role, company, and industry."
+   476→            />
+   477→          </div>
+   478→        ) : preselectedLoading ? (
+   479→          <div className="flex items-center justify-center h-full">
+   480→            <Loader2 className="size-6 animate-spin text-amber-600" />
+   481→          </div>
+   482→        ) : (
+   483→          <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-4 md:space-y-5">
+   484→            {/* ── Contact context header ── */}
+   485→            <div className="bg-white rounded-xl border border-gray-200/80 card-rest p-4 md:p-5">
+   486→              <div className="flex items-center justify-between">
+   487→                <div className="flex items-center gap-3 min-w-0">
+   488→                  <div className="size-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 text-sm font-bold shrink-0">
+   489→                    {activeContact?.name?.charAt(0)?.toUpperCase()}
+   490→                  </div>
+   491→                  <div className="min-w-0">
+   492→                    <div className="flex items-center gap-2">
+   493→                      <button
+   494→                        onClick={goToContactProfile}
+   495→                        className="text-sm font-semibold text-gray-900 hover:text-amber-700 transition-colors truncate"
+   496→                      >
+   497→                        {activeContact?.name}
+   498→                      </button>
+   499→                      {activeContact?.company && (
+   500→                        <>
+   501→                          <span className="text-gray-300">·</span>
+   502→                          <button
+   503→                            onClick={() => goToCompanyProfile(activeContact.company?.id || activeContact.companyId || '')}
+   504→                            className="text-sm text-gray-500 hover:text-amber-700 transition-colors flex items-center gap-1 truncate"
+   505→                          >
+   506→                            <Building2 className="size-3" />
+   507→                            {activeContact.company.name}
+   508→                          </button>
+   509→                        </>
+   510→                      )}
+   511→                    </div>
+   512→                    <p className="text-xs text-gray-400 mt-0.5">
+   513→                      {activeContact?.email} {activeContact?.jobTitle ? `· ${activeContact.jobTitle}` : ''}
+   514→                    </p>
+   515→                  </div>
+   516→                </div>
+   517→                <button
+   518→                  onClick={goToContactProfile}
+   519→                  className="hidden sm:flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-800 transition-colors shrink-0"
+   520→                >
+   521→                  <Eye className="size-3.5" />
+   522→                  View Profile
+   523→                </button>
+   524→              </div>
+   525→            </div>
+   526→
+   527→            {/* ── Configuration Panel ── */}
+   528→            <ToggleGroup
+   529→              label="Email Tone"
+   530→              description="Choose the voice and style of your outreach message"
+   531→              options={TONE_OPTIONS}
+   532→              value={tone}
+   533→              onChange={setTone}
+   534→            />
+   535→
+   536→            <ToggleGroup
+   537→              label="Email Length"
+   538→              description="How detailed should the generated email be?"
+   539→              options={LENGTH_OPTIONS}
+   540→              value={emailLength}
+   541→              onChange={setEmailLength}
+   542→            />
+   543→
+   544→            <ToggleGroup
+   545→              label="CTA Style"
+   546→              description="How should the call-to-action be framed?"
+   547→              options={CTA_OPTIONS}
+   548→              value={ctaStyle}
+   549→              onChange={setCtaStyle}
+   550→            />
+   551→
+   552→            {/* ── Generate Button ── */}
+   553→            <Button
+   554→              onClick={() => generateMutation.mutate()}
+   555→              disabled={generateMutation.isPending}
+   556→              className="w-full h-13 bg-amber-600 hover:bg-amber-700 text-white rounded-xl press-scale shadow-sm text-base font-semibold gap-2.5 transition-all duration-200"
+   557→            >
+   558→              {generateMutation.isPending ? (
+   559→                <>
+   560→                  <Loader2 className="size-5 animate-spin" />
+   561→                  Generating with {providerDisplayName(prefs?.aiProvider || 'openai')}...
+   562→                </>
+   563→              ) : (
+   564→                <>
+   565→                  <Sparkles className="size-5" />
+   566→                  Generate Email
+   567→                </>
+   568→              )}
+   569→            </Button>
+   570→
+   571→            {/* ── Generated Draft ── */}
+   572→            {hasDraft && (
+   573→              <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+   574→                {/* Generation source + Badges */}
+   575→                <div className="bg-white rounded-xl border border-gray-200/80 card-rest p-4 md:p-5 space-y-3">
+   576→                  <div className="flex items-center justify-between flex-wrap gap-2">
+   577→                    <div className="flex items-center gap-2">
+   578→                      <Badge className={cn('text-[11px] font-semibold px-2.5 py-1 border', matchScoreClasses(lastMatchScore))}>
+   579→                        Match: {lastMatchScore != null ? `${lastMatchScore}%` : '—'}
+   580→                      </Badge>
+   581→                      <Badge className={cn('text-[11px] font-semibold px-2.5 py-1 border', confidenceClasses(lastConfidence))}>
+   582→                        Confidence: {lastConfidence ? lastConfidence.charAt(0).toUpperCase() + lastConfidence.slice(1) : '—'}
+   583→                      </Badge>
+   584→                    </div>
+   585→                    <p className="text-[11px] text-gray-400 font-medium">
+   586→                      {isAiGenerated
+   587→                        ? <span className="flex items-center gap-1"><Zap className="size-3 text-emerald-500" /> Generated by {aiProviderName}</span>
+   588→                        : <span className="flex items-center gap-1"><AlertTriangle className="size-3 text-amber-500" /> Template-based (<button onClick={goToSettings} className="text-amber-600 hover:underline">configure AI</button>)</span>
+   589→                      }
+   590→                    </p>
+   591→                  </div>
+   592→
+   593→                  {/* Subject */}
+   594→                  <div>
+   595→                    <label className="text-xs font-medium text-gray-500 block mb-1.5">Subject Line</label>
+   596→                    <Input
+   597→                      value={generatedSubject}
+   598→                      onChange={e => setGeneratedSubject(e.target.value)}
+   599→                      className="border-gray-200 rounded-lg h-10 text-sm font-semibold text-gray-900 focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
+   600→                      placeholder="Email subject..."
+   601→                    />
+   602→                  </div>
+   603→                </div>
+   604→
+   605→                {/* Body */}
+   606→                <div className="bg-gray-50/60 border border-gray-200/80 rounded-xl p-5 md:p-6">
+   607→                  <label className="text-xs font-medium text-gray-500 block mb-2">Email Body</label>
+   608→                  <pre className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed font-sans">
+   609→                    {generatedBody}
+   610→                  </pre>
+   611→                </div>
+   612→
+   613→                {/* Action Row */}
+   614→                <div className="flex items-center gap-2 flex-wrap">
+   615→                  <Button
+   616→                    variant="outline"
+   617→                    onClick={() => generateMutation.mutate()}
+   618→                    disabled={generateMutation.isPending}
+   619→                    className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg gap-2"
+   620→                  >
+   621→                    <RefreshCw className={cn('size-4', generateMutation.isPending && 'animate-spin')} />
+   622→                    Regenerate
+   623→                  </Button>
+   624→                  <Button
+   625→                    variant="outline"
+   626→                    onClick={handleCopy}
+   627→                    className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg gap-2"
+   628→                  >
+   629→                    <Copy className="size-4" />
+   630→                    Copy Email
+   631→                  </Button>
+   632→                  <Button
+   633→                    disabled={!!lastDraftId}
+   634→                    className={cn(
+   635→                      'rounded-lg gap-2 press-scale',
+   636→                      lastDraftId
+   637→                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50'
+   638→                        : 'bg-amber-600 hover:bg-amber-700 text-white'
+   639→                    )}
    640→                  >
-   641→                    <ExternalLink className="size-3.5" />
-   642→                    View Contact Profile
-   643→                  </button>
-   644→                </div>
-   645→              </div>
-   646→            )}
-   647→          </div>
-   648→        )}
-   649→      </main>
-   650→    </div>
-   651→  )
-   652→}
-   653→
-   654→// Named export alias for consumers that import by name
-   655→export { EmailGenerationScreen }
+   641→                    <Save className="size-4" />
+   642→                    {lastDraftId ? 'Draft Auto-Saved' : 'Save as Draft'}
+   643→                  </Button>
+   644→                  <span className="ml-auto flex items-center gap-3">
+   645→                  <button
+   646→                    onClick={goToContactProfile}
+   647→                    className="flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-800 transition-colors duration-150"
+   648→                  >
+   649→                    <ExternalLink className="size-3.5" />
+   650→                    View Contact Profile
+   651→                  </button>
+   652→                  {activeContact?.company && (
+   653→                    <button
+   654→                      onClick={() => goToCompanyProfile(activeContact.company?.id || activeContact.companyId || '')}
+   655→                      className="flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-800 transition-colors duration-150"
+   656→                    >
+   657→                      <Building2 className="size-3.5" />
+   658→                      View Company
+   659→                    </button>
+   660→                  )}
+   661→                  </span>
+   662→                </div>
+   663→              </div>
+   664→            )}
+   665→          </div>
+   666→        )}
+   667→      </main>
+   668→    </div>
+   669→  )
+   670→}
+   671→
+   672→// Named export alias for consumers that import by name
+   673→export { EmailGenerationScreen }

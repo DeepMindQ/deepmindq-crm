@@ -7,7 +7,7 @@ import Image from 'next/image'
 import {
   LayoutDashboard, Building2, Users, Upload, Settings, Search,
   Bell, HelpCircle, LogOut, ChevronDown, Command, X, CheckCircle2, Sparkles,
-  BookOpen, MailPlus, Target, TrendingUp,
+  BookOpen, MailPlus, Target, TrendingUp, ArrowRight,
 } from 'lucide-react'
 import {
   SidebarProvider, Sidebar, SidebarHeader, SidebarContent,
@@ -70,7 +70,7 @@ const contentTransition = { duration: 0.2, ease: [0.16, 1, 0.3, 1] }
 export function AppShell({ children }: { children: React.ReactNode }) {
   const {
     activeView, selectedCompanyId, selectedContactId, companyStatusFilter,
-    setActiveView, setSearchQuery,
+    setActiveView, setSearchQuery, setSelectedCompanyId, setSelectedContactId,
   } = useAppStore()
   const [showNotifications, setShowNotifications] = React.useState(false)
   const [showHelp, setShowHelp] = React.useState(false)
@@ -382,7 +382,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         const IconComp = cfg.icon
                         const timeAgo = n.createdAt ? new Date(n.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
                         return (
-                          <div key={n.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                          <div
+                            key={n.id}
+                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                            onClick={() => {
+                              setShowNotifications(false)
+                              if (n.companyId) {
+                                setSelectedCompanyId(n.companyId)
+                                setActiveView('company-profile')
+                              } else if (n.contactId) {
+                                setSelectedContactId(n.contactId)
+                                setActiveView('contact-profile')
+                              }
+                            }}
+                          >
                             <div className={`size-8 rounded-lg ${cfg.bg} flex items-center justify-center shrink-0`}><IconComp className={`size-4 ${cfg.color}`} /></div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-900 truncate">{n.title || n.description || n.action || 'Activity'}</p>
@@ -393,6 +406,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         )
                       })
                 }
+              </div>
+              {/* View All Activity Link (FIX 6) */}
+              <div className="border-t border-gray-100 px-3 pt-2 pb-3">
+                <button
+                  onClick={() => { setShowNotifications(false); setActiveView('dashboard') }}
+                  className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-amber-600 hover:text-amber-700 transition-colors py-1.5 rounded-lg hover:bg-amber-50"
+                >
+                  View All Activity
+                  <ArrowRight className="size-3" />
+                </button>
               </div>
             </motion.div>
           )}

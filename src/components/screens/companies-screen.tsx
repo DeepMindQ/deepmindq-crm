@@ -26,6 +26,12 @@ import { useAppStore } from '@/lib/store'
 import { EmptyState, SortableHeader, StatusDot } from '@/components/shared/design-system'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from '@/components/ui/alert-dialog'
+
+const DEFAULT_INDUSTRIES = ['SaaS','FinTech','HealthTech','E-commerce','EdTech','AI/ML','Cybersecurity','Manufacturing','Logistics','PropTech']
 
 const statusStyle: Record<string, string> = {
   new: 'bg-gray-100 text-gray-600 border-gray-200',
@@ -51,7 +57,19 @@ export function CompaniesScreen() {
   const [showAdd, setShowAdd] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [statusDialog, setStatusDialog] = useState<{ open: boolean; id: string; current: string }>({ open: false, id: '', current: '' })
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [form, setForm] = useState({ name: '', domain: '', industry: '', employeeSize: '', country: '', location: '', website: '', linkedinUrl: '' })
+
+  const { data: meta } = useQuery({
+    queryKey: ['companies-meta'],
+    queryFn: () => fetch('/api/companies/meta').then(r => r.json()),
+  })
+
+  const industries = useMemo(() => {
+    const api = meta?.industries || []
+    const merged = [...new Set([...DEFAULT_INDUSTRIES, ...api])]
+    return merged.sort((a, b) => a.localeCompare(b))
+  }, [meta?.industries])
 
   const { data, isLoading } = useQuery({
     queryKey: ['companies', search, industry, status, page],
@@ -76,7 +94,7 @@ export function CompaniesScreen() {
 
   const deleteMutation = useMutation({
     mutationFn: (ids: string[]) => Promise.all(ids.map(id => fetch(`/api/companies/${id}`, { method: 'DELETE' }).then(r => r.json()))),
-    onSuccess: () => { toast.success(`${selected.size} companies deleted`); setSelected(new Set()); qc.invalidateQueries({ queryKey: ['companies'] }) },
+    onSuccess: () => { toast.success(`${selected.size} companies deleted`); setSelected(new Set()); setDeleteDialogOpen(false); qc.invalidateQueries({ queryKey: ['companies'] }) },
     onError: () => toast.error('Failed to delete companies'),
   })
 
@@ -128,7 +146,7 @@ export function CompaniesScreen() {
           <SelectTrigger className="w-36 h-9 bg-white border-gray-200 rounded-lg text-sm"><SelectValue placeholder="Industry" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Industries</SelectItem>
-            {['SaaS','FinTech','HealthTech','E-commerce','EdTech','AI/ML','Cybersecurity','Manufacturing','Logistics','PropTech'].map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+            {industries.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={status} onValueChange={v => { setStatus(v); setPage(1) }}>
@@ -142,7 +160,7 @@ export function CompaniesScreen() {
           <div className="flex items-center gap-2 sm:ml-auto animate-in fade-in slide-in-from-right-2 duration-200 w-full sm:w-auto">
             <span className="text-xs font-medium text-gray-500">{selected.size} selected</span>
             <div className="flex items-center gap-2 ml-auto sm:ml-0">
-            <Button variant="outline" size="sm" className="h-8 border-gray-200 text-gray-600 rounded-lg text-xs" onClick={() => deleteMutation.mutate(Array.from(selected))} disabled={deleteMutation.isPending}>
+            <Button variant="outline" size="sm" className="h-8 border-gray-200 text-gray-600 rounded-lg text-xs" onClick={() => setDeleteDialogOpen(true)} disabled={deleteMutation.isPending || selected.size === 0}>
               {deleteMutation.isPending ? <Loader2 className="size-3 mr-1 animate-spin text-red-500" /> : <Trash2 className="size-3 mr-1 text-red-500" />}
               {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
             </Button>
@@ -317,7 +335,7 @@ export function CompaniesScreen() {
                 <Label className="text-sm font-medium text-gray-700">Industry</Label>
                 <Select value={form.industry} onValueChange={v => setForm({ ...form, industry: v })}>
                   <SelectTrigger className="border-gray-200 rounded-lg"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>{['SaaS','FinTech','HealthTech','E-commerce','EdTech','AI/ML','Cybersecurity','Manufacturing','Logistics','PropTech'].map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
+                  <SelectContent>{industries.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
@@ -345,6 +363,29 @@ export function CompaniesScreen() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog (FIX 5) */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selected.size} {selected.size === 1 ? 'company' : 'companies'}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The selected companies and all associated data will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-lg">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-lg bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => deleteMutation.mutate(Array.from(selected))}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? <Loader2 className="size-4 mr-2 animate-spin" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

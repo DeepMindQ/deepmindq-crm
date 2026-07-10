@@ -193,6 +193,7 @@ export function DashboardScreen() {
   const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
     queryFn: () => fetch('/api/dashboard').then((r) => r.json()),
+    refetchInterval: 30_000,
   })
 
   /* ── Loading state ── */
@@ -441,7 +442,7 @@ export function DashboardScreen() {
               {
                 icon: FileSearch,
                 title: 'Generate Research',
-                description: 'Run AI analysis on your companies',
+                description: 'View companies to run AI research',
                 view: 'companies' as const,
               },
               {

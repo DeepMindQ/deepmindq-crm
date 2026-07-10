@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { AppShell } from '@/components/app-shell'
+import { ErrorBoundary } from '@/components/error-boundary'
 import { useAppStore } from '@/lib/store'
 import type { ActiveView } from '@/lib/types'
 import { SkeletonGrid } from '@/components/shared/design-system'
@@ -31,7 +32,7 @@ const EmailGenerationScreen = dynamic(
   { loading: () => <SkeletonGrid panels={1} />, ssr: false }
 )
 const KnowledgeLibraryScreen = dynamic(
-  () => import('@/components/screens/knowledge-library-screen').then(m => ({ default: m.KnowledgeLibraryScreen })),
+  () => import('@/components/screens/knowledge-library-screen'),
   { loading: () => <SkeletonGrid panels={1} />, ssr: false }
 )
 const ImportScreen = dynamic(
@@ -61,7 +62,9 @@ export default function AppHome() {
 
   return (
     <AppShell>
-      <ActiveScreen />
+      <ErrorBoundary>
+        <ActiveScreen />
+      </ErrorBoundary>
     </AppShell>
   )
 }

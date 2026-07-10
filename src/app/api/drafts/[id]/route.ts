@@ -43,6 +43,18 @@ export async function PATCH(
       include: { contact: true },
     });
 
+    // Create a timeline entry when draft is sent
+    if (status === "sent" && existing.status !== "sent" && updated.contact?.companyId) {
+      await db.timelineEntry.create({
+        data: {
+          contactId: updated.contactId,
+          companyId: updated.contact.companyId,
+          action: "email_sent",
+          details: `Draft email "${updated.subject || "(no subject)"}" was sent to ${updated.contact.name}`,
+        },
+      });
+    }
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("Failed to update draft:", error);

@@ -31,7 +31,7 @@ const EmailGenerationScreen = dynamic(
   { loading: () => <SkeletonGrid panels={1} />, ssr: false }
 )
 const KnowledgeLibraryScreen = dynamic(
-  () => import('@/components/screens/knowledge-library-screen').then(m => ({ default: m.KnowledgeLibraryScreen })),
+  () => import('@/components/screens/knowledge-library-screen'),
   { loading: () => <SkeletonGrid panels={1} />, ssr: false }
 )
 const ImportScreen = dynamic(

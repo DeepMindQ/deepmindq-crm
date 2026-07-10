@@ -231,6 +231,9 @@ async function executeImport(body: ExecuteBody) {
   let duplicates = 0;
   let invalid = 0;
 
+  // Track companies that were created or had contacts added
+  const affectedCompanies = new Map<string, { id: string; name: string; contactsAdded: number; wasCreated: boolean }>();
+
   for (const row of rows) {
     // Every row must at least have a company name
     const companyName = val(row, "companyName");
@@ -246,6 +249,7 @@ async function executeImport(body: ExecuteBody) {
       where: { name: companyName },
     });
 
+    const wasCreated = !company;
     if (!company) {
       company = await db.company.create({
         data: { name: companyName },
@@ -279,6 +283,14 @@ async function executeImport(body: ExecuteBody) {
     });
 
     accepted++;
+
+    // Track affected company
+    const existing = affectedCompanies.get(company.id);
+    if (existing) {
+      existing.contactsAdded++;
+    } else {
+      affectedCompanies.set(company.id, { id: company.id, name: company.name, contactsAdded: 1, wasCreated });
+    }
   }
 
   // Update the batch with final counts
@@ -292,13 +304,18 @@ async function executeImport(body: ExecuteBody) {
     },
   });
 
-  // Create a timeline entry for the import
-  await db.timelineEntry.create({
-    data: {
-      action: "Import Completed",
-      details: `Imported ${accepted} contacts (${duplicates} duplicates skipped, ${invalid} invalid rows) from "${batch.fileName}".`,
-    },
-  });
+  // Create a timeline entry per affected company
+  if (affectedCompanies.size > 0) {
+    await db.timelineEntry.createMany({
+      data: Array.from(affectedCompanies.values()).map((c) => ({
+        companyId: c.id,
+        action: "import_completed",
+        details: c.wasCreated
+          ? `Company "${c.name}" created with ${c.contactsAdded} contact(s) via CSV import "${batch.fileName}".`
+          : `${c.contactsAdded} contact(s) added to "${c.name}" via CSV import "${batch.fileName}".`,
+      })),
+    });
+  }
 
   return NextResponse.json({
     success: true,

@@ -815,559 +815,570 @@
    815→            TAB: CONTACTS
    816→            ────────────────────────────────────────────────────────── */}
    817→        <TabsContent value="contacts" className="mt-5">
-   818→          <div className="flex items-center justify-between mb-4">
+   818→          <div className="flex items-center justify-between mb-4 gap-2">
    819→            <p className="text-sm text-gray-500">
    820→              {contacts.length} contact{contacts.length !== 1 ? 's' : ''} at {data.name}
    821→            </p>
-   822→            <Button
-   823→              size="sm"
-   824→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
-   825→              onClick={() => setContactOpen(true)}
-   826→            >
-   827→              <Plus className="size-3.5 mr-1.5" /> Add Contact
-   828→            </Button>
-   829→          </div>
-   830→          {contacts.length === 0 ? (
-   831→            <EmptyState
-   832→              icon={Users}
-   833→              title="No contacts found"
-   834→              description="Add contacts to this company to start tracking outreach and engagement."
-   835→              actionLabel="Add Contact"
-   836→              onAction={() => setContactOpen(true)}
-   837→            />
-   838→          ) : (
-   839→            <div className="rounded-xl bg-white card-rest overflow-hidden slide-up">
-   840→              <Table>
-   841→                <TableHeader>
-   842→                  <TableRow className="border-gray-100 hover:bg-transparent">
-   843→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Name</TableHead>
-   844→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Title</TableHead>
-   845→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Email</TableHead>
-   846→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Health</TableHead>
-   847→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</TableHead>
-   848→                  </TableRow>
-   849→                </TableHeader>
-   850→                <TableBody>
-   851→                  {contacts.map((c: any) => (
-   852→                    <TableRow
-   853→                      key={c.id}
-   854→                      className="table-row-hover border-gray-50 cursor-pointer group"
-   855→                      onClick={() => handleViewContact(c.id)}
-   856→                    >
-   857→                      <TableCell>
-   858→                        <div className="flex items-center gap-3">
-   859→                          <div className="flex size-8 rounded-full bg-gray-100 items-center justify-center shrink-0 text-[11px] font-semibold text-gray-600">
-   860→                            {c.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-   861→                          </div>
-   862→                          <div>
-   863→                            <span className="font-medium text-gray-900 text-sm group-hover:text-amber-700 transition-colors">{c.name}</span>
-   864→                            {c.roleBucket && (
-   865→                              <p className="text-[11px] text-gray-400 mt-0.5">{c.roleBucket}</p>
-   866→                            )}
-   867→                          </div>
-   868→                        </div>
-   869→                      </TableCell>
-   870→                      <TableCell className="text-sm text-gray-500 hidden md:table-cell">{c.jobTitle || '—'}</TableCell>
-   871→                      <TableCell className="text-sm text-gray-500 font-mono hidden lg:table-cell">{c.email || '—'}</TableCell>
-   872→                      <TableCell>
-   873→                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${healthVariant(c.emailHealth)}`}>
-   874→                          {c.emailHealth || 'unknown'}
-   875→                        </span>
-   876→                      </TableCell>
-   877→                      <TableCell className="text-right">
-   878→                        <Button
-   879→                          size="sm"
-   880→                          variant="ghost"
-   881→                          className="h-7 text-xs text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md"
-   882→                          onClick={(e) => { e.stopPropagation(); handleGenerateEmail(c.id) }}
-   883→                        >
-   884→                          <Mail className="size-3.5 mr-1" /> Generate Email
-   885→                        </Button>
-   886→                      </TableCell>
-   887→                    </TableRow>
-   888→                  ))}
-   889→                </TableBody>
-   890→              </Table>
-   891→            </div>
-   892→          )}
-   893→        </TabsContent>
-   894→
-   895→        {/* ──────────────────────────────────────────────────────────
-   896→            TAB: RESEARCH
-   897→            ────────────────────────────────────────────────────────── */}
-   898→        <TabsContent value="research" className="mt-5">
-   899→          <div className="rounded-xl bg-white card-rest overflow-hidden slide-up">
-   900→            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
-   901→              <div className="flex items-center gap-3">
-   902→                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-   903→                  <Sparkles className="size-4 text-amber-500" /> AI Research Card
-   904→                </h3>
-   905→                {/* AI Provider badge */}
-   906→                <Badge
-   907→                  variant="outline"
-   908→                  className={`text-[10px] font-medium rounded-full px-2 py-0.5 ${hasAiKey ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-500'}`}
-   909→                >
-   910→                  <Cpu className="size-2.5 mr-1" />
-   911→                  {hasAiKey ? `Powered by ${aiProviderLabel || 'AI'}` : 'Template-based (configure AI in Settings)'}
-   912→                </Badge>
-   913→              </div>
-   914→              <Button
-   915→                size="sm"
-   916→                className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md press-scale shadow-xs"
-   917→                onClick={() => generateResearch.mutate()}
-   918→                disabled={generateResearch.isPending}
-   919→              >
-   920→                {generateResearch.isPending
-   921→                  ? <Loader2 className="size-3 mr-1 animate-spin" />
-   922→                  : <Sparkles className="size-3 mr-1" />
-   923→                }
-   924→                {generateResearch.isPending ? 'Generating...' : researchCard ? 'Regenerate' : 'Generate AI Research'}
-   925→              </Button>
-   926→            </div>
-   927→            <div className="p-6">
-   928→              {researchCard ? (
-   929→                <div className="space-y-5">
-   930→                  {/* Confidence score bar */}
-   931→                  {researchCard.confidenceScore != null && (
-   932→                    <div className="flex items-center gap-4 p-4 rounded-lg bg-gray-50/80 border border-gray-100">
-   933→                      <div className="flex-1">
-   934→                        <div className="flex items-center justify-between mb-2">
-   935→                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Confidence Score</p>
-   936→                          <span className="text-sm font-bold text-gray-900 tabular-nums">{researchCard.confidenceScore}%</span>
-   937→                        </div>
-   938→                        <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
-   939→                          <div
-   940→                            className="h-full rounded-full transition-all duration-700 ease-out"
-   941→                            style={{
-   942→                              width: `${researchCard.confidenceScore}%`,
-   943→                              backgroundColor: researchCard.confidenceScore >= 75 ? '#059669' : researchCard.confidenceScore >= 50 ? '#D97706' : '#DC2626',
-   944→                            }}
-   945→                          />
-   946→                        </div>
-   947→                      </div>
-   948→                      {researchCard.lastResearchedAt && (
-   949→                        <div className="text-right shrink-0">
-   950→                          <p className="text-[11px] text-gray-400">Last researched</p>
-   951→                          <p className="text-xs font-medium text-gray-600">
-   952→                            {formatDistanceToNow(new Date(researchCard.lastResearchedAt), { addSuffix: true })}
-   953→                          </p>
-   954→                        </div>
-   955→                      )}
-   956→                    </div>
-   957→                  )}
-   958→
-   959→                  {/* Research sections grid */}
-   960→                  <div className="grid gap-4 md:grid-cols-2">
-   961→                    {(Object.entries(RESEARCH_LABELS) as [keyof typeof researchCard, typeof RESEARCH_LABELS[string]][]).map(([key, cfg], idx) =>
-   962→                      researchCard[key] ? (
-   963→                        <div key={String(key)} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 50}ms` }}>
-   964→                          <div className="flex items-center gap-2 mb-2">
-   965→                            <cfg.icon className="size-3.5 text-gray-500" />
-   966→                            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
-   967→                          </div>
-   968→                          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{researchCard[key]}</p>
-   969→                        </div>
-   970→                      ) : null,
-   971→                    )}
-   972→                  </div>
-   973→                </div>
-   974→              ) : (
-   975→                <EmptyState
-   976→                  icon={FileText}
-   977→                  title="No research generated yet"
-   978→                  description="Click Generate AI Research to create an AI-powered research card with business overview, tech landscape, challenges, and opportunities."
-   979→                  actionLabel="Generate AI Research"
-   980→                  onAction={() => generateResearch.mutate()}
-   981→                  className="py-10"
-   982→                />
-   983→              )}
-   984→            </div>
-   985→          </div>
-   986→        </TabsContent>
-   987→
-   988→        {/* ──────────────────────────────────────────────────────────
-   989→            TAB: OPPORTUNITIES
-   990→            ────────────────────────────────────────────────────────── */}
-   991→        <TabsContent value="opportunities" className="mt-5">
-   992→          <div className="flex items-center justify-between mb-4">
-   993→            <p className="text-sm text-gray-500">
-   994→              {opportunities.length} opportunit{opportunities.length !== 1 ? 'ies' : 'y'} for {data.name}
-   995→            </p>
-   996→            <Button
-   997→              size="sm"
-   998→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
-   999→              onClick={() => setOppOpen(true)}
-  1000→            >
-  1001→              <Plus className="size-3.5 mr-1.5" /> Create Opportunity
-  1002→            </Button>
-  1003→          </div>
-  1004→          {opportunities.length === 0 ? (
-  1005→            <EmptyState
-  1006→              icon={Target}
-  1007→              title="No opportunities yet"
-  1008→              description="Create opportunities to track potential deals and engagement with this company."
-  1009→              actionLabel="Create Opportunity"
-  1010→              onAction={() => setOppOpen(true)}
-  1011→            />
-  1012→          ) : (
-  1013→            <div className="grid gap-3">
-  1014→              {opportunities.map((o: any, idx: number) => (
-  1015→                <div
-  1016→                  key={o.id}
-  1017→                  className={`rounded-xl bg-white card-interactive border-l-[3px] ${statusBorder(o.status)} p-5 flex items-start justify-between gap-4 slide-up`}
-  1018→                  style={{ animationDelay: `${idx * 30}ms` }}
-  1019→                >
-  1020→                  <div className="min-w-0 flex-1">
-  1021→                    <p className="text-sm font-semibold text-gray-900">{o.title}</p>
-  1022→                    {o.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{o.description}</p>}
-  1023→                    {o.nextAction && (
-  1024→                      <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-  1025→                        <ChevronRight className="size-3 text-amber-400" />
-  1026→                        {o.nextAction}
-  1027→                      </p>
-  1028→                    )}
-  1029→                    {/* Target contact link */}
-  1030→                    {o.targetContactId && contactMap[o.targetContactId] && (
-  1031→                      <button
-  1032→                        onClick={() => handleViewContact(o.targetContactId)}
-  1033→                        className="inline-flex items-center gap-1.5 mt-2 text-xs text-amber-600 hover:text-amber-700 transition-colors"
-  1034→                      >
-  1035→                        <Users className="size-3" />
-  1036→                        {contactMap[o.targetContactId]}
-  1037→                        <ChevronRight className="size-3" />
-  1038→                      </button>
+   822→            <div className="flex items-center gap-2">
+   823→              <Button
+   824→                size="sm"
+   825→                variant="ghost"
+   826→                className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md transition-colors"
+   827→                onClick={handleViewAllContacts}
+   828→              >
+   829→                <Users className="size-3 mr-1" /> View All Contacts
+   830→                <ChevronRight className="size-3 ml-0.5" />
+   831→              </Button>
+   832→              <Button
+   833→                size="sm"
+   834→                className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+   835→                onClick={() => setContactOpen(true)}
+   836→              >
+   837→                <Plus className="size-3.5 mr-1.5" /> Add Contact
+   838→              </Button>
+   839→            </div>
+   840→          </div>
+   841→          {contacts.length === 0 ? (
+   842→            <EmptyState
+   843→              icon={Users}
+   844→              title="No contacts found"
+   845→              description="Add contacts to this company to start tracking outreach and engagement."
+   846→              actionLabel="Add Contact"
+   847→              onAction={() => setContactOpen(true)}
+   848→            />
+   849→          ) : (
+   850→            <div className="rounded-xl bg-white card-rest overflow-hidden slide-up">
+   851→              <Table>
+   852→                <TableHeader>
+   853→                  <TableRow className="border-gray-100 hover:bg-transparent">
+   854→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Name</TableHead>
+   855→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Title</TableHead>
+   856→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Email</TableHead>
+   857→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Health</TableHead>
+   858→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</TableHead>
+   859→                  </TableRow>
+   860→                </TableHeader>
+   861→                <TableBody>
+   862→                  {contacts.map((c: any) => (
+   863→                    <TableRow
+   864→                      key={c.id}
+   865→                      className="table-row-hover border-gray-50 cursor-pointer group"
+   866→                      onClick={() => handleViewContact(c.id)}
+   867→                    >
+   868→                      <TableCell>
+   869→                        <div className="flex items-center gap-3">
+   870→                          <div className="flex size-8 rounded-full bg-gray-100 items-center justify-center shrink-0 text-[11px] font-semibold text-gray-600">
+   871→                            {c.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+   872→                          </div>
+   873→                          <div>
+   874→                            <span className="font-medium text-gray-900 text-sm group-hover:text-amber-700 transition-colors">{c.name}</span>
+   875→                            {c.roleBucket && (
+   876→                              <p className="text-[11px] text-gray-400 mt-0.5">{c.roleBucket}</p>
+   877→                            )}
+   878→                          </div>
+   879→                        </div>
+   880→                      </TableCell>
+   881→                      <TableCell className="text-sm text-gray-500 hidden md:table-cell">{c.jobTitle || '—'}</TableCell>
+   882→                      <TableCell className="text-sm text-gray-500 font-mono hidden lg:table-cell">{c.email || '—'}</TableCell>
+   883→                      <TableCell>
+   884→                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${healthVariant(c.emailHealth)}`}>
+   885→                          {c.emailHealth || 'unknown'}
+   886→                        </span>
+   887→                      </TableCell>
+   888→                      <TableCell className="text-right">
+   889→                        <Button
+   890→                          size="sm"
+   891→                          variant="ghost"
+   892→                          className="h-7 text-xs text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md"
+   893→                          onClick={(e) => { e.stopPropagation(); handleGenerateEmail(c.id) }}
+   894→                        >
+   895→                          <Mail className="size-3.5 mr-1" /> Generate Email
+   896→                        </Button>
+   897→                      </TableCell>
+   898→                    </TableRow>
+   899→                  ))}
+   900→                </TableBody>
+   901→              </Table>
+   902→            </div>
+   903→          )}
+   904→        </TabsContent>
+   905→
+   906→        {/* ──────────────────────────────────────────────────────────
+   907→            TAB: RESEARCH
+   908→            ────────────────────────────────────────────────────────── */}
+   909→        <TabsContent value="research" className="mt-5">
+   910→          <div className="rounded-xl bg-white card-rest overflow-hidden slide-up">
+   911→            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+   912→              <div className="flex items-center gap-3">
+   913→                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+   914→                  <Sparkles className="size-4 text-amber-500" /> AI Research Card
+   915→                </h3>
+   916→                {/* AI Provider badge */}
+   917→                <Badge
+   918→                  variant="outline"
+   919→                  className={`text-[10px] font-medium rounded-full px-2 py-0.5 ${hasAiKey ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-500'}`}
+   920→                >
+   921→                  <Cpu className="size-2.5 mr-1" />
+   922→                  {hasAiKey ? `Powered by ${aiProviderLabel || 'AI'}` : 'Template-based (configure AI in Settings)'}
+   923→                </Badge>
+   924→              </div>
+   925→              <Button
+   926→                size="sm"
+   927→                className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md press-scale shadow-xs"
+   928→                onClick={() => generateResearch.mutate()}
+   929→                disabled={generateResearch.isPending}
+   930→              >
+   931→                {generateResearch.isPending
+   932→                  ? <Loader2 className="size-3 mr-1 animate-spin" />
+   933→                  : <Sparkles className="size-3 mr-1" />
+   934→                }
+   935→                {generateResearch.isPending ? 'Generating...' : researchCard ? 'Regenerate' : 'Generate AI Research'}
+   936→              </Button>
+   937→            </div>
+   938→            <div className="p-6">
+   939→              {researchCard ? (
+   940→                <div className="space-y-5">
+   941→                  {/* Confidence score bar */}
+   942→                  {researchCard.confidenceScore != null && (
+   943→                    <div className="flex items-center gap-4 p-4 rounded-lg bg-gray-50/80 border border-gray-100">
+   944→                      <div className="flex-1">
+   945→                        <div className="flex items-center justify-between mb-2">
+   946→                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Confidence Score</p>
+   947→                          <span className="text-sm font-bold text-gray-900 tabular-nums">{researchCard.confidenceScore}%</span>
+   948→                        </div>
+   949→                        <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+   950→                          <div
+   951→                            className="h-full rounded-full transition-all duration-700 ease-out"
+   952→                            style={{
+   953→                              width: `${researchCard.confidenceScore}%`,
+   954→                              backgroundColor: researchCard.confidenceScore >= 75 ? '#059669' : researchCard.confidenceScore >= 50 ? '#D97706' : '#DC2626',
+   955→                            }}
+   956→                          />
+   957→                        </div>
+   958→                      </div>
+   959→                      {researchCard.lastResearchedAt && (
+   960→                        <div className="text-right shrink-0">
+   961→                          <p className="text-[11px] text-gray-400">Last researched</p>
+   962→                          <p className="text-xs font-medium text-gray-600">
+   963→                            {formatDistanceToNow(new Date(researchCard.lastResearchedAt), { addSuffix: true })}
+   964→                          </p>
+   965→                        </div>
+   966→                      )}
+   967→                    </div>
+   968→                  )}
+   969→
+   970→                  {/* Research sections grid */}
+   971→                  <div className="grid gap-4 md:grid-cols-2">
+   972→                    {(Object.entries(RESEARCH_LABELS) as [keyof typeof researchCard, typeof RESEARCH_LABELS[string]][]).map(([key, cfg], idx) =>
+   973→                      researchCard[key] ? (
+   974→                        <div key={String(key)} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 50}ms` }}>
+   975→                          <div className="flex items-center gap-2 mb-2">
+   976→                            <cfg.icon className="size-3.5 text-gray-500" />
+   977→                            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
+   978→                          </div>
+   979→                          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{researchCard[key]}</p>
+   980→                        </div>
+   981→                      ) : null,
+   982→                    )}
+   983→                  </div>
+   984→                </div>
+   985→              ) : (
+   986→                <EmptyState
+   987→                  icon={FileText}
+   988→                  title="No research generated yet"
+   989→                  description="Click Generate AI Research to create an AI-powered research card with business overview, tech landscape, challenges, and opportunities."
+   990→                  actionLabel="Generate AI Research"
+   991→                  onAction={() => generateResearch.mutate()}
+   992→                  className="py-10"
+   993→                />
+   994→              )}
+   995→            </div>
+   996→          </div>
+   997→        </TabsContent>
+   998→
+   999→        {/* ──────────────────────────────────────────────────────────
+  1000→            TAB: OPPORTUNITIES
+  1001→            ────────────────────────────────────────────────────────── */}
+  1002→        <TabsContent value="opportunities" className="mt-5">
+  1003→          <div className="flex items-center justify-between mb-4">
+  1004→            <p className="text-sm text-gray-500">
+  1005→              {opportunities.length} opportunit{opportunities.length !== 1 ? 'ies' : 'y'} for {data.name}
+  1006→            </p>
+  1007→            <Button
+  1008→              size="sm"
+  1009→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+  1010→              onClick={() => setOppOpen(true)}
+  1011→            >
+  1012→              <Plus className="size-3.5 mr-1.5" /> Create Opportunity
+  1013→            </Button>
+  1014→          </div>
+  1015→          {opportunities.length === 0 ? (
+  1016→            <EmptyState
+  1017→              icon={Target}
+  1018→              title="No opportunities yet"
+  1019→              description="Create opportunities to track potential deals and engagement with this company."
+  1020→              actionLabel="Create Opportunity"
+  1021→              onAction={() => setOppOpen(true)}
+  1022→            />
+  1023→          ) : (
+  1024→            <div className="grid gap-3">
+  1025→              {opportunities.map((o: any, idx: number) => (
+  1026→                <div
+  1027→                  key={o.id}
+  1028→                  className={`rounded-xl bg-white card-interactive border-l-[3px] ${statusBorder(o.status)} p-5 flex items-start justify-between gap-4 slide-up`}
+  1029→                  style={{ animationDelay: `${idx * 30}ms` }}
+  1030→                >
+  1031→                  <div className="min-w-0 flex-1">
+  1032→                    <p className="text-sm font-semibold text-gray-900">{o.title}</p>
+  1033→                    {o.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{o.description}</p>}
+  1034→                    {o.nextAction && (
+  1035→                      <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+  1036→                        <ChevronRight className="size-3 text-amber-400" />
+  1037→                        {o.nextAction}
+  1038→                      </p>
   1039→                    )}
-  1040→                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-  1041→                      <span className="flex items-center gap-1">
-  1042→                        <Calendar className="size-3" />
-  1043→                        {formatDistanceToNow(new Date(o.createdAt), { addSuffix: true })}
-  1044→                      </span>
-  1045→                    </div>
-  1046→                  </div>
-  1047→                  <div className="flex items-center gap-2 shrink-0">
-  1048→                    <button
-  1049→                      onClick={(e) => { e.stopPropagation(); handleOppStatusCycle(o.id, o.status) }}
-  1050→                      disabled={updateOppMutation.isPending}
-  1051→                      className={`inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-medium capitalize border transition-all hover:opacity-80 ${oppStatusVariant(o.status)} ${updateOppMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-  1052→                      title="Click to cycle status"
-  1053→                    >
-  1054→                      {updateOppMutation.isPending ? <Loader2 className="size-3 animate-spin inline mr-1" /> : null}
-  1055→                      {o.status}
-  1056→                    </button>
-  1057→                    <button
-  1058→                      onClick={(e) => { e.stopPropagation(); deleteOppMutation.mutate(o.id) }}
-  1059→                      disabled={deleteOppMutation.isPending}
-  1060→                      className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-50"
-  1061→                      title="Delete opportunity"
-  1062→                    >
-  1063→                      {deleteOppMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
-  1064→                    </button>
-  1065→                  </div>
-  1066→                </div>
-  1067→              ))}
-  1068→            </div>
-  1069→          )}
-  1070→        </TabsContent>
-  1071→
-  1072→        {/* ──────────────────────────────────────────────────────────
-  1073→            TAB: NOTES — Timeline style
-  1074→            ────────────────────────────────────────────────────────── */}
-  1075→        <TabsContent value="notes" className="mt-5">
-  1076→          <div className="flex items-center justify-between mb-4">
-  1077→            <p className="text-sm text-gray-500">
-  1078→              {notes.length} note{notes.length !== 1 ? 's' : ''}
-  1079→            </p>
-  1080→            <Button
-  1081→              size="sm"
-  1082→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
-  1083→              onClick={() => setNoteOpen(true)}
-  1084→            >
-  1085→              <Plus className="size-3.5 mr-1.5" /> Add Note
-  1086→            </Button>
-  1087→          </div>
-  1088→          {notes.length === 0 ? (
-  1089→            <EmptyState
-  1090→              icon={StickyNote}
-  1091→              title="No notes yet"
-  1092→              description="Add notes to track conversations, insights, and action items for this company."
-  1093→              actionLabel="Add Note"
-  1094→              onAction={() => setNoteOpen(true)}
-  1095→            />
-  1096→          ) : (
-  1097→            <div className="relative pl-6">
-  1098→              {/* Timeline connector line */}
-  1099→              <div className="absolute left-[7px] top-2 bottom-2 border-l-2 border-gray-200" />
-  1100→              <div className="space-y-4">
-  1101→                {notes.map((n: any, idx: number) => (
-  1102→                  <div
-  1103→                    key={n.id}
-  1104→                    className="relative flex items-start gap-4 slide-up"
-  1105→                    style={{ animationDelay: `${idx * 30}ms` }}
-  1106→                  >
-  1107→                    {/* Timeline dot */}
-  1108→                    <div className="absolute -left-6 top-2 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
-  1109→                    {/* Note card */}
-  1110→                    <div className="flex-1 rounded-xl bg-white p-5 card-rest min-w-0">
-  1111→                      <div className="flex items-start justify-between gap-3">
-  1112→                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap flex-1">{n.body}</p>
-  1113→                        <button
-  1114→                          onClick={() => setDeleteNoteId(n.id)}
-  1115→                          className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
-  1116→                          title="Delete note"
-  1117→                        >
-  1118→                          <X className="size-3.5" />
-  1119→                        </button>
-  1120→                      </div>
-  1121→                      <div className="flex items-center gap-2 mt-3">
-  1122→                        {n.noteType && (
-  1123→                          <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-[11px] font-normal border-0 rounded-md capitalize">
-  1124→                            {n.noteType}
-  1125→                          </Badge>
-  1126→                        )}
-  1127→                        <span className="text-[11px] text-gray-400">
-  1128→                          {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
-  1129→                        </span>
-  1130→                      </div>
-  1131→                    </div>
-  1132→                  </div>
-  1133→                ))}
-  1134→              </div>
-  1135→            </div>
-  1136→          )}
-  1137→        </TabsContent>
-  1138→
-  1139→        {/* ──────────────────────────────────────────────────────────
-  1140→            TAB: ACTIVITY — Timeline entries
-  1141→            ────────────────────────────────────────────────────────── */}
-  1142→        <TabsContent value="activity" className="mt-5">
-  1143→          {timeline.length === 0 ? (
-  1144→            <EmptyState
-  1145→              icon={Clock}
-  1146→              title="No activity yet"
-  1147→              description="Activity will appear here as you interact with this company — adding contacts, generating research, and more."
-  1148→            />
-  1149→          ) : (
-  1150→            <div className="relative pl-6">
-  1151→              {/* Timeline connector */}
-  1152→              <div className="absolute left-[7px] top-2 bottom-2 border-l-2 border-gray-200" />
-  1153→              <div className="space-y-4">
-  1154→                {timeline.map((t: any, idx: number) => {
-  1155→                  const iconData = getActivityIcon(t.action)
-  1156→                  const Icon = iconData.icon
-  1157→                  return (
-  1158→                    <div
-  1159→                      key={t.id}
-  1160→                      className="relative flex items-start gap-4 slide-up"
-  1161→                      style={{ animationDelay: `${idx * 30}ms` }}
-  1162→                    >
-  1163→                      {/* Timeline dot */}
-  1164→                      <div className="absolute -left-6 top-1.5 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
-  1165→                      {/* Activity icon */}
-  1166→                      <div className={`shrink-0 mt-0.5 rounded-lg p-1.5 ${iconData.bg}`}>
-  1167→                        <Icon className={`size-3.5 ${iconData.color}`} />
-  1168→                      </div>
-  1169→                      {/* Content */}
-  1170→                      <div className="min-w-0 flex-1 rounded-lg bg-white p-4 card-rest">
-  1171→                        <p className="text-sm font-medium text-gray-900 capitalize">
-  1172→                          {t.action.replace(/_/g, ' ')}
-  1173→                        </p>
-  1174→                        {t.details && (
-  1175→                          <p className="text-sm text-gray-500 mt-0.5">{t.details}</p>
-  1176→                        )}
-  1177→                        {/* Cross-nav: if activity references a contact, make it clickable */}
-  1178→                        {t.contact && (
-  1179→                          <button
-  1180→                            onClick={() => handleViewContact(t.contact.id)}
-  1181→                            className="inline-flex items-center gap-1 mt-1.5 text-xs text-amber-600 hover:text-amber-700 transition-colors"
-  1182→                          >
-  1183→                            <Users className="size-3" />
-  1184→                            {t.contact.name}
-  1185→                            <ChevronRight className="size-3" />
-  1186→                          </button>
+  1040→                    {/* Target contact link */}
+  1041→                    {o.targetContactId && contactMap[o.targetContactId] && (
+  1042→                      <button
+  1043→                        onClick={() => handleViewContact(o.targetContactId)}
+  1044→                        className="inline-flex items-center gap-1.5 mt-2 text-xs text-amber-600 hover:text-amber-700 transition-colors"
+  1045→                      >
+  1046→                        <Users className="size-3" />
+  1047→                        {contactMap[o.targetContactId]}
+  1048→                        <ChevronRight className="size-3" />
+  1049→                      </button>
+  1050→                    )}
+  1051→                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+  1052→                      <span className="flex items-center gap-1">
+  1053→                        <Calendar className="size-3" />
+  1054→                        {formatDistanceToNow(new Date(o.createdAt), { addSuffix: true })}
+  1055→                      </span>
+  1056→                    </div>
+  1057→                  </div>
+  1058→                  <div className="flex items-center gap-2 shrink-0">
+  1059→                    <button
+  1060→                      onClick={(e) => { e.stopPropagation(); handleOppStatusCycle(o.id, o.status) }}
+  1061→                      disabled={updateOppMutation.isPending}
+  1062→                      className={`inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-medium capitalize border transition-all hover:opacity-80 ${oppStatusVariant(o.status)} ${updateOppMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+  1063→                      title="Click to cycle status"
+  1064→                    >
+  1065→                      {updateOppMutation.isPending ? <Loader2 className="size-3 animate-spin inline mr-1" /> : null}
+  1066→                      {o.status}
+  1067→                    </button>
+  1068→                    <button
+  1069→                      onClick={(e) => { e.stopPropagation(); deleteOppMutation.mutate(o.id) }}
+  1070→                      disabled={deleteOppMutation.isPending}
+  1071→                      className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-50"
+  1072→                      title="Delete opportunity"
+  1073→                    >
+  1074→                      {deleteOppMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+  1075→                    </button>
+  1076→                  </div>
+  1077→                </div>
+  1078→              ))}
+  1079→            </div>
+  1080→          )}
+  1081→        </TabsContent>
+  1082→
+  1083→        {/* ──────────────────────────────────────────────────────────
+  1084→            TAB: NOTES — Timeline style
+  1085→            ────────────────────────────────────────────────────────── */}
+  1086→        <TabsContent value="notes" className="mt-5">
+  1087→          <div className="flex items-center justify-between mb-4">
+  1088→            <p className="text-sm text-gray-500">
+  1089→              {notes.length} note{notes.length !== 1 ? 's' : ''}
+  1090→            </p>
+  1091→            <Button
+  1092→              size="sm"
+  1093→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+  1094→              onClick={() => setNoteOpen(true)}
+  1095→            >
+  1096→              <Plus className="size-3.5 mr-1.5" /> Add Note
+  1097→            </Button>
+  1098→          </div>
+  1099→          {notes.length === 0 ? (
+  1100→            <EmptyState
+  1101→              icon={StickyNote}
+  1102→              title="No notes yet"
+  1103→              description="Add notes to track conversations, insights, and action items for this company."
+  1104→              actionLabel="Add Note"
+  1105→              onAction={() => setNoteOpen(true)}
+  1106→            />
+  1107→          ) : (
+  1108→            <div className="relative pl-6">
+  1109→              {/* Timeline connector line */}
+  1110→              <div className="absolute left-[7px] top-2 bottom-2 border-l-2 border-gray-200" />
+  1111→              <div className="space-y-4">
+  1112→                {notes.map((n: any, idx: number) => (
+  1113→                  <div
+  1114→                    key={n.id}
+  1115→                    className="relative flex items-start gap-4 slide-up"
+  1116→                    style={{ animationDelay: `${idx * 30}ms` }}
+  1117→                  >
+  1118→                    {/* Timeline dot */}
+  1119→                    <div className="absolute -left-6 top-2 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
+  1120→                    {/* Note card */}
+  1121→                    <div className="flex-1 rounded-xl bg-white p-5 card-rest min-w-0">
+  1122→                      <div className="flex items-start justify-between gap-3">
+  1123→                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap flex-1">{n.body}</p>
+  1124→                        <button
+  1125→                          onClick={() => setDeleteNoteId(n.id)}
+  1126→                          className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
+  1127→                          title="Delete note"
+  1128→                        >
+  1129→                          <X className="size-3.5" />
+  1130→                        </button>
+  1131→                      </div>
+  1132→                      <div className="flex items-center gap-2 mt-3">
+  1133→                        {n.noteType && (
+  1134→                          <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-[11px] font-normal border-0 rounded-md capitalize">
+  1135→                            {n.noteType}
+  1136→                          </Badge>
+  1137→                        )}
+  1138→                        <span className="text-[11px] text-gray-400">
+  1139→                          {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+  1140→                        </span>
+  1141→                      </div>
+  1142→                    </div>
+  1143→                  </div>
+  1144→                ))}
+  1145→              </div>
+  1146→            </div>
+  1147→          )}
+  1148→        </TabsContent>
+  1149→
+  1150→        {/* ──────────────────────────────────────────────────────────
+  1151→            TAB: ACTIVITY — Timeline entries
+  1152→            ────────────────────────────────────────────────────────── */}
+  1153→        <TabsContent value="activity" className="mt-5">
+  1154→          {timeline.length === 0 ? (
+  1155→            <EmptyState
+  1156→              icon={Clock}
+  1157→              title="No activity yet"
+  1158→              description="Activity will appear here as you interact with this company — adding contacts, generating research, and more."
+  1159→            />
+  1160→          ) : (
+  1161→            <div className="relative pl-6">
+  1162→              {/* Timeline connector */}
+  1163→              <div className="absolute left-[7px] top-2 bottom-2 border-l-2 border-gray-200" />
+  1164→              <div className="space-y-4">
+  1165→                {timeline.map((t: any, idx: number) => {
+  1166→                  const iconData = getActivityIcon(t.action)
+  1167→                  const Icon = iconData.icon
+  1168→                  return (
+  1169→                    <div
+  1170→                      key={t.id}
+  1171→                      className="relative flex items-start gap-4 slide-up"
+  1172→                      style={{ animationDelay: `${idx * 30}ms` }}
+  1173→                    >
+  1174→                      {/* Timeline dot */}
+  1175→                      <div className="absolute -left-6 top-1.5 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
+  1176→                      {/* Activity icon */}
+  1177→                      <div className={`shrink-0 mt-0.5 rounded-lg p-1.5 ${iconData.bg}`}>
+  1178→                        <Icon className={`size-3.5 ${iconData.color}`} />
+  1179→                      </div>
+  1180→                      {/* Content */}
+  1181→                      <div className="min-w-0 flex-1 rounded-lg bg-white p-4 card-rest">
+  1182→                        <p className="text-sm font-medium text-gray-900 capitalize">
+  1183→                          {t.action.replace(/_/g, ' ')}
+  1184→                        </p>
+  1185→                        {t.details && (
+  1186→                          <p className="text-sm text-gray-500 mt-0.5">{t.details}</p>
   1187→                        )}
-  1188→                        <p className="text-[11px] text-gray-400 mt-1.5">
-  1189→                          {formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}
-  1190→                        </p>
-  1191→                      </div>
-  1192→                    </div>
-  1193→                  )
-  1194→                })}
-  1195→              </div>
-  1196→            </div>
-  1197→          )}
-  1198→        </TabsContent>
-  1199→      </Tabs>
-  1200→
-  1201→      {/* ══════════════════════════════════════════════════════════
-  1202→          DIALOGS
-  1203→          ══════════════════════════════════════════════════════════ */}
-  1204→
-  1205→      {/* Delete Note Confirmation */}
-  1206→      <Dialog open={!!deleteNoteId} onOpenChange={(open) => { if (!open) setDeleteNoteId(null) }}>
-  1207→        <DialogContent className="sm:max-w-sm rounded-xl">
-  1208→          <DialogHeader>
-  1209→            <DialogTitle className="text-gray-900 flex items-center gap-2">
-  1210→              <AlertTriangle className="size-4 text-red-500" /> Delete Note
-  1211→            </DialogTitle>
-  1212→          </DialogHeader>
-  1213→          <p className="text-sm text-gray-600">Are you sure you want to delete this note? This action cannot be undone.</p>
-  1214→          <DialogFooter className="gap-2 sm:gap-0">
-  1215→            <Button variant="outline" onClick={() => setDeleteNoteId(null)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
-  1216→            <Button
-  1217→              onClick={() => deleteNoteMutation.mutate(deleteNoteId!)}
-  1218→              disabled={deleteNoteMutation.isPending}
-  1219→              className="bg-red-600 text-white hover:bg-red-700 press-scale"
-  1220→            >
-  1221→              {deleteNoteMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
-  1222→              Delete
-  1223→            </Button>
-  1224→          </DialogFooter>
-  1225→        </DialogContent>
-  1226→      </Dialog>
-  1227→
-  1228→      {/* Add Note Dialog */}
-  1229→      <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
-  1230→        <DialogContent className="sm:max-w-md rounded-xl">
-  1231→          <DialogHeader><DialogTitle className="text-gray-900">Add Note</DialogTitle></DialogHeader>
-  1232→          <div className="space-y-4 py-1">
-  1233→            <div className="space-y-1.5">
-  1234→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Type</Label>
-  1235→              <Select value={noteType} onValueChange={setNoteType}>
-  1236→                <SelectTrigger className="w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
-  1237→                <SelectContent>
-  1238→                  <SelectItem value="call">Call</SelectItem>
-  1239→                  <SelectItem value="meeting">Meeting</SelectItem>
-  1240→                  <SelectItem value="research">Research</SelectItem>
-  1241→                  <SelectItem value="general">General</SelectItem>
-  1242→                </SelectContent>
-  1243→              </Select>
-  1244→            </div>
-  1245→            <div className="space-y-1.5">
-  1246→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Note</Label>
-  1247→              <Textarea value={noteBody} onChange={e => setNoteBody(e.target.value)} rows={3} placeholder="Write your note..." className="resize-none" />
-  1248→            </div>
-  1249→          </div>
-  1250→          <DialogFooter className="gap-2 sm:gap-0">
-  1251→            <Button variant="outline" onClick={() => setNoteOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
-  1252→            <Button onClick={() => addNote.mutate({ body: noteBody, noteType: noteType })} disabled={!noteBody.trim() || addNote.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">Save Note</Button>
-  1253→          </DialogFooter>
-  1254→        </DialogContent>
-  1255→      </Dialog>
-  1256→
-  1257→      {/* Add Contact Dialog — pre-fills company */}
-  1258→      <Dialog open={contactOpen} onOpenChange={setContactOpen}>
-  1259→        <DialogContent className="sm:max-w-md rounded-xl">
-  1260→          <DialogHeader>
-  1261→            <DialogTitle className="text-gray-900">Add Contact</DialogTitle>
-  1262→            <p className="text-xs text-gray-500 mt-1">
-  1263→              Adding to <span className="font-medium text-gray-700">{data.name}</span>
-  1264→            </p>
-  1265→          </DialogHeader>
-  1266→          <div className="space-y-4 py-1">
-  1267→            <div className="space-y-1.5">
-  1268→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name *</Label>
-  1269→              <Input value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" />
-  1270→            </div>
-  1271→            <div className="space-y-1.5">
-  1272→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</Label>
-  1273→              <Input type="email" value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder={`name@${data.domain || 'company.com'}`} />
-  1274→            </div>
-  1275→            <div className="grid grid-cols-2 gap-3">
-  1276→              <div className="space-y-1.5">
-  1277→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</Label>
-  1278→                <Input value={contactForm.jobTitle} onChange={e => setContactForm(f => ({ ...f, jobTitle: e.target.value }))} placeholder="e.g. VP of Engineering" />
-  1279→              </div>
-  1280→              <div className="space-y-1.5">
-  1281→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Role Bucket</Label>
-  1282→                <Select value={contactForm.roleBucket} onValueChange={v => setContactForm(f => ({ ...f, roleBucket: v }))}>
-  1283→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select role" /></SelectTrigger>
-  1284→                  <SelectContent>
-  1285→                    {ROLE_BUCKETS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-  1286→                  </SelectContent>
-  1287→                </Select>
-  1288→              </div>
-  1289→            </div>
-  1290→            <div className="space-y-1.5">
-  1291→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</Label>
-  1292→              <Input type="tel" value={contactForm.phone} onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 (555) 000-0000" />
-  1293→            </div>
-  1294→            <div className="space-y-1.5">
-  1295→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">LinkedIn URL</Label>
-  1296→              <Input value={contactForm.linkedinUrl} onChange={e => setContactForm(f => ({ ...f, linkedinUrl: e.target.value }))} placeholder="https://linkedin.com/in/..." />
-  1297→            </div>
-  1298→          </div>
-  1299→          <DialogFooter className="gap-2 sm:gap-0">
-  1300→            <Button variant="outline" onClick={() => setContactOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
-  1301→            <Button onClick={handleContactSubmit} disabled={!contactForm.name.trim() || addContact.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">
-  1302→              {addContact.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
-  1303→              Add Contact
-  1304→            </Button>
-  1305→          </DialogFooter>
-  1306→        </DialogContent>
-  1307→      </Dialog>
-  1308→
-  1309→      {/* Add Opportunity Dialog — can link to target contact */}
-  1310→      <Dialog open={oppOpen} onOpenChange={setOppOpen}>
-  1311→        <DialogContent className="sm:max-w-md rounded-xl">
-  1312→          <DialogHeader>
-  1313→            <DialogTitle className="text-gray-900">Create Opportunity</DialogTitle>
-  1314→            <p className="text-xs text-gray-500 mt-1">
-  1315→              For <span className="font-medium text-gray-700">{data.name}</span>
-  1316→            </p>
-  1317→          </DialogHeader>
-  1318→          <div className="space-y-4 py-1">
-  1319→            <div className="space-y-1.5">
-  1320→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Title *</Label>
-  1321→              <Input value={oppForm.title} onChange={e => setOppForm(f => ({ ...f, title: e.target.value }))} placeholder="Opportunity title" />
-  1322→            </div>
-  1323→            <div className="space-y-1.5">
-  1324→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Description</Label>
-  1325→              <Textarea value={oppForm.description} onChange={e => setOppForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Describe the opportunity..." className="resize-none" />
-  1326→            </div>
-  1327→            <div className="grid grid-cols-2 gap-3">
-  1328→              <div className="space-y-1.5">
-  1329→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</Label>
-  1330→                <Select value={oppForm.status} onValueChange={v => setOppForm(f => ({ ...f, status: v }))}>
-  1331→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select status" /></SelectTrigger>
-  1332→                  <SelectContent>
-  1333→                    {OPP_STATUSES.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
-  1334→                  </SelectContent>
-  1335→                </Select>
-  1336→              </div>
-  1337→              <div className="space-y-1.5">
-  1338→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Target Contact</Label>
-  1339→                <Select
-  1340→                  value={oppForm.targetContactId || ''}
-  1341→                  onValueChange={v => setOppForm(f => ({ ...f, targetContactId: v === '__none__' ? '' : v }))}
-  1342→                >
-  1343→                  <SelectTrigger className="w-full">
-  1344→                    <SelectValue placeholder="Select contact (optional)" />
-  1345→                  </SelectTrigger>
-  1346→                  <SelectContent>
-  1347→                    <SelectItem value="__none__">No contact</SelectItem>
-  1348→                    {contacts.map((c: any) => (
-  1349→                      <SelectItem key={c.id} value={c.id}>
-  1350→                        {c.name}{c.jobTitle ? ` — ${c.jobTitle}` : ''}
-  1351→                      </SelectItem>
-  1352→                    ))}
-  1353→                  </SelectContent>
-  1354→                </Select>
-  1355→              </div>
-  1356→            </div>
-  1357→            <div className="space-y-1.5">
-  1358→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Next Action</Label>
-  1359→              <Input value={oppForm.nextAction} onChange={e => setOppForm(f => ({ ...f, nextAction: e.target.value }))} placeholder="What's the next step?" />
-  1360→            </div>
-  1361→          </div>
-  1362→          <DialogFooter className="gap-2 sm:gap-0">
-  1363→            <Button variant="outline" onClick={() => setOppOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
-  1364→            <Button onClick={handleOppSubmit} disabled={!oppForm.title.trim() || addOpportunity.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">
-  1365→              {addOpportunity.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
-  1366→              Create Opportunity
-  1367→            </Button>
-  1368→          </DialogFooter>
-  1369→        </DialogContent>
-  1370→      </Dialog>
-  1371→    </div>
-  1372→  )
-  1373→}
+  1188→                        {/* Cross-nav: if activity references a contact, make it clickable */}
+  1189→                        {t.contact && (
+  1190→                          <button
+  1191→                            onClick={() => handleViewContact(t.contact.id)}
+  1192→                            className="inline-flex items-center gap-1 mt-1.5 text-xs text-amber-600 hover:text-amber-700 transition-colors"
+  1193→                          >
+  1194→                            <Users className="size-3" />
+  1195→                            {t.contact.name}
+  1196→                            <ChevronRight className="size-3" />
+  1197→                          </button>
+  1198→                        )}
+  1199→                        <p className="text-[11px] text-gray-400 mt-1.5">
+  1200→                          {formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}
+  1201→                        </p>
+  1202→                      </div>
+  1203→                    </div>
+  1204→                  )
+  1205→                })}
+  1206→              </div>
+  1207→            </div>
+  1208→          )}
+  1209→        </TabsContent>
+  1210→      </Tabs>
+  1211→
+  1212→      {/* ══════════════════════════════════════════════════════════
+  1213→          DIALOGS
+  1214→          ══════════════════════════════════════════════════════════ */}
+  1215→
+  1216→      {/* Delete Note Confirmation */}
+  1217→      <Dialog open={!!deleteNoteId} onOpenChange={(open) => { if (!open) setDeleteNoteId(null) }}>
+  1218→        <DialogContent className="sm:max-w-sm rounded-xl">
+  1219→          <DialogHeader>
+  1220→            <DialogTitle className="text-gray-900 flex items-center gap-2">
+  1221→              <AlertTriangle className="size-4 text-red-500" /> Delete Note
+  1222→            </DialogTitle>
+  1223→          </DialogHeader>
+  1224→          <p className="text-sm text-gray-600">Are you sure you want to delete this note? This action cannot be undone.</p>
+  1225→          <DialogFooter className="gap-2 sm:gap-0">
+  1226→            <Button variant="outline" onClick={() => setDeleteNoteId(null)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+  1227→            <Button
+  1228→              onClick={() => deleteNoteMutation.mutate(deleteNoteId!)}
+  1229→              disabled={deleteNoteMutation.isPending}
+  1230→              className="bg-red-600 text-white hover:bg-red-700 press-scale"
+  1231→            >
+  1232→              {deleteNoteMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+  1233→              Delete
+  1234→            </Button>
+  1235→          </DialogFooter>
+  1236→        </DialogContent>
+  1237→      </Dialog>
+  1238→
+  1239→      {/* Add Note Dialog */}
+  1240→      <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
+  1241→        <DialogContent className="sm:max-w-md rounded-xl">
+  1242→          <DialogHeader><DialogTitle className="text-gray-900">Add Note</DialogTitle></DialogHeader>
+  1243→          <div className="space-y-4 py-1">
+  1244→            <div className="space-y-1.5">
+  1245→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Type</Label>
+  1246→              <Select value={noteType} onValueChange={setNoteType}>
+  1247→                <SelectTrigger className="w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
+  1248→                <SelectContent>
+  1249→                  <SelectItem value="call">Call</SelectItem>
+  1250→                  <SelectItem value="meeting">Meeting</SelectItem>
+  1251→                  <SelectItem value="research">Research</SelectItem>
+  1252→                  <SelectItem value="general">General</SelectItem>
+  1253→                </SelectContent>
+  1254→              </Select>
+  1255→            </div>
+  1256→            <div className="space-y-1.5">
+  1257→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Note</Label>
+  1258→              <Textarea value={noteBody} onChange={e => setNoteBody(e.target.value)} rows={3} placeholder="Write your note..." className="resize-none" />
+  1259→            </div>
+  1260→          </div>
+  1261→          <DialogFooter className="gap-2 sm:gap-0">
+  1262→            <Button variant="outline" onClick={() => setNoteOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+  1263→            <Button onClick={() => addNote.mutate({ body: noteBody, noteType: noteType })} disabled={!noteBody.trim() || addNote.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">Save Note</Button>
+  1264→          </DialogFooter>
+  1265→        </DialogContent>
+  1266→      </Dialog>
+  1267→
+  1268→      {/* Add Contact Dialog — pre-fills company */}
+  1269→      <Dialog open={contactOpen} onOpenChange={setContactOpen}>
+  1270→        <DialogContent className="sm:max-w-md rounded-xl">
+  1271→          <DialogHeader>
+  1272→            <DialogTitle className="text-gray-900">Add Contact</DialogTitle>
+  1273→            <p className="text-xs text-gray-500 mt-1">
+  1274→              Adding to <span className="font-medium text-gray-700">{data.name}</span>
+  1275→            </p>
+  1276→          </DialogHeader>
+  1277→          <div className="space-y-4 py-1">
+  1278→            <div className="space-y-1.5">
+  1279→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name *</Label>
+  1280→              <Input value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" />
+  1281→            </div>
+  1282→            <div className="space-y-1.5">
+  1283→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</Label>
+  1284→              <Input type="email" value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder={`name@${data.domain || 'company.com'}`} />
+  1285→            </div>
+  1286→            <div className="grid grid-cols-2 gap-3">
+  1287→              <div className="space-y-1.5">
+  1288→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</Label>
+  1289→                <Input value={contactForm.jobTitle} onChange={e => setContactForm(f => ({ ...f, jobTitle: e.target.value }))} placeholder="e.g. VP of Engineering" />
+  1290→              </div>
+  1291→              <div className="space-y-1.5">
+  1292→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Role Bucket</Label>
+  1293→                <Select value={contactForm.roleBucket} onValueChange={v => setContactForm(f => ({ ...f, roleBucket: v }))}>
+  1294→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select role" /></SelectTrigger>
+  1295→                  <SelectContent>
+  1296→                    {ROLE_BUCKETS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+  1297→                  </SelectContent>
+  1298→                </Select>
+  1299→              </div>
+  1300→            </div>
+  1301→            <div className="space-y-1.5">
+  1302→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</Label>
+  1303→              <Input type="tel" value={contactForm.phone} onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 (555) 000-0000" />
+  1304→            </div>
+  1305→            <div className="space-y-1.5">
+  1306→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">LinkedIn URL</Label>
+  1307→              <Input value={contactForm.linkedinUrl} onChange={e => setContactForm(f => ({ ...f, linkedinUrl: e.target.value }))} placeholder="https://linkedin.com/in/..." />
+  1308→            </div>
+  1309→          </div>
+  1310→          <DialogFooter className="gap-2 sm:gap-0">
+  1311→            <Button variant="outline" onClick={() => setContactOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+  1312→            <Button onClick={handleContactSubmit} disabled={!contactForm.name.trim() || addContact.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">
+  1313→              {addContact.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+  1314→              Add Contact
+  1315→            </Button>
+  1316→          </DialogFooter>
+  1317→        </DialogContent>
+  1318→      </Dialog>
+  1319→
+  1320→      {/* Add Opportunity Dialog — can link to target contact */}
+  1321→      <Dialog open={oppOpen} onOpenChange={setOppOpen}>
+  1322→        <DialogContent className="sm:max-w-md rounded-xl">
+  1323→          <DialogHeader>
+  1324→            <DialogTitle className="text-gray-900">Create Opportunity</DialogTitle>
+  1325→            <p className="text-xs text-gray-500 mt-1">
+  1326→              For <span className="font-medium text-gray-700">{data.name}</span>
+  1327→            </p>
+  1328→          </DialogHeader>
+  1329→          <div className="space-y-4 py-1">
+  1330→            <div className="space-y-1.5">
+  1331→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Title *</Label>
+  1332→              <Input value={oppForm.title} onChange={e => setOppForm(f => ({ ...f, title: e.target.value }))} placeholder="Opportunity title" />
+  1333→            </div>
+  1334→            <div className="space-y-1.5">
+  1335→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Description</Label>
+  1336→              <Textarea value={oppForm.description} onChange={e => setOppForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Describe the opportunity..." className="resize-none" />
+  1337→            </div>
+  1338→            <div className="grid grid-cols-2 gap-3">
+  1339→              <div className="space-y-1.5">
+  1340→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</Label>
+  1341→                <Select value={oppForm.status} onValueChange={v => setOppForm(f => ({ ...f, status: v }))}>
+  1342→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select status" /></SelectTrigger>
+  1343→                  <SelectContent>
+  1344→                    {OPP_STATUSES.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
+  1345→                  </SelectContent>
+  1346→                </Select>
+  1347→              </div>
+  1348→              <div className="space-y-1.5">
+  1349→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Target Contact</Label>
+  1350→                <Select
+  1351→                  value={oppForm.targetContactId || ''}
+  1352→                  onValueChange={v => setOppForm(f => ({ ...f, targetContactId: v === '__none__' ? '' : v }))}
+  1353→                >
+  1354→                  <SelectTrigger className="w-full">
+  1355→                    <SelectValue placeholder="Select contact (optional)" />
+  1356→                  </SelectTrigger>
+  1357→                  <SelectContent>
+  1358→                    <SelectItem value="__none__">No contact</SelectItem>
+  1359→                    {contacts.map((c: any) => (
+  1360→                      <SelectItem key={c.id} value={c.id}>
+  1361→                        {c.name}{c.jobTitle ? ` — ${c.jobTitle}` : ''}
+  1362→                      </SelectItem>
+  1363→                    ))}
+  1364→                  </SelectContent>
+  1365→                </Select>
+  1366→              </div>
+  1367→            </div>
+  1368→            <div className="space-y-1.5">
+  1369→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Next Action</Label>
+  1370→              <Input value={oppForm.nextAction} onChange={e => setOppForm(f => ({ ...f, nextAction: e.target.value }))} placeholder="What's the next step?" />
+  1371→            </div>
+  1372→          </div>
+  1373→          <DialogFooter className="gap-2 sm:gap-0">
+  1374→            <Button variant="outline" onClick={() => setOppOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+  1375→            <Button onClick={handleOppSubmit} disabled={!oppForm.title.trim() || addOpportunity.isPending} className="bg-gray-900 text-white hover:bg-gray-800 press-scale">
+  1376→              {addOpportunity.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+  1377→              Create Opportunity
+  1378→            </Button>
+  1379→          </DialogFooter>
+  1380→        </DialogContent>
+  1381→      </Dialog>
+  1382→    </div>
+  1383→  )
+  1384→}

@@ -287,7 +287,7 @@ export default function ImportScreen() {
                         {row.map((cell, ci) => (
                           <TableCell key={ci} className={cn(
                             'text-gray-600 max-w-[150px] truncate',
-                            ci === emailColIdx && cell && !emailRe.test(cell) && 'text-red-600 font-medium'
+                            emailColIdx != null && ci === Number(emailColIdx) && cell && !emailRe.test(cell) && 'text-red-600 font-medium'
                           )}>
                             {cell || <span className="text-gray-300">—</span>}
                           </TableCell>
@@ -333,11 +333,20 @@ export default function ImportScreen() {
               </div>
             </div>
           )}
+          {companyColIdx == null && (
+            <div className="mx-4 md:mx-6 mb-4 p-3 rounded-lg bg-amber-50 border border-amber-100 flex items-start gap-2">
+              <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-medium text-amber-700">Company Name column is not mapped</p>
+                <p className="text-[11px] text-amber-600 mt-0.5">Go back to Column Mapping and map a column to "Company Name" to create company records.</p>
+              </div>
+            </div>
+          )}
           <div className="flex flex-col-reverse sm:flex-row justify-between p-4 md:p-6 pt-0 gap-2 border-t border-gray-100">
             <Button variant="ghost" className="text-gray-500 text-sm" onClick={() => setStep(2)}>
               <ArrowLeft className="size-3.5 mr-1" /> Back
             </Button>
-            <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={runImport} disabled={readyCount === 0 || !batchId}>
+            <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={runImport} disabled={readyCount === 0 || !batchId || companyColIdx == null}>
               Start Import
             </Button>
           </div>

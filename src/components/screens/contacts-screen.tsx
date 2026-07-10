@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Search, ChevronLeft, ChevronRight, Users, Mail, ShieldCheck,
   Sparkles, MoreHorizontal, Pencil, Archive, Loader2, Building2,
-  CheckCircle2, XCircle,
+  CheckCircle2, XCircle, X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -58,6 +58,10 @@ const statusCls = (s: string) =>
 
 export default function ContactsScreen() {
   const qc = useQueryClient()
+  const { selectedCompanyId, setSelectedCompanyId } = useAppStore()
+
+  /* ── Company filter from navigation ── */
+  const [filterCompanyId, setFilterCompanyId] = useState<string | null>(null)
 
   /* ── List state ── */
   const [page, setPage] = useState(1)
@@ -68,6 +72,14 @@ export default function ContactsScreen() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  /* ── Capture selectedCompanyId on mount, then clear it ── */
+  useEffect(() => {
+    if (selectedCompanyId) {
+      setFilterCompanyId(selectedCompanyId)
+      setSelectedCompanyId(null)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Validation loading per contact ── */
   const [validatingIds, setValidatingIds] = useState<Set<string>>(new Set())
@@ -159,13 +171,21 @@ export default function ContactsScreen() {
   }
 
   /* ── Queries ── */
+  /* ── Fetch company name for filter banner ── */
+  const { data: filterCompany } = useQuery({
+    queryKey: ['company-brief-contacts', filterCompanyId],
+    queryFn: () => fetch(`/api/companies/${filterCompanyId}`).then(r => r.json()),
+    enabled: !!filterCompanyId,
+  })
+
   const { data, isLoading } = useQuery({
-    queryKey: ['contacts', debouncedSearch, status, health, page],
+    queryKey: ['contacts', debouncedSearch, status, health, page, filterCompanyId],
     queryFn: () => {
       const p = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
       if (debouncedSearch) p.set('search', debouncedSearch)
       if (status) p.set('status', status)
       if (health) p.set('emailHealth', health)
+      if (filterCompanyId) p.set('companyId', filterCompanyId)
       return fetch(`/api/contacts?${p}`).then(r => r.json())
     },
   })
@@ -260,6 +280,22 @@ export default function ContactsScreen() {
     onError: (e: Error) => toast.error(e.message),
   })
 
+  /* ── Batch email validation (FIX 7) ── */
+  const batchValidateMutation = useMutation({
+    mutationFn: () =>
+      fetch('/api/health-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checkAll: true }),
+      }).then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Batch validation failed') })),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ['contacts'] })
+      const summary = result?.summary || `${result?.checked ?? 0} emails checked`
+      toast.success(`Email validation complete: ${summary}`)
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
   /* ── Derived ── */
   const contacts = data?.contacts ?? []
   const total = data?.total ?? 0
@@ -280,6 +316,22 @@ export default function ContactsScreen() {
   /* ── Render ── */
   return (
     <div className="space-y-4">
+      {/* ═══ Company Filter Banner ═══ */}
+      {filterCompanyId && (
+        <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200/80">
+          <Building2 className="size-4 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-800">
+            Showing contacts for <span className="font-semibold">{filterCompany?.name || 'Company'}</span>
+          </p>
+          <button
+            onClick={() => setFilterCompanyId(null)}
+            className="ml-auto p-1 rounded-md hover:bg-amber-100 transition-colors"
+          >
+            <X className="size-3.5 text-amber-600" />
+          </button>
+        </div>
+      )}
+
       {/* ═══ Header ═══ */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
@@ -291,13 +343,29 @@ export default function ContactsScreen() {
             </span>
           )}
         </div>
-        <Button
-          size="sm"
-          onClick={() => setDlgOpen(true)}
-          className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs shrink-0"
-        >
-          <Plus className="size-4" /> <span className="hidden sm:inline ml-1.5">Add Contact</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* ═══ Batch Validate Emails Button (FIX 7) ═══ */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-gray-200 text-gray-600 rounded-lg press-scale shrink-0"
+            onClick={() => batchValidateMutation.mutate()}
+            disabled={batchValidateMutation.isPending}
+          >
+            {batchValidateMutation.isPending
+              ? <Loader2 className="size-4 animate-spin" />
+              : <ShieldCheck className="size-4" />
+            }
+            <span className="hidden sm:inline ml-1.5">{batchValidateMutation.isPending ? 'Validating...' : 'Validate Emails'}</span>
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setDlgOpen(true)}
+            className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs shrink-0"
+          >
+            <Plus className="size-4" /> <span className="hidden sm:inline ml-1.5">Add Contact</span>
+          </Button>
+        </div>
       </div>
 
       {/* ═══ Filters ═══ */}

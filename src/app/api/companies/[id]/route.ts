@@ -72,10 +72,35 @@ export async function PATCH(
       "dataFreshness",
     ];
 
+    const VALID_STATUSES = ["new", "researching", "qualified", "ready", "contacted", "won", "lost", "archived"];
+
+    // Validate status if provided
+    if (body.status !== undefined && !VALID_STATUSES.includes(body.status)) {
+      return NextResponse.json(
+        { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate intelligenceScore if provided
+    if (body.intelligenceScore !== undefined) {
+      if (typeof body.intelligenceScore !== "number" || !Number.isInteger(body.intelligenceScore) || body.intelligenceScore < 0 || body.intelligenceScore > 100) {
+        return NextResponse.json(
+          { error: "intelligenceScore must be an integer between 0 and 100" },
+          { status: 400 }
+        );
+      }
+    }
+
     const data: Record<string, unknown> = {};
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
-        data[field] = body[field];
+        // Trim string fields
+        if (typeof body[field] === "string") {
+          data[field] = (body[field] as string).trim();
+        } else {
+          data[field] = body[field];
+        }
       }
     }
 

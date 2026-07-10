@@ -144,6 +144,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
+    // Only accept plain text file formats
+    const fileName = file.name.toLowerCase();
+    const allowedExtensions = [".txt", ".md"];
+    const blockedExtensions = [".pdf", ".docx", ".doc"];
+
+    if (blockedExtensions.some((ext) => fileName.endsWith(ext))) {
+      const ext = fileName.split(".").pop()!.toUpperCase();
+      return NextResponse.json(
+        { error: `.${ext} files are not supported. Only .txt and .md files can be uploaded. Use a PDF/DOCX to text converter first.` },
+        { status: 400 }
+      );
+    }
+
+    if (!allowedExtensions.some((ext) => fileName.endsWith(ext))) {
+      return NextResponse.json(
+        { error: "Unsupported file type. Only .txt and .md files are accepted." },
+        { status: 400 }
+      );
+    }
+
     const title =
       (fd.get("title") as string) ||
       file.name?.replace(/\.[^.]+$/, "") ||

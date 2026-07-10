@@ -191,6 +191,15 @@ function ToggleGroup<T extends string>({
 export default function EmailGenerationScreen() {
   const { selectedContactId, setSelectedContactId, setSelectedCompanyId, setActiveView } = useAppStore()
 
+  // ── Capture and clear selectedContactId on mount (FIX 2) ──
+  const [localContactId, setLocalContactId] = useState<string | null>(selectedContactId)
+  const contactId = localContactId
+  useEffect(() => {
+    if (selectedContactId) {
+      setSelectedContactId(null)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Preferences for defaults ──
   const { data: prefs } = useQuery({
     queryKey: ['preferences'],
@@ -232,12 +241,12 @@ export default function EmailGenerationScreen() {
   const contacts = (contactsData?.contacts ?? []) as ContactRow[]
 
   // ── Selected contact (may need separate fetch if navigated from elsewhere) ──
-  const selectedContact = contacts.find(c => c.id === selectedContactId) ?? null
+  const selectedContact = contacts.find(c => c.id === contactId) ?? null
 
   const { data: preselectedContact, isLoading: preselectedLoading } = useQuery({
-    queryKey: ['contact', selectedContactId],
-    queryFn: () => fetch(`/api/contacts/${selectedContactId}`).then(r => r.json()),
-    enabled: !!selectedContactId && !selectedContact,
+    queryKey: ['contact', contactId],
+    queryFn: () => fetch(`/api/contacts/${contactId}`).then(r => r.json()),
+    enabled: !!contactId && !selectedContact,
   })
 
   const activeContact = selectedContact || (preselectedContact ? {
@@ -251,7 +260,7 @@ export default function EmailGenerationScreen() {
     companyId: preselectedContact.companyId,
   } : null)
 
-  const hasDraft = generatedBody.length > 0 && draftContactId === selectedContactId
+  const hasDraft = generatedBody.length > 0 && draftContactId === contactId
 
   // ── Navigation helpers ──
   const goToSettings = () => setActiveView('settings')
@@ -280,7 +289,7 @@ export default function EmailGenerationScreen() {
   // ── Generate mutation ──
   const generateMutation = useMutation({
     mutationFn: () =>
-      fetch(`/api/contacts/${selectedContactId}/generate-email`, {
+      fetch(`/api/contacts/${contactId}/generate-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tone, emailLength, ctaStyle }),
@@ -292,7 +301,7 @@ export default function EmailGenerationScreen() {
       setLastDraftId(data.draftId || null)
       setLastMatchScore(data.matchScore ?? null)
       setLastConfidence(data.confidence)
-      setDraftContactId(selectedContactId || null)
+      setDraftContactId(contactId || null)
       // Determine if AI was used based on prefs
       const aiKey = prefs?.aiApiKey
       setIsAiGenerated(!!aiKey)
@@ -317,7 +326,7 @@ export default function EmailGenerationScreen() {
 
   // ── Select contact ──
   const selectContact = (contact: ContactRow) => {
-    setSelectedContactId(contact.id)
+    setLocalContactId(contact.id)
     clearDraft()
   }
 
@@ -327,7 +336,7 @@ export default function EmailGenerationScreen() {
           Mobile Contact Selector
          ═══════════════════════════════════════════════════════ */}
       <div className="md:hidden p-4 border-b border-gray-200/60 bg-white space-y-3">
-        <Select value={selectedContactId || ''} onValueChange={(id) => {
+        <Select value={contactId || ''} onValueChange={(id) => {
           const c = contacts.find(ct => ct.id === id)
           if (c) selectContact(c)
         }}>
@@ -422,7 +431,7 @@ export default function EmailGenerationScreen() {
           ) : (
             <div className="px-2 space-y-1 pb-4">
               {contacts.map((c) => {
-                const isActive = c.id === selectedContactId
+                const isActive = c.id === contactId
                 const health = emailHealthBadge(c.emailHealth)
                 return (
                   <button

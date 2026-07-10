@@ -37,50 +37,63 @@ export async function POST(request: NextRequest) {
     let validCount = 0;
     let riskyCount = 0;
     let invalidCount = 0;
+    const BATCH_SIZE = 5;
 
-    for (const contact of contacts) {
-      const email = contact.email!;
+    // Process contacts in parallel batches of 5
+    for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
+      const batch = contacts.slice(i, i + BATCH_SIZE);
 
-      // Run comprehensive validation via the shared engine
-      const result = await validateEmail(email);
+      const results = await Promise.all(
+        batch.map(async (contact) => {
+          const email = contact.email!;
+          const result = await validateEmail(email);
+          const mxOk = result.mxOk ?? false;
 
-      // Map nullable DNS results to booleans for the DB schema
-      const mxOk = result.mxOk ?? false;
+          if (result.status === "valid") return { contact, result, mxOk, countType: "valid" as const };
+          if (result.status === "risky") return { contact, result, mxOk, countType: "risky" as const };
+          return { contact, result, mxOk, countType: "invalid" as const };
+        })
+      );
 
-      if (result.status === "valid") validCount++;
-      else if (result.status === "risky") riskyCount++;
-      else invalidCount++;
-
+      // Write all results in a single transaction per batch
       await db.$transaction([
-        db.contact.update({
-          where: { id: contact.id },
-          data: {
-            emailHealth: result.status,
-            emailHealthScore: result.score,
-            lastValidatedAt: new Date(),
-          },
-        }),
-        db.emailHealthCheck.create({
-          data: {
-            contactId: contact.id,
-            status: result.status,
-            score: result.score,
-            actionRecommendation: result.recommendation,
-            syntaxOk: result.syntaxOk,
-            domainOk: result.domainOk,
-            mxOk,
-            disposableOk: result.disposableOk,
-          },
-        }),
-        db.timelineEntry.create({
-          data: {
-            contactId: contact.id,
-            companyId: contact.companyId,
-            action: "email_health_check",
-            details: `Email health check: ${result.status} (score ${result.score}) — ${result.recommendation}`,
-          },
-        }),
+        ...results.flatMap(({ contact, result, mxOk }) => [
+          db.contact.update({
+            where: { id: contact.id },
+            data: {
+              emailHealth: result.status,
+              emailHealthScore: result.score,
+              lastValidatedAt: new Date(),
+            },
+          }),
+          db.emailHealthCheck.create({
+            data: {
+              contactId: contact.id,
+              status: result.status,
+              score: result.score,
+              actionRecommendation: result.recommendation,
+              syntaxOk: result.syntaxOk,
+              domainOk: result.domainOk,
+              mxOk,
+              disposableOk: result.disposableOk,
+            },
+          }),
+          db.timelineEntry.create({
+            data: {
+              contactId: contact.id,
+              companyId: contact.companyId,
+              action: "email_health_check",
+              details: `Email health check: ${result.status} (score ${result.score}) — ${result.recommendation}`,
+            },
+          }),
+        ]),
       ]);
+
+      for (const r of results) {
+        if (r.countType === "valid") validCount++;
+        else if (r.countType === "risky") riskyCount++;
+        else invalidCount++;
+      }
     }
 
     return NextResponse.json({

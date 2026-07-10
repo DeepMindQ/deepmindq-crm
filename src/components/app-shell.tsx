@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import {
   LayoutDashboard, Building2, Users, Upload, Settings, Search,
-  Bell, HelpCircle, LogOut, ChevronDown, Command,
+  Bell, HelpCircle, LogOut, ChevronDown, Command, X, CheckCircle2, Mail, Sparkles,
+  BookOpen, MailPlus,
 } from 'lucide-react'
 import {
   SidebarProvider, Sidebar, SidebarHeader, SidebarContent,
@@ -32,6 +33,8 @@ const navItems: { view: ActiveView; label: string; icon: React.ElementType }[] =
   { view: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { view: 'companies', label: 'Companies', icon: Building2 },
   { view: 'contacts', label: 'Contacts', icon: Users },
+  { view: 'email-generation', label: 'AI Emails', icon: MailPlus },
+  { view: 'knowledge-library', label: 'Knowledge', icon: BookOpen },
   { view: 'import', label: 'Import', icon: Upload },
   { view: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -39,6 +42,9 @@ const navItems: { view: ActiveView; label: string; icon: React.ElementType }[] =
 const pageTitles: Record<ActiveView, string> = {
   dashboard: 'Dashboard', companies: 'Companies',
   'company-profile': 'Company Profile', contacts: 'Contacts',
+  'contact-profile': 'Contact Profile',
+  'email-generation': 'AI Emails',
+  'knowledge-library': 'Knowledge Library',
   import: 'Import', settings: 'Settings',
 }
 
@@ -47,6 +53,9 @@ const pageDescriptions: Record<ActiveView, string> = {
   companies: 'Target company accounts',
   'company-profile': 'Detailed company intelligence',
   contacts: 'Contact database & outreach',
+  'contact-profile': 'Contact details & activity',
+  'email-generation': 'Generate AI outreach emails',
+  'knowledge-library': 'Capability documents & snippets',
   import: 'Bulk data import',
   settings: 'Configuration & preferences',
 }
@@ -56,6 +65,7 @@ const contentTransition = { duration: 0.2, ease: [0.16, 1, 0.3, 1] }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { activeView, searchQuery, setActiveView, setSearchQuery } = useAppStore()
+  const [showNotifications, setShowNotifications] = React.useState(false)
 
   const isNavActive = (view: ActiveView): boolean => {
     if (view === 'companies' && activeView === 'company-profile') return true
@@ -129,7 +139,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Sidebar>
 
       {/* ── Main ── */}
-      <SidebarInset className="bg-gray-50/80">
+      <SidebarInset className="relative bg-gray-50/80">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-gray-200/80 bg-white/80 px-4 backdrop-blur-xl">
           <SidebarTrigger className="-ml-1.5 text-gray-400 hover:text-gray-900 transition-colors" />
           <Separator orientation="vertical" className="mx-1 h-4 bg-gray-200/80" />
@@ -173,7 +183,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
 
           {/* Notification bell */}
-          <button className="relative p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors press-scale">
+          <button onClick={() => setShowNotifications((prev) => !prev)} className="relative p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors press-scale">
             <Bell className="size-4" />
             <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-white" />
           </button>
@@ -225,6 +235,52 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </motion.div>
           </AnimatePresence>
         </div>
+
+        {/* Notification Panel */}
+        <AnimatePresence>
+          {showNotifications && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.2 }}
+              className="absolute right-0 top-14 bottom-0 w-80 bg-white border-l border-gray-200/80 shadow-modal z-40 overflow-hidden"
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+                <button onClick={() => setShowNotifications(false)} className="p-1 rounded-md hover:bg-gray-100 transition-colors">
+                  <X className="size-4 text-gray-400" />
+                </button>
+              </div>
+              <div className="p-3 space-y-1">
+                <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                  <div className="size-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0"><CheckCircle2 className="size-4 text-emerald-600" /></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">Import completed</p>
+                    <p className="text-[11px] text-gray-500">12 companies and 45 contacts imported successfully</p>
+                  </div>
+                  <span className="text-[10px] text-gray-400">2m ago</span>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                  <div className="size-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0"><Mail className="size-4 text-blue-600" /></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">Email generated</p>
+                    <p className="text-[11px] text-gray-500">Draft created for John at Acme Corp</p>
+                  </div>
+                  <span className="text-[10px] text-gray-400">15m ago</span>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                  <div className="size-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0"><Sparkles className="size-4 text-amber-600" /></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">Research ready</p>
+                    <p className="text-[11px] text-gray-500">AI research card generated for TechStart Inc</p>
+                  </div>
+                  <span className="text-[10px] text-gray-400">1h ago</span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </SidebarInset>
 
       <CommandPalette />

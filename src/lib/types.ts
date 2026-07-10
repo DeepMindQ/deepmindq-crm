@@ -3,7 +3,10 @@ export type ActiveView =
   | "companies"
   | "company-profile"
   | "contacts"
+  | "contact-profile"
   | "import"
+  | "email-generation"
+  | "knowledge-library"
   | "settings";
 
 export interface Company {

@@ -7,6 +7,7 @@ interface AppState {
   selectedContactId: string | null;
   sidebarCollapsed: boolean;
   searchQuery: string;
+  showNotifications: boolean;
   setActiveView: (view: ActiveView) => void;
   setSelectedCompanyId: (id: string | null) => void;
   setSelectedContactId: (id: string | null) => void;
@@ -20,6 +21,7 @@ export const useAppStore = create<AppState>((set) => ({
   selectedContactId: null,
   sidebarCollapsed: false,
   searchQuery: "",
+  showNotifications: true,
   setActiveView: (view) => set({ activeView: view }),
   setSelectedCompanyId: (id) => set({ selectedCompanyId: id }),
   setSelectedContactId: (id) => set({ selectedContactId: id }),

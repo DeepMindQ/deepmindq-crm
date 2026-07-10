@@ -569,3 +569,169 @@
    569→- Static pages: /, /_not-found, /app, /login
    570→- Dynamic routes: all /api/* endpoints
    571→
+   572→---
+   573→Task ID: 23
+   574→Agent: Root API Route Fix
+   575→Task: Fix root API route and create missing drafts collection route
+   576→
+   577→Work Log:
+   578→- Fixed `/src/app/api/route.ts`: replaced generic `{ message: "Hello, world!" }` with proper health/status response `{ status: "ok", version: "1.0", timestamp: ... }` including `Content-Type` and `Cache-Control: no-store` headers
+   579→- Created `/src/app/api/drafts/route.ts`: GET handler that lists drafts with optional `contactId` query filter, includes `contact` relation, ordered by `createdAt` desc, with error handling
+   580→- Verified `drafts/[id]/route.ts` already handles PATCH/DELETE for individual drafts
+   581→- Verified both files by reading back
+   582→
+   583→Stage Summary:
+   584→- Root `/api` route now returns proper health JSON with version and timestamp
+   585→- New `/api/drafts` collection route enables listing/filtering drafts (previously only individual draft operations existed)
+   586→
+   587→---
+   588→Task ID: 24
+   589→Agent: Global Styles Verification
+   590→Task: Verify and fix globals.css styles and layout.tsx imports
+   591→
+   592→Work Log:
+   593→- Verified globals.css uses `@import "tailwindcss"` (v4 syntax) ✅
+   594→- Verified all required custom CSS classes present: `.card-interactive`, `.card-rest`, `.elevation-float`, `.elevation-modal`, `.press-scale`, `.slide-up`, `.scale-in`, `.table-row-hover` ✅
+   595→- Verified custom scrollbar styles present ✅
+   596→- Verified `ring-amber-*` usages use Tailwind v4 built-in amber color palette — no custom definitions needed ✅
+   597→- Found missing `scroll-behavior: smooth` on `html` — ADDED
+   598→- Found missing font smoothing CSS rules on `body` — ADDED (`-webkit-font-smoothing: antialiased`, `-moz-osx-font-smoothing: grayscale`)
+   599→- Verified sonner package installed (`^2.0.6`) and 10 screen files import `toast` from sonner
+   600→- Found layout.tsx importing `Toaster` from `@/components/ui/toaster` (shadcn toast system) instead of `@/components/ui/sonner` (sonner wrapper) — this mismatch meant sonner toasts would never render
+   601→- FIXED: Changed Toaster import in layout.tsx to `@/components/ui/sonner`
+   602→- Verified QueryProvider wraps children in layout.tsx ✅
+   603→- Verified `/src/providers/query-provider.tsx` exists with React Query setup ✅
+   604→- Verified globals.css import in layout.tsx ✅
+   605→- Read back both files to confirm changes
+   606→
+   607→Stage Summary:
+   608→- globals.css: Added smooth scrolling and font smoothing CSS properties
+   609→- layout.tsx: Fixed critical Toaster import — changed from shadcn toast (`@/components/ui/toaster`) to sonner (`@/components/ui/sonner`) to match actual toast usage across all screen components
+   610→- All 9 required custom CSS classes verified present and correct
+   611→- No build commands run per instructions
+   612→
+   613→---
+   614→Task ID: 19
+   615→Agent: Opportunity + Research API Tests
+   616→Task: Write opportunity and research API integration tests
+   617→
+   618→Work Log:
+   619→- Created `/src/app/api/__tests__/opportunities-research.test.ts` with 17 tests across 7 describe blocks
+   620→- Opportunity GET tests: pagination structure, companyId filter, page/pageSize params
+   621→- Opportunity POST tests: create with all fields, missing title rejection, missing companyId rejection, default status
+   622→- Opportunity GET [id] tests: returns single with company relation, 404 for nonexistent
+   623→- Opportunity PATCH [id] tests: updates fields, verifies timeline created only on status change (not on title change), 404 for nonexistent
+   624→- Opportunity DELETE [id] tests: successful deletion with DB verification, 404 for nonexistent
+   625→- Research POST tests: template fallback generation (no AI key), CompanyResearchCard upsert (create + update), company.intelligenceScore increment, TimelineEntry creation
+   626→- All tests use real DB with seed data; afterEach cleans up created records in dependency order
+   627→- All 17 tests pass on first run (1.46s)
+   628→
+   629→Stage Summary:
+   630→- 17 integration tests covering full CRUD for opportunities + research generation
+   631→- Tests directly import and call route handlers (matching existing test pattern)
+   632→- Cleanup tracks opportunities, timeline entries, research cards, and companies
+   633→- No fixes needed — all tests passed immediately
+   634→---
+   635→Task ID: 18
+   636→Agent: Component Render Tests
+   637→Task: Write component rendering tests for design-system components and Zustand store
+   638→
+   639→Work Log:
+   640→- Explored project structure: identified design-system.tsx (7 exports) and store.ts (Zustand)
+   641→- Created /src/components/shared/__tests__/design-system.test.tsx with 50 tests:
+   642→  - EmptyState (4 tests): title/description rendering, action buttons, no buttons when labelless
+   643→  - ScoreGauge (6 tests): score value, default/custom label, sublabel, "of 100", segments, SVG element
+   644→  - TrendIndicator (7 tests): positive/negative/zero values, arrow rendering, default/custom period, color classes
+   645→  - Sparkline (7 tests): data array rendering, null/empty/single-point edge cases, polyline/polygon, custom color
+   646→  - StatusDot (7 tests): fresh/stale/old/unknown status colors, pulse animation conditional rendering
+   647→  - SkeletonGrid (4 tests): default props, panel count, custom cols/panels, animate-pulse presence
+   648→  - SortableHeader (3 tests): label rendering, th element, onSort click handler
+   649→  - getActivityIcon (12 tests): all 10 known actions return correct icon/color/bg, fallback for unknown, space normalization
+   650→- Created /src/lib/__tests__/store.test.ts with 25 tests:
+   651→  - Initial state (7 tests): all default values verified
+   652→  - setActiveView (5 tests): changes view, multiple valid views, no side effects
+   653→  - setSelectedCompanyId (3 tests): set string, reset to null, no cross-field effects
+   654→  - setSelectedContactId (3 tests): set string, reset to null, no cross-field effects
+   655→  - setSearchQuery (3 tests): set string, clear, no side effects
+   656→  - toggleSidebar (2 tests): toggle on/off
+   657→  - setCompanyStatusFilter (2 tests): set and reset
+   658→- Fixed 5 failures caused by jsdom not cleaning DOM between tests:
+   659→  - Added afterEach(cleanup) to design-system tests
+   660→  - Changed 3 tests from screen queries to container-scoped queries to avoid cross-test pollution
+   661→
+   662→Stage Summary:
+   663→- 75 total tests (50 component + 25 store), all passing
+   664→- Key fix: explicit afterEach(cleanup) needed in vitest + jsdom environment
+   665→
+   666→---
+   667→Task ID: 17
+   668→Agent: Email Verification Unit Tests
+   669→Task: Write comprehensive unit tests for all exported functions in email-verification.ts
+   670→
+   671→Work Log:
+   672→- Read existing 13 tests covering checkSyntax, extractDomain, isDisposableDomain
+   673→- Analyzed all 9 exported functions and their signatures
+   674→- Added `vi.mock('node:dns/promises')` to intercept DNS calls for async functions
+   675→- Expanded test file from 13 tests to 86 tests covering all 9 functions:
+   676→  - checkSyntax: 16 tests (valid/invalid emails, edge cases, special characters, long emails)
+   677→  - extractDomain: 8 tests (normal, subdomain, edge cases, empty input)
+   678→  - isDisposableDomain: 11 tests (case-insensitive, subdomain matching, bulk verification)
+   679→  - getTldTrustScore: 13 tests (high/medium/low trust tiers, multi-part TLDs, edge cases)
+   680→  - calculateEmailScore: 10 tests (full scoring, capping, status thresholds, null handling, details)
+   681→  - checkMxRecords: 5 tests (records exist, empty, DNS error, timeout, correct arg passing)
+   682→  - checkSpfRecord: 6 tests (v=spf1 found, absent, among multiple records, empty, error, multi-part chunks)
+   683→  - checkDmarcRecord: 6 tests (v=DMARC1 found, absent, case-insensitive, empty, error, _dmarc prefix)
+   684→  - validateEmail: 7 tests (full valid, disposable short-circuit, bad syntax, no MX, timeout, result shape, bad domain)
+   685→- Fixed typo (missing 'D' in isDisposableDomain call)
+   686→- All 86 tests pass on first run after typo fix
+   687→
+   688→Stage Summary:
+   689→- Expanded from 13 smoke tests to 86 comprehensive tests — all passing
+   690→- Key design decisions: tested actual implementation behavior (e.g. disposable domain yields 'risky' not 'invalid' since syntax/domain still pass)
+   691→- DNS mocked via `vi.mock('node:dns/promises')` with `resolveMx` and `resolveTxt` fakes
+   692→
+   693→---
+   694→Task ID: 22
+   695→Agent: Import + Timeline + Notes API Tests
+   696→Task: Write import, timeline, and notes API integration tests
+   697→
+   698→Work Log:
+   699→- Analyzed existing API routes: `/api/imports` (GET/POST), `/api/timeline` (GET), `/api/notes` (GET/POST/DELETE)
+   700→- Studied Prisma schema for ImportBatch, TimelineEntry, CompanyNote, ContactNote models
+   701→- Reviewed existing test patterns in `api-integration.test.ts` for Request construction and cleanup strategies
+   702→- Created `/src/app/api/__tests__/import-timeline-notes.test.ts` with 15 tests across 3 API groups
+   703→- Import API (3 tests): GET returns array, POST stages CSV via FormData, POST executes import with mapping
+   704→- Timeline API (3 tests): GET returns array, filters by companyId, respects limit parameter
+   705→- Notes API (9 tests): GET returns notes from both tables, filters by companyId/contactId, POST company+contact notes verify TimelineEntry creation, DELETE verifies note removal
+   706→- Fixed jsdom FormData/File incompatibility by adding `// @vitest-environment node` directive
+   707→- All 15 tests passing
+   708→
+   709→Stage Summary:
+   710→- Created 15 integration tests covering Import, Timeline, and Notes APIs
+   711→- Key fix: switched test environment from jsdom to node because jsdom doesn't support `Request` with `FormData` body (undici in node handles this correctly)
+   712→- Tests use real DB with comprehensive afterEach cleanup in reverse dependency order
+   713→---
+   714→Task ID: 20
+   715→Agent: Health Check + Export + Knowledge Tests
+   716→Task: Write health-check, export, and knowledge API integration tests
+   717→
+   718→Work Log:
+   719→- Analyzed API routes: `/api/health-check` (POST), `/api/export` (GET), `/api/knowledge` (GET/POST), `/api/knowledge/[id]` (DELETE)
+   720→- Studied Prisma schema: Contact (emailHealth, emailHealthScore, lastValidatedAt), EmailHealthCheck, CapabilityDocument, CapabilitySnippet models
+   721→- Created `/src/app/api/__tests__/health-export-knowledge.test.ts` with 10 tests across 4 API groups
+   722→- Health Check (3 tests): checkAll=true returns counts with valid+risky+invalid=checked, EmailHealthCheck records created in DB, contact emailHealth/lastValidatedAt updated
+   723→- Export (3 tests): ?type=companies CSV headers verified (Name, Domain, Industry, etc.), ?type=contacts CSV headers verified (Email, Company, Health Score, etc.), Content-Disposition header with attachment + correct filename
+   724→- Knowledge GET (2 tests): default returns documents array, ?include=snippets returns {documents, snippets} shape
+   725→- Knowledge POST (1 test): creates document from FormData file upload with snippet extraction
+   726→- Knowledge DELETE (1 test): removes document, verifies cascade deletion of snippets
+   727→
+   728→Key fixes:
+   729→- **DNS timeout**: 235+ contacts in DB each trigger 3 DNS lookups (MX/SPF/DMARC) with 5s timeouts. Mocked `@/lib/email-verification` `validateEmail` to return instant valid result, reducing test time from >10min to ~1s
+   730→- **jsdom/File incompatibility**: jsdom overrides `globalThis.File` with its own polyfill. When Node.js native `Request.formData()` parses multipart bodies, the `webidl.is.File()` check fails on jsdom's File. Fixed by: (a) building multipart body manually with Buffer, and (b) temporarily replacing `globalThis.File` with native `File` from `node:buffer` during the test
+   731→- All 10 tests pass in ~2s
+   732→
+   733→Stage Summary:
+   734→- 10 integration tests covering Health Check, Export, and Knowledge APIs
+   735→- All tests use real DB with afterEach cleanup in reverse dependency order
+   736→- Two environment-level fixes documented for future test authors
+   737→

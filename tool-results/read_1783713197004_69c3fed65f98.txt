@@ -1,0 +1,816 @@
+   200→   299→   299→   299→      <div className="rounded-xl bg-white p-4 md:p-6 card-rest slide-up">
+   201→   300→   300→   300→        <div className="flex items-start gap-4 md:gap-5">
+   202→   301→   301→   301→          {/* Avatar */}
+   203→   302→   302→   302→          <div className="size-12 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+   204→   303→   303→   303→            <span className="text-lg font-bold text-amber-700">
+   205→   304→   304→   304→              {data.name?.charAt(0)?.toUpperCase()}
+   206→   305→   305→   305→            </span>
+   207→   306→   306→   306→          </div>
+   208→   307→   307→   307→
+   209→   308→   308→   308→          {/* Info block */}
+   210→   309→   309→   309→          <div className="flex-1 min-w-0">
+   211→   310→   310→   310→            {/* Top row: back, name, badges */}
+   212→   311→   311→   311→            <div className="flex items-center gap-2 flex-wrap">
+   213→   312→   312→   312→              <button
+   214→   313→   313→   313→                onClick={() => setActiveView('contacts')}
+   215→   314→   314→   314→                className="inline-flex items-center gap-1.5 text-gray-400 hover:text-amber-600 transition-colors duration-150"
+   216→   315→   315→   315→                title="Back to contacts"
+   217→   316→   316→   316→              >
+   218→   317→   317→   317→                <ArrowLeft className="size-3.5" />
+   219→   318→   318→   318→                <span className="text-xs font-medium hover:underline underline-offset-2">Contacts</span>
+   220→   319→   319→   319→              </button>
+   221→   320→   320→   320→              <span className="text-gray-300 text-sm mx-1">/</span>
+   222→   321→   321→   321→              <h2 className="text-xl font-bold text-gray-900 tracking-tight truncate">{data.name}</h2>
+   223→   322→   322→   322→              {data.jobTitle && (
+   224→   323→   323→   323→                <span className="text-sm text-gray-500 hidden sm:inline">· {data.jobTitle}</span>
+   225→   324→   324→   324→              )}
+   226→   325→   325→   325→              {data.status && data.status !== 'new' && (
+   227→   326→   326→   326→                <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-medium capitalize">
+   228→   327→   327→   327→                  {data.status}
+   229→   328→   328→   328→                </Badge>
+   230→   329→   329→   329→              )}
+   231→   330→   330→   330→              {hasDrafts && (
+   232→   331→   331→   331→                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 px-2 py-0.5 text-[10px] font-medium">
+   233→   332→   332→   332→                  <Sparkles className="size-2.5" />
+   234→   333→   333→   333→                  AI Drafts
+   235→   334→   334→   334→                </span>
+   236→   335→   335→   335→              )}
+   237→   336→   336→   336→            </div>
+   238→   337→   337→   337→
+   239→   338→   338→   338→            {/* Meta row */}
+   240→   339→   339→   339→            <div className="flex items-center gap-3 mt-2 flex-wrap">
+   241→   340→   340→   340→              {data.company?.name && (
+   242→   341→   341→   341→                <button
+   243→   342→   342→   342→                  onClick={() => navigateToCompany(data.companyId)}
+   244→   343→   343→   343→                  className="inline-flex items-center gap-1.5 text-amber-600 hover:text-amber-700 text-xs font-medium hover:underline underline-offset-2 transition-colors duration-150"
+   245→   344→   344→   344→                >
+   246→   345→   345→   345→                  <Building2 className="size-3" />
+   247→   346→   346→   346→                  {data.company.name}
+   248→   347→   347→   347→                  <ChevronRight className="size-3" />
+   249→   348→   348→   348→                </button>
+   250→   349→   349→   349→              )}
+   251→   350→   350→   350→              {data.email && (
+   252→   351→   351→   351→                <span className="text-xs font-mono text-gray-500 flex items-center gap-1">
+   253→   352→   352→   352→                  <Mail className="size-3" />
+   254→   353→   353→   353→                  {data.email}
+   255→   354→   354→   354→                </span>
+   256→   355→   355→   355→              )}
+   257→   356→   356→   356→              {data.phone && (
+   258→   357→   357→   357→                <span className="text-xs text-gray-500 flex items-center gap-1">
+   259→   358→   358→   358→                  <Phone className="size-3" />
+   260→   359→   359→   359→                  {data.phone}
+   261→   360→   360→   360→                </span>
+   262→   361→   361→   361→              )}
+   263→   362→   362→   362→              {data.location && (
+   264→   363→   363→   363→                <span className="text-xs text-gray-500 flex items-center gap-1">
+   265→   364→   364→   364→                  <MapPin className="size-3" />
+   266→   365→   365→   365→                  {data.location}
+   267→   366→   366→   366→                </span>
+   268→   367→   367→   367→              )}
+   269→   368→   368→   368→              {data.linkedinUrl && (
+   270→   369→   369→   369→                <a
+   271→   370→   370→   370→                  href={data.linkedinUrl}
+   272→   371→   371→   371→                  target="_blank"
+   273→   372→   372→   372→                  rel="noopener noreferrer"
+   274→   373→   373→   373→                  className="text-gray-400 hover:text-blue-600 transition-colors"
+   275→   374→   374→   374→                >
+   276→   375→   375→   375→                  <Linkedin className="size-3.5" />
+   277→   376→   376→   376→                </a>
+   278→   377→   377→   377→              )}
+   279→   378→   378→   378→              {data.emailHealth && data.emailHealth !== 'unknown' && (
+   280→   379→   379→   379→                <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium gap-1', healthVariant(data.emailHealth))}>
+   281→   380→   380→   380→                  <ShieldCheck className="size-3" />
+   282→   381→   381→   381→                  {data.emailHealth}
+   283→   382→   382→   382→                  {data.emailHealthScore != null && (
+   284→   383→   383→   383→                    <span className="font-bold">{data.emailHealthScore}</span>
+   285→   384→   384→   384→                  )}
+   286→   385→   385→   385→                </span>
+   287→   386→   386→   386→              )}
+   288→   387→   387→   387→            </div>
+   289→   388→   388→   388→
+   290→   389→   389→   389→            {/* Action buttons */}
+   291→   390→   390→   390→            <div className="flex items-center gap-2 mt-4 flex-wrap">
+   292→   391→   391→   391→              <Button
+   293→   392→   392→   392→                size="sm"
+   294→   393→   393→   393→                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg press-scale shadow-xs"
+   295→   394→   394→   394→                onClick={() => validateEmail.mutate()}
+   296→   395→   395→   395→                disabled={validateEmail.isPending}
+   297→   396→   396→   396→              >
+   298→   397→   397→   397→                {validateEmail.isPending
+   299→   398→   398→   398→                  ? <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+   300→   399→   399→   399→                  : <ShieldCheck className="size-3.5 mr-1.5" />
+   301→   400→   400→   400→                }
+   302→   401→   401→   401→                {validateEmail.isPending ? 'Validating...' : 'Validate Email'}
+   303→   402→   402→   402→              </Button>
+   304→   403→   403→   403→              <Button
+   305→   404→   404→   404→                size="sm"
+   306→   405→   405→   405→                className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg press-scale shadow-xs"
+   307→   406→   406→   406→                onClick={() => { setTab('ai-emails'); generateEmail.mutate() }}
+   308→   407→   407→   407→                disabled={generateEmail.isPending}
+   309→   408→   408→   408→              >
+   310→   409→   409→   409→                {generateEmail.isPending
+   311→   410→   410→   410→                  ? <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+   312→   411→   411→   411→                  : <Sparkles className="size-3.5 mr-1.5" />
+   313→   412→   412→   412→                }
+   314→   413→   413→   413→                {generateEmail.isPending ? 'Generating...' : 'Generate Email'}
+   315→   414→   414→   414→              </Button>
+   316→   415→   415→   415→              <Button
+   317→   416→   416→   416→                size="sm"
+   318→   417→   417→   417→                variant="outline"
+   319→   418→   418→   418→                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg"
+   320→   419→   419→   419→                onClick={() => { setTab('notes'); setNoteOpen(true) }}
+   321→   420→   420→   420→              >
+   322→   421→   421→   421→                <Plus className="size-3.5 mr-1.5" /> Add Note
+   323→   422→   422→   422→              </Button>
+   324→   423→   423→   423→              <Button
+   325→   424→   424→   424→                size="sm"
+   326→   425→   425→   425→                variant="outline"
+   327→   426→   426→   426→                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg"
+   328→   427→   427→   427→                onClick={openEditDialog}
+   329→   428→   428→   428→              >
+   330→   429→   429→   429→                <FileText className="size-3.5 mr-1.5" /> Edit
+   331→   430→   430→   430→              </Button>
+   332→   431→   431→   431→              {data.companyId && (
+   333→   432→   432→   432→                <Button
+   334→   433→   433→   433→                  variant="outline"
+   335→   434→   434→   434→                  size="sm"
+   336→   435→   435→   435→                  className="h-8 text-xs gap-1.5 border-gray-200 text-gray-600 rounded-lg"
+   337→   436→   436→   436→                  onClick={() => navigateToCompany(data.companyId)}
+   338→   437→   437→   437→                >
+   339→   438→   438→   438→                  <Building2 className="size-3.5" /> View Company
+   340→   439→   439→   439→                </Button>
+   341→   440→   440→   440→              )}
+   342→   441→   441→   441→            </div>
+   343→   442→   442→   442→          </div>
+   344→   443→   443→   443→        </div>
+   345→   444→   444→   444→      </div>
+   346→   445→   445→   445→
+   347→   446→   446→   446→      {/* ════════════ Tabs ════════════ */}
+   348→   447→   447→   447→      <Tabs value={tab} onValueChange={setTab}>
+   349→   448→   448→   448→        <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 overflow-x-auto">
+   350→   449→   449→   449→          {[
+   351→   450→   450→   450→            { key: 'overview', label: 'Overview' },
+   352→   451→   451→   451→            { key: 'ai-emails', label: 'AI Emails', count: drafts.length },
+   353→   452→   452→   452→            { key: 'notes', label: 'Notes', count: notes.length },
+   354→   453→   453→   453→            { key: 'activity', label: 'Activity', count: timeline.length },
+   355→   454→   454→   454→          ].map(({ key, label, count }) => (
+   356→   455→   455→   455→            <TabsTrigger
+   357→   456→   456→   456→              key={key}
+   358→   457→   457→   457→              value={key}
+   359→   458→   458→   458→              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5"
+   360→   459→   459→   459→            >
+   361→   460→   460→   460→              {label}
+   362→   461→   461→   461→              {count > 0 && (
+   363→   462→   462→   462→                <span className="ml-1.5 text-[10px] bg-gray-200 text-gray-600 px-1.5 rounded-full tabular-nums">
+   364→   463→   463→   463→                  {count}
+   365→   464→   464→   464→                </span>
+   366→   465→   465→   465→              )}
+   367→   466→   466→   466→            </TabsTrigger>
+   368→   467→   467→   467→          ))}
+   369→   468→   468→   468→        </TabsList>
+   370→   469→   469→   469→
+   371→   470→   470→   470→        {/* ════════════ OVERVIEW TAB ════════════ */}
+   372→   471→   471→   471→        <TabsContent value="overview" className="space-y-6 mt-5">
+   373→   472→   472→   472→          {/* Info Grid */}
+   374→   473→   473→   473→          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 slide-up">
+   375→   474→   474→   474→            {([
+   376→   475→   475→   475→              ['Email', data.email, Mail],
+   377→   476→   476→   476→              ['Phone', data.phone, Phone],
+   378→   477→   477→   477→              ['Job Title', data.jobTitle, FileText],
+   379→   478→   478→   478→              ['Role', data.roleBucket, Building2],
+   380→   479→   479→   479→              ['Location', data.location, MapPin],
+   381→   480→   480→   480→              ['LinkedIn', data.linkedinUrl, Linkedin],
+   382→   481→   481→   481→            ] as const).map(([label, val, Icon]) => (
+   383→   482→   482→   482→              <div key={label} className="rounded-xl bg-white p-5 card-rest">
+   384→   483→   483→   483→                <div className="flex items-center gap-2 mb-1.5">
+   385→   484→   484→   484→                  <Icon className="size-3.5 text-gray-400" />
+   386→   485→   485→   485→                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{label}</p>
+   387→   486→   486→   486→                </div>
+   388→   487→   487→   487→                {label === 'LinkedIn' && val ? (
+   389→   488→   488→   488→                  <a
+   390→   489→   489→   489→                    href={val}
+   391→   490→   490→   490→                    target="_blank"
+   392→   491→   491→   491→                    rel="noopener noreferrer"
+   393→   492→   492→   492→                    className="text-sm font-medium text-amber-600 hover:text-amber-700 inline-flex items-center gap-1 transition-colors"
+   394→   493→   493→   493→                  >
+   395→   494→   494→   494→                    View Profile <ExternalLink className="size-3" />
+   396→   495→   495→   495→                  </a>
+   397→   496→   496→   496→                ) : (
+   398→   497→   497→   497→                  <p className="text-sm font-semibold text-gray-900 capitalize break-all">{val || '—'}</p>
+   399→   498→   498→   498→                )}
+   400→   499→   499→   499→              </div>
+   401→   500→   500→   500→            ))}
+   402→   501→   501→   501→          </div>
+   403→   502→   502→   502→
+   404→   503→   503→   503→          {/* Company Card — clickable */}
+   405→   504→   504→   504→          {data.company && (
+   406→   505→   505→   505→            <button
+   407→   506→   506→   506→              onClick={() => navigateToCompany(data.companyId)}
+   408→   507→   507→   507→              className="w-full text-left rounded-xl bg-white p-5 card-interactive hover:ring-amber-200 slide-up transition-all"
+   409→   508→   508→   508→            >
+   410→   509→   509→   509→              <div className="flex items-center gap-4">
+   411→   510→   510→   510→                <div className="size-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+   412→   511→   511→   511→                  <Building2 className="size-5 text-amber-600" />
+   413→   512→   512→   512→                </div>
+   414→   513→   513→   513→                <div className="flex-1 min-w-0">
+   415→   514→   514→   514→                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Company</p>
+   416→   515→   515→   515→                  <p className="text-sm font-bold text-gray-900 truncate">{data.company.name}</p>
+   417→   516→   516→   516→                  {data.company.domain && (
+   418→   517→   517→   517→                    <p className="text-xs text-gray-500 mt-0.5">{data.company.domain}</p>
+   419→   518→   518→   518→                  )}
+   420→   519→   519→   519→                </div>
+   421→   520→   520→   520→                <div className="flex items-center gap-2 text-gray-400">
+   422→   521→   521→   521→                  {data.company.industry && (
+   423→   522→   522→   522→                    <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-md text-gray-600">
+   424→   523→   523→   523→                      {data.company.industry}
+   425→   524→   524→   524→                    </span>
+   426→   525→   525→   525→                  )}
+   427→   526→   526→   526→                  <ArrowLeft className="size-4 rotate-180" />
+   428→   527→   527→   527→                </div>
+   429→   528→   528→   528→              </div>
+   430→   529→   529→   529→            </button>
+   431→   530→   530→   530→          )}
+   432→   531→   531→   531→
+   433→   532→   532→   532→          {/* Email Health Score — Visual Gauge */}
+   434→   533→   533→   533→          <div className="rounded-xl bg-white p-6 card-rest slide-up">
+   435→   534→   534→   534→            <div className="flex items-center justify-between mb-5">
+   436→   535→   535→   535→              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+   437→   536→   536→   536→                <ShieldCheck className="size-4 text-gray-400" />
+   438→   537→   537→   537→                Email Health Score
+   439→   538→   538→   538→              </h3>
+   440→   539→   539→   539→              <Button
+   441→   540→   540→   540→                size="sm"
+   442→   541→   541→   541→                variant="outline"
+   443→   542→   542→   542→                className="h-7 text-xs border-gray-200 text-gray-600 rounded-lg"
+   444→   543→   543→   543→                onClick={() => validateEmail.mutate()}
+   445→   544→   544→   544→                disabled={validateEmail.isPending}
+   446→   545→   545→   545→              >
+   447→   546→   546→   546→                {validateEmail.isPending
+   448→   547→   547→   547→                  ? <Loader2 className="size-3 mr-1 animate-spin" />
+   449→   548→   548→   548→                  : <RefreshCw className="size-3 mr-1" />
+   450→   549→   549→   549→                }
+   451→   550→   550→   550→                Re-validate
+   452→   551→   551→   551→              </Button>
+   453→   552→   552→   552→            </div>
+   454→   553→   553→   553→
+   455→   554→   554→   554→            {latestCheck || validationDetail ? (() => {
+   456→   555→   555→   555→              const check = validationDetail || latestCheck
+   457→   556→   556→   556→              const score = check.score ?? check.emailHealthScore ?? 0
+   458→   557→   557→   557→              return (
+   459→   558→   558→   558→                <>
+   460→   559→   559→   559→                  <div className="flex flex-col sm:flex-row items-center gap-8">
+   461→   560→   560→   560→                    <ScoreGauge
+   462→   561→   561→   561→                      score={score}
+   463→   562→   562→   562→                      size={140}
+   464→   563→   563→   563→                      strokeWidth={12}
+   465→   564→   564→   564→                      label={check.status || 'unknown'}
+   466→   565→   565→   565→                      sublabel={`Checked ${formatDistanceToNow(new Date(check.checkedAt || check.createdAt), { addSuffix: true })}`}
+   467→   566→   566→   566→                      segments={[
+   468→   567→   567→   567→                        { label: 'Syntax', value: check.syntaxOk ? 100 : 0, color: check.syntaxOk ? '#059669' : '#DC2626' },
+   469→   568→   568→   568→                        { label: 'Domain', value: check.domainOk ? 100 : 0, color: check.domainOk ? '#059669' : '#DC2626' },
+   470→   569→   569→   569→                        { label: 'MX Record', value: check.mxOk ? 100 : 0, color: check.mxOk ? '#059669' : '#DC2626' },
+   471→   570→   570→   570→                        { label: 'Not Disposable', value: check.disposableOk ? 100 : 0, color: check.disposableOk ? '#059669' : '#DC2626' },
+   472→   571→   571→   571→                      ]}
+   473→   572→   572→   572→                    />
+   474→   573→   573→   573→                  </div>
+   475→   574→   574→   574→
+   476→   575→   575→   575→                  {/* Detailed breakdown */}
+   477→   576→   576→   576→                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-6">
+   478→   577→   577→   577→                    {([
+   479→   578→   578→   578→                      ['Syntax', check.syntaxOk],
+   480→   579→   579→   579→                      ['Domain', check.domainOk],
+   481→   580→   580→   580→                      ['MX Record', check.mxOk],
+   482→   581→   581→   581→                      ['Not Disposable', check.disposableOk],
+   483→   582→   582→   582→                    ] as const).map(([label, ok]) => (
+   484→   583→   583→   583→                      <div key={label} className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2.5">
+   485→   584→   584→   584→                        {ok ? (
+   486→   585→   585→   585→                          <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+   487→   586→   586→   586→                        ) : (
+   488→   587→   587→   587→                          <XCircle className="size-4 text-red-400 shrink-0" />
+   489→   588→   588→   588→                        )}
+   490→   589→   589→   589→                        <span className="text-xs font-medium text-gray-700">{label}</span>
+   491→   590→   590→   590→                      </div>
+   492→   591→   591→   591→                    ))}
+   493→   592→   592→   592→                  </div>
+   494→   593→   593→   593→
+   495→   594→   594→   594→                  {check.actionRecommendation && (
+   496→   595→   595→   595→                    <div className="mt-4 rounded-lg bg-blue-50 border border-blue-100 px-4 py-3">
+   497→   596→   596→   596→                      <p className="text-xs font-semibold text-blue-700 mb-1">Recommendation</p>
+   498→   597→   597→   597→                      <p className="text-sm text-blue-800 leading-relaxed">{check.actionRecommendation}</p>
+   499→   598→   598→   598→                    </div>
+   500→   599→   599→   599→                  )}
+   501→   600→   600→   600→                </>
+   502→   601→   601→   601→              )
+   503→   602→   602→   602→            })() : (
+   504→   603→   603→   603→              <div className="flex flex-col items-center py-8 text-center">
+   505→   604→   604→   604→                <div className="size-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+   506→   605→   605→   605→                  <ShieldCheck className="size-6 text-gray-300" />
+   507→   606→   606→   606→                </div>
+   508→   607→   607→   607→                <p className="text-sm text-gray-500 mb-3">No email validation performed yet.</p>
+   509→   608→   608→   608→                <Button
+   510→   609→   609→   609→                  size="sm"
+   511→   610→   610→   610→                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg press-scale shadow-xs h-8 text-xs"
+   512→   611→   611→   611→                  onClick={() => validateEmail.mutate()}
+   513→   612→   612→   612→                  disabled={validateEmail.isPending}
+   514→   613→   613→   613→                >
+   515→   614→   614→   614→                  {validateEmail.isPending
+   516→   615→   615→   615→                    ? <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+   517→   616→   616→   616→                    : <ShieldCheck className="size-3.5 mr-1.5" />
+   518→   617→   617→   617→                  }
+   519→   618→   618→   618→                  {validateEmail.isPending ? 'Validating...' : 'Validate Now'}
+   520→   619→   619→   619→                </Button>
+   521→   620→   620→   620→              </div>
+   522→   621→   621→   621→            )}
+   523→   622→   622→   622→          </div>
+   524→   623→   623→   623→        </TabsContent>
+   525→   624→   624→   624→
+   526→   625→   625→   625→        {/* ════════════ AI EMAILS TAB ════════════ */}
+   527→   626→   626→   626→        <TabsContent value="ai-emails" className="mt-5">
+   528→   627→   627→   627→          {/* Generate result banner */}
+   529→   628→   628→   628→          {generatedEmail && (
+   530→   629→   629→   629→            <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-5 mb-5 slide-up">
+   531→   630→   630→   630→              <div className="flex items-center gap-2 mb-3">
+   532→   631→   631→   631→                <Sparkles className="size-4 text-indigo-600" />
+   533→   632→   632→   632→                <h4 className="text-sm font-semibold text-indigo-900">Just Generated</h4>
+   534→   633→   633→   633→                <Badge className="bg-indigo-100 text-indigo-700 border border-indigo-200 text-[10px] font-medium">
+   535→   634→   634→   634→                  AI Generated
+   536→   635→   635→   635→                </Badge>
+   537→   636→   636→   636→              </div>
+   538→   637→   637→   637→              <p className="text-sm font-semibold text-gray-900 mb-1">{generatedEmail.subject}</p>
+   539→   638→   638→   638→              <p className="text-xs text-gray-600 line-clamp-3 whitespace-pre-wrap mb-3">{generatedEmail.body}</p>
+   540→   639→   639→   639→              <div className="flex items-center gap-3 flex-wrap">
+   541→   640→   640→   640→                {generatedEmail.matchScore != null && (
+   542→   641→   641→   641→                  <span className={cn('text-xs font-semibold', matchScoreColor(generatedEmail.matchScore))}>
+   543→   642→   642→   642→                    Match {generatedEmail.matchScore}%
+   544→   643→   643→   643→                  </span>
+   545→   644→   644→   644→                )}
+   546→   645→   645→   645→                {generatedEmail.confidence != null && (
+   547→   646→   646→   646→                  <span className="text-xs text-gray-500">Confidence {generatedEmail.confidence}%</span>
+   548→   647→   647→   647→                )}
+   549→   648→   648→   648→                {generatedEmail.tone && (
+   550→   649→   649→   649→                  <span className="text-xs bg-white text-gray-600 px-2 py-0.5 rounded-md border border-gray-200">
+   551→   650→   650→   650→                    {generatedEmail.tone}
+   552→   651→   651→   651→                  </span>
+   553→   652→   652→   652→                )}
+   554→   653→   653→   653→                {generatedEmail.emailLength && (
+   555→   654→   654→   654→                  <span className="text-xs bg-white text-gray-600 px-2 py-0.5 rounded-md border border-gray-200">
+   556→   655→   655→   655→                    {generatedEmail.emailLength}
+   557→   656→   656→   656→                  </span>
+   558→   657→   657→   657→                )}
+   559→   658→   658→   658→                {generatedEmail.ctaStyle && (
+   560→   659→   659→   659→                  <span className="text-xs bg-white text-gray-600 px-2 py-0.5 rounded-md border border-gray-200">
+   561→   660→   660→   660→                    CTA: {generatedEmail.ctaStyle}
+   562→   661→   661→   661→                  </span>
+   563→   662→   662→   662→                )}
+   564→   663→   663→   663→                <Button
+   565→   664→   664→   664→                  size="sm"
+   566→   665→   665→   665→                  variant="outline"
+   567→   666→   666→   666→                  className="h-7 text-xs border-gray-200 text-gray-600 rounded-md ml-auto"
+   568→   667→   667→   667→                  onClick={() => {
+   569→   668→   668→   668→                    navigator.clipboard.writeText(generatedEmail.body)
+   570→   669→   669→   669→                    toast.success('Copied to clipboard')
+   571→   670→   670→   670→                  }}
+   572→   671→   671→   671→                >
+   573→   672→   672→   672→                  <Copy className="size-3 mr-1" /> Copy
+   574→   673→   673→   673→                </Button>
+   575→   674→   674→   674→              </div>
+   576→   675→   675→   675→            </div>
+   577→   676→   676→   676→          )}
+   578→   677→   677→   677→
+   579→   678→   678→   678→          {/* Generate button */}
+   580→   679→   679→   679→          <div className="flex items-center justify-between mb-4">
+   581→   680→   680→   680→            <p className="text-sm text-gray-500">
+   582→   681→   681→   681→              {drafts.length} draft{drafts.length !== 1 ? 's' : ''} generated for this contact
+   583→   682→   682→   682→            </p>
+   584→   683→   683→   683→            <div className="flex items-center gap-2">
+   585→   684→   684→   684→              <Button
+   586→   685→   685→   685→                size="sm"
+   587→   686→   686→   686→                className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+   588→   687→   687→   687→                onClick={() => generateEmail.mutate()}
+   589→   688→   688→   688→                disabled={generateEmail.isPending}
+   590→   689→   689→   689→              >
+   591→   690→   690→   690→                {generateEmail.isPending
+   592→   691→   691→   691→                  ? <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+   593→   692→   692→   692→                  : <Sparkles className="size-3.5 mr-1.5" />
+   594→   693→   693→   693→                }
+   595→   694→   694→   694→                {generateEmail.isPending ? 'Generating...' : 'Generate New Email'}
+   596→   695→   695→   695→              </Button>
+   597→   696→   696→   696→              <Button
+   598→   697→   697→   697→                size="sm"
+   599→   698→   698→   698→                variant="outline"
+   600→   699→   699→   699→                className="border-gray-200 text-gray-600 rounded-lg"
+   601→   700→   700→   700→                onClick={navigateToEmailGen}
+   602→   701→   701→   701→              >
+   603→   702→   702→   702→                <Eye className="size-3.5 mr-1.5" /> Open in Generator
+   604→   703→   703→   703→              </Button>
+   605→   704→   704→   704→            </div>
+   606→   705→   705→   705→          </div>
+   607→   706→   706→   706→
+   608→   707→   707→   707→          {drafts.length === 0 && !generatedEmail ? (
+   609→   708→   708→   708→            <EmptyState
+   610→   709→   709→   709→              icon={Sparkles}
+   611→   710→   710→   710→              title="No AI drafts yet"
+   612→   711→   711→   711→              description="Generate an AI-powered email draft tailored for this contact."
+   613→   712→   712→   712→              actionLabel="Generate Email"
+   614→   713→   713→   713→              onAction={() => generateEmail.mutate()}
+   615→   714→   714→   714→            />
+   616→   715→   715→   715→          ) : (
+   617→   716→   716→   716→            <div className="space-y-3">
+   618→   717→   717→   717→              {drafts.map((d: any) => {
+   619→   718→   718→   718→                const isExpanded = expandedDraftId === d.id
+   620→   719→   719→   719→                const isTemplate = d.sourceType === 'template' || d.isTemplateBased
+   621→   720→   720→   720→                return (
+   622→   721→   721→   721→                  <div key={d.id} className="rounded-xl bg-white card-rest slide-up overflow-hidden">
+   623→   722→   722→   722→                    {/* Draft header */}
+   624→   723→   723→   723→                    <button
+   625→   724→   724→   724→                      className="w-full p-5 text-left"
+   626→   725→   725→   725→                      onClick={() => setExpandedDraftId(isExpanded ? null : d.id)}
+   627→   726→   726→   726→                    >
+   628→   727→   727→   727→                      <div className="flex items-start justify-between gap-3">
+   629→   728→   728→   728→                        <div className="min-w-0 flex-1">
+   630→   729→   729→   729→                          <div className="flex items-center gap-2 flex-wrap">
+   631→   730→   730→   730→                            <p className="text-sm font-semibold text-gray-900 truncate">
+   632→   731→   731→   731→                              {d.subject || 'Untitled Draft'}
+   633→   732→   732→   732→                            </p>
+   634→   733→   733→   733→                            {isTemplate ? (
+   635→   734→   734→   734→                              <Badge className="bg-gray-100 text-gray-600 border border-gray-200 text-[10px] font-medium">
+   636→   735→   735→   735→                                Template
+   637→   736→   736→   736→                              </Badge>
+   638→   737→   737→   737→                            ) : (
+   639→   738→   738→   738→                              <Badge className="bg-indigo-50 text-indigo-600 border border-indigo-200 text-[10px] font-medium inline-flex items-center gap-0.5">
+   640→   739→   739→   739→                                <Sparkles className="size-2.5" /> AI
+   641→   740→   740→   740→                              </Badge>
+   642→   741→   741→   741→                            )}
+   643→   742→   742→   742→                            {isExpanded
+   644→   743→   743→   743→                              ? <ChevronUp className="size-3.5 text-gray-400 shrink-0" />
+   645→   744→   744→   744→                              : <ChevronDown className="size-3.5 text-gray-400 shrink-0" />
+   646→   745→   745→   745→                            }
+   647→   746→   746→   746→                          </div>
+   648→   747→   747→   747→                          <p className={cn(
+   649→   748→   748→   748→                            'text-sm text-gray-500 mt-1 leading-relaxed whitespace-pre-wrap',
+   650→   749→   749→   749→                            isExpanded ? '' : 'line-clamp-2',
+   651→   750→   750→   750→                          )}>
+   652→   751→   751→   751→                            {d.body}
+   653→   752→   752→   752→                          </p>
+   654→   753→   753→   753→                        </div>
+   655→   754→   754→   754→                        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+   656→   755→   755→   755→                          {d.matchScore != null && (
+   657→   756→   756→   756→                            <span className={cn('text-xs font-semibold', matchScoreColor(d.matchScore))}>
+   658→   757→   757→   757→                              Match {d.matchScore}%
+   659→   758→   758→   758→                            </span>
+   660→   759→   759→   759→                          )}
+   661→   760→   760→   760→                          {d.confidenceScore != null && (
+   662→   761→   761→   761→                            <span className="text-xs font-medium text-gray-400">
+   663→   762→   762→   762→                              Conf {d.confidenceScore}%
+   664→   763→   763→   763→                            </span>
+   665→   764→   764→   764→                          )}
+   666→   765→   765→   765→                          <span className={cn(
+   667→   766→   766→   766→                            'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border',
+   668→   767→   767→   767→                            draftStatusVariant(d.status),
+   669→   768→   768→   768→                          )}>
+   670→   769→   769→   769→                            {d.status}
+   671→   770→   770→   770→                          </span>
+   672→   771→   771→   771→                        </div>
+   673→   772→   772→   772→                      </div>
+   674→   773→   773→   773→                      {!isExpanded && (
+   675→   774→   774→   774→                        <span className="text-[11px] text-gray-400 mt-2 block">
+   676→   775→   775→   775→                          {formatDistanceToNow(new Date(d.createdAt), { addSuffix: true })}
+   677→   776→   776→   776→                        </span>
+   678→   777→   777→   777→                      )}
+   679→   778→   778→   778→                    </button>
+   680→   779→   779→   779→
+   681→   780→   780→   780→                    {/* Expanded actions */}
+   682→   781→   781→   781→                    {isExpanded && (
+   683→   782→   782→   782→                      <div className="flex items-center gap-2 px-5 pb-4 pt-0 border-t border-gray-50 mt-0 pt-3">
+   684→   783→   783→   783→                        <Button
+   685→   784→   784→   784→                          size="sm"
+   686→   785→   785→   785→                          variant="outline"
+   687→   786→   786→   786→                          className="h-7 text-xs border-gray-200 text-gray-600 rounded-md"
+   688→   787→   787→   787→                          onClick={() => regenerateDraft.mutate()}
+   689→   788→   788→   788→                          disabled={regenerateDraft.isPending}
+   690→   789→   789→   789→                        >
+   691→   790→   790→   790→                          {regenerateDraft.isPending
+   692→   791→   791→   791→                            ? <Loader2 className="size-3 mr-1 animate-spin" />
+   693→   792→   792→   792→                            : <RefreshCw className="size-3 mr-1" />
+   694→   793→   793→   793→                          }
+   695→   794→   794→   794→                          {regenerateDraft.isPending ? 'Regenerating...' : 'Regenerate'}
+   696→   795→   795→   795→                        </Button>
+   697→   796→   796→   796→                        <Button
+   698→   797→   797→   797→                          size="sm"
+   699→   798→   798→   798→                          variant="outline"
+   700→   799→   799→   799→                          className="h-7 text-xs border-gray-200 text-gray-600 rounded-md"
+   701→   800→   800→   800→                          onClick={() => {
+   702→   801→   801→   801→                            navigator.clipboard.writeText(d.body)
+   703→   802→   802→   802→                            toast.success('Draft copied to clipboard')
+   704→   803→   803→   803→                          }}
+   705→   804→   804→   804→                        >
+   706→   805→   805→   805→                          <Copy className="size-3 mr-1" /> Copy
+   707→   806→   806→   806→                        </Button>
+   708→   807→   807→   807→                        {d.status === 'draft' && (
+   709→   808→   808→   808→                          <div className="flex items-center gap-1">
+   710→   809→   809→   809→                            <Button
+   711→   810→   810→   810→                              size="sm"
+   712→   811→   811→   811→                              variant="outline"
+   713→   812→   812→   812→                              className="h-7 text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-md"
+   714→   813→   813→   813→                              onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'sent' })}
+   715→   814→   814→   814→                              disabled={updateDraftStatus.isPending}
+   716→   815→   815→   815→                            >
+   717→   816→   816→   816→                              <CheckCircle2 className="size-3 mr-1" /> Mark Sent
+   718→   817→   817→   817→                            </Button>
+   719→   818→   818→   818→                            <Button
+   720→   819→   819→   819→                              size="sm"
+   721→   820→   820→   820→                              variant="outline"
+   722→   821→   821→   821→                              className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md"
+   723→   822→   822→   822→                              onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'rejected' })}
+   724→   823→   823→   823→                              disabled={updateDraftStatus.isPending}
+   725→   824→   824→   824→                            >
+   726→   825→   825→   825→                              <XCircle className="size-3 mr-1" /> Reject
+   727→   826→   826→   826→                            </Button>
+   728→   827→   827→   827→                          </div>
+   729→   828→   828→   828→                        )}
+   730→   829→   829→   829→                        <span className="text-[11px] text-gray-400 ml-auto">
+   731→   830→   830→   830→                          {formatDistanceToNow(new Date(d.createdAt), { addSuffix: true })}
+   732→   831→   831→   831→                        </span>
+   733→   832→   832→   832→                      </div>
+   734→   833→   833→   833→                    )}
+   735→   834→   834→   834→                  </div>
+   736→   835→   835→   835→                )
+   737→   836→   836→   836→              })}
+   738→   837→   837→   837→            </div>
+   739→   838→   838→   838→          )}
+   740→   839→   839→   839→        </TabsContent>
+   741→   840→   840→   840→
+   742→   841→   841→   841→        {/* ════════════ NOTES TAB ════════════ */}
+   743→   842→   842→   842→        <TabsContent value="notes" className="mt-5">
+   744→   843→   843→   843→          <div className="flex justify-end mb-4">
+   745→   844→   844→   844→            <Button
+   746→   845→   845→   845→              size="sm"
+   747→   846→   846→   846→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale"
+   748→   847→   847→   847→              onClick={() => setNoteOpen(true)}
+   749→   848→   848→   848→            >
+   750→   849→   849→   849→              <Plus className="size-3.5 mr-1.5" /> Add Note
+   751→   850→   850→   850→            </Button>
+   752→   851→   851→   851→          </div>
+   753→   852→   852→   852→          {notes.length === 0 ? (
+   754→   853→   853→   853→            <EmptyState
+   755→   854→   854→   854→              icon={FileText}
+   756→   855→   855→   855→              title="No notes yet"
+   757→   856→   856→   856→              description="Add notes to track conversations, insights, and action items for this contact."
+   758→   857→   857→   857→              actionLabel="Add Note"
+   759→   858→   858→   858→              onAction={() => setNoteOpen(true)}
+   760→   859→   859→   859→            />
+   761→   860→   860→   860→          ) : (
+   762→   861→   861→   861→            <div className="space-y-3">
+   763→   862→   862→   862→              {notes.map((n: any) => (
+   764→   863→   863→   863→                <div key={n.id} className="rounded-xl bg-white p-5 card-rest slide-up">
+   765→   864→   864→   864→                  <div className="flex items-start justify-between gap-3">
+   766→   865→   865→   865→                    <p className="text-sm text-gray-700 leading-relaxed flex-1">{n.body}</p>
+   767→   866→   866→   866→                    <button
+   768→   867→   867→   867→                      onClick={() => setDeleteNoteId(n.id)}
+   769→   868→   868→   868→                      className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
+   770→   869→   869→   869→                      title="Delete note"
+   771→   870→   870→   870→                    >
+   772→   871→   871→   871→                      <X className="size-3.5" />
+   773→   872→   872→   872→                    </button>
+   774→   873→   873→   873→                  </div>
+   775→   874→   874→   874→                  <div className="flex items-center gap-2 mt-3">
+   776→   875→   875→   875→                    {n.noteType && (
+   777→   876→   876→   876→                      <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-[11px] font-normal border-0 capitalize">
+   778→   877→   877→   877→                        {n.noteType}
+   779→   878→   878→   878→                      </Badge>
+   780→   879→   879→   879→                    )}
+   781→   880→   880→   880→                    <span className="text-[11px] text-gray-400">
+   782→   881→   881→   881→                      {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+   783→   882→   882→   882→                    </span>
+   784→   883→   883→   883→                  </div>
+   785→   884→   884→   884→                </div>
+   786→   885→   885→   885→              ))}
+   787→   886→   886→   886→            </div>
+   788→   887→   887→   887→          )}
+   789→   888→   888→   888→        </TabsContent>
+   790→   889→   889→   889→
+   791→   890→   890→   890→        {/* ════════════ ACTIVITY TAB ════════════ */}
+   792→   891→   891→   891→        <TabsContent value="activity" className="mt-5">
+   793→   892→   892→   892→          {timeline.length === 0 ? (
+   794→   893→   893→   893→            <EmptyState
+   795→   894→   894→   894→              icon={Clock}
+   796→   895→   895→   895→              title="No activity yet"
+   797→   896→   896→   896→              description="Activity will appear here as you interact with this contact."
+   798→   897→   897→   897→            />
+   799→   898→   898→   898→          ) : (
+   800→   899→   899→   899→            <div className="relative pl-6">
+   801→   900→   900→   900→              <div className="absolute left-[7px] top-1 bottom-1 border-l-2 border-gray-200" />
+   802→   901→   901→   901→              <div className="space-y-4">
+   803→   902→   902→   902→                {timeline.map((t: any) => {
+   804→   903→   903→   903→                  const iconData = getActivityIcon(t.action)
+   805→   904→   904→   904→                  const Icon = iconData.icon
+   806→   905→   905→   905→                  return (
+   807→   906→   906→   906→                    <div key={t.id} className="relative flex items-start gap-4 slide-up">
+   808→   907→   907→   907→                      <div className="absolute -left-6 top-1 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
+   809→   908→   908→   908→                      <div className={cn('shrink-0 mt-0.5 rounded-lg p-1.5', iconData.bg)}>
+   810→   909→   909→   909→                        <Icon className={cn('size-3.5', iconData.color)} />
+   811→   910→   910→   910→                      </div>
+   812→   911→   911→   911→                      <div className="min-w-0">
+   813→   912→   912→   912→                        <p className="text-sm font-medium text-gray-900 capitalize">
+   814→   913→   913→   913→                          {t.action.replace(/_/g, ' ')}
+   815→   914→   914→   914→                        </p>
+   816→   915→   915→   915→                        {t.details && (
+   817→   916→   916→   916→                          <p className="text-sm text-gray-500 mt-0.5">{t.details}</p>
+   818→   917→   917→   917→                        )}
+   819→   918→   918→   918→                        <p className="text-[11px] text-gray-400 mt-1">
+   820→   919→   919→   919→                          {formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}
+   821→   920→   920→   920→                        </p>
+   822→   921→   921→   921→                      </div>
+   823→   922→   922→   922→                    </div>
+   824→   923→   923→   923→                  )
+   825→   924→   924→   924→                })}
+   826→   925→   925→   925→              </div>
+   827→   926→   926→   926→            </div>
+   828→   927→   927→   927→          )}
+   829→   928→   928→   928→        </TabsContent>
+   830→   929→   929→   929→      </Tabs>
+   831→   930→   930→   930→
+   832→   931→   931→   931→      {/* ════════════ Delete Note Confirmation ════════════ */}
+   833→   932→   932→   932→      <Dialog open={!!deleteNoteId} onOpenChange={(open) => { if (!open) setDeleteNoteId(null) }}>
+   834→   933→   933→   933→        <DialogContent className="sm:max-w-sm rounded-xl">
+   835→   934→   934→   934→          <DialogHeader>
+   836→   935→   935→   935→            <DialogTitle className="text-gray-900 flex items-center gap-2">
+   837→   936→   936→   936→              <AlertTriangle className="size-4 text-red-500" /> Delete Note
+   838→   937→   937→   937→            </DialogTitle>
+   839→   938→   938→   938→          </DialogHeader>
+   840→   939→   939→   939→          <p className="text-sm text-gray-600">
+   841→   940→   940→   940→            Are you sure you want to delete this note? This action cannot be undone.
+   842→   941→   941→   941→          </p>
+   843→   942→   942→   942→          <DialogFooter className="gap-2 sm:gap-0">
+   844→   943→   943→   943→            <Button
+   845→   944→   944→   944→              variant="outline"
+   846→   945→   945→   945→              onClick={() => setDeleteNoteId(null)}
+   847→   946→   946→   946→              className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900"
+   848→   947→   947→   947→            >
+   849→   948→   948→   948→              Cancel
+   850→   949→   949→   949→            </Button>
+   851→   950→   950→   950→            <Button
+   852→   951→   951→   951→              onClick={() => deleteNoteMutation.mutate(deleteNoteId!)}
+   853→   952→   952→   952→              disabled={deleteNoteMutation.isPending}
+   854→   953→   953→   953→              className="bg-red-600 text-white hover:bg-red-700 press-scale"
+   855→   954→   954→   954→            >
+   856→   955→   955→   955→              {deleteNoteMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+   857→   956→   956→   956→              Delete
+   858→   957→   957→   957→            </Button>
+   859→   958→   958→   958→          </DialogFooter>
+   860→   959→   959→   959→        </DialogContent>
+   861→   960→   960→   960→      </Dialog>
+   862→   961→   961→   961→
+   863→   962→   962→   962→      {/* ════════════ Edit Contact Dialog ════════════ */}
+   864→   963→   963→   963→      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+   865→   964→   964→   964→        <DialogContent className="sm:max-w-md bg-white rounded-xl">
+   866→   965→   965→   965→          <DialogHeader>
+   867→   966→   966→   966→            <DialogTitle className="text-gray-900">Edit Contact</DialogTitle>
+   868→   967→   967→   967→          </DialogHeader>
+   869→   968→   968→   968→          <div className="space-y-4 py-1">
+   870→   969→   969→   969→            <div className="space-y-1.5">
+   871→   970→   970→   970→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name *</Label>
+   872→   971→   971→   971→              <Input
+   873→   972→   972→   972→                value={editForm.name}
+   874→   973→   973→   973→                onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+   875→   974→   974→   974→                placeholder="Full name"
+   876→   975→   975→   975→                className="border-gray-200 rounded-lg"
+   877→   976→   976→   976→              />
+   878→   977→   977→   977→            </div>
+   879→   978→   978→   978→            <div className="space-y-1.5">
+   880→   979→   979→   979→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</Label>
+   881→   980→   980→   980→              <Input
+   882→   981→   981→   981→                type="email"
+   883→   982→   982→   982→                value={editForm.email}
+   884→   983→   983→   983→                onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+   885→   984→   984→   984→                placeholder="email@company.com"
+   886→   985→   985→   985→                className="border-gray-200 rounded-lg font-mono"
+   887→   986→   986→   986→              />
+   888→   987→   987→   987→            </div>
+   889→   988→   988→   988→            <div className="grid grid-cols-2 gap-3">
+   890→   989→   989→   989→              <div className="space-y-1.5">
+   891→   990→   990→   990→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</Label>
+   892→   991→   991→   991→                <Input
+   893→   992→   992→   992→                  value={editForm.jobTitle}
+   894→   993→   993→   993→                  onChange={e => setEditForm(f => ({ ...f, jobTitle: e.target.value }))}
+   895→   994→   994→   994→                  placeholder="e.g. VP Engineering"
+   896→   995→   995→   995→                  className="border-gray-200 rounded-lg"
+   897→   996→   996→   996→                />
+   898→   997→   997→   997→              </div>
+   899→   998→   998→   998→              <div className="space-y-1.5">
+   900→   999→   999→   999→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Role Bucket</Label>
+   901→  1000→  1000→  1000→                <Select value={editForm.roleBucket} onValueChange={v => setEditForm(f => ({ ...f, roleBucket: v }))}>
+   902→  1001→  1001→  1001→                  <SelectTrigger className="w-full border-gray-200 rounded-lg">
+   903→  1002→  1002→  1002→                    <SelectValue placeholder="Select role" />
+   904→  1003→  1003→  1003→                  </SelectTrigger>
+   905→  1004→  1004→  1004→                  <SelectContent>
+   906→  1005→  1005→  1005→                    {ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+   907→  1006→  1006→  1006→                  </SelectContent>
+   908→  1007→  1007→  1007→                </Select>
+   909→  1008→  1008→  1008→              </div>
+   910→  1009→  1009→  1009→            </div>
+   911→  1010→  1010→  1010→            <div className="grid grid-cols-2 gap-3">
+   912→  1011→  1011→  1011→              <div className="space-y-1.5">
+   913→  1012→  1012→  1012→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</Label>
+   914→  1013→  1013→  1013→                <Input
+   915→  1014→  1014→  1014→                  type="tel"
+   916→  1015→  1015→  1015→                  value={editForm.phone}
+   917→  1016→  1016→  1016→                  onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
+   918→  1017→  1017→  1017→                  placeholder="+1 (555) 000-0000"
+   919→  1018→  1018→  1018→                  className="border-gray-200 rounded-lg"
+   920→  1019→  1019→  1019→                />
+   921→  1020→  1020→  1020→              </div>
+   922→  1021→  1021→  1021→              <div className="space-y-1.5">
+   923→  1022→  1022→  1022→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Location</Label>
+   924→  1023→  1023→  1023→                <Input
+   925→  1024→  1024→  1024→                  value={editForm.location}
+   926→  1025→  1025→  1025→                  onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))}
+   927→  1026→  1026→  1026→                  placeholder="City, Country"
+   928→  1027→  1027→  1027→                  className="border-gray-200 rounded-lg"
+   929→  1028→  1028→  1028→                />
+   930→  1029→  1029→  1029→              </div>
+   931→  1030→  1030→  1030→            </div>
+   932→  1031→  1031→  1031→            <div className="space-y-1.5">
+   933→  1032→  1032→  1032→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">LinkedIn URL</Label>
+   934→  1033→  1033→  1033→              <Input
+   935→  1034→  1034→  1034→                value={editForm.linkedinUrl}
+   936→  1035→  1035→  1035→                onChange={e => setEditForm(f => ({ ...f, linkedinUrl: e.target.value }))}
+   937→  1036→  1036→  1036→                placeholder="https://linkedin.com/in/..."
+   938→  1037→  1037→  1037→                className="border-gray-200 rounded-lg"
+   939→  1038→  1038→  1038→              />
+   940→  1039→  1039→  1039→            </div>
+   941→  1040→  1040→  1040→          </div>
+   942→  1041→  1041→  1041→          <DialogFooter className="gap-2 sm:gap-0">
+   943→  1042→  1042→  1042→            <Button
+   944→  1043→  1043→  1043→              variant="outline"
+   945→  1044→  1044→  1044→              onClick={() => setEditOpen(false)}
+   946→  1045→  1045→  1045→              className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900"
+   947→  1046→  1046→  1046→            >
+   948→  1047→  1047→  1047→              Cancel
+   949→  1048→  1048→  1048→            </Button>
+   950→  1049→  1049→  1049→            <Button
+   951→  1050→  1050→  1050→              onClick={() => editContact.mutate(editForm)}
+   952→  1051→  1051→  1051→              disabled={!editForm.name.trim() || editContact.isPending}
+   953→  1052→  1052→  1052→              className="bg-amber-600 hover:bg-amber-700 text-white press-scale"
+   954→  1053→  1053→  1053→            >
+   955→  1054→  1054→  1054→              {editContact.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+   956→  1055→  1055→  1055→              Save Changes
+   957→  1056→  1056→  1056→            </Button>
+   958→  1057→  1057→  1057→          </DialogFooter>
+   959→  1058→  1058→  1058→        </DialogContent>
+   960→  1059→  1059→  1059→      </Dialog>
+   961→  1060→  1060→  1060→
+   962→  1061→  1061→  1061→      {/* ════════════ Add Note Dialog ════════════ */}
+   963→  1062→  1062→  1062→      <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
+   964→  1063→  1063→  1063→        <DialogContent className="sm:max-w-md bg-white rounded-xl">
+   965→  1064→  1064→  1064→          <DialogHeader>
+   966→  1065→  1065→  1065→            <DialogTitle className="text-gray-900">Add Note</DialogTitle>
+   967→  1066→  1066→  1066→          </DialogHeader>
+   968→  1067→  1067→  1067→          <div className="space-y-4 py-1">
+   969→  1068→  1068→  1068→            <div className="space-y-1.5">
+   970→  1069→  1069→  1069→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Type</Label>
+   971→  1070→  1070→  1070→              <Select value={noteType} onValueChange={setNoteType}>
+   972→  1071→  1071→  1071→                <SelectTrigger className="w-full border-gray-200 rounded-lg">
+   973→  1072→  1072→  1072→                  <SelectValue placeholder="Select type" />
+   974→  1073→  1073→  1073→                </SelectTrigger>
+   975→  1074→  1074→  1074→                <SelectContent>
+   976→  1075→  1075→  1075→                  <SelectItem value="call">Call</SelectItem>
+   977→  1076→  1076→  1076→                  <SelectItem value="meeting">Meeting</SelectItem>
+   978→  1077→  1077→  1077→                  <SelectItem value="research">Research</SelectItem>
+   979→  1078→  1078→  1078→                  <SelectItem value="general">General</SelectItem>
+   980→  1079→  1079→  1079→                </SelectContent>
+   981→  1080→  1080→  1080→              </Select>
+   982→  1081→  1081→  1081→            </div>
+   983→  1082→  1082→  1082→            <div className="space-y-1.5">
+   984→  1083→  1083→  1083→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Note</Label>
+   985→  1084→  1084→  1084→              <Textarea
+   986→  1085→  1085→  1085→                value={noteBody}
+   987→  1086→  1086→  1086→                onChange={(e) => setNoteBody(e.target.value)}
+   988→  1087→  1087→  1087→                rows={3}
+   989→  1088→  1088→  1088→                placeholder="Write your note..."
+   990→  1089→  1089→  1089→                className="resize-none border-gray-200 rounded-lg"
+   991→  1090→  1090→  1090→              />
+   992→  1091→  1091→  1091→            </div>
+   993→  1092→  1092→  1092→          </div>
+   994→  1093→  1093→  1093→          <DialogFooter className="gap-2 sm:gap-0">
+   995→  1094→  1094→  1094→            <Button
+   996→  1095→  1095→  1095→              variant="outline"
+   997→  1096→  1096→  1096→              onClick={() => setNoteOpen(false)}
+   998→  1097→  1097→  1097→              className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900"
+   999→  1098→  1098→  1098→            >
+  1000→  1099→  1099→  1099→              Cancel
+  1001→  1100→  1100→  1100→            </Button>
+  1002→  1101→  1101→  1101→            <Button
+  1003→  1102→  1102→  1102→              onClick={() => addNote.mutate({ body: noteBody, noteType: noteType })}
+  1004→  1103→  1103→  1103→              disabled={!noteBody.trim() || addNote.isPending}
+  1005→  1104→  1104→  1104→              className="bg-amber-600 hover:bg-amber-700 text-white press-scale"
+  1006→  1105→  1105→  1105→            >
+  1007→  1106→  1106→  1106→              {addNote.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+  1008→  1107→  1107→  1107→              Save
+  1009→  1108→  1108→  1108→            </Button>
+  1010→  1109→  1109→  1109→          </DialogFooter>
+  1011→  1110→  1110→  1110→        </DialogContent>
+  1012→  1111→  1111→  1111→      </Dialog>
+  1013→  1112→  1112→  1112→    </div>
+  1014→  1113→  1113→  1113→  )
+  1015→  1114→  1114→  1114→}

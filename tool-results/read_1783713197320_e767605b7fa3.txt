@@ -1,0 +1,501 @@
+   200→   299→   299→   299→
+   201→   300→   300→   300→  return (
+   202→   301→   301→   301→    <div className="max-w-3xl">
+   203→   302→   302→   302→      {/* ═══════════════════════════════════════════════════════
+   204→   303→   303→   303→          Unsaved Changes Warning Bar
+   205→   304→   304→   304→         ═══════════════════════════════════════════════════════ */}
+   206→   305→   305→   305→      {hasChanges && (
+   207→   306→   306→   306→        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 animate-in slide-in-from-top-2 duration-200">
+   208→   307→   307→   307→          <p className="text-sm text-amber-800 font-medium">You have unsaved changes</p>
+   209→   308→   308→   308→          <div className="flex items-center gap-2 self-end">
+   210→   309→   309→   309→            <Button
+   211→   310→   310→   310→              variant="outline"
+   212→   311→   311→   311→              size="sm"
+   213→   312→   312→   312→              className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-100 rounded-lg"
+   214→   313→   313→   313→              onClick={handleDiscard}
+   215→   314→   314→   314→            >
+   216→   315→   315→   315→              Discard
+   217→   316→   316→   316→            </Button>
+   218→   317→   317→   317→            <Button
+   219→   318→   318→   318→              size="sm"
+   220→   319→   319→   319→              className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale"
+   221→   320→   320→   320→              onClick={() => savePrefs.mutate(currentValues)}
+   222→   321→   321→   321→              disabled={savePrefs.isPending}
+   223→   322→   322→   322→            >
+   224→   323→   323→   323→              {savePrefs.isPending && <Loader2 className="size-3 mr-1 animate-spin" />}
+   225→   324→   324→   324→              Save All
+   226→   325→   325→   325→            </Button>
+   227→   326→   326→   326→          </div>
+   228→   327→   327→   327→        </div>
+   229→   328→   328→   328→      )}
+   230→   329→   329→   329→
+   231→   330→   330→   330→      {/* ═══════════════════════════════════════════════════════
+   232→   331→   331→   331→          Header
+   233→   332→   332→   332→         ═══════════════════════════════════════════════════════ */}
+   234→   333→   333→   333→      <div className="mb-6">
+   235→   334→   334→   334→        <h1 className="text-lg font-bold text-gray-900 tracking-tight">Settings</h1>
+   236→   335→   335→   335→        <p className="text-sm text-gray-500 mt-0.5">Configure your workspace, AI preferences, and data management.</p>
+   237→   336→   336→   336→      </div>
+   238→   337→   337→   337→
+   239→   338→   338→   338→      {/* ═══════════════════════════════════════════════════════
+   240→   339→   339→   339→          Tabs
+   241→   340→   340→   340→         ═══════════════════════════════════════════════════════ */}
+   242→   341→   341→   341→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+   243→   342→   342→   342→        <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 mb-6 overflow-x-auto">
+   244→   343→   343→   343→          {[
+   245→   344→   344→   344→            { value: 'email', label: 'Email Style', icon: Mail },
+   246→   345→   345→   345→            { value: 'ai', label: 'AI Config', icon: Cpu },
+   247→   346→   346→   346→            { value: 'data', label: 'Data', icon: Database },
+   248→   347→   347→   347→            { value: 'danger', label: 'Advanced', icon: AlertTriangle },
+   249→   348→   348→   348→          ].map(tab => (
+   250→   349→   349→   349→            <TabsTrigger
+   251→   350→   350→   350→              key={tab.value}
+   252→   351→   351→   351→              value={tab.value}
+   253→   352→   352→   352→              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-2 sm:px-3 py-2 flex items-center gap-1.5 whitespace-nowrap"
+   254→   353→   353→   353→            >
+   255→   354→   354→   354→              <tab.icon className="size-3.5" />
+   256→   355→   355→   355→              <span className="hidden sm:inline">{tab.label}</span>
+   257→   356→   356→   356→            </TabsTrigger>
+   258→   357→   357→   357→          ))}
+   259→   358→   358→   358→        </TabsList>
+   260→   359→   359→   359→
+   261→   360→   360→   360→        {/* ═══════════════════════════════════════════════════════
+   262→   361→   361→   361→            Tab: Email Style
+   263→   362→   362→   362→           ═══════════════════════════════════════════════════════ */}
+   264→   363→   363→   363→        <TabsContent value="email" className="space-y-6">
+   265→   364→   364→   364→          <div className="rounded-xl bg-white card-rest p-6 space-y-6">
+   266→   365→   365→   365→            <div>
+   267→   366→   366→   366→              <h3 className="text-sm font-semibold text-gray-900">Email Generation Preferences</h3>
+   268→   367→   367→   367→              <p className="text-xs text-gray-500 mt-0.5">These settings control how AI generates outreach emails for your contacts.</p>
+   269→   368→   368→   368→            </div>
+   270→   369→   369→   369→
+   271→   370→   370→   370→            {/* Toggle Selectors */}
+   272→   371→   371→   371→            <SettingsToggleGroup
+   273→   372→   372→   372→              label="Tone"
+   274→   373→   373→   373→              description="The voice and personality of your emails"
+   275→   374→   374→   374→              options={[
+   276→   375→   375→   375→                { value: 'formal', label: 'Formal' },
+   277→   376→   376→   376→                { value: 'professional-casual', label: 'Professional-Casual' },
+   278→   377→   377→   377→                { value: 'direct', label: 'Direct' },
+   279→   378→   378→   378→              ]}
+   280→   379→   379→   379→              value={form.tone}
+   281→   380→   380→   380→              onChange={v => set('tone', v)}
+   282→   381→   381→   381→            />
+   283→   382→   382→   382→
+   284→   383→   383→   383→            <SettingsToggleGroup
+   285→   384→   384→   384→              label="Length"
+   286→   385→   385→   385→              description="How long the generated emails should be"
+   287→   386→   386→   386→              options={[
+   288→   387→   387→   387→                { value: 'short', label: 'Short' },
+   289→   388→   388→   388→                { value: 'medium', label: 'Medium' },
+   290→   389→   389→   389→                { value: 'detailed', label: 'Detailed' },
+   291→   390→   390→   390→              ]}
+   292→   391→   391→   391→              value={form.emailLength}
+   293→   392→   392→   392→              onChange={v => set('emailLength', v)}
+   294→   393→   393→   393→            />
+   295→   394→   394→   394→
+   296→   395→   395→   395→            <SettingsToggleGroup
+   297→   396→   396→   396→              label="CTA Style"
+   298→   397→   397→   397→              description="How the call-to-action is framed"
+   299→   398→   398→   398→              options={[
+   300→   399→   399→   399→                { value: 'soft', label: 'Soft Ask' },
+   301→   400→   400→   400→                { value: 'direct', label: 'Direct Ask' },
+   302→   401→   401→   401→              ]}
+   303→   402→   402→   402→              value={form.ctaStyle}
+   304→   403→   403→   403→              onChange={v => set('ctaStyle', v)}
+   305→   404→   404→   404→            />
+   306→   405→   405→   405→
+   307→   406→   406→   406→            <Separator className="bg-gray-100" />
+   308→   407→   407→   407→
+   309→   408→   408→   408→            {/* Text Inputs */}
+   310→   409→   409→   409→            <div>
+   311→   410→   410→   410→              <label className="text-xs font-medium text-gray-700 block mb-1.5">Opener Style</label>
+   312→   411→   411→   411→              <Input
+   313→   412→   412→   412→                value={form.openerStyle}
+   314→   413→   413→   413→                onChange={e => set('openerStyle', e.target.value)}
+   315→   414→   414→   414→                className="h-9 border-gray-200 rounded-lg text-sm"
+   316→   415→   415→   415→                placeholder="Hi [First Name]"
+   317→   416→   416→   416→              />
+   318→   417→   417→   417→              <p className="text-[11px] text-gray-400 mt-1">How each email begins. Use [First Name] as a placeholder.</p>
+   319→   418→   418→   418→            </div>
+   320→   419→   419→   419→
+   321→   420→   420→   420→            <div>
+   322→   421→   421→   421→              <label className="text-xs font-medium text-gray-700 block mb-1.5">Sign-off</label>
+   323→   422→   422→   422→              <Input
+   324→   423→   423→   423→                value={form.signOff}
+   325→   424→   424→   424→                onChange={e => set('signOff', e.target.value)}
+   326→   425→   425→   425→                className="h-9 border-gray-200 rounded-lg text-sm"
+   327→   426→   426→   426→                placeholder="Regards, Ravi"
+   328→   427→   427→   427→              />
+   329→   428→   428→   428→            </div>
+   330→   429→   429→   429→
+   331→   430→   430→   430→            <div>
+   332→   431→   431→   431→              <label className="text-xs font-medium text-gray-700 block mb-1.5">Avoid Phrases</label>
+   333→   432→   432→   432→              <Textarea
+   334→   433→   433→   433→                value={form.avoidPhrases}
+   335→   434→   434→   434→                onChange={e => set('avoidPhrases', e.target.value)}
+   336→   435→   435→   435→                rows={3}
+   337→   436→   436→   436→                className="border-gray-200 rounded-lg resize-none text-sm"
+   338→   437→   437→   437→                placeholder="One phrase per line. These will be excluded from generated emails."
+   339→   438→   438→   438→              />
+   340→   439→   439→   439→              <p className="text-[11px] text-gray-400 mt-1">Phrases the AI should avoid using in generated emails.</p>
+   341→   440→   440→   440→            </div>
+   342→   441→   441→   441→
+   343→   442→   442→   442→            <div className="flex justify-end">
+   344→   443→   443→   443→              <Button
+   345→   444→   444→   444→                className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale"
+   346→   445→   445→   445→                onClick={handleSaveEmailStyle}
+   347→   446→   446→   446→                disabled={savePrefs.isPending}
+   348→   447→   447→   447→              >
+   349→   448→   448→   448→                {savePrefs.isPending ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <Save className="size-3.5 mr-1.5" />}
+   350→   449→   449→   449→                Save Preferences
+   351→   450→   450→   450→              </Button>
+   352→   451→   451→   451→            </div>
+   353→   452→   452→   452→          </div>
+   354→   453→   453→   453→
+   355→   454→   454→   454→          {/* Live Preview */}
+   356→   455→   455→   455→          <div className="rounded-xl bg-white card-rest p-6 space-y-4">
+   357→   456→   456→   456→            <div className="flex items-center justify-between">
+   358→   457→   457→   457→              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+   359→   458→   458→   458→                <Mail className="size-4 text-gray-400" />
+   360→   459→   459→   459→                Live Email Preview
+   361→   460→   460→   460→              </h3>
+   362→   461→   461→   461→              <Badge className="bg-gray-100 text-gray-500 border border-gray-200 text-[10px]">
+   363→   462→   462→   462→                Sample · John at Acme Corp
+   364→   463→   463→   463→              </Badge>
+   365→   464→   464→   464→            </div>
+   366→   465→   465→   465→            <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-5 space-y-3">
+   367→   466→   466→   466→              <div>
+   368→   467→   467→   467→                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-1">Subject</p>
+   369→   468→   468→   468→                <p className="text-sm font-semibold text-gray-900">{preview.subject}</p>
+   370→   469→   469→   469→              </div>
+   371→   470→   470→   470→              <Separator className="bg-gray-200/60" />
+   372→   471→   471→   471→              <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
+   373→   472→   472→   472→                {preview.body}
+   374→   473→   473→   473→              </pre>
+   375→   474→   474→   474→            </div>
+   376→   475→   475→   475→            <p className="text-[11px] text-gray-400">
+   377→   476→   476→   476→              This is a sample preview. Actual emails will be personalized per contact using AI and research data.
+   378→   477→   477→   477→            </p>
+   379→   478→   478→   478→          </div>
+   380→   479→   479→   479→        </TabsContent>
+   381→   480→   480→   480→
+   382→   481→   481→   481→        {/* ═══════════════════════════════════════════════════════
+   383→   482→   482→   482→            Tab: AI Configuration
+   384→   483→   483→   483→           ═══════════════════════════════════════════════════════ */}
+   385→   484→   484→   484→        <TabsContent value="ai" className="space-y-6">
+   386→   485→   485→   485→          <div className="rounded-xl bg-white card-rest p-6 space-y-6">
+   387→   486→   486→   486→            <div>
+   388→   487→   487→   487→              <h3 className="text-sm font-semibold text-gray-900">AI Provider Configuration</h3>
+   389→   488→   488→   488→              <p className="text-xs text-gray-500 mt-0.5">
+   390→   489→   489→   489→                Configure your AI provider and API key for intelligent, personalized email generation.
+   391→   490→   490→   490→              </p>
+   392→   491→   491→   491→            </div>
+   393→   492→   492→   492→
+   394→   493→   493→   493→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   395→   494→   494→   494→              <div>
+   396→   495→   495→   495→                <label className="text-xs font-medium text-gray-700 block mb-1.5">AI Provider</label>
+   397→   496→   496→   496→                <Select value={form.aiProvider} onValueChange={v => set('aiProvider', v)}>
+   398→   497→   497→   497→                  <SelectTrigger className="h-9 border-gray-200 rounded-lg text-sm">
+   399→   498→   498→   498→                    <SelectValue />
+   400→   499→   499→   499→                  </SelectTrigger>
+   401→   500→   500→   500→                  <SelectContent>
+   402→   501→   501→   501→                    <SelectItem value="openai">OpenAI</SelectItem>
+   403→   502→   502→   502→                    <SelectItem value="gemini">Google Gemini</SelectItem>
+   404→   503→   503→   503→                    <SelectItem value="groq">Groq</SelectItem>
+   405→   504→   504→   504→                  </SelectContent>
+   406→   505→   505→   505→                </Select>
+   407→   506→   506→   506→              </div>
+   408→   507→   507→   507→              <div>
+   409→   508→   508→   508→                <label className="text-xs font-medium text-gray-700 block mb-1.5">Model</label>
+   410→   509→   509→   509→                <Input
+   411→   510→   510→   510→                  value={form.aiModel}
+   412→   511→   511→   511→                  onChange={e => set('aiModel', e.target.value)}
+   413→   512→   512→   512→                  className="h-9 border-gray-200 rounded-lg text-sm"
+   414→   513→   513→   513→                  placeholder="gpt-4o-mini"
+   415→   514→   514→   514→                />
+   416→   515→   515→   515→                <p className="text-[11px] text-gray-400 mt-1">
+   417→   516→   516→   516→                  {form.aiProvider === 'openai' && 'e.g. gpt-4o-mini, gpt-4o, gpt-3.5-turbo'}
+   418→   517→   517→   517→                  {form.aiProvider === 'gemini' && 'e.g. gemini-2.0-flash, gemini-1.5-pro'}
+   419→   518→   518→   518→                  {form.aiProvider === 'groq' && 'e.g. llama-3.3-70b-versatile, mixtral-8x7b-32768'}
+   420→   519→   519→   519→                </p>
+   421→   520→   520→   520→              </div>
+   422→   521→   521→   521→            </div>
+   423→   522→   522→   522→
+   424→   523→   523→   523→            <div>
+   425→   524→   524→   524→              <label className="text-xs font-medium text-gray-700 block mb-1.5">API Key</label>
+   426→   525→   525→   525→              <div className="relative">
+   427→   526→   526→   526→                <Input
+   428→   527→   527→   527→                  type={showKey ? 'text' : 'password'}
+   429→   528→   528→   528→                  value={form.aiApiKey}
+   430→   529→   529→   529→                  onChange={e => set('aiApiKey', e.target.value)}
+   431→   530→   530→   530→                  className="h-9 pr-10 border-gray-200 rounded-lg text-sm font-mono"
+   432→   531→   531→   531→                  placeholder="sk-..."
+   433→   532→   532→   532→                />
+   434→   533→   533→   533→                <button
+   435→   534→   534→   534→                  type="button"
+   436→   535→   535→   535→                  className="absolute right-0 top-0 h-9 px-3 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+   437→   536→   536→   536→                  onClick={() => setShowKey(p => !p)}
+   438→   537→   537→   537→                >
+   439→   538→   538→   538→                  {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+   440→   539→   539→   539→                </button>
+   441→   540→   540→   540→              </div>
+   442→   541→   541→   541→              <p className="text-[11px] text-gray-400 mt-1.5">
+   443→   542→   542→   542→                Your API key is encrypted and stored securely. It is never shared or transmitted to third parties.
+   444→   543→   543→   543→              </p>
+   445→   544→   544→   544→            </div>
+   446→   545→   545→   545→
+   447→   546→   546→   546→            <Separator className="bg-gray-100" />
+   448→   547→   547→   547→
+   449→   548→   548→   548→            {/* Test Connection */}
+   450→   549→   549→   549→            <div className="space-y-3">
+   451→   550→   550→   550→              <div className="flex items-center justify-between">
+   452→   551→   551→   551→                <div>
+   453→   552→   552→   552→                  <h4 className="text-sm font-medium text-gray-900">Test AI Connection</h4>
+   454→   553→   553→   553→                  <p className="text-xs text-gray-500 mt-0.5">
+   455→   554→   554→   554→                    Sends a test email generation request using your first contact to verify the API key works.
+   456→   555→   555→   555→                  </p>
+   457→   556→   556→   556→                </div>
+   458→   557→   557→   557→                <Button
+   459→   558→   558→   558→                  variant="outline"
+   460→   559→   559→   559→                  size="sm"
+   461→   560→   560→   560→                  className="border-gray-200 text-gray-600 rounded-lg text-xs shrink-0"
+   462→   561→   561→   561→                  onClick={() => { setAiTestResult(null); testAiMutation.mutate() }}
+   463→   562→   562→   562→                  disabled={testAiMutation.isPending || !form.aiApiKey}
+   464→   563→   563→   563→                >
+   465→   564→   564→   564→                  {testAiMutation.isPending ? (
+   466→   565→   565→   565→                    <><Loader2 className="size-3 mr-1.5 animate-spin" /> Testing...</>
+   467→   566→   566→   566→                  ) : (
+   468→   567→   567→   567→                    <><Stethoscope className="size-3 mr-1.5" /> Test Connection</>
+   469→   568→   568→   568→                  )}
+   470→   569→   569→   569→                </Button>
+   471→   570→   570→   570→              </div>
+   472→   571→   571→   571→
+   473→   572→   572→   572→              {/* Test Result */}
+   474→   573→   573→   573→              {aiTestResult && (
+   475→   574→   574→   574→                <div className={cn(
+   476→   575→   575→   575→                  'rounded-xl border p-4 space-y-3 animate-in fade-in-0 slide-in-from-bottom-1 duration-200',
+   477→   576→   576→   576→                  aiTestResult.success
+   478→   577→   577→   577→                    ? 'bg-emerald-50/50 border-emerald-200'
+   479→   578→   578→   578→                    : 'bg-red-50/50 border-red-200'
+   480→   579→   579→   579→                )}>
+   481→   580→   580→   580→                  <div className="flex items-center gap-2">
+   482→   581→   581→   581→                    {aiTestResult.success ? (
+   483→   582→   582→   582→                      <>
+   484→   583→   583→   583→                        <CheckCircle2 className="size-4 text-emerald-600" />
+   485→   584→   584→   584→                        <span className="text-sm font-semibold text-emerald-800">Connection Successful</span>
+   486→   585→   585→   585→                        {aiTestResult.score != null && (
+   487→   586→   586→   586→                          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]">
+   488→   587→   587→   587→                            {aiTestResult.score}% match
+   489→   588→   588→   588→                          </Badge>
+   490→   589→   589→   589→                        )}
+   491→   590→   590→   590→                      </>
+   492→   591→   591→   591→                    ) : (
+   493→   592→   592→   592→                      <>
+   494→   593→   593→   593→                        <XCircle className="size-4 text-red-600" />
+   495→   594→   594→   594→                        <span className="text-sm font-semibold text-red-800">Connection Failed</span>
+   496→   595→   595→   595→                      </>
+   497→   596→   596→   596→                    )}
+   498→   597→   597→   597→                  </div>
+   499→   598→   598→   598→
+   500→   599→   599→   599→                  {aiTestResult.success && aiTestResult.email && (
+   501→   600→   600→   600→                    <div className="rounded-lg bg-white border border-emerald-100 p-4 space-y-2">
+   502→   601→   601→   601→                      <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Generated Preview</p>
+   503→   602→   602→   602→                      <p className="text-sm font-semibold text-gray-900">{aiTestResult.email.subject}</p>
+   504→   603→   603→   603→                      <pre className="text-xs text-gray-600 whitespace-pre-wrap font-sans leading-relaxed max-h-32 overflow-y-auto">
+   505→   604→   604→   604→                        {aiTestResult.email.body}
+   506→   605→   605→   605→                      </pre>
+   507→   606→   606→   606→                      <button
+   508→   607→   607→   607→                        onClick={() => { setActiveView('email-generation') }}
+   509→   608→   608→   608→                        className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-800 transition-colors mt-1"
+   510→   609→   609→   609→                      >
+   511→   610→   610→   610→                        <ExternalLink className="size-3" />
+   512→   611→   611→   611→                        View generated email in AI Emails
+   513→   612→   612→   612→                      </button>
+   514→   613→   613→   613→                    </div>
+   515→   614→   614→   614→                  )}
+   516→   615→   615→   615→
+   517→   616→   616→   616→                  {!aiTestResult.success && aiTestResult.error && (
+   518→   617→   617→   617→                    <p className="text-xs text-red-700 bg-white/60 rounded-lg p-3 border border-red-100">
+   519→   618→   618→   618→                      {aiTestResult.error}
+   520→   619→   619→   619→                    </p>
+   521→   620→   620→   620→                  )}
+   522→   621→   621→   621→                </div>
+   523→   622→   622→   622→              )}
+   524→   623→   623→   623→
+   525→   624→   624→   624→              {/* Post-save suggestion */}
+   526→   625→   625→   625→              {justSavedAi && !aiTestResult && (
+   527→   626→   626→   626→                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 animate-in fade-in-0 duration-200">
+   528→   627→   627→   627→                  <Sparkles className="size-3.5 text-blue-600 shrink-0" />
+   529→   628→   628→   628→                  <p className="text-xs text-blue-800">
+   530→   629→   629→   629→                    AI config saved.{' '}
+   531→   630→   630→   630→                    <button
+   532→   631→   631→   631→                      onClick={() => testAiMutation.mutate()}
+   533→   632→   632→   632→                      className="font-medium underline underline-offset-2 hover:text-blue-900"
+   534→   633→   633→   633→                    >
+   535→   634→   634→   634→                      Test the connection now
+   536→   635→   635→   635→                    </button>
+   537→   636→   636→   636→                    {' '}to make sure everything works.
+   538→   637→   637→   637→                  </p>
+   539→   638→   638→   638→                </div>
+   540→   639→   639→   639→              )}
+   541→   640→   640→   640→            </div>
+   542→   641→   641→   641→
+   543→   642→   642→   642→            <div className="flex justify-end">
+   544→   643→   643→   643→              <Button
+   545→   644→   644→   644→                className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale"
+   546→   645→   645→   645→                onClick={handleSaveAiConfig}
+   547→   646→   646→   646→                disabled={savePrefs.isPending}
+   548→   647→   647→   647→              >
+   549→   648→   648→   648→                {savePrefs.isPending ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <Save className="size-3.5 mr-1.5" />}
+   550→   649→   649→   649→                Save AI Config
+   551→   650→   650→   650→              </Button>
+   552→   651→   651→   651→            </div>
+   553→   652→   652→   652→          </div>
+   554→   653→   653→   653→        </TabsContent>
+   555→   654→   654→   654→
+   556→   655→   655→   655→        {/* ═══════════════════════════════════════════════════════
+   557→   656→   656→   656→            Tab: Data Management
+   558→   657→   657→   657→           ═══════════════════════════════════════════════════════ */}
+   559→   658→   658→   658→        <TabsContent value="data" className="space-y-6">
+   560→   659→   659→   659→          <div className="rounded-xl bg-white card-rest p-6 space-y-5">
+   561→   660→   660→   660→            <div>
+   562→   661→   661→   661→              <h3 className="text-sm font-semibold text-gray-900">Data Management</h3>
+   563→   662→   662→   662→              <p className="text-xs text-gray-500 mt-0.5">Export your data or run maintenance tasks on your database.</p>
+   564→   663→   663→   663→            </div>
+   565→   664→   664→   664→
+   566→   665→   665→   665→            <div className="grid gap-4">
+   567→   666→   666→   666→              {/* Export CSV */}
+   568→   667→   667→   667→              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-gray-200 hover:bg-gray-50/50 transition-colors">
+   569→   668→   668→   668→                <div className="flex items-center gap-3">
+   570→   669→   669→   669→                  <div className="size-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+   571→   670→   670→   670→                    <Download className="size-4.5 text-blue-600" />
+   572→   671→   671→   671→                  </div>
+   573→   672→   672→   672→                  <div>
+   574→   673→   673→   673→                    <p className="text-sm font-semibold text-gray-900">Export All Data as CSV</p>
+   575→   674→   674→   674→                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+   576→   675→   675→   675→                      Downloads two CSV files — one for all companies and one for all contacts. Includes all fields, scores, and metadata.
+   577→   676→   676→   676→                    </p>
+   578→   677→   677→   677→                  </div>
+   579→   678→   678→   678→                </div>
+   580→   679→   679→   679→                <Button
+   581→   680→   680→   680→                  variant="outline"
+   582→   681→   681→   681→                  size="sm"
+   583→   682→   682→   682→                  className="text-xs border-gray-200 text-gray-600 rounded-lg shrink-0 self-end sm:self-auto"
+   584→   683→   683→   683→                  onClick={() => handleExport.mutate()}
+   585→   684→   684→   684→                  disabled={handleExport.isPending}
+   586→   685→   685→   685→                >
+   587→   686→   686→   686→                  {handleExport.isPending ? <Loader2 className="size-3.5 animate-spin mr-1" /> : <Download className="size-3.5 mr-1.5" />}
+   588→   687→   687→   687→                  Export
+   589→   688→   688→   688→                </Button>
+   590→   689→   689→   689→              </div>
+   591→   690→   690→   690→
+   592→   691→   691→   691→              {/* Health Check */}
+   593→   692→   692→   692→              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-gray-200 hover:bg-gray-50/50 transition-colors">
+   594→   693→   693→   693→                <div className="flex items-center gap-3">
+   595→   694→   694→   694→                  <div className="size-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+   596→   695→   695→   695→                    <Stethoscope className="size-4.5 text-emerald-600" />
+   597→   696→   696→   696→                  </div>
+   598→   697→   697→   697→                  <div>
+   599→   698→   698→   698→                    <p className="text-sm font-semibold text-gray-900">Run Email Health Check</p>
+   600→   699→   699→   699→                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+   601→   700→   700→   700→                      Validates all email addresses in your database. Checks syntax, domain, MX records, and disposable email detection. Updates health scores.
+   602→   701→   701→   701→                    </p>
+   603→   702→   702→   702→                  </div>
+   604→   703→   703→   703→                </div>
+   605→   704→   704→   704→                <Button
+   606→   705→   705→   705→                  variant="outline"
+   607→   706→   706→   706→                  size="sm"
+   608→   707→   707→   707→                  className="text-xs border-gray-200 text-gray-600 rounded-lg shrink-0 self-end sm:self-auto"
+   609→   708→   708→   708→                  onClick={() => handleHealthCheck.mutate()}
+   610→   709→   709→   709→                  disabled={handleHealthCheck.isPending}
+   611→   710→   710→   710→                >
+   612→   711→   711→   711→                  {handleHealthCheck.isPending ? <Loader2 className="size-3.5 animate-spin mr-1" /> : <Stethoscope className="size-3.5 mr-1.5" />}
+   613→   712→   712→   712→                  Run Check
+   614→   713→   713→   713→                </Button>
+   615→   714→   714→   714→              </div>
+   616→   715→   715→   715→            </div>
+   617→   716→   716→   716→          </div>
+   618→   717→   717→   717→        </TabsContent>
+   619→   718→   718→   718→
+   620→   719→   719→   719→        {/* ═══════════════════════════════════════════════════════
+   621→   720→   720→   720→            Tab: Advanced / Danger Zone
+   622→   721→   721→   721→           ═══════════════════════════════════════════════════════ */}
+   623→   722→   722→   722→        <TabsContent value="danger" className="space-y-6">
+   624→   723→   723→   723→          <div className="rounded-xl border border-red-200 bg-white p-6 space-y-5">
+   625→   724→   724→   724→            <div>
+   626→   725→   725→   725→              <h3 className="text-sm font-semibold text-red-700 flex items-center gap-2">
+   627→   726→   726→   726→                <AlertTriangle className="size-4" />
+   628→   727→   727→   727→                Danger Zone
+   629→   728→   728→   728→              </h3>
+   630→   729→   729→   729→              <p className="text-xs text-gray-500 mt-0.5">
+   631→   730→   730→   730→                Irreversible and destructive actions. Proceed with extreme caution.
+   632→   731→   731→   731→              </p>
+   633→   732→   732→   732→            </div>
+   634→   733→   733→   733→
+   635→   734→   734→   734→            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-red-200 bg-red-50/30">
+   636→   735→   735→   735→              <div>
+   637→   736→   736→   736→                <p className="text-sm font-semibold text-gray-900">Delete All Data</p>
+   638→   737→   737→   737→                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+   639→   738→   738→   738→                  Permanently remove all companies, contacts, notes, research cards, drafts, and opportunities.
+   640→   739→   739→   739→                  This action cannot be undone. Consider exporting your data first.
+   641→   740→   740→   740→                </p>
+   642→   741→   741→   741→              </div>
+   643→   742→   742→   742→              <Button
+   644→   743→   743→   743→                variant="outline"
+   645→   744→   744→   744→                size="sm"
+   646→   745→   745→   745→                className="text-xs border-red-300 text-red-600 hover:bg-red-50 rounded-lg shrink-0 self-end sm:self-auto"
+   647→   746→   746→   746→                onClick={() => setDangerOpen(true)}
+   648→   747→   747→   747→              >
+   649→   748→   748→   748→                <Trash2 className="size-3.5 mr-1" />
+   650→   749→   749→   749→                Delete All
+   651→   750→   750→   750→              </Button>
+   652→   751→   751→   751→            </div>
+   653→   752→   752→   752→          </div>
+   654→   753→   753→   753→        </TabsContent>
+   655→   754→   754→   754→      </Tabs>
+   656→   755→   755→   755→
+   657→   756→   756→   756→      <Separator className="bg-gray-100 my-8" />
+   658→   757→   757→   757→      <p className="text-center text-xs text-gray-400 pb-4">DeepMindQ v1.0 — AI-Powered Sales Intelligence</p>
+   659→   758→   758→   758→
+   660→   759→   759→   759→      {/* ═══════════════════════════════════════════════════════
+   661→   760→   760→   760→          Delete Confirmation Dialog
+   662→   761→   761→   761→         ═══════════════════════════════════════════════════════ */}
+   663→   762→   762→   762→      <Dialog open={dangerOpen} onOpenChange={setDangerOpen}>
+   664→   763→   763→   763→        <DialogContent className="sm:max-w-md rounded-xl">
+   665→   764→   764→   764→          <DialogHeader>
+   666→   765→   765→   765→            <DialogTitle className="text-red-700 flex items-center gap-2">
+   667→   766→   766→   766→              <AlertTriangle className="size-5" />
+   668→   767→   767→   767→              Delete All Data?
+   669→   768→   768→   768→            </DialogTitle>
+   670→   769→   769→   769→            <DialogDescription className="text-sm text-gray-500 leading-relaxed">
+   671→   770→   770→   770→              This will permanently delete all companies, contacts, notes, research cards, drafts, and opportunities from your database.
+   672→   771→   771→   771→              This action <span className="font-semibold text-red-600">cannot be undone</span>.
+   673→   772→   772→   772→            </DialogDescription>
+   674→   773→   773→   773→          </DialogHeader>
+   675→   774→   774→   774→          <DialogFooter className="gap-2 pt-2">
+   676→   775→   775→   775→            <Button
+   677→   776→   776→   776→              variant="outline"
+   678→   777→   777→   777→              onClick={() => setDangerOpen(false)}
+   679→   778→   778→   778→              className="border-gray-200 text-gray-600 rounded-lg"
+   680→   779→   779→   779→            >
+   681→   780→   780→   780→              Cancel
+   682→   781→   781→   781→            </Button>
+   683→   782→   782→   782→            <Button
+   684→   783→   783→   783→              variant="destructive"
+   685→   784→   784→   784→              className="bg-red-600 hover:bg-red-700 text-white rounded-lg"
+   686→   785→   785→   785→              onClick={() => handleDeleteAll.mutate()}
+   687→   786→   786→   786→              disabled={handleDeleteAll.isPending}
+   688→   787→   787→   787→            >
+   689→   788→   788→   788→              {handleDeleteAll.isPending ? (
+   690→   789→   789→   789→                <><Loader2 className="size-3.5 animate-spin mr-1" /> Deleting...</>
+   691→   790→   790→   790→              ) : (
+   692→   791→   791→   791→                <><Trash2 className="size-3.5 mr-1" /> Yes, Delete Everything</>
+   693→   792→   792→   792→              )}
+   694→   793→   793→   793→            </Button>
+   695→   794→   794→   794→          </DialogFooter>
+   696→   795→   795→   795→        </DialogContent>
+   697→   796→   796→   796→      </Dialog>
+   698→   797→   797→   797→    </div>
+   699→   798→   798→   798→  )
+   700→   799→   799→   799→}

@@ -815,17 +815,28 @@ export default function CompanyProfileScreen() {
             TAB: CONTACTS
             ────────────────────────────────────────────────────────── */}
         <TabsContent value="contacts" className="mt-5">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 gap-2">
             <p className="text-sm text-gray-500">
               {contacts.length} contact{contacts.length !== 1 ? 's' : ''} at {data.name}
             </p>
-            <Button
-              size="sm"
-              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
-              onClick={() => setContactOpen(true)}
-            >
-              <Plus className="size-3.5 mr-1.5" /> Add Contact
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md transition-colors"
+                onClick={handleViewAllContacts}
+              >
+                <Users className="size-3 mr-1" /> View All Contacts
+                <ChevronRight className="size-3 ml-0.5" />
+              </Button>
+              <Button
+                size="sm"
+                className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+                onClick={() => setContactOpen(true)}
+              >
+                <Plus className="size-3.5 mr-1.5" /> Add Contact
+              </Button>
+            </div>
           </div>
           {contacts.length === 0 ? (
             <EmptyState

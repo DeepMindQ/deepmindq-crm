@@ -399,7 +399,8 @@ export default function ContactsScreen() {
                           {c.name?.charAt(0)?.toUpperCase()}
                         </div>
                         <div className="flex items-center gap-1.5 min-w-0">
-                          <span className="text-sm font-semibold text-gray-900 truncate">{c.name}</span>
+                          <span className="text-sm font-semibold text-gray-900 truncate group-hover:text-amber-700 transition-colors duration-150">{c.name}</span>
+                          <ChevronRight className="size-3 text-gray-300 group-hover:text-amber-500 opacity-0 group-hover:opacity-100 transition-all duration-150 shrink-0" />
                           {hasDrafts && (
                             <span
                               className="inline-flex items-center gap-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 px-1.5 py-px text-[10px] font-medium shrink-0"
@@ -421,7 +422,7 @@ export default function ContactsScreen() {
                             e.stopPropagation()
                             navigateToCompany(c.company.id)
                           }}
-                          className="text-sm text-gray-600 hover:text-amber-700 font-medium transition-colors inline-flex items-center gap-1 group/biz"
+                          className="text-sm text-amber-600 hover:text-amber-700 font-medium transition-colors duration-150 inline-flex items-center gap-1 group/biz hover:underline underline-offset-2"
                         >
                           <Building2 className="size-3 text-gray-400 group-hover/biz:text-amber-500 transition-colors" />
                           {c.company.name}

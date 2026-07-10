@@ -177,7 +177,7 @@ export function CompaniesScreen() {
                     <tr key={i} className="border-b border-gray-50"><td colSpan={7} className="px-4 py-2"><Skeleton className="h-12 w-full rounded-lg" /></td></tr>
                   ))
                 : companies.map((c: any) => (
-                      <tr key={c.id} className="table-row-hover border-b border-gray-50 transition-colors">
+                      <tr key={c.id} className="table-row-hover border-b border-gray-50 transition-colors group">
                           <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
                             <Checkbox checked={selected.has(c.id)} onCheckedChange={() => toggleOne(c.id)} className="size-4" />
                           </td>
@@ -191,9 +191,10 @@ export function CompaniesScreen() {
                                 )}
                               </div>
                               <div className="min-w-0">
-                                <p className="text-sm font-semibold text-gray-900 truncate">{c.name}</p>
+                                <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-amber-700 transition-colors duration-150">{c.name}</p>
                                 {c.domain && <p className="text-xs text-gray-400 truncate">{c.domain}</p>}
                               </div>
+                              <ArrowRight className="size-3.5 text-gray-300 group-hover:text-amber-500 opacity-0 group-hover:opacity-100 transition-all duration-150 shrink-0 ml-auto" />
                             </div>
                           </td>
                           <td className="px-4 py-2.5 text-sm text-gray-600">{c.industry || '—'}</td>

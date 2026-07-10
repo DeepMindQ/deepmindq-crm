@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import {
   Mail, Sparkles, Copy, RefreshCw, User, CheckCircle2, Loader2, Search,
-  ExternalLink, Zap, AlertTriangle, Building2, Eye, Save,
+  ExternalLink, Zap, AlertTriangle, Building2, Eye, Save, ChevronRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -429,7 +429,7 @@ export default function EmailGenerationScreen() {
                     key={c.id}
                     onClick={() => selectContact(c)}
                     className={cn(
-                      'w-full p-3 rounded-lg cursor-pointer transition-colors flex items-center gap-2.5 text-left',
+                      'w-full p-3 rounded-lg cursor-pointer transition-colors flex items-center gap-2.5 text-left group',
                       isActive
                         ? 'bg-amber-50 border border-amber-200/80'
                         : 'hover:bg-gray-100/60 border border-transparent'
@@ -448,6 +448,13 @@ export default function EmailGenerationScreen() {
                         </Badge>
                       </div>
                     </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSelectedContactId(c.id); setActiveView('contact-profile') }}
+                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-amber-600 transition-all duration-150 shrink-0 p-1 rounded-md hover:bg-amber-50"
+                      title="View contact profile"
+                    >
+                      <ChevronRight className="size-3.5" />
+                    </button>
                   </button>
                 )
               })}
@@ -634,13 +641,24 @@ export default function EmailGenerationScreen() {
                     <Save className="size-4" />
                     {lastDraftId ? 'Draft Auto-Saved' : 'Save as Draft'}
                   </Button>
+                  <span className="ml-auto flex items-center gap-3">
                   <button
                     onClick={goToContactProfile}
-                    className="ml-auto flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-800 transition-colors"
+                    className="flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-800 transition-colors duration-150"
                   >
                     <ExternalLink className="size-3.5" />
                     View Contact Profile
                   </button>
+                  {activeContact?.company && (
+                    <button
+                      onClick={() => goToCompanyProfile(activeContact.company?.id || activeContact.companyId || '')}
+                      className="flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-800 transition-colors duration-150"
+                    >
+                      <Building2 className="size-3.5" />
+                      View Company
+                    </button>
+                  )}
+                  </span>
                 </div>
               </div>
             )}

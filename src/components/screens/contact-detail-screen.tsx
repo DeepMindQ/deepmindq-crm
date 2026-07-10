@@ -6,7 +6,7 @@ import {
   ArrowLeft, ShieldCheck, Sparkles, Plus, Archive, Mail, Phone, MapPin,
   Building2, Linkedin, Copy, RefreshCw, FileText, Clock, Loader2, X,
   AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronUp,
-  ExternalLink, Eye,
+  ExternalLink, Eye, ChevronRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
@@ -311,11 +311,13 @@ export default function ContactDetailScreen() {
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setActiveView('contacts')}
-                className="text-gray-400 hover:text-gray-700 transition-colors p-0.5 -ml-0.5"
+                className="inline-flex items-center gap-1.5 text-gray-400 hover:text-amber-600 transition-colors duration-150"
                 title="Back to contacts"
               >
-                <ArrowLeft className="size-4" />
+                <ArrowLeft className="size-3.5" />
+                <span className="text-xs font-medium hover:underline underline-offset-2">Contacts</span>
               </button>
+              <span className="text-gray-300 text-sm mx-1">/</span>
               <h2 className="text-xl font-bold text-gray-900 tracking-tight truncate">{data.name}</h2>
               {data.jobTitle && (
                 <span className="text-sm text-gray-500 hidden sm:inline">· {data.jobTitle}</span>
@@ -338,10 +340,11 @@ export default function ContactDetailScreen() {
               {data.company?.name && (
                 <button
                   onClick={() => navigateToCompany(data.companyId)}
-                  className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-600 hover:bg-amber-50 hover:text-amber-700 text-xs font-medium rounded-md px-2.5 py-1 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-amber-600 hover:text-amber-700 text-xs font-medium hover:underline underline-offset-2 transition-colors duration-150"
                 >
                   <Building2 className="size-3" />
                   {data.company.name}
+                  <ChevronRight className="size-3" />
                 </button>
               )}
               {data.email && (

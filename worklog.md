@@ -760,3 +760,30 @@ Stage Summary:
 - AI/email engines show clear status indicators (AI powered vs template mode)
 - Breadcrumbs show dynamic entity names
 - Server running on port 8080, proxy on port 81, both returning 200
+
+---
+Task ID: 2.0
+Agent: Main
+Task: Fix critical issues — server 404, engine verification, UI/UX overhaul, cross-navigation
+
+Work Log:
+- Killed stale processes, restarted server via scripts/serve.sh with setsid — 200 OK confirmed
+- Tested AI Research engine: POST /api/research returns intelligent fallback research (7-industry templates, confidence scores)
+- Tested Email Validation engine: POST /api/contacts/[id]/validate returns proper scores (65/100 risky with DNS details)
+- Tested Email Generation engine: POST /api/contacts/[id]/generate-email returns template-based emails with match/confidence scores
+- Rewrote dashboard-screen.tsx: enterprise-grade with Recharts BarChart (pipeline), PieChart (email health), KPI cards, activity feed, quick actions
+- Added cross-navigation to 5 screens: company-profile (contacts→profile), contact-detail (company link, back breadcrumb), email-generation (view contact/company after gen), companies (hover arrows), contacts (company links, hover indicators)
+- Rebuilt app: `next build` succeeded with zero errors
+- Restarted server: confirmed 200 OK on all routes
+- Ran full test suite: 245 tests across 7 test files — ALL PASSED
+- Verified all endpoints: dashboard, companies, contacts, research, email validation, email generation
+
+Stage Summary:
+- Server running stably on port 8080 via auto-restart loop
+- All 23 API routes functional
+- AI engine works (template fallback when no API key configured)
+- Email engine works (DNS MX/SPF/DMARC lookups + scoring)
+- Dashboard now has real Recharts visualizations (pipeline bar chart, email health donut)
+- Cross-navigation connects all screens: company↔contacts, email→contact→company
+- All 245 tests passing
+- Preview URL: https://preview-web-fc41dca2-d4ff-4ad2-a046-6e3473dd8e21.space-z.ai/?XTransformPort=8080

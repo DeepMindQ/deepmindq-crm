@@ -1,0 +1,655 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect } from 'react'
+     4→import { useQuery, useMutation } from '@tanstack/react-query'
+     5→import {
+     6→  Mail, Sparkles, Copy, RefreshCw, User, CheckCircle2, Loader2, Search,
+     7→  ExternalLink, Zap, AlertTriangle, Building2, Eye, Save,
+     8→} from 'lucide-react'
+     9→import { Button } from '@/components/ui/button'
+    10→import { Input } from '@/components/ui/input'
+    11→import { Badge } from '@/components/ui/badge'
+    12→import { toast } from 'sonner'
+    13→import { useAppStore } from '@/lib/store'
+    14→import { EmptyState } from '@/components/shared/design-system'
+    15→import { cn } from '@/lib/utils'
+    16→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    17→
+    18→/* ═══════════════════════════════════════════════════════════════
+    19→   Types
+    20→   ═══════════════════════════════════════════════════════════════ */
+    21→
+    22→type Tone = 'formal' | 'professional-casual' | 'direct'
+    23→type EmailLength = 'short' | 'medium' | 'detailed'
+    24→type CtaStyle = 'soft' | 'direct'
+    25→
+    26→interface ContactRow {
+    27→  id: string
+    28→  name: string
+    29→  email: string | null
+    30→  jobTitle: string | null
+    31→  company: { id: string; name: string } | null
+    32→  emailHealth: string
+    33→  emailHealthScore: number | null
+    34→  companyId: string | null
+    35→}
+    36→
+    37→/* ═══════════════════════════════════════════════════════════════
+    38→   Constants
+    39→   ═══════════════════════════════════════════════════════════════ */
+    40→
+    41→const TONE_OPTIONS: { value: Tone; label: string }[] = [
+    42→  { value: 'formal', label: 'Formal' },
+    43→  { value: 'professional-casual', label: 'Professional-Casual' },
+    44→  { value: 'direct', label: 'Direct' },
+    45→]
+    46→
+    47→const LENGTH_OPTIONS: { value: EmailLength; label: string }[] = [
+    48→  { value: 'short', label: 'Short' },
+    49→  { value: 'medium', label: 'Medium' },
+    50→  { value: 'detailed', label: 'Detailed' },
+    51→]
+    52→
+    53→const CTA_OPTIONS: { value: CtaStyle; label: string }[] = [
+    54→  { value: 'soft', label: 'Soft Ask' },
+    55→  { value: 'direct', label: 'Direct Ask' },
+    56→]
+    57→
+    58→const TOGGLE_ACTIVE = 'bg-amber-600 text-white shadow-xs'
+    59→const TOGGLE_INACTIVE = 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+    60→
+    61→/* ═══════════════════════════════════════════════════════════════
+    62→   Helpers
+    63→   ═══════════════════════════════════════════════════════════════ */
+    64→
+    65→function matchScoreClasses(score: number | null | undefined) {
+    66→  if (score == null) return 'bg-gray-100 text-gray-600 border border-gray-200'
+    67→  if (score >= 80) return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+    68→  if (score >= 60) return 'bg-amber-50 text-amber-700 border border-amber-200'
+    69→  return 'bg-red-50 text-red-700 border border-red-200'
+    70→}
+    71→
+    72→function confidenceClasses(confidence: string | undefined) {
+    73→  switch (confidence) {
+    74→    case 'high': return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+    75→    case 'medium': return 'bg-amber-50 text-amber-700 border border-amber-200'
+    76→    case 'low': return 'bg-red-50 text-red-700 border border-red-200'
+    77→    default: return 'bg-gray-100 text-gray-600 border border-gray-200'
+    78→  }
+    79→}
+    80→
+    81→function emailHealthBadge(health: string) {
+    82→  switch (health) {
+    83→    case 'valid': return { label: 'Valid', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+    84→    case 'risky': return { label: 'Risky', cls: 'bg-amber-50 text-amber-700 border-amber-200' }
+    85→    case 'invalid': return { label: 'Invalid', cls: 'bg-red-50 text-red-700 border-red-200' }
+    86→    default: return { label: 'Unknown', cls: 'bg-gray-100 text-gray-600 border-gray-200' }
+    87→  }
+    88→}
+    89→
+    90→function providerDisplayName(provider: string) {
+    91→  switch (provider) {
+    92→    case 'openai': return 'OpenAI'
+    93→    case 'gemini': return 'Google Gemini'
+    94→    case 'groq': return 'Groq'
+    95→    default: return provider
+    96→  }
+    97→}
+    98→
+    99→/* ═══════════════════════════════════════════════════════════════
+   100→   AI Status Banner
+   101→   ═══════════════════════════════════════════════════════════════ */
+   102→
+   103→function AiStatusBanner({ onGoToSettings }: { onGoToSettings: () => void }) {
+   104→  const { data: prefs } = useQuery({
+   105→    queryKey: ['preferences'],
+   106→    queryFn: () => fetch('/api/preferences').then(r => r.json()),
+   107→  })
+   108→
+   109→  const hasKey = !!prefs?.aiApiKey
+   110→  const provider = prefs?.aiProvider || 'openai'
+   111→  const model = prefs?.aiModel || 'gpt-4o-mini'
+   112→
+   113→  if (hasKey) {
+   114→    return (
+   115→      <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200/80">
+   116→        <span className="relative flex size-2.5 shrink-0">
+   117→          <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-40" />
+   118→          <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
+   119→        </span>
+   120→        <div className="flex items-center gap-1.5 text-sm text-emerald-800">
+   121→          <Zap className="size-3.5" />
+   122→          <span className="font-semibold">AI Powered:</span>
+   123→          <span className="text-emerald-600">Using {providerDisplayName(provider)} / {model}</span>
+   124→        </div>
+   125→      </div>
+   126→    )
+   127→  }
+   128→
+   129→  return (
+   130→    <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200/80">
+   131→      <AlertTriangle className="size-4 text-amber-600 shrink-0" />
+   132→      <p className="text-sm text-amber-800">
+   133→        <span className="font-semibold">Template Mode:</span>{' '}
+   134→        Configure your AI provider in Settings for personalized emails
+   135→      </p>
+   136→      <button
+   137→        onClick={onGoToSettings}
+   138→        className="ml-auto text-sm font-medium text-amber-700 hover:text-amber-900 underline underline-offset-2 shrink-0 transition-colors"
+   139→      >
+   140→        Configure AI
+   141→      </button>
+   142→    </div>
+   143→  )
+   144→}
+   145→
+   146→/* ═══════════════════════════════════════════════════════════════
+   147→   Toggle Group — reusable for Tone / Length / CTA
+   148→   ═══════════════════════════════════════════════════════════════ */
+   149→
+   150→function ToggleGroup<T extends string>({
+   151→  label,
+   152→  description,
+   153→  options,
+   154→  value,
+   155→  onChange,
+   156→}: {
+   157→  label: string
+   158→  description: string
+   159→  options: { value: T; label: string }[]
+   160→  value: T
+   161→  onChange: (v: T) => void
+   162→}) {
+   163→  return (
+   164→    <div className="bg-white rounded-xl border border-gray-200/80 card-rest p-4 md:p-6 space-y-3">
+   165→      <div>
+   166→        <h3 className="text-sm font-semibold text-gray-900">{label}</h3>
+   167→        <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+   168→      </div>
+   169→      <div className="flex items-center gap-2 flex-wrap">
+   170→        {options.map(opt => (
+   171→          <button
+   172→            key={opt.value}
+   173→            onClick={() => onChange(opt.value)}
+   174→            className={cn(
+   175→              'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150',
+   176→              value === opt.value ? TOGGLE_ACTIVE : TOGGLE_INACTIVE,
+   177→            )}
+   178→          >
+   179→            {opt.label}
+   180→          </button>
+   181→        ))}
+   182→      </div>
+   183→    </div>
+   184→  )
+   185→}
+   186→
+   187→/* ═══════════════════════════════════════════════════════════════
+   188→   Main Component
+   189→   ═══════════════════════════════════════════════════════════════ */
+   190→
+   191→export default function EmailGenerationScreen() {
+   192→  const { selectedContactId, setSelectedContactId, setSelectedCompanyId, setActiveView } = useAppStore()
+   193→
+   194→  // ── Preferences for defaults ──
+   195→  const { data: prefs } = useQuery({
+   196→    queryKey: ['preferences'],
+   197→    queryFn: () => fetch('/api/preferences').then(r => r.json()),
+   198→  })
+   199→
+   200→  // ── Sync defaults from prefs once loaded ──
+   201→  const [tone, setTone] = useState<Tone>('professional-casual')
+   202→  const [emailLength, setEmailLength] = useState<EmailLength>('medium')
+   203→  const [ctaStyle, setCtaStyle] = useState<CtaStyle>('soft')
+   204→  const [contactSearch, setContactSearch] = useState('')
+   205→  const [generatedSubject, setGeneratedSubject] = useState('')
+   206→  const [generatedBody, setGeneratedBody] = useState('')
+   207→  const [lastDraftId, setLastDraftId] = useState<string | null>(null)
+   208→  const [lastMatchScore, setLastMatchScore] = useState<number | null>(null)
+   209→  const [lastConfidence, setLastConfidence] = useState<string | undefined>(undefined)
+   210→  const [draftContactId, setDraftContactId] = useState<string | null>(null)
+   211→  const [isAiGenerated, setIsAiGenerated] = useState(false)
+   212→  const [aiProviderName, setAiProviderName] = useState('')
+   213→
+   214→  useEffect(() => {
+   215→    if (prefs) {
+   216→      setTone((prefs.tone as Tone) || 'professional-casual')
+   217→      setEmailLength((prefs.emailLength as EmailLength) || 'medium')
+   218→      setCtaStyle((prefs.ctaStyle as CtaStyle) || 'soft')
+   219→    }
+   220→  }, [prefs])
+   221→
+   222→  // ── Contacts ──
+   223→  const { data: contactsData, isLoading: contactsLoading } = useQuery({
+   224→    queryKey: ['contacts', 'email-gen-sidebar', contactSearch],
+   225→    queryFn: () => {
+   226→      const p = new URLSearchParams({ pageSize: '50' })
+   227→      if (contactSearch) p.set('search', contactSearch)
+   228→      return fetch(`/api/contacts?${p}`).then(r => r.json())
+   229→    },
+   230→  })
+   231→
+   232→  const contacts = (contactsData?.contacts ?? []) as ContactRow[]
+   233→
+   234→  // ── Selected contact (may need separate fetch if navigated from elsewhere) ──
+   235→  const selectedContact = contacts.find(c => c.id === selectedContactId) ?? null
+   236→
+   237→  const { data: preselectedContact, isLoading: preselectedLoading } = useQuery({
+   238→    queryKey: ['contact', selectedContactId],
+   239→    queryFn: () => fetch(`/api/contacts/${selectedContactId}`).then(r => r.json()),
+   240→    enabled: !!selectedContactId && !selectedContact,
+   241→  })
+   242→
+   243→  const activeContact = selectedContact || (preselectedContact ? {
+   244→    id: preselectedContact.id,
+   245→    name: preselectedContact.name,
+   246→    email: preselectedContact.email,
+   247→    jobTitle: preselectedContact.jobTitle,
+   248→    company: preselectedContact.company ? { id: preselectedContact.company.id, name: preselectedContact.company.name } : null,
+   249→    emailHealth: preselectedContact.emailHealth || 'unknown',
+   250→    emailHealthScore: preselectedContact.emailHealthScore,
+   251→    companyId: preselectedContact.companyId,
+   252→  } : null)
+   253→
+   254→  const hasDraft = generatedBody.length > 0 && draftContactId === selectedContactId
+   255→
+   256→  // ── Navigation helpers ──
+   257→  const goToSettings = () => setActiveView('settings')
+   258→  const goToContactProfile = () => {
+   259→    if (activeContact) {
+   260→      setSelectedContactId(activeContact.id)
+   261→      setActiveView('contact-profile')
+   262→    }
+   263→  }
+   264→  const goToCompanyProfile = (companyId: string) => {
+   265→    setSelectedCompanyId(companyId)
+   266→    setActiveView('company-profile')
+   267→  }
+   268→
+   269→  const clearDraft = () => {
+   270→    setGeneratedSubject('')
+   271→    setGeneratedBody('')
+   272→    setLastDraftId(null)
+   273→    setLastMatchScore(null)
+   274→    setLastConfidence(undefined)
+   275→    setDraftContactId(null)
+   276→    setIsAiGenerated(false)
+   277→    setAiProviderName('')
+   278→  }
+   279→
+   280→  // ── Generate mutation ──
+   281→  const generateMutation = useMutation({
+   282→    mutationFn: () =>
+   283→      fetch(`/api/contacts/${selectedContactId}/generate-email`, {
+   284→        method: 'POST',
+   285→        headers: { 'Content-Type': 'application/json' },
+   286→        body: JSON.stringify({ tone, emailLength, ctaStyle }),
+   287→      })
+   288→        .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Generation failed') })),
+   289→    onSuccess: (data) => {
+   290→      setGeneratedSubject(data.subject || '')
+   291→      setGeneratedBody(data.body || '')
+   292→      setLastDraftId(data.draftId || null)
+   293→      setLastMatchScore(data.matchScore ?? null)
+   294→      setLastConfidence(data.confidence)
+   295→      setDraftContactId(selectedContactId || null)
+   296→      // Determine if AI was used based on prefs
+   297→      const aiKey = prefs?.aiApiKey
+   298→      setIsAiGenerated(!!aiKey)
+   299→      setAiProviderName(providerDisplayName(prefs?.aiProvider || 'openai'))
+   300→      toast.success('Email generated successfully')
+   301→    },
+   302→    onError: (e: Error) => toast.error(e.message),
+   303→  })
+   304→
+   305→  // ── Copy ──
+   306→  const handleCopy = async () => {
+   307→    const fullEmail = generatedSubject
+   308→      ? `Subject: ${generatedSubject}\n\n${generatedBody}`
+   309→      : generatedBody
+   310→    try {
+   311→      await navigator.clipboard.writeText(fullEmail)
+   312→      toast.success('Copied to clipboard')
+   313→    } catch {
+   314→      toast.error('Failed to copy to clipboard')
+   315→    }
+   316→  }
+   317→
+   318→  // ── Select contact ──
+   319→  const selectContact = (contact: ContactRow) => {
+   320→    setSelectedContactId(contact.id)
+   321→    clearDraft()
+   322→  }
+   323→
+   324→  return (
+   325→    <div className="flex h-full -m-6 flex-col md:flex-row">
+   326→      {/* ═══════════════════════════════════════════════════════
+   327→          Mobile Contact Selector
+   328→         ═══════════════════════════════════════════════════════ */}
+   329→      <div className="md:hidden p-4 border-b border-gray-200/60 bg-white space-y-3">
+   330→        <Select value={selectedContactId || ''} onValueChange={(id) => {
+   331→          const c = contacts.find(ct => ct.id === id)
+   332→          if (c) selectContact(c)
+   333→        }}>
+   334→          <SelectTrigger className="w-full h-9 border-gray-200 rounded-lg text-sm">
+   335→            <SelectValue placeholder="Select a contact..." />
+   336→          </SelectTrigger>
+   337→          <SelectContent>
+   338→            {contacts.map((c) => (
+   339→              <SelectItem key={c.id} value={c.id}>
+   340→                <span className="font-medium">{c.name}</span>
+   341→                {c.jobTitle && <span className="text-gray-400 ml-2">{c.jobTitle}</span>}
+   342→              </SelectItem>
+   343→            ))}
+   344→          </SelectContent>
+   345→        </Select>
+   346→        <AiStatusBanner onGoToSettings={goToSettings} />
+   347→      </div>
+   348→
+   349→      {/* ═══════════════════════════════════════════════════════
+   350→          Left Sidebar (hidden on mobile)
+   351→         ═══════════════════════════════════════════════════════ */}
+   352→      <aside className="hidden md:flex w-80 border-r border-gray-200/80 bg-gray-50/50 flex-col shrink-0">
+   353→        {/* AI Status Banner */}
+   354→        <div className="p-4 border-b border-gray-200/60 bg-white">
+   355→          <AiStatusBanner onGoToSettings={goToSettings} />
+   356→        </div>
+   357→
+   358→        {/* Selected Contact Card */}
+   359→        {activeContact && (
+   360→          <div className="p-4 border-b border-gray-200/60 bg-white">
+   361→            <div className="flex items-start gap-3">
+   362→              <div className="size-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 text-sm font-bold shrink-0 mt-0.5">
+   363→                {activeContact.name?.charAt(0)?.toUpperCase()}
+   364→              </div>
+   365→              <div className="min-w-0 flex-1">
+   366→                <button
+   367→                  onClick={goToContactProfile}
+   368→                  className="text-sm font-semibold text-gray-900 hover:text-amber-700 truncate block transition-colors"
+   369→                >
+   370→                  {activeContact.name}
+   371→                </button>
+   372→                <p className="text-xs text-gray-500 font-mono truncate mt-0.5">{activeContact.email}</p>
+   373→                {activeContact.company && (
+   374→                  <button
+   375→                    onClick={() => goToCompanyProfile(activeContact.company?.id || activeContact.companyId || '')}
+   376→                    className="text-xs text-amber-600 hover:text-amber-800 truncate block mt-0.5 transition-colors"
+   377→                  >
+   378→                    {activeContact.company.name} →
+   379→                  </button>
+   380→                )}
+   381→                {activeContact.jobTitle && (
+   382→                  <p className="text-xs text-gray-400 mt-0.5 truncate">{activeContact.jobTitle}</p>
+   383→                )}
+   384→                {activeContact.emailHealth && (
+   385→                  <Badge className={cn('text-[10px] font-medium px-2 py-0.5 mt-2 border', emailHealthBadge(activeContact.emailHealth).cls)}>
+   386→                    {emailHealthBadge(activeContact.emailHealth).label}
+   387→                  </Badge>
+   388→                )}
+   389→              </div>
+   390→            </div>
+   391→          </div>
+   392→        )}
+   393→
+   394→        {/* Contact List */}
+   395→        <div className="flex-1 overflow-y-auto">
+   396→          <div className="px-4 pt-4 pb-2">
+   397→            <h3 className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Contacts</h3>
+   398→          </div>
+   399→          <div className="px-3 pb-2">
+   400→            <div className="relative">
+   401→              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-gray-400" />
+   402→              <Input
+   403→                placeholder="Search contacts..."
+   404→                value={contactSearch}
+   405→                onChange={e => setContactSearch(e.target.value)}
+   406→                className="pl-8 h-8 bg-gray-100 border-gray-200 rounded-lg text-xs focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
+   407→              />
+   408→            </div>
+   409→          </div>
+   410→
+   411→          {contactsLoading ? (
+   412→            <div className="px-4 space-y-2">
+   413→              {[...Array(5)].map((_, i) => (
+   414→                <div key={i} className="h-16 rounded-lg bg-gray-100 animate-pulse" />
+   415→              ))}
+   416→            </div>
+   417→          ) : contacts.length === 0 ? (
+   418→            <div className="px-4 py-8 text-center">
+   419→              <User className="size-8 text-gray-300 mx-auto mb-2" />
+   420→              <p className="text-xs text-gray-400">No contacts found</p>
+   421→            </div>
+   422→          ) : (
+   423→            <div className="px-2 space-y-1 pb-4">
+   424→              {contacts.map((c) => {
+   425→                const isActive = c.id === selectedContactId
+   426→                const health = emailHealthBadge(c.emailHealth)
+   427→                return (
+   428→                  <button
+   429→                    key={c.id}
+   430→                    onClick={() => selectContact(c)}
+   431→                    className={cn(
+   432→                      'w-full p-3 rounded-lg cursor-pointer transition-colors flex items-center gap-2.5 text-left',
+   433→                      isActive
+   434→                        ? 'bg-amber-50 border border-amber-200/80'
+   435→                        : 'hover:bg-gray-100/60 border border-transparent'
+   436→                    )}
+   437→                  >
+   438→                    <div className="size-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 text-[11px] font-bold shrink-0">
+   439→                      {c.name?.charAt(0)?.toUpperCase()}
+   440→                    </div>
+   441→                    <div className="min-w-0 flex-1">
+   442→                      <p className="text-sm font-medium text-gray-900 truncate">{c.name}</p>
+   443→                      <p className="text-[11px] text-gray-500 truncate">{c.jobTitle || 'No title'}</p>
+   444→                      <div className="flex items-center gap-1.5 mt-0.5">
+   445→                        <p className="text-[11px] text-gray-400 truncate">{c.company?.name || '—'}</p>
+   446→                        <Badge className={cn('text-[9px] font-medium px-1.5 py-0 border shrink-0', health.cls)}>
+   447→                          {health.label}
+   448→                        </Badge>
+   449→                      </div>
+   450→                    </div>
+   451→                  </button>
+   452→                )
+   453→              })}
+   454→            </div>
+   455→          )}
+   456→        </div>
+   457→      </aside>
+   458→
+   459→      {/* ═══════════════════════════════════════════════════════
+   460→          Main Area
+   461→         ═══════════════════════════════════════════════════════ */}
+   462→      <main className="flex-1 overflow-y-auto min-h-0">
+   463→        {!activeContact && !preselectedLoading ? (
+   464→          <div className="h-full">
+   465→            <EmptyState
+   466→              icon={Mail}
+   467→              title="Select a contact to generate a personalized email"
+   468→              description="Choose a contact from the sidebar to begin crafting an AI-powered outreach email tailored to their role, company, and industry."
+   469→            />
+   470→          </div>
+   471→        ) : preselectedLoading ? (
+   472→          <div className="flex items-center justify-center h-full">
+   473→            <Loader2 className="size-6 animate-spin text-amber-600" />
+   474→          </div>
+   475→        ) : (
+   476→          <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-4 md:space-y-5">
+   477→            {/* ── Contact context header ── */}
+   478→            <div className="bg-white rounded-xl border border-gray-200/80 card-rest p-4 md:p-5">
+   479→              <div className="flex items-center justify-between">
+   480→                <div className="flex items-center gap-3 min-w-0">
+   481→                  <div className="size-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 text-sm font-bold shrink-0">
+   482→                    {activeContact?.name?.charAt(0)?.toUpperCase()}
+   483→                  </div>
+   484→                  <div className="min-w-0">
+   485→                    <div className="flex items-center gap-2">
+   486→                      <button
+   487→                        onClick={goToContactProfile}
+   488→                        className="text-sm font-semibold text-gray-900 hover:text-amber-700 transition-colors truncate"
+   489→                      >
+   490→                        {activeContact?.name}
+   491→                      </button>
+   492→                      {activeContact?.company && (
+   493→                        <>
+   494→                          <span className="text-gray-300">·</span>
+   495→                          <button
+   496→                            onClick={() => goToCompanyProfile(activeContact.company?.id || activeContact.companyId || '')}
+   497→                            className="text-sm text-gray-500 hover:text-amber-700 transition-colors flex items-center gap-1 truncate"
+   498→                          >
+   499→                            <Building2 className="size-3" />
+   500→                            {activeContact.company.name}
+   501→                          </button>
+   502→                        </>
+   503→                      )}
+   504→                    </div>
+   505→                    <p className="text-xs text-gray-400 mt-0.5">
+   506→                      {activeContact?.email} {activeContact?.jobTitle ? `· ${activeContact.jobTitle}` : ''}
+   507→                    </p>
+   508→                  </div>
+   509→                </div>
+   510→                <button
+   511→                  onClick={goToContactProfile}
+   512→                  className="hidden sm:flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-800 transition-colors shrink-0"
+   513→                >
+   514→                  <Eye className="size-3.5" />
+   515→                  View Profile
+   516→                </button>
+   517→              </div>
+   518→            </div>
+   519→
+   520→            {/* ── Configuration Panel ── */}
+   521→            <ToggleGroup
+   522→              label="Email Tone"
+   523→              description="Choose the voice and style of your outreach message"
+   524→              options={TONE_OPTIONS}
+   525→              value={tone}
+   526→              onChange={setTone}
+   527→            />
+   528→
+   529→            <ToggleGroup
+   530→              label="Email Length"
+   531→              description="How detailed should the generated email be?"
+   532→              options={LENGTH_OPTIONS}
+   533→              value={emailLength}
+   534→              onChange={setEmailLength}
+   535→            />
+   536→
+   537→            <ToggleGroup
+   538→              label="CTA Style"
+   539→              description="How should the call-to-action be framed?"
+   540→              options={CTA_OPTIONS}
+   541→              value={ctaStyle}
+   542→              onChange={setCtaStyle}
+   543→            />
+   544→
+   545→            {/* ── Generate Button ── */}
+   546→            <Button
+   547→              onClick={() => generateMutation.mutate()}
+   548→              disabled={generateMutation.isPending}
+   549→              className="w-full h-13 bg-amber-600 hover:bg-amber-700 text-white rounded-xl press-scale shadow-sm text-base font-semibold gap-2.5 transition-all duration-200"
+   550→            >
+   551→              {generateMutation.isPending ? (
+   552→                <>
+   553→                  <Loader2 className="size-5 animate-spin" />
+   554→                  Generating with {providerDisplayName(prefs?.aiProvider || 'openai')}...
+   555→                </>
+   556→              ) : (
+   557→                <>
+   558→                  <Sparkles className="size-5" />
+   559→                  Generate Email
+   560→                </>
+   561→              )}
+   562→            </Button>
+   563→
+   564→            {/* ── Generated Draft ── */}
+   565→            {hasDraft && (
+   566→              <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+   567→                {/* Generation source + Badges */}
+   568→                <div className="bg-white rounded-xl border border-gray-200/80 card-rest p-4 md:p-5 space-y-3">
+   569→                  <div className="flex items-center justify-between flex-wrap gap-2">
+   570→                    <div className="flex items-center gap-2">
+   571→                      <Badge className={cn('text-[11px] font-semibold px-2.5 py-1 border', matchScoreClasses(lastMatchScore))}>
+   572→                        Match: {lastMatchScore != null ? `${lastMatchScore}%` : '—'}
+   573→                      </Badge>
+   574→                      <Badge className={cn('text-[11px] font-semibold px-2.5 py-1 border', confidenceClasses(lastConfidence))}>
+   575→                        Confidence: {lastConfidence ? lastConfidence.charAt(0).toUpperCase() + lastConfidence.slice(1) : '—'}
+   576→                      </Badge>
+   577→                    </div>
+   578→                    <p className="text-[11px] text-gray-400 font-medium">
+   579→                      {isAiGenerated
+   580→                        ? <span className="flex items-center gap-1"><Zap className="size-3 text-emerald-500" /> Generated by {aiProviderName}</span>
+   581→                        : <span className="flex items-center gap-1"><AlertTriangle className="size-3 text-amber-500" /> Template-based (<button onClick={goToSettings} className="text-amber-600 hover:underline">configure AI</button>)</span>
+   582→                      }
+   583→                    </p>
+   584→                  </div>
+   585→
+   586→                  {/* Subject */}
+   587→                  <div>
+   588→                    <label className="text-xs font-medium text-gray-500 block mb-1.5">Subject Line</label>
+   589→                    <Input
+   590→                      value={generatedSubject}
+   591→                      onChange={e => setGeneratedSubject(e.target.value)}
+   592→                      className="border-gray-200 rounded-lg h-10 text-sm font-semibold text-gray-900 focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
+   593→                      placeholder="Email subject..."
+   594→                    />
+   595→                  </div>
+   596→                </div>
+   597→
+   598→                {/* Body */}
+   599→                <div className="bg-gray-50/60 border border-gray-200/80 rounded-xl p-5 md:p-6">
+   600→                  <label className="text-xs font-medium text-gray-500 block mb-2">Email Body</label>
+   601→                  <pre className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed font-sans">
+   602→                    {generatedBody}
+   603→                  </pre>
+   604→                </div>
+   605→
+   606→                {/* Action Row */}
+   607→                <div className="flex items-center gap-2 flex-wrap">
+   608→                  <Button
+   609→                    variant="outline"
+   610→                    onClick={() => generateMutation.mutate()}
+   611→                    disabled={generateMutation.isPending}
+   612→                    className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg gap-2"
+   613→                  >
+   614→                    <RefreshCw className={cn('size-4', generateMutation.isPending && 'animate-spin')} />
+   615→                    Regenerate
+   616→                  </Button>
+   617→                  <Button
+   618→                    variant="outline"
+   619→                    onClick={handleCopy}
+   620→                    className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg gap-2"
+   621→                  >
+   622→                    <Copy className="size-4" />
+   623→                    Copy Email
+   624→                  </Button>
+   625→                  <Button
+   626→                    disabled={!!lastDraftId}
+   627→                    className={cn(
+   628→                      'rounded-lg gap-2 press-scale',
+   629→                      lastDraftId
+   630→                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50'
+   631→                        : 'bg-amber-600 hover:bg-amber-700 text-white'
+   632→                    )}
+   633→                  >
+   634→                    <Save className="size-4" />
+   635→                    {lastDraftId ? 'Draft Auto-Saved' : 'Save as Draft'}
+   636→                  </Button>
+   637→                  <button
+   638→                    onClick={goToContactProfile}
+   639→                    className="ml-auto flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-800 transition-colors"
+   640→                  >
+   641→                    <ExternalLink className="size-3.5" />
+   642→                    View Contact Profile
+   643→                  </button>
+   644→                </div>
+   645→              </div>
+   646→            )}
+   647→          </div>
+   648→        )}
+   649→      </main>
+   650→    </div>
+   651→  )
+   652→}
+   653→
+   654→// Named export alias for consumers that import by name
+   655→export { EmailGenerationScreen }

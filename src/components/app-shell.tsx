@@ -28,7 +28,19 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useSession, signOut } from 'next-auth/react'
+// Mock useSession — replaces next-auth
+function useSession() {
+  return {
+    data: {
+      user: { id: 'demo-1', name: 'Ravi Shanker', email: 'ravi@deepmindq.com', role: 'admin' },
+    },
+    status: 'authenticated' as const,
+  }
+}
+
+function signOut(options?: { callbackUrl?: string }) {
+  window.location.href = options?.callbackUrl || '/login'
+}
 import { toast } from 'sonner'
 import { useTheme } from 'next-themes'
 import { CommandPalette } from '@/components/shared/command-palette'

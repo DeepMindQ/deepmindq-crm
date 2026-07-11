@@ -1,0 +1,613 @@
+     1→'use client'
+     2→
+     3→import * as React from 'react'
+     4→import { useQuery, useQueryClient } from '@tanstack/react-query'
+     5→import { motion, AnimatePresence } from 'framer-motion'
+     6→import Image from 'next/image'
+     7→import {
+     8→  LayoutDashboard, Building2, Users, Upload, Settings, Search,
+     9→  Bell, HelpCircle, LogOut, ChevronDown, Command, X, CheckCircle2, Sparkles,
+    10→  BookOpen, MailPlus, Target, TrendingUp, ArrowRight, FileCode2,
+    11→  Sun, Moon, CheckSquare, Kanban, Mail, FileText, Shield, BarChart3,
+    12→} from 'lucide-react'
+    13→import {
+    14→  SidebarProvider, Sidebar, SidebarHeader, SidebarContent,
+    15→  SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarMenu,
+    16→  SidebarMenuItem, SidebarMenuButton, SidebarRail, SidebarSeparator,
+    17→  SidebarInset, SidebarTrigger,
+    18→} from '@/components/ui/sidebar'
+    19→import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+    20→import { Input } from '@/components/ui/input'
+    21→import { Separator } from '@/components/ui/separator'
+    22→import {
+    23→  Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
+    24→} from '@/components/ui/breadcrumb'
+    25→import {
+    26→  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+    27→} from '@/components/ui/dropdown-menu'
+    28→import { Badge } from '@/components/ui/badge'
+    29→import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+    30→import { Skeleton } from '@/components/ui/skeleton'
+    31→import { useSession, signOut } from 'next-auth/react'
+    32→import { toast } from 'sonner'
+    33→import { useTheme } from 'next-themes'
+    34→import { CommandPalette } from '@/components/shared/command-palette'
+    35→import { AiChatSidebar } from '@/components/shared/ai-chat-sidebar'
+    36→import { AiChatButton } from '@/components/shared/ai-chat-button'
+    37→import { useAppStore } from '@/lib/store'
+    38→import { cn } from '@/lib/utils'
+    39→import type { ActiveView } from '@/lib/types'
+    40→
+    41→// ── Sidebar Navigation Groups ──
+    42→const MAIN_NAV: { view: ActiveView; label: string; icon: React.ElementType }[] = [
+    43→  { view: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    44→  { view: 'companies', label: 'Companies', icon: Building2 },
+    45→  { view: 'contacts', label: 'Contacts', icon: Users },
+    46→  { view: 'opportunities', label: 'Pipeline', icon: Kanban },
+    47→  { view: 'tasks', label: 'Tasks', icon: CheckSquare },
+    48→]
+    49→
+    50→const AI_NAV: { view: ActiveView; label: string; icon: React.ElementType }[] = [
+    51→  { view: 'email-generation', label: 'AI Emails', icon: MailPlus },
+    52→  { view: 'sequences', label: 'Sequences', icon: Mail },
+    53→  { view: 'knowledge-library', label: 'Knowledge', icon: BookOpen },
+    54→  { view: 'prompt-templates', label: 'Prompts', icon: FileCode2 },
+    55→]
+    56→
+    57→const ANALYTICS_NAV: { view: ActiveView; label: string; icon: React.ElementType }[] = [
+    58→  { view: 'reports', label: 'Analytics', icon: BarChart3 },
+    59→  { view: 'audit-logs', label: 'Audit Log', icon: Shield },
+    60→]
+    61→
+    62→const pageTitles: Record<ActiveView, string> = {
+    63→  dashboard: 'Dashboard', companies: 'Companies',
+    64→  'company-profile': 'Company Profile', contacts: 'Contacts',
+    65→  'contact-profile': 'Contact Profile',
+    66→  tasks: 'Tasks',
+    67→  opportunities: 'Pipeline',
+    68→  'email-generation': 'AI Emails',
+    69→  'knowledge-library': 'Knowledge Library',
+    70→  'prompt-templates': 'Prompt Library',
+    71→  import: 'Import', settings: 'Settings',
+    72→  'audit-logs': 'Audit Logs',
+    73→  sequences: 'Sequences',
+    74→  reports: 'Analytics',
+    75→}
+    76→
+    77→const pageDescriptions: Record<ActiveView, string> = {
+    78→  dashboard: 'Overview of your lead pipeline',
+    79→  companies: 'Target company accounts',
+    80→  'company-profile': 'Detailed company intelligence',
+    81→  contacts: 'Contact database & outreach',
+    82→  'contact-profile': 'Contact details & activity',
+    83→  tasks: 'Manage tasks and to-dos',
+    84→  opportunities: 'Sales pipeline management',
+    85→  'email-generation': 'Generate AI outreach emails',
+    86→  'knowledge-library': 'Capability documents & snippets',
+    87→  'prompt-templates': 'Manage email & research prompt templates',
+    88→  import: 'Bulk data import',
+    89→  settings: 'Configuration & preferences',
+    90→  'audit-logs': 'Activity & audit trail',
+    91→  sequences: 'Email sequence campaigns',
+    92→  reports: 'Comprehensive reports & analytics',
+    93→}
+    94→
+    95→const contentVariants = { initial: { opacity: 0, y: 4 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -4 } }
+    96→const contentTransition = { duration: 0.2, ease: [0.16, 1, 0.3, 1] }
+    97→
+    98→interface NotificationItem {
+    99→  id: string
+   100→  action?: string
+   101→  type?: string
+   102→  title?: string
+   103→  description?: string
+   104→  companyId?: string
+   105→  contactId?: string
+   106→  createdAt?: string
+   107→}
+   108→
+   109→interface PipelineItem { label: string; count: number }
+   110→
+   111→function getInitials(name?: string | null): string {
+   112→  if (!name) return '?'
+   113→  const parts = name.trim().split(/\s+/)
+   114→  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+   115→  return parts[0][0].toUpperCase()
+   116→}
+   117→
+   118→export function AppShell({ children }: { children: React.ReactNode }) {
+   119→  const { data: session, status } = useSession()
+   120→  const userName = session?.user?.name || 'User'
+   121→  const userEmail = session?.user?.email || ''
+   122→  const userInitials = getInitials(userName)
+   123→  const {
+   124→    activeView, selectedCompanyId, selectedContactId, companyStatusFilter,
+   125→    setActiveView, setSelectedCompanyId, setSelectedContactId,
+   126→  } = useAppStore()
+   127→  const queryClient = useQueryClient()
+   128→  const [showNotifications, setShowNotifications] = React.useState(false)
+   129→  const [showHelp, setShowHelp] = React.useState(false)
+   130→  const [aiChatOpen, setAiChatOpen] = React.useState(false)
+   131→  const { theme, setTheme } = useTheme()
+   132→
+   133→  // ── Notifications ──
+   134→  const { data: notifData, isLoading: notifLoading, error: notifError } = useQuery({
+   135→    queryKey: ['recent-notifications'],
+   136→    queryFn: () => fetch('/api/timeline?limit=5').then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to fetch'))),
+   137→    staleTime: 30_000,
+   138→  })
+   139→  const notifications = Array.isArray(notifData) ? notifData.slice(0, 5) : notifData?.entries?.slice(0, 5) || []
+   140→
+   141→  // ── Pipeline indicator data (dashboard stats) ──
+   142→  const { data: dashData, error: dashError } = useQuery({
+   143→    queryKey: ['dashboard-pipeline-brief'],
+   144→    queryFn: () => fetch('/api/dashboard').then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to fetch'))),
+   145→    refetchInterval: 60_000,
+   146→  })
+   147→
+   148→  // ── Fetch company name for dynamic breadcrumb ──
+   149→  const { data: companyBrief, error: companyError } = useQuery({
+   150→    queryKey: ['company-breadcrumb', selectedCompanyId],
+   151→    queryFn: () => fetch(`/api/companies/${selectedCompanyId}`).then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to fetch'))),
+   152→    enabled: activeView === 'company-profile' && !!selectedCompanyId,
+   153→    staleTime: 30_000,
+   154→  })
+   155→
+   156→  // ── Fetch contact name for dynamic breadcrumb ──
+   157→  const { data: contactBrief, error: contactError } = useQuery({
+   158→    queryKey: ['contact-breadcrumb', selectedContactId],
+   159→    queryFn: () => fetch(`/api/contacts/${selectedContactId}`).then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to fetch'))),
+   160→    enabled: activeView === 'contact-profile' && !!selectedContactId,
+   161→    staleTime: 30_000,
+   162→  })
+   163→
+   164→  // ── Dynamic breadcrumbs with entity names ──
+   165→  const breadcrumbItems = React.useMemo(() => {
+   166→    if (activeView === 'company-profile') {
+   167→      const companyName = companyBrief?.name || 'Company'
+   168→      return [
+   169→        {
+   170→          label: 'Companies',
+   171→          view: 'companies' as ActiveView,
+   172→          hint: companyStatusFilter && companyStatusFilter !== 'all' ? `filtered: ${companyStatusFilter}` : undefined,
+   173→        },
+   174→        { label: companyName, isPage: true },
+   175→      ]
+   176→    }
+   177→    if (activeView === 'contact-profile') {
+   178→      const contactName = contactBrief?.name || 'Contact'
+   179→      return [
+   180→        {
+   181→          label: 'Contacts',
+   182→          view: 'contacts' as ActiveView,
+   183→        },
+   184→        { label: contactName, isPage: true },
+   185→      ]
+   186→    }
+   187→    return [{ label: pageTitles[activeView], isPage: true }]
+   188→  }, [activeView, companyBrief?.name, contactBrief?.name, companyStatusFilter])
+   189→
+   190→  // ── Pipeline summary for header indicator ──
+   191→  const pipelineCount = React.useMemo(() => {
+   192→    if (!dashData?.pipeline) return null
+   193→    const active = dashData.pipeline.filter((p: PipelineItem) =>
+   194→      !['won', 'lost'].includes(p.label.toLowerCase())
+   195→    )
+   196→    return active.reduce((sum: number, p: PipelineItem) => sum + p.count, 0)
+   197→  }, [dashData])
+   198→
+   199→  const isNavActive = (view: ActiveView): boolean => {
+   200→    if (view === 'companies' && activeView === 'company-profile') return true
+   201→    if (view === 'contacts' && activeView === 'contact-profile') return true
+   202→    return activeView === view
+   203→  }
+   204→
+   205→  return (
+   206→    <SidebarProvider>
+   207→      {/* ── Sidebar ── */}
+   208→      <Sidebar collapsible="icon" className="border-r border-gray-200/80 bg-white">
+   209→        <SidebarHeader className="px-4 py-5">
+   210→          <div className="flex items-center gap-2.5 overflow-hidden">
+   211→            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 ring-1 ring-amber-200/60">
+   212→              <Image src="/logo.png" alt="DeepMindQ" width={20} height={20} className="rounded-sm" />
+   213→            </div>
+   214→            <span className="truncate text-[15px] font-semibold tracking-tight text-gray-900">
+   215→              Deep<span className="text-amber-600">MindQ</span>
+   216→            </span>
+   217→          </div>
+   218→        </SidebarHeader>
+   219→
+   220→        <SidebarContent className="px-3 gap-0">
+   221→          {/* ── Main ── */}
+   222→          <SidebarGroup>
+   223→            <SidebarGroupContent>
+   224→              <SidebarMenu>
+   225→                {MAIN_NAV.map((item) => (
+   226→                  <SidebarMenuItem key={item.view}>
+   227→                    <SidebarMenuButton
+   228→                      isActive={isNavActive(item.view)}
+   229→                      onClick={() => setActiveView(item.view)}
+   230→                      tooltip={{ children: item.label, side: 'right' as const, align: 'center' as const, className: 'font-medium text-xs bg-white text-gray-700 border border-gray-200 shadow-sm' }}
+   231→                      className={cn(
+   232→                        'rounded-lg transition-all duration-150',
+   233→                        'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+   234→                        'data-[active=true]:bg-amber-50 data-[active=true]:text-amber-700',
+   235→                        'data-[active=true]:font-medium',
+   236→                      )}
+   237→                    >
+   238→                      <item.icon className="size-4 shrink-0" />
+   239→                      <span className="truncate">{item.label}</span>
+   240→                    </SidebarMenuButton>
+   241→                  </SidebarMenuItem>
+   242→                ))}
+   243→              </SidebarMenu>
+   244→            </SidebarGroupContent>
+   245→          </SidebarGroup>
+   246→
+   247→          {/* ── AI & Content ── */}
+   248→          <div className="px-3 pt-4 pb-1">
+   249→            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 group-data-[collapsible=icon]:hidden">AI & Content</p>
+   250→          </div>
+   251→          <SidebarGroup>
+   252→            <SidebarGroupContent>
+   253→              <SidebarMenu>
+   254→                {AI_NAV.map((item) => (
+   255→                  <SidebarMenuItem key={item.view}>
+   256→                    <SidebarMenuButton
+   257→                      isActive={isNavActive(item.view)}
+   258→                      onClick={() => setActiveView(item.view)}
+   259→                      tooltip={{ children: item.label, side: 'right' as const, align: 'center' as const, className: 'font-medium text-xs bg-white text-gray-700 border border-gray-200 shadow-sm' }}
+   260→                      className={cn(
+   261→                        'rounded-lg transition-all duration-150',
+   262→                        'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+   263→                        'data-[active=true]:bg-amber-50 data-[active=true]:text-amber-700',
+   264→                        'data-[active=true]:font-medium',
+   265→                      )}
+   266→                    >
+   267→                      <item.icon className="size-4 shrink-0" />
+   268→                      <span className="truncate">{item.label}</span>
+   269→                    </SidebarMenuButton>
+   270→                  </SidebarMenuItem>
+   271→                ))}
+   272→              </SidebarMenu>
+   273→            </SidebarGroupContent>
+   274→          </SidebarGroup>
+   275→
+   276→          {/* ── Insights ── */}
+   277→          <div className="px-3 pt-4 pb-1">
+   278→            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 group-data-[collapsible=icon]:hidden">Insights</p>
+   279→          </div>
+   280→          <SidebarGroup>
+   281→            <SidebarGroupContent>
+   282→              <SidebarMenu>
+   283→                {ANALYTICS_NAV.map((item) => (
+   284→                  <SidebarMenuItem key={item.view}>
+   285→                    <SidebarMenuButton
+   286→                      isActive={isNavActive(item.view)}
+   287→                      onClick={() => setActiveView(item.view)}
+   288→                      tooltip={{ children: item.label, side: 'right' as const, align: 'center' as const, className: 'font-medium text-xs bg-white text-gray-700 border border-gray-200 shadow-sm' }}
+   289→                      className={cn(
+   290→                        'rounded-lg transition-all duration-150',
+   291→                        'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+   292→                        'data-[active=true]:bg-amber-50 data-[active=true]:text-amber-700',
+   293→                        'data-[active=true]:font-medium',
+   294→                      )}
+   295→                    >
+   296→                      <item.icon className="size-4 shrink-0" />
+   297→                      <span className="truncate">{item.label}</span>
+   298→                    </SidebarMenuButton>
+   299→                  </SidebarMenuItem>
+   300→                ))}
+   301→              </SidebarMenu>
+   302→            </SidebarGroupContent>
+   303→          </SidebarGroup>
+   304→
+   305→          {/* ── System (bottom-pinned) ── */}
+   306→          <div className="px-3 pt-4 pb-1">
+   307→            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 group-data-[collapsible=icon]:hidden">System</p>
+   308→          </div>
+   309→          <SidebarGroup>
+   310→            <SidebarGroupContent>
+   311→              <SidebarMenu>
+   312→                {[
+   313→                  { view: 'import' as ActiveView, label: 'Import', icon: Upload },
+   314→                  { view: 'settings' as ActiveView, label: 'Settings', icon: Settings },
+   315→                ].map((item) => (
+   316→                  <SidebarMenuItem key={item.view}>
+   317→                    <SidebarMenuButton
+   318→                      isActive={isNavActive(item.view)}
+   319→                      onClick={() => setActiveView(item.view)}
+   320→                      tooltip={{ children: item.label, side: 'right' as const, align: 'center' as const, className: 'font-medium text-xs bg-white text-gray-700 border border-gray-200 shadow-sm' }}
+   321→                      className={cn(
+   322→                        'rounded-lg transition-all duration-150',
+   323→                        'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+   324→                        'data-[active=true]:bg-amber-50 data-[active=true]:text-amber-700',
+   325→                        'data-[active=true]:font-medium',
+   326→                      )}
+   327→                    >
+   328→                      <item.icon className="size-4 shrink-0" />
+   329→                      <span className="truncate">{item.label}</span>
+   330→                    </SidebarMenuButton>
+   331→                  </SidebarMenuItem>
+   332→                ))}
+   333→              </SidebarMenu>
+   334→            </SidebarGroupContent>
+   335→          </SidebarGroup>
+   336→        </SidebarContent>
+   337→
+   338→        <SidebarFooter className="mt-auto">
+   339→          <SidebarSeparator className="bg-gray-200/80" />
+   340→          <div className="flex items-center gap-2 px-3 py-2">
+   341→            <Avatar className="size-8 shrink-0">
+   342→              <AvatarFallback className="bg-amber-100 text-xs font-semibold text-amber-700">{userInitials}</AvatarFallback>
+   343→            </Avatar>
+   344→            <div className="min-w-0 flex-1">
+   345→              <p className="truncate text-sm font-medium leading-none text-gray-900">{userName}</p>
+   346→              <p className="mt-1 truncate text-[11px] text-gray-500">{userEmail}</p>
+   347→            </div>
+   348→          </div>
+   349→        </SidebarFooter>
+   350→        <SidebarRail />
+   351→      </Sidebar>
+   352→
+   353→      {/* ── Main ── */}
+   354→      <SidebarInset className="relative bg-gray-50/80">
+   355→        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-gray-200/80 bg-white/80 px-4 backdrop-blur-xl">
+   356→          <SidebarTrigger className="-ml-1.5 text-gray-400 hover:text-gray-900 transition-colors" />
+   357→          <Separator orientation="vertical" className="mx-1 h-4 bg-gray-200/80" />
+   358→
+   359→          {/* Breadcrumbs — dynamic with entity names */}
+   360→          <Breadcrumb className="hidden sm:flex">
+   361→            <BreadcrumbList>
+   362→              {breadcrumbItems.map((item, i) => (
+   363→                <React.Fragment key={`${item.label}-${i}`}>
+   364→                  {i > 0 && <BreadcrumbSeparator />}
+   365→                  <BreadcrumbItem>
+   366→                    {item.isPage ? (
+   367→                      <BreadcrumbPage className="text-sm font-medium text-gray-900 max-w-[200px] truncate">{item.label}</BreadcrumbPage>
+   368→                    ) : (
+   369→                      <div className="flex items-center gap-1.5">
+   370→                        <BreadcrumbLink
+   371→                          href="#"
+   372→                          onClick={(e) => {
+   373→                            e.preventDefault()
+   374→                            if ('view' in item && item.view) {
+   375→                              // Navigation context preservation: if going to companies,
+   376→                              // keep the current filter context
+   377→                              setActiveView(item.view)
+   378→                            }
+   379→                          }}
+   380→                          className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+   381→                        >
+   382→                          {item.label}
+   383→                        </BreadcrumbLink>
+   384→                        {/* Filter context indicator */}
+   385→                        {'hint' in item && item.hint && (
+   386→                          <Badge
+   387→                            variant="outline"
+   388→                            className="hidden lg:inline-flex h-4 text-[9px] font-medium px-1.5 border-gray-200 text-gray-400 bg-gray-50 rounded-full normal-case tracking-normal"
+   389→                          >
+   390→                            {item.hint}
+   391→                          </Badge>
+   392→                        )}
+   393→                      </div>
+   394→                    )}
+   395→                  </BreadcrumbItem>
+   396→                </React.Fragment>
+   397→              ))}
+   398→            </BreadcrumbList>
+   399→          </Breadcrumb>
+   400→
+   401→
+   402→          <div className="flex-1"></div>
+   403→
+   404→          {/* ── Pipeline Indicator ── */}
+   405→          {pipelineCount !== null && pipelineCount > 0 && (
+   406→            <button
+   407→              onClick={() => setActiveView('dashboard')}
+   408→              className="hidden lg:flex items-center gap-2 h-8 rounded-lg border border-amber-200/60 bg-amber-50/60 px-3 text-xs text-amber-700 hover:bg-amber-50 transition-colors cursor-pointer group"
+   409→              title={`${pipelineCount} active companies in pipeline`}
+   410→            >
+   411→              <Target className="size-3.5 text-amber-500" />
+   412→              <span className="font-medium tabular-nums">{pipelineCount}</span>
+   413→              <span className="text-amber-500 hidden xl:inline">in pipeline</span>
+   414→            </button>
+   415→          )}
+   416→
+   417→          {/* Cmd+K Search */}
+   418→          <button
+   419→            onClick={() => {
+   420→              const isMac = navigator.platform?.toUpperCase().includes('MAC')
+   421→              document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: isMac, ctrlKey: !isMac }))
+   422→            }}
+   423→            className="hidden md:flex items-center gap-2 h-8 w-56 rounded-lg border border-gray-200 bg-gray-50/80 px-3 text-sm text-gray-400 hover:bg-gray-100 hover:border-gray-300 transition-all duration-150 cursor-pointer group"
+   424→          >
+   425→            <Search className="size-3.5 text-gray-400" />
+   426→            <span className="flex-1 text-left">Search...</span>
+   427→            <kbd className="flex items-center gap-0.5 rounded border border-gray-200 bg-white px-1 py-0.5 text-[10px] font-medium text-gray-400 group-hover:border-gray-300 transition-colors">
+   428→              <Command className="size-2.5" />K
+   429→            </kbd>
+   430→          </button>
+   431→
+   432→          {/* Notification bell */}
+   433→          <button onClick={() => setShowNotifications((prev) => !prev)} className="relative p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors press-scale">
+   434→            <Bell className="size-4" />
+   435→            {notifications.length > 0 && (
+   436→              <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-white" />
+   437→            )}
+   438→          </button>
+   439→
+   440→          {/* Theme Toggle */}
+   441→          <button
+   442→            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+   443→            className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors press-scale"
+   444→            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+   445→          >
+   446→            {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+   447→          </button>
+   448→
+   449→          {/* Help */}
+   450→          <button onClick={() => setShowHelp(true)} className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors press-scale">
+   451→            <HelpCircle className="size-4" />
+   452→          </button>
+   453→
+   454→          {/* User dropdown */}
+   455→          <DropdownMenu>
+   456→            <DropdownMenuTrigger asChild>
+   457→              <button className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-lg hover:bg-gray-100 transition-colors">
+   458→                <Avatar className="size-7">
+   459→                  <AvatarFallback className="bg-amber-100 text-[10px] font-semibold text-amber-700">{userInitials}</AvatarFallback>
+   460→                </Avatar>
+   461→                <ChevronDown className="size-3 text-gray-400" />
+   462→              </button>
+   463→            </DropdownMenuTrigger>
+   464→            <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5 elevation-float">
+   465→              <div className="px-2 py-1.5 mb-1">
+   466→                <p className="text-sm font-semibold text-gray-900">{userName}</p>
+   467→                <p className="text-xs text-gray-500">{userEmail}</p>
+   468→              </div>
+   469→              <DropdownMenuSeparator />
+   470→              <DropdownMenuItem className="rounded-lg text-sm text-gray-700 cursor-pointer" onClick={() => setShowHelp(true)}>
+   471→                <HelpCircle className="size-4 mr-2 text-gray-400" /> Help & Documentation
+   472→              </DropdownMenuItem>
+   473→              <DropdownMenuItem className="rounded-lg text-sm text-red-600 cursor-pointer" onClick={() => signOut({ callbackUrl: '/login' })}>
+   474→                <LogOut className="size-4 mr-2" /> Sign Out
+   475→              </DropdownMenuItem>
+   476→            </DropdownMenuContent>
+   477→          </DropdownMenu>
+   478→        </header>
+   479→
+   480→        {/* Content */}
+   481→        <div className="flex-1 overflow-auto p-6">
+   482→          <AnimatePresence mode="wait" initial={false}>
+   483→            <motion.div
+   484→              key={activeView}
+   485→              variants={contentVariants}
+   486→              initial="initial"
+   487→              animate="animate"
+   488→              exit="exit"
+   489→              transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+   490→              className="mx-auto h-full max-w-7xl"
+   491→            >
+   492→              {children}
+   493→            </motion.div>
+   494→          </AnimatePresence>
+   495→        </div>
+   496→
+   497→        {/* Notification Panel */}
+   498→        <AnimatePresence>
+   499→          {showNotifications && (
+   500→            <motion.div
+   501→              initial={{ opacity: 0, x: 20 }}
+   502→              animate={{ opacity: 1, x: 0 }}
+   503→              exit={{ opacity: 0, x: 20 }}
+   504→              transition={{ duration: 0.2 }}
+   505→              className="absolute right-0 top-14 bottom-0 w-80 bg-white border-l border-gray-200/80 shadow-modal z-40 overflow-hidden"
+   506→            >
+   507→              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+   508→                <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+   509→                <button onClick={() => setShowNotifications(false)} className="p-1 rounded-md hover:bg-gray-100 transition-colors">
+   510→                  <X className="size-4 text-gray-400" />
+   511→                </button>
+   512→              </div>
+   513→              <div className="p-3 space-y-1 max-h-[calc(100%-3.5rem)] overflow-y-auto">
+   514→                {notifError
+   515→                  ? <p className="text-sm text-red-400 text-center py-8">Failed to load notifications</p>
+   516→                  : notifLoading
+   517→                    ? Array.from({ length: 3 }).map((_, i) => (
+   518→                        <div key={i} className="flex items-center gap-3 p-3 rounded-lg">
+   519→                          <Skeleton className="size-8 rounded-lg shrink-0" />
+   520→                          <div className="flex-1 space-y-1.5">
+   521→                            <Skeleton className="h-3.5 w-3/4 rounded" />
+   522→                            <Skeleton className="h-3 w-full rounded" />
+   523→                          </div>
+   524→                        </div>
+   525→                      ))
+   526→                    : notifications.length === 0
+   527→                      ? <p className="text-sm text-gray-400 text-center py-8">No recent activity</p>
+   528→                      : notifications.map((n: NotificationItem) => {
+   529→                          const iconMap: Record<string, { bg: string; icon: React.ElementType; color: string }> = {
+   530→                            import: { bg: 'bg-emerald-50', icon: CheckCircle2, color: 'text-emerald-600' },
+   531→                            email: { bg: 'bg-blue-50', icon: MailPlus, color: 'text-blue-600' },
+   532→                            research: { bg: 'bg-amber-50', icon: Sparkles, color: 'text-amber-600' },
+   533→                          }
+   534→                          const type = (n.type || n.action || '').toLowerCase().includes('import') ? 'import'
+   535→                            : (n.type || n.action || '').toLowerCase().includes('email') ? 'email'
+   536→                            : (n.type || n.action || '').toLowerCase().includes('research') ? 'research'
+   537→                            : 'import'
+   538→                          const cfg = iconMap[type] || iconMap.import
+   539→                          const IconComp = cfg.icon
+   540→                          const timeAgo = n.createdAt ? new Date(n.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
+   541→                          return (
+   542→                            <div
+   543→                              key={n.id}
+   544→                              className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+   545→                              onClick={() => {
+   546→                                setShowNotifications(false)
+   547→                                if (n.companyId) {
+   548→                                  setSelectedCompanyId(n.companyId)
+   549→                                } else if (n.contactId) {
+   550→                                  setSelectedContactId(n.contactId)
+   551→                                }
+   552→                              }}
+   553→                            >
+   554→                              <div className={`size-8 rounded-lg ${cfg.bg} flex items-center justify-center shrink-0`}><IconComp className={`size-4 ${cfg.color}`} /></div>
+   555→                              <div className="flex-1 min-w-0">
+   556→                                <p className="text-sm font-medium text-gray-900 truncate">{n.title || n.description || n.action || 'Activity'}</p>
+   557→                                {n.description && <p className="text-[11px] text-gray-500 truncate">{n.description}</p>}
+   558→                              </div>
+   559→                              {timeAgo && <span className="text-[10px] text-gray-400 shrink-0">{timeAgo}</span>}
+   560→                            </div>
+   561→                          )
+   562→                        })
+   563→                }
+   564→              </div>
+   565→              {/* View All Activity Link */}
+   566→              <div className="border-t border-gray-100 px-3 pt-2 pb-3">
+   567→                <button
+   568→                  onClick={() => { setShowNotifications(false); setActiveView('dashboard') }}
+   569→                  className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-amber-600 hover:text-amber-700 transition-colors py-1.5 rounded-lg hover:bg-amber-50"
+   570→                >
+   571→                  View All Activity
+   572→                  <ArrowRight className="size-3" />
+   573→                </button>
+   574→              </div>
+   575→            </motion.div>
+   576→          )}
+   577→        </AnimatePresence>
+   578→      </SidebarInset>
+   579→
+   580→      <CommandPalette />
+   581→
+   582→      {/* AI Chat Sidebar + FAB */}
+   583→      <AiChatSidebar isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} />
+   584→      <AiChatButton isOpen={aiChatOpen} onToggle={() => setAiChatOpen(prev => !prev)} />
+   585→
+   586→      {/* Help Dialog */}
+   587→      <Dialog open={showHelp} onOpenChange={setShowHelp}>
+   588→        <DialogContent className="sm:max-w-md rounded-xl p-6">
+   589→          <DialogHeader><DialogTitle className="text-gray-900">Help & Documentation</DialogTitle></DialogHeader>
+   590→          <div className="space-y-4 py-2 text-sm text-gray-700">
+   591→            <div>
+   592→              <h4 className="font-semibold text-gray-900 mb-2">Keyboard Shortcuts:</h4>
+   593→              <ul className="space-y-1.5 text-gray-600">
+   594→                <li className="flex items-center gap-2"><kbd className="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[11px] font-medium text-gray-500">Cmd/Ctrl + K</kbd> Open command palette</li>
+   595→                <li className="flex items-center gap-2"><kbd className="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[11px] font-medium text-gray-500">Cmd/Ctrl + B</kbd> Toggle sidebar</li>
+   596→              </ul>
+   597→            </div>
+   598→            <div>
+   599→              <h4 className="font-semibold text-gray-900 mb-2">Getting Started:</h4>
+   600→              <ol className="list-decimal list-inside space-y-1.5 text-gray-600">
+   601→                <li>Import companies via CSV or add manually</li>
+   602→                <li>Generate AI research cards for companies</li>
+   603→                <li>Validate email addresses</li>
+   604→                <li>Generate personalized outreach emails</li>
+   605→                <li>Track opportunities through the pipeline</li>
+   606→              </ol>
+   607→            </div>
+   608→          </div>
+   609→        </DialogContent>
+   610→      </Dialog>
+   611→    </SidebarProvider>
+   612→  )
+   613→}

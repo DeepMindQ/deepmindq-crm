@@ -4,7 +4,6 @@ import { useState, useMemo } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signIn } from "next-auth/react"
 import { Eye, EyeOff, ArrowLeft, Loader2, Check } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -68,20 +67,9 @@ export default function SignupPage() {
         return
       }
 
-      // Auto sign in after successful registration
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      })
-
-      if (result?.error) {
-        // Registration succeeded but auto-login failed — redirect to login
-        router.push("/login")
-      } else {
-        router.push("/")
-        router.refresh()
-      }
+      // Mock sign-in: redirect to dashboard after successful registration
+      router.push("/")
+      router.refresh()
     } catch {
       setError("An unexpected error occurred. Please try again.")
     } finally {

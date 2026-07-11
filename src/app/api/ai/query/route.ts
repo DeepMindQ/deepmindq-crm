@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-import { Prisma } from '@prisma/client'
+// Prisma types removed — db proxy handles queries
 
 // ---------------------------------------------------------------------------
 // LLM provider helpers
@@ -89,7 +89,7 @@ function extractJson(raw: string): unknown {
 // Safe Prisma query builder
 // ---------------------------------------------------------------------------
 
-const ALLOWED_COMPANY_FILTERS: Record<string, (v: string) => Prisma.CompanyWhereInput> = {
+const ALLOWED_COMPANY_FILTERS: Record<string, (v: string) => any> = {
   name: (v) => ({ name: { contains: v, mode: 'insensitive' } }),
   domain: (v) => ({ domain: { contains: v, mode: 'insensitive' } }),
   industry: (v) => ({ industry: { contains: v, mode: 'insensitive' } }),
@@ -98,7 +98,7 @@ const ALLOWED_COMPANY_FILTERS: Record<string, (v: string) => Prisma.CompanyWhere
   country: (v) => ({ country: { contains: v, mode: 'insensitive' } }),
 }
 
-const ALLOWED_CONTACT_FILTERS: Record<string, (v: string) => Prisma.ContactWhereInput> = {
+const ALLOWED_CONTACT_FILTERS: Record<string, (v: string) => any> = {
   name: (v) => ({ name: { contains: v, mode: 'insensitive' } }),
   email: (v) => ({ email: { contains: v, mode: 'insensitive' } }),
   jobTitle: (v) => ({ jobTitle: { contains: v, mode: 'insensitive' } }),
@@ -107,12 +107,12 @@ const ALLOWED_CONTACT_FILTERS: Record<string, (v: string) => Prisma.ContactWhere
   emailHealth: (v) => ({ emailHealth: v }),
 }
 
-const ALLOWED_OPPORTUNITY_FILTERS: Record<string, (v: string) => Prisma.OpportunityWhereInput> = {
+const ALLOWED_OPPORTUNITY_FILTERS: Record<string, (v: string) => any> = {
   title: (v) => ({ title: { contains: v, mode: 'insensitive' } }),
   status: (v) => ({ status: v }),
 }
 
-const ALLOWED_COMPANY_SORT: Record<string, Prisma.CompanyOrderByWithRelationInput> = {
+const ALLOWED_COMPANY_SORT: Record<string, any> = {
   name: { name: 'asc' },
   domain: { domain: 'asc' },
   industry: { industry: 'asc' },
@@ -123,7 +123,7 @@ const ALLOWED_COMPANY_SORT: Record<string, Prisma.CompanyOrderByWithRelationInpu
   createdAt: { createdAt: 'desc' },
 }
 
-const ALLOWED_CONTACT_SORT: Record<string, Prisma.ContactOrderByWithRelationInput> = {
+const ALLOWED_CONTACT_SORT: Record<string, any> = {
   name: { name: 'asc' },
   email: { email: 'asc' },
   jobTitle: { jobTitle: 'asc' },
@@ -133,7 +133,7 @@ const ALLOWED_CONTACT_SORT: Record<string, Prisma.ContactOrderByWithRelationInpu
   createdAt: { createdAt: 'desc' },
 }
 
-const ALLOWED_OPPORTUNITY_SORT: Record<string, Prisma.OpportunityOrderByWithRelationInput> = {
+const ALLOWED_OPPORTUNITY_SORT: Record<string, any> = {
   title: { title: 'asc' },
   status: { status: 'asc' },
   createdAt: { createdAt: 'desc' },

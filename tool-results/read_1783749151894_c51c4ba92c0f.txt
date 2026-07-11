@@ -1,0 +1,921 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useMemo } from 'react'
+     4→     4→import { useQuery } from '@tanstack/react-query'
+     5→     5→import {
+     6→     6→  BarChart3, Loader2, TrendingUp, DollarSign, Target, Percent, ShieldCheck,
+     7→     7→  ArrowUpDown, ChevronDown, AlertTriangle, Lightbulb, Trophy, Users, Mail,
+     8→     8→  Building2, Activity, CalendarDays, ArrowRight,
+     9→     9→} from 'lucide-react'
+    10→    10→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+    11→    11→import { Button } from '@/components/ui/button'
+    12→    12→import { Skeleton } from '@/components/ui/skeleton'
+    13→    13→import { Badge } from '@/components/ui/badge'
+    14→    14→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+    15→    15→import { Progress } from '@/components/ui/progress'
+    16→    16→import {
+    17→    17→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    18→    18→} from '@/components/ui/table'
+    19→    19→import {
+    20→    20→  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+    21→    21→  PieChart, Pie, Cell, AreaChart, Area, LineChart, Line, CartesianGrid,
+    22→    22→} from 'recharts'
+    23→    23→import {
+    24→    24→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    25→    25→} from '@/components/ui/select'
+    26→    26→import {
+    27→    27→  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+    28→    28→} from '@/components/ui/dropdown-menu'
+    29→    29→import { cn } from '@/lib/utils'
+    30→    30→import { formatDistanceToNow } from 'date-fns'
+    31→    31→
+    32→    32→/* ═══════════════════════════════════════════════════════════════════════
+    33→    33→   Types (local to this screen — maps to API response shapes)
+    34→    34→   ═══════════════════════════════════════════════════════════════════════ */
+    35→    35→
+    36→    36→interface PipelineStageData {
+    37→    37→  stage: string
+    38→    38→  count: number
+    39→    39→  value: number
+    40→    40→  avgDaysInStage: number
+    41→    41→  conversionRate: number
+    42→    42→}
+    43→    43→
+    44→    44→interface PipelineData {
+    45→    45→  stages: PipelineStageData[]
+    46→    46→  totalPipelineValue: number
+    47→    47→  weightedPipelineValue: number
+    48→    48→  stageVelocity: number
+    49→    49→  winRate: number
+    50→    50→  avgDealSize: number
+    51→    51→  dealCountByMonth: Array<{ month: string; count: number }>
+    52→    52→}
+    53→    53→
+    54→    54→interface ForecastMonth {
+    55→    55→  month: string
+    56→    56→  projected: number
+    57→    57→  conservative: number
+    58→    58→  optimistic: number
+    59→    59→}
+    60→    60→
+    61→    61→interface RevenueData {
+    62→    62→  currentMonth: { revenue: number; deals: number }
+    63→    63→  forecast: ForecastMonth[]
+    64→    64→  pipelineByStage: Array<{ stage: string; value: number }>
+    65→    65→  topDeals: Array<{ title: string; company: string; value: number; probability: number; stage: string }>
+    66→    66→}
+    67→    67→
+    68→    68→interface ActivityData {
+    69→    69→  totalActivities: number
+    70→    70→  byType: Array<{ action: string; count: number }>
+    71→    71→  byDay: Array<{ date: string; count: number }>
+    72→    72→  emailsGenerated: number
+    73→    73→  emailsSent: number
+    74→    74→  researchGenerated: number
+    75→    75→  healthChecksRun: number
+    76→    76→  notesCreated: number
+    77→    77→  activityHeatmap: Array<{ hour: number; day: number; count: number }>
+    78→    78→  topUsers: Array<{ name: string; activities: number }>
+    79→    79→}
+    80→    80→
+    81→    81→interface TeamUser {
+    82→    82→  userId: string
+    83→    83→  name: string
+    84→    84→  companiesOwned: number
+    85→    85→  contactsCreated: number
+    86→    86→  emailsGenerated: number
+    87→    87→  emailsSent: number
+    88→    88→  dealsWon: number
+    89→    89→  dealsLost: number
+    90→    90→  winRate: number
+    91→    91→  revenue: number
+    92→    92→  activities: number
+    93→    93→  lastActive: string
+    94→    94→}
+    95→    95→
+    96→    96→interface TeamData {
+    97→    97→  users: TeamUser[]
+    98→    98→  leaderboard: 'companies' | 'emails' | 'deals'
+    99→    99→}
+   100→   100→
+   101→   101→interface DQEntity {
+   102→   102→  total: number
+   103→   103→  completenessByField: Record<string, number>
+   104→   104→}
+   105→   105→
+   106→   106→interface DQCompanies extends DQEntity {
+   107→   107→  withDomain: number
+   108→   108→  withWebsite: number
+   109→   109→  withIndustry: number
+   110→   110→  withEmployeeSize: number
+   111→   111→  withCountry: number
+   112→   112→  withLocation: number
+   113→   113→  withResearchCard: number
+   114→   114→}
+   115→   115→
+   116→   116→interface DQContacts extends DQEntity {
+   117→   117→  withEmail: number
+   118→   118→  withJobTitle: number
+   119→   119→  withPhone: number
+   120→   120→  withLocation: number
+   121→   121→  withLinkedin: number
+   122→   122→  emailHealthBreakdown: { valid: number; risky: number; invalid: number; unknown: number }
+   123→   123→}
+   124→   124→
+   125→   125→interface DataQualityData {
+   126→   126→  overall: { score: number; total: number; complete: number; partial: number; empty: number }
+   127→   127→  companies: DQCompanies
+   128→   128→  contacts: DQContacts
+   129→   129→  recommendations: string[]
+   130→   130→}
+   131→   131→
+   132→   132→/* ═══════════════════════════════════════════════════════════════════════
+   133→   133→   Constants
+   134→   134→   ═══════════════════════════════════════════════════════════════════════ */
+   135→   135→
+   136→   136→const CHART_COLORS = ['#d97706', '#2563eb', '#059669', '#7c3aed', '#dc2626', '#6b7280']
+   137→   137→const PIPELINE_COLORS: Record<string, string> = {
+   138→   138→  Researching: '#d97706',
+   139→   139→  Qualified: '#7c3aed',
+   140→   140→  Proposal: '#2563eb',
+   141→   141→  Negotiation: '#059669',
+   142→   142→  Won: '#059669',
+   143→   143→  Lost: '#dc2626',
+   144→   144→}
+   145→   145→const EMAIL_HEALTH_COLORS: Record<string, string> = {
+   146→   146→  valid: '#059669',
+   147→   147→  risky: '#d97706',
+   148→   148→  invalid: '#dc2626',
+   149→   149→  unknown: '#6b7280',
+   150→   150→}
+   151→   151→const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+   152→   152→
+   153→   153→const DATE_PRESETS = [
+   154→   154→  { label: 'Last 7 days', value: '7d' },
+   155→   155→  { label: 'Last 30 days', value: '30d' },
+   156→   156→  { label: 'Last 90 days', value: '90d' },
+   157→   157→  { label: 'This Quarter', value: 'quarter' },
+   158→   158→  { label: 'This Year', value: 'year' },
+   159→   159→] as const
+   160→   160→
+   161→   161→type SortDir = 'asc' | 'desc'
+   162→   162→type SortKey = 'count' | 'value' | 'avgDaysInStage' | 'conversionRate'
+   163→   163→
+   164→   164→/* ═══════════════════════════════════════════════════════════════════════
+   165→   165→   Helpers
+   166→   166→   ═══════════════════════════════════════════════════════════════════════ */
+   167→   167→
+   168→   168→function getDateRange(preset: string) {
+   169→   169→  const now = new Date()
+   170→   170→  const from = new Date()
+   171→   171→  const to = new Date()
+   172→   172→  to.setDate(to.getDate() + 1)
+   173→   173→
+   174→   174→  switch (preset) {
+   175→   175→    case '7d': from.setDate(from.getDate() - 7); break
+   176→   176→    case '30d': from.setDate(from.getDate() - 30); break
+   177→   177→    case '90d': from.setDate(from.getDate() - 90); break
+   178→   178→    case 'quarter': {
+   179→   179→      const q = Math.floor(now.getMonth() / 3)
+   180→   180→      from.setMonth(q * 3, 1)
+   181→   181→      break
+   182→   182→    }
+   183→   183→    case 'year': from.setMonth(0, 1); break
+   184→   184→  }
+   185→   185→  return {
+   186→   186→    from: from.toISOString().split('T')[0],
+   187→   187→    to: to.toISOString().split('T')[0],
+   188→   188→  }
+   189→   189→}
+   190→   190→
+   191→   191→function formatNumber(n: number): string {
+   192→   192→  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+   193→   193→  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+   194→   194→  return String(Math.round(n * 100) / 100)
+   195→   195→}
+   196→   196→
+   197→   197→/* ═══════════════════════════════════════════════════════════════════════
+   198→   198→   Skeleton Loader
+   199→   199→   ═══════════════════════════════════════════════════════════════════════ */
+   200→   200→
+   201→   201→function ReportsSkeleton() {
+   202→   202→  return (
+   203→   203→    <div className="space-y-6 p-6">
+   204→   204→      <div className="flex items-center justify-between">
+   205→   205→        <Skeleton className="h-8 w-48" />
+   206→   206→        <Skeleton className="h-9 w-40" />
+   207→   207→      </div>
+   208→   208→      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+   209→   209→        {Array.from({ length: 5 }).map((_, i) => (
+   210→   210→          <Skeleton key={i} className="h-28 rounded-xl" />
+   211→   211→        ))}
+   212→   212→      </div>
+   213→   213→      <div className="grid md:grid-cols-2 gap-6">
+   214→   214→        {Array.from({ length: 4 }).map((_, i) => (
+   215→   215→          <Skeleton key={i} className="h-80 rounded-xl" />
+   216→   216→        ))}
+   217→   217→      </div>
+   218→   218→      <Skeleton className="h-96 rounded-xl" />
+   219→   219→    </div>
+   220→   220→  )
+   221→   221→}
+   222→   222→
+   223→   223→/* ═══════════════════════════════════════════════════════════════════════
+   224→   224→   Custom Tooltips
+   225→   225→   ═══════════════════════════════════════════════════════════════════════ */
+   226→   226→
+   227→   227→function SimpleTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; name: string; color?: string }>; label?: string }) {
+   228→   228→  if (!active || !payload?.length) return null
+   229→   229→  return (
+   230→   230→    <div className="bg-white rounded-lg shadow-lg border border-gray-100 px-3 py-2 text-sm">
+   231→   231→      {label && <p className="font-medium text-gray-700 mb-1">{label}</p>}
+   232→   232→      {payload.map((p, i) => (
+   233→   233→        <div key={i} className="flex items-center gap-2">
+   234→   234→          {p.color && <span className="inline-block size-2.5 rounded-full" style={{ backgroundColor: p.color }} />}
+   235→   235→          <span className="text-gray-500">{p.name}:</span>
+   236→   236→          <span className="font-semibold text-gray-900 tabular-nums">{formatNumber(p.value)}</span>
+   237→   237→        </div>
+   238→   238→      ))}
+   239→   239→    </div>
+   240→   240→  )
+   241→   241→}
+   242→   242→
+   243→   243→function PipelineTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: PipelineStageData }> }) {
+   244→   244→  if (!active || !payload?.length) return null
+   245→   245→  const s = payload[0].payload
+   246→   246→  return (
+   247→   247→    <div className="bg-white rounded-lg shadow-lg border border-gray-100 px-3 py-2 text-sm">
+   248→   248→      <p className="font-semibold text-gray-900">{s.stage}</p>
+   249→   249→      <p className="text-gray-500">{s.count} deals · {s.avgDaysInStage}d avg</p>
+   250→   250→      <p className="text-gray-500">{s.conversionRate}% conversion</p>
+   251→   251→    </div>
+   252→   252→  )
+   253→   253→}
+   254→   254→
+   255→   255→/* ═══════════════════════════════════════════════════════════════════════
+   256→   256→   Reports Screen
+   257→   257→   ═══════════════════════════════════════════════════════════════════════ */
+   258→   258→
+   259→   259→export function ReportsScreen() {
+   260→   260→  const [datePreset, setDatePreset] = useState('30d')
+   261→   261→  const [pipelineSort, setPipelineSort] = useState<SortKey>('count')
+   262→   262→  const [pipelineSortDir, setPipelineSortDir] = useState<SortDir>('desc')
+   263→   263→  const [teamSort, setTeamSort] = useState<keyof TeamUser>('activities')
+   264→   264→  const [teamSortDir, setTeamSortDir] = useState<SortDir>('desc')
+   265→   265→
+   266→   266→  const dateRange = useMemo(() => getDateRange(datePreset), [datePreset])
+   267→   267→
+   268→   268→  const pipelineQuery = useQuery<PipelineData>({
+   269→   269→    queryKey: ['reports', 'pipeline', dateRange],
+   270→   270→    queryFn: () => fetch(`/api/reports/pipeline?from=${dateRange.from}&to=${dateRange.to}`).then(r => r.json()),
+   271→   271→  })
+   272→   272→
+   273→   273→  const revenueQuery = useQuery<RevenueData>({
+   274→   274→    queryKey: ['reports', 'revenue'],
+   275→   275→    queryFn: () => fetch('/api/reports/revenue?months=6').then(r => r.json()),
+   276→   276→  })
+   277→   277→
+   278→   278→  const activityQuery = useQuery<ActivityData>({
+   279→   279→    queryKey: ['reports', 'activity', dateRange],
+   280→   280→    queryFn: () => fetch(`/api/reports/activity?from=${dateRange.from}&to=${dateRange.to}`).then(r => r.json()),
+   281→   281→  })
+   282→   282→
+   283→   283→  const teamQuery = useQuery<TeamData>({
+   284→   284→    queryKey: ['reports', 'team'],
+   285→   285→    queryFn: () => fetch('/api/reports/team-performance').then(r => r.json()),
+   286→   286→  })
+   287→   287→
+   288→   288→  const dqQuery = useQuery<DataQualityData>({
+   289→   289→    queryKey: ['reports', 'data-quality'],
+   290→   290→    queryFn: () => fetch('/api/reports/data-quality').then(r => r.json()),
+   291→   291→  })
+   292→   292→
+   293→   293→  const isLoading = pipelineQuery.isLoading || revenueQuery.isLoading || activityQuery.isLoading || dqQuery.isLoading
+   294→   294→
+   295→   295→  if (isLoading) return <ReportsSkeleton />
+   296→   296→
+   297→   297→  const pipeline = pipelineQuery.data
+   298→   298→  const revenue = revenueQuery.data
+   299→   299→  const activity = activityQuery.data
+   300→   300→  const team = teamQuery.data
+   301→   301→  const dq = dqQuery.data
+   302→   302→
+   303→   303→  // ── KPI values ───────────────────────────────────────────────
+   304→   304→  const kpis = [
+   305→   305→    {
+   306→   306→      label: 'Total Pipeline',
+   307→   307→      value: pipeline ? String(pipeline.totalPipelineValue) : '—',
+   308→   308→      sub: 'active deals',
+   309→   309→      icon: Target,
+   310→   310→      bg: 'bg-amber-50',
+   311→   311→      color: 'text-amber-600',
+   312→   312→    },
+   313→   313→    {
+   314→   314→      label: 'Weighted Forecast',
+   315→   315→      value: pipeline ? formatNumber(pipeline.weightedPipelineValue) : '—',
+   316→   316→      sub: 'probability-adjusted',
+   317→   317→      icon: TrendingUp,
+   318→   318→      bg: 'bg-blue-50',
+   319→   319→      color: 'text-blue-600',
+   320→   320→    },
+   321→   321→    {
+   322→   322→      label: 'Win Rate',
+   323→   323→      value: pipeline ? `${pipeline.winRate}%` : '—',
+   324→   324→      sub: 'won vs lost',
+   325→   325→      icon: Percent,
+   326→   326→      bg: 'bg-emerald-50',
+   327→   327→      color: 'text-emerald-600',
+   328→   328→    },
+   329→   329→    {
+   330→   330→      label: 'Avg Deal Size',
+   331→   331→      value: pipeline ? String(pipeline.avgDealSize) : '—',
+   332→   332→      sub: 'per opportunity',
+   333→   333→      icon: DollarSign,
+   334→   334→      bg: 'bg-violet-50',
+   335→   335→      color: 'text-violet-600',
+   336→   336→    },
+   337→   337→    {
+   338→   338→      label: 'Data Quality',
+   339→   339→      value: dq ? `${dq.overall.score}%` : '—',
+   340→   340→      sub: 'completeness score',
+   341→   341→      icon: ShieldCheck,
+   342→   342→      bg: 'bg-red-50',
+   343→   343→      color: 'text-red-600',
+   344→   344→    },
+   345→   345→  ]
+   346→   346→
+   347→   347→  // ── Pipeline data sorted ─────────────────────────────────────
+   348→   348→  const sortedStages = useMemo(() => {
+   349→   349→    if (!pipeline?.stages) return []
+   350→   350→    return [...pipeline.stages].sort((a, b) => {
+   351→   351→      const aVal = a[pipelineSort]
+   352→   352→      const bVal = b[pipelineSort]
+   353→   353→      return pipelineSortDir === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number)
+   354→   354→    })
+   355→   355→  }, [pipeline, pipelineSort, pipelineSortDir])
+   356→   356→
+   357→   357→  // ── Team data sorted ─────────────────────────────────────────
+   358→   358→  const sortedTeam = useMemo(() => {
+   359→   359→    if (!team?.users) return []
+   360→   360→    return [...team.users].sort((a, b) => {
+   361→   361→      const aVal = typeof a[teamSort] === 'number' ? a[teamSort] : 0
+   362→   362→      const bVal = typeof b[teamSort] === 'number' ? b[teamSort] : 0
+   363→   363→      return teamSortDir === 'asc' ? aVal - bVal : bVal - aVal
+   364→   364→    })
+   365→   365→  }, [team, teamSort, teamSortDir])
+   366→   366→
+   367→   367→  // ── Activity heatmap data (max 5 days for display) ───────────
+   368→   368→  const heatmapMax = useMemo(() => {
+   369→   369→    if (!activity?.activityHeatmap) return 1
+   370→   370→    return Math.max(...activity.activityHeatmap.map(h => h.count), 1)
+   371→   371→  }, [activity])
+   372→   372→
+   373→   373→  // ── Email health pie data ────────────────────────────────────
+   374→   374→  const emailHealthPie = useMemo(() => {
+   375→   375→    if (!dq) return []
+   376→   376→    const b = dq.contacts.emailHealthBreakdown
+   377→   377→    return [
+   378→   378→      { name: 'Valid', value: b.valid, color: EMAIL_HEALTH_COLORS.valid },
+   379→   379→      { name: 'Risky', value: b.risky, color: EMAIL_HEALTH_COLORS.risky },
+   380→   380→      { name: 'Invalid', value: b.invalid, color: EMAIL_HEALTH_COLORS.invalid },
+   381→   381→      { name: 'Unknown', value: b.unknown, color: EMAIL_HEALTH_COLORS.unknown },
+   382→   382→    ].filter(d => d.value > 0)
+   383→   383→  }, [dq])
+   384→   384→
+   385→   385→  // ── Revenue forecast chart data ──────────────────────────────
+   386→   386→  const forecastChartData = useMemo(() => {
+   387→   387→    if (!revenue) return []
+   388→   388→    return revenue.forecast.map(f => ({
+   389→   389→      month: f.month,
+   390→   390→      Projected: f.projected,
+   391→   391→      Conservative: f.conservative,
+   392→   392→      Optimistic: f.optimistic,
+   393→   393→    }))
+   394→   394→  }, [revenue])
+   395→   395→
+   396→   396→  // ── Pipeline funnel data (horizontal bars) ───────────────────
+   397→   397→  const funnelData = useMemo(() => {
+   398→   398→    if (!pipeline?.stages) return []
+   399→   399→    const activeStages = pipeline.stages.filter(s => s.stage !== 'Won' && s.stage !== 'Lost')
+   400→   400→    return activeStages.map(s => ({
+   401→   401→      stage: s.stage,
+   402→   402→      count: s.count,
+   403→   403→      fill: PIPELINE_COLORS[s.stage] ?? '#6b7280',
+   404→   404→    }))
+   405→   405→  }, [pipeline])
+   406→   406→
+   407→   407→  // ── Top performer ────────────────────────────────────────────
+   408→   408→  const topPerformer = team?.users?.[0]
+   409→   409→
+   410→   410→  function togglePipelineSort(key: SortKey) {
+   411→   411→    if (pipelineSort === key) {
+   412→   412→      setPipelineSortDir(d => d === 'asc' ? 'desc' : 'asc')
+   413→   413→    } else {
+   414→   414→      setPipelineSort(key)
+   415→   415→      setPipelineSortDir('desc')
+   416→   416→    }
+   417→   417→  }
+   418→   418→
+   419→   419→  function toggleTeamSort(key: keyof TeamUser) {
+   420→   420→    if (teamSort === key) {
+   421→   421→      setTeamSortDir(d => d === 'asc' ? 'desc' : 'asc')
+   422→   422→    } else {
+   423→   423→      setTeamSort(key)
+   424→   424→      setTeamSortDir('desc')
+   425→   425→    }
+   426→   426→  }
+   427→   427→
+   428→   428→  return (
+   429→   429→    <div className="min-h-screen bg-gray-50/50">
+   430→   430→      {/* ── Header ────────────────────────────────────────────── */}
+   431→   431→      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-200">
+   432→   432→        <div className="flex items-center justify-between px-6 py-4">
+   433→   433→          <div className="flex items-center gap-3">
+   434→   434→            <div className="p-2 rounded-lg bg-amber-50">
+   435→   435→              <BarChart3 className="size-5 text-amber-600" />
+   436→   436→            </div>
+   437→   437→            <div>
+   438→   438→              <h1 className="text-xl font-semibold text-gray-900">Analytics</h1>
+   439→   439→              <p className="text-sm text-gray-500">Comprehensive reports and insights</p>
+   440→   440→            </div>
+   441→   441→          </div>
+   442→   442→
+   443→   443→          <DropdownMenu>
+   444→   444→            <DropdownMenuTrigger asChild>
+   445→   445→              <Button variant="outline" className="gap-2">
+   446→   446→                <CalendarDays className="size-4 text-gray-500" />
+   447→   447→                {DATE_PRESETS.find(p => p.value === datePreset)?.label ?? 'Last 30 days'}
+   448→   448→                <ChevronDown className="size-3.5 text-gray-400" />
+   449→   449→              </Button>
+   450→   450→            </DropdownMenuTrigger>
+   451→   451→            <DropdownMenuContent align="end">
+   452→   452→              {DATE_PRESETS.map(p => (
+   453→   453→                <DropdownMenuItem
+   454→   454→                  key={p.value}
+   455→   455→                  onClick={() => setDatePreset(p.value)}
+   456→   456→                  className={cn(p.value === datePreset && 'bg-amber-50 text-amber-700')}
+   457→   457→                >
+   458→   458→                  {p.label}
+   459→   459→                </DropdownMenuItem>
+   460→   460→              ))}
+   461→   461→            </DropdownMenuContent>
+   462→   462→          </DropdownMenu>
+   463→   463→        </div>
+   464→   464→      </div>
+   465→   465→
+   466→   466→      <div className="p-6 space-y-6">
+   467→   467→        {/* ── KPI Row ──────────────────────────────────────────── */}
+   468→   468→        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+   469→   469→          {kpis.map((kpi) => (
+   470→   470→            <Card key={kpi.label} className="shadow-sm hover:shadow-md transition-shadow">
+   471→   471→              <CardContent className="p-4">
+   472→   472→                <div className="flex items-center gap-3">
+   473→   473→                  <div className={cn('p-2 rounded-lg', kpi.bg)}>
+   474→   474→                    <kpi.icon className={cn('size-4', kpi.color)} />
+   475→   475→                  </div>
+   476→   476→                  <div className="min-w-0">
+   477→   477→                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide truncate">{kpi.label}</p>
+   478→   478→                    <p className="text-2xl font-bold text-gray-900 tabular-nums">{kpi.value}</p>
+   479→   479→                    <p className="text-xs text-gray-400">{kpi.sub}</p>
+   480→   480→                  </div>
+   481→   481→                </div>
+   482→   482→              </CardContent>
+   483→   483→            </Card>
+   484→   484→          ))}
+   485→   485→        </div>
+   486→   486→
+   487→   487→        {/* ── Charts Grid ──────────────────────────────────────── */}
+   488→   488→        <div className="grid md:grid-cols-2 gap-6">
+   489→   489→          {/* Pipeline Funnel */}
+   490→   490→          <Card className="shadow-sm">
+   491→   491→            <CardHeader className="pb-2">
+   492→   492→              <CardTitle className="text-base font-semibold">Pipeline Funnel</CardTitle>
+   493→   493→              <CardDescription>Deals by stage with conversion rates</CardDescription>
+   494→   494→            </CardHeader>
+   495→   495→            <CardContent>
+   496→   496→              <ResponsiveContainer width="100%" height={280}>
+   497→   497→                <BarChart data={funnelData} layout="vertical" margin={{ left: 10, right: 30, top: 5, bottom: 5 }}>
+   498→   498→                  <XAxis type="number" tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+   499→   499→                  <YAxis type="category" dataKey="stage" width={90} tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+   500→   500→                  <Tooltip content={<PipelineTooltip />} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+   501→   501→                  <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={28}>
+   502→   502→                    {funnelData.map((entry, i) => (
+   503→   503→                      <Cell key={i} fill={entry.fill} />
+   504→   504→                    ))}
+   505→   505→                  </Bar>
+   506→   506→                </BarChart>
+   507→   507→              </ResponsiveContainer>
+   508→   508→            </CardContent>
+   509→   509→          </Card>
+   510→   510→
+   511→   511→          {/* Revenue Forecast */}
+   512→   512→          <Card className="shadow-sm">
+   513→   513→            <CardHeader className="pb-2">
+   514→   514→              <CardTitle className="text-base font-semibold">Revenue Forecast</CardTitle>
+   515→   515→              <CardDescription>Projected, conservative, and optimistic</CardDescription>
+   516→   516→            </CardHeader>
+   517→   517→            <CardContent>
+   518→   518→              <ResponsiveContainer width="100%" height={280}>
+   519→   519→                <AreaChart data={forecastChartData} margin={{ left: -10, right: 10, top: 5, bottom: 5 }}>
+   520→   520→                  <defs>
+   521→   521→                    <linearGradient id="projectedGrad" x1="0" y1="0" x2="0" y2="1">
+   522→   522→                      <stop offset="5%" stopColor="#d97706" stopOpacity={0.2} />
+   523→   523→                      <stop offset="95%" stopColor="#d97706" stopOpacity={0} />
+   524→   524→                    </linearGradient>
+   525→   525→                    <linearGradient id="optimisticGrad" x1="0" y1="0" x2="0" y2="1">
+   526→   526→                      <stop offset="5%" stopColor="#059669" stopOpacity={0.1} />
+   527→   527→                      <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+   528→   528→                    </linearGradient>
+   529→   529→                    <linearGradient id="conservativeGrad" x1="0" y1="0" x2="0" y2="1">
+   530→   530→                      <stop offset="5%" stopColor="#dc2626" stopOpacity={0.1} />
+   531→   531→                      <stop offset="95%" stopColor="#dc2626" stopOpacity={0} />
+   532→   532→                    </linearGradient>
+   533→   533→                  </defs>
+   534→   534→                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+   535→   535→                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+   536→   536→                  <YAxis tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+   537→   537→                  <Tooltip content={<SimpleTooltip />} />
+   538→   538→                  <Area type="monotone" dataKey="Optimistic" stroke="#059669" fill="url(#optimisticGrad)" strokeWidth={1.5} strokeDasharray="4 2" />
+   539→   539→                  <Area type="monotone" dataKey="Projected" stroke="#d97706" fill="url(#projectedGrad)" strokeWidth={2} />
+   540→   540→                  <Area type="monotone" dataKey="Conservative" stroke="#dc2626" fill="url(#conservativeGrad)" strokeWidth={1.5} strokeDasharray="4 2" />
+   541→   541→                </AreaChart>
+   542→   542→              </ResponsiveContainer>
+   543→   543→            </CardContent>
+   544→   544→          </Card>
+   545→   545→
+   546→   546→          {/* Activity Trend */}
+   547→   547→          <Card className="shadow-sm">
+   548→   548→            <CardHeader className="pb-2">
+   549→   549→              <div className="flex items-center justify-between">
+   550→   550→                <div>
+   551→   551→                  <CardTitle className="text-base font-semibold">Activity Trend</CardTitle>
+   552→   552→                  <CardDescription>Daily activity count (last 30 days)</CardDescription>
+   553→   553→                </div>
+   554→   554→                {activity && (
+   555→   555→                  <Badge variant="secondary" className="text-xs font-normal bg-amber-50 text-amber-700 border-amber-200">
+   556→   556→                    {activity.totalActivities} total
+   557→   557→                  </Badge>
+   558→   558→                )}
+   559→   559→              </div>
+   560→   560→            </CardHeader>
+   561→   561→            <CardContent>
+   562→   562→              <ResponsiveContainer width="100%" height={280}>
+   563→   563→                <LineChart data={activity?.byDay ?? []} margin={{ left: -10, right: 10, top: 5, bottom: 5 }}>
+   564→   564→                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+   565→   565→                  <XAxis
+   566→   566→                    dataKey="date"
+   567→   567→                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+   568→   568→                    axisLine={false}
+   569→   569→                    tickLine={false}
+   570→   570→                    tickFormatter={(v: string) => v.slice(5)}
+   571→   571→                  />
+   572→   572→                  <YAxis tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+   573→   573→                  <Tooltip
+   574→   574→                    content={({ active, payload, label }) => {
+   575→   575→                      if (!active || !payload?.length) return null
+   576→   576→                      return (
+   577→   577→                        <div className="bg-white rounded-lg shadow-lg border border-gray-100 px-3 py-2 text-sm">
+   578→   578→                          <p className="font-medium text-gray-700">{label}</p>
+   579→   579→                          <p className="text-gray-900 font-semibold tabular-nums">{payload[0].value} activities</p>
+   580→   580→                        </div>
+   581→   581→                      )
+   582→   582→                    }}
+   583→   583→                  />
+   584→   584→                  <Line
+   585→   585→                    type="monotone"
+   586→   586→                    dataKey="count"
+   587→   587→                    stroke="#d97706"
+   588→   588→                    strokeWidth={2}
+   589→   589→                    dot={false}
+   590→   590→                    activeDot={{ r: 4, strokeWidth: 2, fill: 'white', stroke: '#d97706' }}
+   591→   591→                  />
+   592→   592→                </LineChart>
+   593→   593→              </ResponsiveContainer>
+   594→   594→            </CardContent>
+   595→   595→          </Card>
+   596→   596→
+   597→   597→          {/* Email Health Distribution */}
+   598→   598→          <Card className="shadow-sm">
+   599→   599→            <CardHeader className="pb-2">
+   600→   600→              <CardTitle className="text-base font-semibold">Email Health Distribution</CardTitle>
+   601→   601→              <CardDescription>Contact email validation status</CardDescription>
+   602→   602→            </CardHeader>
+   603→   603→            <CardContent>
+   604→   604→              <div className="flex items-center gap-6">
+   605→   605→                <ResponsiveContainer width="50%" height={220}>
+   606→   606→                  <PieChart>
+   607→   607→                    <Pie
+   608→   608→                      data={emailHealthPie}
+   609→   609→                      cx="50%"
+   610→   610→                      cy="50%"
+   611→   611→                      innerRadius={55}
+   612→   612→                      outerRadius={90}
+   613→   613→                      paddingAngle={3}
+   614→   614→                      dataKey="value"
+   615→   615→                    >
+   616→   616→                      {emailHealthPie.map((entry, i) => (
+   617→   617→                        <Cell key={i} fill={entry.color} />
+   618→   618→                      ))}
+   619→   619→                    </Pie>
+   620→   620→                    <Tooltip
+   621→   621→                      content={({ active, payload }) => {
+   622→   622→                        if (!active || !payload?.length) return null
+   623→   623→                        const d = payload[0].payload
+   624→   624→                        return (
+   625→   625→                          <div className="bg-white rounded-lg shadow-lg border border-gray-100 px-3 py-2 text-sm">
+   626→   626→                            <div className="flex items-center gap-2">
+   627→   627→                              <span className="inline-block size-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+   628→   628→                              <span className="font-medium text-gray-900">{d.name}</span>
+   629→   629→                            </div>
+   630→   630→                            <p className="text-gray-500 tabular-nums ml-4">{d.value} contacts</p>
+   631→   631→                          </div>
+   632→   632→                        )
+   633→   633→                      }}
+   634→   634→                    />
+   635→   635→                  </PieChart>
+   636→   636→                </ResponsiveContainer>
+   637→   637→                <div className="flex-1 space-y-3">
+   638→   638→                  {emailHealthPie.map(d => (
+   639→   639→                    <div key={d.name} className="flex items-center justify-between">
+   640→   640→                      <div className="flex items-center gap-2">
+   641→   641→                        <span className="inline-block size-3 rounded-full" style={{ backgroundColor: d.color }} />
+   642→   642→                        <span className="text-sm text-gray-700">{d.name}</span>
+   643→   643→                      </div>
+   644→   644→                      <span className="text-sm font-semibold text-gray-900 tabular-nums">{d.value}</span>
+   645→   645→                    </div>
+   646→   646→                  ))}
+   647→   647→                </div>
+   648→   648→              </div>
+   649→   649→            </CardContent>
+   650→   650→          </Card>
+   651→   651→        </div>
+   652→   652→
+   653→   653→        {/* ── Tables Section ───────────────────────────────────── */}
+   654→   654→        <Tabs defaultValue="team" className="space-y-4">
+   655→   655→          <TabsList className="bg-white border border-gray-200 p-1">
+   656→   656→            <TabsTrigger value="team" className="gap-1.5 text-sm data-[state=active]:bg-amber-50 data-[state=active]:text-amber-700">
+   657→   657→              <Users className="size-3.5" /> Team Performance
+   658→   658→            </TabsTrigger>
+   659→   659→            <TabsTrigger value="quality" className="gap-1.5 text-sm data-[state=active]:bg-amber-50 data-[state=active]:text-amber-700">
+   660→   660→              <ShieldCheck className="size-3.5" /> Data Quality
+   661→   661→            </TabsTrigger>
+   662→   662→            <TabsTrigger value="deals" className="gap-1.5 text-sm data-[state=active]:bg-amber-50 data-[state=active]:text-amber-700">
+   663→   663→              <Target className="size-3.5" /> Top Deals
+   664→   664→            </TabsTrigger>
+   665→   665→          </TabsList>
+   666→   666→
+   667→   667→          {/* ── Team Performance Tab ─────────────────────────────── */}
+   668→   668→          <TabsContent value="team">
+   669→   669→            <Card className="shadow-sm">
+   670→   670→              <CardHeader className="pb-3">
+   671→   671→                <div className="flex items-center justify-between">
+   672→   672→                  <div>
+   673→   673→                    <CardTitle className="text-base font-semibold">Team Performance</CardTitle>
+   674→   674→                    <CardDescription>Per-user activity and metrics</CardDescription>
+   675→   675→                  </div>
+   676→   676→                  {topPerformer && (
+   677→   677→                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200">
+   678→   678→                      <Trophy className="size-4 text-amber-500" />
+   679→   679→                      <span className="text-sm font-medium text-amber-700">Top: {topPerformer.name}</span>
+   680→   680→                    </div>
+   681→   681→                  )}
+   682→   682→                </div>
+   683→   683→              </CardHeader>
+   684→   684→              <CardContent className="p-0">
+   685→   685→                <div className="overflow-x-auto max-h-96 overflow-y-auto">
+   686→   686→                  <Table>
+   687→   687→                    <TableHeader>
+   688→   688→                      <TableRow className="hover:bg-transparent">
+   689→   689→                        <TableHead className="w-[160px]">
+   690→   690→                          <Button variant="ghost" size="sm" className="h-auto p-0 font-semibold text-xs" onClick={() => toggleTeamSort('name')}>
+   691→   691→                            User <ArrowUpDown className="size-3 ml-1" />
+   692→   692→                          </Button>
+   693→   693→                        </TableHead>
+   694→   694→                        <TableHead>
+   695→   695→                          <Button variant="ghost" size="sm" className="h-auto p-0 font-semibold text-xs" onClick={() => toggleTeamSort('companiesOwned')}>
+   696→   696→                            Companies <ArrowUpDown className="size-3 ml-1" />
+   697→   697→                          </Button>
+   698→   698→                        </TableHead>
+   699→   699→                        <TableHead>
+   700→   700→                          <Button variant="ghost" size="sm" className="h-auto p-0 font-semibold text-xs" onClick={() => toggleTeamSort('contactsCreated')}>
+   701→   701→                            Contacts <ArrowUpDown className="size-3 ml-1" />
+   702→   702→                          </Button>
+   703→   703→                        </TableHead>
+   704→   704→                        <TableHead>
+   705→   705→                          <Button variant="ghost" size="sm" className="h-auto p-0 font-semibold text-xs" onClick={() => toggleTeamSort('emailsGenerated')}>
+   706→   706→                            Emails Gen <ArrowUpDown className="size-3 ml-1" />
+   707→   707→                          </Button>
+   708→   708→                        </TableHead>
+   709→   709→                        <TableHead>
+   710→   710→                          <Button variant="ghost" size="sm" className="h-auto p-0 font-semibold text-xs" onClick={() => toggleTeamSort('dealsWon')}>
+   711→   711→                            Won <ArrowUpDown className="size-3 ml-1" />
+   712→   712→                          </Button>
+   713→   713→                        </TableHead>
+   714→   714→                        <TableHead>
+   715→   715→                          <Button variant="ghost" size="sm" className="h-auto p-0 font-semibold text-xs" onClick={() => toggleTeamSort('winRate')}>
+   716→   716→                            Win Rate <ArrowUpDown className="size-3 ml-1" />
+   717→   717→                          </Button>
+   718→   718→                        </TableHead>
+   719→   719→                        <TableHead>
+   720→   720→                          <Button variant="ghost" size="sm" className="h-auto p-0 font-semibold text-xs" onClick={() => toggleTeamSort('activities')}>
+   721→   721→                            Activities <ArrowUpDown className="size-3 ml-1" />
+   722→   722→                          </Button>
+   723→   723→                        </TableHead>
+   724→   724→                        <TableHead className="text-xs font-semibold">Last Active</TableHead>
+   725→   725→                      </TableRow>
+   726→   726→                    </TableHeader>
+   727→   727→                    <TableBody>
+   728→   728→                      {sortedTeam.map((user, i) => (
+   729→   729→                        <TableRow key={user.userId} className={cn(i === 0 && 'bg-amber-50/50')}>
+   730→   730→                          <TableCell className="font-medium text-sm">
+   731→   731→                            <div className="flex items-center gap-2">
+   732→   732→                              {i === 0 && <Trophy className="size-3.5 text-amber-500" />}
+   733→   733→                              {user.name}
+   734→   734→                            </div>
+   735→   735→                          </TableCell>
+   736→   736→                          <TableCell className="tabular-nums text-sm">{user.companiesOwned}</TableCell>
+   737→   737→                          <TableCell className="tabular-nums text-sm">{user.contactsCreated}</TableCell>
+   738→   738→                          <TableCell className="tabular-nums text-sm">{user.emailsGenerated}</TableCell>
+   739→   739→                          <TableCell className="tabular-nums text-sm text-emerald-600 font-medium">{user.dealsWon}</TableCell>
+   740→   740→                          <TableCell className="tabular-nums text-sm">{user.winRate}%</TableCell>
+   741→   741→                          <TableCell className="tabular-nums text-sm font-medium">{user.activities}</TableCell>
+   742→   742→                          <TableCell className="text-xs text-gray-500">
+   743→   743→                            {user.lastActive && user.lastActive > '1970-01-01'
+   744→   744→                              ? formatDistanceToNow(new Date(user.lastActive), { addSuffix: true })
+   745→   745→                              : '—'}
+   746→   746→                          </TableCell>
+   747→   747→                        </TableRow>
+   748→   748→                      ))}
+   749→   749→                      {sortedTeam.length === 0 && (
+   750→   750→                        <TableRow>
+   751→   751→                          <TableCell colSpan={8} className="text-center text-sm text-gray-400 py-8">
+   752→   752→                            No team data available
+   753→   753→                          </TableCell>
+   754→   754→                        </TableRow>
+   755→   755→                      )}
+   756→   756→                    </TableBody>
+   757→   757→                  </Table>
+   758→   758→                </div>
+   759→   759→              </CardContent>
+   760→   760→            </Card>
+   761→   761→          </TabsContent>
+   762→   762→
+   763→   763→          {/* ── Data Quality Tab ─────────────────────────────────── */}
+   764→   764→          <TabsContent value="quality">
+   765→   765→            <div className="grid md:grid-cols-2 gap-6">
+   766→   766→              {/* Field Completeness */}
+   767→   767→              <Card className="shadow-sm">
+   768→   768→                <CardHeader className="pb-3">
+   769→   769→                  <CardTitle className="text-base font-semibold">Field Completeness</CardTitle>
+   770→   770→                  <CardDescription>How well populated your data is</CardDescription>
+   771→   771→                </CardHeader>
+   772→   772→                <CardContent className="space-y-5">
+   773→   773→                  <div>
+   774→   774→                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Companies ({dq?.companies.total ?? 0})</h4>
+   775→   775→                    <div className="space-y-2.5">
+   776→   776→                      {dq && Object.entries(dq.companies.completenessByField).map(([field, pct]) => (
+   777→   777→                        <div key={field} className="space-y-1">
+   778→   778→                          <div className="flex items-center justify-between text-sm">
+   779→   779→                            <span className="text-gray-700">{field}</span>
+   780→   780→                            <span className={cn('tabular-nums font-medium', pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-red-600')}>
+   781→   781→                              {pct}%
+   782→   782→                            </span>
+   783→   783→                          </div>
+   784→   784→                          <Progress value={pct} className="h-2" />
+   785→   785→                        </div>
+   786→   786→                      ))}
+   787→   787→                    </div>
+   788→   788→                  </div>
+   789→   789→                  <div>
+   790→   790→                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Contacts ({dq?.contacts.total ?? 0})</h4>
+   791→   791→                    <div className="space-y-2.5">
+   792→   792→                      {dq && Object.entries(dq.contacts.completenessByField).map(([field, pct]) => (
+   793→   793→                        <div key={field} className="space-y-1">
+   794→   794→                          <div className="flex items-center justify-between text-sm">
+   795→   795→                            <span className="text-gray-700">{field}</span>
+   796→   796→                            <span className={cn('tabular-nums font-medium', pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-red-600')}>
+   797→   797→                              {pct}%
+   798→   798→                            </span>
+   799→   799→                          </div>
+   800→   800→                          <Progress value={pct} className="h-2" />
+   801→   801→                        </div>
+   802→   802→                      ))}
+   803→   803→                    </div>
+   804→   804→                  </div>
+   805→   805→                </CardContent>
+   806→   806→              </Card>
+   807→   807→
+   808→   808→              {/* Recommendations */}
+   809→   809→              <Card className="shadow-sm">
+   810→   810→                <CardHeader className="pb-3">
+   811→   811→                  <CardTitle className="text-base font-semibold">Recommendations</CardTitle>
+   812→   812→                  <CardDescription>Suggestions to improve your data quality</CardDescription>
+   813→   813→                </CardHeader>
+   814→   814→                <CardContent>
+   815→   815→                  {dq && dq.recommendations.length > 0 ? (
+   816→   816→                    <div className="space-y-3 max-h-96 overflow-y-auto">
+   817→   817→                      {dq.recommendations.map((rec, i) => (
+   818→   818→                        <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-amber-50/60 border border-amber-100">
+   819→   819→                          <Lightbulb className="size-4 text-amber-500 mt-0.5 shrink-0" />
+   820→   820→                          <p className="text-sm text-gray-700">{rec}</p>
+   821→   821→                        </div>
+   822→   822→                      ))}
+   823→   823→                    </div>
+   824→   824→                  ) : (
+   825→   825→                    <div className="text-center py-12 text-gray-400">
+   826→   826→                      <ShieldCheck className="size-8 mx-auto mb-2 text-emerald-400" />
+   827→   827→                      <p className="text-sm">Your data looks great! No recommendations.</p>
+   828→   828→                    </div>
+   829→   829→                  )}
+   830→   830→
+   831→   831→                  {/* Overall stats */}
+   832→   832→                  {dq && (
+   833→   833→                    <div className="mt-6 pt-6 border-t border-gray-100">
+   834→   834→                      <div className="grid grid-cols-2 gap-4">
+   835→   835→                        <div className="text-center p-3 rounded-lg bg-gray-50">
+   836→   836→                          <p className="text-2xl font-bold text-emerald-600 tabular-nums">{dq.overall.complete}</p>
+   837→   837→                          <p className="text-xs text-gray-500 mt-1">Complete Records</p>
+   838→   838→                        </div>
+   839→   839→                        <div className="text-center p-3 rounded-lg bg-gray-50">
+   840→   840→                          <p className="text-2xl font-bold text-amber-600 tabular-nums">{dq.overall.partial}</p>
+   841→   841→                          <p className="text-xs text-gray-500 mt-1">Partial Records</p>
+   842→   842→                        </div>
+   843→   843→                        <div className="text-center p-3 rounded-lg bg-gray-50">
+   844→   844→                          <p className="text-2xl font-bold text-red-600 tabular-nums">{dq.overall.empty}</p>
+   845→   845→                          <p className="text-xs text-gray-500 mt-1">Empty Records</p>
+   846→   846→                        </div>
+   847→   847→                        <div className="text-center p-3 rounded-lg bg-gray-50">
+   848→   848→                          <p className="text-2xl font-bold text-gray-900 tabular-nums">{dq.overall.score}%</p>
+   849→   849→                          <p className="text-xs text-gray-500 mt-1">Overall Score</p>
+   850→   850→                        </div>
+   851→   851→                      </div>
+   852→   852→                    </div>
+   853→   853→                  )}
+   854→   854→                </CardContent>
+   855→   855→              </Card>
+   856→   856→            </div>
+   857→   857→          </TabsContent>
+   858→   858→
+   859→   859→          {/* ── Top Deals Tab ─────────────────────────────────────── */}
+   860→   860→          <TabsContent value="deals">
+   861→   861→            <Card className="shadow-sm">
+   862→   862→              <CardHeader className="pb-3">
+   863→   863→                <CardTitle className="text-base font-semibold">Top Pipeline Deals</CardTitle>
+   864→   864→                <CardDescription>Highest probability deals in the pipeline</CardDescription>
+   865→   865→              </CardHeader>
+   866→   866→              <CardContent className="p-0">
+   867→   867→                <div className="overflow-x-auto max-h-96 overflow-y-auto">
+   868→   868→                  <Table>
+   869→   869→                    <TableHeader>
+   870→   870→                      <TableRow className="hover:bg-transparent">
+   871→   871→                        <TableHead className="text-xs font-semibold">Deal</TableHead>
+   872→   872→                        <TableHead className="text-xs font-semibold">Company</TableHead>
+   873→   873→                        <TableHead className="text-xs font-semibold">Stage</TableHead>
+   874→   874→                        <TableHead className="text-xs font-semibold">Probability</TableHead>
+   875→   875→                      </TableRow>
+   876→   876→                    </TableHeader>
+   877→   877→                    <TableBody>
+   878→   878→                      {revenue?.topDeals.map((deal, i) => (
+   879→   879→                        <TableRow key={i}>
+   880→   880→                          <TableCell className="font-medium text-sm">{deal.title}</TableCell>
+   881→   881→                          <TableCell className="text-sm text-gray-600">{deal.company}</TableCell>
+   882→   882→                          <TableCell>
+   883→   883→                            <Badge
+   884→   884→                              variant="secondary"
+   885→   885→                              className={cn(
+   886→   886→                                'text-xs capitalize',
+   887→   887→                                deal.stage === 'negotiation' && 'bg-emerald-50 text-emerald-700 border-emerald-200',
+   888→   888→                                deal.stage === 'proposal' && 'bg-blue-50 text-blue-700 border-blue-200',
+   889→   889→                                deal.stage === 'qualified' && 'bg-violet-50 text-violet-700 border-violet-200',
+   890→   890→                                deal.stage === 'researching' && 'bg-amber-50 text-amber-700 border-amber-200',
+   891→   891→                              )}
+   892→   892→                            >
+   893→   893→                              {deal.stage}
+   894→   894→                            </Badge>
+   895→   895→                          </TableCell>
+   896→   896→                          <TableCell>
+   897→   897→                            <div className="flex items-center gap-2">
+   898→   898→                              <Progress value={deal.probability} className="h-2 w-20" />
+   899→   899→                              <span className="text-sm tabular-nums font-medium text-gray-700">{deal.probability}%</span>
+   900→   900→                            </div>
+   901→   901→                          </TableCell>
+   902→   902→                        </TableRow>
+   903→   903→                      ))}
+   904→   904→                      {(!revenue?.topDeals || revenue.topDeals.length === 0) && (
+   905→   905→                        <TableRow>
+   906→   906→                          <TableCell colSpan={4} className="text-center text-sm text-gray-400 py-8">
+   907→   907→                            No deals in pipeline
+   908→   908→                          </TableCell>
+   909→   909→                        </TableRow>
+   910→   910→                      )}
+   911→   911→                    </TableBody>
+   912→   912→                  </Table>
+   913→   913→                </div>
+   914→   914→              </CardContent>
+   915→   915→            </Card>
+   916→   916→          </TabsContent>
+   917→   917→        </Tabs>
+   918→   918→      </div>
+   919→   919→    </div>
+   920→   920→  )
+   921→   921→}

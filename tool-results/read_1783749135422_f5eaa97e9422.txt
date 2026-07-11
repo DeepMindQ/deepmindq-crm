@@ -1,0 +1,1035 @@
+     1→'use client'
+     2→
+     3→import { useState, useCallback } from 'react'
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import { motion, AnimatePresence } from 'framer-motion'
+     6→import {
+     7→  Plus, Mail, Copy, Trash2, Loader2, Pencil, Play, ChevronDown, ChevronUp,
+     8→  X, Sparkles, Clock, MoreHorizontal, Eye, Send, GripVertical,
+     9→  ArrowUp, ArrowDown, Zap, FileText, LayoutList, Circle, CheckCircle2,
+    10→} from 'lucide-react'
+    11→import { Button } from '@/components/ui/button'
+    12→import { Input } from '@/components/ui/input'
+    13→import { Badge } from '@/components/ui/badge'
+    14→import { Textarea } from '@/components/ui/textarea'
+    15→import { Label } from '@/components/ui/label'
+    16→import { Skeleton } from '@/components/ui/skeleton'
+    17→import {
+    18→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    19→} from '@/components/ui/select'
+    20→import {
+    21→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+    22→  DialogDescription,
+    23→} from '@/components/ui/dialog'
+    24→import {
+    25→  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+    26→  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+    27→} from '@/components/ui/alert-dialog'
+    28→import {
+    29→  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+    30→  DropdownMenuSeparator,
+    31→} from '@/components/ui/dropdown-menu'
+    32→import { toast } from 'sonner'
+    33→import { fetchApi } from '@/lib/fetchApi'
+    34→import { EmptyState } from '@/components/shared/design-system'
+    35→import { cn } from '@/lib/utils'
+    36→import { formatDistanceToNow } from 'date-fns'
+    37→
+    38→/* ═══════════════════════════════════════════════════════════════
+    39→   Types
+    40→   ═══════════════════════════════════════════════════════════════ */
+    41→
+    42→interface SequenceStep {
+    43→  id: string
+    44→  sequenceId: string
+    45→  stepNumber: number
+    46→  subject: string
+    47→  body: string
+    48→  delayMinutes: number
+    49→  cta: string | null
+    50→  status: string
+    51→  sentAt: string | null
+    52→  openedAt: string | null
+    53→  repliedAt: string | null
+    54→  createdAt: string
+    55→  updatedAt: string
+    56→}
+    57→
+    58→interface Sequence {
+    59→  id: string
+    60→  name: string
+    61→  description: string | null
+    62→  status: string
+    63→  contactId: string | null
+    64→  companyId: string | null
+    65→  steps?: SequenceStep[]
+    66→  createdAt: string
+    67→  updatedAt: string
+    68→  _count?: { steps: number }
+    69→}
+    70→
+    71→interface SequencesResponse {
+    72→  sequences: Sequence[]
+    73→  total: number
+    74→}
+    75→
+    76→interface Template {
+    77→  id: string
+    78→  name: string
+    79→  subject: string
+    80→  body: string
+    81→  category: string
+    82→  description: string | null
+    83→  isBuiltIn: boolean
+    84→}
+    85→
+    86→interface TemplatesResponse {
+    87→  templates: Template[]
+    88→  total: number
+    89→}
+    90→
+    91→interface ContactOption {
+    92→  id: string
+    93→  name: string
+    94→  email: string | null
+    95→  company?: { id: string; name: string } | null
+    96→}
+    97→
+    98→/* ═══════════════════════════════════════════════════════════════
+    99→   Constants
+   100→   ═══════════════════════════════════════════════════════════════ */
+   101→
+   102→const STATUS_TABS = ['all', 'draft', 'active', 'paused', 'completed'] as const
+   103→const STATUS_LABELS: Record<string, string> = {
+   104→  all: 'All',
+   105→  draft: 'Draft',
+   106→  active: 'Active',
+   107→  paused: 'Paused',
+   108→  completed: 'Completed',
+   109→}
+   110→
+   111→const STATUS_STYLES: Record<string, string> = {
+   112→  draft: 'bg-gray-100 text-gray-700 border-gray-200',
+   113→  active: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+   114→  paused: 'bg-amber-50 text-amber-700 border-amber-200',
+   115→  completed: 'bg-sky-50 text-sky-700 border-sky-200',
+   116→}
+   117→
+   118→const STEP_STATUS_STYLES: Record<string, string> = {
+   119→  pending: 'bg-gray-100 text-gray-500',
+   120→  sent: 'bg-blue-100 text-blue-600',
+   121→  opened: 'bg-emerald-100 text-emerald-600',
+   122→  replied: 'bg-purple-100 text-purple-600',
+   123→  failed: 'bg-red-100 text-red-600',
+   124→}
+   125→
+   126→const STEP_STATUS_ICONS: Record<string, typeof Circle> = {
+   127→  pending: Circle,
+   128→  sent: Send,
+   129→  opened: Eye,
+   130→  replied: CheckCircle2,
+   131→  failed: X,
+   132→}
+   133→
+   134→function formatDelay(minutes: number): string {
+   135→  if (minutes === 0) return 'Immediately'
+   136→  if (minutes < 60) return `${minutes}m`
+   137→  if (minutes < 1440) return `${Math.floor(minutes / 60)}h`
+   138→  return `${Math.floor(minutes / 1440)}d`
+   139→}
+   140→
+   141→/* ═══════════════════════════════════════════════════════════════
+   142→   Step Editor Form
+   143→   ═══════════════════════════════════════════════════════════════ */
+   144→
+   145→interface StepFormData {
+   146→  subject: string
+   147→  body: string
+   148→  delayMinutes: number
+   149→  delayUnit: 'minutes' | 'hours' | 'days'
+   150→  cta: string
+   151→}
+   152→
+   153→function emptyStep(): StepFormData {
+   154→  return { subject: '', body: '', delayMinutes: 1, delayUnit: 'days', cta: '' }
+   155→}
+   156→
+   157→function delayToMinutes(val: number, unit: string): number {
+   158→  if (unit === 'minutes') return val
+   159→  if (unit === 'hours') return val * 60
+   160→  return val * 1440
+   161→}
+   162→
+   163→function minutesToDelay(m: number): { val: number; unit: 'minutes' | 'hours' | 'days' } {
+   164→  if (m === 0) return { val: 0, unit: 'days' }
+   165→  if (m < 60) return { val: m, unit: 'minutes' }
+   166→  if (m < 1440) return { val: Math.round(m / 60), unit: 'hours' }
+   167→  return { val: Math.round(m / 1440), unit: 'days' }
+   168→}
+   169→
+   170→/* ═══════════════════════════════════════════════════════════════
+   171→   Main Screen
+   172→   ═══════════════════════════════════════════════════════════════ */
+   173→
+   174→export function SequencesScreen() {
+   175→  const qc = useQueryClient()
+   176→
+   177→  // ── Filters ──
+   178→  const [statusFilter, setStatusFilter] = useState<string>('all')
+   179→  const [search, setSearch] = useState('')
+   180→
+   181→  // ── Dialog state ──
+   182→  const [showCreateDialog, setShowCreateDialog] = useState(false)
+   183→  const [editingSequence, setEditingSequence] = useState<Sequence | null>(null)
+   184→  const [detailSequence, setDetailSequence] = useState<Sequence | null>(null)
+   185→  const [deleteTarget, setDeleteTarget] = useState<Sequence | null>(null)
+   186→  const [executeDialog, setExecuteDialog] = useState<Sequence | null>(null)
+   187→  const [executeContactId, setExecuteContactId] = useState('')
+   188→  const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
+   189→  const [templateInsertStepIdx, setTemplateInsertStepIdx] = useState<number>(-1)
+   190→
+   191→  // ── Form state ──
+   192→  const [seqName, setSeqName] = useState('')
+   193→  const [seqDesc, setSeqDesc] = useState('')
+   194→  const [steps, setSteps] = useState<StepFormData[]>([emptyStep()])
+   195→  const [isSaving, setIsSaving] = useState(false)
+   196→
+   197→  // ── Fetch sequences ──
+   198→  const { data, isLoading } = useQuery<SequencesResponse>({
+   199→    queryKey: ['sequences', statusFilter, search],
+   200→    queryFn: () => fetchApi<SequencesResponse>('/api/sequences', {
+   201→      params: {
+   202→        status: statusFilter !== 'all' ? statusFilter : undefined,
+   203→        limit: 50,
+   204→      },
+   205→    }).then(r => {
+   206→      if (r.error) throw new Error(r.error)
+   207→      return r.data!
+   208→    }),
+   209→  })
+   210→
+   211→  // ── Fetch contacts for execute dialog ──
+   212→  const { data: contactsData } = useQuery<{ data: ContactOption[] }>({
+   213→    queryKey: ['contacts-select-seq'],
+   214→    queryFn: () => fetchApi<ContactOption[]>('/api/contacts', {
+   215→      params: { limit: 200 },
+   216→    }).then(r => r.data ? { data: r.data } : { data: [] }),
+   217→  })
+   218→
+   219→  // ── Fetch templates ──
+   220→  const { data: templatesData } = useQuery<TemplatesResponse>({
+   221→    queryKey: ['email-templates'],
+   222→    queryFn: () => fetchApi<TemplatesResponse>('/api/email-templates').then(r => {
+   223→      if (r.error) throw new Error(r.error)
+   224→      return r.data!
+   225→    }),
+   226→  })
+   227→
+   228→  const sequences = data?.sequences ?? []
+   229→  const contacts = contactsData?.data ?? []
+   230→  const templates = templatesData?.templates ?? []
+   231→
+   232→  // ── Mutations ──
+   233→  const createMutation = useMutation({
+   234→    mutationFn: async (body: { name: string; description?: string }) => {
+   235→      const res = await fetchApi<Sequence>('/api/sequences', {
+   236→        method: 'POST',
+   237→        headers: { 'Content-Type': 'application/json' },
+   238→        body: JSON.stringify(body),
+   239→      })
+   240→      if (res.error) throw new Error(res.error)
+   241→      return res.data!
+   242→    },
+   243→    onSuccess: (seq) => {
+   244→      toast.success('Sequence created')
+   245→      qc.invalidateQueries({ queryKey: ['sequences'] })
+   246→      // Now add the steps
+   247→      addStepsToSequence(seq.id, steps)
+   248→    },
+   249→    onError: (err) => toast.error(err.message),
+   250→  })
+   251→
+   252→  const updateMutation = useMutation({
+   253→    mutationFn: async ({ id, body }: { id: string; body: Record<string, unknown> }) => {
+   254→      const res = await fetchApi<Sequence>(`/api/sequences/${id}`, {
+   255→        method: 'PATCH',
+   256→        headers: { 'Content-Type': 'application/json' },
+   257→        body: JSON.stringify(body),
+   258→      })
+   259→      if (res.error) throw new Error(res.error)
+   260→      return res.data!
+   261→    },
+   262→    onSuccess: () => {
+   263→      toast.success('Sequence updated')
+   264→      qc.invalidateQueries({ queryKey: ['sequences'] })
+   265→    },
+   266→    onError: (err) => toast.error(err.message),
+   267→  })
+   268→
+   269→  const deleteMutation = useMutation({
+   270→    mutationFn: async (id: string) => {
+   271→      const res = await fetchApi(`/api/sequences/${id}`, { method: 'DELETE' })
+   272→      if (res.error) throw new Error(res.error)
+   273→      return true
+   274→    },
+   275→    onSuccess: () => {
+   276→      toast.success('Sequence deleted')
+   277→      qc.invalidateQueries({ queryKey: ['sequences'] })
+   278→      setDeleteTarget(null)
+   279→      setDetailSequence(null)
+   280→    },
+   281→    onError: (err) => toast.error(err.message),
+   282→  })
+   283→
+   284→  const duplicateMutation = useMutation({
+   285→    mutationFn: async (id: string) => {
+   286→      // Fetch full sequence with steps
+   287→      const res = await fetchApi<Sequence>(`/api/sequences/${id}`)
+   288→      if (res.error) throw new Error(res.error)
+   289→      const source = res.data!
+   290→      // Create new
+   291→      const createRes = await fetchApi<Sequence>('/api/sequences', {
+   292→        method: 'POST',
+   293→        headers: { 'Content-Type': 'application/json' },
+   294→        body: JSON.stringify({ name: `${source.name} (Copy)`, description: source.description || undefined }),
+   295→      })
+   296→      if (createRes.error) throw new Error(createRes.error)
+   297→      const newSeq = createRes.data!
+   298→      // Add steps
+   299→      if (source.steps) {
+   300→        for (const step of source.steps) {
+   301→          await fetchApi(`/api/sequences/${newSeq.id}/steps/${step.id}`, {
+   302→            method: 'POST',
+   303→            headers: { 'Content-Type': 'application/json' },
+   304→            body: JSON.stringify({ subject: step.subject, body: step.body, delayMinutes: step.delayMinutes, cta: step.cta || undefined }),
+   305→          })
+   306→        }
+   307→      }
+   308→      return newSeq
+   309→    },
+   310→    onSuccess: () => {
+   311→      toast.success('Sequence duplicated')
+   312→      qc.invalidateQueries({ queryKey: ['sequences'] })
+   313→    },
+   314→    onError: (err) => toast.error(err.message),
+   315→  })
+   316→
+   317→  const executeMutation = useMutation({
+   318→    mutationFn: async ({ sequenceId, contactId }: { sequenceId: string; contactId: string }) => {
+   319→      const res = await fetchApi(`/api/sequences/${sequenceId}/execute`, {
+   320→        method: 'POST',
+   321→        headers: { 'Content-Type': 'application/json' },
+   322→        body: JSON.stringify({ contactId }),
+   323→      })
+   324→      if (res.error) throw new Error(res.error)
+   325→      return res.data!
+   326→    },
+   327→    onSuccess: () => {
+   328→      toast.success('Sequence executed — first draft created')
+   329→      qc.invalidateQueries({ queryKey: ['sequences'] })
+   330→      setExecuteDialog(null)
+   331→      setExecuteContactId('')
+   332→    },
+   333→    onError: (err) => toast.error(err.message),
+   334→  })
+   335→
+   336→  // ── Step management helpers ──
+   337→  const addStepsToSequence = async (sequenceId: string, stepsData: StepFormData[]) => {
+   338→    for (const step of stepsData) {
+   339→      if (!step.subject.trim() || !step.body.trim()) continue
+   340→      await fetchApi(`/api/sequences/${sequenceId}/steps/placeholder`, {
+   341→        method: 'POST',
+   342→        headers: { 'Content-Type': 'application/json' },
+   343→        body: JSON.stringify({
+   344→          subject: step.subject,
+   345→          body: step.body,
+   346→          delayMinutes: delayToMinutes(step.delayMinutes, step.delayUnit),
+   347→          cta: step.cta || undefined,
+   348→        }),
+   349→      })
+   350→    }
+   351→    qc.invalidateQueries({ queryKey: ['sequences'] })
+   352→  }
+   353→
+   354→  const saveStepOrder = async (sequenceId: string, stepsList: SequenceStep[]) => {
+   355→    for (let i = 0; i < stepsList.length; i++) {
+   356→      if (stepsList[i].stepNumber !== i + 1) {
+   357→        await fetchApi(`/api/sequences/${sequenceId}/steps/${stepsList[i].id}`, {
+   358→          method: 'PATCH',
+   359→          headers: { 'Content-Type': 'application/json' },
+   360→          body: JSON.stringify({ stepNumber: i + 1 }),
+   361→        })
+   362→      }
+   363→    }
+   364→  }
+   365→
+   366→  // ── Form handlers ──
+   367→  const openCreate = () => {
+   368→    setSeqName('')
+   369→    setSeqDesc('')
+   370→    setSteps([emptyStep()])
+   371→    setEditingSequence(null)
+   372→    setShowCreateDialog(true)
+   373→  }
+   374→
+   375→  const openEdit = (seq: Sequence) => {
+   376→    setSeqName(seq.name)
+   377→    setSeqDesc(seq.description || '')
+   378→    if (seq.steps && seq.steps.length > 0) {
+   379→      setSteps(seq.steps.map(s => {
+   380→        const { val, unit } = minutesToDelay(s.delayMinutes)
+   381→        return { subject: s.subject, body: s.body, delayMinutes: val, delayUnit: unit, cta: s.cta || '' }
+   382→      }))
+   383→    } else {
+   384→      setSteps([emptyStep()])
+   385→    }
+   386→    setEditingSequence(seq)
+   387→    setShowCreateDialog(true)
+   388→  }
+   389→
+   390→  const handleSave = async () => {
+   391→    if (!seqName.trim()) {
+   392→      toast.error('Name is required')
+   393→      return
+   394→    }
+   395→    const validSteps = steps.filter(s => s.subject.trim() && s.body.trim())
+   396→    if (validSteps.length === 0) {
+   397→      toast.error('Add at least one step with subject and body')
+   398→      return
+   399→    }
+   400→
+   401→    setIsSaving(true)
+   402→    try {
+   403→      if (editingSequence) {
+   404→        await updateMutation.mutateAsync({
+   405→          id: editingSequence.id,
+   406→          body: { name: seqName.trim(), description: seqDesc.trim() || null },
+   407→        })
+   408→        // Delete existing steps and recreate
+   409→        for (const step of (editingSequence.steps || [])) {
+   410→          await fetchApi(`/api/sequences/${editingSequence.id}/steps/${step.id}`, { method: 'DELETE' })
+   411→        }
+   412→        await addStepsToSequence(editingSequence.id, steps)
+   413→      } else {
+   414→        await createMutation.mutateAsync({
+   415→          name: seqName.trim(),
+   416→          description: seqDesc.trim() || undefined,
+   417→        })
+   418→      }
+   419→      setShowCreateDialog(false)
+   420→    } finally {
+   421→      setIsSaving(false)
+   422→    }
+   423→  }
+   424→
+   425→  const handleDuplicate = (seq: Sequence) => {
+   426→    duplicateMutation.mutate(seq.id)
+   427→  }
+   428→
+   429→  const stepOps = (idx: number, direction: 'up' | 'down') => {
+   430→    const target = direction === 'up' ? idx - 1 : idx + 1
+   431→    if (target < 0 || target >= steps.length) return
+   432→    const newSteps = [...steps]
+   433→    ;[newSteps[idx], newSteps[target]] = [newSteps[target], newSteps[idx]]
+   434→    setSteps(newSteps)
+   435→  }
+   436→
+   437→  const insertTemplate = (tmpl: Template) => {
+   438→    if (templateInsertStepIdx < 0) return
+   439→    setSteps(prev => {
+   440→      const next = [...prev]
+   441→      next[templateInsertStepIdx] = {
+   442→        ...next[templateInsertStepIdx],
+   443→        subject: tmpl.subject,
+   444→        body: tmpl.body,
+   445→        cta: next[templateInsertStepIdx].cta,
+   446→      }
+   447→      return next
+   448→    })
+   449→    setTemplatePickerOpen(false)
+   450→    toast.success(`Applied "${tmpl.name}" template`)
+   451→  }
+   452→
+   453→  const toggleDetail = useCallback(async (seq: Sequence) => {
+   454→    if (detailSequence?.id === seq.id) {
+   455→      setDetailSequence(null)
+   456→      return
+   457→    }
+   458→    // Fetch full sequence with steps
+   459→    const res = await fetchApi<Sequence>(`/api/sequences/${seq.id}`)
+   460→    if (res.data) {
+   461→      setDetailSequence(res.data)
+   462→    }
+   463→  }, [detailSequence])
+   464→
+   465→  // ── Render ──
+   466→  return (
+   467→    <div className="space-y-6">
+   468→      {/* Header */}
+   469→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   470→        <div>
+   471→          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Email Sequences</h1>
+   472→          <p className="text-sm text-gray-500 mt-1">Create and manage drip campaigns</p>
+   473→        </div>
+   474→        <Button onClick={openCreate} className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs">
+   475→          <Plus className="size-4 mr-2" />
+   476→          New Sequence
+   477→        </Button>
+   478→      </div>
+   479→
+   480→      {/* Status filter tabs */}
+   481→      <div className="flex items-center gap-1 border-b border-gray-200 pb-px overflow-x-auto">
+   482→        {STATUS_TABS.map(tab => (
+   483→          <button
+   484→            key={tab}
+   485→            onClick={() => setStatusFilter(tab)}
+   486→            className={cn(
+   487→              'px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors relative',
+   488→              statusFilter === tab
+   489→                ? 'text-amber-700'
+   490→                : 'text-gray-500 hover:text-gray-700',
+   491→            )}
+   492→          >
+   493→            {STATUS_LABELS[tab]}
+   494→            {statusFilter === tab && (
+   495→              <motion.div
+   496→                layoutId="seq-tab-indicator"
+   497→                className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600 rounded-full"
+   498→              />
+   499→            )}
+   500→          </button>
+   501→        ))}
+   502→      </div>
+   503→
+   504→      {/* Content */}
+   505→      {isLoading ? (
+   506→        <div className="grid gap-4 md:grid-cols-2">
+   507→          {[1, 2, 3].map(i => (
+   508→            <Skeleton key={i} className="h-52 rounded-xl" />
+   509→          ))}
+   510→        </div>
+   511→      ) : sequences.length === 0 ? (
+   512→        <EmptyState
+   513→          icon={Mail}
+   514→          title="No sequences yet"
+   515→          description="Create your first email sequence to automate your outreach campaigns."
+   516→          actionLabel="Create Sequence"
+   517→          onAction={openCreate}
+   518→        />
+   519→      ) : (
+   520→        <div className="space-y-3">
+   521→          <AnimatePresence mode="popLayout">
+   522→            {sequences.map(seq => (
+   523→              <motion.div
+   524→                key={seq.id}
+   525→                layout
+   526→                initial={{ opacity: 0, y: 8 }}
+   527→                animate={{ opacity: 1, y: 0 }}
+   528→                exit={{ opacity: 0, y: -8 }}
+   529→                transition={{ duration: 0.2 }}
+   530→              >
+   531→                {/* Sequence Card */}
+   532→                <div
+   533→                  className="bg-white rounded-xl border border-gray-200 shadow-xs hover:shadow-sm transition-shadow"
+   534→                >
+   535→                  <div className="p-4 sm:p-5">
+   536→                    <div className="flex items-start justify-between gap-3">
+   537→                      <div className="flex-1 min-w-0">
+   538→                        <div className="flex items-center gap-2.5 flex-wrap">
+   539→                          <h3
+   540→                            className="font-semibold text-gray-900 cursor-pointer hover:text-amber-700 transition-colors truncate"
+   541→                            onClick={() => toggleDetail(seq)}
+   542→                          >
+   543→                            {seq.name}
+   544→                          </h3>
+   545→                          <Badge
+   546→                            variant="outline"
+   547→                            className={cn('text-xs font-medium', STATUS_STYLES[seq.status] || '')}
+   548→                          >
+   549→                            {STATUS_LABELS[seq.status] || seq.status}
+   550→                          </Badge>
+   551→                          <span className="text-xs text-gray-400">
+   552→                            {seq._count?.steps ?? seq.steps?.length ?? 0} steps
+   553→                          </span>
+   554→                        </div>
+   555→                        {seq.description && (
+   556→                          <p className="text-sm text-gray-500 mt-1 line-clamp-1">{seq.description}</p>
+   557→                        )}
+   558→                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
+   559→                          <span className="flex items-center gap-1">
+   560→                            <Clock className="size-3" />
+   561→                            {formatDistanceToNow(new Date(seq.createdAt), { addSuffix: true })}
+   562→                          </span>
+   563→                        </div>
+   564→
+   565→                        {/* Timeline visualization */}
+   566→                        {(seq._count?.steps || seq.steps?.length || 0) > 0 && (
+   567→                          <div className="flex items-center gap-1 mt-3">
+   568→                            {Array.from({ length: Math.min((seq._count?.steps || seq.steps?.length || 0), 8) }).map((_, i) => (
+   569→                              <div key={i} className="flex items-center">
+   570→                                <div className="size-2.5 rounded-full bg-amber-400" />
+   571→                                {i < Math.min((seq._count?.steps || seq.steps?.length || 0), 8) - 1 && (
+   572→                                  <div className="w-6 h-px bg-amber-200" />
+   573→                                )}
+   574→                              </div>
+   575→                            ))}
+   576→                            {(seq._count?.steps || seq.steps?.length || 0) > 8 && (
+   577→                              <span className="text-xs text-gray-400 ml-1">+{(seq._count?.steps || seq.steps?.length || 0) - 8}</span>
+   578→                            )}
+   579→                          </div>
+   580→                        )}
+   581→                      </div>
+   582→
+   583→                      {/* Actions */}
+   584→                      <DropdownMenu>
+   585→                        <DropdownMenuTrigger asChild>
+   586→                          <Button variant="ghost" size="icon" className="size-8 text-gray-400 hover:text-gray-600">
+   587→                            <MoreHorizontal className="size-4" />
+   588→                          </Button>
+   589→                        </DropdownMenuTrigger>
+   590→                        <DropdownMenuContent align="end">
+   591→                          <DropdownMenuItem onClick={() => toggleDetail(seq)}>
+   592→                            <Eye className="size-4 mr-2" /> View Details
+   593→                          </DropdownMenuItem>
+   594→                          <DropdownMenuItem onClick={() => openEdit(seq)}>
+   595→                            <Pencil className="size-4 mr-2" /> Edit
+   596→                          </DropdownMenuItem>
+   597→                          <DropdownMenuItem onClick={() => handleDuplicate(seq)}>
+   598→                            <Copy className="size-4 mr-2" /> Duplicate
+   599→                          </DropdownMenuItem>
+   600→                          {(seq.status === 'draft' || seq.status === 'paused') && (
+   601→                            <>
+   602→                              <DropdownMenuSeparator />
+   603→                              <DropdownMenuItem onClick={() => { setExecuteDialog(seq); setExecuteContactId(seq.contactId || '') }}>
+   604→                                <Play className="size-4 mr-2" /> Execute
+   605→                              </DropdownMenuItem>
+   606→                            </>
+   607→                          )}
+   608→                          <DropdownMenuSeparator />
+   609→                          <DropdownMenuItem
+   610→                            className="text-red-600 focus:text-red-600"
+   611→                            onClick={() => setDeleteTarget(seq)}
+   612→                          >
+   613→                            <Trash2 className="size-4 mr-2" /> Delete
+   614→                          </DropdownMenuItem>
+   615→                        </DropdownMenuContent>
+   616→                      </DropdownMenu>
+   617→                    </div>
+   618→                  </div>
+   619→
+   620→                  {/* Expanded detail view */}
+   621→                  <AnimatePresence>
+   622→                    {detailSequence?.id === seq.id && detailSequence.steps && (
+   623→                      <motion.div
+   624→                        initial={{ height: 0, opacity: 0 }}
+   625→                        animate={{ height: 'auto', opacity: 1 }}
+   626→                        exit={{ height: 0, opacity: 0 }}
+   627→                        transition={{ duration: 0.25 }}
+   628→                        className="overflow-hidden"
+   629→                      >
+   630→                        <div className="border-t border-gray-100 px-4 sm:px-5 py-4 bg-gray-50/50 space-y-4">
+   631→                          <div className="flex items-center justify-between">
+   632→                            <h4 className="text-sm font-semibold text-gray-700">Sequence Steps</h4>
+   633→                            <div className="flex gap-2">
+   634→                              {(detailSequence.status === 'draft' || detailSequence.status === 'paused') && (
+   635→                                <Button
+   636→                                  size="sm"
+   637→                                  className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs"
+   638→                                  onClick={() => { setExecuteDialog(detailSequence); setExecuteContactId(detailSequence.contactId || '') }}
+   639→                                >
+   640→                                  <Play className="size-3 mr-1.5" />
+   641→                                  Execute
+   642→                                </Button>
+   643→                              )}
+   644→                            </div>
+   645→                          </div>
+   646→
+   647→                          <div className="relative">
+   648→                            {/* Vertical timeline line */}
+   649→                            <div className="absolute left-4 top-0 bottom-0 w-px bg-gray-200" />
+   650→
+   651→                            <div className="space-y-4">
+   652→                              {detailSequence.steps.map((step, idx) => {
+   653→                                const StatusIcon = STEP_STATUS_ICONS[step.status] || Circle
+   654→                                return (
+   655→                                  <div key={step.id} className="relative flex gap-4">
+   656→                                    {/* Timeline dot */}
+   657→                                    <div className="relative z-10 flex items-center justify-center size-8 rounded-full bg-white border-2 border-gray-200 shrink-0 mt-1">
+   658→                                      <StatusIcon className={cn('size-3.5', step.status === 'pending' ? 'text-gray-400' : 'text-current')} />
+   659→                                    </div>
+   660→
+   661→                                    {/* Step content */}
+   662→                                    <div className="flex-1 min-w-0 bg-white rounded-lg border border-gray-200 p-3">
+   663→                                      <div className="flex items-center gap-2 flex-wrap mb-1">
+   664→                                        <span className="text-xs font-medium text-gray-400">Step {step.stepNumber}</span>
+   665→                                        <Badge
+   666→                                          variant="outline"
+   667→                                          className={cn('text-[10px] font-medium', STEP_STATUS_STYLES[step.status] || '')}
+   668→                                        >
+   669→                                          {step.status}
+   670→                                        </Badge>
+   671→                                        <span className="text-[10px] text-gray-400 flex items-center gap-1">
+   672→                                          <Clock className="size-2.5" />
+   673→                                          {formatDelay(step.delayMinutes)} delay
+   674→                                        </span>
+   675→                                      </div>
+   676→                                      <p className="text-sm font-medium text-gray-800 truncate">{step.subject}</p>
+   677→                                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">{step.body}</p>
+   678→                                      {step.cta && (
+   679→                                        <p className="text-xs text-amber-600 mt-1.5 font-medium">CTA: {step.cta}</p>
+   680→                                      )}
+   681→                                      {step.sentAt && (
+   682→                                        <p className="text-[10px] text-gray-400 mt-1.5">
+   683→                                          Sent {formatDistanceToNow(new Date(step.sentAt), { addSuffix: true })}
+   684→                                        </p>
+   685→                                      )}
+   686→                                    </div>
+   687→                                  </div>
+   688→                                )
+   689→                              })}
+   690→                            </div>
+   691→                          </div>
+   692→                        </div>
+   693→                      </motion.div>
+   694→                    )}
+   695→                  </AnimatePresence>
+   696→                </div>
+   697→              </motion.div>
+   698→            ))}
+   699→          </AnimatePresence>
+   700→        </div>
+   701→      )}
+   702→
+   703→      {/* ── Create / Edit Dialog ── */}
+   704→      <Dialog open={showCreateDialog} onOpenChange={(open) => { if (!open) setShowCreateDialog(false) }}>
+   705→        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+   706→          <DialogHeader>
+   707→            <DialogTitle className="text-lg font-bold">
+   708→              {editingSequence ? 'Edit Sequence' : 'New Sequence'}
+   709→            </DialogTitle>
+   710→            <DialogDescription>
+   711→              {editingSequence ? 'Update sequence details and steps.' : 'Define your email sequence steps.'}
+   712→            </DialogDescription>
+   713→          </DialogHeader>
+   714→
+   715→          <div className="space-y-5 mt-2">
+   716→            {/* Sequence details */}
+   717→            <div className="space-y-3">
+   718→              <div>
+   719→                <Label htmlFor="seq-name" className="text-sm font-medium">Name</Label>
+   720→                <Input
+   721→                  id="seq-name"
+   722→                  placeholder="e.g., Cold Outreach 5-Step"
+   723→                  value={seqName}
+   724→                  onChange={e => setSeqName(e.target.value)}
+   725→                  className="mt-1"
+   726→                />
+   727→              </div>
+   728→              <div>
+   729→                <Label htmlFor="seq-desc" className="text-sm font-medium">Description</Label>
+   730→                <Textarea
+   731→                  id="seq-desc"
+   732→                  placeholder="Optional description..."
+   733→                  value={seqDesc}
+   734→                  onChange={e => setSeqDesc(e.target.value)}
+   735→                  className="mt-1 resize-none"
+   736→                  rows={2}
+   737→                />
+   738→              </div>
+   739→            </div>
+   740→
+   741→            {/* Steps header */}
+   742→            <div className="flex items-center justify-between">
+   743→              <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+   744→                <LayoutList className="size-4" />
+   745→                Steps ({steps.length})
+   746→              </h4>
+   747→            </div>
+   748→
+   749→            {/* Steps list */}
+   750→            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+   751→              {steps.map((step, idx) => (
+   752→                <div
+   753→                  key={idx}
+   754→                  className="border border-gray-200 rounded-lg p-3 space-y-3 bg-gray-50/50"
+   755→                >
+   756→                  {/* Step header */}
+   757→                  <div className="flex items-center justify-between">
+   758→                    <span className="text-xs font-semibold text-gray-500 flex items-center gap-2">
+   759→                      <GripVertical className="size-3.5 text-gray-300" />
+   760→                      Step {idx + 1}
+   761→                    </span>
+   762→                    <div className="flex items-center gap-1">
+   763→                      <Button
+   764→                        variant="ghost"
+   765→                        size="icon"
+   766→                        className="size-7 text-gray-400 hover:text-gray-600"
+   767→                        onClick={() => stepOps(idx, 'up')}
+   768→                        disabled={idx === 0}
+   769→                      >
+   770→                        <ArrowUp className="size-3.5" />
+   771→                      </Button>
+   772→                      <Button
+   773→                        variant="ghost"
+   774→                        size="icon"
+   775→                        className="size-7 text-gray-400 hover:text-gray-600"
+   776→                        onClick={() => stepOps(idx, 'down')}
+   777→                        disabled={idx === steps.length - 1}
+   778→                      >
+   779→                        <ArrowDown className="size-3.5" />
+   780→                      </Button>
+   781→                      <Button
+   782→                        variant="ghost"
+   783→                        size="icon"
+   784→                        className="size-7 text-gray-400 hover:text-amber-600"
+   785→                        onClick={() => { setTemplatePickerOpen(true); setTemplateInsertStepIdx(idx) }}
+   786→                        title="Insert template"
+   787→                      >
+   788→                        <FileText className="size-3.5" />
+   789→                      </Button>
+   790→                      {steps.length > 1 && (
+   791→                        <Button
+   792→                          variant="ghost"
+   793→                          size="icon"
+   794→                          className="size-7 text-gray-400 hover:text-red-600"
+   795→                          onClick={() => setSteps(prev => prev.filter((_, i) => i !== idx))}
+   796→                        >
+   797→                          <X className="size-3.5" />
+   798→                        </Button>
+   799→                      )}
+   800→                    </div>
+   801→                  </div>
+   802→
+   803→                  {/* Subject */}
+   804→                  <div>
+   805→                    <Label className="text-xs font-medium text-gray-500">Subject</Label>
+   806→                    <Input
+   807→                      placeholder="Email subject line..."
+   808→                      value={step.subject}
+   809→                      onChange={e => {
+   810→                        const next = [...steps]
+   811→                        next[idx] = { ...next[idx], subject: e.target.value }
+   812→                        setSteps(next)
+   813→                      }}
+   814→                      className="mt-1 text-sm"
+   815→                    />
+   816→                  </div>
+   817→
+   818→                  {/* Body */}
+   819→                  <div>
+   820→                    <Label className="text-xs font-medium text-gray-500">Body</Label>
+   821→                    <Textarea
+   822→                      placeholder="Email body... Use {{firstName}}, {{company}}, {{cta}} for variables."
+   823→                      value={step.body}
+   824→                      onChange={e => {
+   825→                        const next = [...steps]
+   826→                        next[idx] = { ...next[idx], body: e.target.value }
+   827→                        setSteps(next)
+   828→                      }}
+   829→                      className="mt-1 text-sm resize-none"
+   830→                      rows={4}
+   831→                    />
+   832→                  </div>
+   833→
+   834→                  {/* Delay + CTA */}
+   835→                  <div className="flex gap-3">
+   836→                    <div className="flex-1">
+   837→                      <Label className="text-xs font-medium text-gray-500">Delay Before Send</Label>
+   838→                      <div className="flex gap-2 mt-1">
+   839→                        <Input
+   840→                          type="number"
+   841→                          min={0}
+   842→                          value={step.delayMinutes}
+   843→                          onChange={e => {
+   844→                            const next = [...steps]
+   845→                            next[idx] = { ...next[idx], delayMinutes: Math.max(0, parseInt(e.target.value) || 0) }
+   846→                            setSteps(next)
+   847→                          }}
+   848→                          className="w-24 text-sm"
+   849→                        />
+   850→                        <Select
+   851→                          value={step.delayUnit}
+   852→                          onValueChange={(v: 'minutes' | 'hours' | 'days') => {
+   853→                            const next = [...steps]
+   854→                            next[idx] = { ...next[idx], delayUnit: v }
+   855→                            setSteps(next)
+   856→                          }}
+   857→                        >
+   858→                          <SelectTrigger className="w-24 text-sm">
+   859→                            <SelectValue />
+   860→                          </SelectTrigger>
+   861→                          <SelectContent>
+   862→                            <SelectItem value="minutes">Minutes</SelectItem>
+   863→                            <SelectItem value="hours">Hours</SelectItem>
+   864→                            <SelectItem value="days">Days</SelectItem>
+   865→                          </SelectContent>
+   866→                        </Select>
+   867→                      </div>
+   868→                    </div>
+   869→                    <div className="flex-1">
+   870→                      <Label className="text-xs font-medium text-gray-500">CTA</Label>
+   871→                      <Input
+   872→                        placeholder="e.g., Book a 15-min call"
+   873→                        value={step.cta}
+   874→                        onChange={e => {
+   875→                          const next = [...steps]
+   876→                          next[idx] = { ...next[idx], cta: e.target.value }
+   877→                          setSteps(next)
+   878→                        }}
+   879→                        className="mt-1 text-sm"
+   880→                      />
+   881→                    </div>
+   882→                  </div>
+   883→                </div>
+   884→              ))}
+   885→            </div>
+   886→
+   887→            {/* Add step button */}
+   888→            <Button
+   889→              variant="outline"
+   890→              className="w-full border-dashed border-gray-300 text-gray-500 hover:text-gray-700 hover:border-gray-400"
+   891→              onClick={() => setSteps(prev => [...prev, emptyStep()])}
+   892→            >
+   893→              <Plus className="size-4 mr-2" />
+   894→              Add Step
+   895→            </Button>
+   896→          </div>
+   897→
+   898→          <DialogFooter>
+   899→            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+   900→              Cancel
+   901→            </Button>
+   902→            <Button
+   903→              onClick={handleSave}
+   904→              disabled={isSaving || createMutation.isPending || updateMutation.isPending}
+   905→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
+   906→            >
+   907→              {(isSaving || createMutation.isPending || updateMutation.isPending) && (
+   908→                <Loader2 className="size-4 mr-2 animate-spin" />
+   909→              )}
+   910→              {editingSequence ? 'Update Sequence' : 'Create Sequence'}
+   911→            </Button>
+   912→          </DialogFooter>
+   913→        </DialogContent>
+   914→      </Dialog>
+   915→
+   916→      {/* ── Template Picker Dialog ── */}
+   917→      <Dialog open={templatePickerOpen} onOpenChange={(open) => { if (!open) setTemplatePickerOpen(false) }}>
+   918→        <DialogContent className="max-w-lg max-h-[70vh] overflow-y-auto">
+   919→          <DialogHeader>
+   920→            <DialogTitle className="text-lg font-bold">Choose a Template</DialogTitle>
+   921→            <DialogDescription>
+   922→              Select a template to fill the step content.
+   923→            </DialogDescription>
+   924→          </DialogHeader>
+   925→
+   926→          <div className="space-y-2 mt-2">
+   927→            {templates.map(tmpl => (
+   928→              <button
+   929→                key={tmpl.id}
+   930→                className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-amber-300 hover:bg-amber-50/50 transition-colors"
+   931→                onClick={() => insertTemplate(tmpl)}
+   932→              >
+   933→                <div className="flex items-center gap-2">
+   934→                  <span className="text-sm font-semibold text-gray-800">{tmpl.name}</span>
+   935→                  <Badge variant="outline" className="text-[10px] font-normal text-gray-400">{tmpl.category}</Badge>
+   936→                  {tmpl.isBuiltIn && (
+   937→                    <Badge variant="outline" className="text-[10px] font-normal text-gray-400">Built-in</Badge>
+   938→                  )}
+   939→                </div>
+   940→                <p className="text-xs text-gray-500 mt-1 truncate">Subject: {tmpl.subject}</p>
+   941→                {tmpl.description && (
+   942→                  <p className="text-xs text-gray-400 mt-0.5">{tmpl.description}</p>
+   943→                )}
+   944→              </button>
+   945→            ))}
+   946→          </div>
+   947→        </DialogContent>
+   948→      </Dialog>
+   949→
+   950→      {/* ── Execute Dialog ── */}
+   951→      <Dialog open={!!executeDialog} onOpenChange={(open) => { if (!open) setExecuteDialog(null) }}>
+   952→        <DialogContent className="max-w-md">
+   953→          <DialogHeader>
+   954→            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+   955→              <Zap className="size-5 text-amber-600" />
+   956→              Execute Sequence
+   957→            </DialogTitle>
+   958→            <DialogDescription>
+   959→              Select a contact to execute this sequence for. The first step will be generated as a draft.
+   960→            </DialogDescription>
+   961→          </DialogHeader>
+   962→
+   963→          {executeDialog && (
+   964→            <div className="space-y-4 mt-2">
+   965→              <div>
+   966→                <Label className="text-sm font-medium">Sequence</Label>
+   967→                <p className="text-sm text-gray-700 mt-0.5 font-medium">{executeDialog.name}</p>
+   968→                <p className="text-xs text-gray-400 mt-0.5">
+   969→                  {executeDialog.steps?.length || executeDialog._count?.steps || 0} steps
+   970→                </p>
+   971→              </div>
+   972→
+   973→              <div>
+   974→                <Label htmlFor="exec-contact" className="text-sm font-medium">Contact</Label>
+   975→                <Select value={executeContactId} onValueChange={setExecuteContactId}>
+   976→                  <SelectTrigger className="mt-1">
+   977→                    <SelectValue placeholder="Select a contact..." />
+   978→                  </SelectTrigger>
+   979→                  <SelectContent>
+   980→                    {contacts.map(c => (
+   981→                      <SelectItem key={c.id} value={c.id}>
+   982→                        {c.name}{c.company ? ` — ${c.company.name}` : ''}
+   983→                      </SelectItem>
+   984→                    ))}
+   985→                  </SelectContent>
+   986→                </Select>
+   987→              </div>
+   988→            </div>
+   989→          )}
+   990→
+   991→          <DialogFooter>
+   992→            <Button variant="outline" onClick={() => setExecuteDialog(null)}>Cancel</Button>
+   993→            <Button
+   994→              onClick={() => {
+   995→                if (executeDialog && executeContactId) {
+   996→                  executeMutation.mutate({ sequenceId: executeDialog.id, contactId: executeContactId })
+   997→                } else {
+   998→                  toast.error('Please select a contact')
+   999→                }
+  1000→              }}
+  1001→              disabled={!executeContactId || executeMutation.isPending}
+  1002→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
+  1003→            >
+  1004→              {executeMutation.isPending && <Loader2 className="size-4 mr-2 animate-spin" />}
+  1005→              <Play className="size-4 mr-2" />
+  1006→              Execute
+  1007→            </Button>
+  1008→          </DialogFooter>
+  1009→        </DialogContent>
+  1010→      </Dialog>
+  1011→
+  1012→      {/* ── Delete Confirmation ── */}
+  1013→      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+  1014→        <AlertDialogContent>
+  1015→          <AlertDialogHeader>
+  1016→            <AlertDialogTitle>Delete Sequence</AlertDialogTitle>
+  1017→            <AlertDialogDescription>
+  1018→              Are you sure you want to delete &quot;{deleteTarget?.name}&quot;? This will also delete all its steps. This action cannot be undone.
+  1019→            </AlertDialogDescription>
+  1020→          </AlertDialogHeader>
+  1021→          <AlertDialogFooter>
+  1022→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+  1023→            <AlertDialogAction
+  1024→              className="bg-red-600 hover:bg-red-700 text-white"
+  1025→              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+  1026→            >
+  1027→              {deleteMutation.isPending && <Loader2 className="size-4 mr-2 animate-spin" />}
+  1028→              Delete
+  1029→            </AlertDialogAction>
+  1030→          </AlertDialogFooter>
+  1031→        </AlertDialogContent>
+  1032→      </AlertDialog>
+  1033→    </div>
+  1034→  )
+  1035→}

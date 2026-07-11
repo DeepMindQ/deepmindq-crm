@@ -1,0 +1,651 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useRef, useCallback, useMemo } from 'react'
+     4→     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→     5→import { formatDistanceToNow } from 'date-fns'
+     6→     6→import {
+     7→     7→  FileText, Plus, Trash2, Search, Upload, BookOpen, Tag,
+     8→     8→  X, Eye, Download, AlertTriangle, Loader2,
+     9→     9→} from 'lucide-react'
+    10→    10→import { Button } from '@/components/ui/button'
+    11→    11→import { Input } from '@/components/ui/input'
+    12→    12→import { Badge } from '@/components/ui/badge'
+    13→    13→import {
+    14→    14→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+    15→    15→} from '@/components/ui/dialog'
+    16→    16→import {
+    17→    17→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    18→    18→  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
+    19→    19→  AlertDialogTitle, AlertDialogTrigger,
+    20→    20→} from '@/components/ui/alert-dialog'
+    21→    21→import { Label } from '@/components/ui/label'
+    22→    22→import { Textarea } from '@/components/ui/textarea'
+    23→    23→import { toast } from 'sonner'
+    24→    24→import { EmptyState } from '@/components/shared/design-system'
+    25→    25→import { cn } from '@/lib/utils'
+    26→    26→
+    27→    27→/* ── helpers ──────────────────────────────────────────────────── */
+    28→    28→
+    29→    29→function getFileExtension(filename: string): string {
+    30→    30→  return (filename.split('.').pop() || '').toUpperCase()
+    31→    31→}
+    32→    32→
+    33→    33→const fileTypeConfig: Record<string, { color: string; bg: string }> = {
+    34→    34→  PDF:  { color: 'text-red-600',  bg: 'bg-red-50' },
+    35→    35→  DOCX: { color: 'text-blue-600', bg: 'bg-blue-50' },
+    36→    36→  DOC:  { color: 'text-blue-600', bg: 'bg-blue-50' },
+    37→    37→  TXT:  { color: 'text-gray-600', bg: 'bg-gray-100' },
+    38→    38→  MD:   { color: 'text-gray-600', bg: 'bg-gray-100' },
+    39→    39→}
+    40→    40→
+    41→    41→const snippetTypeConfig: Record<string, { color: string; bg: string; label: string }> = {
+    42→    42→  case_study: { color: 'text-violet-700',   bg: 'bg-violet-50',   label: 'Case Study' },
+    43→    43→  service:    { color: 'text-blue-700',     bg: 'bg-blue-50',     label: 'Service' },
+    44→    44→  capability: { color: 'text-emerald-700',  bg: 'bg-emerald-50',  label: 'Capability' },
+    45→    45→  outcome:    { color: 'text-amber-700',    bg: 'bg-amber-50',    label: 'Outcome' },
+    46→    46→}
+    47→    47→
+    48→    48→/* ── types ────────────────────────────────────────────────────── */
+    49→    49→
+    50→    50→interface KnowledgeDocument {
+    51→    51→  id: string
+    52→    52→  title: string
+    53→    53→  description: string | null
+    54→    54→  fileType: string
+    55→    55→  fileName: string
+    56→    56→  snippetCount: number
+    57→    57→  createdAt: string
+    58→    58→}
+    59→    59→
+    60→    60→interface KnowledgeSnippet {
+    61→    61→  id: string
+    62→    62→  documentId: string
+    63→    63→  type: string
+    64→    64→  title: string
+    65→    65→  content: string
+    66→    66→  industries: string[] | null
+    67→    67→  outcomes: string[] | null
+    68→    68→}
+    69→    69→
+    70→    70→/* ── component ────────────────────────────────────────────────── */
+    71→    71→
+    72→    72→export default function KnowledgeLibraryScreen() {
+    73→    73→  const qc = useQueryClient()
+    74→    74→  const fileInputRef = useRef<HTMLInputElement>(null)
+    75→    75→
+    76→    76→  const [search, setSearch] = useState('')
+    77→    77→  const [uploadOpen, setUploadOpen] = useState(false)
+    78→    78→  const [form, setForm] = useState({ title: '', description: '' })
+    79→    79→  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+    80→    80→  const [viewDoc, setViewDoc] = useState<KnowledgeDocument | null>(null)
+    81→    81→  const [page, setPage] = useState(1)
+    82→    82→  const pageSize = 12
+    83→    83→  const [viewDocContent, setViewDocContent] = useState<string>('')
+    84→    84→  const [viewDocLoading, setViewDocLoading] = useState(false)
+    85→    85→
+    86→    86→  /* ── queries ────────────────────────────────────────────────── */
+    87→    87→
+    88→    88→  const { data: documents = [], isLoading: docsLoading, error: docsError } = useQuery<KnowledgeDocument[]>({
+    89→    89→    queryKey: ['knowledge', page, pageSize],
+    90→    90→    queryFn: () => fetch(`/api/knowledge?page=${page}&pageSize=${pageSize}`).then(r => r.json()).then(d => d.documents ?? d),
+    91→    91→  })
+    92→    92→
+    93→    93→  const hasDocuments = documents.length > 0
+    94→    94→
+    95→    95→  const { data: snippetsData, isLoading: snippetsLoading, error: snippetsError } = useQuery<{ documents: KnowledgeDocument[]; snippets: KnowledgeSnippet[] }>({
+    96→    96→    queryKey: ['knowledge', 'snippets'],
+    97→    97→    queryFn: () => fetch(`/api/knowledge?include=snippets&page=1&pageSize=100`).then(r => r.json()),
+    98→    98→    enabled: hasDocuments,
+    99→    99→  })
+   100→   100→
+   101→   101→  const snippets: KnowledgeSnippet[] = useMemo(() => snippetsData?.snippets ?? [], [snippetsData])
+   102→   102→
+   103→   103→  /* ── filtered lists ─────────────────────────────────────────── */
+   104→   104→
+   105→   105→  const query = search.toLowerCase().trim()
+   106→   106→
+   107→   107→  const filteredDocs = useMemo(() => {
+   108→   108→    if (!query) return documents
+   109→   109→    return documents.filter(
+   110→   110→      (d) =>
+   111→   111→        d.title?.toLowerCase().includes(query) ||
+   112→   112→        d.description?.toLowerCase().includes(query) ||
+   113→   113→        d.fileName?.toLowerCase().includes(query) ||
+   114→   114→        d.fileType?.toLowerCase().includes(query)
+   115→   115→    )
+   116→   116→  }, [documents, query])
+   117→   117→
+   118→   118→  const filteredSnippets = useMemo(() => {
+   119→   119→    if (!query) return snippets
+   120→   120→    return snippets.filter(
+   121→   121→      (s) =>
+   122→   122→        s.title?.toLowerCase().includes(query) ||
+   123→   123→        s.content?.toLowerCase().includes(query) ||
+   124→   124→        s.type?.toLowerCase().includes(query) ||
+   125→   125→        s.industries?.some((i) => i.toLowerCase().includes(query)) ||
+   126→   126→        s.outcomes?.some((o) => o.toLowerCase().includes(query))
+   127→   127→    )
+   128→   128→  }, [snippets, query])
+   129→   129→
+   130→   130→  /* ── mutations ──────────────────────────────────────────────── */
+   131→   131→
+   132→   132→  const uploadMutation = useMutation({
+   133→   133→    mutationFn: async () => {
+   134→   134→      const fd = new FormData()
+   135→   135→      if (selectedFile) fd.append('file', selectedFile)
+   136→   136→      fd.append('title', form.title)
+   137→   137→      fd.append('description', form.description)
+   138→   138→      const res = await fetch('/api/knowledge', { method: 'POST', body: fd })
+   139→   139→      if (!res.ok) throw new Error('Upload failed')
+   140→   140→      return res.json()
+   141→   141→    },
+   142→   142→    onSuccess: () => {
+   143→   143→      toast.success('Document uploaded successfully')
+   144→   144→      setUploadOpen(false)
+   145→   145→      setForm({ title: '', description: '' })
+   146→   146→      setSelectedFile(null)
+   147→   147→      qc.invalidateQueries({ queryKey: ['knowledge'] })
+   148→   148→    },
+   149→   149→    onError: () => {
+   150→   150→      toast.error('Failed to upload document')
+   151→   151→    },
+   152→   152→  })
+   153→   153→
+   154→   154→  const deleteMutation = useMutation({
+   155→   155→    mutationFn: (id: string) => fetch(`/api/knowledge/${id}`, { method: 'DELETE' }).then(r => r.json()),
+   156→   156→    onSuccess: () => {
+   157→   157→      toast.success('Document deleted')
+   158→   158→      qc.invalidateQueries({ queryKey: ['knowledge'] })
+   159→   159→    },
+   160→   160→    onError: () => {
+   161→   161→      toast.error('Failed to delete document')
+   162→   162→    },
+   163→   163→  })
+   164→   164→
+   165→   165→  /* ── handlers ───────────────────────────────────────────────── */
+   166→   166→
+   167→   167→  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+   168→   168→    const file = e.target.files?.[0]
+   169→   169→    if (file) {
+   170→   170→      setSelectedFile(file)
+   171→   171→      if (!form.title) {
+   172→   172→        setForm((prev) => ({ ...prev, title: file.name.replace(/\.[^/.]+$/, '') }))
+   173→   173→      }
+   174→   174→    }
+   175→   175→  }, [form.title])
+   176→   176→
+   177→   177→  const handleUpload = useCallback(() => {
+   178→   178→    if (!selectedFile) {
+   179→   179→      toast.error('Please select a file')
+   180→   180→      return
+   181→   181→    }
+   182→   182→    uploadMutation.mutate()
+   183→   183→  }, [selectedFile, uploadMutation])
+   184→   184→
+   185→   185→  const handleOpenUpload = useCallback(() => {
+   186→   186→    setForm({ title: '', description: '' })
+   187→   187→    setSelectedFile(null)
+   188→   188→    setUploadOpen(true)
+   189→   189→  }, [])
+   190→   190→
+   191→   191→  const handleCloseUpload = useCallback(() => {
+   192→   192→    setUploadOpen(false)
+   193→   193→    setForm({ title: '', description: '' })
+   194→   194→    setSelectedFile(null)
+   195→   195→  }, [])
+   196→   196→
+   197→   197→  const handleViewDoc = useCallback(async (doc: KnowledgeDocument) => {
+   198→   198→    setViewDoc(doc)
+   199→   199→    setViewDocContent('')
+   200→   200→    setViewDocLoading(true)
+   201→   201→    try {
+   202→   202→      const res = await fetch(`/api/knowledge/${doc.id}`)
+   203→   203→      if (res.ok) {
+   204→   204→        const data = await res.json()
+   205→   205→        setViewDocContent(data.content || data.snippets?.map((s: KnowledgeSnippet) => `${s.title}\n${s.content}`).join('\n\n') || 'No content available.')
+   206→   206→      } else {
+   207→   207→        setViewDocContent('Could not load document content.')
+   208→   208→      }
+   209→   209→    } catch {
+   210→   210→      setViewDocContent('Failed to load document content.')
+   211→   211→    } finally {
+   212→   212→      setViewDocLoading(false)
+   213→   213→    }
+   214→   214→  }, [])
+   215→   215→
+   216→   216→  const handleDownloadDoc = useCallback(async (doc: KnowledgeDocument) => {
+   217→   217→    try {
+   218→   218→      const res = await fetch(`/api/knowledge/${doc.id}`)
+   219→   219→      if (!res.ok) throw new Error('Download failed')
+   220→   220→      const data = await res.json()
+   221→   221→      const content = data.content || data.snippets?.map((s: KnowledgeSnippet) => `${s.title}\n${s.content}`).join('\n\n') || ''
+   222→   222→      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+   223→   223→      const url = URL.createObjectURL(blob)
+   224→   224→      const a = document.createElement('a')
+   225→   225→      a.href = url
+   226→   226→      a.download = `${doc.title || doc.fileName}.txt`
+   227→   227→      a.click()
+   228→   228→      URL.revokeObjectURL(url)
+   229→   229→    } catch {
+   230→   230→      toast.error('Failed to download document')
+   231→   231→    }
+   232→   232→  }, [])
+   233→   233→
+   234→   234→  /* ── render ─────────────────────────────────────────────────── */
+   235→   235→
+   236→   236→  return (
+   237→   237→    <div className="space-y-6">
+   238→   238→      {/* ── Header ─────────────────────────────────────────── */}
+   239→   239→      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+   240→   240→        <div>
+   241→   241→          <h1 className="text-lg font-bold text-gray-900 tracking-tight">
+   242→   242→            Knowledge Library
+   243→   243→          </h1>
+   244→   244→          <p className="text-sm text-gray-500">
+   245→   245→            Upload capability documents, case studies, and service descriptions. AI uses these to personalize your outreach.
+   246→   246→          </p>
+   247→   247→        </div>
+   248→   248→        <Button
+   249→   249→          className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs shrink-0"
+   250→   250→          onClick={handleOpenUpload}
+   251→   251→        >
+   252→   252→          <Plus className="size-4 sm:mr-1.5" />
+   253→   253→          <span className="hidden sm:inline">Upload Document</span>
+   254→   254→        </Button>
+   255→   255→      </div>
+   256→   256→
+   257→   257→      {/* ── Search ─────────────────────────────────────────── */}
+   258→   258→      <div className="relative">
+   259→   259→        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+   260→   260→        <Input
+   261→   261→          placeholder="Search documents and snippets..."
+   262→   262→          value={search}
+   263→   263→          onChange={(e) => setSearch(e.target.value)}
+   264→   264→          className="pl-9 pr-9 h-9 bg-white border-gray-200 rounded-lg text-sm focus:border-amber-400 focus:ring-amber-100"
+   265→   265→        />
+   266→   266→        {search && (
+   267→   267→          <button
+   268→   268→            onClick={() => setSearch('')}
+   269→   269→            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+   270→   270→            aria-label="Clear search"
+   271→   271→          >
+   272→   272→            <X className="size-3.5" />
+   273→   273→          </button>
+   274→   274→        )}
+   275→   275→      </div>
+   276→   276→
+   277→   277→      {/* ── Error state for documents ──────────────────────── */}
+   278→   278→      {docsError && (
+   279→   279→        <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+   280→   280→          <AlertTriangle className="size-4 text-red-500 shrink-0 mt-0.5" />
+   281→   281→          <div>
+   282→   282→            <p className="text-sm font-medium text-red-700">Failed to load documents</p>
+   283→   283→            <p className="text-xs text-red-500 mt-0.5">Please try refreshing the page.</p>
+   284→   284→          </div>
+   285→   285→        </div>
+   286→   286→      )}
+   287→   287→
+   288→   288→      {/* ── Section 1: Documents Grid ──────────────────────── */}
+   289→   289→      <section>
+   290→   290→        {!docsLoading && !docsError && filteredDocs.length === 0 ? (
+   291→   291→          <EmptyState
+   292→   292→            icon={FileText}
+   293→   293→            title="No documents yet"
+   294→   294→            description="Upload your first capability document to power AI-generated emails."
+   295→   295→            actionLabel="Upload Document"
+   296→   296→            onAction={handleOpenUpload}
+   297→   297→          />
+   298→   298→        ) : (
+   299→   299→          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+   300→   300→            {docsLoading
+   301→   301→              ? Array.from({ length: 3 }).map((_, i) => (
+   302→   302→                  <div key={i} className="rounded-xl bg-white card-rest p-5 space-y-3 animate-pulse">
+   303→   303→                    <div className="h-6 w-12 rounded-md bg-gray-100" />
+   304→   304→                    <div className="h-4 w-3/4 rounded bg-gray-100" />
+   305→   305→                    <div className="h-3 w-full rounded bg-gray-100" />
+   306→   306→                    <div className="h-3 w-1/2 rounded bg-gray-100" />
+   307→   307→                  </div>
+   308→   308→                ))
+   309→   309→              : filteredDocs.map((doc) => {
+   310→   310→                  const ext = getFileExtension(doc.fileName || '')
+   311→   311→                  const cfg = fileTypeConfig[ext] || fileTypeConfig.TXT
+   312→   312→                  return (
+   313→   313→                    <div
+   314→   314→                      key={doc.id}
+   315→   315→                      className="group rounded-xl bg-white card-rest p-5 flex flex-col gap-3"
+   316→   316→                    >
+   317→   317→                      <div className="flex items-start justify-between">
+   318→   318→                        <div
+   319→   319→                          className={cn(
+   320→   320→                            'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold',
+   321→   321→                            cfg.bg,
+   322→   322→                            cfg.color
+   323→   323→                          )}
+   324→   324→                        >
+   325→   325→                          <FileText className="size-3" />
+   326→   326→                          {ext || 'FILE'}
+   327→   327→                        </div>
+   328→   328→                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+   329→   329→                          <button
+   330→   330→                            onClick={() => handleViewDoc(doc)}
+   331→   331→                            className="p-1 rounded-md hover:bg-gray-100 transition-colors"
+   332→   332→                            title="View"
+   333→   333→                          >
+   334→   334→                            <Eye className="size-3.5 text-gray-500" />
+   335→   335→                          </button>
+   336→   336→                          <button
+   337→   337→                            onClick={() => handleDownloadDoc(doc)}
+   338→   338→                            className="p-1 rounded-md hover:bg-gray-100 transition-colors"
+   339→   339→                            title="Download"
+   340→   340→                          >
+   341→   341→                            <Download className="size-3.5 text-gray-500" />
+   342→   342→                          </button>
+   343→   343→                          <AlertDialog>
+   344→   344→                            <AlertDialogTrigger asChild>
+   345→   345→                              <button
+   346→   346→                                className="p-1 rounded-md hover:bg-red-50 transition-colors"
+   347→   347→                                aria-label="Delete document"
+   348→   348→                              >
+   349→   349→                                <Trash2 className="size-3.5 text-red-500" />
+   350→   350→                              </button>
+   351→   351→                            </AlertDialogTrigger>
+   352→   352→                            <AlertDialogContent>
+   353→   353→                              <AlertDialogHeader>
+   354→   354→                                <AlertDialogTitle>Delete Document</AlertDialogTitle>
+   355→   355→                                <AlertDialogDescription>
+   356→   356→                                  Are you sure you want to delete &quot;{doc.title || doc.fileName}&quot;? This action cannot be undone.
+   357→   357→                                </AlertDialogDescription>
+   358→   358→                              </AlertDialogHeader>
+   359→   359→                              <AlertDialogFooter>
+   360→   360→                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+   361→   361→                                <AlertDialogAction
+   362→   362→                                  onClick={() => deleteMutation.mutate(doc.id)}
+   363→   363→                                  className="bg-red-600 hover:bg-red-700 text-white"
+   364→   364→                                >
+   365→   365→                                  Delete
+   366→   366→                                </AlertDialogAction>
+   367→   367→                              </AlertDialogFooter>
+   368→   368→                            </AlertDialogContent>
+   369→   369→                          </AlertDialog>
+   370→   370→                        </div>
+   371→   371→                      </div>
+   372→   372→
+   373→   373→                      <h3 className="text-sm font-semibold text-gray-900 leading-snug">
+   374→   374→                        {doc.title || doc.fileName}
+   375→   375→                      </h3>
+   376→   376→
+   377→   377→                      {doc.description && (
+   378→   378→                        <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
+   379→   379→                          {doc.description}
+   380→   380→                        </p>
+   381→   381→                      )}
+   382→   382→
+   383→   383→                      <div className="flex items-center gap-2 mt-auto pt-1">
+   384→   384→                        <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+   385→   385→                          <BookOpen className="size-2.5" />
+   386→   386→                          {doc.snippetCount ?? 0} snippets
+   387→   387→                        </span>
+   388→   388→                        <span className="text-[10px] text-gray-400 ml-auto">
+   389→   389→                          {formatDistanceToNow(new Date(doc.createdAt), { addSuffix: true })}
+   390→   390→                        </span>
+   391→   391→                      </div>
+   392→   392→                    </div>
+   393→   393→                  )
+   394→   394→                })}
+   395→   395→          </div>
+   396→   396→        )}
+   397→   397→      </section>
+   398→   398→
+   399→   399→      {/* ── Pagination ─────────────────────────────────────── */}
+   400→   400→      {documents.length >= pageSize && (
+   401→   401→        <div className="flex items-center justify-center gap-2">
+   402→   402→          <Button
+   403→   403→            variant="outline"
+   404→   404→            size="sm"
+   405→   405→            className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg"
+   406→   406→            onClick={() => setPage(p => Math.max(1, p - 1))}
+   407→   407→            disabled={page <= 1}
+   408→   408→          >
+   409→   409→            Previous
+   410→   410→          </Button>
+   411→   411→          <span className="text-xs text-gray-500 px-2">Page {page}</span>
+   412→   412→          <Button
+   413→   413→            variant="outline"
+   414→   414→            size="sm"
+   415→   415→            className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg"
+   416→   416→            onClick={() => setPage(p => p + 1)}
+   417→   417→            disabled={documents.length < pageSize}
+   418→   418→          >
+   419→   419→            Next
+   420→   420→          </Button>
+   421→   421→        </div>
+   422→   422→      )}
+   423→   423→
+   424→   424→      {/* ── Section 2: Extracted Snippets ──────────────────── */}
+   425→   425→      {hasDocuments && (
+   426→   426→        <section>
+   427→   427→          <div className="flex items-center gap-2 mb-4">
+   428→   428→            <h2 className="text-base font-semibold text-gray-900">Extracted Snippets</h2>
+   429→   429→            <span className="inline-flex items-center justify-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+   430→   430→              {filteredSnippets.length}
+   431→   431→            </span>
+   432→   432→          </div>
+   433→   433→
+   434→   434→          {/* Error state for snippets */}
+   435→   435→          {snippetsError && (
+   436→   436→            <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3 mb-4">
+   437→   437→              <AlertTriangle className="size-4 text-red-500 shrink-0 mt-0.5" />
+   438→   438→              <div>
+   439→   439→                <p className="text-sm font-medium text-red-700">Failed to load snippets</p>
+   440→   440→                <p className="text-xs text-red-500 mt-0.5">Please try refreshing the page.</p>
+   441→   441→              </div>
+   442→   442→            </div>
+   443→   443→          )}
+   444→   444→
+   445→   445→          {snippetsLoading ? (
+   446→   446→            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   447→   447→              {Array.from({ length: 2 }).map((_, i) => (
+   448→   448→                <div key={i} className="rounded-xl bg-white card-rest p-5 space-y-3 animate-pulse">
+   449→   449→                  <div className="h-5 w-20 rounded-md bg-gray-100" />
+   450→   450→                  <div className="h-4 w-3/4 rounded bg-gray-100" />
+   451→   451→                  <div className="h-3 w-full rounded bg-gray-100" />
+   452→   452→                  <div className="h-3 w-2/3 rounded bg-gray-100" />
+   453→   453→                  <div className="h-3 w-24 rounded bg-gray-100" />
+   454→   454→                </div>
+   455→   455→              ))}
+   456→   456→            </div>
+   457→   457→          ) : filteredSnippets.length === 0 ? (
+   458→   458→            <div className="text-center py-12">
+   459→   459→              <Tag className="size-8 text-gray-300 mx-auto mb-3" />
+   460→   460→              <p className="text-sm text-gray-500">
+   461→   461→                {query
+   462→   462→                  ? 'No snippets match your search.'
+   463→   463→                  : 'No snippets extracted yet. Upload a document to get started.'}
+   464→   464→              </p>
+   465→   465→            </div>
+   466→   466→          ) : (
+   467→   467→            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   468→   468→              {filteredSnippets.map((snippet) => {
+   469→   469→                const typeCfg = snippetTypeConfig[snippet.type] || {
+   470→   470→                  color: 'text-gray-700',
+   471→   471→                  bg: 'bg-gray-100',
+   472→   472→                  label: snippet.type,
+   473→   473→                }
+   474→   474→                return (
+   475→   475→                  <div
+   476→   476→                    key={snippet.id}
+   477→   477→                    className="rounded-xl bg-white card-rest p-5 flex flex-col gap-3"
+   478→   478→                  >
+   479→   479→                    <div className="flex items-center gap-2 flex-wrap">
+   480→   480→                      <span
+   481→   481→                        className={cn(
+   482→   482→                          'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold',
+   483→   483→                          typeCfg.bg,
+   484→   484→                          typeCfg.color
+   485→   485→                        )}
+   486→   486→                      >
+   487→   487→                        {typeCfg.label}
+   488→   488→                      </span>
+   489→   489→                    </div>
+   490→   490→
+   491→   491→                    <h3 className="text-sm font-semibold text-gray-900 leading-snug">
+   492→   492→                      {snippet.title}
+   493→   493→                    </h3>
+   494→   494→
+   495→   495→                    <p className="text-xs text-gray-600 line-clamp-3 whitespace-pre-wrap leading-relaxed">
+   496→   496→                      {snippet.content}
+   497→   497→                    </p>
+   498→   498→
+   499→   499→                    <div className="flex items-center gap-2 flex-wrap mt-auto pt-1">
+   500→   500→                      {snippet.industries && snippet.industries.length > 0 && (
+   501→   501→                        <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+   502→   502→                          <Tag className="size-2.5" />
+   503→   503→                          {snippet.industries.join(', ')}
+   504→   504→                        </span>
+   505→   505→                      )}
+   506→   506→                      {snippet.outcomes && snippet.outcomes.length > 0 && (
+   507→   507→                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+   508→   508→                          {snippet.outcomes.join(', ')}
+   509→   509→                        </span>
+   510→   510→                      )}
+   511→   511→                    </div>
+   512→   512→                  </div>
+   513→   513→                )
+   514→   514→              })}
+   515→   515→            </div>
+   516→   516→          )}
+   517→   517→        </section>
+   518→   518→      )}
+   519→   519→
+   520→   520→      {/* ── Upload Dialog ──────────────────────────────────── */}
+   521→   521→      <Dialog open={uploadOpen} onOpenChange={handleCloseUpload}>
+   522→   522→        <DialogContent className="sm:max-w-md rounded-xl p-6">
+   523→   523→          <DialogHeader>
+   524→   524→            <DialogTitle className="text-gray-900">Upload Document</DialogTitle>
+   525→   525→          </DialogHeader>
+   526→   526→
+   527→   527→          <div className="grid gap-4 py-2">
+   528→   528→            {/* File picker */}
+   529→   529→            <div className="grid gap-1.5">
+   530→   530→              <Label className="text-sm font-medium text-gray-700">File</Label>
+   531→   531→              <input
+   532→   532→                ref={fileInputRef}
+   533→   533→                type="file"
+   534→   534→                accept=".pdf,.docx,.txt,.md"
+   535→   535→                onChange={handleFileChange}
+   536→   536→                className="block w-full text-sm text-gray-500
+   537→   537→                  file:mr-4 file:py-2 file:px-4
+   538→   538→                  file:rounded-lg file:border-0
+   539→   539→                  file:text-sm file:font-medium
+   540→   540→                  file:bg-amber-50 file:text-amber-700
+   541→   541→                  hover:file:bg-amber-100
+   542→   542→                  file:cursor-pointer file:transition-colors
+   543→   543→                  cursor-pointer rounded-lg border border-dashed border-gray-300 bg-gray-50/50 p-6 text-center"
+   544→   544→              />
+   545→   545→              {selectedFile && (
+   546→   546→                <p className="text-xs text-gray-500 mt-1">
+   547→   547→                  <Upload className="size-3 inline mr-1" />
+   548→   548→                  {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+   549→   549→                </p>
+   550→   550→              )}
+   551→   551→            </div>
+   552→   552→
+   553→   553→            {/* Title */}
+   554→   554→            <div className="grid gap-1.5">
+   555→   555→              <Label className="text-sm font-medium text-gray-700">Title</Label>
+   556→   556→              <Input
+   557→   557→                placeholder="e.g. Manufacturing Capabilities 2024"
+   558→   558→                value={form.title}
+   559→   559→                onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+   560→   560→                className="border-gray-200 rounded-lg"
+   561→   561→              />
+   562→   562→            </div>
+   563→   563→
+   564→   564→            {/* Description */}
+   565→   565→            <div className="grid gap-1.5">
+   566→   566→              <Label className="text-sm font-medium text-gray-700">Description</Label>
+   567→   567→              <Textarea
+   568→   568→                placeholder="Brief description of this document's content..."
+   569→   569→                value={form.description}
+   570→   570→                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+   571→   571→                className="border-gray-200 rounded-lg min-h-[80px] resize-none"
+   572→   572→              />
+   573→   573→            </div>
+   574→   574→          </div>
+   575→   575→
+   576→   576→          <DialogFooter className="pt-2">
+   577→   577→            <Button
+   578→   578→              variant="outline"
+   579→   579→              onClick={handleCloseUpload}
+   580→   580→              className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg"
+   581→   581→            >
+   582→   582→              Cancel
+   583→   583→            </Button>
+   584→   584→            <Button
+   585→   585→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
+   586→   586→              onClick={handleUpload}
+   587→   587→              disabled={!selectedFile || uploadMutation.isPending}
+   588→   588→            >
+   589→   589→              {uploadMutation.isPending ? (
+   590→   590→                <span className="inline-flex items-center gap-1.5">
+   591→   591→                  <span className="size-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+   592→   592→                  Uploading…
+   593→   593→                </span>
+   594→   594→              ) : (
+   595→   595→                <>
+   596→   596→                  <Upload className="size-4 mr-1.5" />
+   597→   597→                  Upload
+   598→   598→                </>
+   599→   599→              )}
+   600→   600→            </Button>
+   601→   601→          </DialogFooter>
+   602→   602→        </DialogContent>
+   603→   603→      </Dialog>
+   604→   604→
+   605→   605→      {/* ── View Document Dialog ───────────────────────────── */}
+   606→   606→      <Dialog open={!!viewDoc} onOpenChange={(open) => { if (!open) setViewDoc(null) }}>
+   607→   607→        <DialogContent className="sm:max-w-lg rounded-xl p-6 max-h-[80vh] flex flex-col">
+   608→   608→          <DialogHeader>
+   609→   609→            <DialogTitle className="text-gray-900 flex items-center gap-2">
+   610→   610→              <FileText className="size-4 text-gray-400" />
+   611→   611→              {viewDoc?.title || viewDoc?.fileName}
+   612→   612→            </DialogTitle>
+   613→   613→          </DialogHeader>
+   614→   614→          <div className="flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50/60 p-4">
+   615→   615→            {viewDocLoading ? (
+   616→   616→              <div className="space-y-2 animate-pulse">
+   617→   617→                <div className="h-3 w-full rounded bg-gray-200" />
+   618→   618→                <div className="h-3 w-5/6 rounded bg-gray-200" />
+   619→   619→                <div className="h-3 w-4/6 rounded bg-gray-200" />
+   620→   620→                <div className="h-3 w-full rounded bg-gray-200" />
+   621→   621→                <div className="h-3 w-3/4 rounded bg-gray-200" />
+   622→   622→              </div>
+   623→   623→            ) : (
+   624→   624→              <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
+   625→   625→                {viewDocContent}
+   626→   626→              </pre>
+   627→   627→            )}
+   628→   628→          </div>
+   629→   629→          <DialogFooter className="pt-2">
+   630→   630→            <Button
+   631→   631→              variant="outline"
+   632→   632→              onClick={() => setViewDoc(null)}
+   633→   633→              className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg"
+   634→   634→            >
+   635→   635→              Close
+   636→   636→            </Button>
+   637→   637→            {viewDoc && (
+   638→   638→              <Button
+   639→   639→                className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
+   640→   640→                onClick={() => handleDownloadDoc(viewDoc)}
+   641→   641→              >
+   642→   642→                <Download className="size-3.5 mr-1.5" />
+   643→   643→                Download
+   644→   644→              </Button>
+   645→   645→            )}
+   646→   646→          </DialogFooter>
+   647→   647→        </DialogContent>
+   648→   648→      </Dialog>
+   649→   649→    </div>
+   650→   650→  )
+   651→   651→}

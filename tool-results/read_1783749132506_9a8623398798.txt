@@ -1,0 +1,761 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo } from 'react'
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import { motion, AnimatePresence } from 'framer-motion'
+     6→import {
+     7→  Plus, LayoutGrid, List, ChevronRight, Pencil, Trash2, Loader2,
+     8→  Building2, User, Clock, Target, ArrowRight, X,
+     9→} from 'lucide-react'
+    10→import { Button } from '@/components/ui/button'
+    11→import { Input } from '@/components/ui/input'
+    12→import { Textarea } from '@/components/ui/textarea'
+    13→import { Badge } from '@/components/ui/badge'
+    14→import { Skeleton } from '@/components/ui/skeleton'
+    15→import {
+    16→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    17→} from '@/components/ui/select'
+    18→import {
+    19→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+    20→} from '@/components/ui/dialog'
+    21→import {
+    22→  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+    23→  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+    24→} from '@/components/ui/alert-dialog'
+    25→import { Label } from '@/components/ui/label'
+    26→import { toast } from 'sonner'
+    27→import { useAppStore } from '@/lib/store'
+    28→import { fetchApi } from '@/lib/fetchApi'
+    29→import { EmptyState, SortableHeader } from '@/components/shared/design-system'
+    30→import { cn } from '@/lib/utils'
+    31→import { getOppStatusVariant, getStatusBorder } from '@/lib/constants'
+    32→import { formatDistanceToNow, differenceInDays } from 'date-fns'
+    33→import type { OpportunityStatus } from '@/lib/types'
+    34→
+    35→/* ═══════════════════════════════════════════════════════════════════════
+    36→   Types
+    37→   ═══════════════════════════════════════════════════════════════════════ */
+    38→
+    39→interface OppRow {
+    40→  id: string
+    41→  companyId: string
+    42→  title: string
+    43→  description: string | null
+    44→  targetContactId: string | null
+    45→  status: OpportunityStatus
+    46→  nextAction: string | null
+    47→  value: number | null
+    48→  createdAt: string
+    49→  updatedAt: string
+    50→  companyName?: string | null
+    51→  contactName?: string | null
+    52→}
+    53→
+    54→interface CompanyOption {
+    55→  id: string
+    56→  name: string
+    57→}
+    58→
+    59→interface ContactOption {
+    60→  id: string
+    61→  name: string
+    62→  companyId: string
+    63→}
+    64→
+    65→/* ═══════════════════════════════════════════════════════════════════════
+    66→   Constants
+    67→   ═══════════════════════════════════════════════════════════════════════ */
+    68→
+    69→const PIPELINE_STAGES: { key: OpportunityStatus; label: string; color: string }[] = [
+    70→  { key: 'researching', label: 'Researching', color: '#0ea5e9' },
+    71→  { key: 'qualified', label: 'Qualified', color: '#3b82f6' },
+    72→  { key: 'proposal', label: 'Proposal', color: '#8b5cf6' },
+    73→  { key: 'negotiation', label: 'Negotiation', color: '#f59e0b' },
+    74→  { key: 'won', label: 'Won', color: '#22c55e' },
+    75→  { key: 'lost', label: 'Lost', color: '#ef4444' },
+    76→]
+    77→
+    78→const ACTIVE_STAGES = PIPELINE_STAGES.filter(s => !['won', 'lost', 'archived'].includes(s.key))
+    79→
+    80→function getNextStage(current: OpportunityStatus): OpportunityStatus | null {
+    81→  const idx = PIPELINE_STAGES.findIndex(s => s.key === current)
+    82→  if (idx < 0 || idx >= PIPELINE_STAGES.length - 1) return null
+    83→  return PIPELINE_STAGES[idx + 1].key
+    84→}
+    85→
+    86→const INITIAL_FORM = {
+    87→  title: '',
+    88→  description: '',
+    89→  companyId: '',
+    90→  targetContactId: '',
+    91→  status: 'researching' as string,
+    92→  nextAction: '',
+    93→}
+    94→
+    95→/* ═══════════════════════════════════════════════════════════════════════
+    96→   OpportunitiesScreen
+    97→   ═══════════════════════════════════════════════════════════════════════ */
+    98→
+    99→export function OpportunitiesScreen() {
+   100→  const { setActiveView, setSelectedCompanyId, setSelectedContactId } = useAppStore()
+   101→  const qc = useQueryClient()
+   102→
+   103→  // ── View mode ──
+   104→  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
+   105→
+   106→  // ── Dialog ──
+   107→  const [dialogOpen, setDialogOpen] = useState(false)
+   108→  const [editingOpp, setEditingOpp] = useState<OppRow | null>(null)
+   109→  const [form, setForm] = useState(INITIAL_FORM)
+   110→
+   111→  // ── Delete ──
+   112→  const [deleteId, setDeleteId] = useState<string | null>(null)
+   113→
+   114→  // ── List sort ──
+   115→  const [sortKey, setSortKey] = useState('createdAt')
+   116→  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+   117→
+   118→  // ── Data ──
+   119→  const { data: opps, isLoading } = useQuery<OppRow[]>({
+   120→    queryKey: ['opportunities-all'],
+   121→    queryFn: () => fetchApi<OppRow[]>('/api/opportunities', {
+   122→      params: { limit: 200 },
+   123→    }).then(res => {
+   124→      if (res.error) throw new Error(res.error)
+   125→      return (res.data as any)?.opportunities || res.data || []
+   126→    }),
+   127→  })
+   128→
+   129→  const allOpps = opps || []
+   130→
+   131→  // ── Derived: grouped by stage ──
+   132→  const grouped = useMemo(() => {
+   133→    const map = new Map<OpportunityStatus, OppRow[]>()
+   134→    for (const s of PIPELINE_STAGES) map.set(s.key, [])
+   135→    for (const o of allOpps) {
+   136→      const list = map.get(o.status)
+   137→      if (list) list.push(o)
+   138→    }
+   139→    return map
+   140→  }, [allOpps])
+   141→
+   142→  // ── Stage summary ──
+   143→  const totalActiveValue = useMemo(() =>
+   144→    allOpps.filter(o => !['won', 'lost', 'archived'].includes(o.status)).reduce((s, o) => s + (o.value || 0), 0),
+   145→    [allOpps],
+   146→  )
+   147→
+   148→  const totalWonValue = useMemo(() =>
+   149→    allOpps.filter(o => o.status === 'won').reduce((s, o) => s + (o.value || 0), 0),
+   150→    [allOpps],
+   151→  )
+   152→
+   153→  // ── Sorted list for list view ──
+   154→  const sortedOpps = useMemo(() => {
+   155→    return [...allOpps].sort((a, b) => {
+   156→      const aVal = (a as any)[sortKey] ?? ''
+   157→      const bVal = (b as any)[sortKey] ?? ''
+   158→      if (typeof aVal === 'number' && typeof bVal === 'number')
+   159→        return sortDir === 'asc' ? aVal - bVal : bVal - aVal
+   160→      return sortDir === 'asc'
+   161→        ? String(aVal).localeCompare(String(bVal))
+   162→        : String(bVal).localeCompare(String(aVal))
+   163→    })
+   164→  }, [allOpps, sortKey, sortDir])
+   165→
+   166→  // ── Companies & contacts for selects ──
+   167→  const { data: companies } = useQuery<CompanyOption[]>({
+   168→    queryKey: ['companies-select-opp'],
+   169→    queryFn: () => fetchApi<CompanyOption[]>('/api/companies', {
+   170→      params: { limit: 1000, pageSize: 1000 },
+   171→    }).then(res => {
+   172→      if (res.error) throw new Error(res.error)
+   173→      return (res.data as any)?.companies || res.data || []
+   174→    }).then((cs: any[]) => cs.map((c: any) => ({ id: c.id, name: c.name }))),
+   175→  })
+   176→
+   177→  const { data: contacts } = useQuery<ContactOption[]>({
+   178→    queryKey: ['contacts-select-opp', form.companyId],
+   179→    queryFn: () => fetchApi<ContactOption[]>('/api/contacts', {
+   180→      params: { limit: 500, pageSize: 500, companyId: form.companyId || undefined },
+   181→    }).then(res => {
+   182→      if (res.error) throw new Error(res.error)
+   183→      return (res.data as any)?.contacts || res.data || []
+   184→    }).then((cs: any[]) => cs.map((c: any) => ({ id: c.id, name: c.name, companyId: c.companyId }))),
+   185→    enabled: !!form.companyId,
+   186→  })
+   187→
+   188→  // ── Mutations ──
+   189→  const createMutation = useMutation({
+   190→    mutationFn: (body: Record<string, unknown>) => fetchApi('/api/opportunities', {
+   191→      method: 'POST',
+   192→      headers: { 'Content-Type': 'application/json' },
+   193→      body: JSON.stringify(body),
+   194→    }).then(res => { if (res.error) throw new Error(res.error); return res.data }),
+   195→    onSuccess: () => {
+   196→      toast.success('Opportunity created')
+   197→      setDialogOpen(false)
+   198→      resetForm()
+   199→      qc.invalidateQueries({ queryKey: ['opportunities'] })
+   200→    },
+   201→    onError: (e) => toast.error(e.message || 'Failed to create opportunity'),
+   202→  })
+   203→
+   204→  const updateMutation = useMutation({
+   205→    mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) => fetchApi(`/api/opportunities/${id}`, {
+   206→      method: 'PATCH',
+   207→      headers: { 'Content-Type': 'application/json' },
+   208→      body: JSON.stringify(body),
+   209→    }).then(res => { if (res.error) throw new Error(res.error); return res.data }),
+   210→    onSuccess: (_, vars) => {
+   211→      toast.success('Opportunity updated')
+   212→      setDialogOpen(false)
+   213→      setEditingOpp(null)
+   214→      resetForm()
+   215→      qc.invalidateQueries({ queryKey: ['opportunities'] })
+   216→    },
+   217→    onError: (e) => toast.error(e.message || 'Failed to update opportunity'),
+   218→  })
+   219→
+   220→  const deleteMutation = useMutation({
+   221→    mutationFn: (id: string) => fetchApi(`/api/opportunities/${id}`, {
+   222→      method: 'DELETE',
+   223→    }).then(res => { if (res.error) throw new Error(res.error); return res.data }),
+   224→    onSuccess: () => {
+   225→      toast.success('Opportunity deleted')
+   226→      setDeleteId(null)
+   227→      qc.invalidateQueries({ queryKey: ['opportunities'] })
+   228→    },
+   229→    onError: (e) => toast.error(e.message || 'Failed to delete opportunity'),
+   230→  })
+   231→
+   232→  // ── Helpers ──
+   233→  const resetForm = () => setForm(INITIAL_FORM)
+   234→
+   235→  const openCreate = () => {
+   236→    setEditingOpp(null)
+   237→    resetForm()
+   238→    setDialogOpen(true)
+   239→  }
+   240→
+   241→  const openEdit = (opp: OppRow) => {
+   242→    setEditingOpp(opp)
+   243→    setForm({
+   244→      title: opp.title,
+   245→      description: opp.description || '',
+   246→      companyId: opp.companyId,
+   247→      targetContactId: opp.targetContactId || '',
+   248→      status: opp.status,
+   249→      nextAction: opp.nextAction || '',
+   250→    })
+   251→    setDialogOpen(true)
+   252→  }
+   253→
+   254→  const handleSave = () => {
+   255→    if (!form.title.trim() || !form.companyId) return
+   256→    const body: Record<string, unknown> = {
+   257→      title: form.title.trim(),
+   258→      companyId: form.companyId,
+   259→      description: form.description.trim() || undefined,
+   260→      targetContactId: form.targetContactId || undefined,
+   261→      status: form.status,
+   262→      nextAction: form.nextAction.trim() || undefined,
+   263→    }
+   264→    if (editingOpp) {
+   265→      updateMutation.mutate({ id: editingOpp.id, body })
+   266→    } else {
+   267→      createMutation.mutate(body)
+   268→    }
+   269→  }
+   270→
+   271→  const handleAdvance = (opp: OppRow) => {
+   272→    const next = getNextStage(opp.status)
+   273→    if (next) {
+   274→      updateMutation.mutate({ id: opp.id, body: { status: next } })
+   275→    }
+   276→  }
+   277→
+   278→  const handleSort = (key: string) => {
+   279→    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+   280→    else { setSortKey(key); setSortDir('asc') }
+   281→  }
+   282→
+   283→  const formatValue = (v: number | null) => {
+   284→    if (v == null) return null
+   285→    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v)
+   286→  }
+   287→
+   288→  // ── Render ──
+   289→  return (
+   290→    <div className="space-y-5">
+   291→      {/* ── Header ── */}
+   292→      <div className="flex items-center justify-between gap-3">
+   293→        <div>
+   294→          <div className="flex items-center gap-2.5">
+   295→            <h1 className="text-lg font-bold text-gray-900 tracking-tight">Pipeline</h1>
+   296→            <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-gray-100 text-[11px] font-semibold text-gray-600 tabular-nums">
+   297→              {allOpps.length}
+   298→            </span>
+   299→          </div>
+   300→          <p className="text-sm text-gray-500 mt-0.5">
+   301→            {totalActiveValue > 0 && (
+   302→              <span className="text-gray-700 font-medium">{formatValue(totalActiveValue)}</span>
+   303→            )}
+   304→            {totalActiveValue > 0 && totalWonValue > 0 && ' active · '}
+   305→            {totalWonValue > 0 && (
+   306→              <span className="text-emerald-600">{formatValue(totalWonValue)} won</span>
+   307→            )}
+   308→            {totalActiveValue === 0 && totalWonValue === 0 && `${allOpps.length} opportunities`}
+   309→          </p>
+   310→        </div>
+   311→        <div className="flex items-center gap-2">
+   312→          {/* View toggle */}
+   313→          <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5">
+   314→            <button
+   315→              onClick={() => setViewMode('kanban')}
+   316→              className={cn(
+   317→                'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
+   318→                viewMode === 'kanban' ? 'bg-gray-900 text-white shadow-xs' : 'text-gray-500 hover:text-gray-700',
+   319→              )}
+   320→            >
+   321→              <LayoutGrid className="size-3.5" /> Kanban
+   322→            </button>
+   323→            <button
+   324→              onClick={() => setViewMode('list')}
+   325→              className={cn(
+   326→                'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
+   327→                viewMode === 'list' ? 'bg-gray-900 text-white shadow-xs' : 'text-gray-500 hover:text-gray-700',
+   328→              )}
+   329→            >
+   330→              <List className="size-3.5" /> List
+   331→            </button>
+   332→          </div>
+   333→          <Button
+   334→            className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs shrink-0"
+   335→            onClick={openCreate}
+   336→          >
+   337→            <Plus className="size-4 sm:mr-1.5" />
+   338→            <span className="hidden sm:inline">New Opportunity</span>
+   339→          </Button>
+   340→        </div>
+   341→      </div>
+   342→
+   343→      {/* ── Stage Summary Bar ── */}
+   344→      <div className="rounded-xl bg-white card-rest p-4">
+   345→        <div className="flex items-center gap-1 overflow-x-auto">
+   346→          {PIPELINE_STAGES.map((stage) => {
+   347→            const items = grouped.get(stage.key) || []
+   348→            const count = items.length
+   349→            const stageValue = items.reduce((s, o) => s + (o.value || 0), 0)
+   350→            return (
+   351→              <div
+   352→                key={stage.key}
+   353→                className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors shrink-0"
+   354→              >
+   355→                <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
+   356→                <div>
+   357→                  <p className="text-xs font-medium text-gray-700">{stage.label}</p>
+   358→                  <p className="text-[11px] text-gray-400 tabular-nums">
+   359→                    {count} {count === 1 ? 'deal' : 'deals'}
+   360→                    {stageValue > 0 && ` · ${formatValue(stageValue)}`}
+   361→                  </p>
+   362→                </div>
+   363→              </div>
+   364→            )
+   365→          })}
+   366→        </div>
+   367→      </div>
+   368→
+   369→      {/* ── Kanban View ── */}
+   370→      {viewMode === 'kanban' && (
+   371→        isLoading ? (
+   372→          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+   373→            {Array.from({ length: 6 }).map((_, i) => (
+   374→              <div key={i} className="rounded-xl bg-gray-50/80 p-4 space-y-3 animate-pulse">
+   375→                <Skeleton className="h-4 w-24 rounded" />
+   376→                <div className="space-y-2">
+   377→                  <Skeleton className="h-20 w-full rounded-lg" />
+   378→                  <Skeleton className="h-20 w-full rounded-lg" />
+   379→                </div>
+   380→              </div>
+   381→            ))}
+   382→          </div>
+   383→        ) : (
+   384→          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+   385→            {PIPELINE_STAGES.map((stage) => {
+   386→              const items = grouped.get(stage.key) || []
+   387→              const stageValue = items.reduce((s, o) => s + (o.value || 0), 0)
+   388→              return (
+   389→                <div key={stage.key} className="flex flex-col min-w-0">
+   390→                  {/* Column header */}
+   391→                  <div className="flex items-center justify-between gap-2 mb-3 px-1">
+   392→                    <div className="flex items-center gap-2 min-w-0">
+   393→                      <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
+   394→                      <span className="text-xs font-semibold text-gray-700 truncate">{stage.label}</span>
+   395→                    </div>
+   396→                    <span className="text-[11px] font-semibold text-gray-400 tabular-nums shrink-0">{items.length}</span>
+   397→                  </div>
+   398→
+   399→                  {/* Cards */}
+   400→                  <div className="flex-1 space-y-2 max-h-[calc(100vh-320px)] overflow-y-auto pr-0.5 custom-scrollbar">
+   401→                    {items.length === 0 ? (
+   402→                      <div className="rounded-xl border-2 border-dashed border-gray-200 p-6 flex items-center justify-center">
+   403→                        <span className="text-xs text-gray-300">No deals</span>
+   404→                      </div>
+   405→                    ) : (
+   406→                      items.map((opp) => {
+   407→                        const daysInStage = differenceInDays(new Date(), new Date(opp.updatedAt))
+   408→                        const nextStage = getNextStage(opp.status)
+   409→                        return (
+   410→                          <motion.div
+   411→                            key={opp.id}
+   412→                            layout
+   413→                            initial={{ opacity: 0, y: 6 }}
+   414→                            animate={{ opacity: 1, y: 0 }}
+   415→                            exit={{ opacity: 0, scale: 0.95 }}
+   416→                            transition={{ duration: 0.2 }}
+   417→                            className={cn(
+   418→                              'rounded-xl bg-white card-rest p-3.5 border-l-[3px] group cursor-default',
+   419→                              getStatusBorder(opp.status),
+   420→                            )}
+   421→                          >
+   422→                            <div className="space-y-2">
+   423→                              {/* Title & actions */}
+   424→                              <div className="flex items-start justify-between gap-1">
+   425→                                <button
+   426→                                  onClick={() => {
+   427→                                    setSelectedCompanyId(opp.companyId)
+   428→                                    setActiveView('company-profile')
+   429→                                  }}
+   430→                                  className="text-sm font-semibold text-gray-900 leading-snug hover:text-amber-700 transition-colors text-left line-clamp-2"
+   431→                                >
+   432→                                  {opp.title}
+   433→                                </button>
+   434→                                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+   435→                                  <button
+   436→                                    onClick={() => openEdit(opp)}
+   437→                                    className="p-1 rounded hover:bg-gray-100 transition-colors"
+   438→                                    aria-label="Edit opportunity"
+   439→                                  >
+   440→                                    <Pencil className="size-3 text-gray-400" />
+   441→                                  </button>
+   442→                                  <button
+   443→                                    onClick={() => setDeleteId(opp.id)}
+   444→                                    className="p-1 rounded hover:bg-red-50 transition-colors"
+   445→                                    aria-label="Delete opportunity"
+   446→                                  >
+   447→                                    <Trash2 className="size-3 text-gray-400 hover:text-red-500" />
+   448→                                  </button>
+   449→                                </div>
+   450→                              </div>
+   451→
+   452→                              {/* Company */}
+   453→                              <button
+   454→                                onClick={() => {
+   455→                                  setSelectedCompanyId(opp.companyId)
+   456→                                  setActiveView('company-profile')
+   457→                                }}
+   458→                                className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-amber-600 transition-colors"
+   459→                              >
+   460→                                <Building2 className="size-3" />
+   461→                                <span className="truncate">{opp.companyName || 'Unknown'}</span>
+   462→                              </button>
+   463→
+   464→                              {/* Contact */}
+   465→                              {opp.contactName && (
+   466→                                <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+   467→                                  <User className="size-3" />
+   468→                                  <span className="truncate">{opp.contactName}</span>
+   469→                                </div>
+   470→                              )}
+   471→
+   472→                              {/* Value */}
+   473→                              {opp.value != null && opp.value > 0 && (
+   474→                                <p className="text-sm font-bold text-gray-900 tabular-nums">
+   475→                                  {formatValue(opp.value)}
+   476→                                </p>
+   477→                              )}
+   478→
+   479→                              {/* Days in stage */}
+   480→                              <div className="flex items-center gap-1 text-[10px] text-gray-400">
+   481→                                <Clock className="size-3" />
+   482→                                <span>{daysInStage === 0 ? 'Updated today' : `${daysInStage}d in stage`}</span>
+   483→                              </div>
+   484→
+   485→                              {/* Next action */}
+   486→                              {opp.nextAction && (
+   487→                                <p className="text-[11px] text-gray-500 bg-gray-50 rounded-md px-2 py-1 line-clamp-1">
+   488→                                  → {opp.nextAction}
+   489→                                </p>
+   490→                              )}
+   491→
+   492→                              {/* Advance button */}
+   493→                              {nextStage && (
+   494→                                <button
+   495→                                  onClick={() => handleAdvance(opp)}
+   496→                                  className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-gray-200 text-[11px] font-medium text-gray-500 hover:text-amber-700 hover:border-amber-200 hover:bg-amber-50/50 transition-all duration-150"
+   497→                                >
+   498→                                  Advance to {PIPELINE_STAGES.find(s => s.key === nextStage)?.label}
+   499→                                  <ChevronRight className="size-3" />
+   500→                                </button>
+   501→                              )}
+   502→                            </div>
+   503→                          </motion.div>
+   504→                        )
+   505→                      })
+   506→                    )}
+   507→                  </div>
+   508→
+   509→                  {/* Column total */}
+   510→                  {stageValue > 0 && (
+   511→                    <p className="mt-2 px-1 text-[11px] font-medium text-gray-400 tabular-nums">
+   512→                      Total: {formatValue(stageValue)}
+   513→                    </p>
+   514→                  )}
+   515→                </div>
+   516→              )
+   517→            })}
+   518→          </div>
+   519→        )
+   520→      )}
+   521→
+   522→      {/* ── List View ── */}
+   523→      {viewMode === 'list' && (
+   524→        <div className="rounded-xl bg-white card-rest overflow-hidden">
+   525→          <div className="overflow-x-auto">
+   526→            <table className="w-full min-w-[900px]">
+   527→              <thead>
+   528→                <tr className="bg-gray-50/80 border-b border-gray-200/60">
+   529→                  <SortableHeader label="Company" sortKey="companyName" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+   530→                  <SortableHeader label="Title" sortKey="title" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+   531→                  <SortableHeader label="Status" sortKey="status" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="w-32" />
+   532→                  <th className="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Contact</th>
+   533→                  <SortableHeader label="Value" sortKey="value" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="w-28" />
+   534→                  <SortableHeader label="Created" sortKey="createdAt" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="w-32" />
+   535→                  <th className="w-20 px-4 py-3" />
+   536→                </tr>
+   537→              </thead>
+   538→              <tbody>
+   539→                {isLoading
+   540→                  ? Array.from({ length: 8 }).map((_, i) => (
+   541→                      <tr key={i} className="border-b border-gray-50">
+   542→                        <td colSpan={7} className="px-4 py-2">
+   543→                          <Skeleton className="h-11 w-full rounded-lg" />
+   544→                        </td>
+   545→                      </tr>
+   546→                    ))
+   547→                  : sortedOpps.map((opp) => (
+   548→                      <tr key={opp.id} className="table-row-hover border-b border-gray-50 transition-colors group">
+   549→                        <td className="px-4 py-2.5">
+   550→                          <button
+   551→                            onClick={() => {
+   552→                              setSelectedCompanyId(opp.companyId)
+   553→                              setActiveView('company-profile')
+   554→                            }}
+   555→                            className="flex items-center gap-2 text-sm font-medium text-gray-900 hover:text-amber-700 transition-colors"
+   556→                          >
+   557→                            <Building2 className="size-3.5 text-gray-400 shrink-0" />
+   558→                            <span className="truncate max-w-[160px]">{opp.companyName || '—'}</span>
+   559→                          </button>
+   560→                        </td>
+   561→                        <td className="px-4 py-2.5">
+   562→                          <p className="text-sm text-gray-900 font-medium truncate max-w-[200px]">{opp.title}</p>
+   563→                          {opp.nextAction && (
+   564→                            <p className="text-[11px] text-gray-400 truncate max-w-[200px]">→ {opp.nextAction}</p>
+   565→                          )}
+   566→                        </td>
+   567→                        <td className="px-4 py-2.5">
+   568→                          <span className={cn('inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border', getOppStatusVariant(opp.status))}>
+   569→                            {opp.status}
+   570→                          </span>
+   571→                        </td>
+   572→                        <td className="px-4 py-2.5 text-sm text-gray-600 truncate max-w-[140px]">
+   573→                          {opp.contactName || '—'}
+   574→                        </td>
+   575→                        <td className="px-4 py-2.5 text-sm font-semibold text-gray-900 tabular-nums">
+   576→                          {opp.value != null && opp.value > 0 ? formatValue(opp.value) : '—'}
+   577→                        </td>
+   578→                        <td className="px-4 py-2.5 text-xs text-gray-500">
+   579→                          {formatDistanceToNow(new Date(opp.createdAt), { addSuffix: true })}
+   580→                        </td>
+   581→                        <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
+   582→                          <div className="flex items-center gap-1">
+   583→                            <button
+   584→                              onClick={() => openEdit(opp)}
+   585→                              className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
+   586→                              aria-label="Edit opportunity"
+   587→                            >
+   588→                              <Pencil className="size-3.5 text-gray-400" />
+   589→                            </button>
+   590→                            <button
+   591→                              onClick={() => setDeleteId(opp.id)}
+   592→                              className="p-1.5 rounded-md hover:bg-red-50 transition-colors"
+   593→                              aria-label="Delete opportunity"
+   594→                            >
+   595→                              <Trash2 className="size-3.5 text-gray-400 hover:text-red-500" />
+   596→                            </button>
+   597→                          </div>
+   598→                        </td>
+   599→                      </tr>
+   600→                    ))}
+   601→              </tbody>
+   602→            </table>
+   603→          </div>
+   604→
+   605→          {allOpps.length === 0 && !isLoading && (
+   606→            <EmptyState
+   607→              icon={Target}
+   608→              title="No opportunities yet"
+   609→              description="Create your first opportunity to start tracking your pipeline."
+   610→              actionLabel="New Opportunity"
+   611→              onAction={openCreate}
+   612→            />
+   613→          )}
+   614→        </div>
+   615→      )}
+   616→
+   617→      {/* ── Create/Edit Dialog ── */}
+   618→      <Dialog open={dialogOpen} onOpenChange={(open) => {
+   619→        setDialogOpen(open)
+   620→        if (!open) { setEditingOpp(null); resetForm() }
+   621→      }}>
+   622→        <DialogContent className="sm:max-w-lg rounded-xl p-6">
+   623→          <DialogHeader>
+   624→            <DialogTitle className="text-gray-900">
+   625→              {editingOpp ? 'Edit Opportunity' : 'New Opportunity'}
+   626→            </DialogTitle>
+   627→          </DialogHeader>
+   628→          <div className="grid gap-4 py-3">
+   629→            {/* Title */}
+   630→            <div className="grid gap-1.5">
+   631→              <Label className="text-sm font-medium text-gray-700">Title</Label>
+   632→              <Input
+   633→                placeholder="Opportunity name"
+   634→                value={form.title}
+   635→                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+   636→                className="border-gray-200 rounded-lg"
+   637→                autoFocus
+   638→              />
+   639→            </div>
+   640→
+   641→            {/* Company */}
+   642→            <div className="grid gap-1.5">
+   643→              <Label className="text-sm font-medium text-gray-700">Company *</Label>
+   644→              <Select
+   645→                value={form.companyId}
+   646→                onValueChange={v => setForm(f => ({ ...f, companyId: v, targetContactId: '' }))}
+   647→              >
+   648→                <SelectTrigger className="border-gray-200 rounded-lg">
+   649→                  <SelectValue placeholder="Select a company" />
+   650→                </SelectTrigger>
+   651→                <SelectContent>
+   652→                  {(companies || []).map(c => (
+   653→                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+   654→                  ))}
+   655→                </SelectContent>
+   656→              </Select>
+   657→            </div>
+   658→
+   659→            {/* Description */}
+   660→            <div className="grid gap-1.5">
+   661→              <Label className="text-sm font-medium text-gray-700">Description</Label>
+   662→              <Textarea
+   663→                placeholder="Describe the opportunity..."
+   664→                value={form.description}
+   665→                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+   666→                className="border-gray-200 rounded-lg min-h-[80px] resize-none"
+   667→                rows={3}
+   668→              />
+   669→            </div>
+   670→
+   671→            {/* Contact & Status row */}
+   672→            <div className="grid grid-cols-2 gap-3">
+   673→              <div className="grid gap-1.5">
+   674→                <Label className="text-sm font-medium text-gray-700">Contact</Label>
+   675→                <Select
+   676→                  value={form.targetContactId}
+   677→                  onValueChange={v => setForm(f => ({ ...f, targetContactId: v }))}
+   678→                >
+   679→                  <SelectTrigger className="border-gray-200 rounded-lg">
+   680→                    <SelectValue placeholder={form.companyId ? 'Select contact' : 'Pick company first'} />
+   681→                  </SelectTrigger>
+   682→                  <SelectContent>
+   683→                    {(contacts || []).map(c => (
+   684→                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+   685→                    ))}
+   686→                  </SelectContent>
+   687→                </Select>
+   688→              </div>
+   689→              <div className="grid gap-1.5">
+   690→                <Label className="text-sm font-medium text-gray-700">Status</Label>
+   691→                <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
+   692→                  <SelectTrigger className="border-gray-200 rounded-lg">
+   693→                    <SelectValue />
+   694→                  </SelectTrigger>
+   695→                  <SelectContent>
+   696→                    {PIPELINE_STAGES.filter(s => s.key !== 'archived').map(s => (
+   697→                      <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+   698→                    ))}
+   699→                  </SelectContent>
+   700→                </Select>
+   701→              </div>
+   702→            </div>
+   703→
+   704→            {/* Next Action */}
+   705→            <div className="grid gap-1.5">
+   706→              <Label className="text-sm font-medium text-gray-700">Next Action</Label>
+   707→              <Input
+   708→                placeholder="What's the next step?"
+   709→                value={form.nextAction}
+   710→                onChange={e => setForm(f => ({ ...f, nextAction: e.target.value }))}
+   711→                className="border-gray-200 rounded-lg"
+   712→              />
+   713→            </div>
+   714→          </div>
+   715→          <DialogFooter className="pt-2">
+   716→            <Button
+   717→              variant="outline"
+   718→              onClick={() => { setDialogOpen(false); setEditingOpp(null); resetForm() }}
+   719→              className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg"
+   720→            >
+   721→              Cancel
+   722→            </Button>
+   723→            <Button
+   724→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
+   725→              onClick={handleSave}
+   726→              disabled={!form.title.trim() || !form.companyId || createMutation.isPending || updateMutation.isPending}
+   727→            >
+   728→              {(createMutation.isPending || updateMutation.isPending) && (
+   729→                <Loader2 className="size-4 mr-1.5 animate-spin" />
+   730→              )}
+   731→              {editingOpp ? 'Save Changes' : 'Create Opportunity'}
+   732→            </Button>
+   733→          </DialogFooter>
+   734→        </DialogContent>
+   735→      </Dialog>
+   736→
+   737→      {/* ── Delete Confirmation ── */}
+   738→      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null) }}>
+   739→        <AlertDialogContent className="rounded-xl">
+   740→          <AlertDialogHeader>
+   741→            <AlertDialogTitle>Delete opportunity?</AlertDialogTitle>
+   742→            <AlertDialogDescription>
+   743→              This action cannot be undone. The opportunity will be permanently removed.
+   744→            </AlertDialogDescription>
+   745→          </AlertDialogHeader>
+   746→          <AlertDialogFooter>
+   747→            <AlertDialogCancel className="rounded-lg">Cancel</AlertDialogCancel>
+   748→            <AlertDialogAction
+   749→              className="rounded-lg bg-red-600 hover:bg-red-700 text-white"
+   750→              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
+   751→              disabled={deleteMutation.isPending}
+   752→            >
+   753→              {deleteMutation.isPending && <Loader2 className="size-4 mr-2 animate-spin" />}
+   754→              Delete
+   755→            </AlertDialogAction>
+   756→          </AlertDialogFooter>
+   757→        </AlertDialogContent>
+   758→      </AlertDialog>
+   759→    </div>
+   760→  )
+   761→}

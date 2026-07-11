@@ -1,0 +1,913 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import {
+     6→  Plus, Search, MoreHorizontal, ExternalLink, Building2, ChevronLeft, ChevronRight,
+     7→  Sparkles, Users, Eye, Archive, Trash2, ArrowUpDown, X, Loader2, ArrowRight,
+     8→  RotateCcw, Download, Bookmark, BookmarkPlus, SlidersHorizontal, Save, Columns3,
+     9→  CalendarDays, Check, Filter, CheckSquare, Square,
+    10→} from 'lucide-react'
+    11→import { Button } from '@/components/ui/button'
+    12→import { Input } from '@/components/ui/input'
+    13→import { Checkbox } from '@/components/ui/checkbox'
+    14→import { Skeleton } from '@/components/ui/skeleton'
+    15→import { Badge } from '@/components/ui/badge'
+    16→import {
+    17→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    18→} from '@/components/ui/select'
+    19→import {
+    20→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+    21→} from '@/components/ui/dialog'
+    22→import { Label } from '@/components/ui/label'
+    23→import {
+    24→  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel,
+    25→} from '@/components/ui/dropdown-menu'
+    26→import {
+    27→  Popover, PopoverContent, PopoverTrigger,
+    28→} from '@/components/ui/popover'
+    29→import {
+    30→  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+    31→  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+    32→} from '@/components/ui/alert-dialog'
+    33→import { toast } from 'sonner'
+    34→import { useAppStore, type SavedCompanyView } from '@/lib/store'
+    35→import { EmptyState, SortableHeader, StatusDot } from '@/components/shared/design-system'
+    36→import { cn } from '@/lib/utils'
+    37→import { getCompanyStatusVariant, DEFAULT_INDUSTRIES, EMPLOYEE_SIZES } from '@/lib/constants'
+    38→import Image from 'next/image'
+    39→
+    40→interface CompanyRow {
+    41→  id: string
+    42→  name: string
+    43→  domain: string | null
+    44→  industry: string | null
+    45→  intelligenceScore: number | null
+    46→  dataFreshness: string | null
+    47→  status: string
+    48→  website: string | null
+    49→  employeeSize?: string | null
+    50→  createdAt?: string
+    51→}
+    52→
+    53→const statusOptions = ['new', 'researching', 'qualified', 'ready', 'contacted', 'won', 'lost', 'archived']
+    54→
+    55→// ── Client-side CSV export ──
+    56→function exportToCSV(rows: CompanyRow[], filename: string) {
+    57→  const esc = (v: string | number | null | undefined) => {
+    58→    if (v == null) return '""'
+    59→    const s = String(v)
+    60→    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
+    61→  }
+    62→  const header = 'Name,Domain,Industry,Score,Status,Employee Size,Freshness\n'
+    63→  const body = rows.map(r =>
+    64→    [esc(r.name), esc(r.domain), esc(r.industry), r.intelligenceScore ?? 0, esc(r.status), esc(r.employeeSize), esc(r.dataFreshness)].join(',')
+    65→  ).join('\n')
+    66→  const blob = new Blob(['\uFEFF' + header + body], { type: 'text/csv' })
+    67→  const url = URL.createObjectURL(blob)
+    68→  const a = document.createElement('a')
+    69→  a.href = url
+    70→  a.download = filename
+    71→  a.click()
+    72→  URL.revokeObjectURL(url)
+    73→}
+    74→
+    75→export function CompaniesScreen() {
+    76→  const { setSelectedCompanyId, setActiveView, companyStatusFilter, setCompanyStatusFilter, savedViews, addSavedView, removeSavedView } = useAppStore()
+    77→  const qc = useQueryClient()
+    78→  const [search, setSearch] = useState('')
+    79→  const [debouncedSearch, setDebouncedSearch] = useState('')
+    80→  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+    81→  const [industry, setIndustry] = useState('all')
+    82→  const [status, setStatus] = useState(companyStatusFilter)
+    83→  const [employeeSize, setEmployeeSize] = useState('all')
+    84→  const [createdAfter, setCreatedAfter] = useState('')
+    85→  const [createdBefore, setCreatedBefore] = useState('')
+    86→  const [page, setPage] = useState(1)
+    87→  const [sortKey, setSortKey] = useState('name')
+    88→  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+    89→  const [showAdd, setShowAdd] = useState(false)
+    90→  const [selected, setSelected] = useState<Set<string>>(new Set())
+    91→  const [statusDialog, setStatusDialog] = useState<{ open: boolean; id: string; current: string }>({ open: false, id: '', current: '' })
+    92→  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+    93→  const [form, setForm] = useState({ name: '', domain: '', industry: '', employeeSize: '', country: '', location: '', website: '', linkedinUrl: '' })
+    94→
+    95→  // ── Column visibility ──
+    96→  const [visibleColumns, setVisibleColumns] = useState({ industry: true, score: true, freshness: true })
+    97→
+    98→  // ── Bulk status change dialog ──
+    99→  const [bulkStatusOpen, setBulkStatusOpen] = useState(false)
+   100→  const [bulkNewStatus, setBulkNewStatus] = useState('')
+   101→
+   102→  // ── Saved views ──
+   103→  const [saveViewOpen, setSaveViewOpen] = useState(false)
+   104→  const [manageViewsOpen, setManageViewsOpen] = useState(false)
+   105→  const [newViewName, setNewViewName] = useState('')
+   106→
+   107→  // ── Debounce search (300ms) ──
+   108→  const updateSearch = useCallback((v: string) => {
+   109→    setSearch(v)
+   110→    setPage(1)
+   111→    clearTimeout(timerRef.current)
+   112→    timerRef.current = setTimeout(() => setDebouncedSearch(v), 300)
+   113→  }, [])
+   114→
+   115→  const clearSearch = useCallback(() => {
+   116→    setSearch('')
+   117→    setDebouncedSearch('')
+   118→    setPage(1)
+   119→    clearTimeout(timerRef.current)
+   120→  }, [])
+   121→
+   122→  // ── Escape key clears search ──
+   123→  useEffect(() => {
+   124→    const handler = (e: KeyboardEvent) => {
+   125→      if (e.key === 'Escape' && search) {
+   126→        clearSearch()
+   127→      }
+   128→    }
+   129→    document.addEventListener('keydown', handler)
+   130→    return () => document.removeEventListener('keydown', handler)
+   131→  }, [search, clearSearch])
+   132→
+   133→  // ── Reset all filters ──
+   134→  const resetFilters = useCallback(() => {
+   135→    setSearch('')
+   136→    setDebouncedSearch('')
+   137→    setIndustry('all')
+   138→    setStatus('all')
+   139→    setCompanyStatusFilter('all')
+   140→    setEmployeeSize('all')
+   141→    setCreatedAfter('')
+   142→    setCreatedBefore('')
+   143→    setPage(1)
+   144→    setSelected(new Set())
+   145→  }, [setCompanyStatusFilter])
+   146→
+   147→  const hasActiveFilters = search || industry !== 'all' || status !== 'all' || employeeSize !== 'all' || createdAfter || createdBefore
+   148→
+   149→  const { data: meta } = useQuery({
+   150→    queryKey: ['companies-meta'],
+   151→    queryFn: () => fetch('/api/companies/meta').then(r => {
+   152→      if (!r.ok) throw new Error('Failed to load metadata')
+   153→      return r.json()
+   154→    }),
+   155→  })
+   156→
+   157→  const industries = useMemo(() => {
+   158→    const api: string[] = meta?.industries || []
+   159→    const merged = [...new Set([...DEFAULT_INDUSTRIES, ...api])]
+   160→    return merged.sort((a, b) => a.localeCompare(b))
+   161→  }, [meta?.industries])
+   162→
+   163→  const { data, isLoading, error } = useQuery({
+   164→    queryKey: ['companies', debouncedSearch, industry, status, employeeSize, createdAfter, createdBefore, page, sortKey, sortDir],
+   165→    queryFn: () => {
+   166→      const p = new URLSearchParams()
+   167→      if (debouncedSearch) p.set('search', debouncedSearch)
+   168→      if (industry !== 'all') p.set('industry', industry)
+   169→      if (status !== 'all') p.set('status', status)
+   170→      if (employeeSize !== 'all') p.set('employeeSize', employeeSize)
+   171→      if (createdAfter) p.set('createdAfter', createdAfter)
+   172→      if (createdBefore) p.set('createdBefore', createdBefore)
+   173→      p.set('page', String(page))
+   174→      p.set('pageSize', '20')
+   175→      p.set('sortKey', sortKey)
+   176→      p.set('sortDir', sortDir)
+   177→      return fetch(`/api/companies?${p}`).then(r => {
+   178→        if (!r.ok) throw new Error('Failed to load companies')
+   179→        return r.json()
+   180→      })
+   181→    },
+   182→  })
+   183→
+   184→  const companies = useMemo(() => {
+   185→    if (!data?.companies) return []
+   186→    return [...data.companies].sort((a: CompanyRow, b: CompanyRow) => {
+   187→      const aVal = a[sortKey as keyof CompanyRow] ?? ''
+   188→      const bVal = b[sortKey as keyof CompanyRow] ?? ''
+   189→      if (typeof aVal === 'number' && typeof bVal === 'number') return sortDir === 'asc' ? aVal - bVal : bVal - aVal
+   190→      return sortDir === 'asc' ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal))
+   191→    })
+   192→  }, [data, sortKey, sortDir])
+   193→
+   194→  const createMutation = useMutation({
+   195→    mutationFn: (d: typeof form) => fetch('/api/companies', {
+   196→      method: 'POST',
+   197→      headers: { 'Content-Type': 'application/json' },
+   198→      body: JSON.stringify(d),
+   199→    }).then(r => { if (!r.ok) throw new Error('Request failed'); return r.json() }),
+   200→    onSuccess: () => {
+   201→      toast.success('Company created')
+   202→      setShowAdd(false)
+   203→      setForm({ name: '', domain: '', industry: '', employeeSize: '', country: '', location: '', website: '', linkedinUrl: '' })
+   204→      qc.invalidateQueries({ queryKey: ['companies'] })
+   205→    },
+   206→    onError: () => toast.error('Failed to create company'),
+   207→  })
+   208→
+   209→  const deleteMutation = useMutation({
+   210→    mutationFn: (ids: string[]) => Promise.all(ids.map(id =>
+   211→      fetch(`/api/companies/${id}`, { method: 'DELETE' }).then(r => { if (!r.ok) throw new Error('Request failed'); return r.json() })
+   212→    )),
+   213→    onSuccess: () => {
+   214→      toast.success(`${selected.size} companies deleted`)
+   215→      setSelected(new Set())
+   216→      setDeleteDialogOpen(false)
+   217→      qc.invalidateQueries({ queryKey: ['companies'] })
+   218→    },
+   219→    onError: () => toast.error('Failed to delete companies'),
+   220→  })
+   221→
+   222→  const updateStatusMutation = useMutation({
+   223→    mutationFn: ({ id, status: newStatus }: { id: string; status: string }) =>
+   224→      fetch(`/api/companies/${id}`, {
+   225→        method: 'PATCH',
+   226→        headers: { 'Content-Type': 'application/json' },
+   227→        body: JSON.stringify({ status: newStatus }),
+   228→      }).then(r => { if (!r.ok) throw new Error('Request failed'); return r.json() }),
+   229→    onSuccess: () => {
+   230→      toast.success('Status updated')
+   231→      setStatusDialog({ open: false, id: '', current: '' })
+   232→      qc.invalidateQueries({ queryKey: ['companies'] })
+   233→    },
+   234→    onError: () => toast.error('Failed to update status'),
+   235→  })
+   236→
+   237→  // ── Bulk mutations ──
+   238→  const bulkStatusMutation = useMutation({
+   239→    mutationFn: async ({ ids, newStatus }: { ids: string[]; newStatus: string }) => {
+   240→      let done = 0
+   241→      for (const id of ids) {
+   242→        const r = await fetch(`/api/companies/${id}`, {
+   243→          method: 'PATCH',
+   244→          headers: { 'Content-Type': 'application/json' },
+   245→          body: JSON.stringify({ status: newStatus }),
+   246→        })
+   247→        if (!r.ok) throw new Error(`Failed to update company ${done + 1}`)
+   248→        done++
+   249→      }
+   250→      return done
+   251→    },
+   252→    onSuccess: (count) => {
+   253→      toast.success(`Status updated for ${count} companies`)
+   254→      setSelected(new Set())
+   255→      setBulkStatusOpen(false)
+   256→      qc.invalidateQueries({ queryKey: ['companies'] })
+   257→    },
+   258→    onError: (e: Error) => toast.error(e.message),
+   259→  })
+   260→
+   261→  const bulkArchiveMutation = useMutation({
+   262→    mutationFn: async (ids: string[]) => {
+   263→      let done = 0
+   264→      for (const id of ids) {
+   265→        const r = await fetch(`/api/companies/${id}`, {
+   266→          method: 'PATCH',
+   267→          headers: { 'Content-Type': 'application/json' },
+   268→          body: JSON.stringify({ status: 'archived' }),
+   269→        })
+   270→        if (!r.ok) throw new Error(`Failed to archive company ${done + 1}`)
+   271→        done++
+   272→      }
+   273→      return done
+   274→    },
+   275→    onSuccess: (count) => {
+   276→      toast.success(`${count} companies archived`)
+   277→      setSelected(new Set())
+   278→      qc.invalidateQueries({ queryKey: ['companies'] })
+   279→    },
+   280→    onError: (e: Error) => toast.error(e.message),
+   281→  })
+   282→
+   283→  const handleSort = (key: string) => {
+   284→    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+   285→    else { setSortKey(key); setSortDir('asc') }
+   286→  }
+   287→
+   288→  const handleStatusChange = (val: string) => {
+   289→    setStatus(val)
+   290→    setCompanyStatusFilter(val)
+   291→    setPage(1)
+   292→  }
+   293→
+   294→  const toggleAll = () => {
+   295→    if (selected.size === companies.length) setSelected(new Set())
+   296→    else setSelected(new Set(companies.map((c: CompanyRow) => c.id)))
+   297→  }
+   298→
+   299→  const toggleOne = (id: string) => {
+   300→    const s = new Set(selected)
+   301→    if (s.has(id)) { s.delete(id) } else { s.add(id) }
+   302→    setSelected(s)
+   303→  }
+   304→
+   305→  const scoreFill = (score: number) => score >= 80 ? 'bg-emerald-500' : score >= 50 ? 'bg-amber-500' : 'bg-red-400'
+   306→
+   307→  const handleLogoError = (e: React.SyntheticEvent<HTMLImageElement>, name: string) => {
+   308→    const img = e.currentTarget
+   309→    const parent = img.parentElement
+   310→    if (parent) {
+   311→      parent.innerHTML = ''
+   312→      const span = document.createElement('span')
+   313→      span.className = 'flex items-center justify-center size-8 rounded-lg bg-gray-100 text-gray-400 font-semibold text-sm'
+   314→      span.textContent = (name || '?').charAt(0).toUpperCase()
+   315→      parent.appendChild(span)
+   316→    }
+   317→  }
+   318→
+   319→  // ── Saved view handlers ──
+   320→  const saveCurrentView = () => {
+   321→    if (!newViewName.trim()) return
+   322→    const view: SavedCompanyView = {
+   323→      id: `custom_${Date.now()}`,
+   324→      name: newViewName.trim(),
+   325→      filters: { search: debouncedSearch, industry, status, employeeSize, createdAfter, createdBefore },
+   326→    }
+   327→    addSavedView(view)
+   328→    setSaveViewOpen(false)
+   329→    setNewViewName('')
+   330→    toast.success(`View "${view.name}" saved`)
+   331→  }
+   332→
+   333→  const applySavedView = (view: SavedCompanyView) => {
+   334→    const f = view.filters
+   335→    setSearch(f.search)
+   336→    setDebouncedSearch(f.search)
+   337→    setIndustry(f.industry)
+   338→    setStatus(f.status)
+   339→    setCompanyStatusFilter(f.status)
+   340→    setEmployeeSize(f.employeeSize)
+   341→    setCreatedAfter(f.createdAfter)
+   342→    setCreatedBefore(f.createdBefore)
+   343→    setPage(1)
+   344→    setSelected(new Set())
+   345→  }
+   346→
+   347→  const deleteSavedView = (id: string) => {
+   348→    removeSavedView(id)
+   349→    toast.success('View deleted')
+   350→  }
+   351→
+   352→  // ── Export selected ──
+   353→  const handleExportSelected = () => {
+   354→    const selectedRows = companies.filter((c: CompanyRow) => selected.has(c.id))
+   355→    if (selectedRows.length === 0) { toast.error('No companies selected'); return }
+   356→    exportToCSV(selectedRows, 'companies-selected.csv')
+   357→    toast.success(`Exported ${selectedRows.length} companies`)
+   358→  }
+   359→
+   360→  // ── Check if current filters match a saved view ──
+   361→  const isDefaultView = !hasActiveFilters
+   362→
+   363→  return (
+   364→    <div className="space-y-4">
+   365→      {/* Header */}
+   366→      <div className="flex items-center justify-between gap-3">
+   367→        <div>
+   368→          <h1 className="text-lg font-bold text-gray-900 tracking-tight">Companies</h1>
+   369→          <p className="text-sm text-gray-500">
+   370→            {data?.companies?.length != null
+   371→              ? `Showing ${data.companies.length} of ${data.total || 0} companies`
+   372→              : `${data?.total || 0} accounts`}
+   373→          </p>
+   374→        </div>
+   375→        <div className="flex items-center gap-2 shrink-0">
+   376→          {/* Saved Views Dropdown */}
+   377→          <DropdownMenu>
+   378→            <DropdownMenuTrigger asChild>
+   379→              <Button variant="outline" size="sm" className="border-gray-200 text-gray-600 rounded-lg h-9 text-xs">
+   380→                <Bookmark className="size-3.5 mr-1.5" />
+   381→                <span className="hidden sm:inline">Views</span>
+   382→              </Button>
+   383→            </DropdownMenuTrigger>
+   384→            <DropdownMenuContent align="end" className="w-56 rounded-xl p-1.5 elevation-float">
+   385→              <DropdownMenuLabel className="px-2 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Saved Views</DropdownMenuLabel>
+   386→              {savedViews.map(v => (
+   387→                <DropdownMenuItem
+   388→                  key={v.id}
+   389→                  className="rounded-lg text-sm flex items-center justify-between gap-2"
+   390→                  onClick={() => applySavedView(v)}
+   391→                >
+   392→                  <span className="truncate">{v.name}</span>
+   393→                  {v.isBuiltIn && <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 shrink-0">Built-in</Badge>}
+   394→                </DropdownMenuItem>
+   395→              ))}
+   396→              <DropdownMenuSeparator />
+   397→              <DropdownMenuItem className="rounded-lg text-sm text-amber-600" onClick={() => setSaveViewOpen(true)}>
+   398→                <BookmarkPlus className="size-3.5 mr-2" /> Save Current View
+   399→              </DropdownMenuItem>
+   400→              {!savedViews.some(v => !v.isBuiltIn) ? null : (
+   401→                <DropdownMenuItem className="rounded-lg text-sm" onClick={() => setManageViewsOpen(true)}>
+   402→                  <SlidersHorizontal className="size-3.5 mr-2" /> Manage Views
+   403→                </DropdownMenuItem>
+   404→              )}
+   405→            </DropdownMenuContent>
+   406→          </DropdownMenu>
+   407→
+   408→          {/* Column Visibility Toggle */}
+   409→          <Popover>
+   410→            <PopoverTrigger asChild>
+   411→              <Button variant="outline" size="sm" className="border-gray-200 text-gray-600 rounded-lg h-9 text-xs">
+   412→                <Columns3 className="size-3.5 mr-1.5" />
+   413→                <span className="hidden sm:inline">Columns</span>
+   414→              </Button>
+   415→            </PopoverTrigger>
+   416→            <PopoverContent align="end" className="w-44 rounded-xl p-2 elevation-float">
+   417→              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-2 py-1">Toggle Columns</p>
+   418→              {([
+   419→                { key: 'industry' as const, label: 'Industry' },
+   420→                { key: 'score' as const, label: 'Score' },
+   421→                { key: 'freshness' as const, label: 'Freshness' },
+   422→              ]).map(col => (
+   423→                <button
+   424→                  key={col.key}
+   425→                  className="flex items-center gap-2.5 w-full px-2 py-1.5 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+   426→                  onClick={() => setVisibleColumns(prev => ({ ...prev, [col.key]: !prev[col.key] }))}
+   427→                >
+   428→                  <div className={cn('size-4 rounded border flex items-center justify-center transition-colors', visibleColumns[col.key] ? 'bg-amber-600 border-amber-600' : 'border-gray-300')}>
+   429→                    {visibleColumns[col.key] && <Check className="size-3 text-white" />}
+   430→                  </div>
+   431→                  {col.label}
+   432→                </button>
+   433→              ))}
+   434→            </PopoverContent>
+   435→          </Popover>
+   436→
+   437→          <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs" onClick={() => setShowAdd(true)}>
+   438→            <Plus className="size-4 sm:mr-1.5" /> <span className="hidden sm:inline">Add Company</span>
+   439→          </Button>
+   440→        </div>
+   441→      </div>
+   442→
+   443→      {/* Error Banner */}
+   444→      {error && (
+   445→        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+   446→          Failed to load companies. Please try again.
+   447→        </div>
+   448→      )}
+   449→
+   450→      {/* Filters */}
+   451→      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
+   452→        {/* Search with debounce + clear */}
+   453→        <div className="relative flex-1 sm:max-w-xs">
+   454→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+   455→          <Input
+   456→            placeholder="Search companies..."
+   457→            value={search}
+   458→            onChange={e => updateSearch(e.target.value)}
+   459→            className="pl-9 pr-8 h-9 bg-white border-gray-200 rounded-lg text-sm focus:border-amber-400 focus:ring-amber-100"
+   460→          />
+   461→          {search && (
+   462→            <button
+   463→              onClick={clearSearch}
+   464→              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-gray-100 transition-colors"
+   465→              aria-label="Clear search"
+   466→            >
+   467→              <X className="size-3.5 text-gray-400" />
+   468→            </button>
+   469→          )}
+   470→        </div>
+   471→
+   472→        <Select value={industry} onValueChange={v => { setIndustry(v); setPage(1) }}>
+   473→          <SelectTrigger className="w-36 h-9 bg-white border-gray-200 rounded-lg text-sm"><SelectValue placeholder="Industry" /></SelectTrigger>
+   474→          <SelectContent>
+   475→            <SelectItem value="all">All Industries</SelectItem>
+   476→            {industries.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+   477→          </SelectContent>
+   478→        </Select>
+   479→
+   480→        <Select value={status} onValueChange={handleStatusChange}>
+   481→          <SelectTrigger className="w-32 h-9 bg-white border-gray-200 rounded-lg text-sm"><SelectValue placeholder="Status" /></SelectTrigger>
+   482→          <SelectContent>
+   483→            <SelectItem value="all">All Status</SelectItem>
+   484→            {statusOptions.map(s => <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
+   485→          </SelectContent>
+   486→        </Select>
+   487→
+   488→        {/* Employee Size Filter */}
+   489→        <Select value={employeeSize} onValueChange={v => { setEmployeeSize(v); setPage(1) }}>
+   490→          <SelectTrigger className="w-32 h-9 bg-white border-gray-200 rounded-lg text-sm"><SelectValue placeholder="Size" /></SelectTrigger>
+   491→          <SelectContent>
+   492→            <SelectItem value="all">All Sizes</SelectItem>
+   493→            {EMPLOYEE_SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+   494→          </SelectContent>
+   495→        </Select>
+   496→
+   497→        {/* Date Range Filters */}
+   498→        <div className="flex items-center gap-2">
+   499→          <div className="relative">
+   500→            <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-gray-400 pointer-events-none" />
+   501→            <Input
+   502→              type="date"
+   503→              value={createdAfter}
+   504→              onChange={e => { setCreatedAfter(e.target.value); setPage(1) }}
+   505→              className="h-9 w-[146px] bg-white border-gray-200 rounded-lg text-xs pl-8 pr-2"
+   506→              placeholder="After"
+   507→            />
+   508→          </div>
+   509→          <span className="text-gray-300 text-xs">–</span>
+   510→          <Input
+   511→            type="date"
+   512→            value={createdBefore}
+   513→            onChange={e => { setCreatedBefore(e.target.value); setPage(1) }}
+   514→            className="h-9 w-[130px] bg-white border-gray-200 rounded-lg text-xs pl-2 pr-2"
+   515→            placeholder="Before"
+   516→          />
+   517→        </div>
+   518→
+   519→        {/* Reset Filters */}
+   520→        {hasActiveFilters && (
+   521→          <Button variant="ghost" size="sm" onClick={resetFilters} className="h-9 text-xs text-gray-500 hover:text-gray-700">
+   522→            <RotateCcw className="size-3.5 mr-1.5" /> Reset
+   523→          </Button>
+   524→        )}
+   525→      </div>
+   526→
+   527→      {/* Table */}
+   528→      <div className="rounded-xl bg-white card-rest overflow-hidden">
+   529→        <div className="overflow-x-auto">
+   530→          <table className="w-full min-w-[700px]">
+   531→            <thead>
+   532→              <tr className="bg-gray-50/80 border-b border-gray-200/60">
+   533→                <th className="w-10 px-4 py-3">
+   534→                  <Checkbox checked={selected.size === companies.length && companies.length > 0} onCheckedChange={toggleAll} className="size-4" />
+   535→                </th>
+   536→                <SortableHeader label="Company" sortKey="name" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+   537→                {visibleColumns.industry && (
+   538→                  <th className="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Industry</th>
+   539→                )}
+   540→                {visibleColumns.score && (
+   541→                  <SortableHeader label="Score" sortKey="intelligenceScore" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} className="w-32" />
+   542→                )}
+   543→                {visibleColumns.freshness && (
+   544→                  <th className="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Freshness</th>
+   545→                )}
+   546→                <th className="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Status</th>
+   547→                <th className="w-10 px-4 py-3" />
+   548→              </tr>
+   549→            </thead>
+   550→            <tbody>
+   551→              {isLoading
+   552→                ? Array.from({ length: 6 }).map((_, i) => (
+   553→                    <tr key={i} className="border-b border-gray-50"><td colSpan={7} className="px-4 py-2"><Skeleton className="h-12 w-full rounded-lg" /></td></tr>
+   554→                  ))
+   555→                : companies.length === 0 ? (
+   556→                  <tr>
+   557→                    <td colSpan={7} className="py-0">
+   558→                      <EmptyState
+   559→                        icon={Building2}
+   560→                        title="No companies found"
+   561→                        description={hasActiveFilters ? 'Try adjusting your search or filters.' : 'Add your first company to get started.'}
+   562→                        actionLabel={hasActiveFilters ? undefined : 'Add Company'}
+   563→                        onAction={hasActiveFilters ? resetFilters : () => setShowAdd(true)}
+   564→                        secondaryActionLabel={hasActiveFilters ? 'Reset Filters' : 'Import CSV'}
+   565→                        onSecondaryAction={hasActiveFilters ? resetFilters : () => setActiveView('import')}
+   566→                      />
+   567→                    </td>
+   568→                  </tr>
+   569→                ) : companies.map((c: CompanyRow) => (
+   570→                      <tr key={c.id} className="table-row-hover border-b border-gray-50 transition-colors group">
+   571→                          <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
+   572→                            <Checkbox checked={selected.has(c.id)} onCheckedChange={() => toggleOne(c.id)} className="size-4" />
+   573→                          </td>
+   574→                          <td className="px-4 py-2.5 cursor-pointer" onClick={() => { setSelectedCompanyId(c.id); setActiveView('company-profile') }}>
+   575→                            <div className="flex items-center gap-3">
+   576→                              <div className="size-8 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+   577→                                {c.domain ? (
+   578→                                  <Image src={`https://logo.clearbit.com/${c.domain}`} alt="" width={32} height={32} className="size-8 object-contain p-1" onError={e => handleLogoError(e, c.name)} />
+   579→                                ) : (
+   580→                                  <span className="text-xs font-bold text-gray-400">{c.name?.charAt(0)}</span>
+   581→                                )}
+   582→                              </div>
+   583→                              <div className="min-w-0">
+   584→                                <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-amber-700 transition-colors duration-150">{c.name}</p>
+   585→                                {c.domain && <p className="text-xs text-gray-400 truncate">{c.domain}</p>}
+   586→                              </div>
+   587→                              <ArrowRight className="size-3.5 text-gray-300 group-hover:text-amber-500 opacity-0 group-hover:opacity-100 transition-all duration-150 shrink-0 ml-auto" />
+   588→                            </div>
+   589→                          </td>
+   590→                          {visibleColumns.industry && (
+   591→                            <td className="px-4 py-2.5 text-sm text-gray-600">{c.industry || '—'}</td>
+   592→                          )}
+   593→                          {visibleColumns.score && (
+   594→                            <td className="px-4 py-2.5">
+   595→                              <div className="flex items-center gap-2">
+   596→                                <div className="w-14 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+   597→                                  <div className={`h-full rounded-full ${scoreFill(c.intelligenceScore || 0)}`} style={{ width: `${c.intelligenceScore || 0}%` }} />
+   598→                                </div>
+   599→                                <span className="text-xs font-semibold text-gray-600 tabular-nums">{c.intelligenceScore || 0}</span>
+   600→                              </div>
+   601→                            </td>
+   602→                          )}
+   603→                          {visibleColumns.freshness && (
+   604→                            <td className="px-4 py-2.5">
+   605→                              <div className="flex items-center gap-2">
+   606→                                <StatusDot status={(c.dataFreshness || 'unknown') as 'unknown' | 'fresh' | 'stale' | 'old'} pulse />
+   607→                                <span className="text-xs text-gray-500 capitalize">{c.dataFreshness || 'unknown'}</span>
+   608→                              </div>
+   609→                            </td>
+   610→                          )}
+   611→                          <td className="px-4 py-2.5">
+   612→                            <button
+   613→                              onClick={(e) => { e.stopPropagation(); setStatusDialog({ open: true, id: c.id, current: c.status }) }}
+   614→                              className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border transition-colors hover:opacity-80 ${getCompanyStatusVariant(c.status)}`}
+   615→                            >
+   616→                              {c.status}
+   617→                            </button>
+   618→                          </td>
+   619→                          <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
+   620→                            <DropdownMenu>
+   621→                              <DropdownMenuTrigger asChild>
+   622→                                <button className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"><MoreHorizontal className="size-4 text-gray-400" /></button>
+   623→                              </DropdownMenuTrigger>
+   624→                              <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5 elevation-float">
+   625→                                <DropdownMenuItem onClick={e => { e.stopPropagation(); setSelectedCompanyId(c.id); setActiveView('company-profile') }} className="rounded-lg text-sm">
+   626→                                  <Eye className="size-3.5 mr-2 text-gray-400" /> View Profile
+   627→                                </DropdownMenuItem>
+   628→                                <DropdownMenuItem onClick={e => { e.stopPropagation(); setSelectedCompanyId(c.id); setActiveView('company-profile') }} className="rounded-lg text-sm">
+   629→                                  <Users className="size-3.5 mr-2 text-gray-400" /> View Contacts
+   630→                                </DropdownMenuItem>
+   631→                                <DropdownMenuItem onClick={e => { e.stopPropagation(); setSelectedCompanyId(c.id); setActiveView('company-profile'); setTimeout(() => { document.querySelector<HTMLButtonElement>('[data-action="generate-research"]')?.click() }, 300) }} className="rounded-lg text-sm">
+   632→                                  <Sparkles className="size-3.5 mr-2 text-amber-400" /> Generate Research
+   633→                                </DropdownMenuItem>
+   634→                                <DropdownMenuSeparator />
+   635→                                {c.website && (
+   636→                                  <DropdownMenuItem onClick={e => { e.stopPropagation(); window.open(c.website || `https://${c.domain}`, '_blank') }} className="rounded-lg text-sm">
+   637→                                    <ExternalLink className="size-3.5 mr-2 text-gray-400" /> Visit Website
+   638→                                  </DropdownMenuItem>
+   639→                                )}
+   640→                                <DropdownMenuItem onClick={e => { e.stopPropagation(); setStatusDialog({ open: true, id: c.id, current: c.status }) }} className="rounded-lg text-sm">
+   641→                                  <Archive className="size-3.5 mr-2 text-gray-400" /> Change Status
+   642→                                </DropdownMenuItem>
+   643→                              </DropdownMenuContent>
+   644→                            </DropdownMenu>
+   645→                          </td>
+   646→                        </tr>
+   647→                  ))}
+   648→            </tbody>
+   649→          </table>
+   650→        </div>
+   651→      </div>
+   652→
+   653→      {/* Pagination */}
+   654→      {data && data.total > 20 && (
+   655→        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 text-sm text-gray-500">
+   656→          <span className="text-center sm:text-left">Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, data.total)} of {data.total}</span>
+   657→          <div className="flex gap-1 justify-center">
+   658→            <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="inline-flex items-center gap-1 px-3 h-8 text-xs border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+   659→              <ChevronLeft className="size-3.5" /> Previous
+   660→            </button>
+   661→            <button disabled={page * 20 >= data.total} onClick={() => setPage(p => p + 1)} className="inline-flex items-center gap-1 px-3 h-8 text-xs border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+   662→              Next <ChevronRight className="size-3.5" />
+   663→            </button>
+   664→          </div>
+   665→        </div>
+   666→      )}
+   667→
+   668→      {/* ═══ Floating Bulk Operations Toolbar ═══ */}
+   669→      {selected.size > 0 && (
+   670→        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
+   671→          <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 bg-gray-900 text-white rounded-2xl shadow-2xl max-w-[calc(100vw-3rem)]">
+   672→            <span className="text-sm font-medium whitespace-nowrap">
+   673→              {selected.size} {selected.size === 1 ? 'company' : 'companies'} selected
+   674→            </span>
+   675→            <div className="w-px h-5 bg-gray-600 shrink-0" />
+   676→
+   677→            {/* Select All / Deselect All */}
+   678→            <button
+   679→              onClick={toggleAll}
+   680→              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-gray-800 transition-colors text-xs whitespace-nowrap"
+   681→            >
+   682→              {selected.size === companies.length ? <Square className="size-3.5" /> : <CheckSquare className="size-3.5" />}
+   683→              {selected.size === companies.length ? 'Deselect All' : 'Select All'}
+   684→            </button>
+   685→
+   686→            <div className="w-px h-5 bg-gray-600 shrink-0" />
+   687→
+   688→            {/* Change Status */}
+   689→            <DropdownMenu>
+   690→              <DropdownMenuTrigger asChild>
+   691→                <Button variant="ghost" size="sm" className="h-7 text-xs text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg">
+   692→                  <Archive className="size-3.5 mr-1.5" /> Status
+   693→                </Button>
+   694→              </DropdownMenuTrigger>
+   695→              <DropdownMenuContent align="end" className="w-40 rounded-xl p-1 elevation-float">
+   696→                {statusOptions.filter(s => s !== 'archived').map(s => (
+   697→                  <DropdownMenuItem
+   698→                    key={s}
+   699→                    className="rounded-lg text-sm"
+   700→                    onClick={() => {
+   701→                      setBulkNewStatus(s)
+   702→                      setBulkStatusOpen(true)
+   703→                    }}
+   704→                  >
+   705→                    {s.charAt(0).toUpperCase() + s.slice(1)}
+   706→                  </DropdownMenuItem>
+   707→                ))}
+   708→              </DropdownMenuContent>
+   709→            </DropdownMenu>
+   710→
+   711→            {/* Export */}
+   712→            <Button variant="ghost" size="sm" onClick={handleExportSelected} className="h-7 text-xs text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg">
+   713→              <Download className="size-3.5 mr-1.5" /> Export
+   714→            </Button>
+   715→
+   716→            {/* Archive */}
+   717→            <Button
+   718→              variant="ghost"
+   719→              size="sm"
+   720→              onClick={() => bulkArchiveMutation.mutate(Array.from(selected))}
+   721→              disabled={bulkArchiveMutation.isPending}
+   722→              className="h-7 text-xs text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg"
+   723→            >
+   724→              {bulkArchiveMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Archive className="size-3.5 mr-1.5" />}
+   725→              Archive
+   726→            </Button>
+   727→
+   728→            {/* Delete */}
+   729→            <Button
+   730→              variant="ghost"
+   731→              size="sm"
+   732→              onClick={() => setDeleteDialogOpen(true)}
+   733→              className="h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded-lg"
+   734→            >
+   735→              <Trash2 className="size-3.5 mr-1.5" /> Delete
+   736→            </Button>
+   737→          </div>
+   738→        </div>
+   739→      )}
+   740→
+   741→      {/* Status Change Dialog (single) */}
+   742→      <Dialog open={statusDialog.open} onOpenChange={o => setStatusDialog({ ...statusDialog, open: o })}>
+   743→        <DialogContent className="sm:max-w-xs rounded-xl p-6">
+   744→          <DialogHeader><DialogTitle className="text-gray-900 text-base">Change Status</DialogTitle></DialogHeader>
+   745→          <div className="grid gap-2 py-2">
+   746→            {statusOptions.map(s => (
+   747→              <button key={s} onClick={() => updateStatusMutation.mutate({ id: statusDialog.id, status: s })}
+   748→                disabled={updateStatusMutation.isPending}
+   749→                className={cn('flex items-center gap-3 p-2.5 rounded-lg text-sm text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed', statusDialog.current === s ? 'bg-amber-50 text-amber-900 font-medium' : 'hover:bg-gray-50 text-gray-700')}>
+   750→                {updateStatusMutation.isPending ? <Loader2 className="size-3.5 animate-spin text-amber-600" /> : <div className={cn('w-2 h-2 rounded-full', getCompanyStatusVariant(s).split(' ')[0])} />}
+   751→                {s.charAt(0).toUpperCase() + s.slice(1)}
+   752→                {statusDialog.current === s && <span className="ml-auto text-xs text-amber-600">current</span>}
+   753→              </button>
+   754→            ))}
+   755→          </div>
+   756→        </DialogContent>
+   757→      </Dialog>
+   758→
+   759→      {/* Bulk Status Change Confirmation */}
+   760→      <AlertDialog open={bulkStatusOpen} onOpenChange={setBulkStatusOpen}>
+   761→        <AlertDialogContent className="rounded-xl">
+   762→          <AlertDialogHeader>
+   763→            <AlertDialogTitle>Change Status for {selected.size} {selected.size === 1 ? 'company' : 'companies'}?</AlertDialogTitle>
+   764→            <AlertDialogDescription>
+   765→              This will set the status of all selected companies to <span className="font-semibold">{bulkNewStatus}</span>.
+   766→            </AlertDialogDescription>
+   767→          </AlertDialogHeader>
+   768→          <AlertDialogFooter>
+   769→            <AlertDialogCancel className="rounded-lg">Cancel</AlertDialogCancel>
+   770→            <AlertDialogAction
+   771→              className="rounded-lg bg-amber-600 hover:bg-amber-700 text-white"
+   772→              onClick={() => bulkStatusMutation.mutate({ ids: Array.from(selected), newStatus: bulkNewStatus })}
+   773→              disabled={bulkStatusMutation.isPending}
+   774→            >
+   775→              {bulkStatusMutation.isPending ? <Loader2 className="size-4 mr-2 animate-spin" /> : null}
+   776→              Update Status
+   777→            </AlertDialogAction>
+   778→          </AlertDialogFooter>
+   779→        </AlertDialogContent>
+   780→      </AlertDialog>
+   781→
+   782→      {/* Add Company Dialog */}
+   783→      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+   784→        <DialogContent className="sm:max-w-md rounded-xl p-6">
+   785→          <DialogHeader><DialogTitle className="text-gray-900">Add Company</DialogTitle></DialogHeader>
+   786→          <div className="grid gap-4 py-2">
+   787→            <div className="grid gap-1.5">
+   788→              <Label className="text-sm font-medium text-gray-700">Name</Label>
+   789→              <Input placeholder="ABC Manufacturing" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="border-gray-200 rounded-lg" />
+   790→            </div>
+   791→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   792→              <div className="grid gap-1.5">
+   793→                <Label className="text-sm font-medium text-gray-700">Domain</Label>
+   794→                <Input placeholder="abc.com" value={form.domain} onChange={e => setForm({ ...form, domain: e.target.value })} className="border-gray-200 rounded-lg" />
+   795→              </div>
+   796→              <div className="grid gap-1.5">
+   797→                <Label className="text-sm font-medium text-gray-700">Industry</Label>
+   798→                <Select value={form.industry} onValueChange={v => setForm({ ...form, industry: v })}>
+   799→                  <SelectTrigger className="border-gray-200 rounded-lg"><SelectValue placeholder="Select" /></SelectTrigger>
+   800→                  <SelectContent>{industries.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
+   801→                </Select>
+   802→              </div>
+   803→            </div>
+   804→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   805→              <div className="grid gap-1.5">
+   806→                <Label className="text-sm font-medium text-gray-700">Country</Label>
+   807→                <Input placeholder="USA" value={form.country} onChange={e => setForm({ ...form, country: e.target.value })} className="border-gray-200 rounded-lg" />
+   808→              </div>
+   809→              <div className="grid gap-1.5">
+   810→                <Label className="text-sm font-medium text-gray-700">Employees</Label>
+   811→                <Select value={form.employeeSize} onValueChange={v => setForm({ ...form, employeeSize: v })}>
+   812→                  <SelectTrigger className="border-gray-200 rounded-lg"><SelectValue placeholder="Select" /></SelectTrigger>
+   813→                  <SelectContent>{EMPLOYEE_SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+   814→                </Select>
+   815→              </div>
+   816→            </div>
+   817→            <div className="grid gap-1.5">
+   818→              <Label className="text-sm font-medium text-gray-700">Website</Label>
+   819→              <Input placeholder="https://abc.com" value={form.website} onChange={e => setForm({ ...form, website: e.target.value })} className="border-gray-200 rounded-lg" />
+   820→            </div>
+   821→          </div>
+   822→          <DialogFooter className="pt-2">
+   823→            <Button variant="outline" onClick={() => setShowAdd(false)} className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg">Cancel</Button>
+   824→            <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg" onClick={() => createMutation.mutate(form)} disabled={!form.name}>Create Company</Button>
+   825→          </DialogFooter>
+   826→        </DialogContent>
+   827→      </Dialog>
+   828→
+   829→      {/* Delete Confirmation Dialog */}
+   830→      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+   831→        <AlertDialogContent className="rounded-xl">
+   832→          <AlertDialogHeader>
+   833→            <AlertDialogTitle>Delete {selected.size} {selected.size === 1 ? 'company' : 'companies'}?</AlertDialogTitle>
+   834→            <AlertDialogDescription>
+   835→              This action cannot be undone. The selected companies and all associated data will be permanently removed.
+   836→            </AlertDialogDescription>
+   837→          </AlertDialogHeader>
+   838→          <AlertDialogFooter>
+   839→            <AlertDialogCancel className="rounded-lg">Cancel</AlertDialogCancel>
+   840→            <AlertDialogAction
+   841→              className="rounded-lg bg-red-600 hover:bg-red-700 text-white"
+   842→              onClick={() => deleteMutation.mutate(Array.from(selected))}
+   843→              disabled={deleteMutation.isPending}
+   844→            >
+   845→              {deleteMutation.isPending ? <Loader2 className="size-4 mr-2 animate-spin" /> : null}
+   846→              Delete
+   847→            </AlertDialogAction>
+   848→          </AlertDialogFooter>
+   849→        </AlertDialogContent>
+   850→      </AlertDialog>
+   851→
+   852→      {/* Save View Dialog */}
+   853→      <Dialog open={saveViewOpen} onOpenChange={setSaveViewOpen}>
+   854→        <DialogContent className="sm:max-w-sm rounded-xl p-6">
+   855→          <DialogHeader><DialogTitle className="text-gray-900">Save Current View</DialogTitle></DialogHeader>
+   856→          <div className="py-2">
+   857→            <Label className="text-sm font-medium text-gray-700 mb-1.5 block">View Name</Label>
+   858→            <Input
+   859→              placeholder="e.g., Enterprise SaaS Leads"
+   860→              value={newViewName}
+   861→              onChange={e => setNewViewName(e.target.value)}
+   862→              onKeyDown={e => { if (e.key === 'Enter') saveCurrentView() }}
+   863→              className="border-gray-200 rounded-lg"
+   864→              autoFocus
+   865→            />
+   866→            <p className="text-xs text-gray-400 mt-2">
+   867→              Saves current search and filter combination
+   868→            </p>
+   869→          </div>
+   870→          <DialogFooter>
+   871→            <Button variant="outline" onClick={() => { setSaveViewOpen(false); setNewViewName('') }} className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg">Cancel</Button>
+   872→            <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg" onClick={saveCurrentView} disabled={!newViewName.trim()}>
+   873→              <Save className="size-3.5 mr-1.5" /> Save View
+   874→            </Button>
+   875→          </DialogFooter>
+   876→        </DialogContent>
+   877→      </Dialog>
+   878→
+   879→      {/* Manage Views Dialog */}
+   880→      <Dialog open={manageViewsOpen} onOpenChange={setManageViewsOpen}>
+   881→        <DialogContent className="sm:max-w-sm rounded-xl p-6">
+   882→          <DialogHeader><DialogTitle className="text-gray-900">Manage Views</DialogTitle></DialogHeader>
+   883→          <div className="py-2 space-y-1.5 max-h-64 overflow-y-auto">
+   884→            {savedViews.filter(v => !v.isBuiltIn).length === 0 && (
+   885→              <p className="text-sm text-gray-400 text-center py-4">No custom views saved yet.</p>
+   886→            )}
+   887→            {savedViews.filter(v => !v.isBuiltIn).map(v => (
+   888→              <div key={v.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg hover:bg-gray-50 group">
+   889→                <div className="min-w-0">
+   890→                  <p className="text-sm font-medium text-gray-900 truncate">{v.name}</p>
+   891→                  <p className="text-xs text-gray-400 truncate">
+   892→                    {[v.filters.status !== 'all' && v.filters.status, v.filters.industry !== 'all' && v.filters.industry, v.filters.employeeSize !== 'all' && v.filters.employeeSize].filter(Boolean).join(', ') || 'All companies'}
+   893→                  </p>
+   894→                </div>
+   895→                <Button
+   896→                  variant="ghost"
+   897→                  size="sm"
+   898→                  onClick={() => deleteSavedView(v.id)}
+   899→                  className="opacity-0 group-hover:opacity-100 h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg shrink-0"
+   900→                >
+   901→                  <Trash2 className="size-3.5" />
+   902→                </Button>
+   903→              </div>
+   904→            ))}
+   905→          </div>
+   906→          <DialogFooter>
+   907→            <Button variant="outline" onClick={() => setManageViewsOpen(false)} className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg">Close</Button>
+   908→          </DialogFooter>
+   909→        </DialogContent>
+   910→      </Dialog>
+   911→    </div>
+   912→  )
+   913→}

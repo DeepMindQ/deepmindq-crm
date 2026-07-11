@@ -1,0 +1,743 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo } from 'react'
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import { motion, AnimatePresence } from 'framer-motion'
+     6→import {
+     7→  Plus, Search, CheckCircle2, Circle, Pencil, Trash2, Loader2, Filter,
+     8→  Calendar, Building2, User, Clock, AlertTriangle, X, ChevronDown,
+     9→} from 'lucide-react'
+    10→import { Button } from '@/components/ui/button'
+    11→import { Input } from '@/components/ui/input'
+    12→import { Checkbox } from '@/components/ui/checkbox'
+    13→import { Skeleton } from '@/components/ui/skeleton'
+    14→import { Badge } from '@/components/ui/badge'
+    15→import { Textarea } from '@/components/ui/textarea'
+    16→import {
+    17→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    18→} from '@/components/ui/select'
+    19→import {
+    20→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+    21→} from '@/components/ui/dialog'
+    22→import {
+    23→  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+    24→  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+    25→} from '@/components/ui/alert-dialog'
+    26→import { Label } from '@/components/ui/label'
+    27→import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+    28→import { Calendar as CalendarComponent } from '@/components/ui/calendar'
+    29→import { toast } from 'sonner'
+    30→import { useAppStore } from '@/lib/store'
+    31→import { fetchApi } from '@/lib/fetchApi'
+    32→import { EmptyState } from '@/components/shared/design-system'
+    33→import { cn } from '@/lib/utils'
+    34→import { formatDistanceToNow, isToday, isPast, format } from 'date-fns'
+    35→
+    36→/* ═══════════════════════════════════════════════════════════════════════
+    37→   Types
+    38→   ═══════════════════════════════════════════════════════════════════════ */
+    39→
+    40→interface TaskRow {
+    41→  id: string
+    42→  title: string
+    43→  description: string | null
+    44→  status: 'pending' | 'in_progress' | 'completed' | 'overdue'
+    45→  priority: 'low' | 'medium' | 'high' | 'urgent'
+    46→  dueDate: string | null
+    47→  completedAt: string | null
+    48→  companyId: string | null
+    49→  contactId: string | null
+    50→  companyName: string | null
+    51→  contactName: string | null
+    52→  createdAt: string
+    53→  updatedAt: string
+    54→}
+    55→
+    56→interface CompanyOption {
+    57→  id: string
+    58→  name: string
+    59→}
+    60→
+    61→interface ContactOption {
+    62→  id: string
+    63→  name: string
+    64→  companyId: string
+    65→}
+    66→
+    67→interface TasksResponse {
+    68→  data: TaskRow[]
+    69→  total: number
+    70→}
+    71→
+    72→/* ═══════════════════════════════════════════════════════════════════════
+    73→   Constants
+    74→   ═══════════════════════════════════════════════════════════════════════ */
+    75→
+    76→const STATUS_TABS = ['all', 'pending', 'in_progress', 'completed', 'overdue'] as const
+    77→const STATUS_LABELS: Record<string, string> = {
+    78→  all: 'All',
+    79→  pending: 'Pending',
+    80→  in_progress: 'In Progress',
+    81→  completed: 'Completed',
+    82→  overdue: 'Overdue',
+    83→}
+    84→const PRIORITY_OPTIONS = ['all', 'low', 'medium', 'high', 'urgent'] as const
+    85→const PRIORITY_LABELS: Record<string, string> = {
+    86→  all: 'All Priority',
+    87→  low: 'Low',
+    88→  medium: 'Medium',
+    89→  high: 'High',
+    90→  urgent: 'Urgent',
+    91→}
+    92→
+    93→function getStatusVariant(status: string): string {
+    94→  const map: Record<string, string> = {
+    95→    pending: 'bg-gray-50 text-gray-600 border-gray-200',
+    96→    in_progress: 'bg-sky-50 text-sky-700 border-sky-200',
+    97→    completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    98→    overdue: 'bg-red-50 text-red-700 border-red-200',
+    99→  }
+   100→  return map[status] || 'bg-gray-50 text-gray-600 border-gray-200'
+   101→}
+   102→
+   103→function getPriorityVariant(priority: string): string {
+   104→  const map: Record<string, string> = {
+   105→    low: 'bg-gray-50 text-gray-500 border-gray-200',
+   106→    medium: 'bg-amber-50 text-amber-700 border-amber-200',
+   107→    high: 'bg-orange-50 text-orange-700 border-orange-200',
+   108→    urgent: 'bg-red-50 text-red-700 border-red-200',
+   109→  }
+   110→  return map[priority] || 'bg-gray-50 text-gray-500 border-gray-200'
+   111→}
+   112→
+   113→function getDueDateDisplay(dueDate: string | null): { text: string; className: string } | null {
+   114→  if (!dueDate) return null
+   115→  const d = new Date(dueDate)
+   116→  if (isToday(d)) return { text: 'Today', className: 'text-amber-600 font-medium' }
+   117→  if (isPast(d)) return { text: format(d, 'MMM d'), className: 'text-red-600 font-medium' }
+   118→  return { text: format(d, 'MMM d'), className: 'text-gray-500' }
+   119→}
+   120→
+   121→const INITIAL_FORM = {
+   122→  title: '',
+   123→  description: '',
+   124→  status: 'pending' as string,
+   125→  priority: 'medium' as string,
+   126→  dueDate: '' as string,
+   127→  companyId: '',
+   128→  contactId: '',
+   129→}
+   130→
+   131→/* ═══════════════════════════════════════════════════════════════════════
+   132→   Task Card Animation
+   133→   ═══════════════════════════════════════════════════════════════════════ */
+   134→
+   135→const cardVariants = {
+   136→  hidden: { opacity: 0, y: 8 },
+   137→  visible: (i: number) => ({
+   138→    opacity: 1, y: 0,
+   139→    transition: { delay: Math.min(i * 30, 200), duration: 0.25, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
+   140→  }),
+   141→  exit: { opacity: 0, y: -4, transition: { duration: 0.15 } },
+   142→}
+   143→
+   144→/* ═══════════════════════════════════════════════════════════════════════
+   145→   TasksScreen
+   146→   ═══════════════════════════════════════════════════════════════════════ */
+   147→
+   148→export function TasksScreen() {
+   149→  const { setActiveView, setSelectedCompanyId, setSelectedContactId, setTaskCount } = useAppStore()
+   150→  const qc = useQueryClient()
+   151→
+   152→  // ── Filters ──
+   153→  const [statusFilter, setStatusFilter] = useState<string>('all')
+   154→  const [priorityFilter, setPriorityFilter] = useState<string>('all')
+   155→  const [search, setSearch] = useState('')
+   156→
+   157→  // ── Dialog ──
+   158→  const [dialogOpen, setDialogOpen] = useState(false)
+   159→  const [editingTask, setEditingTask] = useState<TaskRow | null>(null)
+   160→  const [form, setForm] = useState(INITIAL_FORM)
+   161→
+   162→  // ── Delete ──
+   163→  const [deleteId, setDeleteId] = useState<string | null>(null)
+   164→
+   165→  // ── Date picker ──
+   166→  const [datePickerOpen, setDatePickerOpen] = useState(false)
+   167→
+   168→  // ── Data ──
+   169→  const { data, isLoading } = useQuery<TasksResponse>({
+   170→    queryKey: ['tasks', statusFilter, priorityFilter, search],
+   171→    queryFn: () => fetchApi<TaskRow[]>('/api/tasks', {
+   172→      params: {
+   173→        status: statusFilter !== 'all' ? statusFilter : undefined,
+   174→        priority: priorityFilter !== 'all' ? priorityFilter : undefined,
+   175→        limit: 100,
+   176→        offset: 0,
+   177→        search: search || undefined,
+   178→      },
+   179→    }).then(res => {
+   180→      if (res.error) throw new Error(res.error)
+   181→      return { data: res.data || [], total: (res.data || []).length }
+   182→    }),
+   183→  })
+   184→
+   185→  const tasks = data?.data || []
+   186→  const total = data?.total || 0
+   187→
+   188→  // Update task count in store
+   189→  const { data: allTasksData } = useQuery<TasksResponse>({
+   190→    queryKey: ['tasks-count'],
+   191→    queryFn: () => fetchApi<TaskRow[]>('/api/tasks', {
+   192→      params: { limit: 1, offset: 0 },
+   193→    }).then(res => {
+   194→      if (res.error) throw new Error(res.error)
+   195→      return { data: res.data || [], total: (res.data || []).length }
+   196→    }),
+   197→    staleTime: 30_000,
+   198→  })
+   199→
+   200→  // Companies & contacts for selects
+   201→  const { data: companies } = useQuery<CompanyOption[]>({
+   202→    queryKey: ['companies-select'],
+   203→    queryFn: () => fetchApi<CompanyOption[]>('/api/companies', {
+   204→      params: { limit: 1000, pageSize: 1000 },
+   205→    }).then(res => {
+   206→      if (res.error) throw new Error(res.error)
+   207→      return (res.data as any)?.companies || res.data || []
+   208→    }).then((cs: any[]) => cs.map((c: any) => ({ id: c.id, name: c.name }))),
+   209→  })
+   210→
+   211→  const { data: contacts } = useQuery<ContactOption[]>({
+   212→    queryKey: ['contacts-select', form.companyId],
+   213→    queryFn: () => fetchApi<ContactOption[]>('/api/contacts', {
+   214→      params: {
+   215→        limit: 500,
+   216→        pageSize: 500,
+   217→        companyId: form.companyId || undefined,
+   218→      },
+   219→    }).then(res => {
+   220→      if (res.error) throw new Error(res.error)
+   221→      return (res.data as any)?.contacts || res.data || []
+   222→    }).then((cs: any[]) => cs.map((c: any) => ({ id: c.id, name: c.name, companyId: c.companyId }))),
+   223→    enabled: !!form.companyId,
+   224→  })
+   225→
+   226→  // Update store count
+   227→  useMemo(() => {
+   228→    if (allTasksData?.total !== undefined) {
+   229→      setTaskCount(allTasksData.total)
+   230→    }
+   231→  }, [allTasksData?.total, setTaskCount])
+   232→
+   233→  // ── Mutations ──
+   234→  const createMutation = useMutation({
+   235→    mutationFn: (body: Record<string, unknown>) => fetchApi('/api/tasks', {
+   236→      method: 'POST',
+   237→      headers: { 'Content-Type': 'application/json' },
+   238→      body: JSON.stringify(body),
+   239→    }).then(res => { if (res.error) throw new Error(res.error); return res.data }),
+   240→    onSuccess: () => {
+   241→      toast.success('Task created')
+   242→      setDialogOpen(false)
+   243→      resetForm()
+   244→      qc.invalidateQueries({ queryKey: ['tasks'] })
+   245→      qc.invalidateQueries({ queryKey: ['tasks-count'] })
+   246→    },
+   247→    onError: (e) => toast.error(e.message || 'Failed to create task'),
+   248→  })
+   249→
+   250→  const updateMutation = useMutation({
+   251→    mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) => fetchApi(`/api/tasks/${id}`, {
+   252→      method: 'PATCH',
+   253→      headers: { 'Content-Type': 'application/json' },
+   254→      body: JSON.stringify(body),
+   255→    }).then(res => { if (res.error) throw new Error(res.error); return res.data }),
+   256→    onSuccess: () => {
+   257→      toast.success('Task updated')
+   258→      setDialogOpen(false)
+   259→      setEditingTask(null)
+   260→      resetForm()
+   261→      qc.invalidateQueries({ queryKey: ['tasks'] })
+   262→      qc.invalidateQueries({ queryKey: ['tasks-count'] })
+   263→    },
+   264→    onError: (e) => toast.error(e.message || 'Failed to update task'),
+   265→  })
+   266→
+   267→  const deleteMutation = useMutation({
+   268→    mutationFn: (id: string) => fetchApi(`/api/tasks/${id}`, {
+   269→      method: 'DELETE',
+   270→    }).then(res => { if (res.error) throw new Error(res.error); return res.data }),
+   271→    onSuccess: () => {
+   272→      toast.success('Task deleted')
+   273→      setDeleteId(null)
+   274→      qc.invalidateQueries({ queryKey: ['tasks'] })
+   275→      qc.invalidateQueries({ queryKey: ['tasks-count'] })
+   276→    },
+   277→    onError: (e) => toast.error(e.message || 'Failed to delete task'),
+   278→  })
+   279→
+   280→  const toggleCompleteMutation = useMutation({
+   281→    mutationFn: ({ id, completed }: { id: string; completed: boolean }) => fetchApi(`/api/tasks/${id}`, {
+   282→      method: 'PATCH',
+   283→      headers: { 'Content-Type': 'application/json' },
+   284→      body: JSON.stringify({
+   285→        status: completed ? 'completed' : 'pending',
+   286→        completedAt: completed ? new Date().toISOString() : null,
+   287→      }),
+   288→    }).then(res => { if (res.error) throw new Error(res.error); return res.data }),
+   289→    onSuccess: () => {
+   290→      qc.invalidateQueries({ queryKey: ['tasks'] })
+   291→      qc.invalidateQueries({ queryKey: ['tasks-count'] })
+   292→    },
+   293→    onError: (e) => toast.error(e.message || 'Failed to update task'),
+   294→  })
+   295→
+   296→  // ── Helpers ──
+   297→  const resetForm = () => setForm(INITIAL_FORM)
+   298→
+   299→  const openCreate = () => {
+   300→    setEditingTask(null)
+   301→    resetForm()
+   302→    setDialogOpen(true)
+   303→  }
+   304→
+   305→  const openEdit = (task: TaskRow) => {
+   306→    setEditingTask(task)
+   307→    setForm({
+   308→      title: task.title,
+   309→      description: task.description || '',
+   310→      status: task.status,
+   311→      priority: task.priority,
+   312→      dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
+   313→      companyId: task.companyId || '',
+   314→      contactId: task.contactId || '',
+   315→    })
+   316→    setDialogOpen(true)
+   317→  }
+   318→
+   319→  const handleSave = () => {
+   320→    if (!form.title.trim()) return
+   321→    const body: Record<string, unknown> = {
+   322→      title: form.title.trim(),
+   323→      description: form.description.trim() || undefined,
+   324→      status: form.status,
+   325→      priority: form.priority,
+   326→      dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : undefined,
+   327→      companyId: form.companyId || undefined,
+   328→      contactId: form.contactId || undefined,
+   329→    }
+   330→    if (editingTask) {
+   331→      updateMutation.mutate({ id: editingTask.id, body })
+   332→    } else {
+   333→      createMutation.mutate(body)
+   334→    }
+   335→  }
+   336→
+   337→  const isOverdue = (task: TaskRow) =>
+   338→    task.dueDate && isPast(new Date(task.dueDate)) && task.status !== 'completed'
+   339→
+   340→  // ── Render ──
+   341→  return (
+   342→    <div className="space-y-5">
+   343→      {/* ── Header ── */}
+   344→      <div className="flex items-center justify-between gap-3">
+   345→        <div className="flex items-center gap-2.5">
+   346→          <h1 className="text-lg font-bold text-gray-900 tracking-tight">Tasks</h1>
+   347→          {total > 0 && (
+   348→            <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-gray-100 text-[11px] font-semibold text-gray-600 tabular-nums">
+   349→              {total}
+   350→            </span>
+   351→          )}
+   352→        </div>
+   353→        <Button
+   354→          className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs shrink-0"
+   355→          onClick={openCreate}
+   356→        >
+   357→          <Plus className="size-4 sm:mr-1.5" />
+   358→          <span className="hidden sm:inline">New Task</span>
+   359→        </Button>
+   360→      </div>
+   361→
+   362→      {/* ── Status Tabs ── */}
+   363→      <div className="flex items-center gap-1 overflow-x-auto pb-0.5 -mb-0.5">
+   364→        {STATUS_TABS.map((s) => (
+   365→          <button
+   366→            key={s}
+   367→            onClick={() => setStatusFilter(s)}
+   368→            className={cn(
+   369→              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-150',
+   370→              statusFilter === s
+   371→                ? 'bg-gray-900 text-white shadow-xs'
+   372→                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100',
+   373→            )}
+   374→          >
+   375→            {STATUS_LABELS[s]}
+   376→            {s !== 'all' && (
+   377→              <span className={cn(
+   378→                'text-[11px] tabular-nums',
+   379→                statusFilter === s ? 'text-gray-300' : 'text-gray-400',
+   380→              )}>
+   381→                {tasks.filter(t => t.status === s).length}
+   382→              </span>
+   383→            )}
+   384→          </button>
+   385→        ))}
+   386→      </div>
+   387→
+   388→      {/* ── Secondary Filters ── */}
+   389→      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+   390→        <div className="relative flex-1 sm:max-w-xs">
+   391→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+   392→          <Input
+   393→            placeholder="Search tasks..."
+   394→            value={search}
+   395→            onChange={e => setSearch(e.target.value)}
+   396→            className="pl-9 h-9 bg-white border-gray-200 rounded-lg text-sm focus:border-amber-400 focus:ring-amber-100"
+   397→          />
+   398→        </div>
+   399→        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+   400→          <SelectTrigger className="w-36 h-9 bg-white border-gray-200 rounded-lg text-sm">
+   401→            <Filter className="size-3.5 mr-1.5 text-gray-400" />
+   402→            <SelectValue placeholder={PRIORITY_LABELS[priorityFilter]} />
+   403→          </SelectTrigger>
+   404→          <SelectContent>
+   405→            {PRIORITY_OPTIONS.map(p => (
+   406→              <SelectItem key={p} value={p}>{PRIORITY_LABELS[p]}</SelectItem>
+   407→            ))}
+   408→          </SelectContent>
+   409→        </Select>
+   410→      </div>
+   411→
+   412→      {/* ── Task List ── */}
+   413→      {isLoading ? (
+   414→        <div className="space-y-3">
+   415→          {Array.from({ length: 5 }).map((_, i) => (
+   416→            <div key={i} className="rounded-xl bg-white p-4 space-y-3 animate-pulse">
+   417→              <div className="flex items-center gap-3">
+   418→                <Skeleton className="size-5 rounded" />
+   419→                <Skeleton className="h-4 w-48 rounded" />
+   420→              </div>
+   421→              <Skeleton className="h-3 w-72 rounded" />
+   422→            </div>
+   423→          ))}
+   424→        </div>
+   425→      ) : tasks.length === 0 ? (
+   426→        <div className="rounded-xl bg-white card-rest overflow-hidden">
+   427→          <EmptyState
+   428→            icon={CheckCircle2}
+   429→            title="No tasks found"
+   430→            description={search || statusFilter !== 'all' || priorityFilter !== 'all'
+   431→              ? 'Try adjusting your filters or search query.'
+   432→              : 'Create your first task to get started.'}
+   433→            actionLabel="New Task"
+   434→            onAction={openCreate}
+   435→          />
+   436→        </div>
+   437→      ) : (
+   438→        <div className="space-y-2">
+   439→          <AnimatePresence mode="popLayout">
+   440→            {tasks.map((task, i) => {
+   441→              const overdue = isOverdue(task)
+   442→              const dueDateInfo = getDueDateDisplay(task.dueDate)
+   443→              return (
+   444→                <motion.div
+   445→                  key={task.id}
+   446→                  custom={i}
+   447→                  variants={cardVariants}
+   448→                  initial="hidden"
+   449→                  animate="visible"
+   450→                  exit="exit"
+   451→                  layout
+   452→                  className={cn(
+   453→                    'rounded-xl bg-white card-rest p-4 group transition-shadow hover:shadow-md',
+   454→                    overdue && 'border-l-[3px] border-l-red-400',
+   455→                  )}
+   456→                >
+   457→                  <div className="flex items-start gap-3">
+   458→                    {/* Checkbox */}
+   459→                    <div className="pt-0.5">
+   460→                      <Checkbox
+   461→                        checked={task.status === 'completed'}
+   462→                        onCheckedChange={(checked) => {
+   463→                          toggleCompleteMutation.mutate({ id: task.id, completed: !!checked })
+   464→                        }}
+   465→                        className="size-5 rounded-md border-gray-300 data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600"
+   466→                      />
+   467→                    </div>
+   468→
+   469→                    {/* Content */}
+   470→                    <div className="flex-1 min-w-0 space-y-1.5">
+   471→                      <div className="flex items-start justify-between gap-2">
+   472→                        <div className="min-w-0 flex-1">
+   473→                          <p className={cn(
+   474→                            'text-sm font-semibold text-gray-900 leading-snug',
+   475→                            task.status === 'completed' && 'line-through text-gray-400',
+   476→                          )}>
+   477→                            {task.title}
+   478→                          </p>
+   479→                          {task.description && (
+   480→                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 leading-relaxed">
+   481→                              {task.description}
+   482→                            </p>
+   483→                          )}
+   484→                        </div>
+   485→
+   486→                        {/* Actions */}
+   487→                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+   488→                          <button
+   489→                            onClick={() => openEdit(task)}
+   490→                            className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
+   491→                            aria-label="Edit task"
+   492→                          >
+   493→                            <Pencil className="size-3.5 text-gray-400" />
+   494→                          </button>
+   495→                          <button
+   496→                            onClick={() => setDeleteId(task.id)}
+   497→                            className="p-1.5 rounded-md hover:bg-red-50 transition-colors"
+   498→                            aria-label="Delete task"
+   499→                          >
+   500→                            <Trash2 className="size-3.5 text-gray-400 hover:text-red-500" />
+   501→                          </button>
+   502→                        </div>
+   503→                      </div>
+   504→
+   505→                      {/* Meta row */}
+   506→                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+   507→                        <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-md text-[11px] font-medium border', getStatusVariant(task.status))}>
+   508→                          {STATUS_LABELS[task.status] || task.status}
+   509→                        </span>
+   510→                        <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-md text-[11px] font-medium border', getPriorityVariant(task.priority))}>
+   511→                          {PRIORITY_LABELS[task.priority] || task.priority}
+   512→                        </span>
+   513→
+   514→                        {dueDateInfo && (
+   515→                          <span className={cn('inline-flex items-center gap-1 text-[11px]', dueDateInfo.className)}>
+   516→                            <Calendar className="size-3" />
+   517→                            {dueDateInfo.text}
+   518→                            {overdue && <AlertTriangle className="size-3" />}
+   519→                          </span>
+   520→                        )}
+   521→
+   522→                        {task.companyName && (
+   523→                          <button
+   524→                            onClick={() => {
+   525→                              setSelectedCompanyId(task.companyId!)
+   526→                              setActiveView('company-profile')
+   527→                            }}
+   528→                            className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-amber-600 transition-colors"
+   529→                          >
+   530→                            <Building2 className="size-3" />
+   531→                            {task.companyName}
+   532→                          </button>
+   533→                        )}
+   534→
+   535→                        {task.contactName && (
+   536→                          <button
+   537→                            onClick={() => {
+   538→                              if (task.companyId) setSelectedCompanyId(task.companyId)
+   539→                              setSelectedContactId(task.contactId!)
+   540→                              setActiveView('contact-profile')
+   541→                            }}
+   542→                            className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-amber-600 transition-colors"
+   543→                          >
+   544→                            <User className="size-3" />
+   545→                            {task.contactName}
+   546→                          </button>
+   547→                        )}
+   548→
+   549→                        <span className="text-[11px] text-gray-400 ml-auto">
+   550→                          {formatDistanceToNow(new Date(task.createdAt), { addSuffix: true })}
+   551→                        </span>
+   552→                      </div>
+   553→                    </div>
+   554→                  </div>
+   555→                </motion.div>
+   556→              )
+   557→            })}
+   558→          </AnimatePresence>
+   559→        </div>
+   560→      )}
+   561→
+   562→      {/* ── Create/Edit Dialog ── */}
+   563→      <Dialog open={dialogOpen} onOpenChange={(open) => {
+   564→        setDialogOpen(open)
+   565→        if (!open) { setEditingTask(null); resetForm() }
+   566→      }}>
+   567→        <DialogContent className="sm:max-w-lg rounded-xl p-6">
+   568→          <DialogHeader>
+   569→            <DialogTitle className="text-gray-900">
+   570→              {editingTask ? 'Edit Task' : 'New Task'}
+   571→            </DialogTitle>
+   572→          </DialogHeader>
+   573→          <div className="grid gap-4 py-3">
+   574→            {/* Title */}
+   575→            <div className="grid gap-1.5">
+   576→              <Label className="text-sm font-medium text-gray-700">Title</Label>
+   577→              <Input
+   578→                placeholder="What needs to be done?"
+   579→                value={form.title}
+   580→                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+   581→                className="border-gray-200 rounded-lg"
+   582→                autoFocus
+   583→              />
+   584→            </div>
+   585→
+   586→            {/* Description */}
+   587→            <div className="grid gap-1.5">
+   588→              <Label className="text-sm font-medium text-gray-700">Description</Label>
+   589→              <Textarea
+   590→                placeholder="Add details..."
+   591→                value={form.description}
+   592→                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+   593→                className="border-gray-200 rounded-lg min-h-[80px] resize-none"
+   594→                rows={3}
+   595→              />
+   596→            </div>
+   597→
+   598→            {/* Status & Priority row */}
+   599→            <div className="grid grid-cols-2 gap-3">
+   600→              <div className="grid gap-1.5">
+   601→                <Label className="text-sm font-medium text-gray-700">Status</Label>
+   602→                <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
+   603→                  <SelectTrigger className="border-gray-200 rounded-lg">
+   604→                    <SelectValue />
+   605→                  </SelectTrigger>
+   606→                  <SelectContent>
+   607→                    <SelectItem value="pending">Pending</SelectItem>
+   608→                    <SelectItem value="in_progress">In Progress</SelectItem>
+   609→                    <SelectItem value="completed">Completed</SelectItem>
+   610→                    <SelectItem value="overdue">Overdue</SelectItem>
+   611→                  </SelectContent>
+   612→                </Select>
+   613→              </div>
+   614→              <div className="grid gap-1.5">
+   615→                <Label className="text-sm font-medium text-gray-700">Priority</Label>
+   616→                <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
+   617→                  <SelectTrigger className="border-gray-200 rounded-lg">
+   618→                    <SelectValue />
+   619→                  </SelectTrigger>
+   620→                  <SelectContent>
+   621→                    <SelectItem value="low">Low</SelectItem>
+   622→                    <SelectItem value="medium">Medium</SelectItem>
+   623→                    <SelectItem value="high">High</SelectItem>
+   624→                    <SelectItem value="urgent">Urgent</SelectItem>
+   625→                  </SelectContent>
+   626→                </Select>
+   627→              </div>
+   628→            </div>
+   629→
+   630→            {/* Due Date */}
+   631→            <div className="grid gap-1.5">
+   632→              <Label className="text-sm font-medium text-gray-700">Due Date</Label>
+   633→              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+   634→                <PopoverTrigger asChild>
+   635→                  <button
+   636→                    className={cn(
+   637→                      'flex items-center gap-2 h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-left hover:bg-gray-50 transition-colors',
+   638→                      !form.dueDate && 'text-gray-400',
+   639→                    )}
+   640→                  >
+   641→                    <Calendar className="size-4 text-gray-400" />
+   642→                    {form.dueDate ? format(new Date(form.dueDate), 'MMM d, yyyy') : 'Pick a date'}
+   643→                  </button>
+   644→                </PopoverTrigger>
+   645→                <PopoverContent className="w-auto p-0 rounded-xl" align="start">
+   646→                  <CalendarComponent
+   647→                    mode="single"
+   648→                    selected={form.dueDate ? new Date(form.dueDate) : undefined}
+   649→                    onSelect={(d) => {
+   650→                      setForm(f => ({ ...f, dueDate: d ? format(d, 'yyyy-MM-dd') : '' }))
+   651→                      setDatePickerOpen(false)
+   652→                    }}
+   653→                    initialFocus
+   654→                  />
+   655→                </PopoverContent>
+   656→              </Popover>
+   657→            </div>
+   658→
+   659→            {/* Company */}
+   660→            <div className="grid gap-1.5">
+   661→              <Label className="text-sm font-medium text-gray-700">Company (optional)</Label>
+   662→              <Select
+   663→                value={form.companyId}
+   664→                onValueChange={v => setForm(f => ({ ...f, companyId: v, contactId: '' }))}
+   665→              >
+   666→                <SelectTrigger className="border-gray-200 rounded-lg">
+   667→                  <SelectValue placeholder="Select a company" />
+   668→                </SelectTrigger>
+   669→                <SelectContent>
+   670→                  {(companies || []).map(c => (
+   671→                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+   672→                  ))}
+   673→                </SelectContent>
+   674→              </Select>
+   675→            </div>
+   676→
+   677→            {/* Contact */}
+   678→            {form.companyId && (
+   679→              <div className="grid gap-1.5">
+   680→                <Label className="text-sm font-medium text-gray-700">Contact (optional)</Label>
+   681→                <Select
+   682→                  value={form.contactId}
+   683→                  onValueChange={v => setForm(f => ({ ...f, contactId: v }))}
+   684→                >
+   685→                  <SelectTrigger className="border-gray-200 rounded-lg">
+   686→                    <SelectValue placeholder="Select a contact" />
+   687→                  </SelectTrigger>
+   688→                  <SelectContent>
+   689→                    {(contacts || []).map(c => (
+   690→                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+   691→                    ))}
+   692→                  </SelectContent>
+   693→                </Select>
+   694→              </div>
+   695→            )}
+   696→          </div>
+   697→          <DialogFooter className="pt-2">
+   698→            <Button
+   699→              variant="outline"
+   700→              onClick={() => { setDialogOpen(false); setEditingTask(null); resetForm() }}
+   701→              className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg"
+   702→            >
+   703→              Cancel
+   704→            </Button>
+   705→            <Button
+   706→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg"
+   707→              onClick={handleSave}
+   708→              disabled={!form.title.trim() || createMutation.isPending || updateMutation.isPending}
+   709→            >
+   710→              {(createMutation.isPending || updateMutation.isPending) && (
+   711→                <Loader2 className="size-4 mr-1.5 animate-spin" />
+   712→              )}
+   713→              {editingTask ? 'Save Changes' : 'Create Task'}
+   714→            </Button>
+   715→          </DialogFooter>
+   716→        </DialogContent>
+   717→      </Dialog>
+   718→
+   719→      {/* ── Delete Confirmation ── */}
+   720→      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null) }}>
+   721→        <AlertDialogContent className="rounded-xl">
+   722→          <AlertDialogHeader>
+   723→            <AlertDialogTitle>Delete task?</AlertDialogTitle>
+   724→            <AlertDialogDescription>
+   725→              This action cannot be undone. The task will be permanently removed.
+   726→            </AlertDialogDescription>
+   727→          </AlertDialogHeader>
+   728→          <AlertDialogFooter>
+   729→            <AlertDialogCancel className="rounded-lg">Cancel</AlertDialogCancel>
+   730→            <AlertDialogAction
+   731→              className="rounded-lg bg-red-600 hover:bg-red-700 text-white"
+   732→              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
+   733→              disabled={deleteMutation.isPending}
+   734→            >
+   735→              {deleteMutation.isPending && <Loader2 className="size-4 mr-2 animate-spin" />}
+   736→              Delete
+   737→            </AlertDialogAction>
+   738→          </AlertDialogFooter>
+   739→        </AlertDialogContent>
+   740→      </AlertDialog>
+   741→    </div>
+   742→  )
+   743→}

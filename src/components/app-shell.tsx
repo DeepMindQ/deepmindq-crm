@@ -32,24 +32,31 @@ import { useSession, signOut } from 'next-auth/react'
 import { toast } from 'sonner'
 import { useTheme } from 'next-themes'
 import { CommandPalette } from '@/components/shared/command-palette'
+import { AiChatSidebar } from '@/components/shared/ai-chat-sidebar'
+import { AiChatButton } from '@/components/shared/ai-chat-button'
 import { useAppStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import type { ActiveView } from '@/lib/types'
 
-const navItems: { view: ActiveView; label: string; icon: React.ElementType }[] = [
+// ── Sidebar Navigation Groups ──
+const MAIN_NAV: { view: ActiveView; label: string; icon: React.ElementType }[] = [
   { view: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { view: 'companies', label: 'Companies', icon: Building2 },
   { view: 'contacts', label: 'Contacts', icon: Users },
   { view: 'opportunities', label: 'Pipeline', icon: Kanban },
+  { view: 'tasks', label: 'Tasks', icon: CheckSquare },
+]
+
+const AI_NAV: { view: ActiveView; label: string; icon: React.ElementType }[] = [
   { view: 'email-generation', label: 'AI Emails', icon: MailPlus },
   { view: 'sequences', label: 'Sequences', icon: Mail },
   { view: 'knowledge-library', label: 'Knowledge', icon: BookOpen },
   { view: 'prompt-templates', label: 'Prompts', icon: FileCode2 },
-  { view: 'tasks', label: 'Tasks', icon: CheckSquare },
+]
+
+const ANALYTICS_NAV: { view: ActiveView; label: string; icon: React.ElementType }[] = [
   { view: 'reports', label: 'Analytics', icon: BarChart3 },
-  { view: 'audit-logs', label: 'Audit', icon: Shield },
-  { view: 'import', label: 'Import', icon: Upload },
-  { view: 'settings', label: 'Settings', icon: Settings },
+  { view: 'audit-logs', label: 'Audit Log', icon: Shield },
 ]
 
 const pageTitles: Record<ActiveView, string> = {
@@ -120,6 +127,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
   const [showNotifications, setShowNotifications] = React.useState(false)
   const [showHelp, setShowHelp] = React.useState(false)
+  const [aiChatOpen, setAiChatOpen] = React.useState(false)
   const { theme, setTheme } = useTheme()
 
   // ── Notifications ──
@@ -209,32 +217,119 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </SidebarHeader>
 
-        <SidebarContent className="px-3">
+        <SidebarContent className="px-3 gap-0">
+          {/* ── Main ── */}
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu>
-                {navItems.map((item) => {
-                  const Icon = item.icon
-                  const active = isNavActive(item.view)
-                  return (
-                    <SidebarMenuItem key={item.view}>
-                      <SidebarMenuButton
-                        isActive={active}
-                        onClick={() => setActiveView(item.view)}
-                        tooltip={{ children: item.label, side: 'right' as const, align: 'center' as const, className: 'font-medium text-xs bg-white text-gray-700 border border-gray-200 shadow-sm' }}
-                        className={cn(
-                          'rounded-lg transition-all duration-150',
-                          'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
-                          'data-[active=true]:bg-amber-50 data-[active=true]:text-amber-700',
-                          'data-[active=true]:font-medium',
-                        )}
-                      >
-                        <Icon className="size-4 shrink-0" />
-                        <span className="truncate">{item.label}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )
-                })}
+                {MAIN_NAV.map((item) => (
+                  <SidebarMenuItem key={item.view}>
+                    <SidebarMenuButton
+                      isActive={isNavActive(item.view)}
+                      onClick={() => setActiveView(item.view)}
+                      tooltip={{ children: item.label, side: 'right' as const, align: 'center' as const, className: 'font-medium text-xs bg-white text-gray-700 border border-gray-200 shadow-sm' }}
+                      className={cn(
+                        'rounded-lg transition-all duration-150',
+                        'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+                        'data-[active=true]:bg-amber-50 data-[active=true]:text-amber-700',
+                        'data-[active=true]:font-medium',
+                      )}
+                    >
+                      <item.icon className="size-4 shrink-0" />
+                      <span className="truncate">{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          {/* ── AI & Content ── */}
+          <div className="px-3 pt-4 pb-1">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 group-data-[collapsible=icon]:hidden">AI & Content</p>
+          </div>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {AI_NAV.map((item) => (
+                  <SidebarMenuItem key={item.view}>
+                    <SidebarMenuButton
+                      isActive={isNavActive(item.view)}
+                      onClick={() => setActiveView(item.view)}
+                      tooltip={{ children: item.label, side: 'right' as const, align: 'center' as const, className: 'font-medium text-xs bg-white text-gray-700 border border-gray-200 shadow-sm' }}
+                      className={cn(
+                        'rounded-lg transition-all duration-150',
+                        'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+                        'data-[active=true]:bg-amber-50 data-[active=true]:text-amber-700',
+                        'data-[active=true]:font-medium',
+                      )}
+                    >
+                      <item.icon className="size-4 shrink-0" />
+                      <span className="truncate">{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          {/* ── Insights ── */}
+          <div className="px-3 pt-4 pb-1">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 group-data-[collapsible=icon]:hidden">Insights</p>
+          </div>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {ANALYTICS_NAV.map((item) => (
+                  <SidebarMenuItem key={item.view}>
+                    <SidebarMenuButton
+                      isActive={isNavActive(item.view)}
+                      onClick={() => setActiveView(item.view)}
+                      tooltip={{ children: item.label, side: 'right' as const, align: 'center' as const, className: 'font-medium text-xs bg-white text-gray-700 border border-gray-200 shadow-sm' }}
+                      className={cn(
+                        'rounded-lg transition-all duration-150',
+                        'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+                        'data-[active=true]:bg-amber-50 data-[active=true]:text-amber-700',
+                        'data-[active=true]:font-medium',
+                      )}
+                    >
+                      <item.icon className="size-4 shrink-0" />
+                      <span className="truncate">{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          {/* ── System (bottom-pinned) ── */}
+          <div className="px-3 pt-4 pb-1">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 group-data-[collapsible=icon]:hidden">System</p>
+          </div>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {[
+                  { view: 'import' as ActiveView, label: 'Import', icon: Upload },
+                  { view: 'settings' as ActiveView, label: 'Settings', icon: Settings },
+                ].map((item) => (
+                  <SidebarMenuItem key={item.view}>
+                    <SidebarMenuButton
+                      isActive={isNavActive(item.view)}
+                      onClick={() => setActiveView(item.view)}
+                      tooltip={{ children: item.label, side: 'right' as const, align: 'center' as const, className: 'font-medium text-xs bg-white text-gray-700 border border-gray-200 shadow-sm' }}
+                      className={cn(
+                        'rounded-lg transition-all duration-150',
+                        'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+                        'data-[active=true]:bg-amber-50 data-[active=true]:text-amber-700',
+                        'data-[active=true]:font-medium',
+                      )}
+                    >
+                      <item.icon className="size-4 shrink-0" />
+                      <span className="truncate">{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -483,6 +578,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </SidebarInset>
 
       <CommandPalette />
+
+      {/* AI Chat Sidebar + FAB */}
+      <AiChatSidebar isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} />
+      <AiChatButton isOpen={aiChatOpen} onToggle={() => setAiChatOpen(prev => !prev)} />
 
       {/* Help Dialog */}
       <Dialog open={showHelp} onOpenChange={setShowHelp}>

@@ -86,7 +86,7 @@ function hashToState(hash: string): Partial<AppState> | null {
   const id = match[2] || null;
   if (view === 'company-profile') return { activeView: view, selectedCompanyId: id };
   if (view === 'contact-profile') return { activeView: view, selectedContactId: id };
-  if (['dashboard','companies','contacts','tasks','opportunities','import','email-generation','knowledge-library','settings','audit-logs','prompt-templates','reports'].includes(view)) {
+  if (['dashboard','companies','contacts','tasks','opportunities','import','email-generation','knowledge-library','settings','audit-logs','sequences','prompt-templates','reports'].includes(view)) {
     return { activeView: view as ActiveView };
   }
   return null;

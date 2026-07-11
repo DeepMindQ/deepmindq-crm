@@ -25,11 +25,16 @@ export const VALID_VIEWS = [
   'company-profile',
   'contacts',
   'contact-profile',
+  'tasks',
+  'opportunities',
   'import',
   'email-generation',
   'knowledge-library',
   'settings',
   'audit-logs',
+  'sequences',
+  'prompt-templates',
+  'reports',
 ] as const
 
 // ── Status option arrays ────────────────────────────────────────────

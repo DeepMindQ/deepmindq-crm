@@ -2,173 +2,127 @@
 
 import { useState } from 'react'
 
-type View = 'dashboard' | 'companies' | 'contacts' | 'tasks' | 'opportunities' | 'settings'
+type View = 'dashboard' | 'companies' | 'contacts' | 'tasks' | 'opportunities'
 
-const NAV_ITEMS: { key: View; label: string; icon: string }[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { key: 'companies', label: 'Companies', icon: '🏢' },
-  { key: 'contacts', label: 'Contacts', icon: '👥' },
-  { key: 'tasks', label: 'Tasks', icon: '✅' },
-  { key: 'opportunities', label: 'Opportunities', icon: '🎯' },
-  { key: 'settings', label: 'Settings', icon: '⚙️' },
+const NAV = [
+  { key: 'dashboard' as View, label: 'Dashboard', icon: '⊞' },
+  { key: 'companies' as View, label: 'Companies', icon: '☐' },
+  { key: 'contacts' as View, label: 'Contacts', icon: '☹' },
+  { key: 'tasks' as View, label: 'Tasks', icon: '☑' },
+  { key: 'opportunities' as View, label: 'Opportunities', icon: '◎' },
 ]
 
 const COMPANIES = [
-  { id: '1', name: 'Acme Corp', industry: 'Technology', size: '500-1000', country: 'US', score: 87, status: 'Active' },
-  { id: '2', name: 'TechVentures Inc', industry: 'SaaS', size: '100-250', country: 'India', score: 72, status: 'New' },
-  { id: '3', name: 'Global Finance Solutions', industry: 'Finance', size: '1000-5000', country: 'UK', score: 91, status: 'Active' },
-  { id: '4', name: 'HealthTech Plus', industry: 'Healthcare', size: '250-500', country: 'US', score: 78, status: 'Researching' },
-  { id: '5', name: 'CloudScale Systems', industry: 'Cloud Computing', size: '1000-5000', country: 'US', score: 93, status: 'Active' },
-  { id: '6', name: 'GreenEnergy Corp', industry: 'Energy', size: '50-100', country: 'Germany', score: 65, status: 'New' },
+  { name: 'Acme Corp', industry: 'Technology', size: '500-1000', country: 'US', score: 87, status: 'Active' },
+  { name: 'TechVentures Inc', industry: 'SaaS', size: '100-250', country: 'India', score: 72, status: 'New' },
+  { name: 'Global Finance Solutions', industry: 'Finance', size: '1000-5000', country: 'UK', score: 91, status: 'Active' },
+  { name: 'HealthTech Plus', industry: 'Healthcare', size: '250-500', country: 'US', score: 78, status: 'Researching' },
+  { name: 'CloudScale Systems', industry: 'Cloud', size: '1000-5000', country: 'US', score: 93, status: 'Active' },
+  { name: 'GreenEnergy Corp', industry: 'Energy', size: '50-100', country: 'Germany', score: 65, status: 'New' },
 ]
 
 const CONTACTS = [
-  { id: '1', name: 'Sarah Johnson', email: 'sarah@acmecorp.com', title: 'VP of Engineering', company: 'Acme Corp', health: 95 },
-  { id: '2', name: 'Mike Chen', email: 'mike.chen@acmecorp.com', title: 'CTO', company: 'Acme Corp', health: 92 },
-  { id: '3', name: 'Priya Sharma', email: 'priya@techventures.io', title: 'Head of Product', company: 'TechVentures', health: 88 },
-  { id: '4', name: 'James Wilson', email: 'j.wilson@gfsolutions.com', title: 'CFO', company: 'Global Finance', health: 90 },
-  { id: '5', name: 'David Park', email: 'david.park@cloudscale.dev', title: 'VP Cloud Infra', company: 'CloudScale', health: 97 },
-  { id: '6', name: 'Dr. Emily Brown', email: 'emily.b@healthtechplus.com', title: 'Director of Innovation', company: 'HealthTech', health: 60 },
+  { name: 'Sarah Johnson', title: 'VP Engineering', company: 'Acme Corp', email: 'sarah@acmecorp.com' },
+  { name: 'Mike Chen', title: 'CTO', company: 'Acme Corp', email: 'mike.chen@acmecorp.com' },
+  { name: 'Priya Sharma', title: 'Head of Product', company: 'TechVentures', email: 'priya@techventures.io' },
+  { name: 'James Wilson', title: 'CFO', company: 'Global Finance', email: 'j.wilson@gfsolutions.com' },
+  { name: 'David Park', title: 'VP Cloud Infra', company: 'CloudScale', email: 'david.park@cloudscale.dev' },
+  { name: 'Dr. Emily Brown', title: 'Dir. Innovation', company: 'HealthTech', email: 'emily.b@healthtechplus.com' },
 ]
 
 const TASKS = [
-  { id: '1', title: 'Follow up with Acme Corp', priority: 'High', status: 'Pending', due: 'Jul 13' },
-  { id: '2', title: 'Research HealthTech Plus', priority: 'Medium', status: 'In Progress', due: 'Jul 16' },
-  { id: '3', title: 'Prepare quarterly report', priority: 'Low', status: 'Completed', due: 'Jul 10' },
-  { id: '4', title: 'Schedule demo with CloudScale', priority: 'High', status: 'Pending', due: 'Jul 14' },
+  { title: 'Follow up with Acme Corp', priority: 'High', status: 'Pending', due: 'Jul 13' },
+  { title: 'Research HealthTech Plus', priority: 'Medium', status: 'In Progress', due: 'Jul 16' },
+  { title: 'Prepare quarterly report', priority: 'Low', status: 'Done', due: 'Jul 10' },
+  { title: 'Schedule CloudScale demo', priority: 'High', status: 'Pending', due: 'Jul 14' },
 ]
 
-const OPPORTUNITIES = [
-  { id: '1', title: 'Enterprise License Deal', company: 'Acme Corp', value: '$120K', stage: 'Proposal Sent', contact: 'Sarah Johnson' },
-  { id: '2', title: 'Cloud Integration Partnership', company: 'CloudScale', value: '$250K', stage: 'Negotiation', contact: 'David Park' },
-  { id: '3', title: 'Financial Analytics Module', company: 'Global Finance', value: '$85K', stage: 'Researching', contact: 'James Wilson' },
+const OPPS = [
+  { title: 'Enterprise License Deal', company: 'Acme Corp', value: '$120K', stage: 'Proposal' },
+  { title: 'Cloud Partnership', company: 'CloudScale', value: '$250K', stage: 'Negotiation' },
+  { title: 'Analytics Module', company: 'Global Finance', value: '$85K', stage: 'Researching' },
 ]
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    'Active': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    'New': 'bg-blue-50 text-blue-700 border-blue-200',
-    'Researching': 'bg-amber-50 text-amber-700 border-amber-200',
-    'Proposal Sent': 'bg-purple-50 text-purple-700 border-purple-200',
-    'Negotiation': 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    'High': 'bg-red-50 text-red-700 border-red-200',
-    'Medium': 'bg-amber-50 text-amber-700 border-amber-200',
-    'Low': 'bg-gray-50 text-gray-600 border-gray-200',
-    'Pending': 'bg-blue-50 text-blue-700 border-blue-200',
-    'In Progress': 'bg-amber-50 text-amber-700 border-amber-200',
-    'Completed': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  }
-  return (
-    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${colors[status] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
-      {status}
-    </span>
-  )
+const S = {
+  gold: '#d4af37',
+  goldLight: '#fef9e7',
+  goldDark: '#b8941f',
+  bg: '#f7f7f5',
+  white: '#ffffff',
+  border: '#e8e8e5',
+  text: '#1a1a1a',
+  textMuted: '#6b7280',
+  textLight: '#9ca3af',
+  green: '#059669',
+  greenBg: '#ecfdf5',
+  blue: '#2563eb',
+  blueBg: '#eff6ff',
+  red: '#dc2626',
+  redBg: '#fef2f2',
+  amber: '#d97706',
+  amberBg: '#fffbeb',
+  purple: '#7c3aed',
+  purpleBg: '#f5f3ff',
 }
 
-function ScoreBar({ score }: { score: number }) {
-  const color = score >= 85 ? 'bg-emerald-500' : score >= 70 ? 'bg-amber-500' : 'bg-red-400'
-  return (
-    <div className="flex items-center gap-2">
-      <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${score}%` }} />
-      </div>
-      <span className="text-xs font-medium text-gray-600">{score}</span>
-    </div>
-  )
+function Badge({ text, bg, color }: { text: string; bg: string; color: string }) {
+  return <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '9999px', fontSize: '11px', fontWeight: 600, background: bg, color, border: `1px solid ${color}22` }}>{text}</span>
 }
 
-function DashboardView() {
-  const stats = [
-    { label: 'Total Companies', value: '247', change: '+12%', up: true },
-    { label: 'Active Contacts', value: '1,843', change: '+8%', up: true },
-    { label: 'Open Opportunities', value: '38', change: '+15%', up: true },
-    { label: 'Emails Sent', value: '156', change: '-3%', up: false },
-  ]
-
+function Dashboard() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Welcome back, Ravi</h1>
-        <p className="text-gray-500 text-sm mt-1">Here&apos;s what&apos;s happening with your sales pipeline today.</p>
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: S.text, letterSpacing: '-0.02em' }}>Welcome back, Ravi</h1>
+        <p style={{ fontSize: 13, color: S.textMuted, marginTop: 4 }}>Here is your sales pipeline overview.</p>
       </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{s.label}</p>
-            <div className="flex items-end justify-between mt-2">
-              <p className="text-2xl font-bold text-gray-900">{s.value}</p>
-              <span className={`text-xs font-medium ${s.up ? 'text-emerald-600' : 'text-red-500'}`}>
-                {s.change}
-              </span>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 28 }}>
+        {[
+          { label: 'Companies', value: '247', sub: '+12%', up: true },
+          { label: 'Contacts', value: '1,843', sub: '+8%', up: true },
+          { label: 'Opportunities', value: '38', sub: '+15%', up: true },
+          { label: 'Emails Sent', value: '156', sub: '-3%', up: false },
+        ].map(s => (
+          <div key={s.label} style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 12, padding: '18px 20px' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: S.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 8 }}>
+              <div style={{ fontSize: 26, fontWeight: 700, color: S.text }}>{s.value}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: s.up ? S.green : S.red }}>{s.sub}</div>
             </div>
           </div>
         ))}
       </div>
-
-      {/* Two column */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Opportunities */}
-        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-50">
-            <h2 className="font-semibold text-gray-900">Recent Opportunities</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 20 }}>
+        <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 20px', borderBottom: `1px solid ${S.border}` }}>
+            <h2 style={{ fontSize: 14, fontWeight: 600, color: S.text }}>Recent Opportunities</h2>
           </div>
-          <div className="divide-y divide-gray-50">
-            {OPPORTUNITIES.map((o) => (
-              <div key={o.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{o.title}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{o.company} &middot; {o.contact}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-gray-900">{o.value}</p>
-                  <StatusBadge status={o.stage} />
-                </div>
+          {OPPS.map(o => (
+            <div key={o.title} style={{ padding: '12px 20px', borderBottom: `1px solid #f3f3f0`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: S.text }}>{o.title}</div>
+                <div style={{ fontSize: 11, color: S.textMuted, marginTop: 2 }}>{o.company}</div>
               </div>
-            ))}
-          </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: S.text }}>{o.value}</div>
+                <Badge text={o.stage} bg={o.stage === 'Proposal' ? S.purpleBg : o.stage === 'Negotiation' ? S.blueBg : S.amberBg} color={o.stage === 'Proposal' ? S.purple : o.stage === 'Negotiation' ? S.blue : S.amber} />
+              </div>
+            </div>
+          ))}
         </div>
-
-        {/* Active Tasks */}
-        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-50">
-            <h2 className="font-semibold text-gray-900">Active Tasks</h2>
+        <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 20px', borderBottom: `1px solid ${S.border}` }}>
+            <h2 style={{ fontSize: 14, fontWeight: 600, color: S.text }}>Active Tasks</h2>
           </div>
-          <div className="divide-y divide-gray-50">
-            {TASKS.map((t) => (
-              <div key={t.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{t.title}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Due: {t.due}</p>
-                </div>
-                <div className="flex items-center gap-2 ml-4">
-                  <StatusBadge status={t.priority} />
-                  <StatusBadge status={t.status} />
-                </div>
+          {TASKS.map(t => (
+            <div key={t.title} style={{ padding: '12px 20px', borderBottom: `1px solid #f3f3f0`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: S.text, textDecoration: t.status === 'Done' ? 'line-through' : 'none', opacity: t.status === 'Done' ? 0.5 : 1 }}>{t.title}</div>
+                <div style={{ fontSize: 11, color: S.textMuted, marginTop: 2 }}>Due: {t.due}</div>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Pipeline Chart Placeholder */}
-      <div className="bg-white rounded-xl border border-gray-100 p-6">
-        <h2 className="font-semibold text-gray-900 mb-4">Pipeline Overview</h2>
-        <div className="flex items-end gap-3 h-40">
-          {[
-            { label: 'Researching', value: 12, color: 'bg-blue-400' },
-            { label: 'Qualified', value: 8, color: 'bg-indigo-400' },
-            { label: 'Proposal', value: 6, color: 'bg-purple-400' },
-            { label: 'Negotiation', value: 4, color: 'bg-amber-400' },
-            { label: 'Closed Won', value: 8, color: 'bg-emerald-400' },
-          ].map((bar) => (
-            <div key={bar.label} className="flex-1 flex flex-col items-center gap-2">
-              <div className="w-full bg-gray-50 rounded-t-lg relative" style={{ height: '120px' }}>
-                <div className={`absolute bottom-0 left-0 right-0 ${bar.color} rounded-t-lg transition-all`} style={{ height: `${(bar.value / 12) * 100}%` }} />
+              <div style={{ display: 'flex', gap: 6 }}>
+                <Badge text={t.priority} bg={t.priority === 'High' ? S.redBg : t.priority === 'Medium' ? S.amberBg : '#f3f4f6'} color={t.priority === 'High' ? S.red : t.priority === 'Medium' ? S.amber : S.textMuted} />
               </div>
-              <span className="text-[10px] text-gray-500 font-medium text-center leading-tight">{bar.label}</span>
-              <span className="text-xs font-bold text-gray-700">{bar.value}</span>
             </div>
           ))}
         </div>
@@ -177,100 +131,72 @@ function DashboardView() {
   )
 }
 
-function CompaniesView() {
-  const [search, setSearch] = useState('')
-  const filtered = COMPANIES.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.industry.toLowerCase().includes(search.toLowerCase())
-  )
+function Companies() {
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Companies</h1>
-          <p className="text-gray-500 text-sm mt-1">{COMPANIES.length} companies in your workspace</p>
-        </div>
-      </div>
-      <input
-        type="text"
-        placeholder="Search companies..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full sm:w-80 h-10 px-4 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 transition-all"
-      />
-      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-100">
-              <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-5 py-3">Company</th>
-              <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-5 py-3 hidden sm:table-cell">Industry</th>
-              <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-5 py-3 hidden md:table-cell">Size</th>
-              <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">Country</th>
-              <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-5 py-3">Score</th>
-              <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-5 py-3">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {filtered.map((c) => (
-              <tr key={c.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer">
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center text-amber-700 font-bold text-sm flex-shrink-0">
-                      {c.name.charAt(0)}
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">{c.name}</span>
-                  </div>
-                </td>
-                <td className="px-5 py-3.5 text-sm text-gray-600 hidden sm:table-cell">{c.industry}</td>
-                <td className="px-5 py-3.5 text-sm text-gray-600 hidden md:table-cell">{c.size}</td>
-                <td className="px-5 py-3.5 text-sm text-gray-600 hidden lg:table-cell">{c.country}</td>
-                <td className="px-5 py-3.5"><ScoreBar score={c.score} /></td>
-                <td className="px-5 py-3.5"><StatusBadge status={c.status} /></td>
+    <div>
+      <h1 style={{ fontSize: 22, fontWeight: 700, color: S.text, letterSpacing: '-0.02em', marginBottom: 4 }}>Companies</h1>
+      <p style={{ fontSize: 13, color: S.textMuted, marginBottom: 20 }}>{COMPANIES.length} companies in workspace</p>
+      <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${S.border}` }}>
+                {['Company', 'Industry', 'Size', 'Score', 'Status'].map(h => (
+                  <th key={h} style={{ textAlign: 'left', padding: '10px 20px', fontSize: 11, fontWeight: 600, color: S.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {COMPANIES.map(c => (
+                <tr key={c.name} style={{ borderBottom: '1px solid #f3f3f0' }}>
+                  <td style={{ padding: '12px 20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 8, background: S.goldLight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: S.goldDark, fontWeight: 700, fontSize: 13 }}>{c.name[0]}</div>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: S.text }}>{c.name}</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '12px 20px', fontSize: 13, color: S.textMuted }}>{c.industry}</td>
+                  <td style={{ padding: '12px 20px', fontSize: 13, color: S.textMuted }}>{c.size}</td>
+                  <td style={{ padding: '12px 20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 50, height: 5, background: '#e5e7eb', borderRadius: 99, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${c.score}%`, background: c.score >= 85 ? S.green : c.score >= 70 ? S.amber : S.red, borderRadius: 99 }} />
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: S.textMuted }}>{c.score}</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '12px 20px' }}>
+                    <Badge text={c.status} bg={c.status === 'Active' ? S.greenBg : c.status === 'New' ? S.blueBg : S.amberBg} color={c.status === 'Active' ? S.green : c.status === 'New' ? S.blue : S.amber} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )
 }
 
-function ContactsView() {
-  const [search, setSearch] = useState('')
-  const filtered = CONTACTS.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.email.toLowerCase().includes(search.toLowerCase())
-  )
+function Contacts() {
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Contacts</h1>
-        <p className="text-gray-500 text-sm mt-1">{CONTACTS.length} contacts in your workspace</p>
-      </div>
-      <input
-        type="text"
-        placeholder="Search contacts..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full sm:w-80 h-10 px-4 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 transition-all"
-      />
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.map((c) => (
-          <div key={c.id} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md hover:border-amber-200 transition-all cursor-pointer">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+    <div>
+      <h1 style={{ fontSize: 22, fontWeight: 700, color: S.text, letterSpacing: '-0.02em', marginBottom: 4 }}>Contacts</h1>
+      <p style={{ fontSize: 13, color: S.textMuted, marginBottom: 20 }}>{CONTACTS.length} contacts in workspace</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
+        {CONTACTS.map(c => (
+          <div key={c.email} style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 12, padding: 20, transition: 'box-shadow 0.2s' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: `linear-gradient(135deg, ${S.gold}, ${S.goldDark})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 600, fontSize: 13, flexShrink: 0 }}>
                 {c.name.split(' ').map(n => n[0]).join('')}
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-gray-900 truncate">{c.name}</p>
-                <p className="text-xs text-gray-500 truncate">{c.title}</p>
-                <p className="text-xs text-gray-400 truncate mt-0.5">{c.company}</p>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: S.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
+                <div style={{ fontSize: 12, color: S.textMuted }}>{c.title}</div>
+                <div style={{ fontSize: 11, color: S.textLight, marginTop: 1 }}>{c.company}</div>
               </div>
             </div>
-            <div className="mt-4 flex items-center justify-between">
-              <span className="text-xs text-gray-500 truncate">{c.email}</span>
-              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${c.health >= 85 ? 'bg-emerald-500' : c.health >= 70 ? 'bg-amber-500' : 'bg-red-400'}`} title={`Email health: ${c.health}%`} />
-            </div>
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid #f3f3f0`, fontSize: 12, color: S.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</div>
           </div>
         ))}
       </div>
@@ -278,27 +204,22 @@ function ContactsView() {
   )
 }
 
-function TasksView() {
+function Tasks() {
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Tasks</h1>
-        <p className="text-gray-500 text-sm mt-1">{TASKS.length} tasks in your workspace</p>
-      </div>
-      <div className="space-y-3">
-        {TASKS.map((t) => (
-          <div key={t.id} className="bg-white rounded-xl border border-gray-100 p-5 flex items-center justify-between hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className={`w-3 h-3 rounded-full flex-shrink-0 ${t.status === 'Completed' ? 'bg-emerald-500' : t.priority === 'High' ? 'bg-red-400' : 'bg-amber-400'}`} />
+    <div>
+      <h1 style={{ fontSize: 22, fontWeight: 700, color: S.text, letterSpacing: '-0.02em', marginBottom: 4 }}>Tasks</h1>
+      <p style={{ fontSize: 13, color: S.textMuted, marginBottom: 20 }}>{TASKS.length} tasks</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {TASKS.map(t => (
+          <div key={t.title} style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 12, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: t.status === 'Done' ? S.green : t.priority === 'High' ? S.red : S.amber }} />
               <div>
-                <p className={`text-sm font-medium ${t.status === 'Completed' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{t.title}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Due: {t.due}</p>
+                <div style={{ fontSize: 13, fontWeight: 600, color: S.text, textDecoration: t.status === 'Done' ? 'line-through' : 'none', opacity: t.status === 'Done' ? 0.5 : 1 }}>{t.title}</div>
+                <div style={{ fontSize: 11, color: S.textMuted, marginTop: 2 }}>Due: {t.due}</div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <StatusBadge status={t.priority} />
-              <StatusBadge status={t.status} />
-            </div>
+            <Badge text={t.priority} bg={t.priority === 'High' ? S.redBg : t.priority === 'Medium' ? S.amberBg : '#f3f4f6'} color={t.priority === 'High' ? S.red : t.priority === 'Medium' ? S.amber : S.textMuted} />
           </div>
         ))}
       </div>
@@ -306,26 +227,24 @@ function TasksView() {
   )
 }
 
-function OpportunitiesView() {
+function Opportunities() {
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Opportunities</h1>
-        <p className="text-gray-500 text-sm mt-1">{OPPORTUNITIES.length} active opportunities &middot; Total pipeline: $455K</p>
-      </div>
-      <div className="space-y-3">
-        {OPPORTUNITIES.map((o) => (
-          <div key={o.id} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between">
+    <div>
+      <h1 style={{ fontSize: 22, fontWeight: 700, color: S.text, letterSpacing: '-0.02em', marginBottom: 4 }}>Opportunities</h1>
+      <p style={{ fontSize: 13, color: S.textMuted, marginBottom: 20 }}>{OPPS.length} active &middot; Pipeline: $455K</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {OPPS.map(o => (
+          <div key={o.title} style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 12, padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
               <div>
-                <p className="text-sm font-semibold text-gray-900">{o.title}</p>
-                <p className="text-xs text-gray-500 mt-1">{o.company} &middot; {o.contact}</p>
+                <div style={{ fontSize: 14, fontWeight: 600, color: S.text }}>{o.title}</div>
+                <div style={{ fontSize: 12, color: S.textMuted, marginTop: 3 }}>{o.company}</div>
               </div>
-              <p className="text-lg font-bold text-gray-900">{o.value}</p>
+              <div style={{ fontSize: 20, fontWeight: 700, color: S.text }}>{o.value}</div>
             </div>
-            <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
-              <StatusBadge status={o.stage} />
-              <span className="text-xs text-gray-400">Created 2 weeks ago</span>
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid #f3f3f0`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Badge text={o.stage} bg={o.stage === 'Proposal' ? S.purpleBg : o.stage === 'Negotiation' ? S.blueBg : S.amberBg} color={o.stage === 'Proposal' ? S.purple : o.stage === 'Negotiation' ? S.blue : S.amber} />
+              <span style={{ fontSize: 11, color: S.textLight }}>2 weeks ago</span>
             </div>
           </div>
         ))}
@@ -334,147 +253,66 @@ function OpportunitiesView() {
   )
 }
 
-function SettingsView() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Settings</h1>
-        <p className="text-gray-500 text-sm mt-1">Manage your workspace preferences</p>
-      </div>
-      <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-6">
-        <div>
-          <h2 className="font-semibold text-gray-900 mb-1">Profile</h2>
-          <p className="text-xs text-gray-500 mb-4">Your account information</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Name</label>
-              <input defaultValue="Ravi Shanker" className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
-              <input defaultValue="ravi@deepmindq.com" className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Role</label>
-              <input defaultValue="Admin" disabled className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm bg-gray-50 text-gray-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Timezone</label>
-              <input defaultValue="Asia/Calcutta (IST)" disabled className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm bg-gray-50 text-gray-500" />
-            </div>
-          </div>
-        </div>
-        <div className="pt-4 border-t border-gray-100">
-          <h2 className="font-semibold text-gray-900 mb-1">AI Preferences</h2>
-          <p className="text-xs text-gray-500 mb-4">Configure AI-powered features</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Email Tone</label>
-              <select className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30">
-                <option>Professional</option>
-                <option>Casual</option>
-                <option>Formal</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Email Length</label>
-              <select className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30">
-                <option>Short (2-3 sentences)</option>
-                <option>Medium (4-6 sentences)</option>
-                <option>Long (detailed)</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+const VIEWS: Record<View, () => React.ReactNode> = {
+  dashboard: Dashboard,
+  companies: Companies,
+  contacts: Contacts,
+  tasks: Tasks,
+  opportunities: Opportunities,
 }
 
 export default function HomePage() {
-  const [activeView, setActiveView] = useState<View>('dashboard')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-
-  const views: Record<View, React.ReactNode> = {
-    dashboard: <DashboardView />,
-    companies: <CompaniesView />,
-    contacts: <ContactsView />,
-    tasks: <TasksView />,
-    opportunities: <OpportunitiesView />,
-    settings: <SettingsView />,
-  }
+  const [view, setView] = useState<View>('dashboard')
+  const [menuOpen, setMenuOpen] = useState(false)
+  const ViewComponent = VIEWS[view]
 
   return (
-    <div className="min-h-screen bg-gray-50/50 flex">
+    <div style={{ display: 'flex', minHeight: '100vh', background: S.bg }}>
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-100 flex flex-col transition-transform duration-200`}>
-        {/* Logo */}
-        <div className="h-16 flex items-center gap-2.5 px-5 border-b border-gray-50">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #d4af37, #b8941f)' }}>
-            <span className="text-white font-bold text-sm">Q</span>
-          </div>
-          <span className="font-bold text-gray-900 tracking-tight">
-            DeepMind<span style={{ color: '#d4af37' }}>Q</span>
-          </span>
+      <aside style={{
+        position: 'fixed', top: 0, left: 0, bottom: 0, width: 240, background: S.white,
+        borderRight: `1px solid ${S.border}`, display: 'flex', flexDirection: 'column', zIndex: 50,
+        transform: menuOpen ? 'translateX(0)' : 'translateX(-100%)', transition: 'transform 0.2s',
+      }}>
+        <div style={{ height: 56, display: 'flex', alignItems: 'center', gap: 10, padding: '0 18px', borderBottom: `1px solid ${S.border}` }}>
+          <div style={{ width: 30, height: 30, borderRadius: 8, background: `linear-gradient(135deg, ${S.gold}, ${S.goldDark})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 14 }}>Q</div>
+          <span style={{ fontWeight: 700, fontSize: 15, color: S.text, letterSpacing: '-0.01em' }}>DeepMind<span style={{ color: S.gold }}>Q</span></span>
         </div>
-
-        {/* Nav */}
-        <nav className="flex-1 py-4 px-3 space-y-1">
-          {NAV_ITEMS.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => { setActiveView(item.key); setSidebarOpen(false) }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                activeView === item.key
-                  ? 'bg-amber-50 text-amber-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              <span className="text-base">{item.icon}</span>
-              {item.label}
+        <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {NAV.map(n => (
+            <button key={n.key} onClick={() => { setView(n.key); setMenuOpen(false) }} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8,
+              fontSize: 13, fontWeight: 500, textAlign: 'left',
+              background: view === n.key ? S.goldLight : 'transparent',
+              color: view === n.key ? S.goldDark : S.textMuted,
+              transition: 'all 0.15s',
+            }}>
+              <span style={{ fontSize: 16 }}>{n.icon}</span>
+              {n.label}
             </button>
           ))}
         </nav>
-
-        {/* User */}
-        <div className="p-4 border-t border-gray-50">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center text-white font-semibold text-xs">
-              RS
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">Ravi Shanker</p>
-              <p className="text-xs text-gray-500 truncate">ravi@deepmindq.com</p>
-            </div>
+        <div style={{ padding: 14, borderTop: `1px solid ${S.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 34, height: 34, borderRadius: '50%', background: `linear-gradient(135deg, ${S.gold}, ${S.goldDark})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 600, fontSize: 12 }}>RS</div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: S.text }}>Ravi Shanker</div>
+            <div style={{ fontSize: 11, color: S.textMuted }}>ravi@deepmindq.com</div>
           </div>
         </div>
       </aside>
 
-      {/* Overlay for mobile sidebar */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-30 bg-black/20 lg:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
+      {menuOpen && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.15)', zIndex: 40 }} onClick={() => setMenuOpen(false)} />}
 
-      {/* Main Content */}
-      <main className="flex-1 min-w-0">
-        {/* Top Bar */}
-        <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-20">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-50 text-gray-500"
-            aria-label="Open menu"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+      <main style={{ flex: 1, marginLeft: 0 }}>
+        <header style={{ height: 56, background: S.white, borderBottom: `1px solid ${S.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', position: 'sticky', top: 0, zIndex: 30 }}>
+          <button onClick={() => setMenuOpen(true)} style={{ display: 'none', padding: 6, color: S.textMuted }} aria-label="Menu">
+            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
-          <h2 className="text-sm font-medium text-gray-500 capitalize">{activeView.replace('-', ' ')}</h2>
-          <div className="flex items-center gap-3">
-            <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-medium border border-emerald-100">Demo Mode</span>
-          </div>
+          <span style={{ fontSize: 13, fontWeight: 500, color: S.textMuted, textTransform: 'capitalize' }}>{view}</span>
+          <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 99, background: S.greenBg, color: S.green, fontWeight: 600, border: `1px solid ${S.green}22` }}>Demo</span>
         </header>
-
-        {/* Page Content */}
-        <div className="p-4 lg:p-8">
-          {views[activeView]}
+        <div style={{ padding: 24 }}>
+          <ViewComponent />
         </div>
       </main>
     </div>

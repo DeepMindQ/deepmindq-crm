@@ -1,0 +1,658 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useQuery } from '@tanstack/react-query'
+     4→     4→import {
+     5→     5→  Building2, Users, ShieldCheck, Sparkles, ArrowRight, Clock, Target,
+     6→     6→  Upload, Mail, BarChart3, Activity, Loader2, ChevronRight, FileSearch, ShieldAlert,
+     7→     7→  AlertTriangle, RefreshCw,
+     8→     8→  TrendingUp, ShieldX, Zap, FileText, ArrowUpRight, ArrowDownRight, Minus,
+     9→     9→} from 'lucide-react'
+    10→    10→import { Button } from '@/components/ui/button'
+    11→    11→import { Skeleton } from '@/components/ui/skeleton'
+    12→    12→import { useAppStore } from '@/lib/store'
+    13→    13→import { getActivityIcon, SkeletonGrid } from '@/components/shared/design-system'
+    14→    14→import { formatDistanceToNow } from 'date-fns'
+    15→    15→import {
+    16→    16→  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+    17→    17→  PieChart, Pie, Cell,
+    18→    18→} from 'recharts'
+    19→    19→
+    20→    20→/* ═══════════════════════════════════════════════════════════════════════
+    21→    21→   Types
+    22→    22→   ═══════════════════════════════════════════════════════════════════════ */
+    23→    23→
+    24→    24→interface PipelineStage {
+    25→    25→  label: string
+    26→    26→  count: number
+    27→    27→}
+    28→    28→
+    29→    29→interface DashboardData {
+    30→    30→  totalCompanies: number
+    31→    31→  totalContacts: number
+    32→    32→  healthyEmails: number
+    33→    33→  riskyEmails: number
+    34→    34→  invalidEmails: number
+    35→    35→  archivedContacts: number
+    36→    36→  newThisWeek: number
+    37→    37→  draftsGenerated: number
+    38→    38→  recentActivity: Array<{
+    39→    39→    id: string
+    40→    40→    action: string
+    41→    41→    details: string | null
+    42→    42→    createdAt: string
+    43→    43→    companyId?: string | null
+    44→    44→    contactId?: string | null
+    45→    45→    company?: { id: string; name: string } | null
+    46→    46→    contact?: { id: string; name: string } | null
+    47→    47→  }>
+    48→    48→  pipeline: PipelineStage[]
+    49→    49→  trends: {
+    50→    50→    companies: number
+    51→    51→    contacts: number
+    52→    52→    healthy: number
+    53→    53→    invalid: number
+    54→    54→    newThisWeek: number
+    55→    55→    drafts: number
+    56→    56→  }
+    57→    57→}
+    58→    58→
+    59→    59→/* ═══════════════════════════════════════════════════════════════════════
+    60→    60→   Constants
+    61→    61→   ═══════════════════════════════════════════════════════════════════════ */
+    62→    62→
+    63→    63→const PIPELINE_COLORS: Record<string, string> = {
+    64→    64→  New: '#6B7280',
+    65→    65→  Researching: '#D97706',
+    66→    66→  Qualified: '#7C3AED',
+    67→    67→  Ready: '#059669',
+    68→    68→  Contacted: '#2563EB',
+    69→    69→  Won: '#16A34A',
+    70→    70→  Lost: '#DC2626',
+    71→    71→}
+    72→    72→
+    73→    73→const EMAIL_HEALTH_COLORS = ['#059669', '#D97706', '#DC2626']
+    74→    74→
+    75→    75→interface KpiCardDef {
+    76→    76→  label: string
+    77→    77→  icon: typeof Building2
+    78→    78→  value: (d: DashboardData) => string
+    79→    79→  sub: (d: DashboardData) => string
+    80→    80→  iconBg: string
+    81→    81→  iconColor: string
+    82→    82→  view: 'companies' | 'contacts' | 'email-generation'
+    83→    83→}
+    84→    84→
+    85→    85→const KPI_CARDS: KpiCardDef[] = [
+    86→    86→  {
+    87→    87→    label: 'Total Companies',
+    88→    88→    icon: Building2,
+    89→    89→    value: (d) => String(d.totalCompanies),
+    90→    90→    sub: () => 'accounts tracked',
+    91→    91→    iconBg: 'bg-gray-100',
+    92→    92→    iconColor: 'text-gray-600',
+    93→    93→    view: 'companies',
+    94→    94→  },
+    95→    95→  {
+    96→    96→    label: 'Total Contacts',
+    97→    97→    icon: Users,
+    98→    98→    value: (d) => String(d.totalContacts),
+    99→    99→    sub: () => 'people in pipeline',
+   100→   100→    iconBg: 'bg-violet-50',
+   101→   101→    iconColor: 'text-violet-600',
+   102→   102→    view: 'contacts',
+   103→   103→  },
+   104→   104→  {
+   105→   105→    label: 'Email Health',
+   106→   106→    icon: ShieldCheck,
+   107→   107→    value: (d) => `${d.healthyEmails}/${d.totalContacts}`,
+   108→   108→    sub: () => 'healthy',
+   109→   109→    iconBg: 'bg-emerald-50',
+   110→   110→    iconColor: 'text-emerald-600',
+   111→   111→    view: 'contacts',
+   112→   112→  },
+   113→   113→  {
+   114→   114→    label: 'AI Drafts',
+   115→   115→    icon: Sparkles,
+   116→   116→    value: (d) => String(d.draftsGenerated),
+   117→   117→    sub: () => 'generated',
+   118→   118→    iconBg: 'bg-amber-50',
+   119→   119→    iconColor: 'text-amber-600',
+   120→   120→    view: 'email-generation',
+   121→   121→  },
+   122→   122→]
+   123→   123→
+   124→   124→/* ═══════════════════════════════════════════════════════════════════════
+   125→   125→   Custom Tooltip — Pipeline Bar Chart
+   126→   126→   ═══════════════════════════════════════════════════════════════════════ */
+   127→   127→
+   128→   128→function PipelineTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: PipelineStage }> }) {
+   129→   129→  if (!active || !payload || !payload.length) return null
+   130→   130→  const stage = payload[0].payload
+   131→   131→  return (
+   132→   132→    <div className="bg-white rounded-lg shadow-lg border border-gray-100 px-3 py-2 text-sm">
+   133→   133→      <p className="font-semibold text-gray-900">{stage.label}</p>
+   134→   134→      <p className="text-gray-500 tabular-nums">{stage.count} {stage.count === 1 ? 'company' : 'companies'}</p>
+   135→   135→    </div>
+   136→   136→  )
+   137→   137→}
+   138→   138→
+   139→   139→/* ═══════════════════════════════════════════════════════════════════════
+   140→   140→   Custom Tooltip — Email Health Pie Chart
+   141→   141→   ═══════════════════════════════════════════════════════════════════════ */
+   142→   142→
+   143→   143→interface EmailHealthSlice {
+   144→   144→  name: string
+   145→   145→  value: number
+   146→   146→  color: string
+   147→   147→}
+   148→   148→
+   149→   149→function EmailHealthTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: EmailHealthSlice }> }) {
+   150→   150→  if (!active || !payload || !payload.length) return null
+   151→   151→  const slice = payload[0].payload
+   152→   152→  return (
+   153→   153→    <div className="bg-white rounded-lg shadow-lg border border-gray-100 px-3 py-2 text-sm">
+   154→   154→      <div className="flex items-center gap-2 mb-0.5">
+   155→   155→        <span className="inline-block size-2.5 rounded-full" style={{ backgroundColor: slice.color }} />
+   156→   156→        <p className="font-medium text-gray-900">{slice.name}</p>
+   157→   157→      </div>
+   158→   158→      <p className="text-gray-500 tabular-nums">{slice.value} {slice.value === 1 ? 'email' : 'emails'}</p>
+   159→   159→    </div>
+   160→   160→  )
+   161→   161→}
+   162→   162→
+   163→   163→/* ═══════════════════════════════════════════════════════════════════════
+   164→   164→   Custom Label — Pipeline bars
+   165→   165→   ═══════════════════════════════════════════════════════════════════════ */
+   166→   166→
+   167→   167→function BarLabel({ x, y, width, value }: { x: number; y: number; width: number; value: number }) {
+   168→   168→  if (value === 0) return null
+   169→   169→  return (
+   170→   170→    <text
+   171→   171→      x={x + width + 8}
+   172→   172→      y={y + 16}
+   173→   173→      fill="#6B7280"
+   174→   174→      fontSize={12}
+   175→   175→      fontWeight={600}
+   176→   176→      className="tabular-nums"
+   177→   177→    >
+   178→   178→      {value}
+   179→   179→    </text>
+   180→   180→  )
+   181→   181→}
+   182→   182→
+   183→   183→/* ═══════════════════════════════════════════════════════════════════════
+   184→   184→   AI Insights Types & Config
+   185→   185→   ═══════════════════════════════════════════════════════════════════════ */
+   186→   186→
+   187→   187→interface AiInsight {
+   188→   188→  type: 'positive' | 'negative' | 'neutral' | 'action'
+   189→   189→  icon: string
+   190→   190→  title: string
+   191→   191→  description: string
+   192→   192→}
+   193→   193→
+   194→   194→interface AiPrediction {
+   195→   195→  metric: string
+   196→   196→  current: number
+   197→   197→  predicted: number
+   198→   198→  trend: 'up' | 'down' | 'stable'
+   199→   199→  confidence: number
+   200→   200→}
+   201→   201→
+   202→   202→interface AiInsightsData {
+   203→   203→  summary: string
+   204→   204→  keyInsights: AiInsight[]
+   205→   205→  predictions: AiPrediction[]
+   206→   206→}
+   207→   207→
+   208→   208→const INSIGHT_STYLES: Record<string, { bg: string; iconColor: string; border: string }> = {
+   209→   209→  positive: { bg: 'bg-emerald-50', iconColor: 'text-emerald-600', border: 'border-emerald-200' },
+   210→   210→  negative: { bg: 'bg-red-50', iconColor: 'text-red-600', border: 'border-red-200' },
+   211→   211→  action: { bg: 'bg-amber-50', iconColor: 'text-amber-600', border: 'border-amber-200' },
+   212→   212→  neutral: { bg: 'bg-sky-50', iconColor: 'text-sky-600', border: 'border-sky-200' },
+   213→   213→}
+   214→   214→
+   215→   215→const ICON_MAP: Record<string, typeof Building2> = {
+   216→   216→  TrendingUp, ShieldCheck, Sparkles, AlertTriangle, ShieldAlert, FileSearch,
+   217→   217→  Mail, Target, Users, Building2, Clock, Zap, FileText, ShieldX,
+   218→   218→}
+   219→   219→
+   220→   220→/* ═══════════════════════════════════════════════════════════════════════
+   221→   221→   Dashboard Screen
+   222→   222→   ═══════════════════════════════════════════════════════════════════════ */
+   223→   223→
+   224→   224→export function DashboardScreen() {
+   225→   225→  const { setActiveView, setSelectedCompanyId, setSelectedContactId, setCompanyStatusFilter } = useAppStore()
+   226→   226→
+   227→   227→  /* ── Data fetch ── */
+   228→   228→  const { data, isLoading, error, refetch } = useQuery<DashboardData>({
+   229→   229→    queryKey: ['dashboard'],
+   230→   230→    queryFn: () =>
+   231→   231→      fetch('/api/dashboard').then(r => {
+   232→   232→        if (!r.ok) throw new Error('Failed to load dashboard data')
+   233→   233→        return r.json()
+   234→   234→      }),
+   235→   235→    refetchInterval: 30_000,
+   236→   236→  })
+   237→   237→
+   238→   238→  /* ── AI Insights fetch ── */
+   239→   239→  const { data: insightsData, isLoading: insightsLoading } = useQuery<AiInsightsData>({
+   240→   240→    queryKey: ['ai-insights'],
+   241→   241→    queryFn: () =>
+   242→   242→      fetch('/api/ai/insights').then(r => {
+   243→   243→        if (!r.ok) throw new Error('Failed to load AI insights')
+   244→   244→        return r.json()
+   245→   245→      }),
+   246→   246→    refetchInterval: 5 * 60_000,
+   247→   247→    retry: 1,
+   248→   248→  })
+   249→   249→
+   250→   250→  /* ── Loading state ── */
+   251→   251→  if (isLoading || !data) {
+   252→   252→    return (
+   253→   253→      <div className="space-y-6">
+   254→   254→        <div>
+   255→   255→          <h1 className="text-lg font-bold text-gray-900 tracking-tight">Dashboard</h1>
+   256→   256→          <p className="text-sm text-gray-500 mt-0.5">Sales intelligence overview</p>
+   257→   257→        </div>
+   258→   258→        <SkeletonGrid cols={4} panels={4} />
+   259→   259→      </div>
+   260→   260→    )
+   261→   261→  }
+   262→   262→
+   263→   263→  /* ── Error state ── */
+   264→   264→  if (error) {
+   265→   265→    return (
+   266→   266→      <div className="space-y-6">
+   267→   267→        <div>
+   268→   268→          <h1 className="text-lg font-bold text-gray-900 tracking-tight">Dashboard</h1>
+   269→   269→          <p className="text-sm text-gray-500 mt-0.5">Sales intelligence overview</p>
+   270→   270→        </div>
+   271→   271→        <div className="rounded-xl bg-red-50 border border-red-200 p-6 flex items-start gap-4">
+   272→   272→          <AlertTriangle className="size-6 text-red-500 shrink-0 mt-0.5" />
+   273→   273→          <div className="flex-1 min-w-0">
+   274→   274→            <p className="text-sm font-semibold text-red-900">Failed to load dashboard</p>
+   275→   275→            <p className="text-sm text-red-700 mt-0.5">{error.message}</p>
+   276→   276→          </div>
+   277→   277→          <Button
+   278→   278→            variant="outline"
+   279→   279→            className="border-red-200 text-red-700 hover:bg-red-50 shrink-0"
+   280→   280→            onClick={() => refetch()}
+   281→   281→          >
+   282→   282→            <RefreshCw className="size-3.5 mr-1.5" /> Retry
+   283→   283→          </Button>
+   284→   284→        </div>
+   285→   285→      </div>
+   286→   286→    )
+   287→   287→  }
+   288→   288→
+   289→   289→  /* ── Derived data ── */
+   290→   290→  const emailHealthData: EmailHealthSlice[] = [
+   291→   291→    { name: 'Valid', value: data.healthyEmails, color: EMAIL_HEALTH_COLORS[0] },
+   292→   292→    { name: 'Risky', value: data.riskyEmails, color: EMAIL_HEALTH_COLORS[1] },
+   293→   293→    { name: 'Invalid', value: data.invalidEmails, color: EMAIL_HEALTH_COLORS[2] },
+   294→   294→  ].filter((s) => s.value > 0)
+   295→   295→
+   296→   296→  const totalEmails = data.healthyEmails + data.riskyEmails + data.invalidEmails
+   297→   297→  const activityItems = data.recentActivity.slice(0, 8)
+   298→   298→
+   299→   299→  /* ── Helpers ── */
+   300→   300→  function handleKpiDrillDown(view: 'companies' | 'contacts' | 'email-generation', label: string) {
+   301→   301→    if (view === 'companies') {
+   302→   302→      setCompanyStatusFilter('all')
+   303→   303→    }
+   304→   304→    setActiveView(view)
+   305→   305→  }
+   306→   306→
+   307→   307→  function handleActivityClick(item: (typeof activityItems)[number]) {
+   308→   308→    if (item.companyId) {
+   309→   309→      setSelectedCompanyId(item.companyId)
+   310→   310→      setActiveView('company-profile')
+   311→   311→    } else if (item.contactId) {
+   312→   312→      setSelectedContactId(item.contactId)
+   313→   313→      setActiveView('contact-profile')
+   314→   314→    }
+   315→   315→  }
+   316→   316→
+   317→   317→  /* ═══════════════════════════════════════════════════════════════════
+   318→   318→     Render
+   319→   319→     ═══════════════════════════════════════════════════════════════════ */
+   320→   320→
+   321→   321→  return (
+   322→   322→    <div className="space-y-6">
+   323→   323→      {/* ── Page Header ── */}
+   324→   324→      <div>
+   325→   325→        <h1 className="text-lg font-bold text-gray-900 tracking-tight">Dashboard</h1>
+   326→   326→        <p className="text-sm text-gray-500 mt-0.5">Sales intelligence overview</p>
+   327→   327→      </div>
+   328→   328→
+   329→   329→      {/* ── Row 1: KPI Cards ── */}
+   330→   330→      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+   331→   331→        {KPI_CARDS.map((card, idx) => {
+   332→   332→          const Icon = card.icon
+   333→   333→          return (
+   334→   334→            <div
+   335→   335→              key={card.label}
+   336→   336→              className="rounded-xl bg-white card-rest p-5 slide-up"
+   337→   337→              style={{ animationDelay: `${idx * 60}ms` }}
+   338→   338→            >
+   339→   339→              <div className="flex items-start justify-between gap-3">
+   340→   340→                <div className="min-w-0 space-y-1">
+   341→   341→                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{card.label}</p>
+   342→   342→                  <p className="text-2xl font-bold text-gray-900 tracking-tight tabular-nums leading-tight">
+   343→   343→                    {card.value(data)}
+   344→   344→                  </p>
+   345→   345→                  <p className="text-xs text-gray-400">{card.sub(data)}</p>
+   346→   346→                </div>
+   347→   347→                <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${card.iconBg}`}>
+   348→   348→                  <Icon className={`size-5 ${card.iconColor}`} />
+   349→   349→                </div>
+   350→   350→              </div>
+   351→   351→              <button
+   352→   352→                onClick={() => handleKpiDrillDown(card.view, card.label)}
+   353→   353→                className="mt-3 flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700 transition-colors group cursor-pointer"
+   354→   354→              >
+   355→   355→                View all
+   356→   356→                <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
+   357→   357→              </button>
+   358→   358→            </div>
+   359→   359→          )
+   360→   360→        })}
+   361→   361→      </div>
+   362→   362→
+   363→   363→      {/* ── Row 1.5: AI Insights Panel ── */}
+   364→   364→      <div className="rounded-xl bg-white card-rest slide-up overflow-hidden" style={{ animationDelay: '200ms' }}>
+   365→   365→        {/* Gradient top border */}
+   366→   366→        <div className="h-1 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-400" />
+   367→   367→        <div className="p-5">
+   368→   368→          <div className="flex items-center justify-between mb-3">
+   369→   369→            <div className="flex items-center gap-2">
+   370→   370→              <div className="flex size-7 items-center justify-center rounded-lg bg-amber-50">
+   371→   371→                <Sparkles className="size-3.5 text-amber-600" />
+   372→   372→              </div>
+   373→   373→              <h2 className="text-sm font-semibold text-gray-900 tracking-tight">AI Insights</h2>
+   374→   374→            </div>
+   375→   375→            {!insightsLoading && insightsData && (
+   376→   376→              <Button
+   377→   377→                variant="ghost"
+   378→   378→                size="sm"
+   379→   379→                className="text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 h-7 px-2"
+   380→   380→                onClick={() => setActiveView('tasks')}
+   381→   381→              >
+   382→   382→                View Recommendations
+   383→   383→                <ArrowRight className="size-3 ml-1" />
+   384→   384→              </Button>
+   385→   385→            )}
+   386→   386→          </div>
+   387→   387→
+   388→   388→          {insightsLoading ? (
+   389→   389→            <div className="space-y-3">
+   390→   390→              <Skeleton className="h-4 w-full" />
+   391→   391→              <Skeleton className="h-4 w-3/4" />
+   392→   392→              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+   393→   393→                {Array.from({ length: 3 }).map((_, i) => (
+   394→   394→                  <Skeleton key={i} className="h-16 w-full rounded-lg" />
+   395→   395→                ))}
+   396→   396→              </div>
+   397→   397→            </div>
+   398→   398→          ) : insightsData ? (
+   399→   399→            <>
+   400→   400→              <p className="text-sm text-gray-600 leading-relaxed">{insightsData.summary}</p>
+   401→   401→              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+   402→   402→                {insightsData.keyInsights.map((insight, idx) => {
+   403→   403→                  const style = INSIGHT_STYLES[insight.type] ?? INSIGHT_STYLES.neutral
+   404→   404→                  const IconComp = ICON_MAP[insight.icon] ?? FileText
+   405→   405→                  return (
+   406→   406→                    <div
+   407→   407→                      key={idx}
+   408→   408→                      className={`flex items-start gap-3 rounded-lg border p-3 ${style.bg} ${style.border}`}
+   409→   409→                    >
+   410→   410→                      <IconComp className={`size-4 mt-0.5 shrink-0 ${style.iconColor}`} />
+   411→   411→                      <div className="min-w-0">
+   412→   412→                        <p className="text-xs font-semibold text-gray-900 leading-tight">{insight.title}</p>
+   413→   413→                        <p className="text-xs text-gray-600 mt-0.5 leading-snug line-clamp-2">{insight.description}</p>
+   414→   414→                      </div>
+   415→   415→                    </div>
+   416→   416→                  )
+   417→   417→                })}
+   418→   418→              </div>
+   419→   419→              {/* Predictions row */}
+   420→   420→              {insightsData.predictions.length > 0 && (
+   421→   421→                <div className="flex flex-wrap gap-4 mt-4 pt-3 border-t border-gray-100">
+   422→   422→                  {insightsData.predictions.map((pred, idx) => {
+   423→   423→                    const TrendIcon = pred.trend === 'up' ? ArrowUpRight : pred.trend === 'down' ? ArrowDownRight : Minus
+   424→   424→                    const trendColor = pred.trend === 'up' ? 'text-emerald-600' : pred.trend === 'down' ? 'text-red-600' : 'text-gray-400'
+   425→   425→                    return (
+   426→   426→                      <div key={idx} className="flex items-center gap-2 text-xs">
+   427→   427→                        <span className="text-gray-500">{pred.metric}</span>
+   428→   428→                        <span className="font-semibold text-gray-900 tabular-nums">{pred.current}</span>
+   429→   429→                        <TrendIcon className={`size-3 ${trendColor}`} />
+   430→   430→                        <span className={`font-medium tabular-nums ${trendColor}`}>{pred.predicted}</span>
+   431→   431→                        <span className="text-gray-400">({pred.confidence}%)</span>
+   432→   432→                      </div>
+   433→   433→                    )
+   434→   434→                  })}
+   435→   435→                </div>
+   436→   436→              )}
+   437→   437→            </>
+   438→   438→          ) : null}
+   439→   439→        </div>
+   440→   440→      </div>
+   441→   441→
+   442→   442→      {/* ── Row 2: Pipeline Chart + Email Health Donut ── */}
+   443→   443→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+   444→   444→        {/* Pipeline Chart */}
+   445→   445→        <div className="lg:col-span-2 rounded-xl bg-white card-rest p-5 slide-up" style={{ animationDelay: '340ms' }}>
+   446→   446→          <div className="flex items-center gap-2 mb-5">
+   447→   447→            <Target className="size-4 text-gray-400" />
+   448→   448→            <h2 className="text-sm font-semibold text-gray-900 tracking-tight">Sales Pipeline</h2>
+   449→   449→          </div>
+   450→   450→          <div className="w-full" style={{ height: 280 }}>
+   451→   451→            <ResponsiveContainer width="100%" height="100%">
+   452→   452→              <BarChart
+   453→   453→                data={data.pipeline}
+   454→   454→                layout="vertical"
+   455→   455→                margin={{ top: 0, right: 36, bottom: 0, left: 0 }}
+   456→   456→              >
+   457→   457→                <XAxis type="number" hide />
+   458→   458→                <YAxis
+   459→   459→                  type="category"
+   460→   460→                  dataKey="label"
+   461→   461→                  width={85}
+   462→   462→                  tick={{ fontSize: 12, fill: '#6B7280' }}
+   463→   463→                  axisLine={false}
+   464→   464→                  tickLine={false}
+   465→   465→                />
+   466→   466→                <Tooltip content={<PipelineTooltip />} cursor={{ fill: 'rgba(0,0,0,0.02)' }} />
+   467→   467→                <Bar
+   468→   468→                  dataKey="count"
+   469→   469→                  radius={[0, 6, 6, 0]}
+   470→   470→                  maxBarSize={24}
+   471→   471→                  animationDuration={700}
+   472→   472→                  animationEasing="ease-out"
+   473→   473→                >
+   474→   474→                  {data.pipeline.map((stage) => (
+   475→   475→                    <Cell
+   476→   476→                      key={stage.label}
+   477→   477→                      fill={PIPELINE_COLORS[stage.label] ?? '#9CA3AF'}
+   478→   478→                    />
+   479→   479→                  ))}
+   480→   480→                </Bar>
+   481→   481→              </BarChart>
+   482→   482→            </ResponsiveContainer>
+   483→   483→          </div>
+   484→   484→        </div>
+   485→   485→
+   486→   486→        {/* Email Health Donut */}
+   487→   487→        <div className="rounded-xl bg-white card-rest p-5 slide-up" style={{ animationDelay: '400ms' }}>
+   488→   488→          <div className="flex items-center gap-2 mb-5">
+   489→   489→            <ShieldCheck className="size-4 text-gray-400" />
+   490→   490→            <h2 className="text-sm font-semibold text-gray-900 tracking-tight">Email Health</h2>
+   491→   491→          </div>
+   492→   492→          <div className="relative flex items-center justify-center" style={{ height: 200 }}>
+   493→   493→            <ResponsiveContainer width="100%" height="100%">
+   494→   494→              <PieChart>
+   495→   495→                <Pie
+   496→   496→                  data={emailHealthData.length > 0 ? emailHealthData : [{ name: 'No data', value: 1, color: '#F3F4F6' }]}
+   497→   497→                  cx="50%"
+   498→   498→                  cy="50%"
+   499→   499→                  innerRadius={58}
+   500→   500→                  outerRadius={82}
+   501→   501→                  paddingAngle={emailHealthData.length > 1 ? 3 : 0}
+   502→   502→                  dataKey="value"
+   503→   503→                  strokeWidth={0}
+   504→   504→                  animationDuration={700}
+   505→   505→                  animationEasing="ease-out"
+   506→   506→                >
+   507→   507→                  {emailHealthData.length > 0
+   508→   508→                    ? emailHealthData.map((entry, index) => (
+   509→   509→                        <Cell key={`cell-${index}`} fill={entry.color} />
+   510→   510→                      ))
+   511→   511→                    : <Cell fill="#F3F4F6" />
+   512→   512→                  }
+   513→   513→                </Pie>
+   514→   514→                <Tooltip content={<EmailHealthTooltip />} />
+   515→   515→              </PieChart>
+   516→   516→            </ResponsiveContainer>
+   517→   517→            {/* Center label */}
+   518→   518→            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+   519→   519→              <span className="text-2xl font-bold text-gray-900 tabular-nums leading-none">{totalEmails}</span>
+   520→   520→              <span className="text-[10px] uppercase tracking-wider text-gray-400 font-medium mt-1">total</span>
+   521→   521→            </div>
+   522→   522→          </div>
+   523→   523→          {/* Legend */}
+   524→   524→          <div className="mt-4 space-y-2">
+   525→   525→            {emailHealthData.length > 0 ? (
+   526→   526→              emailHealthData.map((slice) => (
+   527→   527→                <div key={slice.name} className="flex items-center justify-between text-xs">
+   528→   528→                  <div className="flex items-center gap-2">
+   529→   529→                    <span className="inline-block size-2.5 rounded-full" style={{ backgroundColor: slice.color }} />
+   530→   530→                    <span className="text-gray-600">{slice.name}</span>
+   531→   531→                  </div>
+   532→   532→                  <span className="font-semibold text-gray-900 tabular-nums">{slice.value}</span>
+   533→   533→                </div>
+   534→   534→              ))
+   535→   535→            ) : (
+   536→   536→              <p className="text-xs text-gray-400 text-center py-2">No email data yet</p>
+   537→   537→            )}
+   538→   538→          </div>
+   539→   539→        </div>
+   540→   540→      </div>
+   541→   541→
+   542→   542→      {/* ── Row 3: Activity Feed + Quick Actions ── */}
+   543→   543→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+   544→   544→        {/* Recent Activity */}
+   545→   545→        <div className="lg:col-span-2 rounded-xl bg-white card-rest p-5 slide-up" style={{ animationDelay: '460ms' }}>
+   546→   546→          <div className="flex items-center gap-2 mb-4">
+   547→   547→            <Clock className="size-4 text-gray-400" />
+   548→   548→            <h2 className="text-sm font-semibold text-gray-900 tracking-tight">Recent Activity</h2>
+   549→   549→          </div>
+   550→   550→          <div className="space-y-0 divide-y divide-gray-100 max-h-96 overflow-y-auto">
+   551→   551→            {activityItems.length > 0 ? (
+   552→   552→              activityItems.map((item) => {
+   553→   553→                const { icon: ActivityIcon, color, bg } = getActivityIcon(item.action)
+   554→   554→                const isClickable = !!item.companyId || !!item.contactId
+   555→   555→                return (
+   556→   556→                  <div
+   557→   557→                    key={item.id}
+   558→   558→                    className={`flex items-start gap-3 py-3 first:pt-0 last:pb-0 ${
+   559→   559→                      isClickable ? 'cursor-pointer group' : ''
+   560→   560→                    }`}
+   561→   561→                    onClick={() => isClickable && handleActivityClick(item)}
+   562→   562→                  >
+   563→   563→                    <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${bg} mt-0.5`}>
+   564→   564→                      <ActivityIcon className={`size-4 ${color}`} />
+   565→   565→                    </div>
+   566→   566→                    <div className="min-w-0 flex-1">
+   567→   567→                      <p className="text-sm text-gray-700 leading-snug">
+   568→   568→                        {item.company?.name && (
+   569→   569→                          <span className="font-medium text-gray-900 group-hover:text-amber-600 transition-colors">
+   570→   570→                            {item.company.name}
+   571→   571→                          </span>
+   572→   572→                        )}
+   573→   573→                        {item.contact?.name && !item.company?.name && (
+   574→   574→                          <span className="font-medium text-gray-900 group-hover:text-amber-600 transition-colors">
+   575→   575→                            {item.contact.name}
+   576→   576→                          </span>
+   577→   577→                        )}
+   578→   578→                        {(item.company?.name || item.contact?.name) && item.details ? ' — ' : ''}
+   579→   579→                        {item.details || item.action.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+   580→   580→                      </p>
+   581→   581→                      <p className="text-xs text-gray-400 mt-0.5">
+   582→   582→                        {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+   583→   583→                      </p>
+   584→   584→                    </div>
+   585→   585→                    {isClickable && (
+   586→   586→                      <ChevronRight className="size-4 text-gray-300 group-hover:text-amber-400 shrink-0 mt-1 transition-colors" />
+   587→   587→                    )}
+   588→   588→                  </div>
+   589→   589→                )
+   590→   590→              })
+   591→   591→            ) : (
+   592→   592→              <div className="flex flex-col items-center justify-center py-10">
+   593→   593→                <Activity className="size-8 text-gray-200 mb-2" />
+   594→   594→                <p className="text-sm text-gray-400">No recent activity</p>
+   595→   595→              </div>
+   596→   596→            )}
+   597→   597→          </div>
+   598→   598→        </div>
+   599→   599→
+   600→   600→        {/* Quick Actions */}
+   601→   601→        <div className="rounded-xl bg-white card-rest p-5 slide-up" style={{ animationDelay: '520ms' }}>
+   602→   602→          <div className="flex items-center gap-2 mb-4">
+   603→   603→            <BarChart3 className="size-4 text-gray-400" />
+   604→   604→            <h2 className="text-sm font-semibold text-gray-900 tracking-tight">Quick Actions</h2>
+   605→   605→          </div>
+   606→   606→          <div className="space-y-3">
+   607→   607→            {[
+   608→   608→              {
+   609→   609→                icon: Upload,
+   610→   610→                title: 'Import Data',
+   611→   611→                description: 'Upload CSV or connect a data source',
+   612→   612→                view: 'import' as const,
+   613→   613→              },
+   614→   614→              {
+   615→   615→                icon: FileSearch,
+   616→   616→                title: 'Generate Research',
+   617→   617→                description: 'View companies to run AI research',
+   618→   618→                view: 'companies' as const,
+   619→   619→              },
+   620→   620→              {
+   621→   621→                icon: Mail,
+   622→   622→                title: 'Validate Emails',
+   623→   623→                description: 'Check and verify contact emails',
+   624→   624→                view: 'contacts' as const,
+   625→   625→              },
+   626→   626→              {
+   627→   627→                icon: ShieldAlert,
+   628→   628→                title: 'Upload Knowledge',
+   629→   629→                description: 'Add capability docs for better drafts',
+   630→   630→                view: 'knowledge-library' as const,
+   631→   631→              },
+   632→   632→            ].map((action) => {
+   633→   633→              const ActionIcon = action.icon
+   634→   634→              return (
+   635→   635→                <button
+   636→   636→                  key={action.title}
+   637→   637→                  onClick={() => setActiveView(action.view)}
+   638→   638→                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-amber-50 hover:border-amber-200/60 transition-all duration-150 group cursor-pointer text-left"
+   639→   639→                >
+   640→   640→                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 group-hover:bg-amber-100 transition-colors">
+   641→   641→                    <ActionIcon className="size-4 text-amber-600" />
+   642→   642→                  </div>
+   643→   643→                  <div className="min-w-0 flex-1">
+   644→   644→                    <p className="text-sm font-medium text-gray-900 group-hover:text-amber-700 transition-colors leading-tight">
+   645→   645→                      {action.title}
+   646→   646→                    </p>
+   647→   647→                    <p className="text-xs text-gray-400 mt-0.5 leading-snug">{action.description}</p>
+   648→   648→                  </div>
+   649→   649→                  <ArrowRight className="size-4 text-gray-300 group-hover:text-amber-500 shrink-0 transition-colors" />
+   650→   650→                </button>
+   651→   651→              )
+   652→   652→            })}
+   653→   653→          </div>
+   654→   654→        </div>
+   655→   655→      </div>
+   656→   656→    </div>
+   657→   657→  )
+   658→   658→}

@@ -1,0 +1,474 @@
+     1→# Frontend Screen Interconnectivity Fixes — Worklog
+     2→
+     3→## Date: 2025-01-XX
+     4→
+     5→## Summary
+     6→Fixed 8 interconnectivity issues across the DeepMindQ Next.js frontend. All changes are minimal and targeted.
+     7→
+     8→---
+     9→
+    10→## FIX 1: Contacts Screen — Filter by Company when navigated from Company Profile
+    11→**File:** `src/components/screens/contacts-screen.tsx`
+    12→- Added `useEffect` on mount that reads `selectedCompanyId` from Zustand store, copies it to local `filterCompanyId` state, then clears `selectedCompanyId` from the store
+    13→- Added `companyId` param to the contacts API query when `filterCompanyId` is set
+    14→- Added a separate query to fetch the company name for the banner
+    15→- Added an amber banner at the top of the contacts screen showing "Showing contacts for [Company Name]" with an X button to clear the filter
+    16→- `filterCompanyId` is included in the query key so data refreshes when the filter changes
+    17→
+    18→## FIX 2: Email Generation Screen — Pre-select contact when navigated from Contact Profile
+    19→**File:** `src/components/screens/email-generation-screen.tsx`
+    20→- Introduced `localContactId` state initialized from `selectedContactId` on mount
+    21→- All internal references (`selectedContact`, `preselectedContact` query, `generateMutation`, `Select` value, contact list active highlight) now use `localContactId` (aliased as `contactId`) instead of the store's `selectedContactId`
+    22→- Store's `selectedContactId` is cleared in a `useEffect` after the first render to avoid stale navigation state
+    23→- `selectContact()` now updates `localContactId` instead of the store
+    24→
+    25→## FIX 3: Dashboard — Fix Quick Actions to Pass Context
+    26→**File:** `src/components/screens/dashboard-screen.tsx`
+    27→- Changed "Generate Research" quick action description from "Run AI analysis on your companies" to "View companies to run AI research"
+    28→- Action still navigates to `companies` view (correct since dashboard has no selected company context)
+    29→
+    30→## FIX 4: Error Boundary Component
+    31→**File created:** `src/components/error-boundary.tsx`
+    32→- Class component with `getDerivedStateFromError`
+    33→- Renders a centered error UI with AlertTriangle icon, error message, and "Try Again" button
+    34→- Supports custom `fallback` prop
+    35→
+    36→**File:** `src/app/app/page.tsx`
+    37→- Imported `ErrorBoundary`
+    38→- Wrapped `<ActiveScreen />` with `<ErrorBoundary>` inside `<AppShell>`
+    39→
+    40→## FIX 5: Companies Screen — Add Delete Confirmation Dialog
+    41→**File:** `src/components/screens/companies-screen.tsx`
+    42→- Imported `AlertDialog` components
+    43→- Added `deleteDialogOpen` state
+    44→- Changed Delete button to open the dialog instead of immediately calling `deleteMutation.mutate()`
+    45→- Added `AlertDialog` with title, description, Cancel/Confirm buttons
+    46→- Confirm button calls `deleteMutation.mutate(Array.from(selected))`
+    47→- Dialog closes automatically on successful deletion
+    48→
+    49→## FIX 6: Notification Panel — Add "View All" link + Click Navigation
+    50→**File:** `src/components/app-shell.tsx`
+    51→- Added `setSelectedCompanyId` and `setSelectedContactId` to store destructuring
+    52→- Added `ArrowRight` to icon imports
+    53→- Each notification item now has an `onClick` handler that navigates to the relevant entity: if `n.companyId` → navigate to `company-profile`; if `n.contactId` → navigate to `contact-profile`; closes the notification panel
+    54→- Added a "View All Activity" link at the bottom of the notification panel that navigates to the dashboard and closes the panel
+    55→
+    56→## FIX 7: Contacts Screen — Batch Email Validation Button
+    57→**File:** `src/components/screens/contacts-screen.tsx`
+    58→- Added `batchValidateMutation` that calls `POST /api/health-check` with `{ checkAll: true }`
+    59→- On success, invalidates the `contacts` query to refresh health data, shows a toast with results summary
+    60→- Added a "Validate Emails" button with `ShieldCheck` icon next to "Add Contact" in the header area
+    61→- Button shows a loading spinner during validation and is disabled while pending
+    62→
+    63→## FIX 8: Contact Detail Screen — Generate Email Navigation
+    64→**File:** `src/components/screens/contact-detail-screen.tsx`
+    65→- No changes needed — the existing `navigateToEmailGen()` function at line 233 already correctly sets `selectedContactId` in the store before navigating to `email-generation`
+    66→- Combined with FIX 2 (which captures and uses `selectedContactId` on mount), the full navigation flow now works: Contact Detail → sets `selectedContactId` → navigates to Email Gen → Email Gen captures ID → pre-selects contact
+    67→
+    68→---
+    69→
+    70→## Files Changed
+    71→| File | Changes |
+    72→|------|---------|
+    73→| `src/components/screens/contacts-screen.tsx` | FIX 1 + FIX 7 |
+    74→| `src/components/screens/email-generation-screen.tsx` | FIX 2 |
+    75→| `src/components/screens/dashboard-screen.tsx` | FIX 3 |
+    76→| `src/components/error-boundary.tsx` | FIX 4 (new file) |
+    77→| `src/app/app/page.tsx` | FIX 4 |
+    78→| `src/components/screens/companies-screen.tsx` | FIX 5 |
+    79→| `src/components/app-shell.tsx` | FIX 6 |
+    80→| `src/components/screens/contact-detail-screen.tsx` | FIX 8 (no changes needed) |
+    81→---
+    82→Task ID: 1-3
+    83→Agent: Main Agent
+    84→Task: Full codebase audit + Fix ALL Critical, High, Medium, and Low issues (75+ found)
+    85→
+    86→Work Log:
+    87→- Read ALL source files: 23 API routes, 9 screen components, shared components, store, types, Prisma schema, email verification engine
+    88→- Identified 75+ issues across Critical/High/Medium/Low severity
+    89→- Launched 3 parallel fix agents:
+    90→  - Backend API fixes (7 fixes completed)
+    91→  - Frontend screen interconnectivity fixes (8 fixes completed)
+    92→  - Architecture & UX fixes (7 fixes completed)
+    93→- Fixed TypeScript compilation errors (store SSR issue, KnowledgeLibraryScreen export, import-screen type comparison)
+    94→- Rebuilt Next.js successfully
+    95→- Verified all APIs working (companies, dashboard, companies/meta, drafts)
+    96→
+    97→Stage Summary:
+    98→- FIXED: 22 issues across 3 parallel batches
+    99→- Backend: Export filters archived, health-check parallel batches, draft timeline on send, import per-company timeline, knowledge rejects binary files, input validation on PATCH routes, companies/meta endpoint
+   100→- Frontend: Error boundary, contacts company filter, email gen pre-select contact, delete confirmation, notification actions, batch email validation, dashboard auto-refresh
+   101→- Architecture: URL hash-based routing (deep linking, browser back button), dynamic industry/country filters, import validation for mapped columns
+   102→- Build: Clean build, all modified files pass TypeScript check
+   103→- Server: Running on port 8080 with auto-restart loop
+   104→
+   105→---
+   106→
+   107→# Medium & Low Issue Cleanup — Worklog
+   108→
+   109→## Date: 2025-07-21
+   110→
+   111→## Summary
+   112→Fixed 9 remaining medium/low issues across scripts, API error handling, error boundaries, accessibility, and utilities.
+   113→
+   114→---
+   115→
+   116→## FIX H50: Delete dead stub files
+   117→- Removed `src/components/screens/dashboard-screen.full.tsx` (dead stub)
+   118→- Removed `src/components/screens/settings-screen.full.tsx` (dead stub)
+   119→- Removed `tailwind.config.ts` (replaced by CSS-based Tailwind v4 config)
+   120→
+   121→## FIX H50: start-all.sh — PID-based process kill
+   122→- Replaced `pkill -f "next start"` with PID-file-based kill (`/tmp/deepmindq-server.pid`)
+   123→- Replaced `pkill -f "bridge-proxy"` with PID-file-based kill (`/tmp/deepmindq-bridge.pid`)
+   124→- PIDs are now written to files on startup for safe targeting
+   125→- Added exponential backoff (1s → 30s cap) to both Next.js and bridge-proxy restart loops
+   126→
+   127→## FIX H50: serve.sh — Exponential backoff
+   128→- Replaced fixed `sleep 1` with exponential backoff (1s → 30s cap) to prevent tight crash loops
+   129→
+   130→## FIX H50: start-detached.js — Log truncation
+   131→- Added `fs.writeFileSync('/tmp/next-server.log', '')` before opening the log file to prevent unbounded growth on repeated restarts
+   132→
+   133→## FIX: validate/route.ts — No raw error leakage
+   134→- Imported `apiError` from `@/lib/apiHelpers`
+   135→- Changed catch block from `return NextResponse.json({ error: message })` to `return apiError('Email validation failed. Please try again later.')`
+   136→- Raw error messages are now logged to console but never sent to the client
+   137→
+   138→## FIX: command-palette.tsx — Store compatibility verified
+   139→- Confirmed command palette already uses local `query` state (not removed `searchQuery` from store)
+   140→- Confirmed `setActiveView` is called explicitly alongside `setSelectedCompanyId`/`setSelectedContactId`
+   141→- shadcn CommandDialog (cmdk) provides built-in keyboard navigation (arrow keys, enter)
+   142→- No changes needed
+   143→
+   144→## FIX: error-boundary.tsx — Proper typing & componentDidCatch
+   145→- Replaced `props: any` with proper `ErrorBoundaryProps` interface
+   146→- Added `componentDidCatch` to log errors and component stacks to console
+   147→- Added "Reload Page" button alongside existing "Try Again" button in fallback UI
+   148→
+   149→## FIX: page.tsx — componentDidCatch on local ErrorBoundary
+   150→- Added `componentDidCatch` to the page-level `ErrorBoundary` class to log errors and component stacks
+   151→- ErrorBoundary wrapping was already present (no change needed)
+   152→
+   153→## FIX A11Y: Icon-only button aria-labels
+   154→- `company-profile-screen.tsx`: Added `aria-label="Delete opportunity"` and `aria-label="Delete note"`
+   155→- `contact-detail-screen.tsx`: Added `aria-label="Delete note"`
+   156→- `knowledge-library-screen.tsx`: Added `aria-label="Clear search"` and `aria-label="Delete document"`
+   157→- `contacts-screen.tsx`: Added `aria-label="Clear company filter"`
+   158→
+   159→## NEW: src/lib/date.ts utility
+   160→- Created `relativeDate()` — wraps `formatDistanceToNow` from date-fns with `addSuffix: true`
+   161→- Created `formatDate()` — uses `toLocaleDateString` for locale-aware formatting
+   162→
+   163→## BUILD: Prisma client regenerated
+   164→- Ran `npx prisma generate` — successfully regenerated Prisma Client v6.19.2
+   165→
+   166→---
+   167→Task ID: 1-b
+   168→Agent: Security Infrastructure Agent
+   169→Task: Security utilities - rate limiting, logging, audit, env validation
+   170→
+   171→Work Log:
+   172→- Read worklog.md and existing lib files (auth.ts, apiHelpers.ts, db.ts) to understand project conventions
+   173→- Created src/lib/rate-limit.ts — in-memory sliding window rate limiter with Map store, 5-min cleanup interval, and pre-configured limiters (apiRateLimit, authRateLimit, aiRateLimit, importRateLimit)
+   174→- Created src/lib/logger.ts — structured JSON logger with colorized dev output, 5 log levels (debug/info/warn/error/fatal), and logRequest() helper for HTTP request logging
+   175→- Created src/lib/audit.ts — audit logging utility using db.auditLog.create(), with auditAction() factory and pre-configured helpers for all CRM entities (Company, Contact, Opportunity, User, Data, Settings)
+   176→- Created src/lib/validate-env.ts — Zod-based env validation with safe defaults for dev, getEnv() singleton, validateEnv() with production warnings for default secrets
+   177→- Created src/lib/api-middleware.ts — withApiMiddleware() combining rate limiting, auth check (with dev fallback), audit logging (fire-and-forget), and request logging
+   178→- Created .env.example with all supported env vars documented
+   179→- Ran lint — all new files pass (8 pre-existing errors in command-palette.tsx, unrelated)
+   180→- Adapted audit.ts to import `db` (matching actual db.ts export) instead of `prisma` as in spec
+   181→
+   182→Stage Summary:
+   183→- 5 new utility modules created: rate-limit, logger, audit, validate-env, api-middleware
+   184→- .env.example created for developer onboarding
+   185→- All modules follow existing project conventions (import paths, naming)
+   186→- audit.ts depends on AuditLog Prisma model (created by another agent) — will resolve after schema merge
+   187→- api-middleware.ts depends on auth.ts (currently mock) — graceful dev fallback built in
+   188→- No existing files modified
+   189→
+   190→---
+   191→Task ID: 1-d
+   192→Agent: Frontend Auth & Middleware Agent
+   193→Task: Frontend auth integration, middleware protection, app shell update
+   194→
+   195→Work Log:
+   196→- Read worklog.md and all target files to understand current state
+   197→- Created src/providers/auth-provider.tsx — thin wrapper around next-auth/react SessionProvider
+   198→- Updated src/app/layout.tsx — wrapped QueryProvider with AuthProvider (inside ThemeProvider)
+   199→- Updated src/middleware.ts — real auth protection: public paths allowed, API routes get 401 without session in production, page routes redirect to /login in production, dev mode allows through
+   200→- Updated src/components/app-shell.tsx — replaced hardcoded CURRENT_USER with useSession() data, added getInitials() helper, sign out now calls signOut({ callbackUrl: '/login' })
+   201→- Updated src/lib/fetchApi.ts — added credentials: 'include' to all fetch calls
+   202→- Updated src/app/page.tsx — added useSession + useEffect redirect to /login when unauthenticated, shows SkeletonGrid while loading, returns null if no session
+   203→- Updated src/app/app/page.tsx — simplified to server-side redirect to /
+   204→- Verified: 0 lint errors in modified files (8 pre-existing errors in command-palette.tsx unrelated)
+   205→- Dev server compiled successfully after changes
+   206→
+   207→Stage Summary:
+   208→- AuthProvider wraps the entire app via layout.tsx
+   209→- Middleware provides edge-level auth protection (cookie check) — production-only enforcement, dev-friendly passthrough
+   210→- App shell uses real session data (name, email, dynamic initials) instead of hardcoded user
+   211→- Sign out is fully functional via next-auth signOut()
+   212→- Root page redirects unauthenticated users to /login
+   213→- /app/ route redirects to / (deduplication)
+   214→- fetchApi sends credentials with all requests
+   215→
+   216→---
+   217→Task ID: 1-a
+   218→Agent: Auth & Schema Agent
+   219→Task: Real authentication system + Prisma schema expansion
+   220→
+   221→Work Log:
+   222→- Read worklog.md and all existing files (schema.prisma, auth.ts, types.ts, validations.ts, apiHelpers.ts, db.ts, login/page.tsx, package.json, .env)
+   223→- Ran init-fullstack script for environment setup
+   224→- Installed bcryptjs + @types/bcryptjs
+   225→- Expanded prisma/schema.prisma with 7 new models: User, Account, Session, VerificationToken, AuditLog, Notification, Task
+   226→- Updated UserPreferences model with userId field + User relation
+   227→- Fixed SQLite incompatibility: removed @db.Text from new models (SQLite doesn't support native Text type)
+   228→- Ran prisma db push + prisma generate successfully
+   229→- Replaced mock auth.ts with real NextAuth v5 implementation using Credentials provider, JWT strategy, bcrypt password verification, lastLoginAt tracking
+   230→- Updated [...nextauth]/route.ts to import handlers from auth.ts
+   231→- Created /api/auth/register — POST endpoint with Zod validation, bcrypt hashing, duplicate email check
+   232→- Created /api/auth/me — GET endpoint returning authenticated user profile
+   233→- Created /api/auth/reset-password — POST endpoint generating 6-digit code, storing bcrypt-hashed code in VerificationToken
+   234→- Created /api/auth/reset-password/confirm — POST endpoint verifying code and updating password
+   235→- Updated /login/page.tsx — real form with signIn("credentials"), loading states, error messages, forgot password flow (email → code → new password), links to /signup
+   236→- Created /signup/page.tsx — registration form with name/email/password/confirm, real-time password strength indicator, auto-sign-in after registration
+   237→- Updated src/lib/types.ts — added User, AuditLogEntry, NotificationItem, TaskItem interfaces
+   238→- Updated src/lib/validations.ts — added registerSchema, loginSchema, resetPasswordRequestSchema, resetPasswordConfirmSchema + inferred types
+   239→- Created default admin user (ravi@deepmindq.com / DeepMindQ@2024)
+   240→- Verified clean build with all new routes
+   241→
+   242→Stage Summary:
+   243→- 7 new Prisma models added (User, Account, Session, VerificationToken, AuditLog, Notification, Task)
+   244→- Real NextAuth v5 auth with JWT strategy and bcrypt password verification
+   245→- 4 new API routes: /register, /me, /reset-password, /reset-password/confirm
+   246→- Login page with real auth, forgot password flow, and error handling
+   247→- Signup page with password strength indicator and auto sign-in
+   248→- Default admin user seeded: ravi@deepmindq.com / DeepMindQ@2024
+   249→- Build compiles cleanly with all new routes visible
+   250→
+   251→---
+   252→Task ID: 1-c
+   253→Agent: Seed Data & APIs Agent
+   254→Task: Demo seed data, notifications API, tasks API
+   255→
+   256→Work Log:
+   257→- Read worklog.md and all existing files (schema.prisma, apiHelpers.ts, db.ts, validations.ts, types.ts, constants.ts, existing API routes)
+   258→- Added Zod schemas to validations.ts: createTaskSchema, updateTaskSchema, createNotificationSchema, markNotificationReadSchema + TASK_STATUSES, TASK_PRIORITIES, NOTIFICATION_TYPES constants + inferred types
+   259→- Rewrote scripts/seed-demo.ts with comprehensive demo data:
+   260→  - FK-safe delete order (23 models including User, Account, Session, VerificationToken)
+   261→  - Admin user (ravi@deepmindq.com) with bcrypt-hashed password
+   262→  - 32 companies with realistic names/domains/industries/locations/employee sizes
+   263→  - 128 contacts (3-5 per company) with realistic Western names, titles, emails matching company domains
+   264→  - 18 research cards with industry-specific multi-paragraph content (Technology, Healthcare, FinTech, SaaS templates)
+   265→  - 35 opportunities across all stages
+   266→  - 90 timeline entries over last 30 days
+   267→  - 42 notes (22 company + 20 contact)
+   268→  - 21 email drafts with personalized content
+   269→  - 35 email health checks (18 valid, 5 risky, 9 invalid, 3 unknown)
+   270→  - 6 knowledge documents with 21 snippets
+   271→  - UserPreferences linked to admin user
+   272→  - 10 sample notifications
+   273→- Fixed research card field name mismatch (overview→businessOverview, tech→currentTechLandscape, etc.)
+   274→- Fixed company name interpolation in research templates (removed broken arrow-function-in-template-literal, replaced with proper function-based template generation)
+   275→- Created Notifications API (3 routes):
+   276→  - GET /api/notifications — list with ?unread, ?type, ?limit, ?offset; returns { data, unreadCount }
+   277→  - POST /api/notifications — create with validation
+   278→  - PATCH /api/notifications/[id] — mark read/unread
+   279→  - POST /api/notifications/mark-all-read — batch mark read
+   280→  - DELETE /api/notifications/[id] — delete notification
+   281→- Created Tasks API (2 routes):
+   282→  - GET /api/tasks — list with ?status, ?priority, ?companyId, ?limit, ?offset; includes companyName/contactName enrichment
+   283→  - POST /api/tasks — create with company/contact validation, timeline entry creation
+   284→  - GET /api/tasks/[id] — single task with enrichment
+   285→  - PATCH /api/tasks/[id] — update with auto completedAt on status=completed, timeline entry on status change
+   286→  - DELETE /api/tasks/[id] — delete with timeline entry
+   287→- Fixed Task model having no company/contact relations (used manual enrichment with batched lookups)
+   288→- Fixed TypeScript Map constructor type issue (added explicit tuple types)
+   289→- Fixed DEV_USER_ID using '1' instead of actual CUID — changed to dynamic getDevUserId() lookup
+   290→- Ran seed script successfully, verified all data counts
+   291→- All APIs tested via curl and working correctly
+   292→- Clean build verified
+   293→
+   294→Stage Summary:
+   295→- Seed script creates 32 companies, 128 contacts, 18 research cards, 35 opportunities, 90 timeline entries, 42 notes, 21 drafts, 35 health checks, 6 knowledge docs, 10 notifications
+   296→- 5 new API endpoints: /notifications, /notifications/[id], /notifications/mark-all-read, /tasks, /tasks/[id]
+   297→- 4 new Zod schemas added to validations.ts (only appended, no existing code modified)
+   298→- All APIs follow project conventions (db import, apiSuccess/apiError, validateBody, safeInt)
+   299→- Dev mode uses dynamic user ID lookup instead of hardcoded '1'
+   300→
+   301→---
+   302→Task ID: 2-b
+   303→Agent: Advanced Search & Bulk Ops Agent
+   304→Task: Enhanced search, bulk operations, saved views, advanced filters
+   305→
+   306→Work Log:
+   307→- Read worklog.md and all target files (companies-screen, contacts-screen, store, types, constants, fetchApi, design-system)
+   308→- Read export API route and contacts API route to understand existing capabilities
+   309→- Identified pre-existing type error (audit-logs missing from ActiveView) — fixed it
+   310→- Added SavedCompanyView type and store methods (addSavedView, removeSavedView) with localStorage persistence to store.ts
+   311→- Added 3 built-in saved views: All Companies, New This Week, Active Accounts
+   312→- Rewrote companies-screen.tsx with:
+   313→  - Debounced search (300ms) with useRef timer pattern
+   314→  - Clear search button (X icon) when search is active
+   315→  - Result count display: "Showing 45 of 128 companies"
+   316→  - Employee size filter dropdown (using EMPLOYEE_SIZES from constants)
+   317→  - Date range filters (createdAfter, createdBefore)
+   318→  - Saved Views dropdown with Save Current View and Manage Views
+   319→  - Column visibility toggle (Industry, Score, Freshness) via Popover
+   320→  - Reset Filters button (appears when any filter is active)
+   321→  - Escape key clears search via useEffect
+   322→  - Floating bulk operations toolbar at bottom: selected count, Select All/Deselect All, Change Status, Export Selected, Archive, Delete
+   323→  - Bulk status change with confirmation dialog
+   324→  - Bulk archive mutation (sequential PATCH with progress)
+   325→  - Client-side CSV export for selected items
+   326→  - Better empty state with Reset Filters action when filters are active
+   327→- Rewrote contacts-screen.tsx with:
+   328→  - Clear search button (X icon) when search is active
+   329→  - Result count display: "Showing 20 of 128"
+   330→  - Searchable company filter dropdown using Popover with Input
+   331→  - Date range filters (createdAfter, createdBefore)
+   332→  - Bulk select with Checkbox column in table header and rows
+   333→  - Column visibility toggle (Company, Job Title, Email) via Popover
+   334→  - Reset Filters button (appears when any filter is active)
+   335→  - Escape key clears search via useEffect
+   336→  - Floating bulk operations toolbar: Validate Emails, Change Status, Export Selected, Archive, Delete
+   337→  - Bulk validate emails mutation (sequential POST to /validate)
+   338→  - Bulk status change with confirmation dialog
+   339→  - Bulk archive mutation (sequential DELETE)
+   340→  - Bulk delete with confirmation dialog
+   341→  - Client-side CSV export for selected items
+   342→  - Better empty state with Reset Filters action when filters are active
+   343→- Verified clean build (all routes compile successfully)
+   344→
+   345→Stage Summary:
+   346→- 3 files modified: store.ts, companies-screen.tsx, contacts-screen.tsx
+   347→- 1 file fixed: types.ts (added missing 'audit-logs' to ActiveView union)
+   348→- Enhanced search: debounce (300ms), clear button, result count, Escape key on both screens
+   349→- Bulk operations: floating toolbar with 5-6 actions per screen, sequential processing with toast feedback
+   350→- Saved views: 3 built-in + custom views, localStorage persistence, save/manage/apply/delete
+   351→- Advanced filters: employee size (companies), company filter (contacts), date range (both)
+   352→- Column visibility: toggle Industry/Score/Freshness (companies), Company/JobTitle/Email (contacts)
+   353→- Reset Filters: appears conditionally when any filter is active
+   354→- Clean build verified
+   355→
+   356→---
+   357→Task ID: 2-d
+   358→Agent: Audit Logs UI & Settings Agent
+   359→Task: Audit logs screen, settings appearance tab, audit logs tab
+   360→
+   361→Work Log:
+   362→- Read worklog.md and all target files to understand current state
+   363→- Added 'audit-logs' to ActiveView union in types.ts (tasks/opportunities already added by agent 2-a)
+   364→- Added 'audit-logs' to hashToState valid views in store.ts
+   365→- Added 'audit-logs' to VALID_VIEWS in constants.ts
+   366→- Created src/components/screens/audit-logs-screen.tsx — full audit log viewer with:
+   367→  - Entity type, Action, Date range, User filters
+   368→  - Color-coded action badges (create=green, update=blue, delete=red, login=purple, export=amber)
+   369→  - Timestamp with tooltip for exact date, user name+email, entity ID in monospace, IP in monospace
+   370→  - Expandable details column, alternating row colors, hover effects
+   371→  - Pagination with page numbers, prev/next, first/last buttons
+   372→  - Empty state with icon and contextual message
+   373→  - CSV export of filtered logs
+   374→- Updated settings-screen.tsx:
+   375→  - Added Appearance tab with Theme (Light/Dark/System cards with preview), Sidebar Default (Expanded/Collapsed), Density (Compact/Comfortable/Sparse)
+   376→  - Added Audit Logs tab with quick stats cards, "View Full Audit Logs" CTA button, recent 5 entries compact list
+   377→  - Added Palette, Shield, ChevronRight, ArrowRight, LayoutGrid, ClipboardList to lucide imports
+   378→  - Added appearanceTheme, appearanceDensity, appearanceSidebar state
+   379→  - Added fetchApi, relativeDate, AuditLogEntry imports
+   380→  - Created AuditLogsTab component inline
+   381→- Added AuditLogsScreen to page.tsx dynamic imports and screenMap
+   382→- Added 'audit-logs' entries to pageTitles and pageDescriptions in app-shell.tsx
+   383→- Verified: 0 TypeScript errors in modified files (pre-existing errors in other agents' files remain)
+   384→
+   385→Stage Summary:
+   386→- Created audit-logs-screen.tsx (full-featured audit log viewer with filters, table, pagination, CSV export)
+   387→- Enhanced settings-screen.tsx with 2 new tabs: Appearance (theme/sidebar/density) and Audit Logs (compact overview)
+   388→- Updated types.ts, store.ts, constants.ts, page.tsx, app-shell.tsx for 'audit-logs' view routing
+   389→- All new code follows existing design language: amber accent, gray-50 background, white cards, rounded-xl borders
+   390→
+   391→---
+   392→Task ID: 2-a
+   393→Agent: Tasks UI & Pipeline Agent
+   394→Task: Tasks screen, Opportunities/Pipeline screen, store updates
+   395→
+   396→Work Log:
+   397→- Read worklog.md, store.ts, types.ts, fetchApi.ts, constants.ts, dashboard-screen.tsx, companies-screen.tsx, app-shell.tsx for context
+   398→- Updated src/lib/types.ts: Added 'tasks' | 'opportunities' to ActiveView union type
+   399→- Updated src/lib/store.ts:
+   400→  - Added 'tasks' and 'opportunities' to hashToState valid views array
+   401→  - Added taskCount state (number, default 0) and setTaskCount setter
+   402→- Created src/components/screens/tasks-screen.tsx:
+   403→  - Header with title, count badge, "New Task" button
+   404→  - Status tab filter bar (All, Pending, In Progress, Completed, Overdue) with counts
+   405→  - Priority filter dropdown (All, Low, Medium, High, Urgent)
+   406→  - Search input with debounced filtering
+   407→  - Task cards with: checkbox completion toggle, title/description, status badge, priority badge, due date (red if overdue, amber if today), company/contact links, relative created date, edit/delete actions
+   408→  - Overdue highlighting: red left border for tasks past due with status != completed
+   409→  - Create/Edit dialog: title, description, status select, priority select, due date calendar picker, company select, contact select (filtered by company)
+   410→  - Delete confirmation with AlertDialog
+   411→  - Framer-motion card animations (staggered entry, layout animation)
+   412→  - Empty state with contextual message
+   413→  - TanStack Query for data fetching, fetchApi for API calls, toast from sonner for feedback
+   414→- Created src/components/screens/opportunities-screen.tsx:
+   415→  - Header with "Pipeline" title, total count, active/won value display, "New Opportunity" button
+   416→  - View toggle: Kanban (default) and List mode
+   417→  - Stage summary bar: horizontal bar showing count + total value per stage with colored dots
+   418→  - Kanban view: 6 columns (Researching → Qualified → Proposal → Negotiation → Won → Lost)
+   419→    - Each card: title, company link, contact, value, days in stage, next action, advance-to-next-stage button
+   420→    - Cards with left-border color matching stage (getStatusBorder from constants)
+   421→    - Column count badges and total value sums
+   422→    - Framer-motion layout animations
+   423→  - List view: sortable table (Company, Title, Status, Contact, Value, Created, Actions)
+   424→  - Create/Edit dialog: title, company, description, contact (filtered by company), status, next action
+   425→  - Status cycling: "Advance to [next stage]" button on each kanban card
+   426→  - Delete confirmation with AlertDialog
+   427→- Updated src/app/page.tsx: Added dynamic imports and screenMap entries for TasksScreen and OpportunitiesScreen
+   428→- Updated src/components/app-shell.tsx: Added 'tasks' and 'opportunities' to pageTitles and pageDescriptions
+   429→- Fixed TypeScript errors:
+   430→  - Fixed framer-motion ease tuple type (as [number, number, number, number])
+   431→  - Fixed filter comparison type mismatch in tasks screen
+   432→  - Added missing onSort prop to SortableHeader in opportunities list view
+   433→- Verified: clean build passes, 0 TypeScript errors in modified files
+   434→
+   435→Stage Summary:
+   436→- 2 new screen components: tasks-screen.tsx, opportunities-screen.tsx
+   437→- 2 type/store updates: ActiveView union extended, taskCount/setTaskCount added
+   438→- Tasks screen: full CRUD, status tabs, priority filter, search, calendar date picker, company/contact linking, overdue highlighting, framer-motion animations
+   439→- Opportunities screen: Kanban + List dual view, 6-stage pipeline, stage summary bar, advance-to-next-stage, sortable list table, value display
+   440→- 2 integration files updated: page.tsx (screen routing), app-shell.tsx (titles/descriptions)
+   441→- All screens follow Apple/PhD aesthetic: white cards, amber accent, gray-50 background, clean typography, subtle animations
+   442→- Build verified clean
+   443→
+   444→---
+   445→Task ID: 2-c
+   446→Agent: Tags & Custom Fields Agent
+   447→Task: Tag system, custom fields API, tag manager component
+   448→
+   449→Work Log:
+   450→- Read worklog.md and all existing files (schema.prisma, types.ts, apiHelpers.ts, validations.ts, db.ts)
+   451→- Added Tag and TagAssignment models to prisma/schema.prisma (Company and Contact already had tag relation fields from prior agent work)
+   452→- Ran prisma db push and prisma generate successfully
+   453→- Appended Tag, TagAssignment, CustomFieldDefinition, CustomFieldValue interfaces to types.ts
+   454→- Appended 5 Zod validation schemas to validations.ts: createTagSchema, assignTagsSchema, createCustomFieldSchema, updateCustomFieldSchema, upsertCustomFieldValuesSchema
+   455→- Created src/app/api/tags/route.ts — GET (list all tags, optional ?entity filter with assignment counts) and POST (create tag with uniqueness check)
+   456→- Created src/app/api/tags/assign/route.ts — POST (sync tags on entity: adds new, removes missing, returns updated assignments)
+   457→- Created src/app/api/custom-fields/route.ts — GET (list definitions, optional ?entityType filter) and POST (create definition, uniqueness on internalKey per entityType)
+   458→- Created src/app/api/custom-fields/[id]/route.ts — PATCH (update definition) and DELETE (cascade delete field + values)
+   459→- Created src/app/api/custom-fields/values/route.ts — GET (fetch values for entity) and POST (upsert values per field with entity type validation)
+   460→- Created src/components/shared/tag-manager.tsx — reusable tag management component with colored badges, Popover with search/filter, inline tag creation with 7-color picker, API sync
+   461→- Created src/components/shared/custom-field-renderer.tsx — read-only custom field grid supporting text/number/date/dropdown/checkbox with compact mode and type icons
+   462→- Fixed React Compiler lint: eliminated all setState-in-effect and ref-during-render patterns
+   463→- Verified zero lint errors in all 8 new files
+   464→- Verified clean build with all routes visible
+   465→
+   466→Stage Summary:
+   467→- 2 new Prisma models: Tag (unique name, color, indexed), TagAssignment (polymorphic to Company/Contact/Opportunity, cascade delete)
+   468→- 6 new API routes: /api/tags, /api/tags/assign, /api/custom-fields, /api/custom-fields/[id], /api/custom-fields/values
+   469→- 2 new shared components: TagManager (controlled, Popover-based), CustomFieldRenderer (compact/grid modes)
+   470→- 5 new Zod schemas + 5 inferred types appended to validations.ts
+   471→- 4 new interfaces appended to types.ts
+   472→- All routes follow project conventions (db import, apiSuccess/apiError, validateBody)
+   473→- Components pass strict React Compiler lint (no useEffect setState, no render-time ref access)
+   474→

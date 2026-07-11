@@ -7,7 +7,8 @@ import Image from 'next/image'
 import {
   LayoutDashboard, Building2, Users, Upload, Settings, Search,
   Bell, HelpCircle, LogOut, ChevronDown, Command, X, CheckCircle2, Sparkles,
-  BookOpen, MailPlus, Target, TrendingUp, ArrowRight,
+  BookOpen, MailPlus, Target, TrendingUp, ArrowRight, FileCode2,
+  Sun, Moon, CheckSquare, Kanban, Mail, FileText, Shield, BarChart3,
 } from 'lucide-react'
 import {
   SidebarProvider, Sidebar, SidebarHeader, SidebarContent,
@@ -27,7 +28,9 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useSession, signOut } from 'next-auth/react'
 import { toast } from 'sonner'
+import { useTheme } from 'next-themes'
 import { CommandPalette } from '@/components/shared/command-palette'
 import { useAppStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -37,8 +40,14 @@ const navItems: { view: ActiveView; label: string; icon: React.ElementType }[] =
   { view: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { view: 'companies', label: 'Companies', icon: Building2 },
   { view: 'contacts', label: 'Contacts', icon: Users },
+  { view: 'opportunities', label: 'Pipeline', icon: Kanban },
   { view: 'email-generation', label: 'AI Emails', icon: MailPlus },
+  { view: 'sequences', label: 'Sequences', icon: Mail },
   { view: 'knowledge-library', label: 'Knowledge', icon: BookOpen },
+  { view: 'prompt-templates', label: 'Prompts', icon: FileCode2 },
+  { view: 'tasks', label: 'Tasks', icon: CheckSquare },
+  { view: 'reports', label: 'Analytics', icon: BarChart3 },
+  { view: 'audit-logs', label: 'Audit', icon: Shield },
   { view: 'import', label: 'Import', icon: Upload },
   { view: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -47,9 +56,15 @@ const pageTitles: Record<ActiveView, string> = {
   dashboard: 'Dashboard', companies: 'Companies',
   'company-profile': 'Company Profile', contacts: 'Contacts',
   'contact-profile': 'Contact Profile',
+  tasks: 'Tasks',
+  opportunities: 'Pipeline',
   'email-generation': 'AI Emails',
   'knowledge-library': 'Knowledge Library',
+  'prompt-templates': 'Prompt Library',
   import: 'Import', settings: 'Settings',
+  'audit-logs': 'Audit Logs',
+  sequences: 'Sequences',
+  reports: 'Analytics',
 }
 
 const pageDescriptions: Record<ActiveView, string> = {
@@ -58,10 +73,16 @@ const pageDescriptions: Record<ActiveView, string> = {
   'company-profile': 'Detailed company intelligence',
   contacts: 'Contact database & outreach',
   'contact-profile': 'Contact details & activity',
+  tasks: 'Manage tasks and to-dos',
+  opportunities: 'Sales pipeline management',
   'email-generation': 'Generate AI outreach emails',
   'knowledge-library': 'Capability documents & snippets',
+  'prompt-templates': 'Manage email & research prompt templates',
   import: 'Bulk data import',
   settings: 'Configuration & preferences',
+  'audit-logs': 'Activity & audit trail',
+  sequences: 'Email sequence campaigns',
+  reports: 'Comprehensive reports & analytics',
 }
 
 const contentVariants = { initial: { opacity: 0, y: 4 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -4 } }
@@ -80,9 +101,18 @@ interface NotificationItem {
 
 interface PipelineItem { label: string; count: number }
 
-const CURRENT_USER = { name: 'Ravi', email: 'ravi@deepmindq.com', initials: 'R' }
+function getInitials(name?: string | null): string {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  return parts[0][0].toUpperCase()
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession()
+  const userName = session?.user?.name || 'User'
+  const userEmail = session?.user?.email || ''
+  const userInitials = getInitials(userName)
   const {
     activeView, selectedCompanyId, selectedContactId, companyStatusFilter,
     setActiveView, setSelectedCompanyId, setSelectedContactId,
@@ -90,6 +120,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
   const [showNotifications, setShowNotifications] = React.useState(false)
   const [showHelp, setShowHelp] = React.useState(false)
+  const { theme, setTheme } = useTheme()
 
   // ── Notifications ──
   const { data: notifData, isLoading: notifLoading, error: notifError } = useQuery({
@@ -213,11 +244,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <SidebarSeparator className="bg-gray-200/80" />
           <div className="flex items-center gap-2 px-3 py-2">
             <Avatar className="size-8 shrink-0">
-              <AvatarFallback className="bg-amber-100 text-xs font-semibold text-amber-700">{CURRENT_USER.initials}</AvatarFallback>
+              <AvatarFallback className="bg-amber-100 text-xs font-semibold text-amber-700">{userInitials}</AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium leading-none text-gray-900">{CURRENT_USER.name}</p>
-              <p className="mt-1 truncate text-[11px] text-gray-500">{CURRENT_USER.email}</p>
+              <p className="truncate text-sm font-medium leading-none text-gray-900">{userName}</p>
+              <p className="mt-1 truncate text-[11px] text-gray-500">{userEmail}</p>
             </div>
           </div>
         </SidebarFooter>
@@ -311,6 +342,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </button>
 
+          {/* Theme Toggle */}
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors press-scale"
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          </button>
+
           {/* Help */}
           <button onClick={() => setShowHelp(true)} className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors press-scale">
             <HelpCircle className="size-4" />
@@ -321,21 +361,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-lg hover:bg-gray-100 transition-colors">
                 <Avatar className="size-7">
-                  <AvatarFallback className="bg-amber-100 text-[10px] font-semibold text-amber-700">{CURRENT_USER.initials}</AvatarFallback>
+                  <AvatarFallback className="bg-amber-100 text-[10px] font-semibold text-amber-700">{userInitials}</AvatarFallback>
                 </Avatar>
                 <ChevronDown className="size-3 text-gray-400" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5 elevation-float">
               <div className="px-2 py-1.5 mb-1">
-                <p className="text-sm font-semibold text-gray-900">{CURRENT_USER.name}</p>
-                <p className="text-xs text-gray-500">{CURRENT_USER.email}</p>
+                <p className="text-sm font-semibold text-gray-900">{userName}</p>
+                <p className="text-xs text-gray-500">{userEmail}</p>
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="rounded-lg text-sm text-gray-700 cursor-pointer" onClick={() => setShowHelp(true)}>
                 <HelpCircle className="size-4 mr-2 text-gray-400" /> Help & Documentation
               </DropdownMenuItem>
-              <DropdownMenuItem className="rounded-lg text-sm text-red-600 cursor-pointer" onClick={() => toast.info('Sign out is not configured in demo mode')}>
+              <DropdownMenuItem className="rounded-lg text-sm text-red-600 cursor-pointer" onClick={() => signOut({ callbackUrl: '/login' })}>
                 <LogOut className="size-4 mr-2" /> Sign Out
               </DropdownMenuItem>
             </DropdownMenuContent>

@@ -5,8 +5,10 @@ import {
   Building2, Users, ShieldCheck, Sparkles, ArrowRight, Clock, Target,
   Upload, Mail, BarChart3, Activity, Loader2, ChevronRight, FileSearch, ShieldAlert,
   AlertTriangle, RefreshCw,
+  TrendingUp, ShieldX, Zap, FileText, ArrowUpRight, ArrowDownRight, Minus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore } from '@/lib/store'
 import { getActivityIcon, SkeletonGrid } from '@/components/shared/design-system'
 import { formatDistanceToNow } from 'date-fns'
@@ -179,6 +181,43 @@ function BarLabel({ x, y, width, value }: { x: number; y: number; width: number;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   AI Insights Types & Config
+   ═══════════════════════════════════════════════════════════════════════ */
+
+interface AiInsight {
+  type: 'positive' | 'negative' | 'neutral' | 'action'
+  icon: string
+  title: string
+  description: string
+}
+
+interface AiPrediction {
+  metric: string
+  current: number
+  predicted: number
+  trend: 'up' | 'down' | 'stable'
+  confidence: number
+}
+
+interface AiInsightsData {
+  summary: string
+  keyInsights: AiInsight[]
+  predictions: AiPrediction[]
+}
+
+const INSIGHT_STYLES: Record<string, { bg: string; iconColor: string; border: string }> = {
+  positive: { bg: 'bg-emerald-50', iconColor: 'text-emerald-600', border: 'border-emerald-200' },
+  negative: { bg: 'bg-red-50', iconColor: 'text-red-600', border: 'border-red-200' },
+  action: { bg: 'bg-amber-50', iconColor: 'text-amber-600', border: 'border-amber-200' },
+  neutral: { bg: 'bg-sky-50', iconColor: 'text-sky-600', border: 'border-sky-200' },
+}
+
+const ICON_MAP: Record<string, typeof Building2> = {
+  TrendingUp, ShieldCheck, Sparkles, AlertTriangle, ShieldAlert, FileSearch,
+  Mail, Target, Users, Building2, Clock, Zap, FileText, ShieldX,
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    Dashboard Screen
    ═══════════════════════════════════════════════════════════════════════ */
 
@@ -194,6 +233,18 @@ export function DashboardScreen() {
         return r.json()
       }),
     refetchInterval: 30_000,
+  })
+
+  /* ── AI Insights fetch ── */
+  const { data: insightsData, isLoading: insightsLoading } = useQuery<AiInsightsData>({
+    queryKey: ['ai-insights'],
+    queryFn: () =>
+      fetch('/api/ai/insights').then(r => {
+        if (!r.ok) throw new Error('Failed to load AI insights')
+        return r.json()
+      }),
+    refetchInterval: 5 * 60_000,
+    retry: 1,
   })
 
   /* ── Loading state ── */
@@ -309,10 +360,89 @@ export function DashboardScreen() {
         })}
       </div>
 
+      {/* ── Row 1.5: AI Insights Panel ── */}
+      <div className="rounded-xl bg-white card-rest slide-up overflow-hidden" style={{ animationDelay: '200ms' }}>
+        {/* Gradient top border */}
+        <div className="h-1 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-400" />
+        <div className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="flex size-7 items-center justify-center rounded-lg bg-amber-50">
+                <Sparkles className="size-3.5 text-amber-600" />
+              </div>
+              <h2 className="text-sm font-semibold text-gray-900 tracking-tight">AI Insights</h2>
+            </div>
+            {!insightsLoading && insightsData && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 h-7 px-2"
+                onClick={() => setActiveView('tasks')}
+              >
+                View Recommendations
+                <ArrowRight className="size-3 ml-1" />
+              </Button>
+            )}
+          </div>
+
+          {insightsLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                ))}
+              </div>
+            </div>
+          ) : insightsData ? (
+            <>
+              <p className="text-sm text-gray-600 leading-relaxed">{insightsData.summary}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+                {insightsData.keyInsights.map((insight, idx) => {
+                  const style = INSIGHT_STYLES[insight.type] ?? INSIGHT_STYLES.neutral
+                  const IconComp = ICON_MAP[insight.icon] ?? FileText
+                  return (
+                    <div
+                      key={idx}
+                      className={`flex items-start gap-3 rounded-lg border p-3 ${style.bg} ${style.border}`}
+                    >
+                      <IconComp className={`size-4 mt-0.5 shrink-0 ${style.iconColor}`} />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-900 leading-tight">{insight.title}</p>
+                        <p className="text-xs text-gray-600 mt-0.5 leading-snug line-clamp-2">{insight.description}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {/* Predictions row */}
+              {insightsData.predictions.length > 0 && (
+                <div className="flex flex-wrap gap-4 mt-4 pt-3 border-t border-gray-100">
+                  {insightsData.predictions.map((pred, idx) => {
+                    const TrendIcon = pred.trend === 'up' ? ArrowUpRight : pred.trend === 'down' ? ArrowDownRight : Minus
+                    const trendColor = pred.trend === 'up' ? 'text-emerald-600' : pred.trend === 'down' ? 'text-red-600' : 'text-gray-400'
+                    return (
+                      <div key={idx} className="flex items-center gap-2 text-xs">
+                        <span className="text-gray-500">{pred.metric}</span>
+                        <span className="font-semibold text-gray-900 tabular-nums">{pred.current}</span>
+                        <TrendIcon className={`size-3 ${trendColor}`} />
+                        <span className={`font-medium tabular-nums ${trendColor}`}>{pred.predicted}</span>
+                        <span className="text-gray-400">({pred.confidence}%)</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </>
+          ) : null}
+        </div>
+      </div>
+
       {/* ── Row 2: Pipeline Chart + Email Health Donut ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Pipeline Chart */}
-        <div className="lg:col-span-2 rounded-xl bg-white card-rest p-5 slide-up" style={{ animationDelay: '260ms' }}>
+        <div className="lg:col-span-2 rounded-xl bg-white card-rest p-5 slide-up" style={{ animationDelay: '340ms' }}>
           <div className="flex items-center gap-2 mb-5">
             <Target className="size-4 text-gray-400" />
             <h2 className="text-sm font-semibold text-gray-900 tracking-tight">Sales Pipeline</h2>
@@ -354,7 +484,7 @@ export function DashboardScreen() {
         </div>
 
         {/* Email Health Donut */}
-        <div className="rounded-xl bg-white card-rest p-5 slide-up" style={{ animationDelay: '320ms' }}>
+        <div className="rounded-xl bg-white card-rest p-5 slide-up" style={{ animationDelay: '400ms' }}>
           <div className="flex items-center gap-2 mb-5">
             <ShieldCheck className="size-4 text-gray-400" />
             <h2 className="text-sm font-semibold text-gray-900 tracking-tight">Email Health</h2>
@@ -412,7 +542,7 @@ export function DashboardScreen() {
       {/* ── Row 3: Activity Feed + Quick Actions ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Recent Activity */}
-        <div className="lg:col-span-2 rounded-xl bg-white card-rest p-5 slide-up" style={{ animationDelay: '380ms' }}>
+        <div className="lg:col-span-2 rounded-xl bg-white card-rest p-5 slide-up" style={{ animationDelay: '460ms' }}>
           <div className="flex items-center gap-2 mb-4">
             <Clock className="size-4 text-gray-400" />
             <h2 className="text-sm font-semibold text-gray-900 tracking-tight">Recent Activity</h2>
@@ -468,7 +598,7 @@ export function DashboardScreen() {
         </div>
 
         {/* Quick Actions */}
-        <div className="rounded-xl bg-white card-rest p-5 slide-up" style={{ animationDelay: '440ms' }}>
+        <div className="rounded-xl bg-white card-rest p-5 slide-up" style={{ animationDelay: '520ms' }}>
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="size-4 text-gray-400" />
             <h2 className="text-sm font-semibold text-gray-900 tracking-tight">Quick Actions</h2>

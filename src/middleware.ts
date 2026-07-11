@@ -3,18 +3,32 @@ import { NextResponse } from 'next/server'
 export function middleware(request: Request) {
   const { pathname } = new URL(request.url)
 
-  // Allow public routes
-  const publicPaths = ['/', '/login', '/favicon.ico']
+  // Public routes - always allow
+  const publicPaths = ['/', '/login', '/signup', '/favicon.ico']
   if (publicPaths.some(p => pathname === p)) return NextResponse.next()
 
-  // Allow Next.js internals
+  // Next.js internals - always allow
   if (pathname.startsWith('/_next') || pathname.startsWith('/api/auth')) return NextResponse.next()
 
-  // API routes: skip auth for demo (auth middleware layer handles it)
-  if (pathname.startsWith('/api/')) return NextResponse.next()
+  // Check for session token
+  const cookieHeader = request.headers.get('cookie') || ''
+  const hasSessionToken = cookieHeader.includes('next-auth.session-token') ||
+                          cookieHeader.includes('next-auth.session-token=')
 
-  // Protect /app routes (auth disabled for demo — allow all)
-  if (pathname.startsWith('/app')) return NextResponse.next()
+  // For API routes - return 401 if no session (in production)
+  if (pathname.startsWith('/api/')) {
+    if (!hasSessionToken && process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    return NextResponse.next()
+  }
+
+  // For page routes - redirect to login if no session (in production)
+  if (!hasSessionToken && process.env.NODE_ENV === 'production') {
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('callbackUrl', pathname)
+    return NextResponse.redirect(loginUrl)
+  }
 
   return NextResponse.next()
 }

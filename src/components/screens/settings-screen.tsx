@@ -5,7 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Eye, EyeOff, Download, Stethoscope, Save, Loader2, Mail,
   Cpu, Database, Trash2, AlertTriangle, Settings, Sparkles,
-  ExternalLink, CheckCircle2, XCircle,
+  ExternalLink, CheckCircle2, XCircle, Palette, Shield,
+  ChevronRight, ArrowRight, LayoutGrid, ClipboardList,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
@@ -24,6 +25,10 @@ import {
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/lib/store'
+import { fetchApi } from '@/lib/fetchApi'
+import { relativeDate } from '@/lib/date'
+import { useTheme } from 'next-themes'
+import type { AuditLogEntry } from '@/lib/types'
 
 /* ═══════════════════════════════════════════════════════════════
    Constants & Defaults
@@ -122,6 +127,135 @@ function SettingsToggleGroup<T extends string>({
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   Audit Logs Tab (compact view for Settings)
+   ═══════════════════════════════════════════════════════════════ */
+
+const ACTION_STYLES: Record<string, string> = {
+  create: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  update: 'bg-blue-50 text-blue-700 border-blue-200',
+  delete: 'bg-red-50 text-red-700 border-red-200',
+  login: 'bg-violet-50 text-violet-700 border-violet-200',
+  logout: 'bg-violet-50 text-violet-600 border-violet-200',
+  export: 'bg-amber-50 text-amber-700 border-amber-200',
+  import: 'bg-sky-50 text-sky-700 border-sky-200',
+}
+
+function AuditLogsTab() {
+  const { setActiveView } = useAppStore()
+
+  const { data: recentData } = useQuery({
+    queryKey: ['audit-logs-recent'],
+    queryFn: () => fetchApi<{ data: AuditLogEntry[]; total: number }>('/api/audit-logs', {
+      params: { limit: 5, offset: 0 },
+    }),
+    select: (res) => res.data,
+  })
+
+  const { data: statsData } = useQuery({
+    queryKey: ['audit-logs-stats'],
+    queryFn: () => fetchApi<{ data: AuditLogEntry[]; total: number }>('/api/audit-logs', {
+      params: { limit: 0, offset: 0 },
+    }),
+    select: (res) => res.data,
+  })
+
+  const recentLogs = recentData?.data ?? []
+  const totalCount = statsData?.total ?? 0
+
+  return (
+    <div className="space-y-6">
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl bg-white card-rest p-4 flex items-center gap-3">
+          <div className="size-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+            <LayoutGrid className="size-4.5 text-amber-600" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-gray-900">{totalCount}</p>
+            <p className="text-[11px] text-gray-500">Total log entries</p>
+          </div>
+        </div>
+        <div className="rounded-xl bg-white card-rest p-4 flex items-center gap-3">
+          <div className="size-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+            <Shield className="size-4.5 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-gray-900">{recentLogs.length}</p>
+            <p className="text-[11px] text-gray-500">Recent entries shown</p>
+          </div>
+        </div>
+      </div>
+
+      {/* View Full Audit Logs CTA */}
+      <div className="rounded-xl bg-white card-rest p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">Full Audit Log Viewer</h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              View all audit logs with advanced filtering, search, and CSV export capabilities.
+            </p>
+          </div>
+          <Button
+            className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale shrink-0"
+            onClick={() => setActiveView('audit-logs')}
+          >
+            <ArrowRight className="size-3.5 mr-1.5" />
+            View Full Audit Logs
+          </Button>
+        </div>
+      </div>
+
+      {/* Recent 5 Entries */}
+      <div className="rounded-xl bg-white card-rest p-6 space-y-4">
+        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+          <Shield className="size-4 text-gray-400" />
+          Recent Activity
+        </h3>
+
+        {recentLogs.length === 0 ? (
+          <div className="text-center py-8">
+            <ClipboardList className="size-8 text-gray-300 mx-auto mb-2" />
+            <p className="text-xs text-gray-500">No audit logs recorded yet.</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">Activity will appear here as you use the platform.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {recentLogs.map((log) => (
+              <div key={log.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'text-[10px] font-medium px-2 py-0.5 rounded-md border capitalize shrink-0',
+                    ACTION_STYLES[log.action] || 'bg-gray-50 text-gray-600 border-gray-200',
+                  )}
+                >
+                  {log.action}
+                </Badge>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-700 truncate">
+                    <span className="font-medium">{log.user?.name ?? 'System'}</span>
+                    <span className="text-gray-400 mx-1">·</span>
+                    {log.entity}{log.entityId ? ` #${log.entityId.slice(0, 8)}` : ''}
+                    {log.details && (
+                      <>
+                        <span className="text-gray-400 mx-1">·</span>
+                        <span className="text-gray-500">{log.details.length > 50 ? log.details.slice(0, 50) + '…' : log.details}</span>
+                      </>
+                    )}
+                  </p>
+                </div>
+                <span className="text-[11px] text-gray-400 shrink-0">{relativeDate(log.createdAt)}</span>
+                <ChevronRight className="size-3.5 text-gray-300 shrink-0" />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
    Main Settings Screen
    ═══════════════════════════════════════════════════════════════ */
 
@@ -140,6 +274,22 @@ export function SettingsScreen() {
     error?: string
   } | null>(null)
   const [justSavedAi, setJustSavedAi] = useState(false)
+  // ── Appearance state (synced with next-themes) ──
+  const { theme: nextTheme, setTheme: setNextTheme } = useTheme()
+  const [appearanceTheme, setAppearanceTheme] = useState('system')
+  const [appearanceDensity, setAppearanceDensity] = useState('comfortable')
+  const [appearanceSidebar, setAppearanceSidebar] = useState('expanded')
+
+  // Sync next-themes with local appearance state
+  const handleThemeChange = useCallback((value: string) => {
+    setAppearanceTheme(value)
+    setNextTheme(value)
+  }, [setNextTheme])
+
+  // Keep local appearanceTheme in sync with actual resolved theme
+  useEffect(() => {
+    if (nextTheme) setAppearanceTheme(nextTheme)
+  }, [nextTheme])
 
   // ── Preferences ──
   const { data: prefs, isLoading, error: prefsError } = useQuery({
@@ -385,7 +535,9 @@ export function SettingsScreen() {
           {[
             { value: 'email', label: 'Email Style', icon: Mail },
             { value: 'ai', label: 'AI Config', icon: Cpu },
+            { value: 'appearance', label: 'Appearance', icon: Palette },
             { value: 'data', label: 'Data', icon: Database },
+            { value: 'audit', label: 'Audit Logs', icon: Shield },
             { value: 'danger', label: 'Advanced', icon: AlertTriangle },
           ].map(tab => (
             <TabsTrigger
@@ -701,6 +853,125 @@ export function SettingsScreen() {
               </Button>
             </div>
           </div>
+        </TabsContent>
+
+        {/* ═══════════════════════════════════════════════════════
+            Tab: Appearance
+           ═══════════════════════════════════════════════════════ */}
+        <TabsContent value="appearance" className="space-y-6">
+          <div className="rounded-xl bg-white card-rest p-6 space-y-6">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900">Appearance</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Customize how DeepMindQ looks and feels.</p>
+            </div>
+
+            {/* Theme */}
+            <div>
+              <label className="text-xs font-medium text-gray-700 block mb-1.5">Theme</label>
+              <p className="text-[11px] text-gray-400 mb-3">Choose your preferred color scheme.</p>
+              <div className="grid grid-cols-3 gap-3 max-w-md">
+                {([
+                  { value: 'light', label: 'Light', bg: 'bg-white border-gray-200', preview: 'bg-gray-100' },
+                  { value: 'dark', label: 'Dark', bg: 'bg-gray-900 border-gray-700', preview: 'bg-gray-800' },
+                  { value: 'system', label: 'System', bg: 'bg-gradient-to-br from-white to-gray-900 border-gray-300', preview: 'bg-gray-50' },
+                ] as const).map(theme => (
+                  <button
+                    key={theme.value}
+                    onClick={() => handleThemeChange(theme.value)}
+                    className={cn(
+                      'relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-150 hover:shadow-sm',
+                      theme.bg,
+                      appearanceTheme === theme.value ? 'ring-2 ring-amber-500 shadow-xs' : 'hover:border-gray-300',
+                    )}
+                  >
+                    {/* Mini preview card */}
+                    <div className={cn('w-full h-10 rounded-lg', theme.preview)}>
+                      <div className={cn('h-2 rounded-t-lg',
+                        theme.value === 'dark' ? 'bg-gray-700' : 'bg-gray-200',
+                      )} />
+                      <div className="p-1.5 space-y-1">
+                        <div className={cn('h-1 w-3/4 rounded-full',
+                          theme.value === 'dark' ? 'bg-gray-600' : 'bg-gray-300',
+                        )} />
+                        <div className={cn('h-1 w-1/2 rounded-full',
+                          theme.value === 'dark' ? 'bg-gray-600' : 'bg-gray-300',
+                        )} />
+                      </div>
+                    </div>
+                    <span className={cn('text-[11px] font-medium',
+                      theme.value === 'dark' ? 'text-gray-300' : 'text-gray-700',
+                    )}>
+                      {theme.label}
+                    </span>
+                    {appearanceTheme === theme.value && (
+                      <div className="absolute -top-1 -right-1 size-4 bg-amber-600 rounded-full flex items-center justify-center">
+                        <CheckCircle2 className="size-3 text-white" />
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Separator className="bg-gray-100" />
+
+            {/* Sidebar Default */}
+            <div>
+              <label className="text-xs font-medium text-gray-700 block mb-1.5">Sidebar Default</label>
+              <p className="text-[11px] text-gray-400 mb-2">Choose whether the sidebar starts expanded or collapsed.</p>
+              <SettingsToggleGroup
+                label=""
+                options={[
+                  { value: 'expanded', label: 'Expanded' },
+                  { value: 'collapsed', label: 'Collapsed' },
+                ]}
+                value={appearanceSidebar}
+                onChange={v => setAppearanceSidebar(v)}
+              />
+            </div>
+
+            <Separator className="bg-gray-100" />
+
+            {/* Density */}
+            <div>
+              <label className="text-xs font-medium text-gray-700 block mb-1.5">Density</label>
+              <p className="text-[11px] text-gray-400 mb-2">Control the spacing and compactness of the interface.</p>
+              <SettingsToggleGroup
+                label=""
+                options={[
+                  { value: 'compact', label: 'Compact' },
+                  { value: 'comfortable', label: 'Comfortable' },
+                  { value: 'sparse', label: 'Sparse' },
+                ]}
+                value={appearanceDensity}
+                onChange={v => setAppearanceDensity(v)}
+              />
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale"
+                onClick={() => {
+                  savePrefs.mutate({
+                    theme: appearanceTheme,
+                    density: appearanceDensity,
+                    sidebarDefault: appearanceSidebar,
+                  })
+                }}
+                disabled={savePrefs.isPending}
+              >
+                {savePrefs.isPending ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <Save className="size-3.5 mr-1.5" />}
+                Save Appearance
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* ═══════════════════════════════════════════════════════
+            Tab: Audit Logs
+           ═══════════════════════════════════════════════════════ */}
+        <TabsContent value="audit" className="space-y-6">
+          <AuditLogsTab />
         </TabsContent>
 
         {/* ═══════════════════════════════════════════════════════

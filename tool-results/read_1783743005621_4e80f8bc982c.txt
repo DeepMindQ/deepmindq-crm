@@ -1,0 +1,942 @@
+     1→'use client'
+     2→
+     3→import { useState, useRef, useCallback, useMemo } from 'react'
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import {
+     6→  Plus, Search, ChevronLeft, ChevronRight, Users, Mail, ShieldCheck,
+     7→  Sparkles, MoreHorizontal, Pencil, Archive, Loader2, Building2,
+     8→  CheckCircle2, XCircle, X,
+     9→} from 'lucide-react'
+    10→import { toast } from 'sonner'
+    11→import { Button } from '@/components/ui/button'
+    12→import { Input } from '@/components/ui/input'
+    13→import { Label } from '@/components/ui/label'
+    14→import { Skeleton } from '@/components/ui/skeleton'
+    15→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+    16→import {
+    17→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+    18→} from '@/components/ui/dialog'
+    19→import {
+    20→  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+    21→  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+    22→} from '@/components/ui/alert-dialog'
+    23→import {
+    24→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    25→} from '@/components/ui/select'
+    26→import {
+    27→  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+    28→  DropdownMenuTrigger, DropdownMenuSeparator,
+    29→} from '@/components/ui/dropdown-menu'
+    30→import { EmptyState, SortableHeader, StatusDot } from '@/components/shared/design-system'
+    31→import { useAppStore } from '@/lib/store'
+    32→import { cn } from '@/lib/utils'
+    33→import { getHealthVariant, ROLE_BUCKETS } from '@/lib/constants'
+    34→import type { Contact, Company } from '@/lib/types'
+    35→
+    36→/* ── Constants ── */
+    37→
+    38→const PAGE_SIZE = 20
+    39→
+    40→/* ── Component ── */
+    41→
+    42→interface ContactRow {
+    43→  id: string
+    44→  name: string
+    45→  email: string | null
+    46→  jobTitle: string | null
+    47→  roleBucket: string | null
+    48→  linkedinUrl: string | null
+    49→  status: string
+    50→  emailHealth: string | null
+    51→  company: Company | null
+    52→  _draftCount?: number
+    53→}
+    54→
+    55→export default function ContactsScreen() {
+    56→  const qc = useQueryClient()
+    57→  const { setSelectedCompanyId } = useAppStore()
+    58→
+    59→  /* ── List state ── */
+    60→  const [page, setPage] = useState(1)
+    61→  const [search, setSearch] = useState('')
+    62→  const [status, setStatus] = useState('')
+    63→  const [health, setHealth] = useState('')
+    64→  const [sortKey, setSortKey] = useState('name')
+    65→  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+    66→  const [debouncedSearch, setDebouncedSearch] = useState('')
+    67→  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+    68→
+    69→  /* ── Capture selectedCompanyId on mount, then clear it ── */
+    70→  const [filterCompanyId, setFilterCompanyId] = useState<string | null>(() => {
+    71→    const id = useAppStore.getState().selectedCompanyId
+    72→    if (id) {
+    73→      useAppStore.getState().setSelectedCompanyId(null)
+    74→      return id
+    75→    }
+    76→    return null
+    77→  })
+    78→
+    79→  /* ── Validation loading per contact ── */
+    80→  const [validatingIds, setValidatingIds] = useState<Set<string>>(new Set())
+    81→  const [flashIds, setFlashIds] = useState<Set<string>>(new Set())
+    82→
+    83→  /* ── Batch validate confirmation ── */
+    84→  const [batchValidateOpen, setBatchValidateOpen] = useState(false)
+    85→
+    86→  /* ── Add dialog ── */
+    87→  const [dlgOpen, setDlgOpen] = useState(false)
+    88→  const [form, setForm] = useState({
+    89→    name: '', email: '', jobTitle: '', roleBucket: '',
+    90→    companyId: '', linkedinUrl: '',
+    91→  })
+    92→
+    93→  /* ── Edit dialog ── */
+    94→  const [editOpen, setEditOpen] = useState(false)
+    95→  const [editingContact, setEditingContact] = useState<ContactRow | null>(null)
+    96→  const [editForm, setEditForm] = useState({
+    97→    name: '', email: '', jobTitle: '', roleBucket: '',
+    98→    companyId: '', linkedinUrl: '',
+    99→  })
+   100→
+   101→  /* ── Archive confirm ── */
+   102→  const [archiveOpen, setArchiveOpen] = useState(false)
+   103→  const [archivingContact, setArchivingContact] = useState<ContactRow | null>(null)
+   104→
+   105→  /* ── Handlers ── */
+   106→  const updateSearch = useCallback((v: string) => {
+   107→    setSearch(v)
+   108→    setPage(1)
+   109→    clearTimeout(timerRef.current)
+   110→    timerRef.current = setTimeout(() => setDebouncedSearch(v), 300)
+   111→  }, [])
+   112→
+   113→  const updateStatus = useCallback((v: string) => {
+   114→    setStatus(v === 'all' ? '' : v)
+   115→    setPage(1)
+   116→  }, [])
+   117→
+   118→  const updateHealth = useCallback((v: string) => {
+   119→    setHealth(v === 'all' ? '' : v)
+   120→    setPage(1)
+   121→  }, [])
+   122→
+   123→  const handleSort = useCallback((key: string) => {
+   124→    if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+   125→    else { setSortKey(key); setSortDir('asc') }
+   126→  }, [sortKey])
+   127→
+   128→  const updateField = (k: keyof typeof form, v: string) =>
+   129→    setForm(p => ({ ...p, [k]: v }))
+   130→
+   131→  const updateEditField = (k: keyof typeof editForm, v: string) =>
+   132→    setEditForm(p => ({ ...p, [k]: v }))
+   133→
+   134→  const openEditDialog = (c: ContactRow) => {
+   135→    setEditingContact(c)
+   136→    setEditForm({
+   137→      name: c.name || '',
+   138→      email: c.email || '',
+   139→      jobTitle: c.jobTitle || '',
+   140→      roleBucket: c.roleBucket || '',
+   141→      companyId: c.company?.id || '',
+   142→      linkedinUrl: c.linkedinUrl || '',
+   143→    })
+   144→    setEditOpen(true)
+   145→  }
+   146→
+   147→  const openArchiveConfirm = (c: ContactRow) => {
+   148→    setArchivingContact(c)
+   149→    setArchiveOpen(true)
+   150→  }
+   151→
+   152→  const navigateToContact = (id: string) => {
+   153→    useAppStore.getState().setSelectedContactId(id)
+   154→    useAppStore.getState().setActiveView('contact-profile')
+   155→  }
+   156→
+   157→  const navigateToCompany = (id: string) => {
+   158→    useAppStore.getState().setSelectedCompanyId(id)
+   159→    useAppStore.getState().setActiveView('company-profile')
+   160→  }
+   161→
+   162→  const navigateToEmailGen = (id: string) => {
+   163→    useAppStore.getState().setSelectedContactId(id)
+   164→    useAppStore.getState().setActiveView('email-generation')
+   165→  }
+   166→
+   167→  /* ── Queries ── */
+   168→  /* ── Fetch company name for filter banner ── */
+   169→  const { data: filterCompany } = useQuery({
+   170→    queryKey: ['company-brief-contacts', filterCompanyId],
+   171→    queryFn: () => fetch(`/api/companies/${filterCompanyId}`).then(r => {
+   172→      if (!r.ok) throw new Error('Failed to load company')
+   173→      return r.json()
+   174→    }),
+   175→    enabled: !!filterCompanyId,
+   176→  })
+   177→
+   178→  const { data, isLoading, error } = useQuery({
+   179→    queryKey: ['contacts', debouncedSearch, status, health, page, filterCompanyId],
+   180→    queryFn: () => {
+   181→      const p = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
+   182→      if (debouncedSearch) p.set('search', debouncedSearch)
+   183→      if (status) p.set('status', status)
+   184→      if (health) p.set('emailHealth', health)
+   185→      if (filterCompanyId) p.set('companyId', filterCompanyId)
+   186→      return fetch(`/api/contacts?${p}`).then(r => {
+   187→        if (!r.ok) throw new Error('Failed to load contacts')
+   188→        return r.json()
+   189→      })
+   190→    },
+   191→  })
+   192→
+   193→  const { data: companiesList } = useQuery({
+   194→    queryKey: ['companies', 'contact-dialog'],
+   195→    queryFn: () =>
+   196→      fetch('/api/companies?pageSize=100')
+   197→        .then(r => { if (!r.ok) throw new Error('Failed to load companies'); return r.json() })
+   198→        .then(d => d.companies ?? []),
+   199→  })
+   200→
+   201→  /* ── Mutations ── */
+   202→  const addContact = useMutation({
+   203→    mutationFn: (f: typeof form) =>
+   204→      fetch('/api/contacts', {
+   205→        method: 'POST',
+   206→        headers: { 'Content-Type': 'application/json' },
+   207→        body: JSON.stringify(f),
+   208→      })
+   209→        .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error) })),
+   210→    onSuccess: () => {
+   211→      qc.invalidateQueries({ queryKey: ['contacts'] })
+   212→      setDlgOpen(false)
+   213→      setForm({ name: '', email: '', jobTitle: '', roleBucket: '', companyId: '', linkedinUrl: '' })
+   214→      toast.success('Contact added')
+   215→    },
+   216→    onError: (e: Error) => toast.error(e.message),
+   217→  })
+   218→
+   219→  const validateEmail = useMutation({
+   220→    mutationFn: (id: string) =>
+   221→      fetch(`/api/contacts/${id}/validate`, { method: 'POST' }).then(r => {
+   222→        if (!r.ok) throw new Error('Validation request failed')
+   223→        return r.json()
+   224→      }),
+   225→    onMutate: (id) => {
+   226→      setValidatingIds(prev => new Set(prev).add(id))
+   227→    },
+   228→    onSuccess: (_result, id) => {
+   229→      setValidatingIds(prev => {
+   230→        const next = new Set(prev)
+   231→        next.delete(id)
+   232→        return next
+   233→      })
+   234→      // Flash the badge to indicate update
+   235→      setFlashIds(prev => new Set(prev).add(id))
+   236→      setTimeout(() => {
+   237→        setFlashIds(prev => {
+   238→          const next = new Set(prev)
+   239→          next.delete(id)
+   240→          return next
+   241→        })
+   242→      }, 1500)
+   243→      qc.invalidateQueries({ queryKey: ['contacts'] })
+   244→      toast.success('Email validated')
+   245→    },
+   246→    onError: (_e, id) => {
+   247→      setValidatingIds(prev => {
+   248→        const next = new Set(prev)
+   249→        next.delete(id)
+   250→        return next
+   251→      })
+   252→      toast.error('Validation failed')
+   253→    },
+   254→  })
+   255→
+   256→  const editContact = useMutation({
+   257→    mutationFn: ({ id, ...f }: typeof editForm & { id: string }) =>
+   258→      fetch(`/api/contacts/${id}`, {
+   259→        method: 'PATCH',
+   260→        headers: { 'Content-Type': 'application/json' },
+   261→        body: JSON.stringify(f),
+   262→      })
+   263→        .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error) })),
+   264→    onSuccess: () => {
+   265→      qc.invalidateQueries({ queryKey: ['contacts'] })
+   266→      setEditOpen(false)
+   267→      setEditingContact(null)
+   268→      toast.success('Contact updated')
+   269→    },
+   270→    onError: (e: Error) => toast.error(e.message),
+   271→  })
+   272→
+   273→  const archiveContact = useMutation({
+   274→    mutationFn: (id: string) =>
+   275→      fetch(`/api/contacts/${id}`, { method: 'DELETE' })
+   276→        .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error) })),
+   277→    onSuccess: () => {
+   278→      qc.invalidateQueries({ queryKey: ['contacts'] })
+   279→      setArchiveOpen(false)
+   280→      setArchivingContact(null)
+   281→      toast.success('Contact archived')
+   282→    },
+   283→    onError: (e: Error) => toast.error(e.message),
+   284→  })
+   285→
+   286→  /* ── Batch email validation ── */
+   287→  const batchValidateMutation = useMutation({
+   288→    mutationFn: () =>
+   289→      fetch('/api/health-check', {
+   290→        method: 'POST',
+   291→        headers: { 'Content-Type': 'application/json' },
+   292→        body: JSON.stringify({ checkAll: true }),
+   293→      }).then(r => {
+   294→        if (!r.ok) throw new Error('Batch validation failed')
+   295→        return r.json()
+   296→      }),
+   297→    onSuccess: (result) => {
+   298→      qc.invalidateQueries({ queryKey: ['contacts'] })
+   299→      const summary = result?.summary || `${result?.checked ?? 0} emails checked`
+   300→      toast.success(`Email validation complete: ${summary}`)
+   301→    },
+   302→    onError: (e: Error) => toast.error(e.message),
+   303→  })
+   304→
+   305→  /* ── Derived ── */
+   306→  const contacts: ContactRow[] = data?.contacts ?? []
+   307→  const total = data?.total ?? 0
+   308→  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+   309→
+   310→  // Build draft indicator set from list data — using useMemo (C14 fix)
+   311→  const draftContacts = useMemo(() => {
+   312→    const ids = new Set<string>()
+   313→    contacts.forEach((c: ContactRow) => {
+   314→      if (c._draftCount && c._draftCount > 0) ids.add(c.id)
+   315→    })
+   316→    return ids
+   317→  }, [contacts])
+   318→
+   319→  /* ── Render ── */
+   320→  return (
+   321→    <div className="space-y-4">
+   322→      {/* ═══ Company Filter Banner ═══ */}
+   323→      {filterCompanyId && (
+   324→        <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200/80">
+   325→          <Building2 className="size-4 text-amber-600 shrink-0" />
+   326→          <p className="text-sm text-amber-800">
+   327→            Showing contacts for <span className="font-semibold">{filterCompany?.name || 'Company'}</span>
+   328→          </p>
+   329→          <button
+   330→            onClick={() => setFilterCompanyId(null)}
+   331→            className="ml-auto p-1 rounded-md hover:bg-amber-100 transition-colors"
+   332→            aria-label="Clear company filter"
+   333→          >
+   334→            <X className="size-3.5 text-amber-600" />
+   335→          </button>
+   336→        </div>
+   337→      )}
+   338→
+   339→      {/* ═══ Header ═══ */}
+   340→      <div className="flex items-center justify-between gap-3">
+   341→        <div className="flex items-center gap-2.5">
+   342→          <Users className="size-5 text-gray-400" />
+   343→          <h2 className="text-lg font-bold text-gray-900 tracking-tight">Contacts</h2>
+   344→          {total > 0 && (
+   345→            <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full font-semibold tabular-nums">
+   346→              {total}
+   347→            </span>
+   348→          )}
+   349→        </div>
+   350→        <div className="flex items-center gap-2">
+   351→          {/* ═══ Batch Validate Emails Button (H4 fix — opens confirmation) ═══ */}
+   352→          <Button
+   353→            size="sm"
+   354→            variant="outline"
+   355→            className="border-gray-200 text-gray-600 rounded-lg press-scale shrink-0"
+   356→            onClick={() => setBatchValidateOpen(true)}
+   357→            disabled={batchValidateMutation.isPending}
+   358→          >
+   359→            {batchValidateMutation.isPending
+   360→              ? <Loader2 className="size-4 animate-spin" />
+   361→              : <ShieldCheck className="size-4" />
+   362→            }
+   363→            <span className="hidden sm:inline ml-1.5">{batchValidateMutation.isPending ? 'Validating...' : 'Validate Emails'}</span>
+   364→          </Button>
+   365→          <Button
+   366→            size="sm"
+   367→            onClick={() => setDlgOpen(true)}
+   368→            className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs shrink-0"
+   369→          >
+   370→            <Plus className="size-4" /> <span className="hidden sm:inline ml-1.5">Add Contact</span>
+   371→          </Button>
+   372→        </div>
+   373→      </div>
+   374→
+   375→      {/* ═══ Error Banner ═══ */}
+   376→      {error && (
+   377→        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+   378→          Failed to load contacts. Please try again.
+   379→        </div>
+   380→      )}
+   381→
+   382→      {/* ═══ Filters ═══ */}
+   383→      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
+   384→        <div className="relative flex-1 sm:min-w-[200px] sm:max-w-xs">
+   385→          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+   386→          <Input
+   387→            placeholder="Search contacts..."
+   388→            value={search}
+   389→            onChange={e => updateSearch(e.target.value)}
+   390→            className="bg-white border border-gray-200 rounded-lg h-9 pl-9 text-sm placeholder:text-gray-400 focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
+   391→          />
+   392→        </div>
+   393→        <Select value={status || 'all'} onValueChange={updateStatus}>
+   394→          <SelectTrigger className="border-gray-200 rounded-lg h-9 w-32 text-sm">
+   395→            <SelectValue placeholder="Status" />
+   396→          </SelectTrigger>
+   397→          <SelectContent>
+   398→            <SelectItem value="all">All Status</SelectItem>
+   399→            <SelectItem value="active">Active</SelectItem>
+   400→            <SelectItem value="inactive">Inactive</SelectItem>
+   401→            <SelectItem value="archived">Archived</SelectItem>
+   402→          </SelectContent>
+   403→        </Select>
+   404→        <Select value={health || 'all'} onValueChange={updateHealth} data-filter="health">
+   405→          <SelectTrigger className="border-gray-200 rounded-lg h-9 w-32 text-sm">
+   406→            <SelectValue placeholder="Health" />
+   407→          </SelectTrigger>
+   408→          <SelectContent>
+   409→            <SelectItem value="all">All Health</SelectItem>
+   410→            <SelectItem value="valid">Valid</SelectItem>
+   411→            <SelectItem value="risky">Risky</SelectItem>
+   412→            <SelectItem value="invalid">Invalid</SelectItem>
+   413→            <SelectItem value="unknown">Unknown</SelectItem>
+   414→          </SelectContent>
+   415→        </Select>
+   416→      </div>
+   417→
+   418→      {/* ═══ Table ═══ */}
+   419→      {isLoading ? (
+   420→        <div className="rounded-xl bg-white card-rest overflow-hidden">
+   421→          <div className="p-4 space-y-2">
+   422→            <Skeleton className="h-8 w-full rounded-lg" />
+   423→            {[...Array(6)].map((_, i) => (
+   424→              <Skeleton key={i} className="h-12 w-full rounded-lg" />
+   425→            ))}
+   426→          </div>
+   427→        </div>
+   428→      ) : contacts.length === 0 ? (
+   429→        <div className="rounded-xl bg-white card-rest overflow-hidden">
+   430→          <EmptyState
+   431→            icon={Users}
+   432→            title="No contacts found"
+   433→            description="Try adjusting your search or filters, or add your first contact."
+   434→            actionLabel="Add Contact"
+   435→            onAction={() => setDlgOpen(true)}
+   436→            secondaryActionLabel="Import CSV"
+   437→            onSecondaryAction={() => useAppStore.getState().setActiveView('import')}
+   438→          />
+   439→        </div>
+   440→      ) : (
+   441→        <div className="rounded-xl bg-white card-rest overflow-hidden">
+   442→          <Table>
+   443→            <TableHeader>
+   444→              <TableRow className="hover:bg-transparent bg-gray-50/80 border-b border-gray-200/60">
+   445→                <SortableHeader label="Name" sortKey="name" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+   446→                <th className="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-4 py-3 hidden md:table-cell">
+   447→                  Company
+   448→                </th>
+   449→                <th className="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-4 py-3 hidden lg:table-cell">
+   450→                  Job Title
+   451→                </th>
+   452→                <SortableHeader label="Email" sortKey="email" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+   453→                <th className="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">
+   454→                  Health
+   455→                </th>
+   456→                <th className="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">
+   457→                  Status
+   458→                </th>
+   459→                <th className="w-10 px-4 py-3" />
+   460→              </TableRow>
+   461→            </TableHeader>
+   462→            <TableBody>
+   463→              {contacts.map((c) => {
+   464→                const isValidating = validatingIds.has(c.id)
+   465→                const isFlashing = flashIds.has(c.id)
+   466→                const hasDrafts = draftContacts.has(c.id)
+   467→
+   468→                return (
+   469→                  <TableRow
+   470→                    key={c.id}
+   471→                    className="table-row-hover border-b border-gray-50 last:border-b-0 group cursor-pointer"
+   472→                    onClick={() => navigateToContact(c.id)}
+   473→                  >
+   474→                    {/* Name */}
+   475→                    <TableCell>
+   476→                      <div className="flex items-center gap-2.5">
+   477→                        <div className="size-7 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 text-[11px] font-semibold shrink-0">
+   478→                          {c.name?.charAt(0)?.toUpperCase()}
+   479→                        </div>
+   480→                        <div className="flex items-center gap-1.5 min-w-0">
+   481→                          <span className="text-sm font-semibold text-gray-900 truncate group-hover:text-amber-700 transition-colors duration-150">{c.name}</span>
+   482→                          <ChevronRight className="size-3 text-gray-300 group-hover:text-amber-500 opacity-0 group-hover:opacity-100 transition-all duration-150 shrink-0" />
+   483→                          {hasDrafts && (
+   484→                            <span
+   485→                              className="inline-flex items-center gap-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 px-1.5 py-px text-[10px] font-medium shrink-0"
+   486→                              title="AI email generated"
+   487→                            >
+   488→                              <Sparkles className="size-2.5" />
+   489→                              AI
+   490→                            </span>
+   491→                          )}
+   492→                        </div>
+   493→                      </div>
+   494→                    </TableCell>
+   495→
+   496→                    {/* Company — clickable */}
+   497→                    <TableCell className="hidden md:table-cell">
+   498→                      {c.company?.id ? (
+   499→                        <button
+   500→                          onClick={e => {
+   501→                            e.stopPropagation()
+   502→                            navigateToCompany(c.company!.id)
+   503→                          }}
+   504→                          className="text-sm text-amber-600 hover:text-amber-700 font-medium transition-colors duration-150 inline-flex items-center gap-1 group/biz hover:underline underline-offset-2"
+   505→                        >
+   506→                          <Building2 className="size-3 text-gray-400 group-hover/biz:text-amber-500 transition-colors" />
+   507→                          {c.company.name}
+   508→                        </button>
+   509→                      ) : (
+   510→                        <span className="text-sm text-gray-400">—</span>
+   511→                      )}
+   512→                    </TableCell>
+   513→
+   514→                    {/* Job Title */}
+   515→                    <TableCell className="hidden lg:table-cell text-sm text-gray-500">
+   516→                      {c.jobTitle || '—'}
+   517→                    </TableCell>
+   518→
+   519→                    {/* Email */}
+   520→                    <TableCell>
+   521→                      <span className="text-sm text-gray-600 font-mono text-xs">{c.email || '—'}</span>
+   522→                    </TableCell>
+   523→
+   524→                    {/* Health with validation UX */}
+   525→                    <TableCell>
+   526→                      <div className="flex items-center gap-2">
+   527→                        <span
+   528→                          className={cn(
+   529→                            'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium border transition-all duration-500',
+   530→                            getHealthVariant(c.emailHealth || 'unknown'),
+   531→                            isFlashing && 'scale-110 ring-2 ring-amber-300 shadow-amber-100 shadow-sm',
+   532→                          )}
+   533→                        >
+   534→                          {isValidating ? (
+   535→                            <Loader2 className="size-3 animate-spin mr-1" />
+   536→                          ) : c.emailHealth === 'valid' ? (
+   537→                            <CheckCircle2 className="size-3 mr-0.5" />
+   538→                          ) : c.emailHealth === 'invalid' ? (
+   539→                            <XCircle className="size-3 mr-0.5" />
+   540→                          ) : null}
+   541→                          {c.emailHealth || 'unknown'}
+   542→                        </span>
+   543→                        <button
+   544→                          onClick={e => {
+   545→                            e.stopPropagation()
+   546→                            validateEmail.mutate(c.id)
+   547→                          }}
+   548→                          disabled={isValidating}
+   549→                          className={cn(
+   550→                            'p-1 rounded transition-all',
+   551→                            'opacity-100 sm:opacity-0 sm:group-hover:opacity-100',
+   552→                            isValidating
+   553→                              ? 'hover:bg-emerald-50 cursor-wait'
+   554→                              : 'hover:bg-emerald-50',
+   555→                          )}
+   556→                          title="Validate email"
+   557→                        >
+   558→                          <ShieldCheck
+   559→                            className={cn(
+   560→                              'size-3.5',
+   561→                              isValidating ? 'text-emerald-400 animate-pulse' : 'text-emerald-500',
+   562→                            )}
+   563→                          />
+   564→                        </button>
+   565→                      </div>
+   566→                    </TableCell>
+   567→
+   568→                    {/* Status */}
+   569→                    <TableCell>
+   570→                      <span
+   571→                        className={cn(
+   572→                          'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium border gap-1.5',
+   573→                          c.status === 'active'
+   574→                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+   575→                            : c.status === 'archived'
+   576→                              ? 'bg-gray-100 text-gray-400 border-gray-200'
+   577→                              : 'bg-amber-50 text-amber-700 border-amber-200',
+   578→                        )}
+   579→                      >
+   580→                        <StatusDot
+   581→                          status={
+   582→                            c.status === 'active' ? 'fresh'
+   583→                              : c.status === 'archived' ? 'old'
+   584→                                : 'stale'
+   585→                          }
+   586→                        />
+   587→                        {c.status}
+   588→                      </span>
+   589→                    </TableCell>
+   590→
+   591→                    {/* Dropdown */}
+   592→                    <TableCell>
+   593→                      <DropdownMenu>
+   594→                        <DropdownMenuTrigger asChild>
+   595→                          <button
+   596→                            className="p-1 rounded-md hover:bg-gray-100 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+   597→                            onClick={e => e.stopPropagation()}
+   598→                          >
+   599→                            <MoreHorizontal className="size-4 text-gray-400" />
+   600→                          </button>
+   601→                        </DropdownMenuTrigger>
+   602→                        <DropdownMenuContent
+   603→                          align="end"
+   604→                          className="w-48 rounded-xl p-1.5 elevation-float"
+   605→                        >
+   606→                          <DropdownMenuItem
+   607→                            className="rounded-lg text-sm"
+   608→                            onClick={() => navigateToContact(c.id)}
+   609→                          >
+   610→                            <Users className="size-3.5 mr-2 text-gray-400" />
+   611→                            View Profile
+   612→                          </DropdownMenuItem>
+   613→                          <DropdownMenuItem
+   614→                            className="rounded-lg text-sm"
+   615→                            onClick={(e) => {
+   616→                              e.stopPropagation()
+   617→                              validateEmail.mutate(c.id)
+   618→                            }}
+   619→                            disabled={isValidating}
+   620→                          >
+   621→                            {isValidating
+   622→                              ? <Loader2 className="size-3.5 mr-2 text-emerald-500 animate-spin" />
+   623→                              : <ShieldCheck className="size-3.5 mr-2 text-emerald-500" />
+   624→                            }
+   625→                            {isValidating ? 'Validating...' : 'Validate Email'}
+   626→                          </DropdownMenuItem>
+   627→                          <DropdownMenuItem
+   628→                            className="rounded-lg text-sm"
+   629→                            onClick={() => navigateToEmailGen(c.id)}
+   630→                          >
+   631→                            <Sparkles className="size-3.5 mr-2 text-amber-500" />
+   632→                            Generate Email
+   633→                          </DropdownMenuItem>
+   634→                          <DropdownMenuSeparator className="my-1" />
+   635→                          <DropdownMenuItem
+   636→                            className="rounded-lg text-sm"
+   637→                            onClick={() => openEditDialog(c)}
+   638→                          >
+   639→                            <Pencil className="size-3.5 mr-2 text-gray-400" />
+   640→                            Edit
+   641→                          </DropdownMenuItem>
+   642→                          <DropdownMenuItem
+   643→                            className="rounded-lg text-sm text-red-600 focus:text-red-600 focus:bg-red-50"
+   644→                            onClick={() => openArchiveConfirm(c)}
+   645→                          >
+   646→                            <Archive className="size-3.5 mr-2 text-red-500" />
+   647→                            Archive
+   648→                          </DropdownMenuItem>
+   649→                        </DropdownMenuContent>
+   650→                      </DropdownMenu>
+   651→                    </TableCell>
+   652→                  </TableRow>
+   653→                )
+   654→              })}
+   655→            </TableBody>
+   656→          </Table>
+   657→        </div>
+   658→      )}
+   659→
+   660→      {/* ═══ Pagination ═══ */}
+   661→      {totalPages > 1 && (
+   662→        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 text-sm text-gray-500">
+   663→          <span className="text-center sm:text-left">
+   664→            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
+   665→          </span>
+   666→          <div className="flex items-center gap-1 justify-center">
+   667→            <Button
+   668→              variant="outline"
+   669→              size="sm"
+   670→              disabled={page <= 1}
+   671→              onClick={() => setPage(p => p - 1)}
+   672→              className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 h-8 text-xs"
+   673→            >
+   674→              <ChevronLeft className="size-3.5 mr-1" /> Previous
+   675→            </Button>
+   676→            <Button
+   677→              variant="outline"
+   678→              size="sm"
+   679→              disabled={page >= totalPages}
+   680→              onClick={() => setPage(p => p + 1)}
+   681→              className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 h-8 text-xs"
+   682→            >
+   683→              Next <ChevronRight className="size-3.5 ml-1" />
+   684→            </Button>
+   685→          </div>
+   686→        </div>
+   687→      )}
+   688→
+   689→      {/* ════════════ Add Contact Dialog ════════════ */}
+   690→      <Dialog open={dlgOpen} onOpenChange={setDlgOpen}>
+   691→        <DialogContent className="sm:max-w-md bg-white rounded-xl">
+   692→          <DialogHeader>
+   693→            <DialogTitle className="text-gray-900">Add Contact</DialogTitle>
+   694→          </DialogHeader>
+   695→          <div className="grid gap-4 py-2">
+   696→            <div className="grid gap-1.5">
+   697→              <Label className="text-sm font-medium text-gray-700">Name *</Label>
+   698→              <Input
+   699→                value={form.name}
+   700→                onChange={e => updateField('name', e.target.value)}
+   701→                className="border-gray-200 rounded-lg h-9 text-sm"
+   702→              />
+   703→            </div>
+   704→            <div className="grid gap-1.5">
+   705→              <Label className="text-sm font-medium text-gray-700">Email</Label>
+   706→              <Input
+   707→                type="email"
+   708→                value={form.email}
+   709→                onChange={e => updateField('email', e.target.value)}
+   710→                className="border-gray-200 rounded-lg h-9 text-sm font-mono"
+   711→              />
+   712→            </div>
+   713→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   714→              <div className="grid gap-1.5">
+   715→                <Label className="text-sm font-medium text-gray-700">Job Title</Label>
+   716→                <Input
+   717→                  value={form.jobTitle}
+   718→                  onChange={e => updateField('jobTitle', e.target.value)}
+   719→                  className="border-gray-200 rounded-lg h-9 text-sm"
+   720→                />
+   721→              </div>
+   722→              <div className="grid gap-1.5">
+   723→                <Label className="text-sm font-medium text-gray-700">Role</Label>
+   724→                <Select value={form.roleBucket} onValueChange={v => updateField('roleBucket', v)}>
+   725→                  <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm">
+   726→                    <SelectValue placeholder="Select" />
+   727→                  </SelectTrigger>
+   728→                  <SelectContent>
+   729→                    {ROLE_BUCKETS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+   730→                  </SelectContent>
+   731→                </Select>
+   732→              </div>
+   733→            </div>
+   734→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   735→              <div className="grid gap-1.5">
+   736→                <Label className="text-sm font-medium text-gray-700">Company *</Label>
+   737→                <Select value={form.companyId} onValueChange={v => updateField('companyId', v)}>
+   738→                  <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm">
+   739→                    <SelectValue placeholder="Select company" />
+   740→                  </SelectTrigger>
+   741→                  <SelectContent>
+   742→                    {(companiesList || []).map((c: Company) => (
+   743→                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+   744→                    ))}
+   745→                  </SelectContent>
+   746→                </Select>
+   747→              </div>
+   748→              <div className="grid gap-1.5">
+   749→                <Label className="text-sm font-medium text-gray-700">LinkedIn</Label>
+   750→                <Input
+   751→                  value={form.linkedinUrl}
+   752→                  onChange={e => updateField('linkedinUrl', e.target.value)}
+   753→                  className="border-gray-200 rounded-lg h-9 text-sm"
+   754→                />
+   755→              </div>
+   756→            </div>
+   757→          </div>
+   758→          <DialogFooter>
+   759→            <Button
+   760→              variant="outline"
+   761→              onClick={() => setDlgOpen(false)}
+   762→              className="border-gray-200 text-gray-600 hover:bg-gray-50"
+   763→            >
+   764→              Cancel
+   765→            </Button>
+   766→            <Button
+   767→              onClick={() => addContact.mutate(form)}
+   768→              disabled={!form.name.trim() || !form.companyId || addContact.isPending}
+   769→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale"
+   770→            >
+   771→              {addContact.isPending ? 'Adding...' : 'Add Contact'}
+   772→            </Button>
+   773→          </DialogFooter>
+   774→        </DialogContent>
+   775→      </Dialog>
+   776→
+   777→      {/* ════════════ Edit Contact Dialog (H5 fix — company is now Select) ════════════ */}
+   778→      <Dialog
+   779→        open={editOpen}
+   780→        onOpenChange={(open) => { if (!open) { setEditOpen(false); setEditingContact(null) } }}
+   781→      >
+   782→        <DialogContent className="sm:max-w-md bg-white rounded-xl">
+   783→          <DialogHeader>
+   784→            <DialogTitle className="text-gray-900">Edit Contact</DialogTitle>
+   785→          </DialogHeader>
+   786→          <div className="grid gap-4 py-2">
+   787→            <div className="grid gap-1.5">
+   788→              <Label className="text-sm font-medium text-gray-700">Name *</Label>
+   789→              <Input
+   790→                value={editForm.name}
+   791→                onChange={e => updateEditField('name', e.target.value)}
+   792→                className="border-gray-200 rounded-lg h-9 text-sm"
+   793→              />
+   794→            </div>
+   795→            <div className="grid gap-1.5">
+   796→              <Label className="text-sm font-medium text-gray-700">Email</Label>
+   797→              <Input
+   798→                type="email"
+   799→                value={editForm.email}
+   800→                onChange={e => updateEditField('email', e.target.value)}
+   801→                className="border-gray-200 rounded-lg h-9 text-sm font-mono"
+   802→              />
+   803→            </div>
+   804→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   805→              <div className="grid gap-1.5">
+   806→                <Label className="text-sm font-medium text-gray-700">Job Title</Label>
+   807→                <Input
+   808→                  value={editForm.jobTitle}
+   809→                  onChange={e => updateEditField('jobTitle', e.target.value)}
+   810→                  className="border-gray-200 rounded-lg h-9 text-sm"
+   811→                />
+   812→              </div>
+   813→              <div className="grid gap-1.5">
+   814→                <Label className="text-sm font-medium text-gray-700">Role</Label>
+   815→                <Select value={editForm.roleBucket} onValueChange={v => updateEditField('roleBucket', v)}>
+   816→                  <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm">
+   817→                    <SelectValue placeholder="Select" />
+   818→                  </SelectTrigger>
+   819→                  <SelectContent>
+   820→                    {ROLE_BUCKETS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+   821→                  </SelectContent>
+   822→                </Select>
+   823→              </div>
+   824→            </div>
+   825→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   826→              <div className="grid gap-1.5">
+   827→                <Label className="text-sm font-medium text-gray-700">Company</Label>
+   828→                <Select value={editForm.companyId} onValueChange={v => updateEditField('companyId', v)}>
+   829→                  <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm">
+   830→                    <SelectValue placeholder="Select company" />
+   831→                  </SelectTrigger>
+   832→                  <SelectContent>
+   833→                    {(companiesList || []).map((c: Company) => (
+   834→                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+   835→                    ))}
+   836→                  </SelectContent>
+   837→                </Select>
+   838→              </div>
+   839→              <div className="grid gap-1.5">
+   840→                <Label className="text-sm font-medium text-gray-700">LinkedIn</Label>
+   841→                <Input
+   842→                  value={editForm.linkedinUrl}
+   843→                  onChange={e => updateEditField('linkedinUrl', e.target.value)}
+   844→                  className="border-gray-200 rounded-lg h-9 text-sm"
+   845→                />
+   846→              </div>
+   847→            </div>
+   848→          </div>
+   849→          <DialogFooter>
+   850→            <Button
+   851→              variant="outline"
+   852→              onClick={() => { setEditOpen(false); setEditingContact(null) }}
+   853→              className="border-gray-200 text-gray-600 hover:bg-gray-50"
+   854→            >
+   855→              Cancel
+   856→            </Button>
+   857→            <Button
+   858→              onClick={() =>
+   859→                editingContact &&
+   860→                editContact.mutate({ id: editingContact.id, ...editForm })
+   861→              }
+   862→              disabled={!editForm.name.trim() || editContact.isPending || !editingContact}
+   863→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale"
+   864→            >
+   865→              {editContact.isPending ? 'Saving...' : 'Save Changes'}
+   866→            </Button>
+   867→          </DialogFooter>
+   868→        </DialogContent>
+   869→      </Dialog>
+   870→
+   871→      {/* ════════════ Archive Confirmation ════════════ */}
+   872→      <AlertDialog
+   873→        open={archiveOpen}
+   874→        onOpenChange={(open) => { if (!open) { setArchiveOpen(false); setArchivingContact(null) } }}
+   875→      >
+   876→        <AlertDialogContent className="sm:max-w-md bg-white rounded-xl">
+   877→          <AlertDialogHeader>
+   878→            <AlertDialogTitle className="text-gray-900">Archive Contact</AlertDialogTitle>
+   879→            <AlertDialogDescription className="text-gray-600">
+   880→              Are you sure you want to archive{' '}
+   881→              <span className="font-semibold text-gray-900">{archivingContact?.name}</span>? This
+   882→              will soft-delete the contact. You can still find them by filtering for archived
+   883→              contacts.
+   884→            </AlertDialogDescription>
+   885→          </AlertDialogHeader>
+   886→          <AlertDialogFooter>
+   887→            <AlertDialogCancel
+   888→              className="border-gray-200 text-gray-600 hover:bg-gray-50"
+   889→              onClick={() => { setArchiveOpen(false); setArchivingContact(null) }}
+   890→            >
+   891→              Cancel
+   892→            </AlertDialogCancel>
+   893→            <AlertDialogAction
+   894→              className="bg-red-600 hover:bg-red-700 text-white rounded-lg press-scale"
+   895→              onClick={() => archivingContact && archiveContact.mutate(archivingContact.id)}
+   896→              disabled={archiveContact.isPending}
+   897→            >
+   898→              {archiveContact.isPending ? (
+   899→                <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+   900→              ) : null}
+   901→              {archiveContact.isPending ? 'Archiving...' : 'Archive'}
+   902→            </AlertDialogAction>
+   903→          </AlertDialogFooter>
+   904→        </AlertDialogContent>
+   905→      </AlertDialog>
+   906→
+   907→      {/* ════════════ Batch Validate Confirmation (H4 fix) ════════════ */}
+   908→      <AlertDialog
+   909→        open={batchValidateOpen}
+   910→        onOpenChange={setBatchValidateOpen}
+   911→      >
+   912→        <AlertDialogContent className="sm:max-w-md bg-white rounded-xl">
+   913→          <AlertDialogHeader>
+   914→            <AlertDialogTitle className="text-gray-900">Validate All Emails?</AlertDialogTitle>
+   915→            <AlertDialogDescription className="text-gray-600">
+   916→              This will check the health status of all email addresses in your contact list. This operation
+   917→              may take a moment depending on the number of contacts.
+   918→            </AlertDialogDescription>
+   919→          </AlertDialogHeader>
+   920→          <AlertDialogFooter>
+   921→            <AlertDialogCancel className="border-gray-200 text-gray-600 hover:bg-gray-50">
+   922→              Cancel
+   923→            </AlertDialogCancel>
+   924→            <AlertDialogAction
+   925→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale"
+   926→              onClick={() => {
+   927→                setBatchValidateOpen(false)
+   928→                batchValidateMutation.mutate()
+   929→              }}
+   930→              disabled={batchValidateMutation.isPending}
+   931→            >
+   932→              {batchValidateMutation.isPending ? (
+   933→                <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+   934→              ) : null}
+   935→              {batchValidateMutation.isPending ? 'Validating...' : 'Validate All'}
+   936→            </AlertDialogAction>
+   937→          </AlertDialogFooter>
+   938→        </AlertDialogContent>
+   939→      </AlertDialog>
+   940→    </div>
+   941→  )
+   942→}

@@ -1,17 +1,74 @@
 import { create } from "zustand";
 import type { ActiveView } from "./types";
 
+// ── Saved Views ─────────────────────────────────────────────────
+export interface SavedCompanyView {
+  id: string;
+  name: string;
+  isBuiltIn?: boolean;
+  filters: {
+    search: string;
+    industry: string;
+    status: string;
+    employeeSize: string;
+    createdAfter: string;
+    createdBefore: string;
+  };
+}
+
+function loadSavedViews(): SavedCompanyView[] {
+  if (typeof window === 'undefined') return getBuiltinViews();
+  try {
+    const raw = localStorage.getItem('deepmindq-saved-views');
+    const stored: SavedCompanyView[] = raw ? JSON.parse(raw) : [];
+    return [...getBuiltinViews(), ...stored];
+  } catch {
+    return getBuiltinViews();
+  }
+}
+
+function getBuiltinViews(): SavedCompanyView[] {
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  return [
+    {
+      id: '__all__', name: 'All Companies', isBuiltIn: true,
+      filters: { search: '', industry: 'all', status: 'all', employeeSize: 'all', createdAfter: '', createdBefore: '' },
+    },
+    {
+      id: '__new_week__', name: 'New This Week', isBuiltIn: true,
+      filters: { search: '', industry: 'all', status: 'new', employeeSize: 'all', createdAfter: weekAgo.toISOString().split('T')[0], createdBefore: '' },
+    },
+    {
+      id: '__active__', name: 'Active Accounts', isBuiltIn: true,
+      filters: { search: '', industry: 'all', status: 'active', employeeSize: 'all', createdAfter: '', createdBefore: '' },
+    },
+  ];
+}
+
+function persistViews(views: SavedCompanyView[]) {
+  if (typeof window !== 'undefined') {
+    const custom = views.filter(v => !v.isBuiltIn);
+    localStorage.setItem('deepmindq-saved-views', JSON.stringify(custom));
+  }
+}
+
 interface AppState {
   activeView: ActiveView;
   selectedCompanyId: string | null;
   selectedContactId: string | null;
   sidebarCollapsed: boolean;
   companyStatusFilter: string;
+  taskCount: number;
+  savedViews: SavedCompanyView[];
   setActiveView: (view: ActiveView) => void;
   setSelectedCompanyId: (id: string | null) => void;
   setSelectedContactId: (id: string | null) => void;
   toggleSidebar: () => void;
   setCompanyStatusFilter: (filter: string) => void;
+  setTaskCount: (count: number) => void;
+  addSavedView: (view: SavedCompanyView) => void;
+  removeSavedView: (id: string) => void;
 }
 
 // Hash sync helpers
@@ -29,7 +86,7 @@ function hashToState(hash: string): Partial<AppState> | null {
   const id = match[2] || null;
   if (view === 'company-profile') return { activeView: view, selectedCompanyId: id };
   if (view === 'contact-profile') return { activeView: view, selectedContactId: id };
-  if (['dashboard','companies','contacts','import','email-generation','knowledge-library','settings'].includes(view)) {
+  if (['dashboard','companies','contacts','tasks','opportunities','import','email-generation','knowledge-library','settings','audit-logs','prompt-templates','reports'].includes(view)) {
     return { activeView: view as ActiveView };
   }
   return null;
@@ -51,6 +108,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedContactId: initialState?.selectedContactId || null,
   sidebarCollapsed: false,
   companyStatusFilter: "all",
+  taskCount: 0,
+  savedViews: loadSavedViews(),
   setActiveView: (view) => {
     set({ activeView: view });
     const { selectedCompanyId, selectedContactId } = get();
@@ -74,6 +133,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   setCompanyStatusFilter: (filter) => set({ companyStatusFilter: filter }),
+  setTaskCount: (count) => set({ taskCount: count }),
+  addSavedView: (view) => {
+    const views = [...get().savedViews, view];
+    set({ savedViews: views });
+    persistViews(views);
+  },
+  removeSavedView: (id) => {
+    const views = get().savedViews.filter(v => v.id !== id);
+    set({ savedViews: views });
+    persistViews(views);
+  },
 }));
 
 // Listen for browser back/forward — store cleanup for HMR

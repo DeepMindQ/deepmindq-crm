@@ -24,7 +24,7 @@ export async function fetchApi<T = any>(
     // Destructure so params don't leak into fetch init
     const { params: _params, ...fetchOpts } = options
 
-    const res = await fetch(fullUrl, fetchOpts)
+    const res = await fetch(fullUrl, { ...fetchOpts, credentials: 'include' })
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))

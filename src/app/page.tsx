@@ -1,7 +1,9 @@
 'use client'
 
-import { Component, type ReactNode } from 'react'
+import { Component, type ReactNode, useEffect } from 'react'
 import dynamic from 'next/dynamic'
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
 import { useAppStore } from '@/lib/store'
 import type { ActiveView } from '@/lib/types'
@@ -45,6 +47,30 @@ const SettingsScreen = dynamic(
   () => import('@/components/screens/settings-screen').then(m => ({ default: m.SettingsScreen })),
   { loading: () => <SkeletonGrid panels={1} />, ssr: false }
 )
+const TasksScreen = dynamic(
+  () => import('@/components/screens/tasks-screen').then(m => ({ default: m.TasksScreen })),
+  { loading: () => <SkeletonGrid />, ssr: false }
+)
+const OpportunitiesScreen = dynamic(
+  () => import('@/components/screens/opportunities-screen').then(m => ({ default: m.OpportunitiesScreen })),
+  { loading: () => <SkeletonGrid />, ssr: false }
+)
+const AuditLogsScreen = dynamic(
+  () => import('@/components/screens/audit-logs-screen').then(m => ({ default: m.AuditLogsScreen })),
+  { loading: () => <SkeletonGrid panels={1} />, ssr: false }
+)
+const PromptTemplatesScreen = dynamic(
+  () => import('@/components/screens/prompt-templates-screen').then(m => ({ default: m.PromptTemplatesScreen })),
+  { loading: () => <SkeletonGrid panels={1} />, ssr: false }
+)
+const SequencesScreen = dynamic(
+  () => import('@/components/screens/sequences-screen').then(m => ({ default: m.SequencesScreen })),
+  { loading: () => <SkeletonGrid />, ssr: false }
+)
+const ReportsScreen = dynamic(
+  () => import('@/components/screens/reports-screen').then(m => ({ default: m.ReportsScreen })),
+  { loading: () => <SkeletonGrid panels={1} />, ssr: false }
+)
 
 const screenMap: Record<ActiveView, React.ComponentType> = {
   dashboard: DashboardScreen,
@@ -52,10 +78,16 @@ const screenMap: Record<ActiveView, React.ComponentType> = {
   'company-profile': CompanyProfileScreen,
   contacts: ContactsScreen,
   'contact-profile': ContactDetailScreen,
+  tasks: TasksScreen,
+  opportunities: OpportunitiesScreen,
   'email-generation': EmailGenerationScreen,
   'knowledge-library': KnowledgeLibraryScreen,
   import: ImportScreen,
   settings: SettingsScreen,
+  'audit-logs': AuditLogsScreen,
+  'prompt-templates': PromptTemplatesScreen,
+  sequences: SequencesScreen,
+  reports: ReportsScreen,
 }
 
 /* ── Error Boundary ────────────────────────────────────────── */
@@ -132,7 +164,26 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 /* ── Page ──────────────────────────────────────────────────── */
 
 export default function HomePage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
   const { activeView } = useAppStore()
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login')
+    }
+  }, [status, router])
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <SkeletonGrid />
+      </div>
+    )
+  }
+
+  if (!session) return null
+
   const ActiveScreen = screenMap[activeView]
 
   return (

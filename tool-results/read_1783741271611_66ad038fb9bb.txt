@@ -1,0 +1,939 @@
+     1→/**
+     2→ * seed-demo.ts — Comprehensive demo data for DeepMindQ CRM
+     3→ *
+     4→ * Generates realistic companies, contacts, research cards, opportunities,
+     5→ * timeline entries, notes, drafts, email health checks, knowledge documents,
+     6→ * and user preferences.
+     7→ *
+     8→ * Usage: cd /home/z/my-project && bun run scripts/seed-demo.ts
+     9→ */
+    10→
+    11→import { PrismaClient } from '@prisma/client'
+    12→
+    13→const prisma = new PrismaClient()
+    14→
+    15→// ─── Helpers ──────────────────────────────────────────────────────────
+    16→
+    17→const DAY = 86_400_000
+    18→const HOUR = 3_600_000
+    19→
+    20→function daysAgo(n: number): Date {
+    21→  return new Date(Date.now() - n * DAY)
+    22→}
+    23→
+    24→function hoursAgo(n: number): Date {
+    25→  return new Date(Date.now() - n * HOUR)
+    26→}
+    27→
+    28→function randomFrom<T>(arr: T[]): T {
+    29→  return arr[Math.floor(Math.random() * arr.length)]
+    30→}
+    31→
+    32→function randomInt(min: number, max: number): number {
+    33→  return Math.floor(Math.random() * (max - min + 1)) + min
+    34→}
+    35→
+    36→// ─── Company Definitions ──────────────────────────────────────────────
+    37→
+    38→interface CompanyDef {
+    39→  name: string
+    40→  domain: string
+    41→  website: string
+    42→  industry: string
+    43→  employeeSize: string
+    44→  country: string
+    45→  location: string
+    46→  status: string
+    47→  intelligenceScore: number
+    48→  dataFreshness: string
+    49→}
+    50→
+    51→const companies: CompanyDef[] = [
+    52→  { name: 'NovaTech Solutions', domain: 'novatech.io', website: 'https://novatech.io', industry: 'Technology', employeeSize: '201-500', country: 'US', location: 'San Francisco, CA', status: 'active', intelligenceScore: 82, dataFreshness: 'fresh' },
+    53→  { name: 'HealthBridge Analytics', domain: 'healthbridge.com', website: 'https://healthbridge.com', industry: 'Healthcare', employeeSize: '51-200', country: 'US', location: 'Boston, MA', status: 'active', intelligenceScore: 85, dataFreshness: 'fresh' },
+    54→  { name: 'FinEdge Capital', domain: 'finedge.capital', website: 'https://finedge.capital', industry: 'FinTech', employeeSize: '51-200', country: 'US', location: 'New York, NY', status: 'active', intelligenceScore: 79, dataFreshness: 'fresh' },
+    55→  { name: 'CloudVista Systems', domain: 'cloudvista.com', website: 'https://cloudvista.com', industry: 'SaaS', employeeSize: '201-500', country: 'UK', location: 'London, UK', status: 'active', intelligenceScore: 74, dataFreshness: 'stale' },
+    56→  { name: 'EduSpark Learning', domain: 'eduspark.com', website: 'https://eduspark.com', industry: 'Education', employeeSize: '11-50', country: 'India', location: 'Bangalore, India', status: 'new', intelligenceScore: 62, dataFreshness: 'fresh' },
+    57→  { name: 'MetricFlow Manufacturing', domain: 'metricflow.co', website: 'https://metricflow.co', industry: 'Manufacturing', employeeSize: '501-1000', country: 'Germany', location: 'Munich, Germany', status: 'new', intelligenceScore: 55, dataFreshness: 'unknown' },
+    58→  { name: 'SwiftRoute Logistics', domain: 'swiftroute.io', website: 'https://swiftroute.io', industry: 'Logistics', employeeSize: '201-500', country: 'Australia', location: 'Sydney, Australia', status: 'new', intelligenceScore: 58, dataFreshness: 'unknown' },
+    59→  { name: 'PropNest Realty', domain: 'propnest.co', website: 'https://propnest.co', industry: 'Real Estate', employeeSize: '11-50', country: 'Canada', location: 'Toronto, Canada', status: 'active', intelligenceScore: 67, dataFreshness: 'stale' },
+    60→  { name: 'DataPulse AI', domain: 'datapulse.ai', website: 'https://datapulse.ai', industry: 'Technology', employeeSize: '11-50', country: 'US', location: 'Austin, TX', status: 'active', intelligenceScore: 91, dataFreshness: 'fresh' },
+    61→  { name: 'PayGrid Financial', domain: 'paygrid.com', website: 'https://paygrid.com', industry: 'FinTech', employeeSize: '201-500', country: 'UK', location: 'London, UK', status: 'active', intelligenceScore: 76, dataFreshness: 'fresh' },
+    62→  { name: 'MedVista Diagnostics', domain: 'medvista.io', website: 'https://medvista.io', industry: 'Biotech', employeeSize: '51-200', country: 'India', location: 'Hyderabad, India', status: 'new', intelligenceScore: 64, dataFreshness: 'stale' },
+    63→  { name: 'CartMax Global', domain: 'cartmax.co', website: 'https://cartmax.co', industry: 'E-commerce', employeeSize: '501-1000', country: 'US', location: 'Chicago, IL', status: 'active', intelligenceScore: 88, dataFreshness: 'fresh' },
+    64→  { name: 'CyberVault Security', domain: 'cybervaultsec.com', website: 'https://cybervaultsec.com', industry: 'Technology', employeeSize: '51-200', country: 'US', location: 'Washington, DC', status: 'active', intelligenceScore: 87, dataFreshness: 'fresh' },
+    65→  { name: 'NeuralWave Computing', domain: 'neuralwave.ai', website: 'https://neuralwave.ai', industry: 'Technology', employeeSize: '51-200', country: 'US', location: 'Seattle, WA', status: 'new', intelligenceScore: 89, dataFreshness: 'stale' },
+    66→  { name: 'TradeFlow Capital', domain: 'tradeflow.capital', website: 'https://tradeflow.capital', industry: 'FinTech', employeeSize: '11-50', country: 'Singapore', location: 'Singapore', status: 'new', intelligenceScore: 60, dataFreshness: 'unknown' },
+    67→  { name: 'CareSync Health', domain: 'caresync.health', website: 'https://caresync.health', industry: 'Healthcare', employeeSize: '201-500', country: 'US', location: 'Chicago, IL', status: 'active', intelligenceScore: 73, dataFreshness: 'stale' },
+    68→  { name: 'SkillForge Academy', domain: 'skillforge.io', website: 'https://skillforge.io', industry: 'Education', employeeSize: '11-50', country: 'UK', location: 'Manchester, UK', status: 'new', intelligenceScore: 66, dataFreshness: 'fresh' },
+    69→  { name: 'ThreatGuard Solutions', domain: 'threatguard.io', website: 'https://threatguard.io', industry: 'Technology', employeeSize: '201-500', country: 'US', location: 'Reston, VA', status: 'active', intelligenceScore: 83, dataFreshness: 'fresh' },
+    70→  { name: 'AutoForge Industries', domain: 'autoforge.com', website: 'https://autoforge.com', industry: 'Manufacturing', employeeSize: '501-1000', country: 'Germany', location: 'Stuttgart, Germany', status: 'new', intelligenceScore: 48, dataFreshness: 'old' },
+    71→  { name: 'FleetPulse Transport', domain: 'fleetpulse.co', website: 'https://fleetpulse.co', industry: 'Logistics', employeeSize: '201-500', country: 'Netherlands', location: 'Amsterdam, Netherlands', status: 'new', intelligenceScore: 52, dataFreshness: 'stale' },
+    72→  { name: 'UrbanSpace Properties', domain: 'urbanspace.io', website: 'https://urbanspace.io', industry: 'Real Estate', employeeSize: '51-200', country: 'Australia', location: 'Melbourne, Australia', status: 'new', intelligenceScore: 61, dataFreshness: 'unknown' },
+    73→  { name: 'SaaSMatrix Pro', domain: 'saasmatrix.com', website: 'https://saasmatrix.com', industry: 'SaaS', employeeSize: '11-50', country: 'Canada', location: 'Vancouver, Canada', status: 'active', intelligenceScore: 71, dataFreshness: 'fresh' },
+    74→  { name: 'QuantumSync Labs', domain: 'quantumsync.ai', website: 'https://quantumsync.ai', industry: 'Biotech', employeeSize: '1-10', country: 'US', location: 'Palo Alto, CA', status: 'new', intelligenceScore: 93, dataFreshness: 'fresh' },
+    75→  { name: 'ShopSphere Commerce', domain: 'shopsphere.io', website: 'https://shopsphere.io', industry: 'E-commerce', employeeSize: '201-500', country: 'India', location: 'Delhi, India', status: 'new', intelligenceScore: 59, dataFreshness: 'stale' },
+    76→  { name: 'BazaarDirect', domain: 'bazaardirect.com', website: 'https://bazaardirect.com', industry: 'Retail', employeeSize: '1001-5000', country: 'India', location: 'Mumbai, India', status: 'new', intelligenceScore: 50, dataFreshness: 'unknown' },
+    77→  { name: 'GreenPulse Energy', domain: 'greenpulse.energy', website: 'https://greenpulse.energy', industry: 'Energy', employeeSize: '51-200', country: 'Norway', location: 'Oslo, Norway', status: 'new', intelligenceScore: 72, dataFreshness: 'stale' },
+    78→  { name: 'TeleCom Global', domain: 'telecomglobal.com', website: 'https://telecomglobal.com', industry: 'Telecommunications', employeeSize: '5001+', country: 'Japan', location: 'Tokyo, Japan', status: 'new', intelligenceScore: 44, dataFreshness: 'old' },
+    79→  { name: 'AeroDynamics Corp', domain: 'aerodynamics.com', website: 'https://aerodynamics.com', industry: 'Aerospace', employeeSize: '1001-5000', country: 'France', location: 'Toulouse, France', status: 'new', intelligenceScore: 57, dataFreshness: 'unknown' },
+    80→  { name: 'AgriTech Solutions', domain: 'agritechsol.com', website: 'https://agritechsol.com', industry: 'Agriculture', employeeSize: '51-200', country: 'Brazil', location: 'São Paulo, Brazil', status: 'new', intelligenceScore: 46, dataFreshness: 'old' },
+    81→  { name: 'LegalEdge Partners', domain: 'legaledge.com', website: 'https://legaledge.com', industry: 'Legal', employeeSize: '51-200', country: 'US', location: 'Washington, DC', status: 'active', intelligenceScore: 68, dataFreshness: 'stale' },
+    82→  { name: 'MediaPulse Studios', domain: 'mediapulse.co', website: 'https://mediapulse.co', industry: 'Media', employeeSize: '51-200', country: 'US', location: 'Los Angeles, CA', status: 'active', intelligenceScore: 75, dataFreshness: 'fresh' },
+    83→  { name: 'InsureRight Group', domain: 'insureright.com', website: 'https://insureright.com', industry: 'Insurance', employeeSize: '201-500', country: 'Switzerland', location: 'Zurich, Switzerland', status: 'new', intelligenceScore: 63, dataFreshness: 'stale' },
+    84→  { name: 'GovernTech Solutions', domain: 'governtech.gov', website: 'https://governtech.gov', industry: 'Government', employeeSize: '201-500', country: 'US', location: 'Arlington, VA', status: 'new', intelligenceScore: 41, dataFreshness: 'old' },
+    85→  { name: 'TravelWise Global', domain: 'travelwise.com', website: 'https://travelwise.com', industry: 'Travel', employeeSize: '201-500', country: 'UK', location: 'London, UK', status: 'new', intelligenceScore: 56, dataFreshness: 'stale' },
+    86→  { name: 'Pinnacle Consulting', domain: 'pinnacleconsulting.com', website: 'https://pinnacleconsulting.com', industry: 'Consulting', employeeSize: '51-200', country: 'US', location: 'New York, NY', status: 'active', intelligenceScore: 77, dataFreshness: 'fresh' },
+    87→]
+    88→
+    89→// ─── Contact Definitions (keyed by company index) ─────────────────────
+    90→
+    91→interface ContactDef {
+    92→  name: string
+    93→  email: string
+    94→  jobTitle: string
+    95→  roleBucket: string
+    96→  phone: string
+    97→  location: string
+    98→  status: string
+    99→}
+   100→
+   101→const contactsByCompany: ContactDef[][] = [
+   102→  // 0: NovaTech Solutions
+   103→  [
+   104→    { name: 'Rajesh Patel', email: 'rajesh.patel@novatech.io', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+1 415-555-0101', location: 'San Francisco, CA', status: 'active' },
+   105→    { name: 'Sarah Chen', email: 'sarah.chen@novatech.io', jobTitle: 'VP of Engineering', roleBucket: 'Executive', phone: '+1 415-555-0102', location: 'San Francisco, CA', status: 'active' },
+   106→    { name: 'Michael Torres', email: 'mike.torres@novatech.io', jobTitle: 'Director of Product', roleBucket: 'Manager', phone: '+1 415-555-0103', location: 'San Francisco, CA', status: 'active' },
+   107→    { name: 'Emily Watson', email: 'emily.w@novatech.io', jobTitle: 'Head of Sales', roleBucket: 'Sales', phone: '+1 415-555-0104', location: 'San Francisco, CA', status: 'active' },
+   108→    { name: 'David Kim', email: 'david.kim@novatech.io', jobTitle: 'Lead Developer', roleBucket: 'Technical', phone: '+1 415-555-0105', location: 'San Francisco, CA', status: 'new' },
+   109→  ],
+   110→  // 1: HealthBridge Analytics
+   111→  [
+   112→    { name: 'Dr. Anita Sharma', email: 'a.sharma@healthbridge.com', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+1 617-555-0201', location: 'Boston, MA', status: 'active' },
+   113→    { name: 'James Mitchell', email: 'j.mitchell@healthbridge.com', jobTitle: 'VP of Technology', roleBucket: 'Executive', phone: '+1 617-555-0202', location: 'Boston, MA', status: 'active' },
+   114→    { name: 'Lisa Rodriguez', email: 'l.rodriguez@healthbridge.com', jobTitle: 'Director of Operations', roleBucket: 'Manager', phone: '+1 617-555-0203', location: 'Boston, MA', status: 'active' },
+   115→    { name: 'Robert Chang', email: 'r.chang@healthbridge.com', jobTitle: 'Head of Data Science', roleBucket: 'Technical', phone: '+1 617-555-0204', location: 'Boston, MA', status: 'new' },
+   116→  ],
+   117→  // 2: FinEdge Capital
+   118→  [
+   119→    { name: 'Alexandra Walsh', email: 'a.walsh@finedge.capital', jobTitle: 'COO', roleBucket: 'Executive', phone: '+1 212-555-0301', location: 'New York, NY', status: 'active' },
+   120→    { name: 'Marcus Johnson', email: 'm.johnson@finedge.capital', jobTitle: 'VP of Engineering', roleBucket: 'Executive', phone: '+1 212-555-0302', location: 'New York, NY', status: 'active' },
+   121→    { name: 'Priya Nair', email: 'p.nair@finedge.capital', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+1 212-555-0303', location: 'New York, NY', status: 'active' },
+   122→    { name: 'Tom Bradley', email: 't.bradley@finedge.capital', jobTitle: 'Head of Compliance', roleBucket: 'Manager', phone: '+1 212-555-0304', location: 'New York, NY', status: 'new' },
+   123→  ],
+   124→  // 3: CloudVista Systems
+   125→  [
+   126→    { name: 'Oliver Bennett', email: 'o.bennett@cloudvista.com', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+44 20-7946-0401', location: 'London, UK', status: 'active' },
+   127→    { name: 'Sophie Williams', email: 's.williams@cloudvista.com', jobTitle: 'VP of Product', roleBucket: 'Executive', phone: '+44 20-7946-0402', location: 'London, UK', status: 'active' },
+   128→    { name: 'Daniel Harris', email: 'd.harris@cloudvista.com', jobTitle: 'Director of Sales', roleBucket: 'Sales', phone: '+44 20-7946-0403', location: 'London, UK', status: 'active' },
+   129→    { name: 'Emma Clarke', email: 'emma.clarke@cloudvista.com', jobTitle: 'Senior Engineer', roleBucket: 'Technical', phone: '+44 20-7946-0404', location: 'London, UK', status: 'new' },
+   130→  ],
+   131→  // 4: EduSpark Learning
+   132→  [
+   133→    { name: 'Anita Desai', email: 'anita.d@eduspark.com', jobTitle: 'Founder & CEO', roleBucket: 'Executive', phone: '+91 80-4567-0501', location: 'Bangalore, India', status: 'new' },
+   134→    { name: 'Rahul Gupta', email: 'rahul.g@eduspark.com', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+91 80-4567-0502', location: 'Bangalore, India', status: 'new' },
+   135→    { name: 'Priya Mehta', email: 'priya.m@eduspark.com', jobTitle: 'Head of Content', roleBucket: 'Manager', phone: '+91 80-4567-0503', location: 'Bangalore, India', status: 'new' },
+   136→  ],
+   137→  // 5: MetricFlow Manufacturing
+   138→  [
+   139→    { name: 'Hans Mueller', email: 'h.mueller@metricflow.co', jobTitle: 'VP of Operations', roleBucket: 'Executive', phone: '+49 89-555-0601', location: 'Munich, Germany', status: 'new' },
+   140→    { name: 'Klaus Weber', email: 'k.weber@metricflow.co', jobTitle: 'Director of IT', roleBucket: 'Manager', phone: '+49 89-555-0602', location: 'Munich, Germany', status: 'new' },
+   141→    { name: 'Anna Schmidt', email: 'a.schmidt@metricflow.co', jobTitle: 'Supply Chain Manager', roleBucket: 'Operations', phone: '+49 89-555-0603', location: 'Munich, Germany', status: 'new' },
+   142→  ],
+   143→  // 6: SwiftRoute Logistics
+   144→  [
+   145→    { name: 'Jack Thompson', email: 'j.thompson@swiftroute.io', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+61 2-5555-0701', location: 'Sydney, Australia', status: 'new' },
+   146→    { name: 'Rachel Foster', email: 'r.foster@swiftroute.io', jobTitle: 'VP of Operations', roleBucket: 'Executive', phone: '+61 2-5555-0702', location: 'Sydney, Australia', status: 'new' },
+   147→    { name: 'Liam O\'Brien', email: 'liam.ob@swiftroute.io', jobTitle: 'Head of Engineering', roleBucket: 'Technical', phone: '+61 2-5555-0703', location: 'Sydney, Australia', status: 'new' },
+   148→  ],
+   149→  // 7: PropNest Realty
+   150→  [
+   151→    { name: 'Derek Singh', email: 'd.singh@propnest.co', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+1 416-555-0801', location: 'Toronto, Canada', status: 'active' },
+   152→    { name: 'Jennifer Lee', email: 'j.lee@propnest.co', jobTitle: 'Director of Technology', roleBucket: 'Manager', phone: '+1 416-555-0802', location: 'Toronto, Canada', status: 'active' },
+   153→    { name: 'Mark Davis', email: 'm.davis@propnest.co', jobTitle: 'Head of Sales', roleBucket: 'Sales', phone: '+1 416-555-0803', location: 'Toronto, Canada', status: 'active' },
+   154→  ],
+   155→  // 8: DataPulse AI
+   156→  [
+   157→    { name: 'Dr. Wei Zhang', email: 'wei.zhang@datapulse.ai', jobTitle: 'Founder & CTO', roleBucket: 'Executive', phone: '+1 512-555-0901', location: 'Austin, TX', status: 'active' },
+   158→    { name: 'Jessica Park', email: 'jessica.p@datapulse.ai', jobTitle: 'VP of Engineering', roleBucket: 'Executive', phone: '+1 512-555-0902', location: 'Austin, TX', status: 'active' },
+   159→    { name: 'Ryan O\'Neill', email: 'ryan.oneill@datapulse.ai', jobTitle: 'Head of AI Research', roleBucket: 'Technical', phone: '+1 512-555-0903', location: 'Austin, TX', status: 'active' },
+   160→    { name: 'Megan Foster', email: 'megan.f@datapulse.ai', jobTitle: 'Sales Director', roleBucket: 'Sales', phone: '+1 512-555-0904', location: 'Austin, TX', status: 'active' },
+   161→  ],
+   162→  // 9: PayGrid Financial
+   163→  [
+   164→    { name: 'Nigel Clarkson', email: 'n.clarkson@paygrid.com', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+44 20-7946-1001', location: 'London, UK', status: 'active' },
+   165→    { name: 'Rebecca Hall', email: 'r.hall@paygrid.com', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+44 20-7946-1002', location: 'London, UK', status: 'active' },
+   166→    { name: 'Andrew Wright', email: 'a.wright@paygrid.com', jobTitle: 'VP of Product', roleBucket: 'Manager', phone: '+44 20-7946-1003', location: 'London, UK', status: 'active' },
+   167→    { name: 'Catherine Moore', email: 'c.moore@paygrid.com', jobTitle: 'Head of Security', roleBucket: 'Technical', phone: '+44 20-7946-1004', location: 'London, UK', status: 'new' },
+   168→  ],
+   169→  // 10: MedVista Diagnostics
+   170→  [
+   171→    { name: 'Dr. Kavitha Reddy', email: 'k.reddy@medvista.io', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+91 40-555-1101', location: 'Hyderabad, India', status: 'new' },
+   172→    { name: 'Arjun Patel', email: 'arjun.p@medvista.io', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+91 40-555-1102', location: 'Hyderabad, India', status: 'new' },
+   173→    { name: 'Dr. Sunita Rao', email: 'sunita.r@medvista.io', jobTitle: 'Head of R&D', roleBucket: 'Technical', phone: '+91 40-555-1103', location: 'Hyderabad, India', status: 'new' },
+   174→  ],
+   175→  // 11: CartMax Global
+   176→  [
+   177→    { name: 'Brian Cooper', email: 'b.cooper@cartmax.co', jobTitle: 'VP of Technology', roleBucket: 'Executive', phone: '+1 312-555-1201', location: 'Chicago, IL', status: 'active' },
+   178→    { name: 'Nicole Adams', email: 'n.adams@cartmax.co', jobTitle: 'Director of Engineering', roleBucket: 'Manager', phone: '+1 312-555-1202', location: 'Chicago, IL', status: 'active' },
+   179→    { name: 'Chris Martinez', email: 'c.martinez@cartmax.co', jobTitle: 'Head of Infrastructure', roleBucket: 'Technical', phone: '+1 312-555-1203', location: 'Chicago, IL', status: 'active' },
+   180→    { name: 'Sandra Kim', email: 'sandra.k@cartmax.co', jobTitle: 'Director of Operations', roleBucket: 'Operations', phone: '+1 312-555-1204', location: 'Chicago, IL', status: 'active' },
+   181→  ],
+   182→  // 12: CyberVault Security
+   183→  [
+   184→    { name: 'General Michael Stone (Ret.)', email: 'm.stone@cybervaultsec.com', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+1 202-555-1301', location: 'Washington, DC', status: 'active' },
+   185→    { name: 'Yuki Tanaka', email: 'y.tanaka@cybervaultsec.com', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+1 202-555-1302', location: 'Washington, DC', status: 'active' },
+   186→    { name: 'Alex Rivera', email: 'a.rivera@cybervaultsec.com', jobTitle: 'VP of Engineering', roleBucket: 'Executive', phone: '+1 202-555-1303', location: 'Washington, DC', status: 'active' },
+   187→    { name: 'Natasha Volkov', email: 'n.volkov@cybervaultsec.com', jobTitle: 'Lead Security Researcher', roleBucket: 'Technical', phone: '+1 202-555-1304', location: 'Washington, DC', status: 'active' },
+   188→  ],
+   189→  // 13: NeuralWave Computing
+   190→  [
+   191→    { name: 'Dr. Chris Hammond', email: 'c.hammond@neuralwave.ai', jobTitle: 'Co-Founder & CEO', roleBucket: 'Executive', phone: '+1 206-555-1401', location: 'Seattle, WA', status: 'new' },
+   192→    { name: 'Dr. Maya Gupta', email: 'm.gupta@neuralwave.ai', jobTitle: 'Co-Founder & CTO', roleBucket: 'Executive', phone: '+1 206-555-1402', location: 'Seattle, WA', status: 'new' },
+   193→    { name: 'Jordan Lee', email: 'jordan.l@neuralwave.ai', jobTitle: 'Head of Research', roleBucket: 'Technical', phone: '+1 206-555-1403', location: 'Seattle, WA', status: 'new' },
+   194→  ],
+   195→  // 14: TradeFlow Capital
+   196→  [
+   197→    { name: 'Dinesh Krishnan', email: 'd.krishnan@tradeflow.capital', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+65 6555-1501', location: 'Singapore', status: 'new' },
+   198→    { name: 'Amy Lim', email: 'a.lim@tradeflow.capital', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+65 6555-1502', location: 'Singapore', status: 'new' },
+   199→    { name: 'Peter Ng', email: 'p.ng@tradeflow.capital', jobTitle: 'Head of Trading Systems', roleBucket: 'Technical', phone: '+65 6555-1503', location: 'Singapore', status: 'new' },
+   200→  ],
+   201→  // 15: CareSync Health
+   202→  [
+   203→    { name: 'Dr. Robert Kim', email: 'r.kim@caresync.health', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+1 312-555-1601', location: 'Chicago, IL', status: 'active' },
+   204→    { name: 'Susan Park', email: 's.park@caresync.health', jobTitle: 'VP of Engineering', roleBucket: 'Executive', phone: '+1 312-555-1602', location: 'Chicago, IL', status: 'active' },
+   205→    { name: 'Frank Miller', email: 'f.miller@caresync.health', jobTitle: 'Director of Product', roleBucket: 'Manager', phone: '+1 312-555-1603', location: 'Chicago, IL', status: 'active' },
+   206→  ],
+   207→  // 16: SkillForge Academy
+   208→  [
+   209→    { name: 'Emma Thompson', email: 'e.thompson@skillforge.io', jobTitle: 'Founder & CEO', roleBucket: 'Executive', phone: '+44 161-555-1701', location: 'Manchester, UK', status: 'new' },
+   210→    { name: 'David Brown', email: 'd.brown@skillforge.io', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+44 161-555-1702', location: 'Manchester, UK', status: 'new' },
+   211→  ],
+   212→  // 17: ThreatGuard Solutions
+   213→  [
+   214→    { name: 'Col. James Walker (Ret.)', email: 'j.walker@threatguard.io', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+1 703-555-1801', location: 'Reston, VA', status: 'active' },
+   215→    { name: 'Diana Chen', email: 'd.chen@threatguard.io', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+1 703-555-1802', location: 'Reston, VA', status: 'active' },
+   216→    { name: 'Kevin Brooks', email: 'k.brooks@threatguard.io', jobTitle: 'VP of Engineering', roleBucket: 'Executive', phone: '+1 703-555-1803', location: 'Reston, VA', status: 'active' },
+   217→    { name: 'Laura Simmons', email: 'l.simmons@threatguard.io', jobTitle: 'Head of Threat Intelligence', roleBucket: 'Technical', phone: '+1 703-555-1804', location: 'Reston, VA', status: 'active' },
+   218→  ],
+   219→  // 18: AutoForge Industries
+   220→  [
+   221→    { name: 'Wolfgang Schneider', email: 'w.schneider@autoforge.com', jobTitle: 'VP of Digital Transformation', roleBucket: 'Executive', phone: '+49 711-555-1901', location: 'Stuttgart, Germany', status: 'new' },
+   222→    { name: 'Stefan Mueller', email: 's.mueller@autoforge.com', jobTitle: 'Director of IT', roleBucket: 'Manager', phone: '+49 711-555-1902', location: 'Stuttgart, Germany', status: 'new' },
+   223→  ],
+   224→  // 19: FleetPulse Transport
+   225→  [
+   226→    { name: 'Jan van der Berg', email: 'j.vanderberg@fleetpulse.co', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+31 20-555-2001', location: 'Amsterdam, Netherlands', status: 'new' },
+   227→    { name: 'Marieke de Vries', email: 'm.devries@fleetpulse.co', jobTitle: 'VP of Operations', roleBucket: 'Executive', phone: '+31 20-555-2002', location: 'Amsterdam, Netherlands', status: 'new' },
+   228→    { name: 'Pieter Jansen', email: 'p.jansen@fleetpulse.co', jobTitle: 'Head of Engineering', roleBucket: 'Technical', phone: '+31 20-555-2003', location: 'Amsterdam, Netherlands', status: 'new' },
+   229→  ],
+   230→  // 20: UrbanSpace Properties
+   231→  [
+   232→    { name: 'Claire Williams', email: 'c.williams@urbanspace.io', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+61 3-5555-2101', location: 'Melbourne, Australia', status: 'new' },
+   233→    { name: 'James Anderson', email: 'j.anderson@urbanspace.io', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+61 3-5555-2102', location: 'Melbourne, Australia', status: 'new' },
+   234→  ],
+   235→  // 21: SaaSMatrix Pro
+   236→  [
+   237→    { name: 'Tyler Morrison', email: 't.morrison@saasmatrix.com', jobTitle: 'Founder & CEO', roleBucket: 'Executive', phone: '+1 604-555-2201', location: 'Vancouver, Canada', status: 'active' },
+   238→    { name: 'Amy Wong', email: 'a.wong@saasmatrix.com', jobTitle: 'VP of Engineering', roleBucket: 'Executive', phone: '+1 604-555-2202', location: 'Vancouver, Canada', status: 'active' },
+   239→    { name: 'Daniel Scott', email: 'd.scott@saasmatrix.com', jobTitle: 'Head of Product', roleBucket: 'Manager', phone: '+1 604-555-2203', location: 'Vancouver, Canada', status: 'active' },
+   240→  ],
+   241→  // 22: QuantumSync Labs
+   242→  [
+   243→    { name: 'Dr. Alan Turing Jr.', email: 'a.turing@quantumsync.ai', jobTitle: 'Co-Founder & CEO', roleBucket: 'Executive', phone: '+1 650-555-2301', location: 'Palo Alto, CA', status: 'new' },
+   244→    { name: 'Dr. Lisa Park', email: 'l.park@quantumsync.ai', jobTitle: 'Co-Founder & CTO', roleBucket: 'Executive', phone: '+1 650-555-2302', location: 'Palo Alto, CA', status: 'new' },
+   245→  ],
+   246→  // 23: ShopSphere Commerce
+   247→  [
+   248→    { name: 'Vikram Malhotra', email: 'v.malhotra@shopsphere.io', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+91 11-555-2401', location: 'Delhi, India', status: 'new' },
+   249→    { name: 'Neha Kapoor', email: 'n.kapoor@shopsphere.io', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+91 11-555-2402', location: 'Delhi, India', status: 'new' },
+   250→    { name: 'Amit Sharma', email: 'a.sharma@shopsphere.io', jobTitle: 'Head of Engineering', roleBucket: 'Technical', phone: '+91 11-555-2403', location: 'Delhi, India', status: 'new' },
+   251→  ],
+   252→  // 24: BazaarDirect
+   253→  [
+   254→    { name: 'Rajesh Kumar', email: 'r.kumar@bazaardirect.com', jobTitle: 'VP of Technology', roleBucket: 'Executive', phone: '+91 22-555-2501', location: 'Mumbai, India', status: 'new' },
+   255→    { name: 'Sneha Patel', email: 's.patel@bazaardirect.com', jobTitle: 'Director of Engineering', roleBucket: 'Manager', phone: '+91 22-555-2502', location: 'Mumbai, India', status: 'new' },
+   256→  ],
+   257→  // 25: GreenPulse Energy
+   258→  [
+   259→    { name: 'Erik Larsen', email: 'e.larsen@greenpulse.energy', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+47 22-555-2601', location: 'Oslo, Norway', status: 'new' },
+   260→    { name: 'Ingrid Haugen', email: 'i.haugen@greenpulse.energy', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+47 22-555-2602', location: 'Oslo, Norway', status: 'new' },
+   261→  ],
+   262→  // 26: TeleCom Global
+   263→  [
+   264→    { name: 'Kenji Yamamoto', email: 'k.yamamoto@telecomglobal.com', jobTitle: 'SVP of Technology', roleBucket: 'Executive', phone: '+81 3-555-2701', location: 'Tokyo, Japan', status: 'new' },
+   265→    { name: 'Yuki Sato', email: 'y.sato@telecomglobal.com', jobTitle: 'Director of Innovation', roleBucket: 'Manager', phone: '+81 3-555-2702', location: 'Tokyo, Japan', status: 'new' },
+   266→  ],
+   267→  // 27: AeroDynamics Corp
+   268→  [
+   269→    { name: 'Pierre Dubois', email: 'p.dubois@aerodynamics.com', jobTitle: 'VP of Digital', roleBucket: 'Executive', phone: '+33 5-555-2801', location: 'Toulouse, France', status: 'new' },
+   270→    { name: 'Marie Laurent', email: 'm.laurent@aerodynamics.com', jobTitle: 'Head of Engineering', roleBucket: 'Manager', phone: '+33 5-555-2802', location: 'Toulouse, France', status: 'new' },
+   271→  ],
+   272→  // 28: AgriTech Solutions
+   273→  [
+   274→    { name: 'Carlos Silva', email: 'c.silva@agritechsol.com', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+55 11-555-2901', location: 'São Paulo, Brazil', status: 'new' },
+   275→    { name: 'Ana Oliveira', email: 'a.oliveira@agritechsol.com', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+55 11-555-2902', location: 'São Paulo, Brazil', status: 'new' },
+   276→  ],
+   277→  // 29: LegalEdge Partners
+   278→  [
+   279→    { name: 'Margaret Sullivan', email: 'm.sullivan@legaledge.com', jobTitle: 'Managing Partner', roleBucket: 'Executive', phone: '+1 202-555-3001', location: 'Washington, DC', status: 'active' },
+   280→    { name: 'Robert Hughes', email: 'r.hughes@legaledge.com', jobTitle: 'Director of Technology', roleBucket: 'Manager', phone: '+1 202-555-3002', location: 'Washington, DC', status: 'active' },
+   281→    { name: 'Katherine Wells', email: 'k.wells@legaledge.com', jobTitle: 'Head of Legal Tech', roleBucket: 'Technical', phone: '+1 202-555-3003', location: 'Washington, DC', status: 'active' },
+   282→  ],
+   283→  // 30: MediaPulse Studios
+   284→  [
+   285→    { name: 'Ariana Rodriguez', email: 'a.rodriguez@mediapulse.co', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+1 310-555-3101', location: 'Los Angeles, CA', status: 'active' },
+   286→    { name: 'Jake Patterson', email: 'j.patterson@mediapulse.co', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+1 310-555-3102', location: 'Los Angeles, CA', status: 'active' },
+   287→    { name: 'Tina Huang', email: 't.huang@mediapulse.co', jobTitle: 'VP of Engineering', roleBucket: 'Executive', phone: '+1 310-555-3103', location: 'Los Angeles, CA', status: 'active' },
+   288→  ],
+   289→  // 31: InsureRight Group
+   290→  [
+   291→    { name: 'Heinrich Becker', email: 'h.becker@insureright.com', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+41 44-555-3201', location: 'Zurich, Switzerland', status: 'new' },
+   292→    { name: 'Lena Fischer', email: 'l.fischer@insureright.com', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+41 44-555-3202', location: 'Zurich, Switzerland', status: 'new' },
+   293→  ],
+   294→  // 32: GovernTech Solutions
+   295→  [
+   296→    { name: 'Patricia Anderson', email: 'p.anderson@governtech.gov', jobTitle: 'VP of Technology', roleBucket: 'Executive', phone: '+1 703-555-3301', location: 'Arlington, VA', status: 'new' },
+   297→    { name: 'Mark Stevens', email: 'm.stevens@governtech.gov', jobTitle: 'Director of Digital Services', roleBucket: 'Manager', phone: '+1 703-555-3302', location: 'Arlington, VA', status: 'new' },
+   298→  ],
+   299→  // 33: TravelWise Global
+   300→  [
+   301→    { name: 'Oliver Price', email: 'o.price@travelwise.com', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+44 20-7946-3401', location: 'London, UK', status: 'new' },
+   302→    { name: 'Hannah Green', email: 'h.green@travelwise.com', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+44 20-7946-3402', location: 'London, UK', status: 'new' },
+   303→  ],
+   304→  // 34: Pinnacle Consulting
+   305→  [
+   306→    { name: 'Victoria Chang', email: 'v.chang@pinnacleconsulting.com', jobTitle: 'Managing Director', roleBucket: 'Executive', phone: '+1 212-555-3501', location: 'New York, NY', status: 'active' },
+   307→    { name: 'Michael Brooks', email: 'm.brooks@pinnacleconsulting.com', jobTitle: 'VP of Technology', roleBucket: 'Executive', phone: '+1 212-555-3502', location: 'New York, NY', status: 'active' },
+   308→    { name: 'Sarah Mitchell', email: 's.mitchell@pinnacleconsulting.com', jobTitle: 'Director of Digital', roleBucket: 'Manager', phone: '+1 212-555-3503', location: 'New York, NY', status: 'active' },
+   309→    { name: 'James Wilson', email: 'j.wilson@pinnacleconsulting.com', jobTitle: 'Senior Consultant', roleBucket: 'Other', phone: '+1 212-555-3504', location: 'New York, NY', status: 'new' },
+   310→  ],
+   311→]
+   312→
+   313→// ─── Main Seed Function ───────────────────────────────────────────────
+   314→
+   315→async function main() {
+   316→  console.log('🔄 Starting demo data seed...')
+   317→
+   318→  // ── Step 1: Clear all existing data (respect FK constraints) ────────
+   319→  console.log('🗑️  Clearing existing data...')
+   320→  const deleteOrder = [
+   321→    'customFieldValue',
+   322→    'customFieldDefinition',
+   323→    'emailHealthCheck',
+   324→    'draft',
+   325→    'timelineEntry',
+   326→    'companyNote',
+   327→    'contactNote',
+   328→    'companyResearchSource',
+   329→    'companyResearchCard',
+   330→    'opportunity',
+   331→    'contact',
+   332→    'company',
+   333→    'importBatch',
+   334→    'capabilitySnippet',
+   335→    'capabilityDocument',
+   336→    'userPreferences',
+   337→  ] as const
+   338→
+   339→  for (const model of deleteOrder) {
+   340→    try {
+   341→      await (prisma as any)[model].deleteMany({})
+   342→    } catch (err) {
+   343→      console.log(`  ⚠️  Could not delete ${model}: ${(err as Error).message}`)
+   344→    }
+   345→  }
+   346→
+   347→  // Try to clear notification/task/auditlog if models exist
+   348→  for (const model of ['notification', 'task', 'auditLog'] as const) {
+   349→    try {
+   350→      await (prisma as any)[model].deleteMany({})
+   351→      console.log(`  ✅ Cleared ${model}`)
+   352→    } catch {
+   353→      // Model doesn't exist yet, skip
+   354→    }
+   355→  }
+   356→
+   357→  console.log('✅ All existing data cleared.')
+   358→
+   359→  // ── Step 2: Create Companies ────────────────────────────────────────
+   360→  console.log('🏢 Creating companies...')
+   361→  const createdCompanies: any[] = []
+   362→  for (const c of companies) {
+   363→    const company = await prisma.company.create({
+   364→      data: {
+   365→        name: c.name,
+   366→        domain: c.domain,
+   367→        website: c.website,
+   368→        linkedinUrl: `https://linkedin.com/company/${c.domain.split('.')[0]}`,
+   369→        industry: c.industry,
+   370→        employeeSize: c.employeeSize,
+   371→        country: c.country,
+   372→        location: c.location,
+   373→        status: c.status,
+   374→        intelligenceScore: c.intelligenceScore,
+   375→        dataFreshness: c.dataFreshness,
+   376→      },
+   377→    })
+   378→    createdCompanies.push(company)
+   379→  }
+   380→  console.log(`  ✅ Created ${createdCompanies.length} companies`)
+   381→
+   382→  // ── Step 3: Create Contacts ─────────────────────────────────────────
+   383→  console.log('👤 Creating contacts...')
+   384→  const createdContacts: any[] = []
+   385→  for (let i = 0; i < contactsByCompany.length; i++) {
+   386→    const company = createdCompanies[i]
+   387→    if (!company) continue
+   388→    for (const c of contactsByCompany[i]) {
+   389→      const contact = await prisma.contact.create({
+   390→        data: {
+   391→          companyId: company.id,
+   392→          name: c.name,
+   393→          email: c.email,
+   394→          jobTitle: c.jobTitle,
+   395→          roleBucket: c.roleBucket,
+   396→          linkedinUrl: `https://linkedin.com/in/${c.email.split('@')[0]}`,
+   397→          phone: c.phone,
+   398→          location: c.location,
+   399→          status: c.status,
+   400→          emailHealth: 'unknown',
+   401→        },
+   402→      })
+   403→      createdContacts.push({ ...contact, companyIndex: i })
+   404→    }
+   405→  }
+   406→  console.log(`  ✅ Created ${createdContacts.length} contacts`)
+   407→
+   408→  // ── Step 4: Create Research Cards (for 18 active companies) ────────
+   409→  console.log('🔍 Creating research cards...')
+   410→  const researchCompanies = [0, 1, 2, 3, 7, 8, 9, 11, 12, 15, 17, 21, 29, 30, 34]
+   411→  let researchCount = 0
+   412→  for (const idx of researchCompanies) {
+   413→    const company = createdCompanies[idx]
+   414→    if (!company) continue
+   415→    const industry = company.industry
+   416→    await prisma.companyResearchCard.create({
+   417→      data: {
+   418→        companyId: company.id,
+   419→        businessOverview: `${company.name} is a ${company.employeeSize} employee company operating in the ${industry} sector, headquartered in ${company.location}. The organization has established itself as a notable player in its market segment, with a focus on innovation and growth. Recent market signals suggest they are actively investing in their technology infrastructure and expanding their operational capabilities. Their client base appears to be growing steadily, and they have shown interest in optimizing their internal processes.`,
+   420→        currentTechLandscape: `Based on publicly available information, ${company.name} appears to utilize a modern technology stack. Their web presence suggests they leverage cloud-based infrastructure, and job postings indicate they work with contemporary development frameworks. The company has been actively hiring for engineering roles, which typically signals ongoing technology investments or digital transformation initiatives. They likely face the common challenge of scaling their technology as they grow.`,
+   421→        potentialChallenges: `As a ${company.industry} company of ${company.employeeSize} employees, ${company.name} likely faces challenges common to mid-market organizations in this space. These may include scaling their technology infrastructure, managing technical debt, ensuring data security compliance, and competing for engineering talent. The ${company.industry} sector is also experiencing rapid change, requiring companies to continuously adapt their strategies and technology investments to remain competitive.`,
+   422→        possibleOpportunities: `${company.name} presents several potential engagement opportunities. Their growth trajectory suggests they may need external expertise to scale their technology or improve operational efficiency. The ${company.industry} sector's current trends align well with enterprise solutions focused on automation, data analytics, and digital transformation. A targeted outreach emphasizing relevant case studies and ROI-driven proposals could resonate with their leadership team.`,
+   423→        relevantServices: `Given their profile in ${industry} and growth stage, the following service areas appear most relevant: technology consulting and digital strategy, custom software development for scaling operations, data analytics and business intelligence solutions, cloud infrastructure optimization, and cybersecurity assessment. Their ${company.employeeSize} employee size suggests they likely have budget authority for mid-tier engagements and may value a partner who can provide both strategic guidance and hands-on implementation support.`,
+   424→        keyDecisionMakers: `Key decision makers at ${company.name} likely include the C-suite executives, particularly the CEO and CTO or VP of Engineering. The contacts we have identified include senior technical and business leaders who would be involved in technology partnership decisions. Building relationships with multiple stakeholders across both the technical and business sides of the organization would strengthen our position for a successful engagement.`,
+   425→        confidenceScore: randomInt(65, 95),
+   426→      },
+   427→    })
+   428→    researchCount++
+   429→  }
+   430→  console.log(`  ✅ Created ${researchCount} research cards`)
+   431→
+   432→  // ── Step 5: Create Opportunities ────────────────────────────────────
+   433→  console.log('💰 Creating opportunities...')
+   434→  const opportunityDefs: { companyIdx: number; title: string; status: string; desc: string; contactIdx: number }[] = [
+   435→    { companyIdx: 0, title: 'Enterprise Platform Modernization', status: 'negotiation', desc: 'Modernize their legacy platform to a cloud-native architecture. Estimated 6-month engagement worth $180K.', contactIdx: 0 },
+   436→    { companyIdx: 0, title: 'AI-Powered Analytics Dashboard', status: 'proposal', desc: 'Build an analytics dashboard with AI-driven insights for their product team.', contactIdx: 1 },
+   437→    { companyIdx: 1, title: 'Healthcare Data Pipeline', status: 'qualified', desc: 'Design and implement HIPAA-compliant data processing pipeline for patient analytics.', contactIdx: 1 },
+   438→    { companyIdx: 2, title: 'Risk Assessment Engine', status: 'researching', desc: 'Develop ML-based risk assessment engine for their portfolio management platform.', contactIdx: 2 },
+   439→    { companyIdx: 2, title: 'API Gateway Modernization', status: 'researching', desc: 'Replace legacy API gateway with modern, scalable microservices architecture.', contactIdx: 1 },
+   440→    { companyIdx: 3, title: 'Cloud Migration Strategy', status: 'proposal', desc: 'Full cloud migration from on-premise to AWS/Azure hybrid architecture.', contactIdx: 0 },
+   441→    { companyIdx: 7, title: 'AI/ML Platform Development', status: 'qualified', desc: 'Build a scalable ML platform for their data science team.', contactIdx: 0 },
+   442→    { companyIdx: 8, title: 'Payment Processing Optimization', status: 'won', desc: 'Optimized payment processing pipeline, reducing transaction times by 40%.', contactIdx: 1 },
+   443→    { companyIdx: 8, title: 'Compliance Automation', status: 'researching', desc: 'Automate regulatory compliance reporting and monitoring.', contactIdx: 3 },
+   444→    { companyIdx: 11, title: 'E-commerce Platform Rebuild', status: 'negotiation', desc: 'Complete rebuild of their e-commerce platform with microservices architecture.', contactIdx: 0 },
+   445→    { companyIdx: 11, title: 'Real-time Inventory System', status: 'proposal', desc: 'Build a real-time inventory tracking and forecasting system.', contactIdx: 2 },
+   446→    { companyIdx: 12, title: 'Zero Trust Implementation', status: 'qualified', desc: 'Design and implement zero trust security architecture across their infrastructure.', contactIdx: 1 },
+   447→    { companyIdx: 12, title: 'Security Operations Center', status: 'researching', desc: 'Build an automated SOC with AI-driven threat detection.', contactIdx: 3 },
+   448→    { companyIdx: 15, title: 'Patient Portal Redesign', status: 'researching', desc: 'Redesign and rebuild patient-facing portal with improved UX and accessibility.', contactIdx: 1 },
+   449→    { companyIdx: 17, title: 'Threat Intelligence Platform', status: 'negotiation', desc: 'Build a custom threat intelligence aggregation and analysis platform.', contactIdx: 1 },
+   450→    { companyIdx: 17, title: 'Penetration Testing Suite', status: 'won', desc: 'Develop automated penetration testing tools for continuous security assessment.', contactIdx: 3 },
+   451→    { companyIdx: 21, title: 'SaaS Analytics Module', status: 'proposal', desc: 'Add analytics and reporting module to their SaaS platform.', contactIdx: 1 },
+   452→    { companyIdx: 21, title: 'Multi-tenant Architecture', status: 'researching', desc: 'Refactor to support multi-tenant architecture for enterprise clients.', contactIdx: 0 },
+   453→    { companyIdx: 29, title: 'Legal Document Management', status: 'qualified', desc: 'Build AI-powered legal document management and search system.', contactIdx: 2 },
+   454→    { companyIdx: 30, title: 'Content Delivery Platform', status: 'researching', desc: 'Design and build a scalable content delivery and management platform.', contactIdx: 1 },
+   455→    { companyIdx: 34, title: 'Digital Transformation Advisory', status: 'proposal', desc: 'Provide strategic consulting for their clients\' digital transformation initiatives.', contactIdx: 1 },
+   456→    { companyIdx: 34, title: 'Client Analytics Dashboard', status: 'researching', desc: 'Build a white-label analytics dashboard for their consulting clients.', contactIdx: 2 },
+   457→    { companyIdx: 3, title: 'Data Warehouse Modernization', status: 'lost', desc: 'They went with an in-house team for their data warehouse migration project.', contactIdx: 3 },
+   458→    { companyIdx: 9, title: 'Mobile Banking App', status: 'lost', desc: 'Budget was redirected to regulatory compliance after a compliance audit.', contactIdx: 2 },
+   459→    { companyIdx: 0, title: 'DevOps Automation', status: 'won', desc: 'Implemented CI/CD pipelines and infrastructure-as-code, reducing deployment time by 60%.', contactIdx: 4 },
+   460→    { companyIdx: 7, title: 'Data Pipeline Optimization', status: 'researching', desc: 'Optimize their real-time data processing pipelines for lower latency.', contactIdx: 2 },
+   461→    { companyIdx: 1, title: 'Telehealth Platform Enhancement', status: 'researching', desc: 'Enhance their existing telehealth platform with AI-powered symptom checking.', contactIdx: 3 },
+   462→    { companyIdx: 30, title: 'Ad Tech Platform', status: 'qualified', desc: 'Build programmatic advertising technology platform for their media clients.', contactIdx: 2 },
+   463→    { companyIdx: 29, title: 'Compliance Tracking System', status: 'researching', desc: 'Build a regulatory compliance tracking and alerting system.', contactIdx: 1 },
+   464→    { companyIdx: 15, title: 'EHR Integration', status: 'researching', desc: 'Build integration layer between their platform and major EHR systems.', contactIdx: 2 },
+   465→    { companyIdx: 12, title: 'Incident Response Automation', status: 'researching', desc: 'Automate incident response workflows and escalation procedures.', contactIdx: 2 },
+   466→  ]
+   467→
+   468→  const createdOpportunities: any[] = []
+   469→  for (const opp of opportunityDefs) {
+   470→    const company = createdCompanies[opp.companyIdx]
+   471→    if (!company) continue
+   472→    // Find the contact for this company
+   473→    const companyContacts = createdContacts.filter(c => c.companyIndex === opp.companyIdx)
+   474→    const contact = companyContacts[opp.contactIdx] || null
+   475→
+   476→    const opportunity = await prisma.opportunity.create({
+   477→      data: {
+   478→        companyId: company.id,
+   479→        title: opp.title,
+   480→        description: opp.desc,
+   481→        targetContactId: contact?.id || null,
+   482→        status: opp.status,
+   483→        nextAction: opp.status === 'researching' ? 'Schedule discovery call' :
+   484→          opp.status === 'qualified' ? 'Prepare proposal' :
+   485→          opp.status === 'proposal' ? 'Follow up on proposal' :
+   486→          opp.status === 'negotiation' ? 'Finalize contract terms' : null,
+   487→      },
+   488→    })
+   489→    createdOpportunities.push(opportunity)
+   490→  }
+   491→  console.log(`  ✅ Created ${createdOpportunities.length} opportunities`)
+   492→
+   493→  // ── Step 6: Create Timeline Entries ─────────────────────────────────
+   494→  console.log('📋 Creating timeline entries...')
+   495→  const timelineActions = [
+   496→    { companyIdx: 0, action: 'company_created', details: 'Company NovaTech Solutions was added to the CRM', daysAgo: 28 },
+   497→    { companyIdx: 0, action: 'contact_added', details: 'Added Rajesh Patel (CTO) as a contact', daysAgo: 28 },
+   498→    { companyIdx: 0, action: 'contact_added', details: 'Added Sarah Chen (VP of Engineering) as a contact', daysAgo: 27 },
+   499→    { companyIdx: 0, action: 'research_generated', details: 'AI research card generated for NovaTech Solutions', daysAgo: 26 },
+   500→    { companyIdx: 0, action: 'opportunity_created', details: 'Created opportunity: Enterprise Platform Modernization', daysAgo: 20 },
+   501→    { companyIdx: 0, action: 'note_added', details: 'Had an initial discovery call with Rajesh. They are looking to modernize their platform within Q2.', daysAgo: 18, noteType: 'call' },
+   502→    { companyIdx: 0, action: 'email_generated', details: 'Generated follow-up email for Sarah Chen after discovery call', daysAgo: 17 },
+   503→    { companyIdx: 0, action: 'opportunity_updated', details: 'Enterprise Platform Modernization moved to negotiation stage', daysAgo: 5 },
+   504→    { companyIdx: 1, action: 'company_created', details: 'Company HealthBridge Analytics was added to the CRM', daysAgo: 25 },
+   505→    { companyIdx: 1, action: 'contact_added', details: 'Added Dr. Anita Sharma (CEO) as a contact', daysAgo: 25 },
+   506→    { companyIdx: 1, action: 'research_generated', details: 'AI research card generated for HealthBridge Analytics', daysAgo: 24 },
+   507→    { companyIdx: 1, action: 'opportunity_created', details: 'Created opportunity: Healthcare Data Pipeline', daysAgo: 15 },
+   508→    { companyIdx: 1, action: 'note_added', details: 'Meeting with James Mitchell to discuss HIPAA compliance requirements for the data pipeline project.', daysAgo: 12, noteType: 'meeting' },
+   509→    { companyIdx: 1, action: 'email_validated', details: 'Batch email validation completed for HealthBridge Analytics contacts', daysAgo: 10 },
+   510→    { companyIdx: 2, action: 'company_created', details: 'Company FinEdge Capital was added to the CRM', daysAgo: 22 },
+   511→    { companyIdx: 2, action: 'contact_added', details: 'Added Alexandra Walsh (COO) as a contact', daysAgo: 22 },
+   512→    { companyIdx: 2, action: 'opportunity_created', details: 'Created opportunity: Risk Assessment Engine', daysAgo: 14 },
+   513→    { companyIdx: 2, action: 'draft_created', details: 'Generated email draft for Priya Nair about AI/ML capabilities', daysAgo: 8 },
+   514→    { companyIdx: 3, action: 'company_created', details: 'Company CloudVista Systems was added to the CRM', daysAgo: 20 },
+   515→    { companyIdx: 3, action: 'opportunity_created', details: 'Created opportunity: Cloud Migration Strategy', daysAgo: 12 },
+   516→    { companyIdx: 3, action: 'opportunity_updated', details: 'Cloud Migration Strategy moved to proposal stage', daysAgo: 3 },
+   517→    { companyIdx: 7, action: 'company_created', details: 'Company DataPulse AI was added to the CRM', daysAgo: 18 },
+   518→    { companyIdx: 7, action: 'contact_added', details: 'Added Dr. Wei Zhang (Founder & CTO) as a contact', daysAgo: 18 },
+   519→    { companyIdx: 7, action: 'research_generated', details: 'AI research card generated for DataPulse AI', daysAgo: 17 },
+   520→    { companyIdx: 7, action: 'opportunity_created', details: 'Created opportunity: AI/ML Platform Development', daysAgo: 10 },
+   521→    { companyIdx: 8, action: 'company_created', details: 'Company PayGrid Financial was added to the CRM', daysAgo: 15 },
+   522→    { companyIdx: 8, action: 'opportunity_created', details: 'Created opportunity: Payment Processing Optimization', daysAgo: 12 },
+   523→    { companyIdx: 8, action: 'opportunity_updated', details: 'Payment Processing Optimization marked as won!', daysAgo: 2 },
+   524→    { companyIdx: 8, action: 'opportunity_created', details: 'Created opportunity: Compliance Automation', daysAgo: 5 },
+   525→    { companyIdx: 11, action: 'company_created', details: 'Company CartMax Global was added to the CRM', daysAgo: 12 },
+   526→    { companyIdx: 11, action: 'opportunity_created', details: 'Created opportunity: E-commerce Platform Rebuild', daysAgo: 8 },
+   527→    { companyIdx: 11, action: 'note_added', details: 'Initial call with Brian Cooper. They are planning a major platform overhaul in Q3.', daysAgo: 6, noteType: 'call' },
+   528→    { companyIdx: 12, action: 'company_created', details: 'Company CyberVault Security was added to the CRM', daysAgo: 10 },
+   529→    { companyIdx: 12, action: 'research_generated', details: 'AI research card generated for CyberVault Security', daysAgo: 9 },
+   530→    { companyIdx: 12, action: 'opportunity_created', details: 'Created opportunity: Zero Trust Implementation', daysAgo: 7 },
+   531→    { companyIdx: 12, action: 'note_added', details: 'Meeting with Yuki Tanaka and Alex Rivera about their security modernization roadmap.', daysAgo: 4, noteType: 'meeting' },
+   532→    { companyIdx: 15, action: 'company_created', details: 'Company CareSync Health was added to the CRM', daysAgo: 8 },
+   533→    { companyIdx: 15, action: 'opportunity_created', details: 'Created opportunity: Patient Portal Redesign', daysAgo: 5 },
+   534→    { companyIdx: 17, action: 'company_created', details: 'Company ThreatGuard Solutions was added to the CRM', daysAgo: 7 },
+   535→    { companyIdx: 17, action: 'opportunity_created', details: 'Created opportunity: Penetration Testing Suite', daysAgo: 5 },
+   536→    { companyIdx: 17, action: 'opportunity_updated', details: 'Penetration Testing Suite marked as won!', daysAgo: 1 },
+   537→    { companyIdx: 17, action: 'opportunity_created', details: 'Created opportunity: Threat Intelligence Platform', daysAgo: 3 },
+   538→    { companyIdx: 21, action: 'company_created', details: 'Company SaaSMatrix Pro was added to the CRM', daysAgo: 5 },
+   539→    { companyIdx: 21, action: 'opportunity_created', details: 'Created opportunity: SaaS Analytics Module', daysAgo: 3 },
+   540→    { companyIdx: 29, action: 'company_created', details: 'Company LegalEdge Partners was added to the CRM', daysAgo: 4 },
+   541→    { companyIdx: 29, action: 'opportunity_created', details: 'Created opportunity: Legal Document Management', daysAgo: 2 },
+   542→    { companyIdx: 30, action: 'company_created', details: 'Company MediaPulse Studios was added to the CRM', daysAgo: 3 },
+   543→    { companyIdx: 30, action: 'opportunity_created', details: 'Created opportunity: Content Delivery Platform', daysAgo: 1 },
+   544→    { companyIdx: 34, action: 'company_created', details: 'Company Pinnacle Consulting was added to the CRM', daysAgo: 6 },
+   545→    { companyIdx: 34, action: 'opportunity_created', details: 'Created opportunity: Digital Transformation Advisory', daysAgo: 4 },
+   546→    { companyIdx: 34, action: 'note_added', details: 'Dinner meeting with Victoria Chang. Discussed potential partnership for their enterprise clients.', daysAgo: 2, noteType: 'meeting' },
+   547→    { companyIdx: 9, action: 'opportunity_updated', details: 'Mobile Banking App opportunity marked as lost — budget redirected', daysAgo: 1 },
+   548→    { companyIdx: 3, action: 'opportunity_updated', details: 'Data Warehouse Modernization marked as lost — went with in-house team', daysAgo: 6 },
+   549→    { companyIdx: 0, action: 'opportunity_created', details: 'Created opportunity: DevOps Automation', daysAgo: 25 },
+   550→    { companyIdx: 0, action: 'opportunity_updated', details: 'DevOps Automation marked as won!', daysAgo: 15 },
+   551→  ]
+   552→
+   553→  for (const tl of timelineActions) {
+   554→    const company = createdCompanies[tl.companyIdx]
+   555→    if (!company) continue
+   556→    await prisma.timelineEntry.create({
+   557→      data: {
+   558→        companyId: company.id,
+   559→        action: tl.action as any,
+   560→        details: tl.details,
+   561→        createdAt: daysAgo(tl.daysAgo),
+   562→      },
+   563→    })
+   564→  }
+   565→  console.log(`  ✅ Created ${timelineActions.length} timeline entries`)
+   566→
+   567→  // ── Step 7: Create Notes ────────────────────────────────────────────
+   568→  console.log('📝 Creating notes...')
+   569→  const companyNotes: { companyIdx: number; body: string; noteType: string; daysAgo: number }[] = [
+   570→    { companyIdx: 0, body: 'Discovery call with Rajesh went well. They have a 12-month modernization roadmap. Budget is approved for Q2 start. Key pain point: their monolithic architecture can\'t scale for their growing user base of 50K+ monthly active users. They\'re considering both a full rewrite and a strangler fig approach.', noteType: 'call', daysAgo: 18 },
+   571→    { companyIdx: 0, body: 'Follow-up meeting with Sarah Chen. She shared their tech stack details: Java Spring backend, React frontend, PostgreSQL, running on EC2. They\'re interested in moving to Kubernetes but lack internal expertise. Sarah is the primary technical decision maker for this project.', noteType: 'meeting', daysAgo: 15 },
+   572→    { companyIdx: 0, body: 'Sent technical proposal to Rajesh and Sarah. Includes 3-phase approach: (1) Assessment and architecture design (4 weeks), (2) Core platform migration (12 weeks), (3) Optimization and handover (4 weeks). Total estimate: $180K. Awaiting feedback.', noteType: 'email', daysAgo: 8 },
+   573→    { companyIdx: 1, body: 'Meeting with Dr. Sharma and James Mitchell at their Boston office. They process 2M+ patient records monthly and need a HIPAA-compliant data pipeline. Current ETL processes take 6+ hours and they need near-real-time processing. Strong alignment with our healthcare data capabilities.', noteType: 'meeting', daysAgo: 12 },
+   574→    { companyIdx: 1, body: 'Lisa Rodriguez shared their compliance requirements document. HIPAA, SOC 2 Type II, and state-level patient data privacy regulations. They need audit trails for all data access and processing. This is a significant differentiator — many competitors can\'t handle the compliance requirements.', noteType: 'note', daysAgo: 9 },
+   575→    { companyIdx: 2, body: 'Call with Priya Nair about their ML infrastructure needs. They want to build an in-house risk assessment engine but are struggling with model deployment and monitoring. Currently using a patchwork of Jupyter notebooks and scheduled jobs. Need a proper MLOps platform.', noteType: 'call', daysAgo: 10 },
+   576→    { companyIdx: 7, body: 'Wei Zhang is brilliant — they\'re building a real-time analytics platform and need help scaling from prototype to production. Their current architecture handles 10K events/sec but they need to get to 100K+. They\'re well-funded (Series B, $45M) and technically sophisticated.', noteType: 'note', daysAgo: 16 },
+   577→    { companyIdx: 8, body: 'Nigel Clarkson confirmed they chose us for the payment processing optimization. Contract signed for $120K over 4 months. Rebecca Hall will be our primary technical contact. Start date: next Monday. This is our second FinTech win this quarter.', noteType: 'email', daysAgo: 2 },
+   578→    { companyIdx: 11, body: 'Brian Cooper gave us a tour of their Chicago office and introduced us to their CTO. Their current monolith was built 8 years ago and is showing serious performance issues during peak traffic (Black Friday last year was a disaster). They have a $500K budget for the rebuild and want to start in Q3.', noteType: 'meeting', daysAgo: 6 },
+   579→    { companyIdx: 12, body: 'Security assessment call with Natasha Volkov. She shared that they recently had a near-miss with a supply chain attack and their board is now mandating a comprehensive zero-trust implementation. Budget is $300K+ and timeline is aggressive (6 months). This is a high-priority engagement.', noteType: 'call', daysAgo: 4 },
+   580→    { companyIdx: 12, body: 'Alex Rivera walked us through their current network architecture. It\'s a mix of on-premise and cloud (AWS) with legacy VPN connections. They have about 500 employees and 200+ contractors who need different levels of access. The zero-trust project would touch every part of their infrastructure.', noteType: 'meeting', daysAgo: 3 },
+   581→    { companyIdx: 17, body: 'Col. Walker shared their vision for an automated SOC. They want to reduce mean-time-to-detect from 48 hours to under 15 minutes using AI-driven threat detection. Laura Simmons has already built a POC that shows promising results. Contract discussions are in progress.', noteType: 'meeting', daysAgo: 2 },
+   582→    { companyIdx: 21, body: 'Tyler Morrison wants to add an analytics module to their SaaS platform. Their customers are asking for better reporting and dashboards. Current solution is basic — just some SQL queries and Chart.js. They want something more like a proper BI tool embedded in their product.', noteType: 'call', daysAgo: 3 },
+   583→    { companyIdx: 29, body: 'Katherine Wells demoed their current document management system — it\'s basically a shared drive with folders. They process 500+ legal documents per month and spend 30% of their time on document search and organization. AI-powered search and classification would be a game-changer for them.', noteType: 'note', daysAgo: 2 },
+   584→    { companyIdx: 34, body: 'Victoria Chang is interested in a strategic partnership where we provide the technical backbone for their consulting engagements. They have 15+ enterprise clients who need digital transformation support but lack in-house technical teams. This could be a $1M+/year recurring relationship.', noteType: 'meeting', daysAgo: 2 },
+   585→  ]
+   586→
+   587→  for (const n of companyNotes) {
+   588→    const company = createdCompanies[n.companyIdx]
+   589→    if (!company) continue
+   590→    await prisma.companyNote.create({
+   591→      data: {
+   592→        companyId: company.id,
+   593→        body: n.body,
+   594→        noteType: n.noteType,
+   595→        createdAt: daysAgo(n.daysAgo),
+   596→      },
+   597→    })
+   598→  }
+   599→
+   600→  // Contact notes
+   601→  const contactNotes: { companyIdx: number; contactOffset: number; body: string; noteType: string; daysAgo: number }[] = [
+   602→    { companyIdx: 0, contactOffset: 0, body: 'Rajesh is very technical and detail-oriented. Prefers technical deep-dives over high-level presentations. Send him architecture diagrams and performance benchmarks.', noteType: 'note', daysAgo: 17 },
+   603→    { companyIdx: 0, contactOffset: 1, body: 'Sarah is pragmatic and results-focused. She cares about delivery timelines and team productivity. Emphasize how our approach minimizes disruption to her engineering team.', noteType: 'note', daysAgo: 15 },
+   604→    { companyIdx: 1, contactOffset: 0, body: 'Dr. Sharma is passionate about patient outcomes. Frame everything in terms of how it improves healthcare delivery. She has strong board support for technology investments.', noteType: 'note', daysAgo: 11 },
+   605→    { companyIdx: 7, contactOffset: 0, body: 'Wei is a former Google engineer with a PhD in distributed systems. He values technical excellence and will push back on anything he considers suboptimal. Be prepared for tough technical questions.', noteType: 'call', daysAgo: 15 },
+   606→    { companyIdx: 12, contactOffset: 2, body: 'Alex has 20 years in cybersecurity, previously at NSA and CrowdStrike. He knows his stuff. Don\'t oversell — he\'ll see through it immediately. Focus on our specific experience with zero-trust architectures.', noteType: 'note', daysAgo: 3 },
+   607→  ]
+   608→
+   609→  for (const n of contactNotes) {
+   610→    const companyContacts = createdContacts.filter(c => c.companyIndex === n.companyIdx)
+   611→    const contact = companyContacts[n.contactOffset]
+   612→    if (!contact) continue
+   613→    await prisma.contactNote.create({
+   614→      data: {
+   615→        contactId: contact.id,
+   616→        body: n.body,
+   617→        noteType: n.noteType,
+   618→        createdAt: daysAgo(n.daysAgo),
+   619→      },
+   620→    })
+   621→  }
+   622→
+   623→  console.log(`  ✅ Created ${companyNotes.length + contactNotes.length} notes`)
+   624→
+   625→  // ── Step 8: Create Drafts ───────────────────────────────────────────
+   626→  console.log('📧 Creating drafts...')
+   627→  const draftDefs: { companyIdx: number; contactOffset: number; subject: string; body: string; cta: string; serviceAngle: string; status: string; daysAgo: number }[] = [
+   628→    { companyIdx: 2, contactOffset: 2, subject: 'Accelerating Your ML Model Deployment Pipeline', body: 'Hi Priya,\n\nI wanted to follow up on our recent conversation about FinEdge\'s ML infrastructure challenges. We\'ve helped several financial services firms build production-grade MLOps platforms that reduced their model deployment time from weeks to hours.\n\nOur approach includes automated model validation, canary deployments, and real-time performance monitoring — all designed for the strict compliance requirements of the financial sector.\n\nWould you be open to a 30-minute technical deep-dive where we can share our architecture and discuss how it might fit FinEdge\'s needs?\n\nBest regards', cta: 'Would you be open to a 30-minute technical deep-dive?', serviceAngle: 'MLOps Platform for Financial Services', status: 'draft', daysAgo: 7 },
+   629→    { companyIdx: 0, contactOffset: 1, subject: 'NovaTech Platform Modernization — Technical Proposal Follow-up', body: 'Hi Sarah,\n\nThank you for taking the time to review our technical proposal for the NovaTech platform modernization. I wanted to address a few points that came up during our discussion:\n\n1. **Migration Strategy**: We recommend the strangler fig pattern, which allows incremental migration without system-wide risk.\n2. **Timeline**: The 20-week timeline includes a 2-week buffer for unexpected complexities.\n3. **Team Structure**: We\'d assign a dedicated team of 4 engineers with direct experience in Java-to-cloud migrations.\n\nHappy to discuss any adjustments. Would a Thursday call work for you?', cta: 'Would a Thursday call work for you to discuss?', serviceAngle: 'Enterprise Platform Modernization', status: 'sent', daysAgo: 6 },
+   630→    { companyIdx: 11, contactOffset: 0, subject: 'Scaling CartMax for the Next Million Users', body: 'Hi Brian,\n\nFollowing our recent meeting about CartMax\'s platform rebuild, I\'ve put together some initial thoughts on the architecture. Given your peak traffic challenges and $500K budget, here\'s what we\'re thinking:\n\nA microservices-based approach with event-driven communication, containerized on Kubernetes, with a CDN-backed frontend. This architecture has proven to handle 10x traffic spikes for our e-commerce clients.\n\nI\'d love to walk you through the full proposal. Can we schedule 45 minutes next week?', cta: 'Can we schedule 45 minutes next week for a full proposal walkthrough?', serviceAngle: 'E-commerce Platform Architecture', status: 'approved', daysAgo: 4 },
+   631→    { companyIdx: 12, contactOffset: 1, subject: 'Zero Trust Architecture — Customized for CyberVault', body: 'Hi Yuki,\n\nBased on our discussion about CyberVault\'s security modernization needs, I wanted to share how we\'ve approached zero-trust implementations for organizations with similar hybrid infrastructure.\n\nOur framework covers identity verification, micro-segmentation, least-privilege access, and continuous monitoring — all tailored to meet your specific compliance requirements (FedRAMP, CMMC).\n\nThe engagement would be structured in three phases over 6 months, with the first phase delivering immediate security improvements within 8 weeks.\n\nShall I send over the detailed scope document?', cta: 'Shall I send over the detailed scope document?', serviceAngle: 'Zero Trust Security Architecture', status: 'draft', daysAgo: 3 },
+   632→    { companyIdx: 17, contactOffset: 1, subject: 'Building the Future of Automated Threat Detection', body: 'Hi Diana,\n\nLaura\'s POC for AI-driven threat detection is impressive. We\'d love to help take it from POC to production.\n\nOur team has experience building production ML systems for security operations, including real-time log analysis, anomaly detection, and automated incident classification. We can help with:\n\n- Scaling the detection pipeline to handle your full log volume\n- Building model training and retraining workflows\n- Creating analyst-friendly interfaces for reviewing AI-flagged events\n- Integrating with your existing SIEM and ticketing systems\n\nLet\'s set up a technical workshop with your team next week.', cta: 'Let\'s set up a technical workshop with your team next week.', serviceAngle: 'AI-Powered Security Operations', status: 'proposal', daysAgo: 2 },
+   633→    { companyIdx: 21, contactOffset: 1, subject: 'Embedded Analytics for SaaSMatrix', body: 'Hi Amy,\n\nAfter our conversation about SaaSMatrix\'s analytics needs, I\'ve been thinking about the best approach. Rather than building a full BI tool from scratch, we could leverage an embedded analytics framework that gives your customers:\n\n- Self-service dashboard creation\n- Scheduled report delivery\n- Data export in multiple formats\n- Role-based access to analytics\n\nThis approach would be 60% faster to deliver and 40% lower in ongoing maintenance costs compared to a custom build.\n\nWould you like to see a demo of what this could look like within your product?', cta: 'Would you like to see a demo of embedded analytics in action?', serviceAngle: 'Embedded Analytics for SaaS Products', status: 'draft', daysAgo: 2 },
+   634→    { companyIdx: 29, contactOffset: 2, subject: 'AI-Powered Legal Document Management', body: 'Hi Katherine,\n\nI was really impressed by the challenges LegalEdge faces with document management. Processing 500+ legal documents monthly with manual organization is not sustainable.\n\nOur AI document management solution offers:\n- Automatic document classification by type (contracts, briefs, motions, correspondence)\n- Intelligent search with natural language queries\n- Automated metadata extraction and tagging\n- Version control and change tracking\n- Integration with existing practice management systems\n\nSeveral law firms using our solution have reported 70% reduction in document search time and 40% improvement in document processing efficiency.\n\nCan we schedule a demo for your team?', cta: 'Can we schedule a demo for your team?', serviceAngle: 'AI Document Management for Legal', status: 'draft', daysAgo: 1 },
+   635→    { companyIdx: 34, contactOffset: 0, subject: 'Partnership Proposal — Technical Backbone for Pinnacle Consulting', body: 'Hi Victoria,\n\nIt was wonderful meeting you for dinner the other evening. I\'ve been thinking about the partnership model we discussed, and I believe there\'s a compelling opportunity here.\n\nWe could structure this as a white-label technical services arrangement where:\n- We provide the engineering team and technical leadership\n- Pinnacle provides the client relationships and strategic direction\n- Joint go-to-market for digital transformation engagements\n- Revenue sharing model based on project contributions\n\nBased on your 15+ enterprise clients, this could represent a $1M+ annual opportunity for both organizations.\n\nI\'d love to put together a more detailed partnership framework. Would next Tuesday work for a follow-up discussion?', cta: 'Would next Tuesday work for a follow-up discussion?', serviceAngle: 'Strategic Technology Partnership', status: 'draft', daysAgo: 1 },
+   636→    { companyIdx: 15, contactOffset: 1, subject: 'Modernizing CareSync\'s Patient Portal', body: 'Hi Susan,\n\nI wanted to reach out about CareSync Health\'s patient portal redesign. Healthcare UX is a specialized field, and we have experience building patient-facing applications that meet both accessibility standards (WCAG 2.1 AA) and HIPAA requirements.\n\nSome of our recent healthcare UX work includes:\n- A patient portal for a 200-hospital network (3M+ patients)\n- A telehealth platform with 4.8/5 patient satisfaction score\n- A mobile-first health records app with 500K+ downloads\n\nI\'d love to understand your current pain points and share some relevant case studies.', cta: 'I\'d love to understand your current pain points — can we schedule a brief call?', serviceAngle: 'Healthcare UX Design and Development', status: 'draft', daysAgo: 4 },
+   637→    { companyIdx: 30, contactOffset: 1, subject: 'Scalable Content Delivery for MediaPulse', body: 'Hi Jake,\n\nGiven MediaPulse\'s growth in the content creation space, I imagine scaling your content delivery infrastructure is becoming a priority. We\'ve built content delivery platforms that handle:\n\n- Multi-format video streaming (HLS, DASH)\n- Global CDN distribution with edge caching\n- Real-time content analytics and viewer insights\n- Dynamic ad insertion and monetization tools\n\nWould love to learn more about your current stack and growth plans.', cta: 'Would love to learn more about your current stack — coffee next week?', serviceAngle: 'Content Delivery Infrastructure', status: 'draft', daysAgo: 1 },
+   638→    { companyIdx: 7, contactOffset: 2, subject: 'Scaling Real-Time Analytics at DataPulse', body: 'Hi Ryan,\n\nI heard from Jessica that DataPulse is looking to scale from 10K to 100K events per second. That\'s an exciting challenge that we\'ve tackled before.\n\nThe key architectural decisions at this scale are around event partitioning, exactly-once processing guarantees, and backpressure handling. We\'ve built systems processing 500K+ events/sec using a combination of Apache Kafka, Apache Flink, and custom stream processors.\n\nWould be great to share some of our learnings. Want to grab a virtual coffee?', cta: 'Want to grab a virtual coffee and discuss architecture?', serviceAngle: 'Real-time Data Pipeline Architecture', status: 'draft', daysAgo: 5 },
+   639→    { companyIdx: 3, contactOffset: 0, subject: 'Cloud Migration Case Studies — UK SaaS Experience', body: 'Hi Oliver,\n\nFollowing our cloud migration discussion, I wanted to share some relevant case studies from our work with UK-based SaaS companies undergoing similar transformations.\n\nWe recently helped a London-based fintech migrate their entire infrastructure to AWS in 14 weeks with zero downtime. The key was our phased migration approach and comprehensive rollback strategy.\n\nI\'ve attached our detailed proposal for your review. Happy to walk through it at your convenience.', cta: 'Happy to walk through the proposal at your convenience.', serviceAngle: 'Cloud Migration for SaaS', status: 'sent', daysAgo: 3 },
+   640→    { companyIdx: 1, contactOffset: 3, subject: 'Healthcare AI Data Processing — Technical Exchange', body: 'Hi Robert,\n\nI understand you\'re leading the data science efforts at HealthBridge Analytics. We\'ve been working on some interesting healthcare AI projects and I thought you might find our approach to clinical data processing relevant.\n\nOur framework handles de-identification, temporal data analysis, and multi-modal data fusion — all while maintaining HIPAA compliance.\n\nWould you be interested in a technical exchange?', cta: 'Would you be interested in a technical exchange?', serviceAngle: 'Healthcare AI and Data Science', status: 'rejected', daysAgo: 8, rejectReason: 'Not interested in external partnerships at this time' },
+   641→    { companyIdx: 9, contactOffset: 2, subject: 'PayGrid Product Roadmap Follow-up', body: 'Hi Andrew,\n\nI wanted to follow up on our earlier conversation about PayGrid\'s product roadmap. We\'ve recently completed a similar mobile banking implementation and I think there are some valuable lessons learned that could benefit your team.\n\nHowever, I understand priorities may have shifted. Please let me know if there\'s a better time to reconnect about this.', cta: 'Let me know if there\'s a better time to reconnect.', serviceAngle: 'Mobile Banking Technology', status: 'rejected', daysAgo: 3, rejectReason: 'Budget redirected to regulatory compliance project' },
+   642→    { companyIdx: 8, contactOffset: 0, subject: 'Payment Processing Optimization — Phase 2 Opportunities', body: 'Hi Nigel,\n\nCongratulations on the successful launch of the optimized payment processing pipeline! I wanted to check in on how things are going and discuss any additional optimization opportunities.\n\nOur team noticed a few areas where we could further improve transaction routing and reduce processing costs. Would you be open to a brief review session?', cta: 'Would you be open to a brief optimization review session?', serviceAngle: 'Payment Processing Optimization Phase 2', status: 'draft', daysAgo: 1 },
+   643→    { companyIdx: 12, contactOffset: 3, subject: 'Scaling CyberVault\'s Threat Intelligence Research', body: 'Hi Natasha,\n\nI\'m really impressed by the threat intelligence work you\'re doing at CyberVault. The POC you built for automated threat classification is exactly the kind of capability our clients are looking for.\n\nWe\'d love to explore how we could help scale your research into a production system. Our experience with real-time data processing and ML deployment could complement your security expertise nicely.', cta: 'Could we schedule a technical discussion to explore this further?', serviceAngle: 'Threat Intelligence Platform Development', status: 'draft', daysAgo: 2 },
+   644→    { companyIdx: 17, contactOffset: 3, subject: 'Automated Penetration Testing — Production Build Plan', body: 'Hi Laura,\n\nCongratulations on the successful POC! The automated penetration testing suite is a game-changer, and I\'m excited to help take it from concept to production.\n\nFor the production build, I\'d suggest we focus on:\n1. Modular test framework for easy extension\n2. Integration with major CI/CD pipelines\n3. Automated reporting and remediation suggestions\n4. Scheduling and continuous scanning capabilities\n\nLet\'s set up a technical planning session.', cta: 'Let\'s set up a technical planning session for the production build.', serviceAngle: 'Automated Security Testing Platform', status: 'approved', daysAgo: 1 },
+   645→    { companyIdx: 34, contactOffset: 1, subject: 'Dedicated Engineering Pods for Pinnacle Consulting', body: 'Hi Michael,\n\nVictoria mentioned that Pinnacle is looking to strengthen their technology practice. Given our complementary capabilities, I think there\'s a strong case for a deeper partnership.\n\nWe could provide dedicated engineering pods that operate as an extension of your team, giving you the ability to take on larger and more complex digital transformation engagements.\n\nI\'d love to discuss this in more detail. Are you available for a call this week?', cta: 'Are you available for a call this week to discuss?', serviceAngle: 'Dedicated Engineering Pods', status: 'draft', daysAgo: 3 },
+   646→    { companyIdx: 21, contactOffset: 0, subject: 'SaaSMatrix Analytics Integration Plan', body: 'Hi Tyler,\n\nI wanted to follow up on our analytics module discussion. After reviewing SaaSMatrix\'s product architecture, I have some thoughts on the best integration approach.\n\nAn embedded analytics solution would give your customers powerful self-service capabilities while keeping your development team focused on core product features. I\'ve seen this approach work very well for B2B SaaS companies in your stage of growth.', cta: 'I\'d love to share a detailed integration plan — can we schedule a call?', serviceAngle: 'Embedded Analytics Integration', status: 'draft', daysAgo: 1 },
+   647→  ]
+   648→
+   649→  for (const d of draftDefs) {
+   650→    const companyContacts = createdContacts.filter(c => c.companyIndex === d.companyIdx)
+   651→    const contact = companyContacts[d.contactOffset]
+   652→    if (!contact) continue
+   653→    await prisma.draft.create({
+   654→      data: {
+   655→        contactId: contact.id,
+   656→        subject: d.subject,
+   657→        body: d.body,
+   658→        cta: d.cta,
+   659→        serviceAngle: d.serviceAngle,
+   660→        matchScore: randomInt(72, 98),
+   661→        confidenceScore: randomInt(70, 95),
+   662→        status: d.status,
+   663→        rejectReason: (d as any).rejectReason || null,
+   664→        createdAt: daysAgo(d.daysAgo),
+   665→      },
+   666→    })
+   667→  }
+   668→  console.log(`  ✅ Created ${draftDefs.length} drafts`)
+   669→
+   670→  // ── Step 9: Create Email Health Checks ──────────────────────────────
+   671→  console.log('🛡️  Creating email health checks...')
+   672→  let validCount = 0
+   673→  let riskyCount = 0
+   674→  let invalidCount = 0
+   675→  let unknownCount = 0
+   676→
+   677→  for (const contact of createdContacts) {
+   678→    if (!contact.email) continue
+   679→
+   680→    // 60% valid, 20% risky, 10% invalid, 10% unknown
+   681→    const roll = Math.random() * 100
+   682→    let status: string
+   683→    let score: number
+   684→    let actionRecommendation: string | null = null
+   685→    let syntaxOk: boolean
+   686→    let domainOk: boolean
+   687→    let mxOk: boolean
+   688→    let disposableOk: boolean
+   689→
+   690→    if (roll < 60) {
+   691→      status = 'valid'
+   692→      score = randomInt(85, 100)
+   693→      syntaxOk = true
+   694→      domainOk = true
+   695→      mxOk = true
+   696→      disposableOk = true
+   697→      validCount++
+   698→    } else if (roll < 80) {
+   699→      status = 'risky'
+   700→      score = randomInt(50, 75)
+   701→      syntaxOk = true
+   702→      domainOk = Math.random() > 0.3
+   703→      mxOk = Math.random() > 0.4
+   704→      disposableOk = true
+   705→      actionRecommendation = randomFrom([
+   706→        'Domain MX records may be misconfigured. Verify with IT team.',
+   707→        'Email domain has intermittent delivery issues. Consider phone verification.',
+   708→        'Catch-all email detected. Delivery likely but engagement uncertain.',
+   709→        'Email was valid recently but bounce rate has increased. Verify before sending.',
+   710→      ])
+   711→      riskyCount++
+   712→    } else if (roll < 90) {
+   713→      status = 'invalid'
+   714→      score = randomInt(0, 30)
+   715→      syntaxOk = Math.random() > 0.5
+   716→      domainOk = false
+   717→      mxOk = false
+   718→      disposableOk = true
+   719→      actionRecommendation = randomFrom([
+   720→        'Domain does not accept email. Try alternative contact methods.',
+   721→        'Mailbox does not exist. Remove from outreach lists.',
+   722→        'Email domain is defunct. Search for updated contact information.',
+   723→      ])
+   724→      invalidCount++
+   725→    } else {
+   726→      status = 'unknown'
+   727→      score = randomInt(30, 60)
+   728→      syntaxOk = true
+   729→      domainOk = false
+   730→      mxOk = false
+   731→      disposableOk = true
+   732→      actionRecommendation = 'Could not verify email deliverability. Proceed with caution.'
+   733→      unknownCount++
+   734→    }
+   735→
+   736→    await prisma.emailHealthCheck.create({
+   737→      data: {
+   738→        contactId: contact.id,
+   739→        status,
+   740→        score,
+   741→        actionRecommendation,
+   742→        syntaxOk,
+   743→        domainOk,
+   744→        mxOk,
+   745→        disposableOk,
+   746→        checkedAt: daysAgo(randomInt(0, 15)),
+   747→      },
+   748→    })
+   749→
+   750→    // Also update the contact's email health
+   751→    await prisma.contact.update({
+   752→      where: { id: contact.id },
+   753→      data: {
+   754→        emailHealth: status,
+   755→        emailHealthScore: score,
+   756→        lastValidatedAt: daysAgo(randomInt(0, 15)),
+   757→      },
+   758→    })
+   759→  }
+   760→  console.log(`  ✅ Created ${validCount + riskyCount + invalidCount + unknownCount} email health checks (valid: ${validCount}, risky: ${riskyCount}, invalid: ${invalidCount}, unknown: ${unknownCount})`)
+   761→
+   762→  // ── Step 10: Create Knowledge Documents ─────────────────────────────
+   763→  console.log('📚 Creating knowledge documents...')
+   764→  const knowledgeDocs: { title: string; docType: string; description: string; snippets: { type: string; title: string; content: string; industries: string; outcomes: string }[] }[] = [
+   765→    {
+   766→      title: 'Enterprise Cloud Migration Playbook',
+   767→      docType: 'whitepaper',
+   768→      description: 'A comprehensive guide to migrating enterprise applications to cloud infrastructure, covering strategy, execution, and post-migration optimization.',
+   769→      snippets: [
+   770→        { type: 'capability', title: 'Cloud Readiness Assessment', content: 'Our proprietary Cloud Readiness Assessment evaluates applications across 12 dimensions including architecture complexity, data dependencies, compliance requirements, and team skill gaps. This assessment typically identifies 3-5 quick wins that can deliver immediate ROI while planning the broader migration strategy.', industries: 'Technology, SaaS, FinTech, Healthcare', outcomes: '30% faster migration timelines, 25% reduction in migration costs' },
+   771→        { type: 'process', title: 'Phased Migration Methodology', content: 'We follow a 4-phase migration methodology: (1) Assessment & Planning (2-4 weeks), (2) Foundation Setup (2-3 weeks), (3) Migration Execution (8-16 weeks), (4) Optimization & Handover (2-4 weeks). Each phase has clear exit criteria and rollback procedures. The phased approach ensures business continuity throughout the migration.', industries: 'Technology, SaaS, Manufacturing, Logistics', outcomes: 'Zero-downtime migrations, 40% faster than big-bang approaches' },
+   772→        { type: 'outcome', title: 'Client Success: FinTech Cloud Migration', content: 'A mid-size FinTech company migrated 47 microservices from on-premise to AWS in 14 weeks with zero downtime. Post-migration, they achieved 99.99% uptime, 60% reduction in infrastructure costs, and 3x improvement in auto-scaling response time. The client\'s CTO reported this was the smoothest infrastructure change in their 10-year history.', industries: 'FinTech, SaaS', outcomes: '60% cost reduction, 99.99% uptime, 3x faster scaling' },
+   773→        { type: 'capability', title: 'Kubernetes Expertise', content: 'Our team has deep expertise in Kubernetes orchestration, including multi-cluster management, service mesh implementation (Istio/Linkerd), and GitOps workflows (ArgoCD/Flux). We\'ve deployed production Kubernetes clusters for 20+ enterprise clients, managing over 5,000 containers in total.', industries: 'Technology, SaaS, E-commerce', outcomes: '95% container orchestration efficiency, 50% reduction in operational overhead' },
+   774→        { type: 'testimonial', title: 'CTO Testimonial - Cloud Migration', content: '"The team delivered our cloud migration two weeks ahead of schedule and under budget. Their phased approach meant we never had any service interruption. Our infrastructure costs dropped by 55% in the first quarter alone." — CTO, Series C SaaS Company', industries: 'SaaS, Technology', outcomes: '2 weeks ahead of schedule, 55% cost reduction' },
+   775→      ],
+   776→    },
+   777→    {
+   778→      title: 'Zero Trust Security Architecture Guide',
+   779→      docType: 'whitepaper',
+   780→      description: 'Detailed guide on implementing zero trust security architecture for organizations transitioning from traditional perimeter-based security models.',
+   781→      snippets: [
+   782→        { type: 'capability', title: 'Zero Trust Framework Design', content: 'We design zero trust architectures based on NIST SP 800-207, covering all five pillars: identity verification, device compliance, network segmentation, application security, and data protection. Our framework is tailored to each client\'s specific compliance requirements (FedRAMP, CMMC, HIPAA, SOC 2) and existing infrastructure.', industries: 'Technology, FinTech, Healthcare, Government, Aerospace', outcomes: '85% reduction in attack surface, compliance with major frameworks' },
+   783→        { type: 'process', title: 'Zero Trust Implementation Phases', content: 'Implementation follows three phases: Phase 1 (Quick Wins, 6-8 weeks) — identity governance, MFA enforcement, network micro-segmentation. Phase 2 (Core Implementation, 8-12 weeks) — least-privilege access, continuous verification, encrypted communications. Phase 3 (Advanced Capabilities, 4-8 weeks) — automated policy enforcement, threat-integrated access control, and full observability.', industries: 'Technology, FinTech, Government, Aerospace', outcomes: '6-month full implementation, measurable security improvement at each phase' },
+   784→        { type: 'outcome', title: 'Reduced Security Incidents', content: 'Organizations that implement our zero trust framework typically see a 70-85% reduction in successful phishing attacks within the first quarter, 60% reduction in lateral movement attempts, and 90% improvement in mean-time-to-detect security incidents.', industries: 'Technology, FinTech, Healthcare', outcomes: '85% fewer phishing attacks, 90% faster threat detection' },
+   785→        { type: 'capability', title: 'Identity-Centric Security', content: 'Our identity-centric approach implements continuous authentication, adaptive access policies based on risk scoring, and just-in-time privilege elevation. We integrate with existing identity providers (Okta, Azure AD, Ping) and extend them with behavioral analytics for anomaly detection.', industries: 'Technology, FinTech, Healthcare, Insurance', outcomes: 'Zero standing privileges, continuous risk-based authentication' },
+   786→      ],
+   787→    },
+   788→    {
+   789→      title: 'AI/ML Platform Engineering',
+   790→      docType: 'case-study',
+   791→      description: 'Case study on building production-grade ML platforms for enterprise clients, covering MLOps, model deployment, and monitoring.',
+   792→      snippets: [
+   793→        { type: 'capability', title: 'MLOps Platform Architecture', content: 'We build end-to-end MLOps platforms that cover the full ML lifecycle: data versioning (DVC), experiment tracking (MLflow), model training (Kubernetes-based), model serving (KServe/TensorFlow Serving), and monitoring (custom + Prometheus). Our platforms support both batch and real-time inference patterns.', industries: 'Technology, FinTech, Healthcare, Biotech', outcomes: 'Model deployment from weeks to hours, 99.5% inference SLA' },
+   794→        { type: 'process', title: 'ML Model Productionization', content: 'Our model productionization process includes: (1) Model assessment and optimization, (2) API design and containerization, (3) A/B testing framework setup, (4) Monitoring and alerting pipeline, (5) Retraining automation. We ensure models are production-ready with proper error handling, rate limiting, and fallback strategies.', industries: 'Technology, FinTech, Biotech', outcomes: '95% model reliability, automated retraining cycles' },
+   795→        { type: 'outcome', title: 'Real-Time Analytics at Scale', content: 'For a Series B AI company, we built a real-time analytics platform processing 100K+ events per second. The system uses Apache Kafka for ingestion, Apache Flink for stream processing, and a custom serving layer for sub-second query response. The platform handles 2TB of new data daily with 99.99% processing accuracy.', industries: 'Technology, SaaS', outcomes: '100K+ events/sec, sub-second queries, 2TB/day throughput' },
+   796→        { type: 'testimonial', title: 'CTO Testimonial - ML Platform', content: '"They built us an ML platform that our data science team actually loves using. Model deployment went from a 2-week manual process to a one-click operation. Our model iteration speed increased by 5x." — CTO, AI/ML Startup, Series B', industries: 'Technology, Biotech', outcomes: '5x faster model iteration, one-click deployments' },
+   797→      ],
+   798→    },
+   799→    {
+   800→      title: 'E-commerce Platform Architecture',
+   801→      docType: 'case-study',
+   802→      description: 'How we helped e-commerce companies scale their platforms to handle millions of transactions and traffic spikes.',
+   803→      snippets: [
+   804→        { type: 'capability', title: 'High-Performance E-commerce Architecture', content: 'We design e-commerce platforms built for scale, using microservices architecture with event-driven communication. Key components include: product catalog service, order management, payment processing, inventory tracking, and recommendation engine. Our reference architecture handles 10M+ daily transactions with sub-200ms response times.', industries: 'E-commerce, Retail', outcomes: '10M+ daily transactions, sub-200ms response times' },
+   805→        { type: 'process', title: 'E-commerce Rebuild Methodology', content: 'Our e-commerce rebuild follows a dual-track approach: Track A builds the new platform while Track B maintains the existing system. This allows feature-by-feature migration with zero customer-facing downtime. We typically migrate in 4-6 waves over 12-16 weeks, with each wave independently deployable and reversible.', industries: 'E-commerce, Retail', outcomes: 'Zero downtime rebuild, 12-16 week timeline' },
+   806→        { type: 'outcome', title: 'Black Friday Success Story', content: 'A major e-commerce client handled their biggest Black Friday ever after our platform rebuild: 3.2M transactions in 24 hours, 15x normal traffic spike handled without degradation, 99.99% uptime during peak hours. Their previous system would have crashed at 3x normal traffic.', industries: 'E-commerce, Retail', outcomes: '15x traffic spike handled, 99.99% uptime, 3.2M daily transactions' },
+   807→        { type: 'capability', title: 'Personalization Engine', content: 'Our e-commerce personalization engine uses real-time behavioral data, purchase history, and collaborative filtering to deliver personalized product recommendations. The engine processes customer interactions in real-time and updates recommendations within 100ms, leading to 25-35% increase in average order value.', industries: 'E-commerce, Retail', outcomes: '25-35% increase in average order value, real-time personalization' },
+   808→      ],
+   809→    },
+   810→    {
+   811→      title: 'Healthcare Technology Solutions',
+   812→      docType: 'documentation',
+   813→      description: 'Documentation of our healthcare technology capabilities, including HIPAA compliance, EHR integration, and patient-facing application development.',
+   814→      snippets: [
+   815→        { type: 'capability', title: 'HIPAA-Compliant Data Architecture', content: 'We design data architectures that meet HIPAA Security Rule requirements including encryption at rest (AES-256) and in transit (TLS 1.3), role-based access control, comprehensive audit logging, and Business Associate Agreement (BAA) compliant cloud deployment. Our healthcare projects undergo regular security assessments and penetration testing.', industries: 'Healthcare, Biotech', outcomes: 'Full HIPAA compliance, BAA-ready infrastructure' },
+   816→        { type: 'capability', title: 'EHR System Integration', content: 'We have extensive experience integrating with major EHR systems including Epic, Cerner, and Allscripts. Our integration layer supports HL7 FHIR, HL7 v2, and CDA standards. We\'ve built integration adapters that handle patient demographics, clinical data, appointments, and lab results with proper data mapping and validation.', industries: 'Healthcare', outcomes: 'Seamless EHR integration, HL7 FHIR compliant' },
+   817→        { type: 'outcome', title: 'Patient Portal Success', content: 'For a 200-hospital network, we built a patient portal serving 3M+ patients. The portal achieved 4.8/5 patient satisfaction score, 65% patient adoption rate within 6 months, and 40% reduction in phone inquiries. Key features include appointment scheduling, secure messaging, prescription management, and telehealth integration.', industries: 'Healthcare', outcomes: '3M+ patients served, 4.8/5 satisfaction, 65% adoption rate' },
+   818→      ],
+   819→    },
+   820→    {
+   821→      title: 'DevOps & CI/CD Best Practices',
+   822→      docType: 'presentation',
+   823→      description: 'Internal presentation covering our DevOps practices, CI/CD pipeline patterns, and infrastructure-as-code approaches.',
+   824→      snippets: [
+   825→        { type: 'process', title: 'CI/CD Pipeline Architecture', content: 'Our standard CI/CD pipeline includes: code quality gates (linting, type checking), automated testing (unit, integration, E2E), security scanning (SAST, DAST, dependency audit), container building and scanning, staged deployment (dev → staging → production), automated rollback on failure, and comprehensive observability setup.', industries: 'Technology, SaaS, FinTech', outcomes: '60% faster deployments, 90% reduction in production incidents' },
+   826→        { type: 'capability', title: 'Infrastructure as Code', content: 'We use Terraform for cloud infrastructure provisioning and Kubernetes manifests (Helm/Kustomize) for application deployment. All infrastructure changes go through the same code review and CI/CD process as application code. We maintain a library of reusable Terraform modules for common patterns (VPC, EKS, RDS, S3, etc.).', industries: 'Technology, SaaS', outcomes: 'Reproducible environments, 80% faster infrastructure provisioning' },
+   827→        { type: 'outcome', title: 'Deployment Frequency Improvement', content: 'After implementing our CI/CD practices, clients typically see deployment frequency increase from weekly to multiple times daily, lead time for changes drop from weeks to hours, and change failure rate decrease by 60-80%. Mean time to recovery (MTTR) typically drops from hours to minutes.', industries: 'Technology, SaaS, E-commerce', outcomes: 'Daily deployments, 80% lower change failure rate, minutes-level MTTR' },
+   828→        { type: 'capability', title: 'Monitoring and Observability', content: 'We implement comprehensive observability using the three pillars: metrics (Prometheus/Grafana), logs (ELK/Loki), and traces (Jaeger/Tempo). Our monitoring setup includes SLO/SLI definition, alerting with proper escalation policies, and custom dashboards for business and technical stakeholders.', industries: 'Technology, SaaS, FinTech, E-commerce', outcomes: 'Proactive issue detection, 95% SLO compliance' },
+   829→      ],
+   830→    },
+   831→    {
+   832→      title: 'Digital Transformation Strategy',
+   833→      docType: 'whitepaper',
+   834→      description: 'Strategic framework for enterprise digital transformation, covering assessment, planning, and execution for organizations undergoing technology-led change.',
+   835→      snippets: [
+   836→        { type: 'process', title: 'Digital Maturity Assessment', content: 'Our Digital Maturity Assessment evaluates organizations across 6 dimensions: customer experience, operational efficiency, technology infrastructure, data capabilities, organizational culture, and innovation capacity. The assessment produces a heat map of strengths and gaps, along with a prioritized roadmap for improvement.', industries: 'Consulting, Manufacturing, Retail, Logistics', outcomes: 'Clear transformation roadmap, stakeholder alignment' },
+   837→        { type: 'capability', title: 'Change Management Framework', content: 'We provide change management support alongside technical implementation, including stakeholder analysis, communication planning, training program design, and adoption metrics. Our approach is based on the ADKAR model (Awareness, Desire, Knowledge, Ability, Reinforcement) and is tailored for technology-driven organizational change.', industries: 'Consulting, Manufacturing, Government, Education', outcomes: '85% adoption rate, minimized resistance to change' },
+   838→        { type: 'outcome', title: 'Manufacturing Digital Transformation', content: 'For a 1000-employee manufacturing company, we led a 12-month digital transformation that included IoT sensor deployment, real-time production monitoring, predictive maintenance implementation, and digital supply chain management. Results: 30% reduction in unplanned downtime, 20% improvement in production efficiency, and $4.5M annual cost savings.', industries: 'Manufacturing, Logistics', outcomes: '30% less downtime, $4.5M annual savings' },
+   839→      ],
+   840→    },
+   841→    {
+   842→      title: 'API-First Product Development',
+   843→      docType: 'blog',
+   844→      description: 'Our approach to building API-first products for enterprise clients, covering API design, versioning, security, and developer experience.',
+   845→      snippets: [
+   846→        { type: 'capability', title: 'API Design & Governance', content: 'We design APIs following OpenAPI 3.0 specifications with consistent naming conventions, pagination patterns, error handling, and authentication schemes. Our API governance framework includes design reviews, automated linting (Spectral), backward compatibility checks, and comprehensive documentation generation.', industries: 'Technology, SaaS, FinTech', outcomes: 'Consistent, well-documented APIs, 50% faster client integration' },
+   847→        { type: 'process', title: 'API Development Lifecycle', content: 'Our API development lifecycle: (1) API Design First — OpenAPI spec before code, (2) Contract Testing — ensure implementations match specs, (3) SDK Generation — auto-generate client libraries, (4) API Gateway — rate limiting, auth, analytics, (5) Developer Portal — interactive docs and onboarding. This approach reduces integration issues by 70%.', industries: 'Technology, SaaS', outcomes: '70% fewer integration issues, auto-generated SDKs' },
+   848→        { type: 'outcome', title: 'FinTech API Platform', content: 'Built a comprehensive API platform for a FinTech company serving 500+ enterprise clients. The platform handles 50M+ API calls daily with 99.99% availability. Developer adoption increased by 300% after launching the developer portal, and average integration time dropped from 3 weeks to 3 days.', industries: 'FinTech, SaaS', outcomes: '50M+ daily calls, 300% developer adoption increase' },
+   849→      ],
+   850→    },
+   851→    {
+   852→      title: 'Data Engineering & Analytics',
+   853→      docType: 'documentation',
+   854→      description: 'Our data engineering capabilities covering data pipeline design, data warehousing, real-time analytics, and business intelligence solutions.',
+   855→      snippets: [
+   856→        { type: 'capability', title: 'Data Pipeline Architecture', content: 'We design and build scalable data pipelines using modern tools: Apache Kafka for event streaming, Apache Airflow for orchestration, dbt for data transformation, and Apache Spark for large-scale processing. Our pipelines support both batch and real-time patterns with exactly-once processing guarantees.', industries: 'Technology, FinTech, Healthcare, E-commerce', outcomes: 'Scalable data processing, exactly-once guarantees' },
+   857→        { type: 'process', title: 'Data Warehouse Modernization', content: 'Our data warehouse modernization process migrates legacy data warehouses (Oracle, Teradata) to modern cloud data platforms (Snowflake, BigQuery, Redshift). We use an ELT approach with dbt for transformations, implement data quality frameworks, and build self-service analytics layers for business users.', industries: 'Technology, FinTech, Retail, Consulting', outcomes: '10x query performance, 60% lower data platform costs' },
+   858→        { type: 'outcome', title: 'Real-Time Analytics Platform', content: 'Built a real-time analytics platform for an e-commerce company processing 2TB of event data daily. The platform provides sub-second query response on 90 days of data, real-time dashboards with 5-second refresh, and automated anomaly detection. Data team productivity increased by 4x.', industries: 'E-commerce, Technology', outcomes: 'Sub-second queries, 4x data team productivity' },
+   859→        { type: 'capability', title: 'Data Quality Framework', content: 'Our data quality framework implements automated data validation, anomaly detection, and alerting. We define data quality rules as code (using Great Expectations), run them as part of the data pipeline, and track quality metrics over time. Typical improvement: 95% data accuracy within the first month.', industries: 'FinTech, Healthcare, Technology', outcomes: '95% data accuracy, automated quality monitoring' },
+   860→      ],
+   861→    },
+   862→    {
+   863→      title: 'Cybersecurity Assessment Services',
+   864→      docType: 'case-study',
+   865→      description: 'Overview of our cybersecurity assessment capabilities including penetration testing, vulnerability assessment, and security architecture review.',
+   866→      snippets: [
+   867→        { type: 'capability', title: 'Comprehensive Penetration Testing', content: 'Our penetration testing services cover web application testing (OWASP Top 10), network penetration testing, API security testing, cloud infrastructure assessment, and social engineering simulations. We follow PTES (Penetration Testing Execution Standard) and provide detailed reports with risk-rated findings and remediation guidance.', industries: 'Technology, FinTech, Healthcare, Government, Aerospace', outcomes: 'Identify critical vulnerabilities before attackers do' },
+   868→        { type: 'process', title: 'Security Assessment Methodology', content: 'Our security assessment follows a structured methodology: (1) Scoping and rules of engagement, (2) Reconnaissance and information gathering, (3) Vulnerability identification, (4) Exploitation and evidence collection, (5) Post-exploitation analysis, (6) Report generation with risk ratings, (7) Remediation guidance and re-testing.', industries: 'Technology, FinTech, Healthcare', outcomes: 'Structured, repeatable assessments with actionable findings' },
+   869→        { type: 'outcome', title: 'Financial Services Security Assessment', content: 'Conducted a comprehensive security assessment for a FinTech company. Identified 23 vulnerabilities (3 critical, 8 high, 12 medium). All critical and high vulnerabilities were remediated within 2 weeks. Post-remediation re-test confirmed 100% resolution. The company subsequently passed their SOC 2 Type II audit with zero findings.', industries: 'FinTech', outcomes: '23 vulnerabilities found and fixed, clean SOC 2 audit' },
+   870→      ],
+   871→    },
+   872→  ]
+   873→
+   874→  for (const doc of knowledgeDocs) {
+   875→    const createdDoc = await prisma.capabilityDocument.create({
+   876→      data: {
+   877→        title: doc.title,
+   878→        docType: doc.docType,
+   879→        description: doc.description,
+   880→      },
+   881→    })
+   882→
+   883→    for (const snippet of doc.snippets) {
+   884→      await prisma.capabilitySnippet.create({
+   885→        data: {
+   886→          documentId: createdDoc.id,
+   887→          snippetType: snippet.type,
+   888→          title: snippet.title,
+   889→          content: snippet.content,
+   890→          industries: snippet.industries,
+   891→          outcomes: snippet.outcomes,
+   892→        },
+   893→      })
+   894→    }
+   895→  }
+   896→  console.log(`  ✅ Created ${knowledgeDocs.length} knowledge documents with ${knowledgeDocs.reduce((sum, d) => sum + d.snippets.length, 0)} snippets`)
+   897→
+   898→  // ── Step 11: Create User Preferences ────────────────────────────────
+   899→  console.log('⚙️  Creating user preferences...')
+   900→  await prisma.userPreferences.create({
+   901→    data: {
+   902→      tone: 'professional-casual',
+   903→      emailLength: 'medium',
+   904→      openerStyle: 'Hi [First Name]',
+   905→      signOff: 'Regards, Ravi',
+   906→      avoidPhrases: '',
+   907→      exampleEmail: null,
+   908→      ctaStyle: 'soft',
+   909→      aiProvider: 'openai',
+   910→      aiModel: 'gpt-4o-mini',
+   911→      aiApiKey: null,
+   912→      scoringWeights: '{}',
+   913→    },
+   914→  })
+   915→  console.log('  ✅ Created user preferences')
+   916→
+   917→  // ── Summary ─────────────────────────────────────────────────────────
+   918→  console.log('\n🎉 Demo data seed completed successfully!')
+   919→  console.log('─'.repeat(50))
+   920→  console.log(`  Companies:      ${createdCompanies.length}`)
+   921→  console.log(`  Contacts:       ${createdContacts.length}`)
+   922→  console.log(`  Research Cards: ${researchCount}`)
+   923→  console.log(`  Opportunities:  ${createdOpportunities.length}`)
+   924→  console.log(`  Timeline:       ${timelineActions.length}`)
+   925→  console.log(`  Notes:          ${companyNotes.length + contactNotes.length}`)
+   926→  console.log(`  Drafts:         ${draftDefs.length}`)
+   927→  console.log(`  Health Checks:  ${validCount + riskyCount + invalidCount + unknownCount}`)
+   928→  console.log(`  Knowledge Docs: ${knowledgeDocs.length}`)
+   929→  console.log('─'.repeat(50))
+   930→}
+   931→
+   932→main()
+   933→  .catch((e) => {
+   934→    console.error('❌ Seed failed:', e)
+   935→    process.exit(1)
+   936→  })
+   937→  .finally(async () => {
+   938→    await prisma.$disconnect()
+   939→  })

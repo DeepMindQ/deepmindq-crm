@@ -30,6 +30,8 @@ model Company {
   timeline          TimelineEntry[]
   researchSources   CompanyResearchSource[]
   customFieldValues CustomFieldValue[]
+  tags             TagAssignment[]
+  comments          Comment[]
 
   @@index([name])
   @@index([domain])
@@ -64,6 +66,8 @@ model Contact {
   healthChecks        EmailHealthCheck[]
   targetedOpportunities Opportunity[] @relation("TargetContact")
   customFieldValues   CustomFieldValue[]
+  tags               TagAssignment[]
+  comments            Comment[]
 
   @@index([companyId])
   @@index([email])
@@ -247,10 +251,123 @@ model ImportBatch {
   @@index([createdAt])
 }
 
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  image         String?
+  role          String   @default("admin")
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  accounts     Account[]
+  sessions     Session[]
+  auditLogs    AuditLog[]
+  notifications Notification[]
+  preferences  UserPreferences?
+  teams        TeamMember[]
+  comments     Comment[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String?
+  type      String   @default("info")
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  status      String   @default("pending")
+  priority    String   @default("medium")
+  dueDate     DateTime?
+  completedAt DateTime?
+  companyId   String?
+  contactId   String?
+  assignedTo  String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([assignedTo])
+  @@index([dueDate])
+  @@index([companyId])
+  @@index([contactId])
+}
+
 // Singleton pattern: API layer enforces only one row exists.
 // SQLite does not support @@unique([]), so uniqueness is enforced in application code.
 model UserPreferences {
   id              String   @id @default(cuid())
+  userId          String?  @unique
   tone            String   @default("professional-casual")
   emailLength     String   @default("medium")
   openerStyle     String   @default("Hi [First Name]")
@@ -262,6 +379,8 @@ model UserPreferences {
   aiModel         String   @default("gpt-4o-mini")
   aiApiKey        String?
   scoringWeights  String   @default("{}")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model CustomFieldDefinition {
@@ -293,4 +412,134 @@ model CustomFieldValue {
   @@index([fieldId])
   @@index([contactId])
   @@index([companyId])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String   @default("gray")
+  createdAt DateTime @default(now())
+
+  assignments TagAssignment[]
+
+  @@index([name])
+}
+
+model TagAssignment {
+  id             String       @id @default(cuid())
+  tagId          String
+  companyId       String?
+  contactId      String?
+  opportunityId  String?
+  createdAt      DateTime @default(now())
+
+  tag         Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  company     Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact     Contact?  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([tagId])
+  @@index([companyId])
+  @@index([contactId])
+}
+
+model EmailSequence {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  status      String   @default("draft")
+  contactId   String?
+  companyId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  steps EmailSequenceStep[]
+
+  @@index([status])
+}
+
+model EmailSequenceStep {
+  id           String   @id @default(cuid())
+  sequenceId   String
+  stepNumber   Int
+  subject      String
+  body         String
+  delayMinutes Int      @default(1440)
+  cta          String?
+  status       String   @default("pending")
+  sentAt       DateTime?
+  openedAt     DateTime?
+  repliedAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sequence EmailSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  @@index([sequenceId])
+  @@index([status])
+}
+
+model PromptTemplate {
+  id                String   @id @default(cuid())
+  name              String
+  category          String
+  description       String?
+  systemPrompt      String
+  userPromptTemplate String
+  variables         String
+  isBuiltIn         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([category])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  body      String
+  userId    String
+  companyId String?
+  contactId String?
+  opportunityId String?
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id])
+  company      Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact      Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  parent       Comment?     @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies      Comment[]    @relation("CommentReplies")
+
+  @@index([companyId])
+  @@index([contactId])
+  @@index([opportunityId])
+  @@index([userId])
+  @@index([parentId])
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members TeamMember[]
+
+  @@index([name])
+}
+
+model TeamMember {
+  id       String   @id @default(cuid())
+  teamId   String
+  userId   String
+  role     String   @default("member")
+  joinedAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
 }

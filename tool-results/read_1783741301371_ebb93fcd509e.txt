@@ -1,0 +1,302 @@
+    51→const companies: CompanyDef[] = [
+    52→  { name: 'NovaTech Solutions', domain: 'novatech.io', website: 'https://novatech.io', industry: 'Technology', employeeSize: '201-500', country: 'US', location: 'San Francisco, CA', status: 'active', intelligenceScore: 82, dataFreshness: 'fresh' },
+    53→  { name: 'HealthBridge Analytics', domain: 'healthbridge.com', website: 'https://healthbridge.com', industry: 'Healthcare', employeeSize: '51-200', country: 'US', location: 'Boston, MA', status: 'active', intelligenceScore: 85, dataFreshness: 'fresh' },
+    54→  { name: 'FinEdge Capital', domain: 'finedge.capital', website: 'https://finedge.capital', industry: 'FinTech', employeeSize: '51-200', country: 'US', location: 'New York, NY', status: 'active', intelligenceScore: 79, dataFreshness: 'fresh' },
+    55→  { name: 'CloudVista Systems', domain: 'cloudvista.com', website: 'https://cloudvista.com', industry: 'SaaS', employeeSize: '201-500', country: 'UK', location: 'London, UK', status: 'active', intelligenceScore: 74, dataFreshness: 'stale' },
+    56→  { name: 'EduSpark Learning', domain: 'eduspark.com', website: 'https://eduspark.com', industry: 'Education', employeeSize: '11-50', country: 'India', location: 'Bangalore, India', status: 'new', intelligenceScore: 62, dataFreshness: 'fresh' },
+    57→  { name: 'MetricFlow Manufacturing', domain: 'metricflow.co', website: 'https://metricflow.co', industry: 'Manufacturing', employeeSize: '501-1000', country: 'Germany', location: 'Munich, Germany', status: 'new', intelligenceScore: 55, dataFreshness: 'unknown' },
+    58→  { name: 'SwiftRoute Logistics', domain: 'swiftroute.io', website: 'https://swiftroute.io', industry: 'Logistics', employeeSize: '201-500', country: 'Australia', location: 'Sydney, Australia', status: 'new', intelligenceScore: 58, dataFreshness: 'unknown' },
+    59→  { name: 'PropNest Realty', domain: 'propnest.co', website: 'https://propnest.co', industry: 'Real Estate', employeeSize: '11-50', country: 'Canada', location: 'Toronto, Canada', status: 'active', intelligenceScore: 67, dataFreshness: 'stale' },
+    60→  { name: 'DataPulse AI', domain: 'datapulse.ai', website: 'https://datapulse.ai', industry: 'Technology', employeeSize: '11-50', country: 'US', location: 'Austin, TX', status: 'active', intelligenceScore: 91, dataFreshness: 'fresh' },
+    61→  { name: 'PayGrid Financial', domain: 'paygrid.com', website: 'https://paygrid.com', industry: 'FinTech', employeeSize: '201-500', country: 'UK', location: 'London, UK', status: 'active', intelligenceScore: 76, dataFreshness: 'fresh' },
+    62→  { name: 'MedVista Diagnostics', domain: 'medvista.io', website: 'https://medvista.io', industry: 'Biotech', employeeSize: '51-200', country: 'India', location: 'Hyderabad, India', status: 'new', intelligenceScore: 64, dataFreshness: 'stale' },
+    63→  { name: 'CartMax Global', domain: 'cartmax.co', website: 'https://cartmax.co', industry: 'E-commerce', employeeSize: '501-1000', country: 'US', location: 'Chicago, IL', status: 'active', intelligenceScore: 88, dataFreshness: 'fresh' },
+    64→  { name: 'CyberVault Security', domain: 'cybervaultsec.com', website: 'https://cybervaultsec.com', industry: 'Technology', employeeSize: '51-200', country: 'US', location: 'Washington, DC', status: 'active', intelligenceScore: 87, dataFreshness: 'fresh' },
+    65→  { name: 'NeuralWave Computing', domain: 'neuralwave.ai', website: 'https://neuralwave.ai', industry: 'Technology', employeeSize: '51-200', country: 'US', location: 'Seattle, WA', status: 'new', intelligenceScore: 89, dataFreshness: 'stale' },
+    66→  { name: 'TradeFlow Capital', domain: 'tradeflow.capital', website: 'https://tradeflow.capital', industry: 'FinTech', employeeSize: '11-50', country: 'Singapore', location: 'Singapore', status: 'new', intelligenceScore: 60, dataFreshness: 'unknown' },
+    67→  { name: 'CareSync Health', domain: 'caresync.health', website: 'https://caresync.health', industry: 'Healthcare', employeeSize: '201-500', country: 'US', location: 'Chicago, IL', status: 'active', intelligenceScore: 73, dataFreshness: 'stale' },
+    68→  { name: 'SkillForge Academy', domain: 'skillforge.io', website: 'https://skillforge.io', industry: 'Education', employeeSize: '11-50', country: 'UK', location: 'Manchester, UK', status: 'new', intelligenceScore: 66, dataFreshness: 'fresh' },
+    69→  { name: 'ThreatGuard Solutions', domain: 'threatguard.io', website: 'https://threatguard.io', industry: 'Technology', employeeSize: '201-500', country: 'US', location: 'Reston, VA', status: 'active', intelligenceScore: 83, dataFreshness: 'fresh' },
+    70→  { name: 'AutoForge Industries', domain: 'autoforge.com', website: 'https://autoforge.com', industry: 'Manufacturing', employeeSize: '501-1000', country: 'Germany', location: 'Stuttgart, Germany', status: 'new', intelligenceScore: 48, dataFreshness: 'old' },
+    71→  { name: 'FleetPulse Transport', domain: 'fleetpulse.co', website: 'https://fleetpulse.co', industry: 'Logistics', employeeSize: '201-500', country: 'Netherlands', location: 'Amsterdam, Netherlands', status: 'new', intelligenceScore: 52, dataFreshness: 'stale' },
+    72→  { name: 'UrbanSpace Properties', domain: 'urbanspace.io', website: 'https://urbanspace.io', industry: 'Real Estate', employeeSize: '51-200', country: 'Australia', location: 'Melbourne, Australia', status: 'new', intelligenceScore: 61, dataFreshness: 'unknown' },
+    73→  { name: 'SaaSMatrix Pro', domain: 'saasmatrix.com', website: 'https://saasmatrix.com', industry: 'SaaS', employeeSize: '11-50', country: 'Canada', location: 'Vancouver, Canada', status: 'active', intelligenceScore: 71, dataFreshness: 'fresh' },
+    74→  { name: 'QuantumSync Labs', domain: 'quantumsync.ai', website: 'https://quantumsync.ai', industry: 'Biotech', employeeSize: '1-10', country: 'US', location: 'Palo Alto, CA', status: 'new', intelligenceScore: 93, dataFreshness: 'fresh' },
+    75→  { name: 'ShopSphere Commerce', domain: 'shopsphere.io', website: 'https://shopsphere.io', industry: 'E-commerce', employeeSize: '201-500', country: 'India', location: 'Delhi, India', status: 'new', intelligenceScore: 59, dataFreshness: 'stale' },
+    76→  { name: 'BazaarDirect', domain: 'bazaardirect.com', website: 'https://bazaardirect.com', industry: 'Retail', employeeSize: '1001-5000', country: 'India', location: 'Mumbai, India', status: 'new', intelligenceScore: 50, dataFreshness: 'unknown' },
+    77→  { name: 'GreenPulse Energy', domain: 'greenpulse.energy', website: 'https://greenpulse.energy', industry: 'Energy', employeeSize: '51-200', country: 'Norway', location: 'Oslo, Norway', status: 'new', intelligenceScore: 72, dataFreshness: 'stale' },
+    78→  { name: 'TeleCom Global', domain: 'telecomglobal.com', website: 'https://telecomglobal.com', industry: 'Telecommunications', employeeSize: '5001+', country: 'Japan', location: 'Tokyo, Japan', status: 'new', intelligenceScore: 44, dataFreshness: 'old' },
+    79→  { name: 'AeroDynamics Corp', domain: 'aerodynamics.com', website: 'https://aerodynamics.com', industry: 'Aerospace', employeeSize: '1001-5000', country: 'France', location: 'Toulouse, France', status: 'new', intelligenceScore: 57, dataFreshness: 'unknown' },
+    80→  { name: 'AgriTech Solutions', domain: 'agritechsol.com', website: 'https://agritechsol.com', industry: 'Agriculture', employeeSize: '51-200', country: 'Brazil', location: 'São Paulo, Brazil', status: 'new', intelligenceScore: 46, dataFreshness: 'old' },
+    81→  { name: 'LegalEdge Partners', domain: 'legaledge.com', website: 'https://legaledge.com', industry: 'Legal', employeeSize: '51-200', country: 'US', location: 'Washington, DC', status: 'active', intelligenceScore: 68, dataFreshness: 'stale' },
+    82→  { name: 'MediaPulse Studios', domain: 'mediapulse.co', website: 'https://mediapulse.co', industry: 'Media', employeeSize: '51-200', country: 'US', location: 'Los Angeles, CA', status: 'active', intelligenceScore: 75, dataFreshness: 'fresh' },
+    83→  { name: 'InsureRight Group', domain: 'insureright.com', website: 'https://insureright.com', industry: 'Insurance', employeeSize: '201-500', country: 'Switzerland', location: 'Zurich, Switzerland', status: 'new', intelligenceScore: 63, dataFreshness: 'stale' },
+    84→  { name: 'GovernTech Solutions', domain: 'governtech.gov', website: 'https://governtech.gov', industry: 'Government', employeeSize: '201-500', country: 'US', location: 'Arlington, VA', status: 'new', intelligenceScore: 41, dataFreshness: 'old' },
+    85→  { name: 'TravelWise Global', domain: 'travelwise.com', website: 'https://travelwise.com', industry: 'Travel', employeeSize: '201-500', country: 'UK', location: 'London, UK', status: 'new', intelligenceScore: 56, dataFreshness: 'stale' },
+    86→  { name: 'Pinnacle Consulting', domain: 'pinnacleconsulting.com', website: 'https://pinnacleconsulting.com', industry: 'Consulting', employeeSize: '51-200', country: 'US', location: 'New York, NY', status: 'active', intelligenceScore: 77, dataFreshness: 'fresh' },
+    87→]
+    88→
+    89→// ─── Contact Definitions (keyed by company index) ─────────────────────
+    90→
+    91→interface ContactDef {
+    92→  name: string
+    93→  email: string
+    94→  jobTitle: string
+    95→  roleBucket: string
+    96→  phone: string
+    97→  location: string
+    98→  status: string
+    99→}
+   100→
+   101→const contactsByCompany: ContactDef[][] = [
+   102→  // 0: NovaTech Solutions
+   103→  [
+   104→    { name: 'Rajesh Patel', email: 'rajesh.patel@novatech.io', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+1 415-555-0101', location: 'San Francisco, CA', status: 'active' },
+   105→    { name: 'Sarah Chen', email: 'sarah.chen@novatech.io', jobTitle: 'VP of Engineering', roleBucket: 'Executive', phone: '+1 415-555-0102', location: 'San Francisco, CA', status: 'active' },
+   106→    { name: 'Michael Torres', email: 'mike.torres@novatech.io', jobTitle: 'Director of Product', roleBucket: 'Manager', phone: '+1 415-555-0103', location: 'San Francisco, CA', status: 'active' },
+   107→    { name: 'Emily Watson', email: 'emily.w@novatech.io', jobTitle: 'Head of Sales', roleBucket: 'Sales', phone: '+1 415-555-0104', location: 'San Francisco, CA', status: 'active' },
+   108→    { name: 'David Kim', email: 'david.kim@novatech.io', jobTitle: 'Lead Developer', roleBucket: 'Technical', phone: '+1 415-555-0105', location: 'San Francisco, CA', status: 'new' },
+   109→  ],
+   110→  // 1: HealthBridge Analytics
+   111→  [
+   112→    { name: 'Dr. Anita Sharma', email: 'a.sharma@healthbridge.com', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+1 617-555-0201', location: 'Boston, MA', status: 'active' },
+   113→    { name: 'James Mitchell', email: 'j.mitchell@healthbridge.com', jobTitle: 'VP of Technology', roleBucket: 'Executive', phone: '+1 617-555-0202', location: 'Boston, MA', status: 'active' },
+   114→    { name: 'Lisa Rodriguez', email: 'l.rodriguez@healthbridge.com', jobTitle: 'Director of Operations', roleBucket: 'Manager', phone: '+1 617-555-0203', location: 'Boston, MA', status: 'active' },
+   115→    { name: 'Robert Chang', email: 'r.chang@healthbridge.com', jobTitle: 'Head of Data Science', roleBucket: 'Technical', phone: '+1 617-555-0204', location: 'Boston, MA', status: 'new' },
+   116→  ],
+   117→  // 2: FinEdge Capital
+   118→  [
+   119→    { name: 'Alexandra Walsh', email: 'a.walsh@finedge.capital', jobTitle: 'COO', roleBucket: 'Executive', phone: '+1 212-555-0301', location: 'New York, NY', status: 'active' },
+   120→    { name: 'Marcus Johnson', email: 'm.johnson@finedge.capital', jobTitle: 'VP of Engineering', roleBucket: 'Executive', phone: '+1 212-555-0302', location: 'New York, NY', status: 'active' },
+   121→    { name: 'Priya Nair', email: 'p.nair@finedge.capital', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+1 212-555-0303', location: 'New York, NY', status: 'active' },
+   122→    { name: 'Tom Bradley', email: 't.bradley@finedge.capital', jobTitle: 'Head of Compliance', roleBucket: 'Manager', phone: '+1 212-555-0304', location: 'New York, NY', status: 'new' },
+   123→  ],
+   124→  // 3: CloudVista Systems
+   125→  [
+   126→    { name: 'Oliver Bennett', email: 'o.bennett@cloudvista.com', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+44 20-7946-0401', location: 'London, UK', status: 'active' },
+   127→    { name: 'Sophie Williams', email: 's.williams@cloudvista.com', jobTitle: 'VP of Product', roleBucket: 'Executive', phone: '+44 20-7946-0402', location: 'London, UK', status: 'active' },
+   128→    { name: 'Daniel Harris', email: 'd.harris@cloudvista.com', jobTitle: 'Director of Sales', roleBucket: 'Sales', phone: '+44 20-7946-0403', location: 'London, UK', status: 'active' },
+   129→    { name: 'Emma Clarke', email: 'emma.clarke@cloudvista.com', jobTitle: 'Senior Engineer', roleBucket: 'Technical', phone: '+44 20-7946-0404', location: 'London, UK', status: 'new' },
+   130→  ],
+   131→  // 4: EduSpark Learning
+   132→  [
+   133→    { name: 'Anita Desai', email: 'anita.d@eduspark.com', jobTitle: 'Founder & CEO', roleBucket: 'Executive', phone: '+91 80-4567-0501', location: 'Bangalore, India', status: 'new' },
+   134→    { name: 'Rahul Gupta', email: 'rahul.g@eduspark.com', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+91 80-4567-0502', location: 'Bangalore, India', status: 'new' },
+   135→    { name: 'Priya Mehta', email: 'priya.m@eduspark.com', jobTitle: 'Head of Content', roleBucket: 'Manager', phone: '+91 80-4567-0503', location: 'Bangalore, India', status: 'new' },
+   136→  ],
+   137→  // 5: MetricFlow Manufacturing
+   138→  [
+   139→    { name: 'Hans Mueller', email: 'h.mueller@metricflow.co', jobTitle: 'VP of Operations', roleBucket: 'Executive', phone: '+49 89-555-0601', location: 'Munich, Germany', status: 'new' },
+   140→    { name: 'Klaus Weber', email: 'k.weber@metricflow.co', jobTitle: 'Director of IT', roleBucket: 'Manager', phone: '+49 89-555-0602', location: 'Munich, Germany', status: 'new' },
+   141→    { name: 'Anna Schmidt', email: 'a.schmidt@metricflow.co', jobTitle: 'Supply Chain Manager', roleBucket: 'Operations', phone: '+49 89-555-0603', location: 'Munich, Germany', status: 'new' },
+   142→  ],
+   143→  // 6: SwiftRoute Logistics
+   144→  [
+   145→    { name: 'Jack Thompson', email: 'j.thompson@swiftroute.io', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+61 2-5555-0701', location: 'Sydney, Australia', status: 'new' },
+   146→    { name: 'Rachel Foster', email: 'r.foster@swiftroute.io', jobTitle: 'VP of Operations', roleBucket: 'Executive', phone: '+61 2-5555-0702', location: 'Sydney, Australia', status: 'new' },
+   147→    { name: 'Liam O\'Brien', email: 'liam.ob@swiftroute.io', jobTitle: 'Head of Engineering', roleBucket: 'Technical', phone: '+61 2-5555-0703', location: 'Sydney, Australia', status: 'new' },
+   148→  ],
+   149→  // 7: PropNest Realty
+   150→  [
+   151→    { name: 'Derek Singh', email: 'd.singh@propnest.co', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+1 416-555-0801', location: 'Toronto, Canada', status: 'active' },
+   152→    { name: 'Jennifer Lee', email: 'j.lee@propnest.co', jobTitle: 'Director of Technology', roleBucket: 'Manager', phone: '+1 416-555-0802', location: 'Toronto, Canada', status: 'active' },
+   153→    { name: 'Mark Davis', email: 'm.davis@propnest.co', jobTitle: 'Head of Sales', roleBucket: 'Sales', phone: '+1 416-555-0803', location: 'Toronto, Canada', status: 'active' },
+   154→  ],
+   155→  // 8: DataPulse AI
+   156→  [
+   157→    { name: 'Dr. Wei Zhang', email: 'wei.zhang@datapulse.ai', jobTitle: 'Founder & CTO', roleBucket: 'Executive', phone: '+1 512-555-0901', location: 'Austin, TX', status: 'active' },
+   158→    { name: 'Jessica Park', email: 'jessica.p@datapulse.ai', jobTitle: 'VP of Engineering', roleBucket: 'Executive', phone: '+1 512-555-0902', location: 'Austin, TX', status: 'active' },
+   159→    { name: 'Ryan O\'Neill', email: 'ryan.oneill@datapulse.ai', jobTitle: 'Head of AI Research', roleBucket: 'Technical', phone: '+1 512-555-0903', location: 'Austin, TX', status: 'active' },
+   160→    { name: 'Megan Foster', email: 'megan.f@datapulse.ai', jobTitle: 'Sales Director', roleBucket: 'Sales', phone: '+1 512-555-0904', location: 'Austin, TX', status: 'active' },
+   161→  ],
+   162→  // 9: PayGrid Financial
+   163→  [
+   164→    { name: 'Nigel Clarkson', email: 'n.clarkson@paygrid.com', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+44 20-7946-1001', location: 'London, UK', status: 'active' },
+   165→    { name: 'Rebecca Hall', email: 'r.hall@paygrid.com', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+44 20-7946-1002', location: 'London, UK', status: 'active' },
+   166→    { name: 'Andrew Wright', email: 'a.wright@paygrid.com', jobTitle: 'VP of Product', roleBucket: 'Manager', phone: '+44 20-7946-1003', location: 'London, UK', status: 'active' },
+   167→    { name: 'Catherine Moore', email: 'c.moore@paygrid.com', jobTitle: 'Head of Security', roleBucket: 'Technical', phone: '+44 20-7946-1004', location: 'London, UK', status: 'new' },
+   168→  ],
+   169→  // 10: MedVista Diagnostics
+   170→  [
+   171→    { name: 'Dr. Kavitha Reddy', email: 'k.reddy@medvista.io', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+91 40-555-1101', location: 'Hyderabad, India', status: 'new' },
+   172→    { name: 'Arjun Patel', email: 'arjun.p@medvista.io', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+91 40-555-1102', location: 'Hyderabad, India', status: 'new' },
+   173→    { name: 'Dr. Sunita Rao', email: 'sunita.r@medvista.io', jobTitle: 'Head of R&D', roleBucket: 'Technical', phone: '+91 40-555-1103', location: 'Hyderabad, India', status: 'new' },
+   174→  ],
+   175→  // 11: CartMax Global
+   176→  [
+   177→    { name: 'Brian Cooper', email: 'b.cooper@cartmax.co', jobTitle: 'VP of Technology', roleBucket: 'Executive', phone: '+1 312-555-1201', location: 'Chicago, IL', status: 'active' },
+   178→    { name: 'Nicole Adams', email: 'n.adams@cartmax.co', jobTitle: 'Director of Engineering', roleBucket: 'Manager', phone: '+1 312-555-1202', location: 'Chicago, IL', status: 'active' },
+   179→    { name: 'Chris Martinez', email: 'c.martinez@cartmax.co', jobTitle: 'Head of Infrastructure', roleBucket: 'Technical', phone: '+1 312-555-1203', location: 'Chicago, IL', status: 'active' },
+   180→    { name: 'Sandra Kim', email: 'sandra.k@cartmax.co', jobTitle: 'Director of Operations', roleBucket: 'Operations', phone: '+1 312-555-1204', location: 'Chicago, IL', status: 'active' },
+   181→  ],
+   182→  // 12: CyberVault Security
+   183→  [
+   184→    { name: 'General Michael Stone (Ret.)', email: 'm.stone@cybervaultsec.com', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+1 202-555-1301', location: 'Washington, DC', status: 'active' },
+   185→    { name: 'Yuki Tanaka', email: 'y.tanaka@cybervaultsec.com', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+1 202-555-1302', location: 'Washington, DC', status: 'active' },
+   186→    { name: 'Alex Rivera', email: 'a.rivera@cybervaultsec.com', jobTitle: 'VP of Engineering', roleBucket: 'Executive', phone: '+1 202-555-1303', location: 'Washington, DC', status: 'active' },
+   187→    { name: 'Natasha Volkov', email: 'n.volkov@cybervaultsec.com', jobTitle: 'Lead Security Researcher', roleBucket: 'Technical', phone: '+1 202-555-1304', location: 'Washington, DC', status: 'active' },
+   188→  ],
+   189→  // 13: NeuralWave Computing
+   190→  [
+   191→    { name: 'Dr. Chris Hammond', email: 'c.hammond@neuralwave.ai', jobTitle: 'Co-Founder & CEO', roleBucket: 'Executive', phone: '+1 206-555-1401', location: 'Seattle, WA', status: 'new' },
+   192→    { name: 'Dr. Maya Gupta', email: 'm.gupta@neuralwave.ai', jobTitle: 'Co-Founder & CTO', roleBucket: 'Executive', phone: '+1 206-555-1402', location: 'Seattle, WA', status: 'new' },
+   193→    { name: 'Jordan Lee', email: 'jordan.l@neuralwave.ai', jobTitle: 'Head of Research', roleBucket: 'Technical', phone: '+1 206-555-1403', location: 'Seattle, WA', status: 'new' },
+   194→  ],
+   195→  // 14: TradeFlow Capital
+   196→  [
+   197→    { name: 'Dinesh Krishnan', email: 'd.krishnan@tradeflow.capital', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+65 6555-1501', location: 'Singapore', status: 'new' },
+   198→    { name: 'Amy Lim', email: 'a.lim@tradeflow.capital', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+65 6555-1502', location: 'Singapore', status: 'new' },
+   199→    { name: 'Peter Ng', email: 'p.ng@tradeflow.capital', jobTitle: 'Head of Trading Systems', roleBucket: 'Technical', phone: '+65 6555-1503', location: 'Singapore', status: 'new' },
+   200→  ],
+   201→  // 15: CareSync Health
+   202→  [
+   203→    { name: 'Dr. Robert Kim', email: 'r.kim@caresync.health', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+1 312-555-1601', location: 'Chicago, IL', status: 'active' },
+   204→    { name: 'Susan Park', email: 's.park@caresync.health', jobTitle: 'VP of Engineering', roleBucket: 'Executive', phone: '+1 312-555-1602', location: 'Chicago, IL', status: 'active' },
+   205→    { name: 'Frank Miller', email: 'f.miller@caresync.health', jobTitle: 'Director of Product', roleBucket: 'Manager', phone: '+1 312-555-1603', location: 'Chicago, IL', status: 'active' },
+   206→  ],
+   207→  // 16: SkillForge Academy
+   208→  [
+   209→    { name: 'Emma Thompson', email: 'e.thompson@skillforge.io', jobTitle: 'Founder & CEO', roleBucket: 'Executive', phone: '+44 161-555-1701', location: 'Manchester, UK', status: 'new' },
+   210→    { name: 'David Brown', email: 'd.brown@skillforge.io', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+44 161-555-1702', location: 'Manchester, UK', status: 'new' },
+   211→  ],
+   212→  // 17: ThreatGuard Solutions
+   213→  [
+   214→    { name: 'Col. James Walker (Ret.)', email: 'j.walker@threatguard.io', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+1 703-555-1801', location: 'Reston, VA', status: 'active' },
+   215→    { name: 'Diana Chen', email: 'd.chen@threatguard.io', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+1 703-555-1802', location: 'Reston, VA', status: 'active' },
+   216→    { name: 'Kevin Brooks', email: 'k.brooks@threatguard.io', jobTitle: 'VP of Engineering', roleBucket: 'Executive', phone: '+1 703-555-1803', location: 'Reston, VA', status: 'active' },
+   217→    { name: 'Laura Simmons', email: 'l.simmons@threatguard.io', jobTitle: 'Head of Threat Intelligence', roleBucket: 'Technical', phone: '+1 703-555-1804', location: 'Reston, VA', status: 'active' },
+   218→  ],
+   219→  // 18: AutoForge Industries
+   220→  [
+   221→    { name: 'Wolfgang Schneider', email: 'w.schneider@autoforge.com', jobTitle: 'VP of Digital Transformation', roleBucket: 'Executive', phone: '+49 711-555-1901', location: 'Stuttgart, Germany', status: 'new' },
+   222→    { name: 'Stefan Mueller', email: 's.mueller@autoforge.com', jobTitle: 'Director of IT', roleBucket: 'Manager', phone: '+49 711-555-1902', location: 'Stuttgart, Germany', status: 'new' },
+   223→  ],
+   224→  // 19: FleetPulse Transport
+   225→  [
+   226→    { name: 'Jan van der Berg', email: 'j.vanderberg@fleetpulse.co', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+31 20-555-2001', location: 'Amsterdam, Netherlands', status: 'new' },
+   227→    { name: 'Marieke de Vries', email: 'm.devries@fleetpulse.co', jobTitle: 'VP of Operations', roleBucket: 'Executive', phone: '+31 20-555-2002', location: 'Amsterdam, Netherlands', status: 'new' },
+   228→    { name: 'Pieter Jansen', email: 'p.jansen@fleetpulse.co', jobTitle: 'Head of Engineering', roleBucket: 'Technical', phone: '+31 20-555-2003', location: 'Amsterdam, Netherlands', status: 'new' },
+   229→  ],
+   230→  // 20: UrbanSpace Properties
+   231→  [
+   232→    { name: 'Claire Williams', email: 'c.williams@urbanspace.io', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+61 3-5555-2101', location: 'Melbourne, Australia', status: 'new' },
+   233→    { name: 'James Anderson', email: 'j.anderson@urbanspace.io', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+61 3-5555-2102', location: 'Melbourne, Australia', status: 'new' },
+   234→  ],
+   235→  // 21: SaaSMatrix Pro
+   236→  [
+   237→    { name: 'Tyler Morrison', email: 't.morrison@saasmatrix.com', jobTitle: 'Founder & CEO', roleBucket: 'Executive', phone: '+1 604-555-2201', location: 'Vancouver, Canada', status: 'active' },
+   238→    { name: 'Amy Wong', email: 'a.wong@saasmatrix.com', jobTitle: 'VP of Engineering', roleBucket: 'Executive', phone: '+1 604-555-2202', location: 'Vancouver, Canada', status: 'active' },
+   239→    { name: 'Daniel Scott', email: 'd.scott@saasmatrix.com', jobTitle: 'Head of Product', roleBucket: 'Manager', phone: '+1 604-555-2203', location: 'Vancouver, Canada', status: 'active' },
+   240→  ],
+   241→  // 22: QuantumSync Labs
+   242→  [
+   243→    { name: 'Dr. Alan Turing Jr.', email: 'a.turing@quantumsync.ai', jobTitle: 'Co-Founder & CEO', roleBucket: 'Executive', phone: '+1 650-555-2301', location: 'Palo Alto, CA', status: 'new' },
+   244→    { name: 'Dr. Lisa Park', email: 'l.park@quantumsync.ai', jobTitle: 'Co-Founder & CTO', roleBucket: 'Executive', phone: '+1 650-555-2302', location: 'Palo Alto, CA', status: 'new' },
+   245→  ],
+   246→  // 23: ShopSphere Commerce
+   247→  [
+   248→    { name: 'Vikram Malhotra', email: 'v.malhotra@shopsphere.io', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+91 11-555-2401', location: 'Delhi, India', status: 'new' },
+   249→    { name: 'Neha Kapoor', email: 'n.kapoor@shopsphere.io', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+91 11-555-2402', location: 'Delhi, India', status: 'new' },
+   250→    { name: 'Amit Sharma', email: 'a.sharma@shopsphere.io', jobTitle: 'Head of Engineering', roleBucket: 'Technical', phone: '+91 11-555-2403', location: 'Delhi, India', status: 'new' },
+   251→  ],
+   252→  // 24: BazaarDirect
+   253→  [
+   254→    { name: 'Rajesh Kumar', email: 'r.kumar@bazaardirect.com', jobTitle: 'VP of Technology', roleBucket: 'Executive', phone: '+91 22-555-2501', location: 'Mumbai, India', status: 'new' },
+   255→    { name: 'Sneha Patel', email: 's.patel@bazaardirect.com', jobTitle: 'Director of Engineering', roleBucket: 'Manager', phone: '+91 22-555-2502', location: 'Mumbai, India', status: 'new' },
+   256→  ],
+   257→  // 25: GreenPulse Energy
+   258→  [
+   259→    { name: 'Erik Larsen', email: 'e.larsen@greenpulse.energy', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+47 22-555-2601', location: 'Oslo, Norway', status: 'new' },
+   260→    { name: 'Ingrid Haugen', email: 'i.haugen@greenpulse.energy', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+47 22-555-2602', location: 'Oslo, Norway', status: 'new' },
+   261→  ],
+   262→  // 26: TeleCom Global
+   263→  [
+   264→    { name: 'Kenji Yamamoto', email: 'k.yamamoto@telecomglobal.com', jobTitle: 'SVP of Technology', roleBucket: 'Executive', phone: '+81 3-555-2701', location: 'Tokyo, Japan', status: 'new' },
+   265→    { name: 'Yuki Sato', email: 'y.sato@telecomglobal.com', jobTitle: 'Director of Innovation', roleBucket: 'Manager', phone: '+81 3-555-2702', location: 'Tokyo, Japan', status: 'new' },
+   266→  ],
+   267→  // 27: AeroDynamics Corp
+   268→  [
+   269→    { name: 'Pierre Dubois', email: 'p.dubois@aerodynamics.com', jobTitle: 'VP of Digital', roleBucket: 'Executive', phone: '+33 5-555-2801', location: 'Toulouse, France', status: 'new' },
+   270→    { name: 'Marie Laurent', email: 'm.laurent@aerodynamics.com', jobTitle: 'Head of Engineering', roleBucket: 'Manager', phone: '+33 5-555-2802', location: 'Toulouse, France', status: 'new' },
+   271→  ],
+   272→  // 28: AgriTech Solutions
+   273→  [
+   274→    { name: 'Carlos Silva', email: 'c.silva@agritechsol.com', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+55 11-555-2901', location: 'São Paulo, Brazil', status: 'new' },
+   275→    { name: 'Ana Oliveira', email: 'a.oliveira@agritechsol.com', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+55 11-555-2902', location: 'São Paulo, Brazil', status: 'new' },
+   276→  ],
+   277→  // 29: LegalEdge Partners
+   278→  [
+   279→    { name: 'Margaret Sullivan', email: 'm.sullivan@legaledge.com', jobTitle: 'Managing Partner', roleBucket: 'Executive', phone: '+1 202-555-3001', location: 'Washington, DC', status: 'active' },
+   280→    { name: 'Robert Hughes', email: 'r.hughes@legaledge.com', jobTitle: 'Director of Technology', roleBucket: 'Manager', phone: '+1 202-555-3002', location: 'Washington, DC', status: 'active' },
+   281→    { name: 'Katherine Wells', email: 'k.wells@legaledge.com', jobTitle: 'Head of Legal Tech', roleBucket: 'Technical', phone: '+1 202-555-3003', location: 'Washington, DC', status: 'active' },
+   282→  ],
+   283→  // 30: MediaPulse Studios
+   284→  [
+   285→    { name: 'Ariana Rodriguez', email: 'a.rodriguez@mediapulse.co', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+1 310-555-3101', location: 'Los Angeles, CA', status: 'active' },
+   286→    { name: 'Jake Patterson', email: 'j.patterson@mediapulse.co', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+1 310-555-3102', location: 'Los Angeles, CA', status: 'active' },
+   287→    { name: 'Tina Huang', email: 't.huang@mediapulse.co', jobTitle: 'VP of Engineering', roleBucket: 'Executive', phone: '+1 310-555-3103', location: 'Los Angeles, CA', status: 'active' },
+   288→  ],
+   289→  // 31: InsureRight Group
+   290→  [
+   291→    { name: 'Heinrich Becker', email: 'h.becker@insureright.com', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+41 44-555-3201', location: 'Zurich, Switzerland', status: 'new' },
+   292→    { name: 'Lena Fischer', email: 'l.fischer@insureright.com', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+41 44-555-3202', location: 'Zurich, Switzerland', status: 'new' },
+   293→  ],
+   294→  // 32: GovernTech Solutions
+   295→  [
+   296→    { name: 'Patricia Anderson', email: 'p.anderson@governtech.gov', jobTitle: 'VP of Technology', roleBucket: 'Executive', phone: '+1 703-555-3301', location: 'Arlington, VA', status: 'new' },
+   297→    { name: 'Mark Stevens', email: 'm.stevens@governtech.gov', jobTitle: 'Director of Digital Services', roleBucket: 'Manager', phone: '+1 703-555-3302', location: 'Arlington, VA', status: 'new' },
+   298→  ],
+   299→  // 33: TravelWise Global
+   300→  [
+   301→    { name: 'Oliver Price', email: 'o.price@travelwise.com', jobTitle: 'CEO', roleBucket: 'Executive', phone: '+44 20-7946-3401', location: 'London, UK', status: 'new' },
+   302→    { name: 'Hannah Green', email: 'h.green@travelwise.com', jobTitle: 'CTO', roleBucket: 'Executive', phone: '+44 20-7946-3402', location: 'London, UK', status: 'new' },
+   303→  ],
+   304→  // 34: Pinnacle Consulting
+   305→  [
+   306→    { name: 'Victoria Chang', email: 'v.chang@pinnacleconsulting.com', jobTitle: 'Managing Director', roleBucket: 'Executive', phone: '+1 212-555-3501', location: 'New York, NY', status: 'active' },
+   307→    { name: 'Michael Brooks', email: 'm.brooks@pinnacleconsulting.com', jobTitle: 'VP of Technology', roleBucket: 'Executive', phone: '+1 212-555-3502', location: 'New York, NY', status: 'active' },
+   308→    { name: 'Sarah Mitchell', email: 's.mitchell@pinnacleconsulting.com', jobTitle: 'Director of Digital', roleBucket: 'Manager', phone: '+1 212-555-3503', location: 'New York, NY', status: 'active' },
+   309→    { name: 'James Wilson', email: 'j.wilson@pinnacleconsulting.com', jobTitle: 'Senior Consultant', roleBucket: 'Other', phone: '+1 212-555-3504', location: 'New York, NY', status: 'new' },
+   310→  ],
+   311→]
+   312→
+   313→// ─── Main Seed Function ───────────────────────────────────────────────
+   314→
+   315→async function main() {
+   316→  console.log('🔄 Starting demo data seed...')
+   317→
+   318→  // ── Step 1: Clear all existing data (respect FK constraints) ────────
+   319→  console.log('🗑️  Clearing existing data...')
+   320→  const deleteOrder = [
+   321→    'customFieldValue',
+   322→    'customFieldDefinition',
+   323→    'emailHealthCheck',
+   324→    'draft',
+   325→    'timelineEntry',
+   326→    'companyNote',
+   327→    'contactNote',
+   328→    'companyResearchSource',
+   329→    'companyResearchCard',
+   330→    'opportunity',
+   331→    'contact',
+   332→    'company',
+   333→    'importBatch',
+   334→    'capabilitySnippet',
+   335→    'capabilityDocument',
+   336→    'userPreferences',
+   337→  ] as const
+   338→
+   339→  for (const model of deleteOrder) {
+   340→    try {
+   341→      await (prisma as any)[model].deleteMany({})
+   342→    } catch (err) {
+   343→      console.log(`  ⚠️  Could not delete ${model}: ${(err as Error).message}`)
+   344→    }
+   345→  }
+   346→
+   347→  // Try to clear notification/task/auditlog if models exist
+   348→  for (const model of ['notification', 'task', 'auditLog'] as const) {
+   349→    try {
+   350→      await (prisma as any)[model].deleteMany({})
+
+[showing lines 51-350 of 939; use offset=351 with limit to continue reading]

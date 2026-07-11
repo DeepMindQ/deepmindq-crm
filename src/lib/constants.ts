@@ -29,6 +29,7 @@ export const VALID_VIEWS = [
   'email-generation',
   'knowledge-library',
   'settings',
+  'audit-logs',
 ] as const
 
 // ── Status option arrays ────────────────────────────────────────────

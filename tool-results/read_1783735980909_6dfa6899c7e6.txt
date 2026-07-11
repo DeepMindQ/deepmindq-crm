@@ -1,0 +1,228 @@
+   220→26: [Normal] This is why the design should prefer a narrow number of screens, a narrow number of lead states, and a narrow number of action buttons. The user should be able to understand what will happen before they click it. If the system needs a complex rule, that rule should live in the background. If the sys
+   221→27: [Heading 1] 3. Roles and Permissions
+   222→28: [Heading 2] 3.1 Administrator
+   223→29: [Normal] The administrator is responsible for the structural settings of the platform. This role manages import templates, column mappings, user access, suppression rules, capability library structure, AI settings, send limits, and integration credentials. The administrator can also revise scoring rules, arc
+   224→30: [Heading 2] 3.2 Reviewer
+   225→31: [Normal] The reviewer is the quality gatekeeper. This role handles fuzzy duplicates, risky email records, uncertain company matches, and AI drafts that need closer inspection. The reviewer does not need to manage infrastructure, but they do need visibility into raw values, cleaned values, source history, and
+   226→32: [Heading 2] 3.3 Sender
+   227→33: [Normal] The sender is the person or role allowed to approve drafts and release them into Outlook. The sender should see the queue, the send schedule, the daily cap, and the status of each outbound item. The sender does not need to manage the entire data model. They need a fast, confident way to review a dra
+   228→34: [Heading 2] 3.4 Viewer
+   229→35: [Normal] The viewer can search, inspect, and learn from the system without changing core settings. This role is useful for managers, sales leadership, and other internal stakeholders who need visibility into the lead base, the quality of the data, the state of the queue, and the performance of the outreach p
+   230→36: [Heading 2] 3.5 Permission philosophy
+   231→37: [Normal] Permissions should be role-based but simple. The system should not become a labyrinth of per-field permissions unless there is a real internal need. The main thing is that anything that can affect compliance, deliverability, or company positioning must be restricted and logged. Editing a contact not
+   232→38: [Heading 1] 4. System Architecture and Runtime Model
+   233→39: [Heading 2] 4.1 High-level layers
+   234→40: [Normal] The application should be understood as five connected layers. The first layer is ingestion, where files enter the system and are staged. The second layer is data processing, where fields are normalized, duplicates are detected, and rows are classified. The third layer is intelligence, where company
+   235→41: [Normal] These layers should be loosely coupled so that one part can fail without destroying the entire platform. A problem in AI drafting should not block batch import. A temporary issue in Outlook should not erase cleaned company records. A duplicate review queue should not stop a weekly email health run. 
+   236→42: [Heading 2] 4.2 Runtime behavior
+   237→43: [Normal] The runtime should be batch-driven and idempotent. When a file is uploaded, the system should be able to reprocess the same batch without creating duplicate records. When a record is edited, the deduplication process should be able to run again and return the same logical answer. When a message is p
+   238→44: [Normal] Because the intended dataset is large, the backend should process rows in chunks and push expensive work into background workers. Heavy operations such as AI generation, email health refresh, and duplicate rechecks should not block the user interface. The user should see progress, status, and queue 
+   239→45: [Heading 2] 4.3 Storage model
+   240→46: [Normal] The system should maintain separate storage for raw files, staged rows, master records, capability assets, generated drafts, outbound logs, replies, and audit events. Raw imports are preserved as evidence. Master records hold the current truth. Staged rows hold exceptions and intermediate work. Draf
+   241→47: [Heading 2] 4.4 Integration model
+   242→48: [Normal] The only mandatory external integration is Outlook for sending and reply tracking. Any company research connected to the system should be curated and limited to company-level and industry-level context. The platform should not depend on a patchwork of unrelated tools. If a public source is used, it 
+   243→49: [Heading 1] 5. Data Model and Core Entities
+   244→50: [Heading 2] 5.1 Contact record
+   245→51: [Normal] The contact record is the person-level entity. It should store the person's raw imported name, normalized name, current edited name, email, LinkedIn URL, title, role, phone if available, location, source batch, consent status, email health status, and any custom fields that came with the original ro
+   246→52: [Normal] The contact also carries operational metadata. It must know whether it is ready, drafted, queued, sent, replied, bounced, invalid, risky, duplicate, suppressed, or archived. It must know when it was last checked, when it was last contacted, and whether it belongs to a suppression list. It must also 
+   247→53: [Heading 2] 5.2 Company record
+   248→54: [Normal] The company record is the anchor of the system. It stores the organization's raw name, normalized name, domain, industry, size range, location, website, and any company-level research notes. It should also store the current internal summary of what the company appears to do, what problems the busine
+   249→55: [Normal] The company object is where shared intelligence lives. A company can have one research card, one set of notes, one observed pain-point profile, and one set of relevant solution angles. All contacts at that company should reuse this context automatically. This is what keeps the outreach process effic
+   250→56: [Heading 2] 5.3 Batch record
+   251→57: [Normal] Every import must create a batch record. The batch identifies the source file, the user who uploaded it, the time of import, the file hash, the mapping profile used, and the current processing status. The batch is the backbone of traceability. It should answer where the data came from, how it was in
+   252→58: [Heading 2] 5.4 Capability asset
+   253→59: [Normal] Capability assets are the company's internal knowledge objects. They can represent a service line, a packaged solution, a case study, a proof point, a common objection response, or a pre-approved call-to-action. The platform should treat these assets as structured content rather than loose text docu
+   254→60: [Heading 2] 5.5 Research card
+   255→61: [Normal] The research card is the company-level context block. It stores approved observations about the company and its industry, such as what the business appears to sell, what size or footprint it has, what public signals are available, and what internal notes have already been captured. The card should s
+   256→62: [Heading 2] 5.6 Draft, queue, reply, and audit entities
+   257→63: [Normal] The draft entity stores the AI-generated subject, body, CTA, and any explanation metadata used for internal review. The queue entity stores the sendable item, schedule, mailbox, and send status. The reply entity stores message threading information and classification. The bounce entity stores delive
+   258→64: [Heading 1] 6. Ingestion and Batch Management
+   259→65: [Heading 2] 6.1 Standard upload template
+   260→66: [Normal] The platform should accept a standard Excel or CSV template, but it should not force the user to rebuild every source file by hand before import. The import interface should allow column mapping so that different source sheets can be aligned to the internal schema. The key requirement is consistency
+   261→67: [Normal] The template should support a small set of required identifiers and then allow additional company and contact columns as needed. Because the platform is internal, the template should reflect the company's actual operating data rather than an artificial vendor schema. If a user has email, LinkedIn, c
+   262→68: [Heading 2] 6.2 Column mapping memory
+   263→69: [Normal] The first time a file type is imported, the user should map the columns to the internal schema. The system should save that mapping as an import profile. On later uploads with similar headers, the platform should auto-map the columns and only ask the user to confirm if something changed. This saves 
+   264→70: [Normal] Mapping memory should be keyed by the header row shape or by a named profile chosen by the user. If the source layout changes, the system should not silently guess. It should show the mismatch. This is especially important for fields that look similar but have different meanings, such as company tit
+   265→71: [Heading 2] 6.3 Staging and review
+   266→72: [Normal] Imports should land in staging first. Staging is the safe buffer between raw input and the master database. Every row should be classified in staging as clean, questionable, duplicate, or invalid. Clean rows can move forward automatically. Questionable rows should wait for human review. Invalid rows
+   267→73: [Normal] This stage makes the system resilient. If a file is messy, the user does not have to throw the whole import away. If one row has a malformed email but the rest of the batch is good, the clean records can still progress. If a company name is slightly different but clearly the same organization, the p
+   268→74: [Heading 2] 6.4 Batch traceability and archive
+   269→75: [Normal] Every row in the master database must retain a pointer to the batch that created it. This creates a chain of custody from source file to final record. The batch itself should be archivable so that old imports can be hidden from the active list without being deleted. Archiving should be reversible be
+   270→76: [Normal] The system should also allow error export. When a row fails validation or needs review, the user should be able to download a file containing the problem rows and the reason for each issue. This makes remediation practical. A large internal list is not useful if the operator cannot quickly fix a few
+   271→77: [Heading 2] 6.5 File hash protection
+   272→78: [Normal] The platform should hash incoming files and reject exact re-imports of the same file. This prevents duplicate batches, accidental double counting, and repeated processing of the same source. The hash should be stored with the batch so that the system can answer whether a file has been seen before. I
+   273→79: [Heading 1] 7. Data Quality and Validation
+   274→80: [Heading 2] 7.1 Normalization pipeline
+   275→81: [Normal] The cleaning pipeline should turn inconsistent spreadsheet entries into stable machine-readable values. Names should be trimmed and normalized for spacing and casing. Company names should be preserved in their raw human-readable form, but a separate normalized match key should be created for duplica
+   276→82: [Normal] The point of normalization is not to make the data look pretty. The point is to make downstream logic reliable. Duplicate detection, scoring, search, and research all depend on the data being comparable. A user should be able to search for a company once and find it again later, even if the imported
+   277→83: [Heading 2] 7.2 Email health score
+   278→84: [Normal] The platform should treat email validity as a confidence score rather than as a magical truth. A record may be syntactically valid, domain-resolvable, and still not be safely contactable. A record may be unknown because the system has not yet sent to it or seen enough feedback. A record may be risky
+   279→85: [Normal] This distinction is important because internal systems often confuse "usable for drafting" with "safe to send." The platform should keep those ideas separate. A risky or unknown record can still be stored, researched, segmented, and drafted against. It just should not be released into the send queue
+   280→86: [Heading 2] 7.3 Weekly refresh
+   281→87: [Normal] The system should run a weekly health job across non-suppressed contacts. That job should refresh syntax checks, domain checks, MX checks, disposable-domain checks, bounce history, and reply history. The goal is not to prove the existence of an inbox with perfect certainty. The goal is to keep the d
+   282→88: [Normal] Weekly refresh is also a data trust mechanism. It shows the team that the platform is not a dead archive. It is an active list that learns from use. Every bounce, reply, and pause contributes to the score and to the health of the database. That feedback loop is one of the most valuable parts of the 
+   283→89: [Heading 2] 7.4 Manual review queue
+   284→90: [Normal] Some records should be routed to a manual review queue when the system is uncertain. This queue may include risky email records, ambiguous company matches, incomplete rows, or contacts whose duplicate confidence is too low for automatic resolution. The reviewer can accept, reject, or edit the row. T
+   285→91: [Normal] The review queue should be efficient. It should show the raw value, the normalized value, the source batch, the reason for the flag, and the most relevant company context. A reviewer should be able to resolve a row without opening five different screens. The queue is not a punishment; it is the plac
+   286→92: [Heading 1] 8. Duplicate Detection and Merge Governance
+   287→93: [Heading 2] 8.1 Contact identity rules
+   288→94: [Normal] Contact duplicates should be identified using a clear priority order. The strongest match is exact email. If email is not available or is intentionally absent for a non-send-ready record, exact LinkedIn URL is the next strongest match. If those are absent or inconclusive, the system can compare norm
+   289→95: [Normal] The point of the identity rules is to reduce accidental duplication without collapsing distinct people into one record. In a large dataset, two people can share a name and even work at the same company. The deduplication engine must therefore be careful. Exact identifiers should drive automation. Am
+   290→96: [Heading 2] 8.2 Company identity rules
+   291→97: [Normal] Company duplicates should be matched using exact website domain first, then normalized company name. Company matching is often easier than contact matching, but it still needs guardrails. Businesses may have multiple domains, legal entity names, or brand names. The system should not destroy that com
+   292→98: [Normal] If the company cannot be confidently identified, the platform should create a placeholder record and allow later correction. The important thing is that the contact is never left without a company link. Even a placeholder is better than a floating row because it preserves the relational structure an
+   293→99: [Heading 2] 8.3 Merge precedence
+   294→100: [Normal] When duplicate records are merged, the system should use a clear precedence order. A manually verified or edited value should win over an imported value. A more recent non-empty imported value should win over an older value when no manual correction exists. A blank should never overwrite a real fiel
+   295→101: [Normal] This precedence order matters because duplicates are often not identical. One batch may have a better company name, another may have a better title, and a third may have a more accurate phone number. The merge logic should therefore be field-aware rather than record-blind. The user should be able to
+   296→102: [Heading 2] 8.4 Merge audit trail
+   297→103: [Normal] Every merge should generate an audit trail with source record identifiers, field-level before and after values, timestamp, and the reason for the merge decision. The audit trail is necessary both for trust and for debugging. If a team member later asks why a record changed, the answer should not req
+   298→104: [Normal] The archive copy of the duplicate should remain accessible in a historical view. That allows the team to trace back to a prior state if necessary and gives visibility into how the deduplication engine behaved over time. In a large internal dataset, merge history is not a luxury. It is a requirement.
+   299→105: [Heading 1] 9. Company Intelligence and Research Cards
+   300→106: [Heading 2] 9.1 Company-level context
+   301→107: [Normal] Each company should have its own context card that collects the information the system knows about the organization. That card can include industry, size, geography, website, public description, recent notes, known contacts, prior conversations, and internal research observations. The card should be
+   302→108: [Normal] The company card should not be a generic notes dump. It should be a structured context object that supports outreach. The goal is to answer questions like what the company does, why the company might care about the company's services, what angle has already been tried, and which conversation route i
+   303→109: [Heading 2] 9.2 External context boundary
+   304→110: [Normal] External knowledge is allowed only to the extent that it helps the system understand the company and its industry. That means the research layer should stay narrow and source-tagged. It may include company website observations, public descriptions, approved company news, sector language, and industr
+   305→111: [Normal] This boundary matters because the platform is not trying to know everything. It is trying to know enough to write a credible message. If the team has a public source that clearly says what the company does or what industry it belongs to, that is useful. If a fact is uncertain, it should be labeled a
+   306→112: [Heading 2] 9.3 Shared reuse across contacts
+   307→113: [Normal] When multiple contacts belong to the same company, the research card should be reused automatically. This reduces duplication and keeps the messaging more consistent. If a company-level note is updated, every contact attached to that company benefits from the update. The same is true for the knowled
+   308→114: [Normal] This shared reuse also improves team behavior. Instead of each user inventing a slightly different version of the same company story, the system provides one shared account view. That shared view can be refined over time. The team can add notes after a call, mark a product area as a better fit, or r
+   309→115: [Heading 2] 9.4 Research freshness
+   310→116: [Normal] Research should have a freshness timestamp and a source trail. If the company card has not been updated in months, the system should make that visible. That does not mean the card becomes useless; it means the user knows how much trust to place in it. Freshness is especially important when the compa
+   311→117: [Normal] The platform should support light research updates without turning the process into a research project for every lead. The best version of this feature is compact: a few short, curated notes, a few key sources, and a clean way to see what changed. Enough context to draft well, not enough noise to sl
+   312→118: [Heading 1] 10. Internal Capability Library and Solution Knowledge Base
+   313→119: [Heading 2] 10.1 Why the capability library is central
+   314→120: [Normal] The capability library is the heart of the system. It is where the company's services, solutions, proof points, and preferred calls-to-action live in a structured and reusable form. Without this library, AI drafting would be generic. With it, the system can speak in the company's actual voice and co
+   315→121: [Normal] The library should hold the company's strongest ideas in a form the AI can use without inventing new ones. That means the content should be curated, versioned, and tagged. The system should know which capabilities belong to which service lines, which industries they fit, which objections they answer
+   316→122: [Heading 2] 10.2 What a capability asset should contain
+   317→123: [Normal] A capability asset should be more than a paragraph of marketing text. It should carry the title of the service or solution, the problem it solves, the ideal customer profile, the industries where it is strongest, the proof points that support it, and the approved call-to-action that should follow it
+   318→124: [Normal] This structure makes the asset reusable. A draft generator can use the same capability asset for a manufacturing account, a logistics account, or a professional services account if the fit is appropriate. The system does not need to re-invent the company's story every time. It only needs to map the 
+   319→125: [Heading 2] 10.3 Solution packs and industry fits
+   320→126: [Normal] The library should support the idea of solution packs. A solution pack is a grouped set of capability assets that work together for a particular industry or use case. For example, one pack may focus on cloud modernization, another on application support, another on data engineering, and another on m
+   321→127: [Normal] Industry tagging is useful here. If the company works well in certain sectors, the library should make that explicit. The same solution can be described differently for healthcare, manufacturing, finance, or logistics. The system should therefore be able to select a capability asset not only by serv
+   322→128: [Heading 2] 10.4 Document ingestion and content extraction
+   323→129: [Normal] The capability library should accept PDFs, Word files, PPTs, and similar assets. The raw file should be stored, the text should be extracted, and a structured summary should be created. The summary is what the AI should use most of the time. The raw file remains available for context and audit. Mult
+   324→130: [Normal] Content extraction should also produce searchable tags. Tags can include service line, industry, problem type, proof type, and call-to-action type. If the company later wants semantic retrieval, it can add embeddings. But the first release does not need to depend on embeddings. Keyword and metadata 
+   325→131: [Heading 2] 10.5 Content governance
+   326→132: [Normal] The capability library must be curated. Not every internal document belongs there. The goal is to store approved claims, approved examples, and approved outcomes. Anything that sounds speculative or dated should be reviewed before it becomes source material for AI drafting. If the company has multip
+   327→133: [Normal] This governance protects both brand and credibility. A sales message is strongest when it sounds specific and confident, but that confidence must rest on material the company can defend. The capability library is therefore more than a content store. It is a controlled source of truth for what the co
+   328→134: [Heading 1] 11. AI Prompt Architecture and Draft Generation
+   329→135: [Heading 2] 11.1 Prompt assembly
+   330→136: [Normal] AI should never see the full raw spreadsheet as a blob of noise. The prompt builder should assemble only the fields that matter for a specific lead and a specific company. The minimum useful input usually includes contact name, title, role, company name, company domain, company research summary, rel
+   331→137: [Normal] That constraint is what keeps the model useful. A large unfiltered prompt tends to invite generic output and hallucination. A narrow, curated prompt tends to produce sharper messaging. The prompt builder should also include explicit instructions about what the model can and cannot do. It should say 
+   332→138: [Heading 2] 11.2 Source hierarchy
+   333→139: [Normal] The model should operate from a source hierarchy. At the top is the internal capability library. Next is the company research card. Next is the cleaned contact record. Next is the source batch and message history. Finally, the style layer shapes how the message reads. If there is a conflict between 
+   334→140: [Normal] This hierarchy is what makes the system safe. It means the AI is not free to create a world view from scratch. It is arranging existing evidence into a message. When the evidence is incomplete, the draft should make that visible through a cautious tone or an assumption flag. The tool's job is to hel
+   335→141: [Heading 2] 11.3 Output contract
+   336→142: [Normal] The default output should be structured. At minimum, the model should return a subject line, body, and CTA. It can also return confidence, source snippets used, and assumption flags for internal review. The draft may be rendered as natural email text in the UI, but internally it should remain struct
+   337→143: [Normal] The system should prefer one final version per lead by default. Multiple variants are useful only if the team explicitly wants them. Too many variants create noise and slow review. One clean draft, easy to edit, is better than a pile of nearly identical options. The regenerate button should exist, b
+   338→144: [Heading 2] 11.4 Claim control and hallucination guardrails
+   339→145: [Normal] The draft engine should be tightly constrained. It should not invent partnerships, results, certifications, numbers, or implementation details that are not in the capability library or company notes. It should not make up a business problem the company does not actually face. It should not overstate
+   340→146: [Normal] The guardrails are not there to make the output bland. They are there to make the output credible. Good outreach rarely needs exaggerated language. It needs relevance, restraint, and a clear reason to respond. The model should therefore be encouraged to produce short, business-focused emails that po
+   341→147: [Heading 2] 11.5 Human approval workflow
+   342→148: [Normal] Every AI draft should enter a review queue before it is allowed into Outlook. The reviewer can edit the subject, body, or CTA. They can reject the draft if it is off-target. They can send it forward only when it feels accurate and aligned with company positioning. This is the main safety gate of the
+   343→149: [Normal] The review interface should make the source of the draft visible. The reviewer should be able to see which capability snippets influenced the draft, what company context was used, and whether the model marked any assumptions. If the draft is not good enough, the reviewer should be able to refine the
+   344→150: [Heading 2] 11.6 Message style
+   345→151: [Normal] The default style should be concise, professional, and calm. The system is not trying to write a viral email or a dramatic pitch. It is trying to write a useful business email that opens a conversation. The tone should be tailored to IT services and consulting language without sounding overproduced.
+   346→152: [Normal] The best emails from this system will sound as if they were written by someone who knows the company's strengths, understands the target company's context, and is comfortable suggesting a sensible next step. That is the balance the platform should preserve in every draft.
+   347→153: [Heading 1] 12. Outlook Integration and Send Control
+   348→154: [Heading 2] 12.1 Authentication and mailbox setup
+   349→155: [Normal] The sending layer should use the company's Outlook mailbox through Microsoft Graph or an equivalent supported Outlook integration. The mailbox connection belongs in settings and should be treated as a controlled credential, not as an invisible dependency. The platform should know which mailbox is ac
+   350→156: [Normal] This design preserves control because the company already trusts Outlook as the mailer. The platform is not replacing the mailbox. It is organizing the mail flow. That means the draft and queue system should respect mailbox policy, sending limits, and working hours rather than trying to outsmart the
+   351→157: [Heading 2] 12.2 Draft creation
+   352→158: [Normal] The default email outcome should be a draft, not an immediate send. Draft creation gives the human a final review point and keeps the platform aligned with a controlled outbound process. The draft should be visible in the system before it is written to Outlook, and the system should know which conta
+   353→159: [Normal] This draft-first approach is important because it prevents accidental sends and protects the company if the AI output needs small corrections. A good draft can often become a great email with one or two human edits. The platform should therefore make editing easy and should never punish the reviewer
+   354→160: [Heading 2] 12.3 Send queue and rate limiting
+   355→161: [Normal] Approved drafts should move into a send queue. The queue should enforce daily and hourly limits so the mailbox is not overloaded and deliverability remains under control. The system should also honor a working-hours window. If a draft is approved outside the send window, it should wait until the all
+   356→162: [Normal] The queue should be simple enough to trust. A user should be able to see what is waiting, what is already scheduled, what failed, and what needs attention. The platform should not try to be clever by hiding queue state behind a single "active" label. Clear queue status is what makes the system feel 
+   357→163: [Heading 2] 12.4 Follow-ups and pause controls
+   358→164: [Normal] The system should support a small sequence: an initial email plus up to two follow-ups. Follow-ups should only continue if there is no reply, bounce, or suppression trigger. The intervals between messages should be configurable but not overly complex. A short, understandable sequence is more useful 
+   359→165: [Normal] A one-click pause-all control should exist and should immediately stop new sends from leaving the queue. That control is essential for safety. If the team notices an issue with a template, a mailbox, or a segmentation rule, they should be able to stop the flow instantly. Resuming should require an i
+   360→166: [Heading 1] 13. Reply, Bounce, and Suppression Management
+   361→167: [Heading 2] 13.1 Reply synchronization
+   362→168: [Normal] Incoming replies should be matched to the correct contact using threading or message identifiers whenever possible. The system should not rely only on subject lines or manual searches. Once a reply is linked, the lead should move into a replied state and the message should be visible to the reviewer
+   363→169: [Normal] For anything else, the safest path is to mark the contact as replied and let a human interpret the content. The system should not pretend to understand every reply. A simple reply marker with a review path is better than a brittle classifier that mislabels important responses. The team can always ad
+   364→170: [Heading 2] 13.2 Bounce handling
+   365→171: [Normal] Bounces should immediately remove the contact from future sends and add the event to the contact's history. The bounce should also feed the email health score so the system learns that the address is risky or invalid. Bounce handling is not just about avoiding one failed email. It is about protectin
+   366→172: [Normal] The bounce event should be visible both in the lead view and in the reporting layer. If the bounce rate spikes, the team should know. If one batch contains unusually many bounces, the batch should be easy to identify. The bounce system should therefore function as both a suppression mechanism and a 
+   367→173: [Heading 2] 13.3 Suppression logic
+   368→174: [Normal] Suppression should be permanent for unsubscribes and clearly negative responses. If a recipient says stop, the platform should respect that immediately and persistently. Bounced addresses, manual do-not-contact records, and internally flagged suppression records should also be excluded from drafting
+   369→175: [Normal] Suppression removal should be rare and auditable. If a record is removed from suppression, the system should log who made the decision and why. That protects the company if someone later asks why a formerly suppressed contact was contacted again. A strong suppression model is one of the simplest way
+   370→176: [Heading 2] 13.4 Health feedback loop
+   371→177: [Normal] Reply and bounce signals should flow back into the health layer. A lead that replied might become more valuable for follow-up or account expansion. A lead that bounced becomes less viable for outbound. A lead that has not been touched in a long time can age into a stale category. These signals shoul
+   372→178: [Heading 1] 14. Search, Segmentation, and Lead Scoring
+   373→179: [Heading 2] 14.1 Search and filters
+   374→180: [Normal] Users should be able to search by name, email, company, title, role, industry, location, tags, batch, and current status. The search experience should feel immediate and forgiving. The user should not have to remember exact capitalization or formatting. Search should support both direct lookups and 
+   375→181: [Normal] For a database of this size, good indexing and careful query design are usually enough. The platform does not need to become a separate search product to be useful. The key is to make common lookup paths fast and predictable. A good internal tool should make the user feel that the records are organi
+   376→182: [Heading 2] 14.2 Saved segments
+   377→183: [Normal] Any useful filter combination should be savable as a segment. A segment may be dynamic, meaning it updates as the database changes, or static, meaning it captures a snapshot. Dynamic segments are useful for ongoing account groups. Static segments are useful for a fixed outreach list or a review queu
+   378→184: [Normal] Saved segments are one of the easiest ways to make the platform feel reusable. If a user repeatedly filters for a certain role, industry, company size, or capability fit, that work should be preserved. The system should make it easy to return to high-value lists without rebuilding the search every t
+   379→185: [Heading 2] 14.3 Lead scoring
+   380→186: [Normal] Lead scoring should be rules-based and simple. The score can reflect company fit, role fit, freshness, engagement signals, and data quality. The score is not a decision maker. It is a ranking aid. A high score means the lead is more promising for outreach or review. A low score means it may still be
+   381→187: [Normal] The scoring engine should not become a complex condition builder unless the business truly needs that level of flexibility. A small set of configurable rules is usually enough for an internal system. The most important thing is that the score reflects the company's actual outreach priorities rather 
+   382→188: [Heading 2] 14.4 Bulk actions
+   383→189: [Normal] The platform should support bulk actions such as tagging, segmenting, exporting, suppressing, queueing, and status updates. These actions should respect permissions and should create audit entries. Bulk action support is important because the data volume is high, and a large part of the team's work 
+   384→190: [Heading 1] 15. User Experience and Operating Screens
+   385→191: [Heading 2] 15.1 Dashboard
+   386→192: [Normal] The dashboard should be the first place the team looks to understand the state of the system. It should show imported batches, duplicates waiting for review, leads ready for drafting, drafts waiting for approval, emails sent, replies received, bounces, suppressions, and current health counts. The da
+   387→193: [Normal] A good dashboard for this system is not decorative. It is operational. It should help the user answer questions such as whether the last import went cleanly, whether the queue is backed up, whether bounce rate is rising, and whether any review queues need attention. The goal is to reduce uncertainty
+   388→194: [Heading 2] 15.2 Lead list
+   389→195: [Normal] The lead list should be the central working screen. It should show the person, company, role, status, email health, score, source batch, and key actions. The user should be able to open a lead, inspect history, edit fields, review company context, and trigger draft generation from the same place. Th
+   390→196: [Normal] The lead list should also make errors obvious. If a lead is risky, suppressed, or duplicated, the user should see it immediately. The platform should not bury problems beneath too many columns or too much empty space. The best list views are compact, fast, and informative.
+   391→197: [Heading 2] 15.3 Company view
+   392→198: [Normal] The company view should consolidate all contacts, company notes, research cards, capability angles, and prior outreach history for one account. This is the place to understand whether the company is a real target and how the company story is evolving. The team should be able to see which contacts be
+   393→199: [Normal] The company view is also the right place to add internal notes after a call or a research pass. If someone learns that a company is actively evaluating a certain problem, that note should become visible to everyone else working the account. This keeps account intelligence from living only in inbox m
+   394→200: [Heading 2] 15.4 Import screen
+   395→201: [Normal] The import screen should be straightforward. The user uploads the file, maps the columns if needed, reviews the validation preview, and decides whether to commit the batch. Any row-level issues should be visible before the batch is merged. The screen should not ask the user to understand internal pr
+   396→202: [Heading 2] 15.5 Draft review screen
+   397→203: [Normal] The draft review screen should present the AI output beside the contact and company context that produced it. The reviewer should be able to edit the subject, body, CTA, or even the selected capability snippet if the draft is not quite right. The screen should make approval easy and rejection equall
+   398→204: [Heading 2] 15.6 Queue and settings
+   399→205: [Normal] The queue screen should show pending sends, scheduled items, failures, retries, and pause states. The settings screen should hold the Outlook configuration, send windows, daily caps, capability library settings, scoring rules, mapping profiles, suppression controls, and access permissions. These scr
+   400→206: [Heading 1] 16. Reporting, Audit, and Operational Controls
+   401→207: [Heading 2] 16.1 Reporting
+   402→208: [Normal] Reporting should cover batch imports, duplicate resolution, email health distribution, draft generation, approvals, sends, replies, bounces, suppressions, and queue health. The report set should be enough to tell whether the system is healthy, whether the list is improving, and whether the outreach 
+   403→209: [Normal] The team should be able to answer simple questions quickly. How many rows were imported this week? How many were deduplicated? How many drafts were generated but not approved? How many sends were paused because of bounce activity? These are the kinds of questions an internal system must answer witho
+   404→210: [Heading 2] 16.2 Audit logging
+   405→211: [Normal] Every important action should be logged. Imports, edits, merges, AI generation, approval, sends, replies, suppression changes, email health changes, and permission-relevant events all belong in the audit trail. The audit trail is append-only. It should not be editable by ordinary users. If a user ch
+   406→212: [Normal] The audit log is important because the platform is not just storing data. It is making decisions about whether a contact is safe to email and how the company should position itself. Those decisions must be visible later. A good audit log is one of the simplest forms of internal insurance.
+   407→213: [Heading 2] 16.3 Backup and recovery
+   408→214: [Normal] The system should retain source files, historical batches, archived records, and audit events in a way that allows restoration if something goes wrong. Backup and recovery do not need to be visible in the day-to-day workflow, but they do need to exist as part of the design. The team should never fee
+   409→215: [Normal] Recovery should be practical. If a batch needs to be restored, the system should know how to bring it back without rebuilding it from scratch. If a specific duplicate merge was wrong, the archive should make it possible to inspect the prior values. Recovery is part of trust.
+   410→216: [Heading 2] 16.4 Security and governance
+   411→217: [Normal] The platform should use role-based access, encrypted credentials for Outlook, and clear ownership for the capability library. Sensitive operations such as suppression removal, template edits, and mailbox configuration should be restricted. The system should not make broad claims beyond what the inte
+   412→218: [Heading 2] 16.5 Consent and source tracking
+   413→219: [Normal] Each contact should carry source and consent metadata. The platform should know where the record came from and whether it is allowed to be contacted. This metadata should be visible in the lead detail view and should feed suppression behavior. Even in an internal system, that traceability is useful 
+   414→220: [Heading 1] 17. Non-Goals and Explicit Boundaries
+   415→221: [Normal] The platform is not a CRM, a generic marketing automation engine, a lead-buying marketplace, or a public data scraping service. It is not meant to replace Outlook. It is not meant to replace human judgment. It is not meant to create unlimited branches of automation just because a workflow engine cou
+   416→222: [Normal] The platform also should not depend on broad external intelligence to function. External context is useful only when it helps the company understand the target company and its industry. It should remain narrow, curated, and reviewable. The system should not try to know the whole market. It should tr
+   417→223: [Heading 1] Appendix A. AI Prompt Contract
+   418→224: [Heading 2] A.1 Required input structure
+   419→225: [Normal] The AI drafting step should receive a compact, structured payload. The payload should include the contact identity, the company identity, the company research card, the relevant internal capability snippets, any prior interaction notes, and the desired outreach tone. It should not receive unfiltered
+   420→226: [Heading 2] A.2 Drafting rules
+   421→227: [Normal] The model should be instructed to use only verified internal materials for factual claims. It may use external company and industry context only as curated by the system. It may infer a likely business concern, but it must not state the inference as fact. It should keep the email concise, businessli
+   422→228: [Heading 2] A.3 Output schema
+   423→229: [Code Block] {
+   424→230: [Code Block]   "subject": "",
+   425→231: [Code Block]   "body": "",
+   426→232: [Code Block]   "cta": "",
+   427→233: [Code Block]   "confidence_score": 0,
+   428→234: [Code Block]   "source_snippets_used": [],
+   429→235: [Code Block]   "assumption_flags": [],
+   430→236: [Code Block]   "review_notes": ""
+   431→237: [Code Block] }
+   432→238: [Normal] The subject should be short and relevant. The body should be readable in a single glance without feeling thin. The CTA should be one line and should not try to close the entire relationship in one email. The confidence score should help reviewers triage drafts, not make the final decision for them. 
+   433→239: [Heading 2] A.4 Failure behavior
+   434→240: [Normal] If the model does not have enough company context or cannot find a matching internal capability, the system should not force a draft. It should flag the record for research, enrichment, or manual handling. Silence is better than invention. This is especially important when a lead is valuable but the
+   435→241: [Heading 1] Appendix B. Lead State Model
+   436→242: [Heading 2] B.1 Lead states
+   437→243: [Normal] The lead should move through a small set of states that are easy to understand. A record starts as new or imported. It becomes cleaned once the normalization pipeline has run. It may be marked duplicate if the system or a reviewer decides it is not a distinct record. Once it is clean and ready, it c
+   438→244: [Heading 2] B.2 State transitions
+   439→245: [Normal] State changes should happen because of clear actions or signals. Import creates imported records. Cleaning creates cleaned records. Deduplication may create duplicate or merged states. Draft generation moves a record into drafted. Approval moves it to queued. Delivery moves it to sent. Reply handlin
+   440→246: [Heading 1] Appendix C. Data Source and Storage Rules
+   441→247: [Heading 2] C.1 What must be preserved
+   442→248: [Normal] The platform should preserve the original imported values, the normalized values, the current edited values, the batch source, and the audit trail. These layers are not optional. They are the memory of the system. If a value changes, the original should still be visible in history. If a row comes fr
+   443→249: [Heading 2] C.2 What can be normalized
+   444→250: [Normal] The system can normalize formatting, casing, whitespace, domain strings, LinkedIn URLs, and other machine-friendly representations. It can also create match keys for deduplication and search. What it cannot do is erase the human-readable source form. A company may have a cleaned canonical name for m
+   445→251: [Heading 2] C.3 What should be excluded
+
+[showing lines 220-445 of 446; use offset=446 with limit to continue reading]

@@ -1,8 +1,7 @@
 'use client'
 
-import { Component, type ReactNode, useEffect } from 'react'
+import { Component, type ReactNode, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
 import { useAppStore } from '@/lib/store'
@@ -10,6 +9,41 @@ import type { ActiveView } from '@/lib/types'
 import { SkeletonGrid } from '@/components/shared/design-system'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
+
+function useAuth() {
+  const [session, setSession] = useState<any>(null)
+  const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading')
+
+  useEffect(() => {
+    // Check for mock auth cookie or localStorage
+    const isMockAuth = document.cookie.includes('deepmindq-mock-auth=true')
+    const mockSession = localStorage.getItem('deepmindq-session')
+
+    if (isMockAuth && mockSession) {
+      try {
+        setSession(JSON.parse(mockSession))
+        setStatus('authenticated')
+      } catch {
+        setStatus('unauthenticated')
+      }
+    } else {
+      // Try next-auth session
+      fetch('/api/auth/me')
+        .then(r => r.json())
+        .then(data => {
+          if (data?.success && data?.data) {
+            setSession(data.data)
+            setStatus('authenticated')
+          } else {
+            setStatus('unauthenticated')
+          }
+        })
+        .catch(() => setStatus('unauthenticated'))
+    }
+  }, [])
+
+  return { data: session, status }
+}
 
 const DashboardScreen = dynamic(
   () => import('@/components/screens/dashboard-screen').then(m => ({ default: m.DashboardScreen })),
@@ -107,7 +141,7 @@ function ErrorFallback({ error }: ErrorFallbackProps) {
         <div>
           <h2 className="text-lg font-bold text-gray-900">Something went wrong</h2>
           <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">
-            An unexpected error occurred. This has been logged and our team is looking into it.
+            An unexpected error occurred.
           </p>
           {error?.message && (
             <p className="text-xs text-red-600 bg-red-50 rounded-lg p-2.5 mt-3 font-mono break-all text-left">
@@ -164,7 +198,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 /* ── Page ──────────────────────────────────────────────────── */
 
 export default function HomePage() {
-  const { data: session, status } = useSession()
+  const { data: session, status } = useAuth()
   const router = useRouter()
   const { activeView } = useAppStore()
 

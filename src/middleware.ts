@@ -10,10 +10,10 @@ export function middleware(request: Request) {
   // Next.js internals - always allow
   if (pathname.startsWith('/_next') || pathname.startsWith('/api/auth')) return NextResponse.next()
 
-  // Check for session token
+  // Check for session token (real or mock)
   const cookieHeader = request.headers.get('cookie') || ''
   const hasSessionToken = cookieHeader.includes('next-auth.session-token') ||
-                          cookieHeader.includes('next-auth.session-token=')
+                          cookieHeader.includes('deepmindq-mock-auth=true')
 
   // For API routes - return 401 if no session (in production)
   if (pathname.startsWith('/api/')) {

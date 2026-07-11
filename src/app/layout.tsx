@@ -1,64 +1,24 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { ThemeProvider } from "next-themes";
+import { Geist } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/sonner";
-import { QueryProvider } from "@/providers/query-provider";
-import { AuthProvider } from "@/providers/auth-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
   title: "DeepMindQ — Intelligence. Insight. Impact.",
-  description: "AI-powered sales intelligence platform by DeepMindQ. Discover companies, enrich contacts, and close deals faster.",
-  authors: [{ name: "DeepMindQ", url: "https://www.deepmindq.com" }],
-  icons: {
-    icon: "/logo.png",
-  },
-  openGraph: {
-    title: "DeepMindQ — Intelligence. Insight. Impact.",
-    description: "AI-powered sales intelligence platform. Discover companies, enrich contacts, and close deals faster.",
-    type: "website",
-    siteName: "DeepMindQ",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "DeepMindQ — Intelligence. Insight. Impact.",
-    description: "AI-powered sales intelligence platform by DeepMindQ.",
-  },
+  description: "AI-powered sales intelligence platform.",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
-      >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem={true}
-          disableTransitionOnChange
-        >
-          <AuthProvider>
-            <QueryProvider>
-              {children}
-              <Toaster />
-            </QueryProvider>
-          </AuthProvider>
-        </ThemeProvider>
+    <html lang="en">
+      <body className={`${geistSans.variable} antialiased`}>
+        {children}
       </body>
     </html>
   );

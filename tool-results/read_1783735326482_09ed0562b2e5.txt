@@ -1,0 +1,502 @@
+    40→    40→  aiModel: 'gpt-4o-mini',
+    41→    41→  aiApiKey: '',
+    42→    42→}
+    43→    43→
+    44→    44→const TOGGLE_ACTIVE = 'bg-amber-600 text-white shadow-xs'
+    45→    45→const TOGGLE_INACTIVE = 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+    46→    46→
+    47→    47→/* ═══════════════════════════════════════════════════════════════
+    48→    48→   Live Email Preview Generator
+    49→    49→   ═══════════════════════════════════════════════════════════════ */
+    50→    50→
+    51→    51→function generateLivePreview(tone: string, length: string, cta: string, opener: string, signOff: string) {
+    52→    52→  const firstName = 'John'
+    53→    53→  const companyName = 'Acme Corp'
+    54→    54→  const jobTitle = 'VP of Operations'
+    55→    55→
+    56→    56→  const bodies: Record<string, Record<string, string>> = {
+    57→    57→    'professional-casual': {
+    58→    58→      short: `Hi ${firstName},\n\nI came across ${companyName} and was impressed by your work in the ${jobTitle} space. I'd love to explore how we might be able to add value.\n\nWould a quick 10-minute chat work this week?\n\n${signOff}`,
+    59→    59→      medium: `Hi ${firstName},\n\nI've been following ${companyName}'s recent momentum in the ${jobTitle} domain, and it caught my attention. Our team has helped similar organizations streamline their operations with measurable results — think 30-40% efficiency gains in the first quarter.\n\n${cta === 'direct' ? 'Could we schedule a 15-minute call this Thursday at 2 PM to discuss a potential fit?' : "Would you be open to a brief conversation this week to explore if there's alignment?"}\n\n${signOff}`,
+    60→    60→      detailed: `Hi ${firstName},\n\nI hope this message finds you well. I've been researching ${companyName} and I'm genuinely impressed by the direction you're taking in the ${jobTitle} area. The market signals suggest this is a particularly exciting time for your team.\n\nAt DeepMindQ, we've been working with organizations facing similar challenges to what I imagine ${companyName} is navigating. Our approach combines AI-driven intelligence with hands-on strategic consulting, and the results have been compelling — our clients typically see significant improvements in their key metrics within the first quarter of engagement.\n\n${cta === 'direct' ? `I'd love to show you a brief 15-minute demo of what this could look like for ${companyName}. Could we schedule a call this Thursday?` : "Would you be open to exploring this further? I'd be happy to share some relevant case studies."}\n\n${signOff}`,
+    61→    61→    },
+    62→    62→    formal: {
+    63→    63→      short: `Dear ${firstName},\n\nI am writing to introduce DeepMindQ and explore a potential collaboration with ${companyName}.\n\n${cta === 'direct' ? 'May I request a brief meeting at your earliest convenience?' : `I would welcome the opportunity to discuss how our services might align with ${companyName}'s objectives.`}\n\n${signOff}`,
+    64→    64→      medium: `Dear ${firstName},\n\nI am writing to introduce DeepMindQ's enterprise intelligence platform. We specialize in helping organizations in the ${jobTitle} space streamline their operations. Our recent work with similar companies has demonstrated measurable improvements in operational efficiency.\n\n${cta === 'direct' ? 'May I request a brief meeting at your earliest convenience?' : `I would welcome the opportunity to discuss how our services might align with ${companyName}'s strategic objectives.`}\n\n${signOff}`,
+    65→    65→      detailed: `Dear ${firstName},\n\nI am writing to introduce DeepMindQ and explore a potential collaboration with ${companyName}.\n\nOur firm specializes in AI-powered sales intelligence and strategic consulting. We have observed ${companyName}'s growth trajectory and believe there may be compelling synergies worth discussing.\n\nAt DeepMindQ, we have developed a comprehensive approach to helping organizations like yours achieve operational excellence. Our methodology is grounded in data-driven insights and has been validated across multiple industry verticals.\n\n${cta === 'direct' ? 'May I request a brief meeting at your earliest convenience to discuss this in more detail?' : `I would welcome the opportunity to schedule an introductory conversation at your convenience.`}\n\n${signOff}`,
+    66→    66→    },
+    67→    67→    direct: {
+    68→    68→      short: `${firstName},\n\n${companyName} looks like it's doing great things. Quick question: have you considered optimizing your ${jobTitle} workflow? We've helped teams like yours 3x their output.\n\n${cta === 'direct' ? "Let's talk Thursday 2 PM — 15 minutes max." : "Open to a chat if you're curious?"}\n\n${signOff}`,
+    69→    69→      medium: `${firstName},\n\nI notice ${companyName} is growing fast in the ${jobTitle} space. That usually means process bottlenecks — the kind we solve.\n\nWe've helped similar companies cut lead times by 34%. ${companyName} could benefit from the same approach.\n\n${cta === 'direct' ? "Let's cut to it — 15 min call this Thursday?" : "Worth 15 minutes of your time this week to explore if there's a fit."}\n\n${signOff}`,
+    70→    70→      detailed: `${firstName},\n\nI notice ${companyName} is growing fast in the ${jobTitle} space. That usually means process bottlenecks — the kind we solve.\n\nWe've helped three companies in your space this quarter alone. Average result: 34% reduction in lead times, 28% cost savings on procurement.\n\n${cta === 'direct' ? 'Thursday 2 PM — can you make 15 minutes?' : `If you're curious, I have a short demo showing exactly how this works for companies like ${companyName}.`}\n\n${signOff}`,
+    71→    71→    },
+    72→    72→  }
+    73→    73→
+    74→    74→  const toneBodies = bodies[tone] || bodies['professional-casual']
+    75→    75→  const body = toneBodies[length || 'medium'] || toneBodies['medium']
+    76→    76→  const ctas: Record<string, string> = {
+    77→    77→    soft: `Soft Ask — "Would you be open to a brief conversation this week?"`,
+    78→    78→    direct: `Direct Ask — "Can we schedule a 15-minute call this Thursday?"`,
+    79→    79→  }
+    80→    80→  const subject = `${cta === 'direct' ? 'Direct' : 'Quick'} question about ${companyName}'s ${jobTitle} strategy`
+    81→    81→
+    82→    82→  return { subject, body, ctaDescription: ctas[cta] || ctas.soft }
+    83→    83→}
+    84→    84→
+    85→    85→/* ═══════════════════════════════════════════════════════════════
+    86→    86→   Toggle Button Group (reusable)
+    87→    87→   ═══════════════════════════════════════════════════════════════ */
+    88→    88→
+    89→    89→function SettingsToggleGroup<T extends string>({
+    90→    90→  label,
+    91→    91→  description,
+    92→    92→  options,
+    93→    93→  value,
+    94→    94→  onChange,
+    95→    95→}: {
+    96→    96→  label: string
+    97→    97→  description?: string
+    98→    98→  options: { value: T; label: string }[]
+    99→    99→  value: T
+   100→   100→  onChange: (v: T) => void
+   101→   101→}) {
+   102→   102→  return (
+   103→   103→    <div>
+   104→   104→      <label className="text-xs font-medium text-gray-700 block mb-1.5">{label}</label>
+   105→   105→      {description && <p className="text-[11px] text-gray-400 mb-2">{description}</p>}
+   106→   106→      <div className="flex items-center gap-2 flex-wrap">
+   107→   107→        {options.map(opt => (
+   108→   108→          <button
+   109→   109→            key={opt.value}
+   110→   110→            onClick={() => onChange(opt.value)}
+   111→   111→            className={cn(
+   112→   112→              'px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
+   113→   113→              value === opt.value ? TOGGLE_ACTIVE : TOGGLE_INACTIVE,
+   114→   114→            )}
+   115→   115→          >
+   116→   116→            {opt.label}
+   117→   117→          </button>
+   118→   118→        ))}
+   119→   119→      </div>
+   120→   120→    </div>
+   121→   121→  )
+   122→   122→}
+   123→   123→
+   124→   124→/* ═══════════════════════════════════════════════════════════════
+   125→   125→   Main Settings Screen
+   126→   126→   ═══════════════════════════════════════════════════════════════ */
+   127→   127→
+   128→   128→export function SettingsScreen() {
+   129→   129→  const qc = useQueryClient()
+   130→   130→  const { setActiveView } = useAppStore()
+   131→   131→  const [draft, setDraft] = useState<Record<string, string> | null>(null)
+   132→   132→  const [showKey, setShowKey] = useState(false)
+   133→   133→  const [dangerOpen, setDangerOpen] = useState(false)
+   134→   134→  const [healthCheckOpen, setHealthCheckOpen] = useState(false)
+   135→   135→  const [activeTab, setActiveTab] = useState('email')
+   136→   136→  const [aiTestResult, setAiTestResult] = useState<{
+   137→   137→    success: boolean
+   138→   138→    email?: { subject: string; body: string }
+   139→   139→    score?: number
+   140→   140→    error?: string
+   141→   141→  } | null>(null)
+   142→   142→  const [justSavedAi, setJustSavedAi] = useState(false)
+   143→   143→
+   144→   144→  // ── Preferences ──
+   145→   145→  const { data: prefs, isLoading, error: prefsError } = useQuery({
+   146→   146→    queryKey: ['preferences'],
+   147→   147→    queryFn: () => fetch('/api/preferences').then(r => r.json()),
+   148→   148→  })
+   149→   149→
+   150→   150→  const form = { ...DEFAULTS, ...prefs, ...draft }
+   151→   151→  const savedValues = useMemo(() => ({ ...DEFAULTS, ...prefs }), [prefs])
+   152→   152→  const currentValues = useMemo(() => ({ ...DEFAULTS, ...prefs, ...draft }), [prefs, draft])
+   153→   153→
+   154→   154→  // ── Unsaved changes tracking ──
+   155→   155→  const hasChanges = useMemo(() => {
+   156→   156→    if (!draft) return false
+   157→   157→    return Object.keys(draft).some(k => (draft as any)[k] !== (savedValues as any)[k])
+   158→   158→  }, [draft, savedValues])
+   159→   159→
+   160→   160→  const handleDiscard = useCallback(() => { setDraft(null) }, [])
+   161→   161→
+   162→   162→  useEffect(() => {
+   163→   163→    window.onbeforeunload = hasChanges ? () => '' : null
+   164→   164→    return () => { window.onbeforeunload = null }
+   165→   165→  }, [hasChanges])
+   166→   166→
+   167→   167→  // ── API Key validation ──
+   168→   168→  const apiKeyValidation = useMemo(() => {
+   169→   169→    const key = form.aiApiKey
+   170→   170→    if (!key) return null
+   171→   171→    if (form.aiProvider === 'openai' && !key.startsWith('sk-')) {
+   172→   172→      return 'OpenAI keys typically start with "sk-"'
+   173→   173→    }
+   174→   174→    if (form.aiProvider === 'gemini' && !key.startsWith('AIza')) {
+   175→   175→      return 'Gemini keys typically start with "AIza"'
+   176→   176→    }
+   177→   177→    if (form.aiProvider === 'groq' && !key.startsWith('gsk_')) {
+   178→   178→      return 'Groq keys typically start with "gsk_"'
+   179→   179→    }
+   180→   180→    if (key.length < 10) {
+   181→   181→      return 'API key seems too short'
+   182→   182→    }
+   183→   183→    return null
+   184→   184→  }, [form.aiApiKey, form.aiProvider])
+   185→   185→
+   186→   186→  // ── Save preferences ──
+   187→   187→  const savePrefs = useMutation({
+   188→   188→    mutationFn: (data: Record<string, string>) =>
+   189→   189→      fetch('/api/preferences', {
+   190→   190→        method: 'PUT',
+   191→   191→        headers: { 'Content-Type': 'application/json' },
+   192→   192→        body: JSON.stringify(data),
+   193→   193→      }).then(r => r.json()),
+   194→   194→    onSuccess: () => {
+   195→   195→      toast.success('Preferences saved')
+   196→   196→      setDraft(null)
+   197→   197→      qc.invalidateQueries({ queryKey: ['preferences'] })
+   198→   198→    },
+   199→   199→    onError: () => toast.error('Failed to save preferences'),
+   200→   200→  })
+   201→   201→
+   202→   202→  // ── Test AI Connection ──
+   203→   203→  const testAiMutation = useMutation({
+   204→   204→    mutationFn: async () => {
+   205→   205→      const contactsRes = await fetch('/api/contacts?pageSize=1')
+   206→   206→      const contactsData = await contactsRes.json()
+   207→   207→      if (!contactsData.contacts?.length) throw new Error('No contacts in database to test with. Add a contact first.')
+   208→   208→
+   209→   209→      const contactId = contactsData.contacts[0].id
+   210→   210→      const res = await fetch(`/api/contacts/${contactId}/generate-email`, {
+   211→   211→        method: 'POST',
+   212→   212→        headers: { 'Content-Type': 'application/json' },
+   213→   213→        body: JSON.stringify({ tone: form.tone, emailLength: 'short', ctaStyle: 'soft' }),
+   214→   214→      })
+   215→   215→      if (!res.ok) {
+   216→   216→        const err = await res.json().catch(() => ({ error: 'Test failed' }))
+   217→   217→        throw new Error(err.error || 'Test failed')
+   218→   218→      }
+   219→   219→      return res.json()
+   220→   220→    },
+   221→   221→    onSuccess: (data) => {
+   222→   222→      setAiTestResult({
+   223→   223→        success: true,
+   224→   224→        email: { subject: data.subject, body: data.body },
+   225→   225→        score: data.matchScore,
+   226→   226→      })
+   227→   227→      toast.success(`AI connection successful! Generated test email with ${data.matchScore}% match score`)
+   228→   228→    },
+   229→   229→    onError: (e: Error) => {
+   230→   230→      setAiTestResult({ success: false, error: e.message })
+   231→   231→      toast.error(`AI test failed: ${e.message}`)
+   232→   232→    },
+   233→   233→  })
+   234→   234→
+   235→   235→  // ── Export CSV ──
+   236→   236→  const handleExport = useMutation({
+   237→   237→    mutationFn: async () => {
+   238→   238→      const compRes = await fetch('/api/export?type=companies')
+   239→   239→      const compBlob = await compRes.blob()
+   240→   240→      const compUrl = URL.createObjectURL(compBlob)
+   241→   241→      const a = document.createElement('a')
+   242→   242→      a.href = compUrl
+   243→   243→      a.download = 'deepmindq-companies.csv'
+   244→   244→      a.click()
+   245→   245→      URL.revokeObjectURL(compUrl)
+   246→   246→
+   247→   247→      const contRes = await fetch('/api/export?type=contacts')
+   248→   248→      const contBlob = await contRes.blob()
+   249→   249→      const contUrl = URL.createObjectURL(contBlob)
+   250→   250→      const b = document.createElement('a')
+   251→   251→      b.href = contUrl
+   252→   252→      b.download = 'deepmindq-contacts.csv'
+   253→   253→      b.click()
+   254→   254→      URL.revokeObjectURL(contUrl)
+   255→   255→    },
+   256→   256→    onSuccess: () => toast.success('Companies and contacts exported as CSV successfully'),
+   257→   257→    onError: () => toast.error('Export failed — please try again'),
+   258→   258→  })
+   259→   259→
+   260→   260→  // ── Health Check ──
+   261→   261→  const handleHealthCheck = useMutation({
+   262→   262→    mutationFn: () =>
+   263→   263→      fetch('/api/health-check', {
+   264→   264→        method: 'POST',
+   265→   265→        headers: { 'Content-Type': 'application/json' },
+   266→   266→        body: JSON.stringify({ checkAll: true }),
+   267→   267→      }).then(r => r.json()),
+   268→   268→    onSuccess: (d) => {
+   269→   269→      setHealthCheckOpen(false)
+   270→   270→      toast.success(`Health check complete: ${d.valid} valid, ${d.invalid} invalid out of ${d.checked} emails`)
+   271→   271→    },
+   272→   272→    onError: () => {
+   273→   273→      setHealthCheckOpen(false)
+   274→   274→      toast.error('Health check failed')
+   275→   275→    },
+   276→   276→  })
+   277→   277→
+   278→   278→  // ── Delete All Data ──
+   279→   279→  const handleDeleteAll = useMutation({
+   280→   280→    mutationFn: () => fetch('/api/reset', { method: 'DELETE' }).then(r => r.json()),
+   281→   281→    onSuccess: () => {
+   282→   282→      toast.success('All data deleted successfully')
+   283→   283→      setDangerOpen(false)
+   284→   284→      qc.invalidateQueries({ queryKey: ['companies'] })
+   285→   285→      qc.invalidateQueries({ queryKey: ['contacts'] })
+   286→   286→      qc.invalidateQueries({ queryKey: ['dashboard'] })
+   287→   287→    },
+   288→   288→    onError: () => toast.error('Failed to delete data'),
+   289→   289→  })
+   290→   290→
+   291→   291→  const set = (k: string, v: string) => {
+   292→   292→    setDraft(p => ({ ...(p || {}), [k]: v }))
+   293→   293→    setJustSavedAi(false)
+   294→   294→  }
+   295→   295→
+   296→   296→  const handleSaveAiConfig = () => {
+   297→   297→    savePrefs.mutate({ aiProvider: form.aiProvider, aiModel: form.aiModel, aiApiKey: form.aiApiKey })
+   298→   298→    setJustSavedAi(true)
+   299→   299→    setAiTestResult(null)
+   300→   300→  }
+   301→   301→
+   302→   302→  const handleSaveEmailStyle = () => {
+   303→   303→    savePrefs.mutate({
+   304→   304→      tone: form.tone,
+   305→   305→      emailLength: form.emailLength,
+   306→   306→      openerStyle: form.openerStyle,
+   307→   307→      signOff: form.signOff,
+   308→   308→      avoidPhrases: form.avoidPhrases,
+   309→   309→      ctaStyle: form.ctaStyle,
+   310→   310→    })
+   311→   311→  }
+   312→   312→
+   313→   313→  // ── Loading state ──
+   314→   314→  if (isLoading) {
+   315→   315→    return (
+   316→   316→      <div className="max-w-3xl space-y-6">
+   317→   317→        {[...Array(3)].map((_, i) => (
+   318→   318→          <div key={i} className="h-56 rounded-xl bg-gray-100 animate-pulse" />
+   319→   319→        ))}
+   320→   320→      </div>
+   321→   321→    )
+   322→   322→  }
+   323→   323→
+   324→   324→  // ── Error state ──
+   325→   325→  if (prefsError) {
+   326→   326→    return (
+   327→   327→      <div className="max-w-3xl">
+   328→   328→        <div className="rounded-xl border border-red-200 bg-red-50 p-6 flex items-start gap-3">
+   329→   329→          <AlertTriangle className="size-5 text-red-500 shrink-0 mt-0.5" />
+   330→   330→          <div>
+   331→   331→            <p className="text-sm font-medium text-red-700">Failed to load settings</p>
+   332→   332→            <p className="text-xs text-red-500 mt-1">Please try refreshing the page.</p>
+   333→   333→          </div>
+   334→   334→        </div>
+   335→   335→      </div>
+   336→   336→    )
+   337→   337→  }
+   338→   338→
+   339→   339→  // ── Live preview data ──
+   340→   340→  const preview = generateLivePreview(form.tone, form.emailLength, form.ctaStyle, form.openerStyle, form.signOff)
+   341→   341→
+   342→   342→  return (
+   343→   343→    <div className="max-w-3xl">
+   344→   344→      {/* ═══════════════════════════════════════════════════════
+   345→   345→          Unsaved Changes Warning Bar
+   346→   346→         ═══════════════════════════════════════════════════════ */}
+   347→   347→      {hasChanges && (
+   348→   348→        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 animate-in slide-in-from-top-2 duration-200">
+   349→   349→          <p className="text-sm text-amber-800 font-medium">You have unsaved changes</p>
+   350→   350→          <div className="flex items-center gap-2 self-end">
+   351→   351→            <Button
+   352→   352→              variant="outline"
+   353→   353→              size="sm"
+   354→   354→              className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-100 rounded-lg"
+   355→   355→              onClick={handleDiscard}
+   356→   356→            >
+   357→   357→              Discard
+   358→   358→            </Button>
+   359→   359→            <Button
+   360→   360→              size="sm"
+   361→   361→              className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale"
+   362→   362→              onClick={() => savePrefs.mutate(currentValues)}
+   363→   363→              disabled={savePrefs.isPending}
+   364→   364→            >
+   365→   365→              {savePrefs.isPending && <Loader2 className="size-3 mr-1 animate-spin" />}
+   366→   366→              Save All
+   367→   367→            </Button>
+   368→   368→          </div>
+   369→   369→        </div>
+   370→   370→      )}
+   371→   371→
+   372→   372→      {/* ═══════════════════════════════════════════════════════
+   373→   373→          Header
+   374→   374→         ═══════════════════════════════════════════════════════ */}
+   375→   375→      <div className="mb-6">
+   376→   376→        <h1 className="text-lg font-bold text-gray-900 tracking-tight">Settings</h1>
+   377→   377→        <p className="text-sm text-gray-500 mt-0.5">Configure your workspace, AI preferences, and data management.</p>
+   378→   378→      </div>
+   379→   379→
+   380→   380→      {/* ═══════════════════════════════════════════════════════
+   381→   381→          Tabs
+   382→   382→         ═══════════════════════════════════════════════════════ */}
+   383→   383→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+   384→   384→        <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 mb-6 overflow-x-auto">
+   385→   385→          {[
+   386→   386→            { value: 'email', label: 'Email Style', icon: Mail },
+   387→   387→            { value: 'ai', label: 'AI Config', icon: Cpu },
+   388→   388→            { value: 'data', label: 'Data', icon: Database },
+   389→   389→            { value: 'danger', label: 'Advanced', icon: AlertTriangle },
+   390→   390→          ].map(tab => (
+   391→   391→            <TabsTrigger
+   392→   392→              key={tab.value}
+   393→   393→              value={tab.value}
+   394→   394→              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-2 sm:px-3 py-2 flex items-center gap-1.5 whitespace-nowrap"
+   395→   395→            >
+   396→   396→              <tab.icon className="size-3.5" />
+   397→   397→              <span className="hidden sm:inline">{tab.label}</span>
+   398→   398→            </TabsTrigger>
+   399→   399→          ))}
+   400→   400→        </TabsList>
+   401→   401→
+   402→   402→        {/* ═══════════════════════════════════════════════════════
+   403→   403→            Tab: Email Style
+   404→   404→           ═══════════════════════════════════════════════════════ */}
+   405→   405→        <TabsContent value="email" className="space-y-6">
+   406→   406→          <div className="rounded-xl bg-white card-rest p-6 space-y-6">
+   407→   407→            <div>
+   408→   408→              <h3 className="text-sm font-semibold text-gray-900">Email Generation Preferences</h3>
+   409→   409→              <p className="text-xs text-gray-500 mt-0.5">These settings control how AI generates outreach emails for your contacts.</p>
+   410→   410→            </div>
+   411→   411→
+   412→   412→            {/* Toggle Selectors */}
+   413→   413→            <SettingsToggleGroup
+   414→   414→              label="Tone"
+   415→   415→              description="The voice and personality of your emails"
+   416→   416→              options={[
+   417→   417→                { value: 'formal', label: 'Formal' },
+   418→   418→                { value: 'professional-casual', label: 'Professional-Casual' },
+   419→   419→                { value: 'direct', label: 'Direct' },
+   420→   420→              ]}
+   421→   421→              value={form.tone}
+   422→   422→              onChange={v => set('tone', v)}
+   423→   423→            />
+   424→   424→
+   425→   425→            <SettingsToggleGroup
+   426→   426→              label="Length"
+   427→   427→              description="How long the generated emails should be"
+   428→   428→              options={[
+   429→   429→                { value: 'short', label: 'Short' },
+   430→   430→                { value: 'medium', label: 'Medium' },
+   431→   431→                { value: 'detailed', label: 'Detailed' },
+   432→   432→              ]}
+   433→   433→              value={form.emailLength}
+   434→   434→              onChange={v => set('emailLength', v)}
+   435→   435→            />
+   436→   436→
+   437→   437→            <SettingsToggleGroup
+   438→   438→              label="CTA Style"
+   439→   439→              description="How the call-to-action is framed"
+   440→   440→              options={[
+   441→   441→                { value: 'soft', label: 'Soft Ask' },
+   442→   442→                { value: 'direct', label: 'Direct Ask' },
+   443→   443→              ]}
+   444→   444→              value={form.ctaStyle}
+   445→   445→              onChange={v => set('ctaStyle', v)}
+   446→   446→            />
+   447→   447→
+   448→   448→            <Separator className="bg-gray-100" />
+   449→   449→
+   450→   450→            {/* Text Inputs */}
+   451→   451→            <div>
+   452→   452→              <label className="text-xs font-medium text-gray-700 block mb-1.5">Opener Style</label>
+   453→   453→              <Input
+   454→   454→                value={form.openerStyle}
+   455→   455→                onChange={e => set('openerStyle', e.target.value)}
+   456→   456→                className="h-9 border-gray-200 rounded-lg text-sm"
+   457→   457→                placeholder="Hi [First Name]"
+   458→   458→              />
+   459→   459→              <p className="text-[11px] text-gray-400 mt-1">How each email begins. Use [First Name] as a placeholder.</p>
+   460→   460→            </div>
+   461→   461→
+   462→   462→            <div>
+   463→   463→              <label className="text-xs font-medium text-gray-700 block mb-1.5">Sign-off</label>
+   464→   464→              <Input
+   465→   465→                value={form.signOff}
+   466→   466→                onChange={e => set('signOff', e.target.value)}
+   467→   467→                className="h-9 border-gray-200 rounded-lg text-sm"
+   468→   468→                placeholder="Best regards"
+   469→   469→              />
+   470→   470→            </div>
+   471→   471→
+   472→   472→            <div>
+   473→   473→              <label className="text-xs font-medium text-gray-700 block mb-1.5">Avoid Phrases</label>
+   474→   474→              <Textarea
+   475→   475→                value={form.avoidPhrases}
+   476→   476→                onChange={e => set('avoidPhrases', e.target.value)}
+   477→   477→                rows={3}
+   478→   478→                className="border-gray-200 rounded-lg resize-none text-sm"
+   479→   479→                placeholder="One phrase per line. These will be excluded from generated emails."
+   480→   480→              />
+   481→   481→              <p className="text-[11px] text-gray-400 mt-1">Phrases the AI should avoid using in generated emails.</p>
+   482→   482→            </div>
+   483→   483→
+   484→   484→            <div className="flex justify-end">
+   485→   485→              <Button
+   486→   486→                className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale"
+   487→   487→                onClick={handleSaveEmailStyle}
+   488→   488→                disabled={savePrefs.isPending}
+   489→   489→              >
+   490→   490→                {savePrefs.isPending ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <Save className="size-3.5 mr-1.5" />}
+   491→   491→                Save Preferences
+   492→   492→              </Button>
+   493→   493→            </div>
+   494→   494→          </div>
+   495→   495→
+   496→   496→          {/* Live Preview */}
+   497→   497→          <div className="rounded-xl bg-white card-rest p-6 space-y-4">
+   498→   498→            <div className="flex items-center justify-between">
+   499→   499→              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+   500→   500→                <Mail className="size-4 text-gray-400" />
+   501→   501→                Live Email Preview
+   502→   502→              </h3>
+   503→   503→              <Badge className="bg-gray-100 text-gray-500 border border-gray-200 text-[10px]">
+   504→   504→                Sample · John at Acme Corp
+   505→   505→              </Badge>
+   506→   506→            </div>
+   507→   507→            <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-5 space-y-3">
+   508→   508→              <div>
+   509→   509→                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-1">Subject</p>
+   510→   510→                <p className="text-sm font-semibold text-gray-900">{preview.subject}</p>
+   511→   511→              </div>
+   512→   512→              <Separator className="bg-gray-200/60" />
+   513→   513→              <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
+   514→   514→                {preview.body}
+   515→   515→              </pre>
+   516→   516→            </div>
+   517→   517→            <p className="text-[11px] text-gray-400">
+   518→   518→              This is a sample preview. Actual emails will be personalized per contact using AI and research data.
+   519→   519→            </p>
+   520→   520→          </div>
+   521→   521→        </TabsContent>
+   522→   522→
+   523→   523→        {/* ═══════════════════════════════════════════════════════
+   524→   524→            Tab: AI Configuration
+   525→   525→           ═══════════════════════════════════════════════════════ */}
+   526→   526→        <TabsContent value="ai" className="space-y-6">
+   527→   527→          <div className="rounded-xl bg-white card-rest p-6 space-y-6">
+   528→   528→            <div>
+   529→   529→              <h3 className="text-sm font-semibold text-gray-900">AI Provider Configuration</h3>
+   530→   530→              <p className="text-xs text-gray-500 mt-0.5">
+   531→   531→                Configure your AI provider and API key for intelligent, personalized email generation.
+   532→   532→              </p>
+   533→   533→            </div>
+   534→   534→
+   535→   535→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   536→   536→              <div>
+   537→   537→                <label className="text-xs font-medium text-gray-700 block mb-1.5">AI Provider</label>
+   538→   538→                <Select value={form.aiProvider} onValueChange={v => set('aiProvider', v)}>
+   539→   539→                  <SelectTrigger className="h-9 border-gray-200 rounded-lg text-sm">
+
+[showing lines 40-539 of 865; use offset=540 with limit to continue reading]

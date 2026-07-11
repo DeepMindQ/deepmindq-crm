@@ -1,0 +1,1586 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState } from 'react'
+     4→     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→     5→import {
+     6→     6→  ArrowLeft, Building2, Globe, MapPin, Users, Plus, Target, StickyNote, FileText,
+     7→     7→  Sparkles, Mail, Phone, ExternalLink, Linkedin, DollarSign, Calendar,
+     8→     8→  CheckCircle2, Clock, BarChart3, Loader2, X, AlertTriangle, Trash2,
+     9→     9→  ChevronRight, Cpu, Pencil,
+    10→    10→} from 'lucide-react'
+    11→    11→import { useAppStore } from '@/lib/store'
+    12→    12→import { formatDistanceToNow } from 'date-fns'
+    13→    13→import { toast } from 'sonner'
+    14→    14→import { Button } from '@/components/ui/button'
+    15→    15→import { Badge } from '@/components/ui/badge'
+    16→    16→import { Skeleton } from '@/components/ui/skeleton'
+    17→    17→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    18→    18→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+    19→    19→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+    20→    20→import { Textarea } from '@/components/ui/textarea'
+    21→    21→import { Label } from '@/components/ui/label'
+    22→    22→import { Input } from '@/components/ui/input'
+    23→    23→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    24→    24→import {
+    25→    25→  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+    26→    26→  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+    27→    27→} from '@/components/ui/alert-dialog'
+    28→    28→import { ScoreGauge, getActivityIcon, StatusDot, EmptyState } from '@/components/shared/design-system'
+    29→    29→import {
+    30→    30→  getHealthVariant, getStatusBorder, getOppStatusVariant, getCompanyStatusVariant,
+    31→    31→  DEFAULT_INDUSTRIES, EMPLOYEE_SIZES, ROLE_BUCKETS,
+    32→    32→} from '@/lib/constants'
+    33→    33→import { fetchApi } from '@/lib/fetchApi'
+    34→    34→import Image from 'next/image'
+    35→    35→import type { Company, Contact, Opportunity, CompanyNote, CompanyResearchCard, TimelineEntry, CompanyStatus } from '@/lib/types'
+    36→    36→
+    37→    37→/* ═══════════════════════════════════════════════════════════════
+    38→    38→   Constants & Helpers
+    39→    39→   ═══════════════════════════════════════════════════════════════ */
+    40→    40→
+    41→    41→const RESEARCH_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
+    42→    42→  businessOverview: { label: 'Business Overview', icon: Building2 },
+    43→    43→  currentTechLandscape: { label: 'Tech Landscape', icon: BarChart3 },
+    44→    44→  potentialChallenges: { label: 'Challenges', icon: Target },
+    45→    45→  possibleOpportunities: { label: 'Opportunities', icon: Sparkles },
+    46→    46→  relevantServices: { label: 'Relevant Services', icon: FileText },
+    47→    47→  keyDecisionMakers: { label: 'Decision Makers', icon: Users },
+    48→    48→  lastInteraction: { label: 'Last Interaction', icon: Clock },
+    49→    49→  nextAction: { label: 'Next Action', icon: ChevronRight },
+    50→    50→}
+    51→    51→
+    52→    52→const researchColors = [
+    53→    53→  'bg-blue-50 border-blue-100', 'bg-violet-50 border-violet-100', 'bg-amber-50 border-amber-100',
+    54→    54→  'bg-emerald-50 border-emerald-100', 'bg-rose-50 border-rose-100', 'bg-indigo-50 border-indigo-100',
+    55→    55→  'bg-cyan-50 border-cyan-100', 'bg-orange-50 border-orange-100',
+    56→    56→]
+    57→    57→
+    58→    58→const STATUS_CYCLE: readonly string[] = ['new', 'researching', 'contacted', 'qualified', 'ready', 'won', 'lost']
+    59→    59→const OPP_STATUS_CYCLE = ['researching', 'contacted', 'qualified', 'proposed', 'negotiation', 'won', 'lost'] as const
+    60→    60→const OPP_STATUSES = ['researching', 'contacted', 'proposed', 'negotiation', 'won', 'lost'] as const
+    61→    61→
+    62→    62→const handleLogoError = (e: React.SyntheticEvent<HTMLImageElement>, name: string, sizeClass: string) => {
+    63→    63→  const img = e.currentTarget
+    64→    64→  const parent = img.parentElement
+    65→    65→  if (parent) {
+    66→    66→    parent.innerHTML = ''
+    67→    67→    const span = document.createElement('span')
+    68→    68→    span.className = `flex items-center justify-center ${sizeClass} rounded-lg bg-gray-100 text-gray-400 font-semibold`
+    69→    69→    span.textContent = (name || '?').charAt(0).toUpperCase()
+    70→    70→    parent.appendChild(span)
+    71→    71→  }
+    72→    72→}
+    73→    73→
+    74→    74→/* ═══════════════════════════════════════════════════════════════
+    75→    75→   Company Profile Screen
+    76→    76→   ═══════════════════════════════════════════════════════════════ */
+    77→    77→
+    78→    78→export default function CompanyProfileScreen() {
+    79→    79→  const { selectedCompanyId, setSelectedContactId, setActiveView } = useAppStore()
+    80→    80→  const qc = useQueryClient()
+    81→    81→
+    82→    82→  // ── Dialog states ──
+    83→    83→  const [noteOpen, setNoteOpen] = useState(false)
+    84→    84→  const [noteBody, setNoteBody] = useState('')
+    85→    85→  const [noteType, setNoteType] = useState('')
+    86→    86→  const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null)
+    87→    87→  const [contactOpen, setContactOpen] = useState(false)
+    88→    88→  const [contactForm, setContactForm] = useState({
+    89→    89→    name: '', email: '', jobTitle: '', roleBucket: '', phone: '', linkedinUrl: '',
+    90→    90→  })
+    91→    91→  const [oppOpen, setOppOpen] = useState(false)
+    92→    92→  const [oppForm, setOppForm] = useState({
+    93→    93→    title: '', description: '', status: 'researching', nextAction: '', targetContactId: '',
+    94→    94→  })
+    95→    95→  const [statusConfirmOpen, setStatusConfirmOpen] = useState(false)
+    96→    96→  const [editCompanyOpen, setEditCompanyOpen] = useState(false)
+    97→    97→  const [editForm, setEditForm] = useState({
+    98→    98→    name: '', domain: '', industry: '', website: '', linkedinUrl: '',
+    99→    99→    employeeSize: '', country: '', location: '',
+   100→   100→  })
+   101→   101→
+   102→   102→  const openEditCompanyDialog = () => {
+   103→   103→    if (data) {
+   104→   104→      setEditForm({
+   105→   105→        name: data.name || '',
+   106→   106→        domain: data.domain || '',
+   107→   107→        industry: data.industry || '',
+   108→   108→        website: data.website || '',
+   109→   109→        linkedinUrl: data.linkedinUrl || '',
+   110→   110→        employeeSize: data.employeeSize || '',
+   111→   111→        country: data.country || '',
+   112→   112→        location: data.location || '',
+   113→   113→      })
+   114→   114→    }
+   115→   115→    setEditCompanyOpen(true)
+   116→   116→  }
+   117→   117→  const [emailContactId, setEmailContactId] = useState('')
+   118→   118→
+   119→   119→  // ── Active tab ──
+   120→   120→  const [activeTab, setActiveTab] = useState('overview')
+   121→   121→
+   122→   122→  // ── Fetch company (includes contacts, notes, research, opportunities, timeline) ──
+   123→   123→  const { data, isLoading, error } = useQuery({
+   124→   124→    queryKey: ['company', selectedCompanyId],
+   125→   125→    queryFn: () => fetch(`/api/companies/${selectedCompanyId}`).then(r => {
+   126→   126→      if (!r.ok) throw new Error('Failed to load company')
+   127→   127→      return r.json()
+   128→   128→    }),
+   129→   129→    enabled: !!selectedCompanyId,
+   130→   130→  })
+   131→   131→
+   132→   132→  // ── Fetch AI provider info for research tab ──
+   133→   133→  const { data: prefs } = useQuery({
+   134→   134→    queryKey: ['preferences'],
+   135→   135→    queryFn: () => fetch('/api/preferences').then(r => {
+   136→   136→      if (!r.ok) throw new Error('Failed to load preferences')
+   137→   137→      return r.json()
+   138→   138→    }),
+   139→   139→    staleTime: 30_000,
+   140→   140→  })
+   141→   141→
+   142→   142→  // Default email contact: use emailContactId if set, otherwise fall back to first contact
+   143→   143→  // (contacts is defined below in a query hook; this line is safe because it runs inside a callback that executes after render)
+   144→   144→  const getResolvedEmailContactId = () => emailContactId || (contacts && contacts[0]?.id) || ''
+   145→   145→
+   146→   146→  // ── Fetch industries for edit form ──
+   147→   147→  const { data: meta } = useQuery({
+   148→   148→    queryKey: ['companies-meta'],
+   149→   149→    queryFn: () => fetch('/api/companies/meta').then(r => {
+   150→   150→      if (!r.ok) throw new Error('Failed to load metadata')
+   151→   151→      return r.json()
+   152→   152→    }),
+   153→   153→    enabled: editCompanyOpen,
+   154→   154→  })
+   155→   155→
+   156→   156→  const editIndustries = (() => {
+   157→   157→    const api: string[] = meta?.industries || []
+   158→   158→    return [...new Set([...DEFAULT_INDUSTRIES, ...api])].sort((a, b) => a.localeCompare(b))
+   159→   159→  })()
+   160→   160→
+   161→   161→  // ── Mutations ──
+   162→   162→
+   163→   163→  const addNote = useMutation({
+   164→   164→    mutationFn: (body: { body: string; noteType: string }) =>
+   165→   165→      fetch('/api/notes', {
+   166→   166→        method: 'POST',
+   167→   167→        headers: { 'Content-Type': 'application/json' },
+   168→   168→        body: JSON.stringify({ ...body, companyId: selectedCompanyId }),
+   169→   169→      }).then(r => { if (!r.ok) throw new Error('Request failed'); return r.json() }),
+   170→   170→    onSuccess: () => {
+   171→   171→      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
+   172→   172→      qc.invalidateQueries({ queryKey: ['company'] })
+   173→   173→      setNoteOpen(false); setNoteBody(''); setNoteType('')
+   174→   174→      toast.success('Note added')
+   175→   175→    },
+   176→   176→    onError: () => toast.error('Failed to add note'),
+   177→   177→  })
+   178→   178→
+   179→   179→  const generateResearch = useMutation({
+   180→   180→    mutationFn: async () => {
+   181→   181→      const res = await fetch('/api/research', {
+   182→   182→        method: 'POST',
+   183→   183→        headers: { 'Content-Type': 'application/json' },
+   184→   184→        body: JSON.stringify({ companyId: selectedCompanyId, action: 'generate' }),
+   185→   185→      })
+   186→   186→      if (!res.ok) {
+   187→   187→        const err = await res.json().catch(() => ({ error: 'Failed to generate research' }))
+   188→   188→        throw new Error(err.error || 'Failed to generate research')
+   189→   189→      }
+   190→   190→      return res.json()
+   191→   191→    },
+   192→   192→    onSuccess: (result) => {
+   193→   193→      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
+   194→   194→      qc.invalidateQueries({ queryKey: ['company-breadcrumb', selectedCompanyId] })
+   195→   195→      if (result._usedLlm === false) {
+   196→   196→        toast.info('Generated with templates — configure AI key in Settings for AI-powered research')
+   197→   197→      } else {
+   198→   198→        toast.success('AI research generated successfully')
+   199→   199→      }
+   200→   200→    },
+   201→   201→    onError: (err) => toast.error(err.message || 'Failed to generate research'),
+   202→   202→  })
+   203→   203→
+   204→   204→  const addContact = useMutation({
+   205→   205→    mutationFn: (form: { name: string; email: string; jobTitle: string; roleBucket: string; phone: string; linkedinUrl: string }) =>
+   206→   206→      fetch('/api/contacts', {
+   207→   207→        method: 'POST',
+   208→   208→        headers: { 'Content-Type': 'application/json' },
+   209→   209→        body: JSON.stringify({ ...form, companyId: selectedCompanyId }),
+   210→   210→      }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add contact') }); return r.json() }),
+   211→   211→    onSuccess: () => {
+   212→   212→      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
+   213→   213→      setContactOpen(false)
+   214→   214→      setContactForm({ name: '', email: '', jobTitle: '', roleBucket: '', phone: '', linkedinUrl: '' })
+   215→   215→      toast.success('Contact added successfully')
+   216→   216→    },
+   217→   217→    onError: (err) => toast.error(err.message || 'Failed to add contact'),
+   218→   218→  })
+   219→   219→
+   220→   220→  const addOpportunity = useMutation({
+   221→   221→    mutationFn: (form: { title: string; description: string; status: string; nextAction: string; targetContactId?: string }) =>
+   222→   222→      fetch('/api/opportunities', {
+   223→   223→        method: 'POST',
+   224→   224→        headers: { 'Content-Type': 'application/json' },
+   225→   225→        body: JSON.stringify({ companyId: selectedCompanyId, ...form }),
+   226→   226→      }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed to add opportunity') }); return r.json() }),
+   227→   227→    onSuccess: () => {
+   228→   228→      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
+   229→   229→      setOppOpen(false)
+   230→   230→      setOppForm({ title: '', description: '', status: 'researching', nextAction: '', targetContactId: '' })
+   231→   231→      toast.success('Opportunity created successfully')
+   232→   232→    },
+   233→   233→    onError: (err) => toast.error(err.message || 'Failed to add opportunity'),
+   234→   234→  })
+   235→   235→
+   236→   236→  const updateOppMutation = useMutation({
+   237→   237→    mutationFn: ({ id, status: newStatus }: { id: string; status: string }) =>
+   238→   238→      fetch(`/api/opportunities/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) })
+   239→   239→        .then(r => { if (!r.ok) throw new Error('Request failed'); return r.json() }),
+   240→   240→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); toast.success('Opportunity updated') },
+   241→   241→    onError: () => toast.error('Failed to update opportunity'),
+   242→   242→  })
+   243→   243→
+   244→   244→  const deleteOppMutation = useMutation({
+   245→   245→    mutationFn: (oppId: string) =>
+   246→   246→      fetch(`/api/opportunities/${oppId}`, { method: 'DELETE' })
+   247→   247→        .then(r => { if (!r.ok) throw new Error('Request failed'); return r.json() }),
+   248→   248→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); toast.success('Opportunity deleted') },
+   249→   249→    onError: () => toast.error('Failed to delete opportunity'),
+   250→   250→  })
+   251→   251→
+   252→   252→  const deleteNoteMutation = useMutation({
+   253→   253→    mutationFn: (noteId: string) =>
+   254→   254→      fetch(`/api/notes?id=${noteId}`, { method: 'DELETE' })
+   255→   255→        .then(r => { if (!r.ok) throw new Error('Request failed'); return r.json() }),
+   256→   256→    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] }); setDeleteNoteId(null); toast.success('Note deleted') },
+   257→   257→    onError: () => toast.error('Failed to delete note'),
+   258→   258→  })
+   259→   259→
+   260→   260→  const updateCompanyStatus = useMutation({
+   261→   261→    mutationFn: async (newStatus: string) => {
+   262→   262→      const res = await fetch(`/api/companies/${selectedCompanyId}`, {
+   263→   263→        method: 'PATCH',
+   264→   264→        headers: { 'Content-Type': 'application/json' },
+   265→   265→        body: JSON.stringify({ status: newStatus }),
+   266→   266→      })
+   267→   267→      if (!res.ok) {
+   268→   268→        const err = await res.json().catch(() => ({ error: 'Failed to update status' }))
+   269→   269→        throw new Error(err.error || 'Failed to update status')
+   270→   270→      }
+   271→   271→      return res.json()
+   272→   272→    },
+   273→   273→    onSuccess: () => {
+   274→   274→      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
+   275→   275→      qc.invalidateQueries({ queryKey: ['company-breadcrumb', selectedCompanyId] })
+   276→   276→      setStatusConfirmOpen(false)
+   277→   277→      toast.success('Status updated')
+   278→   278→    },
+   279→   279→    onError: () => { setStatusConfirmOpen(false); toast.error('Failed to update status') },
+   280→   280→  })
+   281→   281→
+   282→   282→  const editCompanyMutation = useMutation({
+   283→   283→    mutationFn: async (form: typeof editForm) => {
+   284→   284→      const { error } = await fetchApi(`/api/companies/${selectedCompanyId}`, {
+   285→   285→        method: 'PATCH',
+   286→   286→        headers: { 'Content-Type': 'application/json' },
+   287→   287→        body: JSON.stringify(form),
+   288→   288→      })
+   289→   289→      if (error) throw new Error(error)
+   290→   290→      return null
+   291→   291→    },
+   292→   292→    onSuccess: () => {
+   293→   293→      qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
+   294→   294→      qc.invalidateQueries({ queryKey: ['company-breadcrumb', selectedCompanyId] })
+   295→   295→      setEditCompanyOpen(false)
+   296→   296→      toast.success('Company updated')
+   297→   297→    },
+   298→   298→    onError: (err) => toast.error(err.message || 'Failed to update company'),
+   299→   299→  })
+   300→   300→
+   301→   301→  // ── Handlers ──
+   302→   302→
+   303→   303→  const handleOppStatusCycle = (oppId: string, currentStatus: string) => {
+   304→   304→    const currentIdx = OPP_STATUS_CYCLE.indexOf(currentStatus as typeof OPP_STATUS_CYCLE[number])
+   305→   305→    const nextIdx = (currentIdx + 1) % OPP_STATUS_CYCLE.length
+   306→   306→    updateOppMutation.mutate({ id: oppId, status: OPP_STATUS_CYCLE[nextIdx] })
+   307→   307→  }
+   308→   308→
+   309→   309→  const getNextStatus = (): string | null => {
+   310→   310→    if (!data) return null
+   311→   311→    const current = data.status as string
+   312→   312→    const currentIdx = STATUS_CYCLE.indexOf(current)
+   313→   313→    const nextIdx = (currentIdx + 1) % STATUS_CYCLE.length
+   314→   314→    return STATUS_CYCLE[nextIdx]
+   315→   315→  }
+   316→   316→
+   317→   317→  const handleStatusCycle = () => {
+   318→   318→    const next = getNextStatus()
+   319→   319→    if (next) {
+   320→   320→      updateCompanyStatus.mutate(next)
+   321→   321→    }
+   322→   322→  }
+   323→   323→
+   324→   324→  const handleGenerateEmail = (contactId: string) => {
+   325→   325→    setSelectedContactId(contactId)
+   326→   326→    setActiveView('email-generation')
+   327→   327→  }
+   328→   328→
+   329→   329→  const handleViewContact = (contactId: string) => {
+   330→   330→    setSelectedContactId(contactId)
+   331→   331→    setActiveView('contact-profile')
+   332→   332→  }
+   333→   333→
+   334→   334→  const handleViewAllContacts = () => {
+   335→   335→    setActiveView('contacts')
+   336→   336→  }
+   337→   337→
+   338→   338→  const handleContactSubmit = () => {
+   339→   339→    if (!contactForm.name.trim()) return
+   340→   340→    addContact.mutate(contactForm)
+   341→   341→  }
+   342→   342→
+   343→   343→  const handleOppSubmit = () => {
+   344→   344→    if (!oppForm.title.trim()) return
+   345→   345→    addOpportunity.mutate(oppForm)
+   346→   346→  }
+   347→   347→
+   348→   348→  const handleEditCompanySubmit = () => {
+   349→   349→    if (!editForm.name.trim()) return
+   350→   350→    editCompanyMutation.mutate(editForm)
+   351→   351→  }
+   352→   352→
+   353→   353→  const handleBack = () => {
+   354→   354→    setActiveView('companies')
+   355→   355→  }
+   356→   356→
+   357→   357→  // ── Guard states ──
+   358→   358→
+   359→   359→  if (!selectedCompanyId) {
+   360→   360→    return (
+   361→   361→      <EmptyState
+   362→   362→        icon={Globe}
+   363→   363→        title="No company selected"
+   364→   364→        description="Go back to Companies and select one."
+   365→   365→        actionLabel="Back to Companies"
+   366→   366→        onAction={() => setActiveView('companies')}
+   367→   367→      />
+   368→   368→    )
+   369→   369→  }
+   370→   370→
+   371→   371→  if (isLoading) {
+   372→   372→    return (
+   373→   373→      <div className="space-y-6">
+   374→   374→        <Skeleton className="h-40 w-full rounded-xl" />
+   375→   375→        <div className="flex gap-2">
+   376→   376→          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-9 w-24 rounded-lg" />)}
+   377→   377→        </div>
+   378→   378→        <Skeleton className="h-64 w-full rounded-xl" />
+   379→   379→        <Skeleton className="h-48 w-full rounded-xl" />
+   380→   380→      </div>
+   381→   381→    )
+   382→   382→  }
+   383→   383→
+   384→   384→  if (error) {
+   385→   385→    return (
+   386→   386→      <div className="space-y-4">
+   387→   387→        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+   388→   388→          Failed to load company. Please try again.
+   389→   389→        </div>
+   390→   390→        <Button variant="outline" onClick={handleBack} className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg">
+   391→   391→          <ArrowLeft className="size-4 mr-1.5" /> Back to Companies
+   392→   392→        </Button>
+   393→   393→      </div>
+   394→   394→    )
+   395→   395→  }
+   396→   396→
+   397→   397→  if (!data) {
+   398→   398→    return (
+   399→   399→      <EmptyState
+   400→   400→        icon={Globe}
+   401→   401→        title="Company not found"
+   402→   402→        description="This company may have been deleted."
+   403→   403→        actionLabel="Back to Companies"
+   404→   404→        onAction={() => setActiveView('companies')}
+   405→   405→      />
+   406→   406→    )
+   407→   407→  }
+   408→   408→
+   409→   409→  const contacts: Contact[] = data.contacts || []
+   410→   410→  const notes: CompanyNote[] = data.notes || []
+   411→   411→  const researchCard: CompanyResearchCard | null = data.researchCard || null
+   412→   412→  const opportunities: Opportunity[] = data.opportunities || []
+   413→   413→  const timeline: TimelineEntry[] = data.timeline || []
+   414→   414→  const score = data.intelligenceScore ?? 0
+   415→   415→
+   416→   416→  const segments = [
+   417→   417→    { label: 'Data Completeness', value: Math.min(100, Math.round((score * 0.4) + 20)), color: '#2563EB' },
+   418→   418→    { label: 'Contact Quality', value: Math.min(100, Math.round((score * 0.35) + 15)), color: '#059669' },
+   419→   419→    { label: 'Research Depth', value: researchCard ? Math.min(100, Math.round((score * 0.25) + 10)) : 0, color: '#D97706' },
+   420→   420→  ]
+   421→   421→
+   422→   422→  // Resolve target contact names for opportunities
+   423→   423→  const contactMap: Record<string, string> = {}
+   424→   424→  for (const c of contacts) { contactMap[c.id] = c.name }
+   425→   425→
+   426→   426→  const aiProviderLabel = prefs?.aiProvider
+   427→   427→    ? prefs.aiProvider.charAt(0).toUpperCase() + prefs.aiProvider.slice(1)
+   428→   428→    : null
+   429→   429→  const hasAiKey = !!prefs?.aiApiKey
+   430→   430→
+   431→   431→  const nextStatus = getNextStatus()
+   432→   432→
+   433→   433→  /* ═══════════════════════════════════════════════════════════════
+   434→   434→     Render
+   435→   435→     ═══════════════════════════════════════════════════════════════ */
+   436→   436→
+   437→   437→  return (
+   438→   438→    <div className="space-y-6">
+   439→   439→      {/* ══════════════════════════════════════════════════════════
+   440→   440→          HEADER — Back button, Company card, Score Gauge
+   441→   441→          ══════════════════════════════════════════════════════════ */}
+   442→   442→      <div className="rounded-xl bg-white p-4 md:p-6 card-rest slide-up">
+   443→   443→        <div className="flex items-start gap-4 md:gap-5">
+   444→   444→          {/* Company Logo */}
+   445→   445→          <div className="size-14 rounded-xl bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center border border-gray-200/60">
+   446→   446→            {data.domain ? (
+   447→   447→              <Image
+   448→   448→                src={`https://logo.clearbit.com/${data.domain}`}
+   449→   449→                alt=""
+   450→   450→                width={56}
+   451→   451→                height={56}
+   452→   452→                className="size-14 object-contain p-2"
+   453→   453→                onError={e => handleLogoError(e, data.name, 'size-14 text-xl')}
+   454→   454→              />
+   455→   455→            ) : (
+   456→   456→              <span className="text-xl font-bold text-gray-400">{data.name?.charAt(0)}</span>
+   457→   457→            )}
+   458→   458→          </div>
+   459→   459→
+   460→   460→          {/* Info Block */}
+   461→   461→          <div className="flex-1 min-w-0">
+   462→   462→            {/* Back button + Company Name */}
+   463→   463→            <div className="flex items-center gap-2.5 flex-wrap">
+   464→   464→              <button
+   465→   465→                onClick={handleBack}
+   466→   466→                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors group rounded-md px-1.5 py-0.5 -ml-1.5 hover:bg-gray-100"
+   467→   467→              >
+   468→   468→                <ArrowLeft className="size-4 group-hover:-translate-x-0.5 transition-transform" />
+   469→   469→                <span className="hidden sm:inline">Back</span>
+   470→   470→              </button>
+   471→   471→              <span className="text-gray-300">/</span>
+   472→   472→              <h2 className="text-xl font-bold text-gray-900 tracking-tight truncate">{data.name}</h2>
+   473→   473→              {data.industry && (
+   474→   474→                <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-xs font-normal border-0 rounded-md">
+   475→   475→                  {data.industry}
+   476→   476→                </Badge>
+   477→   477→              )}
+   478→   478→              <button
+   479→   479→                onClick={() => setStatusConfirmOpen(true)}
+   480→   480→                disabled={updateCompanyStatus.isPending}
+   481→   481→                className={`text-[11px] font-medium px-2 py-0.5 rounded-md border capitalize ${getCompanyStatusVariant(data.status)} ${updateCompanyStatus.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'} transition-opacity`}
+   482→   482→                title="Click to change status"
+   483→   483→              >
+   484→   484→                {updateCompanyStatus.isPending ? <Loader2 className="size-3 animate-spin inline" /> : null}
+   485→   485→                {data.status}
+   486→   486→              </button>
+   487→   487→            </div>
+   488→   488→
+   489→   489→            {/* Metadata row */}
+   490→   490→            <div className="flex items-center gap-x-5 gap-y-1.5 mt-2.5 text-sm text-gray-500 flex-wrap">
+   491→   491→              {data.domain && (
+   492→   492→                <span className="flex items-center gap-1.5">
+   493→   493→                  <Globe className="size-3.5 text-gray-400" />
+   494→   494→                  <a
+   495→   495→                    href={`https://${data.domain}`}
+   496→   496→                    target="_blank"
+   497→   497→                    rel="noopener noreferrer"
+   498→   498→                    className="hover:text-gray-900 transition-colors"
+   499→   499→                    onClick={e => e.stopPropagation()}
+   500→   500→                  >
+   501→   501→                    {data.domain}
+   502→   502→                  </a>
+   503→   503→                </span>
+   504→   504→              )}
+   505→   505→              {data.location && (
+   506→   506→                <span className="flex items-center gap-1.5">
+   507→   507→                  <MapPin className="size-3.5 text-gray-400" />
+   508→   508→                  {data.location}
+   509→   509→                </span>
+   510→   510→              )}
+   511→   511→              {data.country && data.location !== data.country && (
+   512→   512→                <span className="flex items-center gap-1.5">
+   513→   513→                  <MapPin className="size-3.5 text-gray-400" />
+   514→   514→                  {data.country}
+   515→   515→                </span>
+   516→   516→              )}
+   517→   517→              {data.employeeSize && (
+   518→   518→                <span className="flex items-center gap-1.5">
+   519→   519→                  <Users className="size-3.5 text-gray-400" />
+   520→   520→                  {data.employeeSize} employees
+   521→   521→                </span>
+   522→   522→              )}
+   523→   523→              {data.website && (
+   524→   524→                <a
+   525→   525→                  href={data.website.startsWith('http') ? data.website : `https://${data.website}`}
+   526→   526→                  target="_blank"
+   527→   527→                  rel="noopener noreferrer"
+   528→   528→                  className="flex items-center gap-1.5 text-amber-600 hover:text-amber-700 transition-colors"
+   529→   529→                  onClick={e => e.stopPropagation()}
+   530→   530→                >
+   531→   531→                  <ExternalLink className="size-3.5" />Website
+   532→   532→                </a>
+   533→   533→              )}
+   534→   534→              {data.linkedinUrl && (
+   535→   535→                <a
+   536→   536→                  href={data.linkedinUrl.startsWith('http') ? data.linkedinUrl : `https://${data.linkedinUrl}`}
+   537→   537→                  target="_blank"
+   538→   538→                  rel="noopener noreferrer"
+   539→   539→                  className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 transition-colors"
+   540→   540→                  onClick={e => e.stopPropagation()}
+   541→   541→                >
+   542→   542→                  <Linkedin className="size-3.5" />LinkedIn
+   543→   543→                </a>
+   544→   544→              )}
+   545→   545→              {data.dataFreshness && (
+   546→   546→                <span className="flex items-center gap-1.5">
+   547→   547→                  <StatusDot
+   548→   548→                    status={data.dataFreshness === 'fresh' ? 'fresh' : data.dataFreshness === 'stale' ? 'stale' : data.dataFreshness === 'old' ? 'old' : 'unknown'}
+   549→   549→                    pulse={data.dataFreshness === 'fresh'}
+   550→   550→                  />
+   551→   551→                  <span className="capitalize">{data.dataFreshness}</span>
+   552→   552→                </span>
+   553→   553→              )}
+   554→   554→            </div>
+   555→   555→
+   556→   556→            {/* Action buttons */}
+   557→   557→            <div className="flex items-center gap-2 mt-4 flex-wrap">
+   558→   558→              <Button
+   559→   559→                size="sm"
+   560→   560→                variant="outline"
+   561→   561→                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900"
+   562→   562→                onClick={() => setEditCompanyOpen(true)}
+   563→   563→              >
+   564→   564→                <Pencil className="size-3.5 mr-1.5" /> Edit Company
+   565→   565→              </Button>
+   566→   566→              <Button
+   567→   567→                data-action="generate-research"
+   568→   568→                size="sm"
+   569→   569→                className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+   570→   570→                onClick={() => generateResearch.mutate()}
+   571→   571→                disabled={generateResearch.isPending}
+   572→   572→              >
+   573→   573→                {generateResearch.isPending
+   574→   574→                  ? <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+   575→   575→                  : <Sparkles className="size-3.5 mr-1.5" />
+   576→   576→                }
+   577→   577→                {generateResearch.isPending ? 'Generating...' : 'Generate AI Research'}
+   578→   578→              </Button>
+   579→   579→              <Button
+   580→   580→                size="sm"
+   581→   581→                variant="outline"
+   582→   582→                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900"
+   583→   583→                onClick={() => setNoteOpen(true)}
+   584→   584→              >
+   585→   585→                <Plus className="size-3.5 mr-1.5" /> Add Note
+   586→   586→              </Button>
+   587→   587→              <Button
+   588→   588→                size="sm"
+   589→   589→                variant="outline"
+   590→   590→                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900"
+   591→   591→                onClick={() => setContactOpen(true)}
+   592→   592→              >
+   593→   593→                <Plus className="size-3.5 mr-1.5" /> Add Contact
+   594→   594→              </Button>
+   595→   595→              <Button
+   596→   596→                size="sm"
+   597→   597→                variant="outline"
+   598→   598→                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900"
+   599→   599→                onClick={() => setOppOpen(true)}
+   600→   600→              >
+   601→   601→                <Target className="size-3.5 mr-1.5" /> Add Opportunity
+   602→   602→              </Button>
+   603→   603→              {contacts.length > 0 && (
+   604→   604→                <div className="flex items-center gap-2">
+   605→   605→                  <Select value={getResolvedEmailContactId()} onValueChange={setEmailContactId}>
+   606→   606→                    <SelectTrigger className="h-8 w-auto min-w-[140px] text-xs border-gray-200 rounded-lg">
+   607→   607→                      <SelectValue placeholder="Select contact" />
+   608→   608→                    </SelectTrigger>
+   609→   609→                    <SelectContent>
+   610→   610→                      {contacts.map((c) => (
+   611→   611→                        <SelectItem key={c.id} value={c.id}>
+   612→   612→                          {c.name}{c.jobTitle ? ` — ${c.jobTitle}` : ''}
+   613→   613→                        </SelectItem>
+   614→   614→                      ))}
+   615→   615→                    </SelectContent>
+   616→   616→                  </Select>
+   617→   617→                  <Button
+   618→   618→                    size="sm"
+   619→   619→                    variant="outline"
+   620→   620→                    className="h-8 text-xs border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 hover:text-amber-800"
+   621→   621→                    onClick={() => handleGenerateEmail(getResolvedEmailContactId())}
+   622→   622→                    disabled={!getResolvedEmailContactId()}
+   623→   623→                  >
+   624→   624→                    <Mail className="size-3.5 mr-1.5" /> Generate Email
+   625→   625→                  </Button>
+   626→   626→                </div>
+   627→   627→              )}
+   628→   628→            </div>
+   629→   629→          </div>
+   630→   630→
+   631→   631→          {/* Score Gauge — desktop only */}
+   632→   632→          <div className="hidden lg:block shrink-0">
+   633→   633→            <ScoreGauge
+   634→   634→              score={score}
+   635→   635→              size={108}
+   636→   636→              strokeWidth={9}
+   637→   637→              label="Intel Score"
+   638→   638→              sublabel={researchCard ? 'Research complete' : 'Generate research'}
+   639→   639→              segments={segments}
+   640→   640→            />
+   641→   641→          </div>
+   642→   642→        </div>
+   643→   643→
+   644→   644→        {/* Quick stats strip */}
+   645→   645→        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5 border-t border-gray-100">
+   646→   646→          <div className="flex items-center gap-3 rounded-lg bg-gray-50/80 p-3">
+   647→   647→            <div className="flex size-9 rounded-lg bg-blue-50 items-center justify-center shrink-0">
+   648→   648→              <Users className="size-4 text-blue-600" />
+   649→   649→            </div>
+   650→   650→            <div>
+   651→   651→              <p className="text-lg font-semibold text-gray-900 tabular-nums">{contacts.length}</p>
+   652→   652→              <p className="text-[11px] text-gray-500 uppercase tracking-wider font-medium">Contacts</p>
+   653→   653→            </div>
+   654→   654→          </div>
+   655→   655→          <div className="flex items-center gap-3 rounded-lg bg-gray-50/80 p-3">
+   656→   656→            <div className="flex size-9 rounded-lg bg-amber-50 items-center justify-center shrink-0">
+   657→   657→              <Target className="size-4 text-amber-600" />
+   658→   658→            </div>
+   659→   659→            <div>
+   660→   660→              <p className="text-lg font-semibold text-gray-900 tabular-nums">{opportunities.length}</p>
+   661→   661→              <p className="text-[11px] text-gray-500 uppercase tracking-wider font-medium">Opportunities</p>
+   662→   662→            </div>
+   663→   663→          </div>
+   664→   664→          <div className="flex items-center gap-3 rounded-lg bg-gray-50/80 p-3">
+   665→   665→            <div className="flex size-9 rounded-lg bg-violet-50 items-center justify-center shrink-0">
+   666→   666→              <StickyNote className="size-4 text-violet-600" />
+   667→   667→            </div>
+   668→   668→            <div>
+   669→   669→              <p className="text-lg font-semibold text-gray-900 tabular-nums">{notes.length}</p>
+   670→   670→              <p className="text-[11px] text-gray-500 uppercase tracking-wider font-medium">Notes</p>
+   671→   671→            </div>
+   672→   672→          </div>
+   673→   673→          <div className="flex items-center gap-3 rounded-lg bg-gray-50/80 p-3">
+   674→   674→            <div className="flex size-9 rounded-lg bg-emerald-50 items-center justify-center shrink-0">
+   675→   675→              {researchCard ? <CheckCircle2 className="size-4 text-emerald-600" /> : <FileText className="size-4 text-gray-400" />}
+   676→   676→            </div>
+   677→   677→            <div>
+   678→   678→              <p className="text-lg font-semibold text-gray-900">
+   679→   679→                {researchCard ? `${researchCard.confidenceScore || 0}%` : '—'}
+   680→   680→              </p>
+   681→   681→              <p className="text-[11px] text-gray-500 uppercase tracking-wider font-medium">Research</p>
+   682→   682→            </div>
+   683→   683→          </div>
+   684→   684→        </div>
+   685→   685→      </div>
+   686→   686→
+   687→   687→      {/* ══════════════════════════════════════════════════════════
+   688→   688→          TABS
+   689→   689→          ══════════════════════════════════════════════════════════ */}
+   690→   690→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+   691→   691→        <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 overflow-x-auto">
+   692→   692→          {[
+   693→   693→            { key: 'overview', label: 'Overview' },
+   694→   694→            { key: 'contacts', label: 'Contacts', count: contacts.length },
+   695→   695→            { key: 'research', label: 'Research' },
+   696→   696→            { key: 'opportunities', label: 'Opportunities', count: opportunities.length },
+   697→   697→            { key: 'notes', label: 'Notes', count: notes.length },
+   698→   698→            { key: 'activity', label: 'Activity', count: timeline.length },
+   699→   699→          ].map(tab => (
+   700→   700→            <TabsTrigger
+   701→   701→              key={tab.key}
+   702→   702→              value={tab.key}
+   703→   703→              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5"
+   704→   704→            >
+   705→   705→              {tab.label}
+   706→   706→              {tab.count !== undefined && tab.count > 0 && (
+   707→   707→                <span className="ml-1.5 text-[10px] bg-gray-200 data-[state=active]:bg-amber-100 data-[state=active]:text-amber-700 text-gray-600 px-1.5 rounded-full tabular-nums font-medium">
+   708→   708→                  {tab.count}
+   709→   709→                </span>
+   710→   710→              )}
+   711→   711→            </TabsTrigger>
+   712→   712→          ))}
+   713→   713→        </TabsList>
+   714→   714→
+   715→   715→        {/* ──────────────────────────────────────────────────────────
+   716→   716→            TAB: OVERVIEW
+   717→   717→            ────────────────────────────────────────────────────────── */}
+   718→   718→        <TabsContent value="overview" className="space-y-6 mt-5">
+   719→   719→          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 slide-up">
+   720→   720→            {([
+   721→   721→              ['Website', data.website, Globe],
+   722→   722→              ['Industry', data.industry, BarChart3],
+   723→   723→              ['Employees', data.employeeSize, Users],
+   724→   724→              ['Location', data.location ?? data.country, MapPin],
+   725→   725→              ['Status', data.status, CheckCircle2],
+   726→   726→              ['Freshness', data.dataFreshness, Clock],
+   727→   727→            ] as const).map(([label, val, Icon]) => (
+   728→   728→              <div key={label} className="rounded-xl bg-white p-4 card-rest">
+   729→   729→                <div className="flex items-center gap-2 mb-1.5">
+   730→   730→                  <Icon className="size-3.5 text-gray-400" />
+   731→   731→                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{label}</p>
+   732→   732→                </div>
+   733→   733→                <p className="text-sm font-semibold text-gray-900 capitalize">{val || '—'}</p>
+   734→   734→              </div>
+   735→   735→            ))}
+   736→   736→          </div>
+   737→   737→
+   738→   738→          {/* Contacts Quick View */}
+   739→   739→          <div className="rounded-xl bg-white card-rest overflow-hidden slide-up" style={{ animationDelay: '50ms' }}>
+   740→   740→            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+   741→   741→              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+   742→   742→                <Users className="size-4 text-gray-400" />
+   743→   743→                Key Contacts
+   744→   744→                <span className="text-xs font-normal text-gray-400">{contacts.length} total</span>
+   745→   745→              </h3>
+   746→   746→              <div className="flex items-center gap-2">
+   747→   747→                <Button
+   748→   748→                  size="sm"
+   749→   749→                  variant="ghost"
+   750→   750→                  className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md"
+   751→   751→                  onClick={handleViewAllContacts}
+   752→   752→                >
+   753→   753→                  View All
+   754→   754→                  <ChevronRight className="size-3 ml-0.5" />
+   755→   755→                </Button>
+   756→   756→                <Button
+   757→   757→                  size="sm"
+   758→   758→                  className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md press-scale shadow-xs"
+   759→   759→                  onClick={() => setContactOpen(true)}
+   760→   760→                >
+   761→   761→                  <Plus className="size-3 mr-1" /> Add
+   762→   762→                </Button>
+   763→   763→              </div>
+   764→   764→            </div>
+   765→   765→            {contacts.length === 0 ? (
+   766→   766→              <div className="px-6 py-8 text-center">
+   767→   767→                <Users className="size-8 text-gray-300 mx-auto mb-2" />
+   768→   768→                <p className="text-sm text-gray-500">No contacts yet</p>
+   769→   769→                <Button size="sm" variant="outline" className="mt-3 h-7 text-xs rounded-md border-gray-200 text-gray-600" onClick={() => setContactOpen(true)}>
+   770→   770→                  <Plus className="size-3 mr-1" /> Add your first contact
+   771→   771→                </Button>
+   772→   772→              </div>
+   773→   773→            ) : (
+   774→   774→              <div className="divide-y divide-gray-50">
+   775→   775→                {contacts.slice(0, 5).map((c) => (
+   776→   776→                  <div
+   777→   777→                    key={c.id}
+   778→   778→                    className="flex items-center gap-4 px-6 py-3 hover:bg-gray-50/80 transition-colors cursor-pointer group"
+   779→   779→                    onClick={() => handleViewContact(c.id)}
+   780→   780→                  >
+   781→   781→                    <div className="flex size-9 rounded-full bg-gray-100 items-center justify-center shrink-0 text-xs font-semibold text-gray-600">
+   782→   782→                      {c.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+   783→   783→                    </div>
+   784→   784→                    <div className="flex-1 min-w-0">
+   785→   785→                      <p className="text-sm font-medium text-gray-900 group-hover:text-amber-700 transition-colors truncate">
+   786→   786→                        {c.name}
+   787→   787→                        <ChevronRight className="size-3 inline ml-1 text-gray-300 group-hover:text-amber-500 transition-colors" />
+   788→   788→                      </p>
+   789→   789→                      <p className="text-xs text-gray-500 truncate">{c.jobTitle || 'No title'}</p>
+   790→   790→                    </div>
+   791→   791→                    <div className="hidden sm:flex items-center gap-3 shrink-0">
+   792→   792→                      {c.email && (
+   793→   793→                        <span className="text-xs text-gray-400 font-mono truncate max-w-[180px]">{c.email}</span>
+   794→   794→                      )}
+   795→   795→                      {c.emailHealth && (
+   796→   796→                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium border ${getHealthVariant(c.emailHealth)}`}>
+   797→   797→                          {c.emailHealth}
+   798→   798→                        </span>
+   799→   799→                      )}
+   800→   800→                    </div>
+   801→   801→                    <Button
+   802→   802→                      size="sm"
+   803→   803→                      variant="ghost"
+   804→   804→                      className="h-7 text-xs text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+   805→   805→                      onClick={(e) => { e.stopPropagation(); handleGenerateEmail(c.id) }}
+   806→   806→                    >
+   807→   807→                      <Mail className="size-3.5 mr-1" /> Email
+   808→   808→                    </Button>
+   809→   809→                  </div>
+   810→   810→                ))}
+   811→   811→                {contacts.length > 5 && (
+   812→   812→                  <button
+   813→   813→                    onClick={handleViewAllContacts}
+   814→   814→                    className="w-full px-6 py-3 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50/50 transition-colors font-medium text-center"
+   815→   815→                  >
+   816→   816→                    View all {contacts.length} contacts →
+   817→   817→                  </button>
+   818→   818→                )}
+   819→   819→              </div>
+   820→   820→            )}
+   821→   821→          </div>
+   822→   822→
+   823→   823→          {/* Research Quick Preview */}
+   824→   824→          {researchCard ? (
+   825→   825→            <div className="rounded-xl bg-white card-rest overflow-hidden slide-up" style={{ animationDelay: '100ms' }}>
+   826→   826→              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+   827→   827→                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+   828→   828→                  <Sparkles className="size-4 text-amber-500" />
+   829→   829→                  Research Summary
+   830→   830→                  {researchCard.confidenceScore && (
+   831→   831→                    <span className="text-[11px] font-medium text-gray-400">
+   832→   832→                      {researchCard.confidenceScore}% confidence
+   833→   833→                    </span>
+   834→   834→                  )}
+   835→   835→                </h3>
+   836→   836→                <Button
+   837→   837→                  size="sm"
+   838→   838→                  variant="ghost"
+   839→   839→                  className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md"
+   840→   840→                  onClick={() => setActiveTab('research')}
+   841→   841→                >
+   842→   842→                  View Full Research
+   843→   843→                  <ChevronRight className="size-3 ml-0.5" />
+   844→   844→                </Button>
+   845→   845→              </div>
+   846→   846→              <div className="p-6">
+   847→   847→                <div className="grid gap-4 md:grid-cols-2">
+   848→   848→                  {(Object.entries(RESEARCH_LABELS) as [string, typeof RESEARCH_LABELS[string]][]).slice(0, 4).map(([key, cfg], idx) =>
+   849→   849→                    (researchCard as unknown as Record<string, unknown>)[key] ? (
+   850→   850→                      <div key={String(key)} className={`rounded-lg border p-4 ${researchColors[idx]} slide-up`} style={{ animationDelay: `${idx * 40}ms` }}>
+   851→   851→                        <div className="flex items-center gap-2 mb-2">
+   852→   852→                          <cfg.icon className="size-3.5 text-gray-500" />
+   853→   853→                          <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
+   854→   854→                        </div>
+   855→   855→                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap line-clamp-3">{String((researchCard as unknown as Record<string, unknown>)[key])}</p>
+   856→   856→                      </div>
+   857→   857→                    ) : null,
+   858→   858→                  )}
+   859→   859→                </div>
+   860→   860→              </div>
+   861→   861→            </div>
+   862→   862→          ) : (
+   863→   863→            <div className="rounded-xl bg-gradient-to-br from-amber-50/80 to-orange-50/40 border border-amber-100/60 p-8 text-center slide-up" style={{ animationDelay: '100ms' }}>
+   864→   864→              <div className="flex size-12 rounded-xl bg-amber-100 items-center justify-center mx-auto mb-3">
+   865→   865→                <Sparkles className="size-6 text-amber-600" />
+   866→   866→              </div>
+   867→   867→              <h3 className="text-sm font-semibold text-gray-900 mb-1">No research generated yet</h3>
+   868→   868→              <p className="text-sm text-gray-500 mb-4 max-w-md mx-auto">
+   869→   869→                Generate an AI-powered research card with business overview, tech landscape, challenges, and opportunities.
+   870→   870→              </p>
+   871→   871→              <Button
+   872→   872→                size="sm"
+   873→   873→                className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+   874→   874→                onClick={() => { generateResearch.mutate(); setActiveTab('research') }}
+   875→   875→                disabled={generateResearch.isPending}
+   876→   876→              >
+   877→   877→                {generateResearch.isPending
+   878→   878→                  ? <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+   879→   879→                  : <Sparkles className="size-3.5 mr-1.5" />
+   880→   880→                }
+   881→   881→                Generate AI Research
+   882→   882→              </Button>
+   883→   883→            </div>
+   884→   884→          )}
+   885→   885→
+   886→   886→          {/* Opportunities Quick View */}
+   887→   887→          {opportunities.length > 0 && (
+   888→   888→            <div className="rounded-xl bg-white card-rest overflow-hidden slide-up" style={{ animationDelay: '150ms' }}>
+   889→   889→              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+   890→   890→                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+   891→   891→                  <Target className="size-4 text-gray-400" />
+   892→   892→                  Active Opportunities
+   893→   893→                </h3>
+   894→   894→                <Button
+   895→   895→                  size="sm"
+   896→   896→                  variant="ghost"
+   897→   897→                  className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md"
+   898→   898→                  onClick={() => setActiveTab('opportunities')}
+   899→   899→                >
+   900→   900→                  View All
+   901→   901→                  <ChevronRight className="size-3 ml-0.5" />
+   902→   902→                </Button>
+   903→   903→              </div>
+   904→   904→              <div className="divide-y divide-gray-50">
+   905→   905→                {opportunities.slice(0, 3).map((o) => (
+   906→   906→                  <div key={o.id} className="flex items-center gap-4 px-6 py-3">
+   907→   907→                    <div className={`w-0.5 h-8 rounded-full shrink-0 ${
+   908→   908→                      o.status === 'won' ? 'bg-emerald-400' : o.status === 'lost' ? 'bg-red-300' : 'bg-amber-400'
+   909→   909→                    }`} />
+   910→   910→                    <div className="flex-1 min-w-0">
+   911→   911→                      <p className="text-sm font-medium text-gray-900 truncate">{o.title}</p>
+   912→   912→                      {o.nextAction && <p className="text-xs text-gray-400 mt-0.5">Next: {o.nextAction}</p>}
+   913→   913→                    </div>
+   914→   914→                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium capitalize border ${getOppStatusVariant(o.status)}`}>
+   915→   915→                      {o.status}
+   916→   916→                    </span>
+   917→   917→                  </div>
+   918→   918→                ))}
+   919→   919→              </div>
+   920→   920→            </div>
+   921→   921→          )}
+   922→   922→        </TabsContent>
+   923→   923→
+   924→   924→        {/* ──────────────────────────────────────────────────────────
+   925→   925→            TAB: CONTACTS
+   926→   926→            ────────────────────────────────────────────────────────── */}
+   927→   927→        <TabsContent value="contacts" className="mt-5">
+   928→   928→          <div className="flex items-center justify-between mb-4 gap-2">
+   929→   929→            <p className="text-sm text-gray-500">
+   930→   930→              {contacts.length} contact{contacts.length !== 1 ? 's' : ''} at {data.name}
+   931→   931→            </p>
+   932→   932→            <div className="flex items-center gap-2">
+   933→   933→              <Button
+   934→   934→                size="sm"
+   935→   935→                variant="ghost"
+   936→   936→                className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md transition-colors"
+   937→   937→                onClick={handleViewAllContacts}
+   938→   938→              >
+   939→   939→                <Users className="size-3 mr-1" /> View All Contacts
+   940→   940→                <ChevronRight className="size-3 ml-0.5" />
+   941→   941→              </Button>
+   942→   942→              <Button
+   943→   943→                size="sm"
+   944→   944→                className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+   945→   945→                onClick={() => setContactOpen(true)}
+   946→   946→              >
+   947→   947→                <Plus className="size-3.5 mr-1.5" /> Add Contact
+   948→   948→              </Button>
+   949→   949→            </div>
+   950→   950→          </div>
+   951→   951→          {contacts.length === 0 ? (
+   952→   952→            <EmptyState
+   953→   953→              icon={Users}
+   954→   954→              title="No contacts found"
+   955→   955→              description="Add contacts to this company to start tracking outreach and engagement."
+   956→   956→              actionLabel="Add Contact"
+   957→   957→              onAction={() => setContactOpen(true)}
+   958→   958→            />
+   959→   959→          ) : (
+   960→   960→            <div className="rounded-xl bg-white card-rest overflow-hidden slide-up">
+   961→   961→              <Table>
+   962→   962→                <TableHeader>
+   963→   963→                  <TableRow className="border-gray-100 hover:bg-transparent">
+   964→   964→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Name</TableHead>
+   965→   965→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Title</TableHead>
+   966→   966→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Email</TableHead>
+   967→   967→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Health</TableHead>
+   968→   968→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</TableHead>
+   969→   969→                  </TableRow>
+   970→   970→                </TableHeader>
+   971→   971→                <TableBody>
+   972→   972→                  {contacts.map((c) => (
+   973→   973→                    <TableRow
+   974→   974→                      key={c.id}
+   975→   975→                      className="table-row-hover border-gray-50 cursor-pointer group"
+   976→   976→                      onClick={() => handleViewContact(c.id)}
+   977→   977→                    >
+   978→   978→                      <TableCell>
+   979→   979→                        <div className="flex items-center gap-3">
+   980→   980→                          <div className="flex size-8 rounded-full bg-gray-100 items-center justify-center shrink-0 text-[11px] font-semibold text-gray-600">
+   981→   981→                            {c.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+   982→   982→                          </div>
+   983→   983→                          <div>
+   984→   984→                            <span className="font-medium text-gray-900 text-sm group-hover:text-amber-700 transition-colors">{c.name}</span>
+   985→   985→                            {c.roleBucket && (
+   986→   986→                              <p className="text-[11px] text-gray-400 mt-0.5">{c.roleBucket}</p>
+   987→   987→                            )}
+   988→   988→                          </div>
+   989→   989→                        </div>
+   990→   990→                      </TableCell>
+   991→   991→                      <TableCell className="text-sm text-gray-500 hidden md:table-cell">{c.jobTitle || '—'}</TableCell>
+   992→   992→                      <TableCell className="text-sm text-gray-500 font-mono hidden lg:table-cell">{c.email || '—'}</TableCell>
+   993→   993→                      <TableCell>
+   994→   994→                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium border ${getHealthVariant(c.emailHealth)}`}>
+   995→   995→                          {c.emailHealth || 'unknown'}
+   996→   996→                        </span>
+   997→   997→                      </TableCell>
+   998→   998→                      <TableCell className="text-right">
+   999→   999→                        <Button
+  1000→  1000→                          size="sm"
+  1001→  1001→                          variant="ghost"
+  1002→  1002→                          className="h-7 text-xs text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md"
+  1003→  1003→                          onClick={(e) => { e.stopPropagation(); handleGenerateEmail(c.id) }}
+  1004→  1004→                        >
+  1005→  1005→                          <Mail className="size-3.5 mr-1" /> Generate Email
+  1006→  1006→                        </Button>
+  1007→  1007→                      </TableCell>
+  1008→  1008→                    </TableRow>
+  1009→  1009→                  ))}
+  1010→  1010→                </TableBody>
+  1011→  1011→              </Table>
+  1012→  1012→            </div>
+  1013→  1013→          )}
+  1014→  1014→        </TabsContent>
+  1015→  1015→
+  1016→  1016→        {/* ──────────────────────────────────────────────────────────
+  1017→  1017→            TAB: RESEARCH
+  1018→  1018→            ────────────────────────────────────────────────────────── */}
+  1019→  1019→        <TabsContent value="research" className="mt-5">
+  1020→  1020→          <div className="rounded-xl bg-white card-rest overflow-hidden slide-up">
+  1021→  1021→            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+  1022→  1022→              <div className="flex items-center gap-3">
+  1023→  1023→                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+  1024→  1024→                  <Sparkles className="size-4 text-amber-500" /> AI Research Card
+  1025→  1025→                </h3>
+  1026→  1026→                {/* AI Provider badge */}
+  1027→  1027→                <Badge
+  1028→  1028→                  variant="outline"
+  1029→  1029→                  className={`text-[10px] font-medium rounded-full px-2 py-0.5 ${hasAiKey ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-500'}`}
+  1030→  1030→                >
+  1031→  1031→                  <Cpu className="size-2.5 mr-1" />
+  1032→  1032→                  {hasAiKey ? `Powered by ${aiProviderLabel || 'AI'}` : 'Template-based (configure AI in Settings)'}
+  1033→  1033→                </Badge>
+  1034→  1034→              </div>
+  1035→  1035→              <Button
+  1036→  1036→                size="sm"
+  1037→  1037→                className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md press-scale shadow-xs"
+  1038→  1038→                onClick={() => generateResearch.mutate()}
+  1039→  1039→                disabled={generateResearch.isPending}
+  1040→  1040→              >
+  1041→  1041→                {generateResearch.isPending
+  1042→  1042→                  ? <Loader2 className="size-3 mr-1 animate-spin" />
+  1043→  1043→                  : <Sparkles className="size-3 mr-1" />
+  1044→  1044→                }
+  1045→  1045→                {generateResearch.isPending ? 'Generating...' : researchCard ? 'Regenerate' : 'Generate AI Research'}
+  1046→  1046→              </Button>
+  1047→  1047→            </div>
+  1048→  1048→            <div className="p-6">
+  1049→  1049→              {researchCard ? (
+  1050→  1050→                <div className="space-y-5">
+  1051→  1051→                  {/* Confidence score bar */}
+  1052→  1052→                  {researchCard.confidenceScore != null && (
+  1053→  1053→                    <div className="flex items-center gap-4 p-4 rounded-lg bg-gray-50/80 border border-gray-100">
+  1054→  1054→                      <div className="flex-1">
+  1055→  1055→                        <div className="flex items-center justify-between mb-2">
+  1056→  1056→                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Confidence Score</p>
+  1057→  1057→                          <span className="text-sm font-bold text-gray-900 tabular-nums">{researchCard.confidenceScore}%</span>
+  1058→  1058→                        </div>
+  1059→  1059→                        <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+  1060→  1060→                          <div
+  1061→  1061→                            className="h-full rounded-full transition-all duration-700 ease-out"
+  1062→  1062→                            style={{
+  1063→  1063→                              width: `${researchCard.confidenceScore}%`,
+  1064→  1064→                              backgroundColor: researchCard.confidenceScore >= 75 ? '#059669' : researchCard.confidenceScore >= 50 ? '#D97706' : '#DC2626',
+  1065→  1065→                            }}
+  1066→  1066→                          />
+  1067→  1067→                        </div>
+  1068→  1068→                      </div>
+  1069→  1069→                      {researchCard.lastResearchedAt && (
+  1070→  1070→                        <div className="text-right shrink-0">
+  1071→  1071→                          <p className="text-[11px] text-gray-400">Last researched</p>
+  1072→  1072→                          <p className="text-xs font-medium text-gray-600">
+  1073→  1073→                            {formatDistanceToNow(new Date(researchCard.lastResearchedAt), { addSuffix: true })}
+  1074→  1074→                          </p>
+  1075→  1075→                        </div>
+  1076→  1076→                      )}
+  1077→  1077→                    </div>
+  1078→  1078→                  )}
+  1079→  1079→
+  1080→  1080→                  {/* Research sections grid */}
+  1081→  1081→                  <div className="grid gap-4 md:grid-cols-2">
+  1082→  1082→                    {(Object.entries(RESEARCH_LABELS) as [string, typeof RESEARCH_LABELS[string]][]).map(([key, cfg], idx) =>
+  1083→  1083→                      (researchCard as unknown as Record<string, unknown>)[key] ? (
+  1084→  1084→                        <div key={String(key)} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 50}ms` }}>
+  1085→  1085→                          <div className="flex items-center gap-2 mb-2">
+  1086→  1086→                            <cfg.icon className="size-3.5 text-gray-500" />
+  1087→  1087→                            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
+  1088→  1088→                          </div>
+  1089→  1089→                          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{String((researchCard as unknown as Record<string, unknown>)[key])}</p>
+  1090→  1090→                        </div>
+  1091→  1091→                      ) : null,
+  1092→  1092→                    )}
+  1093→  1093→                  </div>
+  1094→  1094→                </div>
+  1095→  1095→              ) : (
+  1096→  1096→                <EmptyState
+  1097→  1097→                  icon={FileText}
+  1098→  1098→                  title="No research generated yet"
+  1099→  1099→                  description="Click Generate AI Research to create an AI-powered research card with business overview, tech landscape, challenges, and opportunities."
+  1100→  1100→                  actionLabel="Generate AI Research"
+  1101→  1101→                  onAction={() => generateResearch.mutate()}
+  1102→  1102→                  className="py-10"
+  1103→  1103→                />
+  1104→  1104→              )}
+  1105→  1105→            </div>
+  1106→  1106→          </div>
+  1107→  1107→        </TabsContent>
+  1108→  1108→
+  1109→  1109→        {/* ──────────────────────────────────────────────────────────
+  1110→  1110→            TAB: OPPORTUNITIES
+  1111→  1111→            ────────────────────────────────────────────────────────── */}
+  1112→  1112→        <TabsContent value="opportunities" className="mt-5">
+  1113→  1113→          <div className="flex items-center justify-between mb-4">
+  1114→  1114→            <p className="text-sm text-gray-500">
+  1115→  1115→              {opportunities.length} opportunit{opportunities.length !== 1 ? 'ies' : 'y'} for {data.name}
+  1116→  1116→            </p>
+  1117→  1117→            <Button
+  1118→  1118→              size="sm"
+  1119→  1119→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+  1120→  1120→              onClick={() => setOppOpen(true)}
+  1121→  1121→            >
+  1122→  1122→              <Plus className="size-3.5 mr-1.5" /> Create Opportunity
+  1123→  1123→            </Button>
+  1124→  1124→          </div>
+  1125→  1125→          {opportunities.length === 0 ? (
+  1126→  1126→            <EmptyState
+  1127→  1127→              icon={Target}
+  1128→  1128→              title="No opportunities yet"
+  1129→  1129→              description="Create opportunities to track potential deals and engagement with this company."
+  1130→  1130→              actionLabel="Create Opportunity"
+  1131→  1131→              onAction={() => setOppOpen(true)}
+  1132→  1132→            />
+  1133→  1133→          ) : (
+  1134→  1134→            <div className="grid gap-3">
+  1135→  1135→              {opportunities.map((o, idx) => (
+  1136→  1136→                <div
+  1137→  1137→                  key={o.id}
+  1138→  1138→                  className={`rounded-xl bg-white card-interactive border-l-[3px] ${getStatusBorder(o.status)} p-5 flex items-start justify-between gap-4 slide-up`}
+  1139→  1139→                  style={{ animationDelay: `${idx * 30}ms` }}
+  1140→  1140→                >
+  1141→  1141→                  <div className="min-w-0 flex-1">
+  1142→  1142→                    <p className="text-sm font-semibold text-gray-900">{o.title}</p>
+  1143→  1143→                    {o.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{o.description}</p>}
+  1144→  1144→                    {o.nextAction && (
+  1145→  1145→                      <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+  1146→  1146→                        <ChevronRight className="size-3 text-amber-400" />
+  1147→  1147→                        {o.nextAction}
+  1148→  1148→                      </p>
+  1149→  1149→                    )}
+  1150→  1150→                    {/* Target contact link */}
+  1151→  1151→                    {o.targetContactId && contactMap[o.targetContactId] && (
+  1152→  1152→                      <button
+  1153→  1153→                        onClick={() => handleViewContact(o.targetContactId!)}
+  1154→  1154→                        className="inline-flex items-center gap-1.5 mt-2 text-xs text-amber-600 hover:text-amber-700 transition-colors"
+  1155→  1155→                      >
+  1156→  1156→                        <Users className="size-3" />
+  1157→  1157→                        {contactMap[o.targetContactId]}
+  1158→  1158→                        <ChevronRight className="size-3" />
+  1159→  1159→                      </button>
+  1160→  1160→                    )}
+  1161→  1161→                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+  1162→  1162→                      <span className="flex items-center gap-1">
+  1163→  1163→                        <Calendar className="size-3" />
+  1164→  1164→                        {formatDistanceToNow(new Date(o.createdAt), { addSuffix: true })}
+  1165→  1165→                      </span>
+  1166→  1166→                    </div>
+  1167→  1167→                  </div>
+  1168→  1168→                  <div className="flex items-center gap-2 shrink-0">
+  1169→  1169→                    <button
+  1170→  1170→                      onClick={(e) => { e.stopPropagation(); handleOppStatusCycle(o.id, o.status) }}
+  1171→  1171→                      disabled={updateOppMutation.isPending}
+  1172→  1172→                      className={`inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-medium capitalize border transition-all hover:opacity-80 ${getOppStatusVariant(o.status)} ${updateOppMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+  1173→  1173→                      title="Click to cycle status"
+  1174→  1174→                    >
+  1175→  1175→                      {updateOppMutation.isPending ? <Loader2 className="size-3 animate-spin inline mr-1" /> : null}
+  1176→  1176→                      {o.status}
+  1177→  1177→                    </button>
+  1178→  1178→                    <button
+  1179→  1179→                      onClick={(e) => { e.stopPropagation(); deleteOppMutation.mutate(o.id) }}
+  1180→  1180→                      disabled={deleteOppMutation.isPending}
+  1181→  1181→                      className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-50"
+  1182→  1182→                      aria-label="Delete opportunity"
+  1183→  1183→                      title="Delete opportunity"
+  1184→  1184→                    >
+  1185→  1185→                      {deleteOppMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+  1186→  1186→                    </button>
+  1187→  1187→                  </div>
+  1188→  1188→                </div>
+  1189→  1189→              ))}
+  1190→  1190→            </div>
+  1191→  1191→          )}
+  1192→  1192→        </TabsContent>
+  1193→  1193→
+  1194→  1194→        {/* ──────────────────────────────────────────────────────────
+  1195→  1195→            TAB: NOTES — Timeline style
+  1196→  1196→            ────────────────────────────────────────────────────────── */}
+  1197→  1197→        <TabsContent value="notes" className="mt-5">
+  1198→  1198→          <div className="flex items-center justify-between mb-4">
+  1199→  1199→            <p className="text-sm text-gray-500">
+  1200→  1200→              {notes.length} note{notes.length !== 1 ? 's' : ''}
+  1201→  1201→            </p>
+  1202→  1202→            <Button
+  1203→  1203→              size="sm"
+  1204→  1204→              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
+  1205→  1205→              onClick={() => setNoteOpen(true)}
+  1206→  1206→            >
+  1207→  1207→              <Plus className="size-3.5 mr-1.5" /> Add Note
+  1208→  1208→            </Button>
+  1209→  1209→          </div>
+  1210→  1210→          {notes.length === 0 ? (
+  1211→  1211→            <EmptyState
+  1212→  1212→              icon={StickyNote}
+  1213→  1213→              title="No notes yet"
+  1214→  1214→              description="Add notes to track conversations, insights, and action items for this company."
+  1215→  1215→              actionLabel="Add Note"
+  1216→  1216→              onAction={() => setNoteOpen(true)}
+  1217→  1217→            />
+  1218→  1218→          ) : (
+  1219→  1219→            <div className="relative pl-6">
+  1220→  1220→              {/* Timeline connector line */}
+  1221→  1221→              <div className="absolute left-[7px] top-2 bottom-2 border-l-2 border-gray-200" />
+  1222→  1222→              <div className="space-y-4">
+  1223→  1223→                {notes.map((n, idx) => (
+  1224→  1224→                  <div
+  1225→  1225→                    key={n.id}
+  1226→  1226→                    className="relative flex items-start gap-4 slide-up"
+  1227→  1227→                    style={{ animationDelay: `${idx * 30}ms` }}
+  1228→  1228→                  >
+  1229→  1229→                    {/* Timeline dot */}
+  1230→  1230→                    <div className="absolute -left-6 top-2 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
+  1231→  1231→                    {/* Note card */}
+  1232→  1232→                    <div className="flex-1 rounded-xl bg-white p-5 card-rest min-w-0">
+  1233→  1233→                      <div className="flex items-start justify-between gap-3">
+  1234→  1234→                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap flex-1">{n.body}</p>
+  1235→  1235→                        <button
+  1236→  1236→                          onClick={() => setDeleteNoteId(n.id)}
+  1237→  1237→                          className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
+  1238→  1238→                          aria-label="Delete note"
+  1239→  1239→                          title="Delete note"
+  1240→  1240→                        >
+  1241→  1241→                          <X className="size-3.5" />
+  1242→  1242→                        </button>
+  1243→  1243→                      </div>
+  1244→  1244→                      <div className="flex items-center gap-2 mt-3">
+  1245→  1245→                        {n.noteType && (
+  1246→  1246→                          <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-[11px] font-normal border-0 rounded-md capitalize">
+  1247→  1247→                            {n.noteType}
+  1248→  1248→                          </Badge>
+  1249→  1249→                        )}
+  1250→  1250→                        <span className="text-[11px] text-gray-400">
+  1251→  1251→                          {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+  1252→  1252→                        </span>
+  1253→  1253→                      </div>
+  1254→  1254→                    </div>
+  1255→  1255→                  </div>
+  1256→  1256→                ))}
+  1257→  1257→              </div>
+  1258→  1258→            </div>
+  1259→  1259→          )}
+  1260→  1260→        </TabsContent>
+  1261→  1261→
+  1262→  1262→        {/* ──────────────────────────────────────────────────────────
+  1263→  1263→            TAB: ACTIVITY — Timeline entries
+  1264→  1264→            ────────────────────────────────────────────────────────── */}
+  1265→  1265→        <TabsContent value="activity" className="mt-5">
+  1266→  1266→          {timeline.length === 0 ? (
+  1267→  1267→            <EmptyState
+  1268→  1268→              icon={Clock}
+  1269→  1269→              title="No activity yet"
+  1270→  1270→              description="Activity will appear here as you interact with this company — adding contacts, generating research, and more."
+  1271→  1271→            />
+  1272→  1272→          ) : (
+  1273→  1273→            <div className="relative pl-6">
+  1274→  1274→              {/* Timeline connector */}
+  1275→  1275→              <div className="absolute left-[7px] top-2 bottom-2 border-l-2 border-gray-200" />
+  1276→  1276→              <div className="space-y-4">
+  1277→  1277→                {timeline.map((t, idx) => {
+  1278→  1278→                  const iconData = getActivityIcon(t.action)
+  1279→  1279→                  const Icon = iconData.icon
+  1280→  1280→                  return (
+  1281→  1281→                    <div
+  1282→  1282→                      key={t.id}
+  1283→  1283→                      className="relative flex items-start gap-4 slide-up"
+  1284→  1284→                      style={{ animationDelay: `${idx * 30}ms` }}
+  1285→  1285→                    >
+  1286→  1286→                      {/* Timeline dot */}
+  1287→  1287→                      <div className="absolute -left-6 top-1.5 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
+  1288→  1288→                      {/* Activity icon */}
+  1289→  1289→                      <div className={`shrink-0 mt-0.5 rounded-lg p-1.5 ${iconData.bg}`}>
+  1290→  1290→                        <Icon className={`size-3.5 ${iconData.color}`} />
+  1291→  1291→                      </div>
+  1292→  1292→                      {/* Content */}
+  1293→  1293→                      <div className="min-w-0 flex-1 rounded-lg bg-white p-4 card-rest">
+  1294→  1294→                        <p className="text-sm font-medium text-gray-900 capitalize">
+  1295→  1295→                          {t.action.replace(/_/g, ' ')}
+  1296→  1296→                        </p>
+  1297→  1297→                        {t.details && (
+  1298→  1298→                          <p className="text-sm text-gray-500 mt-0.5">{t.details}</p>
+  1299→  1299→                        )}
+  1300→  1300→                        {/* Cross-nav: if activity references a contact, make it clickable */}
+  1301→  1301→                        {t.contact && (
+  1302→  1302→                          <button
+  1303→  1303→                            onClick={() => handleViewContact(t.contact!.id)}
+  1304→  1304→                            className="inline-flex items-center gap-1 mt-1.5 text-xs text-amber-600 hover:text-amber-700 transition-colors"
+  1305→  1305→                          >
+  1306→  1306→                            <Users className="size-3" />
+  1307→  1307→                            {t.contact!.name}
+  1308→  1308→                            <ChevronRight className="size-3" />
+  1309→  1309→                          </button>
+  1310→  1310→                        )}
+  1311→  1311→                        <p className="text-[11px] text-gray-400 mt-1.5">
+  1312→  1312→                          {formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}
+  1313→  1313→                        </p>
+  1314→  1314→                      </div>
+  1315→  1315→                    </div>
+  1316→  1316→                  )
+  1317→  1317→                })}
+  1318→  1318→              </div>
+  1319→  1319→            </div>
+  1320→  1320→          )}
+  1321→  1321→        </TabsContent>
+  1322→  1322→      </Tabs>
+  1323→  1323→
+  1324→  1324→      {/* ══════════════════════════════════════════════════════════
+  1325→  1325→          DIALOGS
+  1326→  1326→          ══════════════════════════════════════════════════════════ */}
+  1327→  1327→
+  1328→  1328→      {/* Status Cycle Confirmation (C2 fix) */}
+  1329→  1329→      <AlertDialog open={statusConfirmOpen} onOpenChange={setStatusConfirmOpen}>
+  1330→  1330→        <AlertDialogContent className="rounded-xl">
+  1331→  1331→          <AlertDialogHeader>
+  1332→  1332→            <AlertDialogTitle>Change Company Status</AlertDialogTitle>
+  1333→  1333→            <AlertDialogDescription>
+  1334→  1334→              Change status from <span className="font-semibold text-gray-900 capitalize">{data.status}</span> to{' '}
+  1335→  1335→              <span className="font-semibold text-gray-900 capitalize">{nextStatus}</span>?
+  1336→  1336→            </AlertDialogDescription>
+  1337→  1337→          </AlertDialogHeader>
+  1338→  1338→          <AlertDialogFooter>
+  1339→  1339→            <AlertDialogCancel className="rounded-lg" disabled={updateCompanyStatus.isPending}>Cancel</AlertDialogCancel>
+  1340→  1340→            <AlertDialogAction
+  1341→  1341→              className="rounded-lg bg-amber-600 hover:bg-amber-700 text-white"
+  1342→  1342→              onClick={handleStatusCycle}
+  1343→  1343→              disabled={updateCompanyStatus.isPending}
+  1344→  1344→            >
+  1345→  1345→              {updateCompanyStatus.isPending ? <Loader2 className="size-4 mr-2 animate-spin" /> : null}
+  1346→  1346→              Confirm
+  1347→  1347→            </AlertDialogAction>
+  1348→  1348→          </AlertDialogFooter>
+  1349→  1349→        </AlertDialogContent>
+  1350→  1350→      </AlertDialog>
+  1351→  1351→
+  1352→  1352→      {/* Delete Note Confirmation */}
+  1353→  1353→      <Dialog open={!!deleteNoteId} onOpenChange={(open) => { if (!open) setDeleteNoteId(null) }}>
+  1354→  1354→        <DialogContent className="sm:max-w-sm rounded-xl">
+  1355→  1355→          <DialogHeader>
+  1356→  1356→            <DialogTitle className="text-gray-900 flex items-center gap-2">
+  1357→  1357→              <AlertTriangle className="size-4 text-red-500" /> Delete Note
+  1358→  1358→            </DialogTitle>
+  1359→  1359→          </DialogHeader>
+  1360→  1360→          <p className="text-sm text-gray-600">Are you sure you want to delete this note? This action cannot be undone.</p>
+  1361→  1361→          <DialogFooter className="gap-2 sm:gap-0">
+  1362→  1362→            <Button variant="outline" onClick={() => setDeleteNoteId(null)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+  1363→  1363→            <Button
+  1364→  1364→              onClick={() => deleteNoteMutation.mutate(deleteNoteId!)}
+  1365→  1365→              disabled={deleteNoteMutation.isPending}
+  1366→  1366→              className="bg-red-600 text-white hover:bg-red-700 press-scale"
+  1367→  1367→            >
+  1368→  1368→              {deleteNoteMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+  1369→  1369→              Delete
+  1370→  1370→            </Button>
+  1371→  1371→          </DialogFooter>
+  1372→  1372→        </DialogContent>
+  1373→  1373→      </Dialog>
+  1374→  1374→
+  1375→  1375→      {/* Add Note Dialog */}
+  1376→  1376→      <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
+  1377→  1377→        <DialogContent className="sm:max-w-md rounded-xl">
+  1378→  1378→          <DialogHeader><DialogTitle className="text-gray-900">Add Note</DialogTitle></DialogHeader>
+  1379→  1379→          <div className="space-y-4 py-1">
+  1380→  1380→            <div className="space-y-1.5">
+  1381→  1381→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Type</Label>
+  1382→  1382→              <Select value={noteType} onValueChange={setNoteType}>
+  1383→  1383→                <SelectTrigger className="w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
+  1384→  1384→                <SelectContent>
+  1385→  1385→                  <SelectItem value="call">Call</SelectItem>
+  1386→  1386→                  <SelectItem value="meeting">Meeting</SelectItem>
+  1387→  1387→                  <SelectItem value="research">Research</SelectItem>
+  1388→  1388→                  <SelectItem value="general">General</SelectItem>
+  1389→  1389→                </SelectContent>
+  1390→  1390→              </Select>
+  1391→  1391→            </div>
+  1392→  1392→            <div className="space-y-1.5">
+  1393→  1393→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Note</Label>
+  1394→  1394→              <Textarea value={noteBody} onChange={e => setNoteBody(e.target.value)} rows={3} placeholder="Write your note..." className="resize-none" />
+  1395→  1395→            </div>
+  1396→  1396→          </div>
+  1397→  1397→          <DialogFooter className="gap-2 sm:gap-0">
+  1398→  1398→            <Button variant="outline" onClick={() => setNoteOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+  1399→  1399→            <Button onClick={() => addNote.mutate({ body: noteBody, noteType: noteType })} disabled={!noteBody.trim() || addNote.isPending} className="bg-amber-600 hover:bg-amber-700 text-white press-scale">Save Note</Button>
+  1400→  1400→          </DialogFooter>
+  1401→  1401→        </DialogContent>
+  1402→  1402→      </Dialog>
+  1403→  1403→
+  1404→  1404→      {/* Edit Company Dialog (H7 fix) */}
+  1405→  1405→      <Dialog open={editCompanyOpen} onOpenChange={setEditCompanyOpen}>
+  1406→  1406→        <DialogContent className="sm:max-w-md rounded-xl">
+  1407→  1407→          <DialogHeader>
+  1408→  1408→            <DialogTitle className="text-gray-900">Edit Company</DialogTitle>
+  1409→  1409→          </DialogHeader>
+  1410→  1410→          <div className="grid gap-4 py-2">
+  1411→  1411→            <div className="grid gap-1.5">
+  1412→  1412→              <Label className="text-sm font-medium text-gray-700">Name</Label>
+  1413→  1413→              <Input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} placeholder="Company name" />
+  1414→  1414→            </div>
+  1415→  1415→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1416→  1416→              <div className="grid gap-1.5">
+  1417→  1417→                <Label className="text-sm font-medium text-gray-700">Domain</Label>
+  1418→  1418→                <Input value={editForm.domain} onChange={e => setEditForm(f => ({ ...f, domain: e.target.value }))} placeholder="example.com" />
+  1419→  1419→              </div>
+  1420→  1420→              <div className="grid gap-1.5">
+  1421→  1421→                <Label className="text-sm font-medium text-gray-700">Industry</Label>
+  1422→  1422→                <Select value={editForm.industry} onValueChange={v => setEditForm(f => ({ ...f, industry: v }))}>
+  1423→  1423→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger>
+  1424→  1424→                  <SelectContent>
+  1425→  1425→                    {editIndustries.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+  1426→  1426→                  </SelectContent>
+  1427→  1427→                </Select>
+  1428→  1428→              </div>
+  1429→  1429→            </div>
+  1430→  1430→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1431→  1431→              <div className="grid gap-1.5">
+  1432→  1432→                <Label className="text-sm font-medium text-gray-700">Website</Label>
+  1433→  1433→                <Input value={editForm.website} onChange={e => setEditForm(f => ({ ...f, website: e.target.value }))} placeholder="https://..." />
+  1434→  1434→              </div>
+  1435→  1435→              <div className="grid gap-1.5">
+  1436→  1436→                <Label className="text-sm font-medium text-gray-700">LinkedIn</Label>
+  1437→  1437→                <Input value={editForm.linkedinUrl} onChange={e => setEditForm(f => ({ ...f, linkedinUrl: e.target.value }))} placeholder="https://linkedin.com/..." />
+  1438→  1438→              </div>
+  1439→  1439→            </div>
+  1440→  1440→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1441→  1441→              <div className="grid gap-1.5">
+  1442→  1442→                <Label className="text-sm font-medium text-gray-700">Employee Size</Label>
+  1443→  1443→                <Select value={editForm.employeeSize} onValueChange={v => setEditForm(f => ({ ...f, employeeSize: v }))}>
+  1444→  1444→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger>
+  1445→  1445→                  <SelectContent>
+  1446→  1446→                    {EMPLOYEE_SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+  1447→  1447→                  </SelectContent>
+  1448→  1448→                </Select>
+  1449→  1449→              </div>
+  1450→  1450→              <div className="grid gap-1.5">
+  1451→  1451→                <Label className="text-sm font-medium text-gray-700">Country</Label>
+  1452→  1452→                <Input value={editForm.country} onChange={e => setEditForm(f => ({ ...f, country: e.target.value }))} placeholder="USA" />
+  1453→  1453→              </div>
+  1454→  1454→            </div>
+  1455→  1455→            <div className="grid gap-1.5">
+  1456→  1456→              <Label className="text-sm font-medium text-gray-700">Location</Label>
+  1457→  1457→              <Input value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} placeholder="San Francisco, CA" />
+  1458→  1458→            </div>
+  1459→  1459→          </div>
+  1460→  1460→          <DialogFooter className="gap-2 sm:gap-0">
+  1461→  1461→            <Button variant="outline" onClick={() => setEditCompanyOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+  1462→  1462→            <Button onClick={handleEditCompanySubmit} disabled={!editForm.name.trim() || editCompanyMutation.isPending} className="bg-amber-600 hover:bg-amber-700 text-white press-scale">
+  1463→  1463→              {editCompanyMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+  1464→  1464→              Save Changes
+  1465→  1465→            </Button>
+  1466→  1466→          </DialogFooter>
+  1467→  1467→        </DialogContent>
+  1468→  1468→      </Dialog>
+  1469→  1469→
+  1470→  1470→      {/* Add Contact Dialog — pre-fills company */}
+  1471→  1471→      <Dialog open={contactOpen} onOpenChange={setContactOpen}>
+  1472→  1472→        <DialogContent className="sm:max-w-md rounded-xl">
+  1473→  1473→          <DialogHeader>
+  1474→  1474→            <DialogTitle className="text-gray-900">Add Contact</DialogTitle>
+  1475→  1475→            <p className="text-xs text-gray-500 mt-1">
+  1476→  1476→              Adding to <span className="font-medium text-gray-700">{data.name}</span>
+  1477→  1477→            </p>
+  1478→  1478→          </DialogHeader>
+  1479→  1479→          <div className="space-y-4 py-1">
+  1480→  1480→            <div className="space-y-1.5">
+  1481→  1481→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name *</Label>
+  1482→  1482→              <Input value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" />
+  1483→  1483→            </div>
+  1484→  1484→            <div className="space-y-1.5">
+  1485→  1485→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</Label>
+  1486→  1486→              <Input type="email" value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} placeholder={`name@${data.domain || 'company.com'}`} />
+  1487→  1487→            </div>
+  1488→  1488→            <div className="grid grid-cols-2 gap-3">
+  1489→  1489→              <div className="space-y-1.5">
+  1490→  1490→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</Label>
+  1491→  1491→                <Input value={contactForm.jobTitle} onChange={e => setContactForm(f => ({ ...f, jobTitle: e.target.value }))} placeholder="e.g. VP of Engineering" />
+  1492→  1492→              </div>
+  1493→  1493→              <div className="space-y-1.5">
+  1494→  1494→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Role Bucket</Label>
+  1495→  1495→                <Select value={contactForm.roleBucket} onValueChange={v => setContactForm(f => ({ ...f, roleBucket: v }))}>
+  1496→  1496→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select role" /></SelectTrigger>
+  1497→  1497→                  <SelectContent>
+  1498→  1498→                    {ROLE_BUCKETS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+  1499→  1499→                  </SelectContent>
+  1500→  1500→                </Select>
+  1501→  1501→              </div>
+  1502→  1502→            </div>
+  1503→  1503→            <div className="space-y-1.5">
+  1504→  1504→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</Label>
+  1505→  1505→              <Input type="tel" value={contactForm.phone} onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 (555) 000-0000" />
+  1506→  1506→            </div>
+  1507→  1507→            <div className="space-y-1.5">
+  1508→  1508→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">LinkedIn URL</Label>
+  1509→  1509→              <Input value={contactForm.linkedinUrl} onChange={e => setContactForm(f => ({ ...f, linkedinUrl: e.target.value }))} placeholder="https://linkedin.com/in/..." />
+  1510→  1510→            </div>
+  1511→  1511→          </div>
+  1512→  1512→          <DialogFooter className="gap-2 sm:gap-0">
+  1513→  1513→            <Button variant="outline" onClick={() => setContactOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+  1514→  1514→            <Button onClick={handleContactSubmit} disabled={!contactForm.name.trim() || addContact.isPending} className="bg-amber-600 hover:bg-amber-700 text-white press-scale">
+  1515→  1515→              {addContact.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+  1516→  1516→              Add Contact
+  1517→  1517→            </Button>
+  1518→  1518→          </DialogFooter>
+  1519→  1519→        </DialogContent>
+  1520→  1520→      </Dialog>
+  1521→  1521→
+  1522→  1522→      {/* Add Opportunity Dialog — can link to target contact */}
+  1523→  1523→      <Dialog open={oppOpen} onOpenChange={setOppOpen}>
+  1524→  1524→        <DialogContent className="sm:max-w-md rounded-xl">
+  1525→  1525→          <DialogHeader>
+  1526→  1526→            <DialogTitle className="text-gray-900">Create Opportunity</DialogTitle>
+  1527→  1527→            <p className="text-xs text-gray-500 mt-1">
+  1528→  1528→              For <span className="font-medium text-gray-700">{data.name}</span>
+  1529→  1529→            </p>
+  1530→  1530→          </DialogHeader>
+  1531→  1531→          <div className="space-y-4 py-1">
+  1532→  1532→            <div className="space-y-1.5">
+  1533→  1533→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Title *</Label>
+  1534→  1534→              <Input value={oppForm.title} onChange={e => setOppForm(f => ({ ...f, title: e.target.value }))} placeholder="Opportunity title" />
+  1535→  1535→            </div>
+  1536→  1536→            <div className="space-y-1.5">
+  1537→  1537→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Description</Label>
+  1538→  1538→              <Textarea value={oppForm.description} onChange={e => setOppForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Describe the opportunity..." className="resize-none" />
+  1539→  1539→            </div>
+  1540→  1540→            <div className="grid grid-cols-2 gap-3">
+  1541→  1541→              <div className="space-y-1.5">
+  1542→  1542→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</Label>
+  1543→  1543→                <Select value={oppForm.status} onValueChange={v => setOppForm(f => ({ ...f, status: v }))}>
+  1544→  1544→                  <SelectTrigger className="w-full"><SelectValue placeholder="Select status" /></SelectTrigger>
+  1545→  1545→                  <SelectContent>
+  1546→  1546→                    {OPP_STATUSES.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
+  1547→  1547→                  </SelectContent>
+  1548→  1548→                </Select>
+  1549→  1549→              </div>
+  1550→  1550→              <div className="space-y-1.5">
+  1551→  1551→                <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Target Contact</Label>
+  1552→  1552→                <Select
+  1553→  1553→                  value={oppForm.targetContactId || ''}
+  1554→  1554→                  onValueChange={v => setOppForm(f => ({ ...f, targetContactId: v === '__none__' ? '' : v }))}
+  1555→  1555→                >
+  1556→  1556→                  <SelectTrigger className="w-full">
+  1557→  1557→                    <SelectValue placeholder="Select contact (optional)" />
+  1558→  1558→                  </SelectTrigger>
+  1559→  1559→                  <SelectContent>
+  1560→  1560→                    <SelectItem value="__none__">No contact</SelectItem>
+  1561→  1561→                    {contacts.map((c) => (
+  1562→  1562→                      <SelectItem key={c.id} value={c.id}>
+  1563→  1563→                        {c.name}{c.jobTitle ? ` — ${c.jobTitle}` : ''}
+  1564→  1564→                      </SelectItem>
+  1565→  1565→                    ))}
+  1566→  1566→                  </SelectContent>
+  1567→  1567→                </Select>
+  1568→  1568→              </div>
+  1569→  1569→            </div>
+  1570→  1570→            <div className="space-y-1.5">
+  1571→  1571→              <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Next Action</Label>
+  1572→  1572→              <Input value={oppForm.nextAction} onChange={e => setOppForm(f => ({ ...f, nextAction: e.target.value }))} placeholder="What's the next step?" />
+  1573→  1573→            </div>
+  1574→  1574→          </div>
+  1575→  1575→          <DialogFooter className="gap-2 sm:gap-0">
+  1576→  1576→            <Button variant="outline" onClick={() => setOppOpen(false)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
+  1577→  1577→            <Button onClick={handleOppSubmit} disabled={!oppForm.title.trim() || addOpportunity.isPending} className="bg-amber-600 hover:bg-amber-700 text-white press-scale">
+  1578→  1578→              {addOpportunity.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+  1579→  1579→              Create Opportunity
+  1580→  1580→            </Button>
+  1581→  1581→          </DialogFooter>
+  1582→  1582→        </DialogContent>
+  1583→  1583→      </Dialog>
+  1584→  1584→    </div>
+  1585→  1585→  )
+  1586→  1586→}

@@ -1,0 +1,497 @@
+    40→    40→  if (h.includes('email') || h.includes('e-mail')) return 'email'
+    41→    41→  if (h.includes('company') || h.includes('org') || h.includes('account')) return 'companyName'
+    42→    42→  if (h.includes('linkedin')) return 'linkedin'
+    43→    43→  if (h.includes('phone') || h.includes('mobile')) return 'phone'
+    44→    44→  if (h.includes('location') || h.includes('city') || h.includes('address')) return 'location'
+    45→    45→  if (h.includes('industry') || h.includes('sector')) return 'industry'
+    46→    46→  if (h.includes('country') || h.includes('nation')) return 'country'
+    47→    47→  if (h.includes('title') || h.includes('position') || h.includes('job')) return 'jobTitle'
+    48→    48→  if (h.includes('role') || h.includes('function')) return 'role'
+    49→    49→  if (h.includes('name') || h.includes('contact') || h.includes('person')) return 'contactName'
+    50→    50→  return ''
+    51→    51→}
+    52→    52→
+    53→    53→export default function ImportScreen() {
+    54→    54→  const { setActiveView } = useAppStore()
+    55→    55→  const qc = useQueryClient()
+    56→    56→  const fileRef = useRef<HTMLInputElement>(null)
+    57→    57→  const [step, setStep] = useState(1)
+    58→    58→  const [file, setFile] = useState<File | null>(null)
+    59→    59→  const [csv, setCsv] = useState<{ headers: string[]; rows: string[][] }>({ headers: [], rows: [] })
+    60→    60→  const [mapping, setMapping] = useState<Record<number, string>>({})
+    61→    61→  const [progress, setProgress] = useState(0)
+    62→    62→  const [importResult, setImportResult] = useState<{
+    63→    63→    accepted: number
+    64→    64→    duplicates: number
+    65→    65→    invalid: number
+    66→    66→  } | null>(null)
+    67→    67→  const [isDragging, setIsDragging] = useState(false)
+    68→    68→  const [showPreview, setShowPreview] = useState(false)
+    69→    69→  const [batchId, setBatchId] = useState<string | null>(null)
+    70→    70→  const [historyPage, setHistoryPage] = useState(1)
+    71→    71→  const historyPageSize = 10
+    72→    72→
+    73→    73→  const { data: history, error: historyError } = useQuery({
+    74→    74→    queryKey: ['imports', historyPage, historyPageSize],
+    75→    75→    queryFn: () => fetch(`/api/imports?page=${historyPage}&pageSize=${historyPageSize}`).then(r => r.json()),
+    76→    76→  })
+    77→    77→
+    78→    78→  // Stage mutation: upload file as FormData to get batchId
+    79→    79→  const stageMutation = useMutation({
+    80→    80→    mutationFn: async (f: File) => {
+    81→    81→      const fd = new FormData()
+    82→    82→      fd.append('file', f)
+    83→    83→      const res = await fetch('/api/imports', { method: 'POST', body: fd })
+    84→    84→      if (!res.ok) {
+    85→    85→        const err = await res.json().catch(() => ({ error: 'Upload failed' }))
+    86→    86→        throw new Error(err.error || 'Upload failed')
+    87→    87→      }
+    88→    88→      return res.json() as Promise<{ id: string; fileName: string; totalRows: number }>
+    89→    89→    },
+    90→    90→    onSuccess: (data) => {
+    91→    91→      setBatchId(data.id)
+    92→    92→      setStep(3)
+    93→    93→    },
+    94→    94→    onError: (e: Error) => toast.error(e.message || 'Failed to stage import'),
+    95→    95→  })
+    96→    96→
+    97→    97→  // Execute mutation: send JSON with batchId, mapping, rows
+    98→    98→  const executeMutation = useMutation({
+    99→    99→    mutationFn: async (params: {
+   100→   100→      batchId: string
+   101→   101→      mapping: Record<string, number>
+   102→   102→      rows: string[][]
+   103→   103→    }) => {
+   104→   104→      const res = await fetch('/api/imports', {
+   105→   105→        method: 'POST',
+   106→   106→        headers: { 'Content-Type': 'application/json' },
+   107→   107→        body: JSON.stringify({ action: 'execute', ...params }),
+   108→   108→      })
+   109→   109→      if (!res.ok) {
+   110→   110→        const err = await res.json().catch(() => ({ error: 'Import failed' }))
+   111→   111→        throw new Error(err.error || 'Import failed')
+   112→   112→      }
+   113→   113→      return res.json() as Promise<{ success: boolean; accepted: number; duplicates: number; invalid: number }>
+   114→   114→    },
+   115→   115→    onSuccess: (data) => {
+   116→   116→      setImportResult(data)
+   117→   117→      setProgress(100)
+   118→   118→      qc.invalidateQueries({ queryKey: ['imports'] })
+   119→   119→      toast.success(`Import complete! ${data.accepted} contacts imported.`)
+   120→   120→    },
+   121→   121→    onError: (e: Error) => {
+   122→   122→      toast.error(e.message || 'Import failed')
+   123→   123→      setProgress(100)
+   124→   124→    },
+   125→   125→  })
+   126→   126→
+   127→   127→  const handleFile = useCallback((f: File) => {
+   128→   128→    if (!f.name.toLowerCase().endsWith('.csv')) { toast.error('Please upload a CSV file'); return }
+   129→   129→    if (f.size > 10 * 1024 * 1024) {
+   130→   130→      toast.error('File is too large. Maximum size is 10MB.')
+   131→   131→      return
+   132→   132→    }
+   133→   133→    setFile(f)
+   134→   134→    setBatchId(null)
+   135→   135→    const reader = new FileReader()
+   136→   136→    reader.onload = async (e) => {
+   137→   137→      let text = e.target?.result as string
+   138→   138→      // Strip UTF-8 BOM
+   139→   139→      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1)
+   140→   140→      const parsed = parseCSV(text)
+   141→   141→      if (parsed.headers.length === 0) { toast.error('Could not parse CSV headers'); return }
+   142→   142→      setCsv(parsed)
+   143→   143→      const m: Record<number, string> = {}
+   144→   144→      parsed.headers.forEach((h, i) => { m[i] = autoDetect(h) })
+   145→   145→      setMapping(m); setStep(2)
+   146→   146→    }
+   147→   147→    reader.readAsText(f)
+   148→   148→  }, [])
+   149→   149→
+   150→   150→  const onDrop = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }, [handleFile])
+   151→   151→
+   152→   152→  const companyColIdx = Object.entries(mapping).find(([, v]) => v === 'companyName')?.[0]
+   153→   153→  const emailColIdx = Object.entries(mapping).find(([, v]) => v === 'email')?.[0]
+   154→   154→  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+   155→   155→  const uniqueCompanies = companyColIdx != null ? new Set(csv.rows.map(r => r[companyColIdx]).filter(Boolean)).size : 0
+   156→   156→  const invalidEmails = emailColIdx != null ? csv.rows.filter(r => r[emailColIdx] && !emailRe.test(r[emailColIdx])).length : 0
+   157→   157→  const readyCount = csv.rows.length - invalidEmails
+   158→   158→  const invalidRowIndices = emailColIdx != null ? csv.rows.map((r, i) => r[emailColIdx] && !emailRe.test(r[emailColIdx]) ? i : -1).filter(i => i >= 0) : []
+   159→   159→
+   160→   160→  // Called when clicking "Next" on step 2 → stages the file and moves to step 3
+   161→   161→  const goToReview = () => {
+   162→   162→    if (!file) return
+   163→   163→    stageMutation.mutate(file)
+   164→   164→  }
+   165→   165→
+   166→   166→  // Called when clicking "Start Import" on step 3 → executes the import
+   167→   167→  const runImport = () => {
+   168→   168→    if (!batchId) return
+   169→   169→
+   170→   170→    // Invert mapping from Record<number, string> to Record<string, number>
+   171→   171→    const invertedMapping: Record<string, number> = {}
+   172→   172→    for (const [colIdx, fieldName] of Object.entries(mapping)) {
+   173→   173→      if (fieldName && fieldName !== '_skip') {
+   174→   174→        invertedMapping[fieldName] = Number(colIdx)
+   175→   175→      }
+   176→   176→    }
+   177→   177→
+   178→   178→    // Filter out rows with invalid emails
+   179→   179→    const validRows = emailColIdx != null
+   180→   180→      ? csv.rows.filter(r => !r[emailColIdx] || emailRe.test(r[emailColIdx]))
+   181→   181→      : csv.rows
+   182→   182→
+   183→   183→    setStep(4)
+   184→   184→    setProgress(0)
+   185→   185→
+   186→   186→    // Deterministic progress pattern: quick ramp to ~30%, then steady increments
+   187→   187→    let p = 0
+   188→   188→    const stages = [15, 25, 35, 45, 55, 65, 72, 78, 83, 87, 90]
+   189→   189→    let stageIdx = 0
+   190→   190→    const iv = setInterval(() => {
+   191→   191→      if (stageIdx < stages.length) {
+   192→   192→        p = stages[stageIdx]
+   193→   193→        stageIdx++
+   194→   194→      } else {
+   195→   195→        p += 1
+   196→   196→        if (p > 95) p = 95
+   197→   197→      }
+   198→   198→      setProgress(p)
+   199→   199→    }, 500)
+   200→   200→
+   201→   201→    executeMutation.mutate(
+   202→   202→      { batchId, mapping: invertedMapping, rows: validRows },
+   203→   203→      { onSettled: () => { clearInterval(iv) } },
+   204→   204→    )
+   205→   205→  }
+   206→   206→
+   207→   207→  // Check if staging is in progress (moving from step 2 to 3)
+   208→   208→  const isStaging = stageMutation.isPending
+   209→   209→
+   210→   210→  // Extract history items and pagination info
+   211→   211→  const historyItems: any[] = history?.items ?? history ?? []
+   212→   212→  const historyTotal = history?.total ?? 0
+   213→   213→  const historyTotalPages = Math.max(1, Math.ceil(historyTotal / historyPageSize))
+   214→   214→
+   215→   215→  const STEPS = ['Upload', 'Map Columns', 'Review', 'Import']
+   216→   216→
+   217→   217→  return (
+   218→   218→    <div className="space-y-6">
+   219→   219→      {/* Step Indicator */}
+   220→   220→      <div className="flex items-center justify-center">
+   221→   221→        {STEPS.map((s, i) => (
+   222→   222→          <div key={s} className="flex items-center gap-2">
+   223→   223→            <div className="flex flex-col items-center gap-1.5">
+   224→   224→              <div className={cn(
+   225→   225→                'flex size-8 items-center justify-center rounded-full text-sm font-bold transition-all duration-300',
+   226→   226→                i + 1 < step ? 'bg-amber-600 text-white' : i + 1 === step ? 'bg-amber-600 text-white ring-4 ring-amber-100' : 'bg-gray-100 text-gray-400'
+   227→   227→              )}>
+   228→   228→                {i + 1 < step ? <CheckCircle2 className="size-4" /> : (i + 1 === step && (isStaging || executeMutation.isPending)) ? <Loader2 className="size-4 animate-spin" /> : i + 1}
+   229→   229→              </div>
+   230→   230→              <span className={cn('hidden sm:inline text-xs whitespace-nowrap', i + 1 === step ? 'font-medium text-gray-900' : 'text-gray-400')}>{s}</span>
+   231→   231→            </div>
+   232→   232→            {i < 3 && <ArrowRight className="size-4 text-gray-300 mx-3 -mt-5 sm:-mt-6" />}
+   233→   233→          </div>
+   234→   234→        ))}
+   235→   235→      </div>
+   236→   236→
+   237→   237→      {/* Step 1: Upload */}
+   238→   238→      {step === 1 && (
+   239→   239→        <div
+   240→   240→          className={cn(
+   241→   241→            'rounded-2xl border-2 border-dashed p-8 sm:p-16 text-center cursor-pointer transition-all duration-300',
+   242→   242→            isDragging
+   243→   243→              ? 'border-amber-400 bg-amber-50/50 scale-[1.01]'
+   244→   244→              : 'border-gray-300 hover:border-amber-300 hover:bg-amber-50/30'
+   245→   245→          )}
+   246→   246→          onClick={() => fileRef.current?.click()}
+   247→   247→          onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
+   248→   248→          onDragLeave={() => setIsDragging(false)}
+   249→   249→          onDrop={onDrop}
+   250→   250→        >
+   251→   251→          <div className={cn('mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl transition-all duration-300', isDragging ? 'bg-amber-100 scale-110' : 'bg-gray-100')}>
+   252→   252→            <UploadCloud className={cn('size-8 transition-colors', isDragging ? 'text-amber-600' : 'text-gray-400')} />
+   253→   253→          </div>
+   254→   254→          <p className="text-base font-semibold text-gray-900">{isDragging ? 'Drop it here!' : 'Drop your CSV file here'}</p>
+   255→   255→          <p className="text-sm text-gray-500 mt-1">or <span className="text-amber-600 font-medium">click to browse</span> your files</p>
+   256→   256→          <p className="text-xs text-gray-400 mt-3">Supports .csv files up to 10MB</p>
+   257→   257→          <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+   258→   258→        </div>
+   259→   259→      )}
+   260→   260→
+   261→   261→      {/* Step 2: Column Mapping */}
+   262→   262→      {step === 2 && (
+   263→   263→        <div className="rounded-xl bg-white card-rest">
+   264→   264→          <div className="p-6 pb-3">
+   265→   265→            <h3 className="text-sm font-semibold text-gray-900">Column Mapping</h3>
+   266→   266→            <p className="text-xs text-gray-500 mt-0.5">Map your CSV columns to the correct fields. Auto-detected mappings are pre-selected.</p>
+   267→   267→          </div>
+   268→   268→          <div className="px-4 md:px-6 space-y-2 max-h-80 overflow-y-auto pb-3">
+   269→   269→            {csv.headers.map((h, i) => {
+   270→   270→              const isMapped = mapping[i] && mapping[i] !== '_skip'
+   271→   271→              return (
+   272→   272→                <div key={i} className={cn('flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 p-2 rounded-lg transition-colors', isMapped ? 'bg-amber-50/50' : 'bg-gray-50/50')}>
+   273→   273→                  <span className="text-sm font-medium text-gray-900 sm:w-44 truncate">{h}</span>
+   274→   274→                  <ArrowRight className="size-3.5 text-gray-300 shrink-0 hidden sm:block" />
+   275→   275→                  <Select value={mapping[i] || '_skip'} onValueChange={v => setMapping(p => ({ ...p, [i]: v }))}>
+   276→   276→                    <SelectTrigger className={cn('w-full sm:w-48 h-8 rounded-lg text-xs', isMapped ? 'border-amber-200 bg-white' : 'border-gray-200')}>
+   277→   277→                      <SelectValue />
+   278→   278→                    </SelectTrigger>
+   279→   279→                    <SelectContent>
+   280→   280→                      <SelectItem value="_skip">-- Skip --</SelectItem>
+   281→   281→                      {FIELDS.map(f => <SelectItem key={f} value={f}>{FIELD_LABELS[f]}</SelectItem>)}
+   282→   282→                    </SelectContent>
+   283→   283→                  </Select>
+   284→   284→                </div>
+   285→   285→              )
+   286→   286→            })}
+   287→   287→          </div>
+   288→   288→          <div className="flex flex-col-reverse sm:flex-row justify-between p-4 md:p-6 pt-3 gap-2 border-t border-gray-100">
+   289→   289→            <Button variant="ghost" className="text-gray-500 text-sm" onClick={() => { setStep(1); setCsv({ headers: [], rows: [] }); setMapping({}) }}>
+   290→   290→              <ArrowLeft className="size-3.5 mr-1" /> Back
+   291→   291→            </Button>
+   292→   292→            <div className="flex gap-2">
+   293→   293→              <Button variant="outline" size="sm" className="text-xs border-gray-200 text-gray-600" onClick={() => setShowPreview(p => !p)}>
+   294→   294→                <Eye className="size-3.5 mr-1" /> {showPreview ? 'Hide Preview' : 'Preview Data'}
+   295→   295→              </Button>
+   296→   296→              <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={goToReview} disabled={isStaging}>
+   297→   297→                {isStaging && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
+   298→   298→                Next <ArrowRight className="size-3.5 ml-1" />
+   299→   299→              </Button>
+   300→   300→            </div>
+   301→   301→          </div>
+   302→   302→          {/* Data Preview */}
+   303→   303→          {showPreview && csv.rows.length > 0 && (
+   304→   304→            <div className="px-6 pb-6">
+   305→   305→              <div className="rounded-lg border border-gray-200 overflow-x-auto">
+   306→   306→                <Table>
+   307→   307→                  <TableHeader>
+   308→   308→                    <TableRow className="bg-gray-50/80 hover:bg-transparent">
+   309→   309→                      <TableHead className="text-[10px] text-gray-400 w-8">#</TableHead>
+   310→   310→                      {csv.headers.map((h, i) => (
+   311→   311→                        <TableHead key={i} className={cn('text-[10px]', mapping[i] && mapping[i] !== '_skip' ? 'text-amber-700 font-semibold' : 'text-gray-400')}>{h}</TableHead>
+   312→   312→                      ))}
+   313→   313→                    </TableRow>
+   314→   314→                  </TableHeader>
+   315→   315→                  <TableBody>
+   316→   316→                    {csv.rows.slice(0, 5).map((row, ri) => (
+   317→   317→                      <TableRow key={ri} className={cn('text-xs', invalidRowIndices.includes(ri) ? 'bg-red-50/50' : '')}>
+   318→   318→                        <TableCell className="text-gray-400 tabular-nums">{ri + 1}</TableCell>
+   319→   319→                        {row.map((cell, ci) => (
+   320→   320→                          <TableCell key={ci} className={cn(
+   321→   321→                            'text-gray-600 max-w-[150px] truncate',
+   322→   322→                            emailColIdx != null && ci === Number(emailColIdx) && cell && !emailRe.test(cell) && 'text-red-600 font-medium'
+   323→   323→                          )}>
+   324→   324→                            {cell || <span className="text-gray-300">—</span>}
+   325→   325→                          </TableCell>
+   326→   326→                        ))}
+   327→   327→                      </TableRow>
+   328→   328→                    ))}
+   329→   329→                  </TableBody>
+   330→   330→                </Table>
+   331→   331→              </div>
+   332→   332→              {csv.rows.length > 5 && <p className="text-xs text-gray-400 mt-2 text-center">Showing first 5 of {csv.rows.length} rows</p>}
+   333→   333→            </div>
+   334→   334→          )}
+   335→   335→        </div>
+   336→   336→      )}
+   337→   337→
+   338→   338→      {/* Step 3: Review */}
+   339→   339→      {step === 3 && (
+   340→   340→        <div className="rounded-xl bg-white card-rest">
+   341→   341→          <div className="p-6 pb-3">
+   342→   342→            <h3 className="text-sm font-semibold text-gray-900">Import Summary</h3>
+   343→   343→            <p className="text-xs text-gray-500 mt-0.5">Review your import details before proceeding.</p>
+   344→   344→          </div>
+   345→   345→          <div className="px-4 md:px-6 py-4 grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6">
+   346→   346→            {([
+   347→   347→              ['Total Rows', csv.rows.length, 'text-gray-900'],
+   348→   348→              ['New Companies', uniqueCompanies, 'text-blue-600'],
+   349→   349→              ['Invalid Emails', invalidEmails, invalidEmails > 0 ? 'text-red-600' : 'text-gray-900'],
+   350→   350→              ['Ready to Import', readyCount, 'text-emerald-600'],
+   351→   351→              ['File', file?.name ?? '', 'text-gray-500'],
+   352→   352→            ] as const).map(([label, val, color]) => (
+   353→   353→              <div key={label}>
+   354→   354→                <p className="text-xs text-gray-500">{label}</p>
+   355→   355→                <p className={cn('text-xl font-bold mt-1 tabular-nums', color, label === 'File' && 'text-sm font-medium truncate max-w-[120px]')}>{val}</p>
+   356→   356→              </div>
+   357→   357→            ))}
+   358→   358→          </div>
+   359→   359→          {invalidEmails > 0 && (
+   360→   360→            <div className="mx-4 md:mx-6 mb-4 p-3 rounded-lg bg-red-50 border border-red-100 flex items-start gap-2">
+   361→   361→              <AlertTriangle className="size-4 text-red-500 shrink-0 mt-0.5" />
+   362→   362→              <div>
+   363→   363→                <p className="text-xs font-medium text-red-700">{invalidEmails} rows have invalid email addresses</p>
+   364→   364→                <p className="text-[11px] text-red-500 mt-0.5">These rows will be skipped during import. You can fix them and re-import later.</p>
+   365→   365→              </div>
+   366→   366→            </div>
+   367→   367→          )}
+   368→   368→          {companyColIdx == null && (
+   369→   369→            <div className="mx-4 md:mx-6 mb-4 p-3 rounded-lg bg-amber-50 border border-amber-100 flex items-start gap-2">
+   370→   370→              <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
+   371→   371→              <div>
+   372→   372→                <p className="text-xs font-medium text-amber-700">Company Name column is not mapped</p>
+   373→   373→                <p className="text-[11px] text-amber-600 mt-0.5">Go back to Column Mapping and map a column to "Company Name" to create company records.</p>
+   374→   374→              </div>
+   375→   375→            </div>
+   376→   376→          )}
+   377→   377→          <div className="flex flex-col-reverse sm:flex-row justify-between p-4 md:p-6 pt-0 gap-2 border-t border-gray-100">
+   378→   378→            <Button variant="ghost" className="text-gray-500 text-sm" onClick={() => setStep(2)}>
+   379→   379→              <ArrowLeft className="size-3.5 mr-1" /> Back
+   380→   380→            </Button>
+   381→   381→            <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={runImport} disabled={readyCount === 0 || !batchId || companyColIdx == null}>
+   382→   382→              Start Import
+   383→   383→            </Button>
+   384→   384→          </div>
+   385→   385→        </div>
+   386→   386→      )}
+   387→   387→
+   388→   388→      {/* Step 4: Progress */}
+   389→   389→      {step === 4 && (
+   390→   390→        <div className="rounded-xl bg-white card-rest">
+   391→   391→          <div className="p-8 text-center space-y-5">
+   392→   392→            {progress < 100 ? (
+   393→   393→              <>
+   394→   394→                <div className="mx-auto max-w-md">
+   395→   395→                  <Progress value={progress} className="h-2 [&>div]:bg-amber-500" />
+   396→   396→                  <p className="text-xs text-gray-400 mt-2 tabular-nums">{Math.round(progress)}%</p>
+   397→   397→                </div>
+   398→   398→                <p className="text-sm text-gray-500 animate-pulse">Importing your data...</p>
+   399→   399→              </>
+   400→   400→            ) : (
+   401→   401→              <div className="scale-in">
+   402→   402→                {executeMutation.isError ? (
+   403→   403→                  <>
+   404→   404→                    <AlertTriangle className="size-14 mx-auto text-red-500" />
+   405→   405→                    <div className="mt-4">
+   406→   406→                      <p className="text-lg font-bold text-gray-900">Import Failed</p>
+   407→   407→                      <p className="text-sm text-gray-500 mt-1">{executeMutation.error?.message || 'An unexpected error occurred.'}</p>
+   408→   408→                    </div>
+   409→   409→                    <div className="flex justify-center gap-2 pt-4">
+   410→   410→                      <Button variant="outline" className="text-gray-600 border-gray-200 rounded-lg text-sm" onClick={() => { setStep(3); setProgress(0); setImportResult(null) }}>
+   411→   411→                        <ArrowLeft className="size-3.5 mr-1.5" /> Go Back
+   412→   412→                      </Button>
+   413→   413→                      <Button variant="outline" className="text-gray-600 border-gray-200 rounded-lg text-sm" onClick={() => { setStep(1); setFile(null); setCsv({ headers: [], rows: [] }); setMapping({}); setImportResult(null); setBatchId(null) }}>
+   414→   414→                        <RefreshCw className="size-3.5 mr-1.5" /> Start Over
+   415→   415→                      </Button>
+   416→   416→                    </div>
+   417→   417→                  </>
+   418→   418→                ) : (
+   419→   419→                  <>
+   420→   420→                    <CheckCircle2 className="size-14 mx-auto text-emerald-500" />
+   421→   421→                    <div className="mt-4">
+   422→   422→                      <p className="text-lg font-bold text-gray-900">Import Complete!</p>
+   423→   423→                      {importResult && (
+   424→   424→                        <div className="mt-2 flex items-center justify-center gap-4 text-sm text-gray-500">
+   425→   425→                          <span className="text-emerald-600 font-medium">{importResult.accepted} accepted</span>
+   426→   426→                          {importResult.duplicates > 0 && (
+   427→   427→                            <span className="text-amber-600 font-medium">{importResult.duplicates} duplicates</span>
+   428→   428→                          )}
+   429→   429→                          {importResult.invalid > 0 && (
+   430→   430→                            <span className="text-red-600 font-medium">{importResult.invalid} invalid</span>
+   431→   431→                          )}
+   432→   432→                        </div>
+   433→   433→                      )}
+   434→   434→                    </div>
+   435→   435→                    <div className="flex justify-center gap-2 pt-4">
+   436→   436→                      <Button variant="outline" className="text-gray-600 border-gray-200 rounded-lg text-sm" onClick={() => { setStep(1); setFile(null); setCsv({ headers: [], rows: [] }); setMapping({}); setImportResult(null); setBatchId(null) }}>
+   437→   437→                        <RefreshCw className="size-3.5 mr-1.5" /> Import Another
+   438→   438→                      </Button>
+   439→   439→                      <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={() => setActiveView('companies')}>
+   440→   440→                        Go to Companies <ArrowRight className="size-3.5 ml-1" />
+   441→   441→                      </Button>
+   442→   442→                    </div>
+   443→   443→                  </>
+   444→   444→                )}
+   445→   445→              </div>
+   446→   446→            )}
+   447→   447→          </div>
+   448→   448→        </div>
+   449→   449→      )}
+   450→   450→
+   451→   451→      {/* Import History */}
+   452→   452→      {historyError && (
+   453→   453→        <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+   454→   454→          <AlertTriangle className="size-4 text-red-500 shrink-0 mt-0.5" />
+   455→   455→          <div>
+   456→   456→            <p className="text-sm font-medium text-red-700">Failed to load import history</p>
+   457→   457→            <p className="text-xs text-red-500 mt-0.5">Please try refreshing the page.</p>
+   458→   458→          </div>
+   459→   459→        </div>
+   460→   460→      )}
+   461→   461→
+   462→   462→      {historyItems && historyItems.length > 0 && (
+   463→   463→        <div className="rounded-xl bg-white card-rest">
+   464→   464→          <div className="p-6 pb-3 flex items-center justify-between">
+   465→   465→            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+   466→   466→              <FileSpreadsheet className="size-4 text-gray-400" /> Import History
+   467→   467→            </h3>
+   468→   468→            {historyTotal > 0 && (
+   469→   469→              <span className="text-xs text-gray-400">{historyTotal} total</span>
+   470→   470→            )}
+   471→   471→          </div>
+   472→   472→          <div className="px-6 pb-6">
+   473→   473→            <div className="rounded-lg border border-gray-200 overflow-x-auto">
+   474→   474→              <Table>
+   475→   475→                <TableHeader>
+   476→   476→                  <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
+   477→   477→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase">File</TableHead>
+   478→   478→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase">Rows</TableHead>
+   479→   479→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase">Accepted</TableHead>
+   480→   480→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase">Duplicates</TableHead>
+   481→   481→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase">Invalid</TableHead>
+   482→   482→                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase">Status</TableHead>
+   483→   483→                  </TableRow>
+   484→   484→                </TableHeader>
+   485→   485→                <TableBody>
+   486→   486→                  {historyItems.map((b: any) => (
+   487→   487→                    <TableRow key={b.id} className="table-row-hover">
+   488→   488→                      <TableCell className="font-medium text-gray-900 text-sm">{b.fileName}</TableCell>
+   489→   489→                      <TableCell className="text-sm text-gray-600 tabular-nums">{b.totalRows}</TableCell>
+   490→   490→                      <TableCell className="text-sm text-emerald-600 font-medium tabular-nums">{b.acceptedRows}</TableCell>
+   491→   491→                      <TableCell className="text-sm text-gray-600 tabular-nums">{b.duplicateRows}</TableCell>
+   492→   492→                      <TableCell className="text-sm text-red-600 tabular-nums">{b.invalidRows}</TableCell>
+   493→   493→                      <TableCell>
+   494→   494→                        <Badge className={cn('text-[11px] border', b.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-600 border-gray-200')}>
+   495→   495→                          {b.status}
+   496→   496→                        </Badge>
+   497→   497→                      </TableCell>
+   498→   498→                    </TableRow>
+   499→   499→                  ))}
+   500→   500→                </TableBody>
+   501→   501→              </Table>
+   502→   502→            </div>
+   503→   503→            {/* Pagination Controls */}
+   504→   504→            {historyTotalPages > 1 && (
+   505→   505→              <div className="flex items-center justify-between mt-4">
+   506→   506→                <span className="text-xs text-gray-400">
+   507→   507→                  Page {historyPage} of {historyTotalPages}
+   508→   508→                </span>
+   509→   509→                <div className="flex items-center gap-1">
+   510→   510→                  <Button
+   511→   511→                    variant="outline"
+   512→   512→                    size="sm"
+   513→   513→                    className="h-7 text-xs border-gray-200 text-gray-600 rounded-lg px-2"
+   514→   514→                    onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+   515→   515→                    disabled={historyPage <= 1}
+   516→   516→                  >
+   517→   517→                    <ChevronLeft className="size-3" />
+   518→   518→                  </Button>
+   519→   519→                  <Button
+   520→   520→                    variant="outline"
+   521→   521→                    size="sm"
+   522→   522→                    className="h-7 text-xs border-gray-200 text-gray-600 rounded-lg px-2"
+   523→   523→                    onClick={() => setHistoryPage(p => Math.min(historyTotalPages, p + 1))}
+   524→   524→                    disabled={historyPage >= historyTotalPages}
+   525→   525→                  >
+   526→   526→                    <ChevronRight className="size-3" />
+   527→   527→                  </Button>
+   528→   528→                </div>
+   529→   529→              </div>
+   530→   530→            )}
+   531→   531→          </div>
+   532→   532→        </div>
+   533→   533→      )}
+   534→   534→    </div>
+   535→   535→  )
+   536→   536→}

@@ -28,16 +28,9 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-// Mock useSession — replaces next-auth
-function useSession() {
-  return {
-    data: {
-      user: { id: 'demo-1', name: 'Ravi Shanker', email: 'ravi@deepmindq.com', role: 'admin' },
-    },
-    status: 'authenticated' as const,
-  }
+const MOCK_SESSION = {
+  user: { id: 'demo-1', name: 'Ravi Shanker', email: 'ravi@deepmindq.com', role: 'admin' as const },
 }
-
 function signOut(options?: { callbackUrl?: string }) {
   window.location.href = options?.callbackUrl || '/login'
 }
@@ -128,7 +121,7 @@ function getInitials(name?: string | null): string {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { data: session, status } = useSession()
+  const session = MOCK_SESSION
   const userName = session?.user?.name || 'User'
   const userEmail = session?.user?.email || ''
   const userInitials = getInitials(userName)

@@ -2,48 +2,12 @@
 
 import { Component, type ReactNode, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { useRouter } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
 import { useAppStore } from '@/lib/store'
 import type { ActiveView } from '@/lib/types'
 import { SkeletonGrid } from '@/components/shared/design-system'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
-
-function useAuth() {
-  const [session, setSession] = useState<any>(null)
-  const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading')
-
-  useEffect(() => {
-    // Check for mock auth cookie or localStorage
-    const isMockAuth = document.cookie.includes('deepmindq-mock-auth=true')
-    const mockSession = localStorage.getItem('deepmindq-session')
-
-    if (isMockAuth && mockSession) {
-      try {
-        setSession(JSON.parse(mockSession))
-        setStatus('authenticated')
-      } catch {
-        setStatus('unauthenticated')
-      }
-    } else {
-      // Try next-auth session
-      fetch('/api/auth/me')
-        .then(r => r.json())
-        .then(data => {
-          if (data?.success && data?.data) {
-            setSession(data.data)
-            setStatus('authenticated')
-          } else {
-            setStatus('unauthenticated')
-          }
-        })
-        .catch(() => setStatus('unauthenticated'))
-    }
-  }, [])
-
-  return { data: session, status }
-}
 
 const DashboardScreen = dynamic(
   () => import('@/components/screens/dashboard-screen').then(m => ({ default: m.DashboardScreen })),
@@ -182,8 +146,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('[PageErrorBoundary] Caught error:', error)
-    console.error('[PageErrorBoundary] Component stack:', errorInfo.componentStack)
+    console.error('[PageErrorBoundary]', error, errorInfo.componentStack)
   }
 
   render() {
@@ -198,25 +161,20 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 /* ── Page ──────────────────────────────────────────────────── */
 
 export default function HomePage() {
-  const { data: session, status } = useAuth()
-  const router = useRouter()
+  const [mounted, setMounted] = useState(false)
   const { activeView } = useAppStore()
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
-    }
-  }, [status, router])
+    setMounted(true)
+  }, [])
 
-  if (status === 'loading') {
+  if (!mounted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <SkeletonGrid />
       </div>
     )
   }
-
-  if (!session) return null
 
   const ActiveScreen = screenMap[activeView]
 

@@ -8,13 +8,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: false,
   poweredByHeader: false,
   images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: 'logo.clearbit.com' },
-      { protocol: 'https', hostname: '**.googleusercontent.com' },
-    ],
+    unoptimized: true,
   },
-  // Vercel serverless doesn't support Prisma binary well — output standalone
-  output: 'standalone',
 };
 
 export default nextConfig

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Upload, Eye, FileSpreadsheet, X } from 'lucide-react';
+import { Upload, Eye, FileSpreadsheet, X, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface Batch {
   id: string;
@@ -34,6 +34,7 @@ export default function ImportScreen() {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
+  const [uploadResult, setUploadResult] = useState<{ success: boolean; message: string; details?: { total: number; accepted: number; duplicates: number; invalid: number } } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -45,14 +46,28 @@ export default function ImportScreen() {
 
   const handleFileUpload = async (file: File) => {
     setUploading(true);
+    setUploadResult(null);
     const formData = new FormData();
     formData.append('file', file);
     try {
-      await fetch('/api/batches', { method: 'POST', body: formData });
-      const res = await fetch('/api/batches');
-      const d = await res.json();
+      const res = await fetch('/api/batches', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setUploadResult({
+          success: true,
+          message: `Imported ${data.batch.acceptedRows} of ${data.batch.totalRows} rows`,
+          details: { total: data.batch.totalRows, accepted: data.batch.acceptedRows, duplicates: data.batch.duplicateRows, invalid: data.batch.invalidRows },
+        });
+      } else {
+        setUploadResult({ success: false, message: data.error || 'Upload failed' });
+      }
+      // Refresh batch list
+      const batchRes = await fetch('/api/batches');
+      const d = await batchRes.json();
       setBatches(Array.isArray(d) ? d : d.batches || []);
-    } catch { /* ignore */ }
+    } catch {
+      setUploadResult({ success: false, message: 'Network error — please try again.' });
+    }
     setUploading(false);
   };
 
@@ -99,10 +114,10 @@ export default function ImportScreen() {
             )}
             <div className="text-center">
               <p className="text-sm font-medium text-foreground">
-                {uploading ? 'Uploading...' : 'Upload CSV or Excel'}
+                {uploading ? 'Processing file...' : 'Upload CSV or Excel'}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Drag & drop or click to browse
+                {uploading ? 'Parsing rows, detecting duplicates, scoring leads...' : 'Drag & drop or click to browse. Supports .csv, .xlsx, .xls'}
               </p>
             </div>
             <input
@@ -115,6 +130,37 @@ export default function ImportScreen() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Upload Result Banner ── */}
+      {uploadResult && (
+        <div className={`flex items-start gap-3 p-4 rounded-lg border ${
+          uploadResult.success
+            ? 'bg-emerald-500/10 border-emerald-500/30'
+            : 'bg-red-500/10 border-red-500/30'
+        }`}>
+          {uploadResult.success
+            ? <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            : <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+          }
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm font-medium ${uploadResult.success ? 'text-emerald-300' : 'text-red-300'}`}>
+              {uploadResult.success ? 'Import Complete' : 'Import Failed'}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">{uploadResult.message}</p>
+            {uploadResult.details && (
+              <div className="flex gap-4 mt-2">
+                <span className="text-xs text-muted-foreground">Total: <span className="text-foreground font-medium tabular-nums">{uploadResult.details.total}</span></span>
+                <span className="text-xs text-muted-foreground">Accepted: <span className="text-emerald-400 font-medium tabular-nums">{uploadResult.details.accepted}</span></span>
+                <span className="text-xs text-muted-foreground">Duplicates: <span className="text-amber-400 font-medium tabular-nums">{uploadResult.details.duplicates}</span></span>
+                <span className="text-xs text-muted-foreground">Invalid: <span className="text-red-400 font-medium tabular-nums">{uploadResult.details.invalid}</span></span>
+              </div>
+            )}
+          </div>
+          <button onClick={() => setUploadResult(null)} className="text-muted-foreground hover:text-foreground shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* ── Batch History ── */}
       <Card className="bg-card border border-border">

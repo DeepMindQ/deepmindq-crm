@@ -1,389 +1,245 @@
 'use client';
 
-import {
-  Users, FileText, Clock, Send, AlertTriangle,
-  ArrowUpRight, Upload, Copy, CheckCircle2,
-  Sparkles, Mail, Zap, Ban,
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis,
-  Tooltip as RechartsTooltip, ResponsiveContainer,
-} from 'recharts';
-import { useAppStore } from '@/lib/store';
-import { formatDistanceToNow } from 'date-fns';
+  Users, FileCheck, Clock, Mail, Activity, Heart, ShieldCheck, ShieldAlert, ShieldX, HelpCircle,
+} from 'lucide-react';
 
-/* ═══════════════════════════════════════════════════════════════════════
-   Mock Data (inline so no external dependency issues)
-   ═══════════════════════════════════════════════════════════════════════ */
-
-const DASHBOARD_METRICS = {
-  totalContacts: 1247,
-  totalContactsDelta: '+12%',
-  readyForDrafting: 892,
-  draftsPendingReview: 23,
-  sentThisWeek: 156,
-  repliesReceived: 34,
-  bounceRate: 6.2,
-  totalSuppressed: 89,
-  suppressionDelta: '+4',
-  totalDuplicates: 47,
-  aiScored: 1103,
-  aiScoredPct: 88,
-};
-
-const EMAIL_HEALTH_DISTRIBUTION = [
-  { name: 'Valid', value: 843, color: '#059669' },
-  { name: 'Risky', value: 247, color: '#D97706' },
-  { name: 'Invalid', value: 157, color: '#DC2626' },
-];
-
-const WEEKLY_ACTIVITY = [
-  { day: 'Mon', sent: 32, replies: 5 },
-  { day: 'Tue', sent: 28, replies: 8 },
-  { day: 'Wed', sent: 45, replies: 6 },
-  { day: 'Thu', sent: 22, replies: 4 },
-  { day: 'Fri', sent: 19, replies: 3 },
-  { day: 'Sat', sent: 5, replies: 1 },
-  { day: 'Sun', sent: 5, replies: 7 },
-];
-
-const RECENT_ACTIVITY = [
-  { id: '1', type: 'import', message: 'Imported 150 contacts from Salesforce CSV', time: new Date(Date.now() - 1000 * 60 * 12).toISOString() },
-  { id: '2', type: 'draft', message: 'AI generated 23 new email drafts', time: new Date(Date.now() - 1000 * 60 * 45).toISOString() },
-  { id: '3', type: 'sent', message: 'Sent 15 emails from queue', time: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString() },
-  { id: '4', type: 'bounce', message: '6 hard bounces detected — emails suppressed', time: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString() },
-  { id: '5', type: 'ai', message: 'AI scoring completed for 89 leads', time: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString() },
-  { id: '6', type: 'reply', message: 'New reply from Sarah Chen at Acme Corp', time: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString() },
-];
-
-/* ═══════════════════════════════════════════════════════════════════════
-   Metric Cards
-   ═══════════════════════════════════════════════════════════════════════ */
-
-const METRIC_CARDS = [
-  {
-    label: 'Total Contacts',
-    value: DASHBOARD_METRICS.totalContacts.toLocaleString(),
-    icon: Users,
-    delta: DASHBOARD_METRICS.totalContactsDelta,
-    deltaColor: 'text-emerald-400',
-    deltaIcon: ArrowUpRight,
-    iconBg: 'bg-emerald-500/10',
-    iconColor: 'text-emerald-400',
-  },
-  {
-    label: 'Ready for Drafting',
-    value: DASHBOARD_METRICS.readyForDrafting.toLocaleString(),
-    icon: FileText,
-    subtext: 'leads with valid email & company context',
-    iconBg: 'bg-primary/10',
-    iconColor: 'text-primary',
-  },
-  {
-    label: 'Drafts Pending Review',
-    value: DASHBOARD_METRICS.draftsPendingReview.toString(),
-    icon: Clock,
-    badge: { text: 'Needs attention', color: 'border-primary/40 text-primary' },
-    iconBg: 'bg-primary/10',
-    iconColor: 'text-primary',
-    onClick: () => {},
-  },
-  {
-    label: 'Sent This Week',
-    value: DASHBOARD_METRICS.sentThisWeek.toString(),
-    icon: Send,
-    subtext: `${DASHBOARD_METRICS.repliesReceived} replies received`,
-    iconBg: 'bg-cyan-500/10',
-    iconColor: 'text-cyan-400',
-  },
-  {
-    label: 'Bounce Rate',
-    value: `${DASHBOARD_METRICS.bounceRate}%`,
-    icon: AlertTriangle,
-    indicator: { color: 'text-red-400', text: 'Above 5% threshold' },
-    iconBg: 'bg-red-500/10',
-    iconColor: 'text-red-400',
-  },
-  {
-    label: 'Suppressed',
-    value: DASHBOARD_METRICS.totalSuppressed.toString(),
-    icon: Ban,
-    delta: `+${DASHBOARD_METRICS.suppressionDelta}`,
-    deltaColor: 'text-red-400',
-    iconBg: 'bg-red-500/10',
-    iconColor: 'text-red-400',
-  },
-];
-
-/* ═══════════════════════════════════════════════════════════════════════
-   Activity icon helper
-   ═══════════════════════════════════════════════════════════════════════ */
-
-function getActivityIcon(type: string) {
-  switch (type) {
-    case 'import': return <Upload className="w-4 h-4 text-primary" />;
-    case 'draft': return <FileText className="w-4 h-4 text-primary" />;
-    case 'sent': return <Send className="w-4 h-4 text-cyan-400" />;
-    case 'bounce': return <AlertTriangle className="w-4 h-4 text-red-400" />;
-    case 'ai': return <Sparkles className="w-4 h-4 text-primary" />;
-    case 'reply': return <Mail className="w-4 h-4 text-emerald-400" />;
-    default: return <Zap className="w-4 h-4 text-muted-foreground" />;
-  }
+interface DashboardData {
+  contactsByStatus: Record<string, number>;
+  totalCompanies: number;
+  recentBatches: { id: string; fileName: string; totalRows: number; acceptedRows: number; status: string; createdAt: string }[];
+  draftsPendingReview: number;
+  queuePending: number;
+  repliesThisWeek: number;
+  bouncesCount: number;
+  suppressionsCount: number;
+  emailHealthDistribution: { valid: number; risky: number; invalid: number; unknown: number };
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   Dashboard Screen
-   ═══════════════════════════════════════════════════════════════════════ */
+const STATUS_COLORS: Record<string, string> = {
+  staged: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+  processing: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+  completed: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+  archived: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+};
 
-export function DashboardScreen() {
-  const setActiveView = useAppStore((s) => s.setActiveView);
+const STATUS_DOT: Record<string, string> = {
+  imported: 'bg-zinc-400',
+  cleaned: 'bg-blue-400',
+  drafted: 'bg-amber-400',
+  queued: 'bg-purple-400',
+  sent: 'bg-emerald-400',
+  replied: 'bg-emerald-500',
+  bounced: 'bg-red-400',
+  suppressed: 'bg-slate-400',
+  archived: 'bg-zinc-500',
+};
+
+function fmtDate(iso: string) {
+  try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return iso; }
+}
+
+export default function DashboardScreen() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/dashboard')
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton className="h-64 rounded-lg" />
+          <Skeleton className="h-64 rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return <div className="text-muted-foreground text-sm p-6">Failed to load dashboard data.</div>;
+  }
+
+  const totalLeads = Object.values(data.contactsByStatus).reduce((a, b) => a + b, 0);
+  const statusBreakdown = Object.entries(data.contactsByStatus).map(([status, count]) => ({ status, count }));
+  const { emailHealthDistribution: eh } = data;
+  const healthTotal = eh.valid + eh.risky + eh.invalid + eh.unknown;
 
   return (
-    <div className="space-y-6 fade-in">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground tracking-tight">Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Overview of your lead intelligence and outreach pipeline.
-        </p>
-      </div>
-
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {METRIC_CARDS.map((m) => (
-          <Card
-            key={m.label}
-            className="bg-card border-border hover:border-border/80 transition-colors cursor-default"
-          >
+    <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-6 pr-1">
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Leads', value: totalLeads, icon: Users },
+          { label: 'Ready for Review', value: data.draftsPendingReview, icon: FileCheck },
+          { label: 'In Queue', value: data.queuePending, icon: Clock },
+          { label: 'Replies This Week', value: data.repliesThisWeek, icon: Mail },
+        ].map(s => (
+          <Card key={s.label} className="bg-card border border-border">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className={`flex items-center justify-center w-9 h-9 rounded-lg ${m.iconBg}`}>
-                  <m.icon className={`w-[18px] h-[18px] ${m.iconColor}`} />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">{s.label}</p>
+                  <p className="text-2xl font-bold text-primary mt-1 tabular-nums">{s.value.toLocaleString()}</p>
                 </div>
-                {m.badge && (
-                  <Badge variant="outline" className={`text-[10px] px-2 py-0 border ${m.badge.color}`}>
-                    {m.badge.text}
-                  </Badge>
-                )}
-                {m.delta && (
-                  <span className={`text-xs font-medium flex items-center gap-0.5 ${m.deltaColor}`}>
-                    {m.deltaIcon && <m.deltaIcon className="w-3 h-3" />}
-                    {m.delta}
-                  </span>
-                )}
-              </div>
-              <div className="text-2xl font-bold text-foreground tabular-nums">{m.value}</div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {m.subtext || m.indicator ? (
-                  <span className={m.indicator?.color}>{m.subtext || m.indicator?.text}</span>
-                ) : (
-                  m.label
-                )}
+                <s.icon className="w-5 h-5 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Email Health Pie */}
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-2 px-4 pt-4">
-            <CardTitle className="text-sm font-medium text-foreground">Email Health Distribution</CardTitle>
+      {/* Recent Batches + Status Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="bg-card border border-border">
+          <CardHeader className="pb-3 pt-4 px-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" />
+              Recent Batches
+            </CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={EMAIL_HEALTH_DISTRIBUTION}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={80}
-                    paddingAngle={3}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {EMAIL_HEALTH_DISTRIBUTION.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip
-                    contentStyle={{
-                      backgroundColor: 'oklch(0.17 0.01 260)',
-                      border: '1px solid oklch(0.27 0.005 260)',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      color: 'oklch(0.93 0 0)',
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex items-center justify-center gap-4 mt-2">
-              {EMAIL_HEALTH_DISTRIBUTION.map((item) => (
-                <div key={item.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                  {item.name} ({item.value})
+          <CardContent className="px-4 pb-4">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border hover:bg-transparent">
+                  <TableHead className="text-muted-foreground text-xs">Filename</TableHead>
+                  <TableHead className="text-muted-foreground text-xs text-right">Rows</TableHead>
+                  <TableHead className="text-muted-foreground text-xs text-right">Accepted</TableHead>
+                  <TableHead className="text-muted-foreground text-xs">Status</TableHead>
+                  <TableHead className="text-muted-foreground text-xs text-right">Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.recentBatches.map(b => (
+                  <TableRow key={b.id} className="border-border">
+                    <TableCell className="text-foreground text-sm font-medium max-w-[160px] truncate">{b.fileName}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm text-right tabular-nums">{b.totalRows}</TableCell>
+                    <TableCell className="text-foreground text-sm text-right tabular-nums">{b.acceptedRows}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={STATUS_COLORS[b.status] || ''}>
+                        {b.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-xs text-right whitespace-nowrap">{fmtDate(b.createdAt)}</TableCell>
+                  </TableRow>
+                ))}
+                {data.recentBatches.length === 0 && (
+                  <TableRow><TableCell colSpan={5} className="text-muted-foreground text-sm text-center py-6">No batches yet</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card border border-border">
+          <CardHeader className="pb-3 pt-4 px-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              Lead Status Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="space-y-2">
+              {statusBreakdown.map(s => (
+                <div key={s.status} className="flex items-center justify-between py-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${STATUS_DOT[s.status] || 'bg-zinc-500'}`} />
+                    <span className="text-sm text-foreground capitalize">{s.status.replace(/_/g, ' ')}</span>
+                  </div>
+                  <span className="text-sm font-medium text-primary tabular-nums">{s.count.toLocaleString()}</span>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
-
-        {/* Weekly Activity Area */}
-        <Card className="bg-card border-border lg:col-span-2">
-          <CardHeader className="pb-2 px-4 pt-4">
-            <CardTitle className="text-sm font-medium text-foreground">Weekly Activity</CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="h-[220px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={WEEKLY_ACTIVITY}>
-                  <defs>
-                    <linearGradient id="sentGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="oklch(0.78 0.14 75)" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="oklch(0.78 0.14 75)" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="replyGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#059669" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#059669" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis
-                    dataKey="day"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: 'oklch(0.6 0 0)', fontSize: 11 }}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: 'oklch(0.6 0 0)', fontSize: 11 }}
-                  />
-                  <RechartsTooltip
-                    contentStyle={{
-                      backgroundColor: 'oklch(0.17 0.01 260)',
-                      border: '1px solid oklch(0.27 0.005 260)',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      color: 'oklch(0.93 0 0)',
-                    }}
-                  />
-                  <Area type="monotone" dataKey="sent" stroke="oklch(0.78 0.14 75)" strokeWidth={2} fill="url(#sentGrad)" />
-                  <Area type="monotone" dataKey="replies" stroke="#059669" strokeWidth={2} fill="url(#replyGrad)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex items-center justify-center gap-6 mt-2">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="w-2.5 h-2.5 rounded-full bg-primary" />
-                Emails Sent
-              </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#059669' }} />
-                Replies
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* Quick Actions + Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Quick Actions */}
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-3 px-4 pt-4">
-            <CardTitle className="text-sm font-medium text-foreground">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0 space-y-2">
-            {[
-              { label: 'Import Leads', icon: Upload, view: 'import' as const },
-              { label: 'Review Drafts', icon: FileText, view: 'drafts' as const, badge: '23' },
-              { label: 'Send Queue', icon: Send, view: 'queue' as const },
-              { label: 'Find Duplicates', icon: Copy, view: 'duplicates' as const },
-              { label: 'Capability Library', icon: Sparkles, view: 'capability-library' as const },
-            ].map((action) => (
-              <button
-                key={action.label}
-                onClick={() => setActiveView(action.view)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-white/[0.04] hover:text-foreground transition-colors text-left"
-              >
-                <action.icon className="w-4 h-4 shrink-0" />
-                <span className="flex-1">{action.label}</span>
-                {action.badge && (
-                  <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-[11px] bg-primary/15 text-primary border-0">
-                    {action.badge}
-                  </Badge>
-                )}
-              </button>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity */}
-        <Card className="bg-card border-border lg:col-span-2">
-          <CardHeader className="pb-3 px-4 pt-4">
-            <CardTitle className="text-sm font-medium text-foreground">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <ScrollArea className="h-[280px]">
-              <div className="space-y-1">
-                {RECENT_ACTIVITY.map((item, i) => (
-                  <div key={item.id}>
-                    <div className="flex items-start gap-3 px-2 py-2.5 rounded-lg hover:bg-white/[0.02] transition-colors">
-                      <div className="flex items-center justify-center w-7 h-7 rounded-md bg-white/[0.04] mt-0.5 shrink-0">
-                        {getActivityIcon(item.type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground leading-snug">{item.message}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {formatDistanceToNow(new Date(item.time), { addSuffix: true })}
-                        </p>
-                      </div>
+      {/* Email Health Distribution */}
+      <Card className="bg-card border border-border">
+        <CardHeader className="pb-3 pt-4 px-4">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Heart className="w-4 h-4 text-primary" />
+            Email Health Distribution
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {([
+              { key: 'valid', label: 'Valid', icon: ShieldCheck, color: 'bg-emerald-400' },
+              { key: 'risky', label: 'Risky', icon: ShieldAlert, color: 'bg-amber-400' },
+              { key: 'invalid', label: 'Invalid', icon: ShieldX, color: 'bg-red-400' },
+              { key: 'unknown', label: 'Unknown', icon: HelpCircle, color: 'bg-zinc-500' },
+            ] as const).map(h => {
+              const count = eh[h.key];
+              const pct = healthTotal > 0 ? (count / healthTotal) * 100 : 0;
+              return (
+                <div key={h.key} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <h.icon className={`w-3.5 h-3.5 ${h.color.replace('bg-', 'text-')}`} />
+                      <span className="text-sm text-foreground">{h.label}</span>
                     </div>
-                    {i < RECENT_ACTIVITY.length - 1 && <Separator className="ml-12" />}
+                    <span className="text-sm font-medium tabular-nums text-primary">{count}</span>
                   </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* AI Scoring Banner */}
-      <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
-        <CardContent className="flex items-center gap-4 p-4">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/15 shrink-0">
-            <Sparkles className="w-5 h-5 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground">
-              AI Scoring Engine
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {DASHBOARD_METRICS.aiScored} of {DASHBOARD_METRICS.totalContacts} contacts scored ({DASHBOARD_METRICS.aiScoredPct}%).
-              {DASHBOARD_METRICS.totalContacts - DASHBOARD_METRICS.aiScored > 0 && ` ${DASHBOARD_METRICS.totalContacts - DASHBOARD_METRICS.aiScored} remaining.`}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="w-24 h-2 rounded-full bg-white/10 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-primary transition-all"
-                style={{ width: `${DASHBOARD_METRICS.aiScoredPct}%` }}
-              />
-            </div>
-            <span className="text-sm font-semibold text-primary tabular-nums">{DASHBOARD_METRICS.aiScoredPct}%</span>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${h.color} transition-all`} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
+
+      {/* Quick Counts */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card className="bg-card border border-border">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-md bg-red-500/15 flex items-center justify-center">
+              <ShieldX className="w-4 h-4 text-red-400" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Bounces</p>
+              <p className="text-lg font-semibold text-foreground tabular-nums">{data.bouncesCount}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-card border border-border">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-md bg-slate-500/15 flex items-center justify-center">
+              <ShieldAlert className="w-4 h-4 text-slate-400" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Suppressions</p>
+              <p className="text-lg font-semibold text-foreground tabular-nums">{data.suppressionsCount}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-card border border-border">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-md bg-primary/15 flex items-center justify-center">
+              <Activity className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Companies</p>
+              <p className="text-lg font-semibold text-foreground tabular-nums">{data.totalCompanies}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

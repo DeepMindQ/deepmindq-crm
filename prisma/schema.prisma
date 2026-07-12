@@ -7,232 +7,67 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Company {
-  id                String   @id @default(cuid())
-  name              String
-  domain            String?
-  linkedinUrl       String?
-  website           String?
-  industry          String?
-  employeeSize      String?
-  country           String?
-  location          String?
-  status            String   @default("new")
-  intelligenceScore Int?
-  dataFreshness     String?
-  lastUpdatedAt     DateTime @updatedAt
-  createdAt         DateTime @default(now())
-
-  contacts          Contact[]
-  notes             CompanyNote[]
-  researchCard      CompanyResearchCard?
-  opportunities     Opportunity[]
-  timeline          TimelineEntry[]
-  researchSources   CompanyResearchSource[]
-  customFieldValues CustomFieldValue[]
-  tags             TagAssignment[]
-  comments          Comment[]
-
-  @@index([name])
-  @@index([domain])
-  @@index([industry])
-  @@index([status])
-  @@index([country])
-}
+// ── Core Entities (per SDD Section 5) ──
 
 model Contact {
-  id              String   @id @default(cuid())
-  companyId       String
-  name            String
-  email           String?
-  jobTitle        String?
-  roleBucket      String?
-  linkedinUrl     String?
-  phone           String?
-  location        String?
-  status          String   @default("new")
-  emailHealth     String   @default("unknown")
-  emailHealthScore Int?
-  lastContactedAt DateTime?
-  lastValidatedAt DateTime?
-  archivedAt      DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String   @id @default(cuid())
+  rawName          String
+  normalizedName   String
+  editedName       String?
+  email            String
+  linkedinUrl      String?
+  title            String?
+  role             String?
+  phone            String?
+  location         String?
+  companyId        String
+  batchId          String
+  consentStatus    String   @default("unknown") // unknown, opted_in, opted_out
+  emailHealth      String   @default("unknown") // unknown, valid, risky, invalid
+  emailHealthScore Int      @default(0)
+  status           String   @default("imported") // imported, cleaned, duplicate, drafted, queued, sent, replied, bounced, suppressed, archived
+  leadScore        Int      @default(0)
+  isSuppressed     Boolean  @default(false)
+  suppressionReason String?
+  lastCheckedAt    DateTime?
+  lastContactedAt  DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  company             Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  notes               ContactNote[]
-  timeline            TimelineEntry[]
-  drafts              Draft[]
-  healthChecks        EmailHealthCheck[]
-  targetedOpportunities Opportunity[] @relation("TargetContact")
-  customFieldValues   CustomFieldValue[]
-  tags               TagAssignment[]
-  comments            Comment[]
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  batch    ImportBatch @relation(fields: [batchId], references: [id])
+  drafts      Draft[]
+  replies     Reply[]
+  bounces     Bounce[]
+  suppression Suppression?
 
-  @@index([companyId])
   @@index([email])
+  @@index([companyId])
   @@index([status])
-  @@index([roleBucket])
+  @@index([batchId])
+  @@index([leadScore])
 }
 
-model CompanyNote {
-  id        String   @id @default(cuid())
-  companyId String
-  body      String
-  noteType  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-}
-
-model ContactNote {
-  id        String   @id @default(cuid())
-  contactId String
-  body      String
-  noteType  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-
-  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
-
-  @@index([contactId])
-}
-
-model CompanyResearchCard {
-  id                    String   @id @default(cuid())
-  companyId             String   @unique
-  businessOverview      String?
-  currentTechLandscape  String?
-  potentialChallenges   String?
-  possibleOpportunities String?
-  relevantServices      String?
-  keyDecisionMakers     String?
-  lastInteraction       String?
-  nextAction            String?
-  confidenceScore       Int?
-  lastResearchedAt      DateTime @updatedAt
-  createdAt             DateTime @default(now())
-
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-}
-
-model CompanyResearchSource {
-  id        String   @id @default(cuid())
-  companyId String
-  sourceType String?
-  sourceUrl String?
-  excerpt   String?
-  createdAt DateTime @default(now())
-
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@index([sourceType])
-}
-
-model Opportunity {
+model Company {
   id              String   @id @default(cuid())
-  companyId       String
-  title           String
-  description     String?
-  targetContactId String?
-  status          String   @default("researching")
-  nextAction      String?
+  rawName         String
+  normalizedName  String
+  domain          String?
+  industry        String?
+  sizeRange       String?
+  location        String?
+  website         String?
+  internalSummary String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  targetContact Contact?  @relation("TargetContact", fields: [targetContactId], references: [id], onDelete: SetNull)
+  contacts      Contact[]
+  researchCard  CompanyResearchCard?
+  notes         CompanyNote[]
 
-  @@index([companyId])
-  @@index([status])
-  @@index([targetContactId])
-}
-
-model TimelineEntry {
-  id        String   @id @default(cuid())
-  companyId String?
-  contactId String?
-  action    String
-  details   String?
-  createdAt DateTime @default(now())
-
-  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  contact Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
-
-  @@index([companyId, createdAt])
-  @@index([contactId, createdAt])
-}
-
-model CapabilityDocument {
-  id          String   @id @default(cuid())
-  title       String
-  docType     String
-  description String?
-  content     String?
-  fileName    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  snippets CapabilitySnippet[]
-
-  @@index([docType])
-}
-
-model CapabilitySnippet {
-  id          String   @id @default(cuid())
-  documentId  String
-  snippetType String
-  title       String
-  content     String
-  industries  String?
-  outcomes    String?
-  createdAt   DateTime @default(now())
-
-  document CapabilityDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-
-  @@index([documentId])
-  @@index([snippetType])
-}
-
-model Draft {
-  id              String   @id @default(cuid())
-  contactId       String
-  subject         String
-  body            String
-  cta             String?
-  serviceAngle    String?
-  matchScore      Int?
-  confidenceScore Int?
-  status          String   @default("draft")
-  rejectReason    String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
-
-  @@index([contactId])
-  @@index([status])
-}
-
-model EmailHealthCheck {
-  id                    String   @id @default(cuid())
-  contactId             String
-  status                String
-  score                 Int
-  actionRecommendation  String?
-  syntaxOk              Boolean  @default(false)
-  domainOk              Boolean  @default(false)
-  mxOk                  Boolean  @default(false)
-  disposableOk          Boolean  @default(false)
-  checkedAt             DateTime @default(now())
-
-  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
-
-  @@index([contactId])
+  @@index([domain])
+  @@index([normalizedName])
+  @@index([industry])
 }
 
 model ImportBatch {
@@ -243,303 +78,163 @@ model ImportBatch {
   acceptedRows  Int      @default(0)
   duplicateRows Int      @default(0)
   invalidRows   Int      @default(0)
-  status        String   @default("staged")
+  questionableRows Int   @default(0)
+  status        String   @default("staged") // staged, processing, completed, archived
+  mappingProfile String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  contacts Contact[]
 
   @@index([status])
   @@index([createdAt])
 }
 
-model User {
+model CompanyResearchCard {
+  id              String   @id @default(cuid())
+  companyId       String   @unique
+  businessOverview    String?
+  techLandscape       String?
+  potentialChallenges String?
+  possibleOpportunities String?
+  relevantServices    String?
+  keyDecisionMakers   String?
+  internalNotes       String?
+  lastResearchedAt    DateTime @updatedAt
+  createdAt           DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model CompanyNote {
+  id        String   @id @default(cuid())
+  companyId String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+// ── Capability Library (per SDD Section 10) ──
+
+model CapabilityAsset {
+  id          String   @id @default(cuid())
+  title       String
+  summary     String
+  category    String   // service_line, case_study, proof_point, objection_response, cta
+  serviceLine String?
+  targetIndustries String?
+  targetRoles  String?
+  problems    String?
+  evidence    String?
+  content     String?  // full text
+  isActive    Boolean  @default(true)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([serviceLine])
+  @@index([isActive])
+}
+
+// ── Draft & Send (per SDD Sections 11-12) ──
+
+model Draft {
+  id                String   @id @default(cuid())
+  contactId         String
+  subject           String
+  body              String
+  cta               String?
+  confidenceScore   Int?
+  sourceSnippetsUsed String?
+  assumptionFlags   String?
+  reviewNotes       String?
+  status            String   @default("pending_review") // pending_review, approved, rejected, sent
+  rejectReason      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  queueItem SendQueue?
+
+  @@index([contactId])
+  @@index([status])
+}
+
+model SendQueue {
   id            String   @id @default(cuid())
-  name          String
-  email         String   @unique
-  emailVerified DateTime?
-  passwordHash  String?
-  image         String?
-  role          String   @default("admin")
-  lastLoginAt   DateTime?
+  draftId       String   @unique
+  scheduledAt   DateTime?
+  sentAt        DateTime?
+  status        String   @default("pending") // pending, scheduled, sent, failed, paused
+  failureReason String?
+  retryCount    Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  accounts     Account[]
-  sessions     Session[]
-  auditLogs    AuditLog[]
-  notifications Notification[]
-  preferences  UserPreferences?
-  teams        TeamMember[]
-  comments     Comment[]
+  draft Draft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([scheduledAt])
 }
 
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
+// ── Feedback (per SDD Section 13) ──
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
+model Reply {
   id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contactId    String
+  subject      String?
+  body         String?
+  category     String?  // positive, negative, out_of_office, unsubscribe, other
+  receivedAt   DateTime @default(now())
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+  @@index([category])
 }
 
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
+model Bounce {
+  id           String   @id @default(cuid())
+  contactId    String
+  bounceType   String?  // hard, soft
+  reason       String?
+  bouncedAt    DateTime @default(now())
 
-  @@unique([identifier, token])
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
 }
+
+model Suppression {
+  id            String   @id @default(cuid())
+  contactId     String   @unique
+  reason        String   // unsubscribe, bounce, manual, negative_reply
+  createdAt     DateTime @default(now())
+  removedAt     DateTime?
+  removedBy     String?
+  removalReason String?
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([reason])
+}
+
+// ── Audit (per SDD Section 16) ──
 
 model AuditLog {
   id        String   @id @default(cuid())
-  userId    String
   action    String
   entity    String
   entityId  String?
   details   String?
-  ipAddress String?
-  userAgent String?
+  userId    String?
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
   @@index([entity])
   @@index([createdAt])
-}
-
-model Notification {
-  id        String   @id @default(cuid())
-  userId    String
-  title     String
-  message   String?
-  type      String   @default("info")
-  read      Boolean  @default(false)
-  link      String?
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, read])
-  @@index([createdAt])
-}
-
-model Task {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  status      String   @default("pending")
-  priority    String   @default("medium")
-  dueDate     DateTime?
-  completedAt DateTime?
-  companyId   String?
-  contactId   String?
-  assignedTo  String?
-  createdBy   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([status])
-  @@index([assignedTo])
-  @@index([dueDate])
-  @@index([companyId])
-  @@index([contactId])
-}
-
-// Singleton pattern: API layer enforces only one row exists.
-// SQLite does not support @@unique([]), so uniqueness is enforced in application code.
-model UserPreferences {
-  id              String   @id @default(cuid())
-  userId          String?  @unique
-  tone            String   @default("professional-casual")
-  emailLength     String   @default("medium")
-  openerStyle     String   @default("Hi [First Name]")
-  signOff         String   @default("Regards, Ravi")
-  avoidPhrases    String   @default("")
-  exampleEmail    String?
-  ctaStyle        String   @default("soft")
-  aiProvider      String   @default("openai")
-  aiModel         String   @default("gpt-4o-mini")
-  aiApiKey        String?
-  scoringWeights  String   @default("{}")
-
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-}
-
-model CustomFieldDefinition {
-  id           String   @id @default(cuid())
-  entityType   String
-  sourceHeader String
-  internalKey  String
-  displayName  String
-  dataType     String   @default("text")
-  isSearchable Boolean  @default(false)
-  isFilterable Boolean  @default(false)
-  createdAt    DateTime @default(now())
-
-  fieldValues CustomFieldValue[]
-}
-
-model CustomFieldValue {
-  id        String   @id @default(cuid())
-  fieldId   String
-  contactId String?
-  companyId String?
-  rawValue  String?
-  createdAt DateTime @default(now())
-
-  field   CustomFieldDefinition @relation(fields: [fieldId], references: [id], onDelete: Cascade)
-  contact Contact?              @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  company Company?              @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([fieldId])
-  @@index([contactId])
-  @@index([companyId])
-}
-
-model Tag {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  color     String   @default("gray")
-  createdAt DateTime @default(now())
-
-  assignments TagAssignment[]
-
-  @@index([name])
-}
-
-model TagAssignment {
-  id             String       @id @default(cuid())
-  tagId          String
-  companyId       String?
-  contactId      String?
-  opportunityId  String?
-  createdAt      DateTime @default(now())
-
-  tag         Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  company     Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contact     Contact?  @relation(fields: [contactId], references: [id], onDelete: Cascade)
-
-  @@index([tagId])
-  @@index([companyId])
-  @@index([contactId])
-}
-
-model EmailSequence {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  status      String   @default("draft")
-  contactId   String?
-  companyId   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  steps EmailSequenceStep[]
-
-  @@index([status])
-}
-
-model EmailSequenceStep {
-  id           String   @id @default(cuid())
-  sequenceId   String
-  stepNumber   Int
-  subject      String
-  body         String
-  delayMinutes Int      @default(1440)
-  cta          String?
-  status       String   @default("pending")
-  sentAt       DateTime?
-  openedAt     DateTime?
-  repliedAt    DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  sequence EmailSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
-
-  @@index([sequenceId])
-  @@index([status])
-}
-
-model PromptTemplate {
-  id                String   @id @default(cuid())
-  name              String
-  category          String
-  description       String?
-  systemPrompt      String
-  userPromptTemplate String
-  variables         String
-  isBuiltIn         Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  @@index([category])
-}
-
-model Comment {
-  id        String   @id @default(cuid())
-  body      String
-  userId    String
-  companyId String?
-  contactId String?
-  opportunityId String?
-  parentId  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user         User         @relation(fields: [userId], references: [id])
-  company      Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contact      Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  parent       Comment?     @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies      Comment[]    @relation("CommentReplies")
-
-  @@index([companyId])
-  @@index([contactId])
-  @@index([opportunityId])
-  @@index([userId])
-  @@index([parentId])
-}
-
-model Team {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  members TeamMember[]
-
-  @@index([name])
-}
-
-model TeamMember {
-  id       String   @id @default(cuid())
-  teamId   String
-  userId   String
-  role     String   @default("member")
-  joinedAt DateTime @default(now())
-
-  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([teamId, userId])
-  @@index([teamId])
-  @@index([userId])
 }

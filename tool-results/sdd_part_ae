@@ -1,0 +1,50 @@
+[Heading 2] 15.4 Import screen
+[Normal] The import screen should be straightforward. The user uploads the file, maps the columns if needed, reviews the validation preview, and decides whether to commit the batch. Any row-level issues should be visible before the batch is merged. The screen should not ask the user to understand internal processing mechanics. It should show enough to make a safe decision.
+[Heading 2] 15.5 Draft review screen
+[Normal] The draft review screen should present the AI output beside the contact and company context that produced it. The reviewer should be able to edit the subject, body, CTA, or even the selected capability snippet if the draft is not quite right. The screen should make approval easy and rejection equally clear. This is where the system keeps quality high without slowing the process to a crawl.
+[Heading 2] 15.6 Queue and settings
+[Normal] The queue screen should show pending sends, scheduled items, failures, retries, and pause states. The settings screen should hold the Outlook configuration, send windows, daily caps, capability library settings, scoring rules, mapping profiles, suppression controls, and access permissions. These screens should be functional rather than flashy. Their job is to keep the operational controls accessible without cluttering the main workflow.
+[Heading 1] 16. Reporting, Audit, and Operational Controls
+[Heading 2] 16.1 Reporting
+[Normal] Reporting should cover batch imports, duplicate resolution, email health distribution, draft generation, approvals, sends, replies, bounces, suppressions, and queue health. The report set should be enough to tell whether the system is healthy, whether the list is improving, and whether the outreach process is producing usable signals. Reports should not become a second product. They should serve the operating loop.
+[Normal] The team should be able to answer simple questions quickly. How many rows were imported this week? How many were deduplicated? How many drafts were generated but not approved? How many sends were paused because of bounce activity? These are the kinds of questions an internal system must answer without friction.
+[Heading 2] 16.2 Audit logging
+[Normal] Every important action should be logged. Imports, edits, merges, AI generation, approval, sends, replies, suppression changes, email health changes, and permission-relevant events all belong in the audit trail. The audit trail is append-only. It should not be editable by ordinary users. If a user changes a record, the system should know who did it, what changed, when it changed, and which source or operation triggered it.
+[Normal] The audit log is important because the platform is not just storing data. It is making decisions about whether a contact is safe to email and how the company should position itself. Those decisions must be visible later. A good audit log is one of the simplest forms of internal insurance.
+[Heading 2] 16.3 Backup and recovery
+[Normal] The system should retain source files, historical batches, archived records, and audit events in a way that allows restoration if something goes wrong. Backup and recovery do not need to be visible in the day-to-day workflow, but they do need to exist as part of the design. The team should never feel that a bad merge or a bad import can permanently erase the company's work.
+[Normal] Recovery should be practical. If a batch needs to be restored, the system should know how to bring it back without rebuilding it from scratch. If a specific duplicate merge was wrong, the archive should make it possible to inspect the prior values. Recovery is part of trust.
+[Heading 2] 16.4 Security and governance
+[Normal] The platform should use role-based access, encrypted credentials for Outlook, and clear ownership for the capability library. Sensitive operations such as suppression removal, template edits, and mailbox configuration should be restricted. The system should not make broad claims beyond what the internal knowledge base can support. Governance is not a bureaucracy layer here; it is the mechanism that keeps a small internal tool from drifting into confusion.
+[Heading 2] 16.5 Consent and source tracking
+[Normal] Each contact should carry source and consent metadata. The platform should know where the record came from and whether it is allowed to be contacted. This metadata should be visible in the lead detail view and should feed suppression behavior. Even in an internal system, that traceability is useful because it prevents the team from treating all records as equally safe or equally current.
+[Heading 1] 17. Non-Goals and Explicit Boundaries
+[Normal] The platform is not a CRM, a generic marketing automation engine, a lead-buying marketplace, or a public data scraping service. It is not meant to replace Outlook. It is not meant to replace human judgment. It is not meant to create unlimited branches of automation just because a workflow engine could support them. Every extra layer of complexity should be judged against the core purpose of the system: controlled, company-aware outreach grounded in internal capability knowledge.
+[Normal] The platform also should not depend on broad external intelligence to function. External context is useful only when it helps the company understand the target company and its industry. It should remain narrow, curated, and reviewable. The system should not try to know the whole market. It should try to know enough to write one good email to one good lead, and then do that repeatably at scale.
+[Heading 1] Appendix A. AI Prompt Contract
+[Heading 2] A.1 Required input structure
+[Normal] The AI drafting step should receive a compact, structured payload. The payload should include the contact identity, the company identity, the company research card, the relevant internal capability snippets, any prior interaction notes, and the desired outreach tone. It should not receive unfiltered spreadsheet columns. If a field is not relevant to drafting, it should stay out of the prompt. That discipline is one of the easiest ways to keep the model from drifting into generic output.
+[Heading 2] A.2 Drafting rules
+[Normal] The model should be instructed to use only verified internal materials for factual claims. It may use external company and industry context only as curated by the system. It may infer a likely business concern, but it must not state the inference as fact. It should keep the email concise, businesslike, and centered on one solution angle. It should aim for a believable next step such as a short discovery call, a quick review, or a conversation about whether the company might benefit from a specific service.
+[Heading 2] A.3 Output schema
+[Code Block] {
+[Code Block] "subject": "",
+[Code Block] "body": "",
+[Code Block] "cta": "",
+[Code Block] "confidence_score": 0,
+[Code Block] "source_snippets_used": [],
+[Code Block] "assumption_flags": [],
+[Code Block] "review_notes": ""
+[Code Block] }
+[Normal] The subject should be short and relevant. The body should be readable in a single glance without feeling thin. The CTA should be one line and should not try to close the entire relationship in one email. The confidence score should help reviewers triage drafts, not make the final decision for them. If the prompt context is weak, the model should say so clearly through its metadata instead of pretending certainty.
+[Heading 2] A.4 Failure behavior
+[Normal] If the model does not have enough company context or cannot find a matching internal capability, the system should not force a draft. It should flag the record for research, enrichment, or manual handling. Silence is better than invention. This is especially important when a lead is valuable but the internal library has not yet been populated with the right solution content. The system should surface that gap so the company can improve its own knowledge base.
+[Heading 1] Appendix B. Lead State Model
+[Heading 2] B.1 Lead states
+[Normal] The lead should move through a small set of states that are easy to understand. A record starts as new or imported. It becomes cleaned once the normalization pipeline has run. It may be marked duplicate if the system or a reviewer decides it is not a distinct record. Once it is clean and ready, it can enter drafting. After a draft is created, the record becomes drafted. After approval, it becomes queued. After delivery, it becomes sent. If a reply arrives, it becomes replied. If delivery fails, it becomes bounced. If the record should never be contacted again, it becomes suppressed. If the record is no longer active but should be kept for history, it becomes archived.
+[Heading 2] B.2 State transitions
+[Normal] State changes should happen because of clear actions or signals. Import creates imported records. Cleaning creates cleaned records. Deduplication may create duplicate or merged states. Draft generation moves a record into drafted. Approval moves it to queued. Delivery moves it to sent. Reply handling moves it to replied. Bounce handling moves it to bounced. Suppression moves it to suppressed. Archiving is a final housekeeping state for records that should remain available but no longer participate in active outreach. Manual overrides are allowed, but they must always be logged.
+[Heading 1] Appendix C. Data Source and Storage Rules
+[Heading 2] C.1 What must be preserved
+[Normal] The platform should preserve the original imported values, the normalized values, the current edited values, the batch source, and the audit trail. These layers are not optional. They are the memory of the system. If a value changes, the original should still be visible in history. If a row comes from a specific batch, that batch should remain traceable. If a record is corrected, the system should not pretend that the mistake never happened.
+[Heading 2] C.2 What can be normalized

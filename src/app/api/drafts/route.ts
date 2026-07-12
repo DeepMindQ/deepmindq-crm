@@ -1,19 +1,33 @@
-import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 
-export async function GET() {
-  const drafts = await db.draft.findMany({
-    include: { contact: { include: { company: true } } },
-    orderBy: { createdAt: 'desc' },
-  });
-  return NextResponse.json(drafts);
-}
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status') || '';
 
-export async function PATCH(req: Request) {
-  const { id, status, subject, body, rejectReason } = await req.json();
-  const draft = await db.draft.update({
-    where: { id },
-    data: { status, subject, body, rejectReason, updatedAt: new Date().toISOString() },
-  });
-  return NextResponse.json(draft);
+    const where: Prisma.DraftWhereInput = {};
+    if (status) {
+      where.status = status;
+    }
+
+    const drafts = await db.draft.findMany({
+      where,
+      include: {
+        contact: {
+          include: { company: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return NextResponse.json(drafts);
+  } catch (error) {
+    console.error('Drafts error:', error);
+    return NextResponse.json(
+      { error: 'Failed to load drafts' },
+      { status: 500 }
+    );
+  }
 }

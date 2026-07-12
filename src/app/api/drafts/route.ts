@@ -1,38 +1,19 @@
-import { NextRequest } from "next/server";
-import { db } from "@/lib/db";
-import { apiError, apiSuccess, safeInt } from "@/lib/apiHelpers";
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const contactId = searchParams.get("contactId");
-    const page = Math.max(1, safeInt(searchParams.get("page"), 1, 10));
-    const pageSize = Math.min(50, Math.max(1, safeInt(searchParams.get("pageSize"), 50, 10)));
+export async function GET() {
+  const drafts = await db.draft.findMany({
+    include: { contact: { include: { company: true } } },
+    orderBy: { createdAt: 'desc' },
+  });
+  return NextResponse.json(drafts);
+}
 
-    const where = contactId ? { contactId } : {};
-
-    const [drafts, total] = await Promise.all([
-      db.draft.findMany({
-        where,
-        include: { contact: true },
-        orderBy: { createdAt: "desc" },
-        take: pageSize,
-        skip: (page - 1) * pageSize,
-      }),
-      db.draft.count({ where }),
-    ]);
-
-    return apiSuccess({
-      data: drafts,
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages: Math.ceil(total / pageSize),
-      },
-    });
-  } catch (error) {
-    console.error("Failed to fetch drafts:", error);
-    return apiError("Failed to fetch drafts", 500);
-  }
+export async function PATCH(req: Request) {
+  const { id, status, subject, body, rejectReason } = await req.json();
+  const draft = await db.draft.update({
+    where: { id },
+    data: { status, subject, body, rejectReason, updatedAt: new Date().toISOString() },
+  });
+  return NextResponse.json(draft);
 }

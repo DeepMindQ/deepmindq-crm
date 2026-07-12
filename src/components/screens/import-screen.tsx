@@ -1,536 +1,754 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useCallback, useRef } from 'react'
 import {
-  Upload, CheckCircle2, ArrowRight, ArrowLeft, RefreshCw, FileSpreadsheet,
-  AlertTriangle, Eye, UploadCloud, Loader2, ChevronLeft, ChevronRight,
+  Upload, UploadCloud, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle,
+  FileSpreadsheet, ShieldCheck, XCircle, Loader2, FileText, Clock,
+  CheckCircle, ChevronDown, ChevronUp, Info, Sparkles,
 } from 'lucide-react'
-import { useAppStore } from '@/lib/store'
-import { toast } from 'sonner'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { MOCK_BATCHES } from '@/lib/mock-data'
 
-const FIELDS = ['companyName','contactName','email','jobTitle','role','linkedin','phone','location','industry','country'] as const
-const FIELD_LABELS: Record<string, string> = { companyName:'Company Name', contactName:'Contact Name', email:'Email', jobTitle:'Job Title', role:'Role', linkedin:'LinkedIn', phone:'Phone', location:'Location', industry:'Industry', country:'Country' }
+// ── Constants ───────────────────────────────────────────────────
+const TARGET_FIELDS = [
+  { value: 'firstName', label: 'First Name' },
+  { value: 'lastName', label: 'Last Name' },
+  { value: 'email', label: 'Email' },
+  { value: 'companyName', label: 'Company Name' },
+  { value: 'domain', label: 'Domain' },
+  { value: 'jobTitle', label: 'Job Title' },
+  { value: 'role', label: 'Role' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'location', label: 'Location' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'skip', label: 'Skip (don\'t import)' },
+] as const
 
-function parseCSV(text: string): { headers: string[]; rows: string[][] } {
-  // Strip UTF-8 BOM
-  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1)
-  const lines = text.split(/\r?\n/).filter(l => l.trim())
-  if (lines.length < 2) return { headers: [], rows: [] }
-  const parseLine = (line: string) => {
-    const f: string[] = []; let c = '', q = false
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i]
-      if (q) { if (ch === '"' && line[i+1] === '"') { c += '"'; i++ } else if (ch === '"') q = false; else c += ch }
-      else { if (ch === '"') q = true; else if (ch === ',') { f.push(c.trim()); c = '' } else c += ch }
-    }
-    f.push(c.trim()); return f
+// Simulated file data
+const MOCK_FILE_HEADERS = ['Full Name', 'Email Addr', 'Company', 'Job Title', 'Phone', 'Website']
+const MOCK_FILE_ROWS = [
+  ['Arjun Mehta', 'arjun.mehta@nexuscore.io', 'NexusCore Technologies', 'VP of Engineering', '+91 98450 12345', 'nexuscore.io'],
+  ['Priya Sharma', 'priya.s@quantumleap.tech', 'QuantumLeap Tech', 'Head of Product', '+1 512-555-0201', 'quantumleap.tech'],
+  ['Dr. Emily Brown', 'emily.b@healthtechplus.com', 'HealthTech Plus', 'Director of Innovation', '+1 617-555-0401', 'healthtechplus.com'],
+]
+
+// Auto-map intelligence
+const AUTO_MAP: Record<string, string> = {
+  'full name': 'firstName',
+  'first name': 'firstName',
+  'last name': 'lastName',
+  'email': 'email',
+  'email addr': 'email',
+  'email address': 'email',
+  'e-mail': 'email',
+  'company': 'companyName',
+  'company name': 'companyName',
+  'organization': 'companyName',
+  'domain': 'domain',
+  'website': 'domain',
+  'web': 'domain',
+  'job title': 'jobTitle',
+  'title': 'jobTitle',
+  'position': 'jobTitle',
+  'role': 'role',
+  'seniority': 'role',
+  'phone': 'phone',
+  'telephone': 'phone',
+  'mobile': 'phone',
+  'location': 'location',
+  'city': 'location',
+  'country': 'location',
+  'linkedin': 'linkedin',
+  'linkedin url': 'linkedin',
+}
+
+// Simulated validation data
+const MOCK_VALIDATION = {
+  total: 248,
+  clean: 198,
+  needsReview: 32,
+  duplicates: 12,
+  invalid: 6,
+  reviewReasons: [
+    { row: 5, reason: 'Missing email address', severity: 'warning' as const },
+    { row: 12, reason: 'Duplicate detected (same email as row 3)', severity: 'warning' as const },
+    { row: 18, reason: 'Missing job title', severity: 'warning' as const },
+    { row: 27, reason: 'Missing company name', severity: 'warning' as const },
+    { row: 34, reason: 'Duplicate detected (same email as row 19)', severity: 'warning' as const },
+    { row: 41, reason: 'Missing email address', severity: 'warning' as const },
+    { row: 55, reason: 'Missing phone number (optional)', severity: 'info' as const },
+  ],
+  invalidReasons: [
+    { row: 8, reason: 'Malformed email: "john@" (incomplete domain)', severity: 'error' as const },
+    { row: 22, reason: 'Missing required field: Email', severity: 'error' as const },
+    { row: 45, reason: 'Malformed email: "not-an-email"', severity: 'error' as const },
+    { row: 67, reason: 'Missing required field: Company Name', severity: 'error' as const },
+    { row: 89, reason: 'Malformed email: "user@.com" (no domain name)', severity: 'error' as const },
+    { row: 112, reason: 'Missing required field: Email', severity: 'error' as const },
+  ],
+  duplicateReasons: [
+    { row: 3, reason: 'Exact match: arjun.mehta@nexuscore.io exists in database', severity: 'duplicate' as const },
+    { row: 15, reason: 'Exact match: priya.s@quantumleap.tech exists in database', severity: 'duplicate' as const },
+    { row: 29, reason: 'Fuzzy match: emily@healthtechplus.com likely duplicates emily.b@healthtechplus.com', severity: 'duplicate' as const },
+  ],
+}
+
+// ── Helpers ────────────────────────────────────────────────────
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+  })
+}
+
+function statusBadge(status: string) {
+  switch (status) {
+    case 'committed': return <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px]">Completed</Badge>
+    case 'reviewing': return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-[10px]">Reviewing</Badge>
+    case 'staged': return <Badge className="bg-zinc-500/10 text-zinc-400 border-zinc-500/20 text-[10px]">Staged</Badge>
+    case 'archived': return <Badge className="bg-zinc-500/10 text-zinc-400 border-zinc-500/20 text-[10px]">Archived</Badge>
+    default: return <Badge className="bg-zinc-500/10 text-zinc-400 border-zinc-500/20 text-[10px]">{status}</Badge>
   }
-  return { headers: parseLine(lines[0]), rows: lines.slice(1).map(parseLine) }
 }
 
-function autoDetect(header: string): string {
-  const h = header.toLowerCase()
-  if (h.includes('email') || h.includes('e-mail')) return 'email'
-  if (h.includes('company') || h.includes('org') || h.includes('account')) return 'companyName'
-  if (h.includes('linkedin')) return 'linkedin'
-  if (h.includes('phone') || h.includes('mobile')) return 'phone'
-  if (h.includes('location') || h.includes('city') || h.includes('address')) return 'location'
-  if (h.includes('industry') || h.includes('sector')) return 'industry'
-  if (h.includes('country') || h.includes('nation')) return 'country'
-  if (h.includes('title') || h.includes('position') || h.includes('job')) return 'jobTitle'
-  if (h.includes('role') || h.includes('function')) return 'role'
-  if (h.includes('name') || h.includes('contact') || h.includes('person')) return 'contactName'
-  return ''
+// ── Step Indicator ─────────────────────────────────────────────
+function StepIndicator({ current, total }: { current: number; total: number }) {
+  return (
+    <div className="flex items-center justify-center gap-0 py-2">
+      {Array.from({ length: total }, (_, i) => {
+        const step = i + 1
+        const isActive = step === current
+        const isDone = step < current
+        return (
+          <div key={step} className="flex items-center">
+            <div className="flex flex-col items-center">
+              <div className={cn(
+                'size-9 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-200',
+                isActive && 'bg-amber-500/20 text-amber-400 ring-2 ring-amber-500/40',
+                isDone && 'bg-emerald-500/20 text-emerald-400',
+                !isActive && !isDone && 'bg-secondary text-muted-foreground',
+              )}>
+                {isDone ? <CheckCircle className="size-4" /> : step}
+              </div>
+              <span className={cn(
+                'text-[10px] mt-1.5 font-medium',
+                isActive ? 'text-amber-400' : 'text-muted-foreground',
+              )}>
+                {step === 1 ? 'Upload' : step === 2 ? 'Map' : 'Review'}
+              </span>
+            </div>
+            {step < total && (
+              <div className={cn(
+                'w-16 sm:w-24 h-px mx-2 mt-[-14px] transition-colors',
+                step < current ? 'bg-emerald-500/40' : 'bg-border',
+              )} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
-export default function ImportScreen() {
-  const { setActiveView } = useAppStore()
-  const qc = useQueryClient()
-  const fileRef = useRef<HTMLInputElement>(null)
+// ── Main Component ─────────────────────────────────────────────
+export function ImportScreen() {
   const [step, setStep] = useState(1)
-  const [file, setFile] = useState<File | null>(null)
-  const [csv, setCsv] = useState<{ headers: string[]; rows: string[][] }>({ headers: [], rows: [] })
-  const [mapping, setMapping] = useState<Record<number, string>>({})
-  const [progress, setProgress] = useState(0)
-  const [importResult, setImportResult] = useState<{
-    accepted: number
-    duplicates: number
-    invalid: number
-  } | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
-  const [showPreview, setShowPreview] = useState(false)
-  const [batchId, setBatchId] = useState<string | null>(null)
-  const [historyPage, setHistoryPage] = useState(1)
-  const historyPageSize = 10
+  const [uploadedFile, setUploadedFile] = useState<{ name: string; size: number; rows: number } | null>(null)
+  const [columnMapping, setColumnMapping] = useState<Record<number, string>>({})
+  const [saveProfile, setSaveProfile] = useState(false)
+  const [profileName, setProfileName] = useState('Sales Navigator Export')
+  const [isCommitting, setIsCommitting] = useState(false)
+  const [expandedIssues, setExpandedIssues] = useState<Record<string, boolean>>({})
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const { data: history, error: historyError } = useQuery({
-    queryKey: ['imports', historyPage, historyPageSize],
-    queryFn: () => fetch(`/api/imports?page=${historyPage}&pageSize=${historyPageSize}`).then(r => r.json()),
-  })
+  const toggleIssue = (key: string) =>
+    setExpandedIssues(prev => ({ ...prev, [key]: !prev[key] }))
 
-  // Stage mutation: upload file as FormData to get batchId
-  const stageMutation = useMutation({
-    mutationFn: async (f: File) => {
-      const fd = new FormData()
-      fd.append('file', f)
-      const res = await fetch('/api/imports', { method: 'POST', body: fd })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Upload failed' }))
-        throw new Error(err.error || 'Upload failed')
-      }
-      return res.json() as Promise<{ id: string; fileName: string; totalRows: number }>
-    },
-    onSuccess: (data) => {
-      setBatchId(data.id)
-      setStep(3)
-    },
-    onError: (e: Error) => toast.error(e.message || 'Failed to stage import'),
-  })
-
-  // Execute mutation: send JSON with batchId, mapping, rows
-  const executeMutation = useMutation({
-    mutationFn: async (params: {
-      batchId: string
-      mapping: Record<string, number>
-      rows: string[][]
-    }) => {
-      const res = await fetch('/api/imports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'execute', ...params }),
+  // ── Step 1: Upload ────────────────────────────────────────────
+  const handleUpload = useCallback(() => {
+    setIsUploading(true)
+    setTimeout(() => {
+      setUploadedFile({
+        name: 'sales_navigator_export_jul2025.xlsx',
+        size: 245760,
+        rows: 248,
       })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Import failed' }))
-        throw new Error(err.error || 'Import failed')
-      }
-      return res.json() as Promise<{ success: boolean; accepted: number; duplicates: number; invalid: number }>
-    },
-    onSuccess: (data) => {
-      setImportResult(data)
-      setProgress(100)
-      qc.invalidateQueries({ queryKey: ['imports'] })
-      toast.success(`Import complete! ${data.accepted} contacts imported.`)
-    },
-    onError: (e: Error) => {
-      toast.error(e.message || 'Import failed')
-      setProgress(100)
-    },
-  })
-
-  const handleFile = useCallback((f: File) => {
-    if (!f.name.toLowerCase().endsWith('.csv')) { toast.error('Please upload a CSV file'); return }
-    if (f.size > 10 * 1024 * 1024) {
-      toast.error('File is too large. Maximum size is 10MB.')
-      return
-    }
-    setFile(f)
-    setBatchId(null)
-    const reader = new FileReader()
-    reader.onload = async (e) => {
-      let text = e.target?.result as string
-      // Strip UTF-8 BOM
-      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1)
-      const parsed = parseCSV(text)
-      if (parsed.headers.length === 0) { toast.error('Could not parse CSV headers'); return }
-      setCsv(parsed)
-      const m: Record<number, string> = {}
-      parsed.headers.forEach((h, i) => { m[i] = autoDetect(h) })
-      setMapping(m); setStep(2)
-    }
-    reader.readAsText(f)
+      setIsUploading(false)
+      // Auto-map on upload
+      const mapping: Record<number, string> = {}
+      MOCK_FILE_HEADERS.forEach((h, i) => {
+        const normalized = h.toLowerCase().trim()
+        mapping[i] = AUTO_MAP[normalized] || 'skip'
+      })
+      setColumnMapping(mapping)
+      toast.success('File uploaded successfully')
+    }, 1500)
   }, [])
 
-  const onDrop = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }, [handleFile])
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    handleUpload()
+  }, [handleUpload])
 
-  const companyColIdx = Object.entries(mapping).find(([, v]) => v === 'companyName')?.[0]
-  const emailColIdx = Object.entries(mapping).find(([, v]) => v === 'email')?.[0]
-  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
-  const uniqueCompanies = companyColIdx != null ? new Set(csv.rows.map(r => r[companyColIdx]).filter(Boolean)).size : 0
-  const invalidEmails = emailColIdx != null ? csv.rows.filter(r => r[emailColIdx] && !emailRe.test(r[emailColIdx])).length : 0
-  const readyCount = csv.rows.length - invalidEmails
-  const invalidRowIndices = emailColIdx != null ? csv.rows.map((r, i) => r[emailColIdx] && !emailRe.test(r[emailColIdx]) ? i : -1).filter(i => i >= 0) : []
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }, [])
 
-  // Called when clicking "Next" on step 2 → stages the file and moves to step 3
-  const goToReview = () => {
-    if (!file) return
-    stageMutation.mutate(file)
-  }
+  const handleDragLeave = useCallback(() => {
+    setIsDragging(false)
+  }, [])
 
-  // Called when clicking "Start Import" on step 3 → executes the import
-  const runImport = () => {
-    if (!batchId) return
+  const handleFileSelect = useCallback(() => {
+    fileInputRef.current?.click()
+  }, [])
 
-    // Invert mapping from Record<number, string> to Record<string, number>
-    const invertedMapping: Record<string, number> = {}
-    for (const [colIdx, fieldName] of Object.entries(mapping)) {
-      if (fieldName && fieldName !== '_skip') {
-        invertedMapping[fieldName] = Number(colIdx)
-      }
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.length) {
+      handleUpload()
     }
+  }, [handleUpload])
 
-    // Filter out rows with invalid emails
-    const validRows = emailColIdx != null
-      ? csv.rows.filter(r => !r[emailColIdx] || emailRe.test(r[emailColIdx]))
-      : csv.rows
+  // ── Step 2: Auto-Map ─────────────────────────────────────────
+  const handleAutoMap = useCallback(() => {
+    const mapping: Record<number, string> = {}
+    MOCK_FILE_HEADERS.forEach((h, i) => {
+      const normalized = h.toLowerCase().trim()
+      mapping[i] = AUTO_MAP[normalized] || 'skip'
+    })
+    setColumnMapping(mapping)
+    toast.success('Columns auto-mapped successfully')
+  }, [])
 
-    setStep(4)
-    setProgress(0)
+  // ── Step 3: Commit ────────────────────────────────────────────
+  const handleCommit = useCallback(() => {
+    setIsCommitting(true)
+    setTimeout(() => {
+      setIsCommitting(false)
+      toast.success(`Successfully imported ${MOCK_VALIDATION.clean} rows!`)
+      setStep(1)
+      setUploadedFile(null)
+      setColumnMapping({})
+    }, 2000)
+  }, [])
 
-    // Deterministic progress pattern: quick ramp to ~30%, then steady increments
-    let p = 0
-    const stages = [15, 25, 35, 45, 55, 65, 72, 78, 83, 87, 90]
-    let stageIdx = 0
-    const iv = setInterval(() => {
-      if (stageIdx < stages.length) {
-        p = stages[stageIdx]
-        stageIdx++
-      } else {
-        p += 1
-        if (p > 95) p = 95
-      }
-      setProgress(p)
-    }, 500)
+  const handleCancel = useCallback(() => {
+    setStep(1)
+    setUploadedFile(null)
+    setColumnMapping({})
+    toast.info('Import cancelled')
+  }, [])
 
-    executeMutation.mutate(
-      { batchId, mapping: invertedMapping, rows: validRows },
-      { onSettled: () => { clearInterval(iv) } },
-    )
-  }
-
-  // Check if staging is in progress (moving from step 2 to 3)
-  const isStaging = stageMutation.isPending
-
-  // Extract history items and pagination info
-  const historyItems: any[] = history?.items ?? history ?? []
-  const historyTotal = history?.total ?? 0
-  const historyTotalPages = Math.max(1, Math.ceil(historyTotal / historyPageSize))
-
-  const STEPS = ['Upload', 'Map Columns', 'Review', 'Import']
-
-  return (
-    <div className="space-y-6">
-      {/* Step Indicator */}
-      <div className="flex items-center justify-center">
-        {STEPS.map((s, i) => (
-          <div key={s} className="flex items-center gap-2">
-            <div className="flex flex-col items-center gap-1.5">
-              <div className={cn(
-                'flex size-8 items-center justify-center rounded-full text-sm font-bold transition-all duration-300',
-                i + 1 < step ? 'bg-amber-600 text-white' : i + 1 === step ? 'bg-amber-600 text-white ring-4 ring-amber-100' : 'bg-gray-100 text-gray-400'
-              )}>
-                {i + 1 < step ? <CheckCircle2 className="size-4" /> : (i + 1 === step && (isStaging || executeMutation.isPending)) ? <Loader2 className="size-4 animate-spin" /> : i + 1}
-              </div>
-              <span className={cn('hidden sm:inline text-xs whitespace-nowrap', i + 1 === step ? 'font-medium text-gray-900' : 'text-gray-400')}>{s}</span>
-            </div>
-            {i < 3 && <ArrowRight className="size-4 text-gray-300 mx-3 -mt-5 sm:-mt-6" />}
-          </div>
-        ))}
+  // ── Render: Step 1 ────────────────────────────────────────────
+  const renderUpload = () => (
+    <div className="space-y-6 max-w-2xl mx-auto">
+      {/* Drop Zone */}
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onClick={handleFileSelect}
+        className={cn(
+          'relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-12 cursor-pointer transition-all duration-200',
+          isDragging
+            ? 'border-amber-500/60 bg-amber-500/5'
+            : 'border-border hover:border-amber-500/30 hover:bg-secondary/20',
+          isUploading && 'pointer-events-none opacity-60',
+        )}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.csv"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+        <div className={cn(
+          'size-16 rounded-2xl flex items-center justify-center mb-4 transition-colors',
+          isDragging ? 'bg-amber-500/10' : 'bg-secondary',
+        )}>
+          {isUploading ? (
+            <Loader2 className="size-8 text-amber-400 animate-spin" />
+          ) : (
+            <UploadCloud className={cn('size-8', isDragging ? 'text-amber-400' : 'text-muted-foreground')} />
+          )}
+        </div>
+        <p className="text-sm font-medium text-foreground mb-1">
+          {isUploading ? 'Uploading...' : 'Drop your Excel or CSV file here, or click to browse'}
+        </p>
+        <p className="text-xs text-muted-foreground">Accepted formats: .xlsx, .csv</p>
       </div>
 
-      {/* Step 1: Upload */}
-      {step === 1 && (
-        <div
-          className={cn(
-            'rounded-2xl border-2 border-dashed p-8 sm:p-16 text-center cursor-pointer transition-all duration-300',
-            isDragging
-              ? 'border-amber-400 bg-amber-50/50 scale-[1.01]'
-              : 'border-gray-300 hover:border-amber-300 hover:bg-amber-50/30'
-          )}
-          onClick={() => fileRef.current?.click()}
-          onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={onDrop}
-        >
-          <div className={cn('mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl transition-all duration-300', isDragging ? 'bg-amber-100 scale-110' : 'bg-gray-100')}>
-            <UploadCloud className={cn('size-8 transition-colors', isDragging ? 'text-amber-600' : 'text-gray-400')} />
+      {/* Hash protection note */}
+      <div className="flex items-start gap-2.5 p-3 rounded-lg bg-secondary/30 border border-border">
+        <ShieldCheck className="size-4 text-emerald-400 mt-0.5 shrink-0" />
+        <div>
+          <p className="text-xs font-medium text-foreground">Duplicate file protection</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Duplicate files are automatically detected via SHA-256 hash comparison. Re-importing the same file will be blocked.
+          </p>
+        </div>
+      </div>
+
+      {/* Uploaded file info */}
+      {uploadedFile && (
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="size-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+              <FileSpreadsheet className="size-5 text-amber-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">{uploadedFile.name}</p>
+              <div className="flex items-center gap-3 mt-0.5">
+                <span className="text-[11px] text-muted-foreground">
+                  {(uploadedFile.size / 1024).toFixed(1)} KB
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {uploadedFile.rows} rows detected
+                </span>
+              </div>
+            </div>
+            <CheckCircle2 className="size-5 text-emerald-400 shrink-0" />
           </div>
-          <p className="text-base font-semibold text-gray-900">{isDragging ? 'Drop it here!' : 'Drop your CSV file here'}</p>
-          <p className="text-sm text-gray-500 mt-1">or <span className="text-amber-600 font-medium">click to browse</span> your files</p>
-          <p className="text-xs text-gray-400 mt-3">Supports .csv files up to 10MB</p>
-          <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+          <div className="flex justify-end">
+            <Button
+              onClick={() => setStep(2)}
+              className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              Continue to Mapping
+              <ArrowRight className="size-3.5 ml-1.5" />
+            </Button>
+          </div>
         </div>
       )}
+    </div>
+  )
 
-      {/* Step 2: Column Mapping */}
-      {step === 2 && (
-        <div className="rounded-xl bg-white card-rest">
-          <div className="p-6 pb-3">
-            <h3 className="text-sm font-semibold text-gray-900">Column Mapping</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Map your CSV columns to the correct fields. Auto-detected mappings are pre-selected.</p>
+  // ── Render: Step 2 ────────────────────────────────────────────
+  const renderMapping = () => (
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Mapping Table */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="p-4 flex items-center justify-between border-b border-border">
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-amber-400" />
+            <h3 className="text-sm font-semibold text-foreground">Column Mapping</h3>
           </div>
-          <div className="px-4 md:px-6 space-y-2 max-h-80 overflow-y-auto pb-3">
-            {csv.headers.map((h, i) => {
-              const isMapped = mapping[i] && mapping[i] !== '_skip'
-              return (
-                <div key={i} className={cn('flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 p-2 rounded-lg transition-colors', isMapped ? 'bg-amber-50/50' : 'bg-gray-50/50')}>
-                  <span className="text-sm font-medium text-gray-900 sm:w-44 truncate">{h}</span>
-                  <ArrowRight className="size-3.5 text-gray-300 shrink-0 hidden sm:block" />
-                  <Select value={mapping[i] || '_skip'} onValueChange={v => setMapping(p => ({ ...p, [i]: v }))}>
-                    <SelectTrigger className={cn('w-full sm:w-48 h-8 rounded-lg text-xs', isMapped ? 'border-amber-200 bg-white' : 'border-gray-200')}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAutoMap}
+            className="h-8 text-xs border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+          >
+            <Sparkles className="size-3 mr-1" />
+            Auto-Map
+          </Button>
+        </div>
+
+        <Table>
+          <TableHeader>
+            <TableRow className="border-border hover:bg-transparent">
+              <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Source Column</TableHead>
+              <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Map To</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {MOCK_FILE_HEADERS.map((header, idx) => (
+              <TableRow key={idx} className="border-border">
+                <TableCell className="py-3">
+                  <div className="flex items-center gap-2">
+                    <FileText className="size-3.5 text-muted-foreground" />
+                    <span className="text-sm text-foreground font-medium">{header}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="py-3 text-right">
+                  <Select
+                    value={columnMapping[idx] || 'skip'}
+                    onValueChange={v => setColumnMapping(prev => ({ ...prev, [idx]: v }))}
+                  >
+                    <SelectTrigger className="w-[200px] ml-auto h-8 text-xs bg-background border-border">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="_skip">-- Skip --</SelectItem>
-                      {FIELDS.map(f => <SelectItem key={f} value={f}>{FIELD_LABELS[f]}</SelectItem>)}
+                      {TARGET_FIELDS.map(f => (
+                        <SelectItem key={f.value} value={f.value} className="text-xs">
+                          {f.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                </div>
-              )
-            })}
-          </div>
-          <div className="flex flex-col-reverse sm:flex-row justify-between p-4 md:p-6 pt-3 gap-2 border-t border-gray-100">
-            <Button variant="ghost" className="text-gray-500 text-sm" onClick={() => { setStep(1); setCsv({ headers: [], rows: [] }); setMapping({}) }}>
-              <ArrowLeft className="size-3.5 mr-1" /> Back
-            </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="text-xs border-gray-200 text-gray-600" onClick={() => setShowPreview(p => !p)}>
-                <Eye className="size-3.5 mr-1" /> {showPreview ? 'Hide Preview' : 'Preview Data'}
-              </Button>
-              <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={goToReview} disabled={isStaging}>
-                {isStaging && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
-                Next <ArrowRight className="size-3.5 ml-1" />
-              </Button>
-            </div>
-          </div>
-          {/* Data Preview */}
-          {showPreview && csv.rows.length > 0 && (
-            <div className="px-6 pb-6">
-              <div className="rounded-lg border border-gray-200 overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50/80 hover:bg-transparent">
-                      <TableHead className="text-[10px] text-gray-400 w-8">#</TableHead>
-                      {csv.headers.map((h, i) => (
-                        <TableHead key={i} className={cn('text-[10px]', mapping[i] && mapping[i] !== '_skip' ? 'text-amber-700 font-semibold' : 'text-gray-400')}>{h}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {csv.rows.slice(0, 5).map((row, ri) => (
-                      <TableRow key={ri} className={cn('text-xs', invalidRowIndices.includes(ri) ? 'bg-red-50/50' : '')}>
-                        <TableCell className="text-gray-400 tabular-nums">{ri + 1}</TableCell>
-                        {row.map((cell, ci) => (
-                          <TableCell key={ci} className={cn(
-                            'text-gray-600 max-w-[150px] truncate',
-                            emailColIdx != null && ci === Number(emailColIdx) && cell && !emailRe.test(cell) && 'text-red-600 font-medium'
-                          )}>
-                            {cell || <span className="text-gray-300">—</span>}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              {csv.rows.length > 5 && <p className="text-xs text-gray-400 mt-2 text-center">Showing first 5 of {csv.rows.length} rows</p>}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Step 3: Review */}
-      {step === 3 && (
-        <div className="rounded-xl bg-white card-rest">
-          <div className="p-6 pb-3">
-            <h3 className="text-sm font-semibold text-gray-900">Import Summary</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Review your import details before proceeding.</p>
-          </div>
-          <div className="px-4 md:px-6 py-4 grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6">
-            {([
-              ['Total Rows', csv.rows.length, 'text-gray-900'],
-              ['New Companies', uniqueCompanies, 'text-blue-600'],
-              ['Invalid Emails', invalidEmails, invalidEmails > 0 ? 'text-red-600' : 'text-gray-900'],
-              ['Ready to Import', readyCount, 'text-emerald-600'],
-              ['File', file?.name ?? '', 'text-gray-500'],
-            ] as const).map(([label, val, color]) => (
-              <div key={label}>
-                <p className="text-xs text-gray-500">{label}</p>
-                <p className={cn('text-xl font-bold mt-1 tabular-nums', color, label === 'File' && 'text-sm font-medium truncate max-w-[120px]')}>{val}</p>
-              </div>
+                </TableCell>
+              </TableRow>
             ))}
-          </div>
-          {invalidEmails > 0 && (
-            <div className="mx-4 md:mx-6 mb-4 p-3 rounded-lg bg-red-50 border border-red-100 flex items-start gap-2">
-              <AlertTriangle className="size-4 text-red-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-medium text-red-700">{invalidEmails} rows have invalid email addresses</p>
-                <p className="text-[11px] text-red-500 mt-0.5">These rows will be skipped during import. You can fix them and re-import later.</p>
-              </div>
-            </div>
-          )}
-          {companyColIdx == null && (
-            <div className="mx-4 md:mx-6 mb-4 p-3 rounded-lg bg-amber-50 border border-amber-100 flex items-start gap-2">
-              <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-medium text-amber-700">Company Name column is not mapped</p>
-                <p className="text-[11px] text-amber-600 mt-0.5">Go back to Column Mapping and map a column to "Company Name" to create company records.</p>
-              </div>
-            </div>
-          )}
-          <div className="flex flex-col-reverse sm:flex-row justify-between p-4 md:p-6 pt-0 gap-2 border-t border-gray-100">
-            <Button variant="ghost" className="text-gray-500 text-sm" onClick={() => setStep(2)}>
-              <ArrowLeft className="size-3.5 mr-1" /> Back
-            </Button>
-            <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={runImport} disabled={readyCount === 0 || !batchId || companyColIdx == null}>
-              Start Import
-            </Button>
-          </div>
-        </div>
-      )}
+          </TableBody>
+        </Table>
+      </div>
 
-      {/* Step 4: Progress */}
-      {step === 4 && (
-        <div className="rounded-xl bg-white card-rest">
-          <div className="p-8 text-center space-y-5">
-            {progress < 100 ? (
-              <>
-                <div className="mx-auto max-w-md">
-                  <Progress value={progress} className="h-2 [&>div]:bg-amber-500" />
-                  <p className="text-xs text-gray-400 mt-2 tabular-nums">{Math.round(progress)}%</p>
-                </div>
-                <p className="text-sm text-gray-500 animate-pulse">Importing your data...</p>
-              </>
-            ) : (
-              <div className="scale-in">
-                {executeMutation.isError ? (
-                  <>
-                    <AlertTriangle className="size-14 mx-auto text-red-500" />
-                    <div className="mt-4">
-                      <p className="text-lg font-bold text-gray-900">Import Failed</p>
-                      <p className="text-sm text-gray-500 mt-1">{executeMutation.error?.message || 'An unexpected error occurred.'}</p>
-                    </div>
-                    <div className="flex justify-center gap-2 pt-4">
-                      <Button variant="outline" className="text-gray-600 border-gray-200 rounded-lg text-sm" onClick={() => { setStep(3); setProgress(0); setImportResult(null) }}>
-                        <ArrowLeft className="size-3.5 mr-1.5" /> Go Back
-                      </Button>
-                      <Button variant="outline" className="text-gray-600 border-gray-200 rounded-lg text-sm" onClick={() => { setStep(1); setFile(null); setCsv({ headers: [], rows: [] }); setMapping({}); setImportResult(null); setBatchId(null) }}>
-                        <RefreshCw className="size-3.5 mr-1.5" /> Start Over
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="size-14 mx-auto text-emerald-500" />
-                    <div className="mt-4">
-                      <p className="text-lg font-bold text-gray-900">Import Complete!</p>
-                      {importResult && (
-                        <div className="mt-2 flex items-center justify-center gap-4 text-sm text-gray-500">
-                          <span className="text-emerald-600 font-medium">{importResult.accepted} accepted</span>
-                          {importResult.duplicates > 0 && (
-                            <span className="text-amber-600 font-medium">{importResult.duplicates} duplicates</span>
-                          )}
-                          {importResult.invalid > 0 && (
-                            <span className="text-red-600 font-medium">{importResult.invalid} invalid</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex justify-center gap-2 pt-4">
-                      <Button variant="outline" className="text-gray-600 border-gray-200 rounded-lg text-sm" onClick={() => { setStep(1); setFile(null); setCsv({ headers: [], rows: [] }); setMapping({}); setImportResult(null); setBatchId(null) }}>
-                        <RefreshCw className="size-3.5 mr-1.5" /> Import Another
-                      </Button>
-                      <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm press-scale" onClick={() => setActiveView('companies')}>
-                        Go to Companies <ArrowRight className="size-3.5 ml-1" />
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Save Profile */}
+      <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 border border-border">
+        <Checkbox
+          id="save-profile"
+          checked={saveProfile}
+          onCheckedChange={(v) => setSaveProfile(v === true)}
+          className="data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+        />
+        <Label htmlFor="save-profile" className="text-sm text-foreground cursor-pointer">
+          Save as Profile
+        </Label>
+        {saveProfile && (
+          <input
+            type="text"
+            value={profileName}
+            onChange={e => setProfileName(e.target.value)}
+            className="ml-auto h-7 w-48 px-2 text-xs rounded-md bg-background border-border text-foreground"
+            placeholder="Profile name"
+          />
+        )}
+      </div>
 
-      {/* Import History */}
-      {historyError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
-          <AlertTriangle className="size-4 text-red-500 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-medium text-red-700">Failed to load import history</p>
-            <p className="text-xs text-red-500 mt-0.5">Please try refreshing the page.</p>
-          </div>
+      {/* Preview */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="p-4 border-b border-border">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Preview — First 3 Rows</p>
         </div>
-      )}
-
-      {historyItems && historyItems.length > 0 && (
-        <div className="rounded-xl bg-white card-rest">
-          <div className="p-6 pb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-              <FileSpreadsheet className="size-4 text-gray-400" /> Import History
-            </h3>
-            {historyTotal > 0 && (
-              <span className="text-xs text-gray-400">{historyTotal} total</span>
-            )}
-          </div>
-          <div className="px-6 pb-6">
-            <div className="rounded-lg border border-gray-200 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
-                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase">File</TableHead>
-                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase">Rows</TableHead>
-                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase">Accepted</TableHead>
-                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase">Duplicates</TableHead>
-                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase">Invalid</TableHead>
-                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {historyItems.map((b: any) => (
-                    <TableRow key={b.id} className="table-row-hover">
-                      <TableCell className="font-medium text-gray-900 text-sm">{b.fileName}</TableCell>
-                      <TableCell className="text-sm text-gray-600 tabular-nums">{b.totalRows}</TableCell>
-                      <TableCell className="text-sm text-emerald-600 font-medium tabular-nums">{b.acceptedRows}</TableCell>
-                      <TableCell className="text-sm text-gray-600 tabular-nums">{b.duplicateRows}</TableCell>
-                      <TableCell className="text-sm text-red-600 tabular-nums">{b.invalidRows}</TableCell>
-                      <TableCell>
-                        <Badge className={cn('text-[11px] border', b.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-600 border-gray-200')}>
-                          {b.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider w-8">#</TableHead>
+                {MOCK_FILE_HEADERS.map((h, i) => (
+                  <TableHead key={i} className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    {h}
+                    {columnMapping[i] && columnMapping[i] !== 'skip' && (
+                      <span className="ml-1.5 text-amber-400 font-normal normal-case">
+                        → {TARGET_FIELDS.find(f => f.value === columnMapping[i])?.label}
+                      </span>
+                    )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {MOCK_FILE_ROWS.map((row, rIdx) => (
+                <TableRow key={rIdx} className="border-border">
+                  <TableCell className="py-2 text-[11px] text-muted-foreground">{rIdx + 1}</TableCell>
+                  {row.map((cell, cIdx) => (
+                    <TableCell key={cIdx} className="py-2 text-xs text-foreground">{cell}</TableCell>
                   ))}
-                </TableBody>
-              </Table>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="flex justify-between">
+        <Button
+          variant="outline"
+          onClick={() => setStep(1)}
+          className="h-8 text-xs border-border text-muted-foreground"
+        >
+          <ArrowLeft className="size-3.5 mr-1.5" />
+          Back
+        </Button>
+        <Button
+          onClick={() => setStep(3)}
+          className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+        >
+          Continue to Review
+          <ArrowRight className="size-3.5 ml-1.5" />
+        </Button>
+      </div>
+    </div>
+  )
+
+  // ── Render: Step 3 ────────────────────────────────────────────
+  const renderReview = () => {
+    const v = MOCK_VALIDATION
+    const progressPct = Math.round(((v.clean + v.needsReview) / v.total) * 100)
+
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto">
+        {/* Summary Header */}
+        <div className="text-center space-y-2">
+          <h2 className="text-lg font-bold text-foreground">Ready to import {v.total} rows</h2>
+          <p className="text-sm text-muted-foreground">
+            Review validation results before committing. Rows with issues will be flagged for review.
+          </p>
+        </div>
+
+        {/* Overall Progress */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Overall import readiness</span>
+            <span className="text-amber-400 font-medium tabular-nums">{progressPct}%</span>
+          </div>
+          <Progress value={progressPct} className="h-2" />
+        </div>
+
+        {/* Validation Breakdown Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 text-center">
+            <div className="flex items-center justify-center mb-2">
+              <CheckCircle className="size-5 text-emerald-400" />
             </div>
-            {/* Pagination Controls */}
-            {historyTotalPages > 1 && (
-              <div className="flex items-center justify-between mt-4">
-                <span className="text-xs text-gray-400">
-                  Page {historyPage} of {historyTotalPages}
-                </span>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs border-gray-200 text-gray-600 rounded-lg px-2"
-                    onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
-                    disabled={historyPage <= 1}
-                  >
-                    <ChevronLeft className="size-3" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs border-gray-200 text-gray-600 rounded-lg px-2"
-                    onClick={() => setHistoryPage(p => Math.min(historyTotalPages, p + 1))}
-                    disabled={historyPage >= historyTotalPages}
-                  >
-                    <ChevronRight className="size-3" />
-                  </Button>
-                </div>
+            <p className="text-2xl font-bold text-emerald-400 tabular-nums">{v.clean}</p>
+            <p className="text-[10px] font-medium text-emerald-400/70 uppercase tracking-wider mt-0.5">Clean</p>
+          </div>
+
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 text-center">
+            <div className="flex items-center justify-center mb-2">
+              <AlertTriangle className="size-5 text-amber-400" />
+            </div>
+            <p className="text-2xl font-bold text-amber-400 tabular-nums">{v.needsReview}</p>
+            <p className="text-[10px] font-medium text-amber-400/70 uppercase tracking-wider mt-0.5">Needs Review</p>
+          </div>
+
+          <div className="rounded-lg border border-sky-500/20 bg-sky-500/5 p-4 text-center">
+            <div className="flex items-center justify-center mb-2">
+              <Info className="size-5 text-sky-400" />
+            </div>
+            <p className="text-2xl font-bold text-sky-400 tabular-nums">{v.duplicates}</p>
+            <p className="text-[10px] font-medium text-sky-400/70 uppercase tracking-wider mt-0.5">Duplicates</p>
+          </div>
+
+          <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4 text-center">
+            <div className="flex items-center justify-center mb-2">
+              <XCircle className="size-5 text-red-400" />
+            </div>
+            <p className="text-2xl font-bold text-red-400 tabular-nums">{v.invalid}</p>
+            <p className="text-[10px] font-medium text-red-400/70 uppercase tracking-wider mt-0.5">Invalid</p>
+          </div>
+        </div>
+
+        {/* Expandable Issue Details */}
+        <div className="space-y-3">
+          <div className="rounded-xl border border-border overflow-hidden">
+            <button
+              onClick={() => toggleIssue('review')}
+              className="w-full flex items-center justify-between p-3 hover:bg-secondary/30 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="size-4 text-amber-400" />
+                <span className="text-sm font-medium text-foreground">Needs Review ({v.reviewReasons.length} shown)</span>
+              </div>
+              {expandedIssues.review ? <ChevronUp className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}
+            </button>
+            {expandedIssues.review && (
+              <div className="px-3 pb-3 space-y-1.5">
+                {v.reviewReasons.map((issue, i) => (
+                  <div key={i} className="flex items-start gap-2.5 p-2 rounded-lg bg-amber-500/5 text-xs">
+                    <span className="text-amber-400 font-mono font-medium shrink-0 mt-0.5">Row {issue.row}</span>
+                    <span className="text-muted-foreground">{issue.reason}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-border overflow-hidden">
+            <button
+              onClick={() => toggleIssue('invalid')}
+              className="w-full flex items-center justify-between p-3 hover:bg-secondary/30 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <XCircle className="size-4 text-red-400" />
+                <span className="text-sm font-medium text-foreground">Invalid ({v.invalidReasons.length} shown)</span>
+              </div>
+              {expandedIssues.invalid ? <ChevronUp className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}
+            </button>
+            {expandedIssues.invalid && (
+              <div className="px-3 pb-3 space-y-1.5">
+                {v.invalidReasons.map((issue, i) => (
+                  <div key={i} className="flex items-start gap-2.5 p-2 rounded-lg bg-red-500/5 text-xs">
+                    <span className="text-red-400 font-mono font-medium shrink-0 mt-0.5">Row {issue.row}</span>
+                    <span className="text-muted-foreground">{issue.reason}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-border overflow-hidden">
+            <button
+              onClick={() => toggleIssue('duplicates')}
+              className="w-full flex items-center justify-between p-3 hover:bg-secondary/30 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Info className="size-4 text-sky-400" />
+                <span className="text-sm font-medium text-foreground">Duplicates ({v.duplicateReasons.length} shown)</span>
+              </div>
+              {expandedIssues.duplicates ? <ChevronUp className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}
+            </button>
+            {expandedIssues.duplicates && (
+              <div className="px-3 pb-3 space-y-1.5">
+                {v.duplicateReasons.map((issue, i) => (
+                  <div key={i} className="flex items-start gap-2.5 p-2 rounded-lg bg-sky-500/5 text-xs">
+                    <span className="text-sky-400 font-mono font-medium shrink-0 mt-0.5">Row {issue.row}</span>
+                    <span className="text-muted-foreground">{issue.reason}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
         </div>
-      )}
+
+        {/* Import Profile */}
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary/30 border border-border text-xs">
+          <FileText className="size-3.5 text-muted-foreground" />
+          <span className="text-muted-foreground">Import Profile Used:</span>
+          <span className="text-foreground font-medium">{profileName}</span>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center justify-between pt-2">
+          <Button
+            variant="outline"
+            onClick={() => setStep(2)}
+            className="h-9 text-sm border-border text-muted-foreground"
+          >
+            <ArrowLeft className="size-4 mr-2" />
+            Back
+          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={handleCancel}
+              className="h-9 text-sm border-border text-muted-foreground"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCommit}
+              disabled={isCommitting}
+              className="h-9 text-sm bg-amber-600 hover:bg-amber-700 text-white px-6 font-semibold"
+            >
+              {isCommitting ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Upload className="size-4 mr-2" />
+                  Commit Import
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Main Render ───────────────────────────────────────────────
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-bold text-foreground">Import Data</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Upload, map columns, validate, and commit new contacts and companies.
+        </p>
+      </div>
+
+      {/* Wizard */}
+      <div className="rounded-xl border border-border bg-card/80 overflow-hidden">
+        <div className="p-4 border-b border-border bg-secondary/20">
+          <StepIndicator current={step} total={3} />
+        </div>
+        <div className="p-6">
+          {step === 1 && renderUpload()}
+          {step === 2 && renderMapping()}
+          {step === 3 && renderReview()}
+        </div>
+      </div>
+
+      {/* Recent Batches */}
+      <div className="rounded-xl border border-border bg-card/80 overflow-hidden">
+        <div className="p-4 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="size-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-foreground">Recent Batches</h3>
+          </div>
+          <Badge variant="outline" className="text-[10px] border-border">
+            {MOCK_BATCHES.length} batches
+          </Badge>
+        </div>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">File Name</TableHead>
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Profile</TableHead>
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Status</TableHead>
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Total</TableHead>
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider text-right hidden sm:table-cell">Accepted</TableHead>
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider text-right hidden sm:table-cell">Duplicates</TableHead>
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider text-right hidden sm:table-cell">Invalid</TableHead>
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hidden md:table-cell">Date</TableHead>
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Uploaded By</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {MOCK_BATCHES.map(batch => (
+                <TableRow
+                  key={batch.id}
+                  className="border-border table-row-hover cursor-pointer"
+                  onClick={() => toast.info(`Viewing details for ${batch.fileName}`)}
+                >
+                  <TableCell className="py-2.5">
+                    <div className="flex items-center gap-2">
+                      <FileSpreadsheet className="size-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-xs text-foreground font-medium truncate max-w-[180px]">
+                        {batch.fileName}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-2.5">
+                    <span className="text-[11px] text-muted-foreground">{batch.profileName}</span>
+                  </TableCell>
+                  <TableCell className="py-2.5">{statusBadge(batch.status)}</TableCell>
+                  <TableCell className="py-2.5 text-right">
+                    <span className="text-xs text-foreground tabular-nums">{batch.totalRows}</span>
+                  </TableCell>
+                  <TableCell className="py-2.5 text-right hidden sm:table-cell">
+                    <span className="text-xs text-emerald-400 tabular-nums font-medium">{batch.acceptedRows}</span>
+                  </TableCell>
+                  <TableCell className="py-2.5 text-right hidden sm:table-cell">
+                    <span className="text-xs text-sky-400 tabular-nums">{batch.duplicateRows}</span>
+                  </TableCell>
+                  <TableCell className="py-2.5 text-right hidden sm:table-cell">
+                    <span className="text-xs text-red-400 tabular-nums">{batch.invalidRows}</span>
+                  </TableCell>
+                  <TableCell className="py-2.5 hidden md:table-cell">
+                    <span className="text-[11px] text-muted-foreground">{formatDate(batch.createdAt)}</span>
+                  </TableCell>
+                  <TableCell className="py-2.5 hidden lg:table-cell">
+                    <span className="text-[11px] text-muted-foreground">{batch.uploadedBy}</span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
     </div>
   )
 }

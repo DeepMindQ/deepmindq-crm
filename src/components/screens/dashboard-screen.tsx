@@ -1,220 +1,139 @@
-'use client'
+'use client';
 
-import { useQuery } from '@tanstack/react-query'
 import {
-  Building2, Users, ShieldCheck, Sparkles, ArrowRight, Clock, Target,
-  Upload, Mail, BarChart3, Activity, Loader2, ChevronRight, FileSearch, ShieldAlert,
-  AlertTriangle, RefreshCw,
-  TrendingUp, ShieldX, Zap, FileText, ArrowUpRight, ArrowDownRight, Minus,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { useAppStore } from '@/lib/store'
-import { getActivityIcon, SkeletonGrid } from '@/components/shared/design-system'
-import { formatDistanceToNow } from 'date-fns'
+  Users, FileText, Clock, Send, AlertTriangle,
+  ArrowUpRight, Upload, Copy, CheckCircle2,
+  Sparkles, Mail, Zap, Ban,
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell,
-} from 'recharts'
+  PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis,
+  Tooltip as RechartsTooltip, ResponsiveContainer,
+} from 'recharts';
+import { useAppStore } from '@/lib/store';
+import { formatDistanceToNow } from 'date-fns';
 
 /* ═══════════════════════════════════════════════════════════════════════
-   Types
+   Mock Data (inline so no external dependency issues)
    ═══════════════════════════════════════════════════════════════════════ */
 
-interface PipelineStage {
-  label: string
-  count: number
-}
+const DASHBOARD_METRICS = {
+  totalContacts: 1247,
+  totalContactsDelta: '+12%',
+  readyForDrafting: 892,
+  draftsPendingReview: 23,
+  sentThisWeek: 156,
+  repliesReceived: 34,
+  bounceRate: 6.2,
+  totalSuppressed: 89,
+  suppressionDelta: '+4',
+  totalDuplicates: 47,
+  aiScored: 1103,
+  aiScoredPct: 88,
+};
 
-interface DashboardData {
-  totalCompanies: number
-  totalContacts: number
-  healthyEmails: number
-  riskyEmails: number
-  invalidEmails: number
-  archivedContacts: number
-  newThisWeek: number
-  draftsGenerated: number
-  recentActivity: Array<{
-    id: string
-    action: string
-    details: string | null
-    createdAt: string
-    companyId?: string | null
-    contactId?: string | null
-    company?: { id: string; name: string } | null
-    contact?: { id: string; name: string } | null
-  }>
-  pipeline: PipelineStage[]
-  trends: {
-    companies: number
-    contacts: number
-    healthy: number
-    invalid: number
-    newThisWeek: number
-    drafts: number
-  }
-}
+const EMAIL_HEALTH_DISTRIBUTION = [
+  { name: 'Valid', value: 843, color: '#059669' },
+  { name: 'Risky', value: 247, color: '#D97706' },
+  { name: 'Invalid', value: 157, color: '#DC2626' },
+];
+
+const WEEKLY_ACTIVITY = [
+  { day: 'Mon', sent: 32, replies: 5 },
+  { day: 'Tue', sent: 28, replies: 8 },
+  { day: 'Wed', sent: 45, replies: 6 },
+  { day: 'Thu', sent: 22, replies: 4 },
+  { day: 'Fri', sent: 19, replies: 3 },
+  { day: 'Sat', sent: 5, replies: 1 },
+  { day: 'Sun', sent: 5, replies: 7 },
+];
+
+const RECENT_ACTIVITY = [
+  { id: '1', type: 'import', message: 'Imported 150 contacts from Salesforce CSV', time: new Date(Date.now() - 1000 * 60 * 12).toISOString() },
+  { id: '2', type: 'draft', message: 'AI generated 23 new email drafts', time: new Date(Date.now() - 1000 * 60 * 45).toISOString() },
+  { id: '3', type: 'sent', message: 'Sent 15 emails from queue', time: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString() },
+  { id: '4', type: 'bounce', message: '6 hard bounces detected — emails suppressed', time: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString() },
+  { id: '5', type: 'ai', message: 'AI scoring completed for 89 leads', time: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString() },
+  { id: '6', type: 'reply', message: 'New reply from Sarah Chen at Acme Corp', time: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString() },
+];
 
 /* ═══════════════════════════════════════════════════════════════════════
-   Constants
+   Metric Cards
    ═══════════════════════════════════════════════════════════════════════ */
 
-const PIPELINE_COLORS: Record<string, string> = {
-  New: '#6B7280',
-  Researching: '#D97706',
-  Qualified: '#7C3AED',
-  Ready: '#059669',
-  Contacted: '#2563EB',
-  Won: '#16A34A',
-  Lost: '#DC2626',
-}
-
-const EMAIL_HEALTH_COLORS = ['#059669', '#D97706', '#DC2626']
-
-interface KpiCardDef {
-  label: string
-  icon: typeof Building2
-  value: (d: DashboardData) => string
-  sub: (d: DashboardData) => string
-  iconBg: string
-  iconColor: string
-  view: 'companies' | 'contacts' | 'email-generation'
-}
-
-const KPI_CARDS: KpiCardDef[] = [
-  {
-    label: 'Total Companies',
-    icon: Building2,
-    value: (d) => String(d.totalCompanies),
-    sub: () => 'accounts tracked',
-    iconBg: 'bg-gray-100',
-    iconColor: 'text-gray-600',
-    view: 'companies',
-  },
+const METRIC_CARDS = [
   {
     label: 'Total Contacts',
+    value: DASHBOARD_METRICS.totalContacts.toLocaleString(),
     icon: Users,
-    value: (d) => String(d.totalContacts),
-    sub: () => 'people in pipeline',
-    iconBg: 'bg-violet-50',
-    iconColor: 'text-violet-600',
-    view: 'contacts',
+    delta: DASHBOARD_METRICS.totalContactsDelta,
+    deltaColor: 'text-emerald-400',
+    deltaIcon: ArrowUpRight,
+    iconBg: 'bg-emerald-500/10',
+    iconColor: 'text-emerald-400',
   },
   {
-    label: 'Email Health',
-    icon: ShieldCheck,
-    value: (d) => `${d.healthyEmails}/${d.totalContacts}`,
-    sub: () => 'healthy',
-    iconBg: 'bg-emerald-50',
-    iconColor: 'text-emerald-600',
-    view: 'contacts',
+    label: 'Ready for Drafting',
+    value: DASHBOARD_METRICS.readyForDrafting.toLocaleString(),
+    icon: FileText,
+    subtext: 'leads with valid email & company context',
+    iconBg: 'bg-primary/10',
+    iconColor: 'text-primary',
   },
   {
-    label: 'AI Drafts',
-    icon: Sparkles,
-    value: (d) => String(d.draftsGenerated),
-    sub: () => 'generated',
-    iconBg: 'bg-amber-50',
-    iconColor: 'text-amber-600',
-    view: 'email-generation',
+    label: 'Drafts Pending Review',
+    value: DASHBOARD_METRICS.draftsPendingReview.toString(),
+    icon: Clock,
+    badge: { text: 'Needs attention', color: 'border-primary/40 text-primary' },
+    iconBg: 'bg-primary/10',
+    iconColor: 'text-primary',
+    onClick: () => {},
   },
-]
+  {
+    label: 'Sent This Week',
+    value: DASHBOARD_METRICS.sentThisWeek.toString(),
+    icon: Send,
+    subtext: `${DASHBOARD_METRICS.repliesReceived} replies received`,
+    iconBg: 'bg-cyan-500/10',
+    iconColor: 'text-cyan-400',
+  },
+  {
+    label: 'Bounce Rate',
+    value: `${DASHBOARD_METRICS.bounceRate}%`,
+    icon: AlertTriangle,
+    indicator: { color: 'text-red-400', text: 'Above 5% threshold' },
+    iconBg: 'bg-red-500/10',
+    iconColor: 'text-red-400',
+  },
+  {
+    label: 'Suppressed',
+    value: DASHBOARD_METRICS.totalSuppressed.toString(),
+    icon: Ban,
+    delta: `+${DASHBOARD_METRICS.suppressionDelta}`,
+    deltaColor: 'text-red-400',
+    iconBg: 'bg-red-500/10',
+    iconColor: 'text-red-400',
+  },
+];
 
 /* ═══════════════════════════════════════════════════════════════════════
-   Custom Tooltip — Pipeline Bar Chart
+   Activity icon helper
    ═══════════════════════════════════════════════════════════════════════ */
 
-function PipelineTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: PipelineStage }> }) {
-  if (!active || !payload || !payload.length) return null
-  const stage = payload[0].payload
-  return (
-    <div className="bg-white rounded-lg shadow-lg border border-gray-100 px-3 py-2 text-sm">
-      <p className="font-semibold text-gray-900">{stage.label}</p>
-      <p className="text-gray-500 tabular-nums">{stage.count} {stage.count === 1 ? 'company' : 'companies'}</p>
-    </div>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   Custom Tooltip — Email Health Pie Chart
-   ═══════════════════════════════════════════════════════════════════════ */
-
-interface EmailHealthSlice {
-  name: string
-  value: number
-  color: string
-}
-
-function EmailHealthTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: EmailHealthSlice }> }) {
-  if (!active || !payload || !payload.length) return null
-  const slice = payload[0].payload
-  return (
-    <div className="bg-white rounded-lg shadow-lg border border-gray-100 px-3 py-2 text-sm">
-      <div className="flex items-center gap-2 mb-0.5">
-        <span className="inline-block size-2.5 rounded-full" style={{ backgroundColor: slice.color }} />
-        <p className="font-medium text-gray-900">{slice.name}</p>
-      </div>
-      <p className="text-gray-500 tabular-nums">{slice.value} {slice.value === 1 ? 'email' : 'emails'}</p>
-    </div>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   Custom Label — Pipeline bars
-   ═══════════════════════════════════════════════════════════════════════ */
-
-function BarLabel({ x, y, width, value }: { x: number; y: number; width: number; value: number }) {
-  if (value === 0) return null
-  return (
-    <text
-      x={x + width + 8}
-      y={y + 16}
-      fill="#6B7280"
-      fontSize={12}
-      fontWeight={600}
-      className="tabular-nums"
-    >
-      {value}
-    </text>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   AI Insights Types & Config
-   ═══════════════════════════════════════════════════════════════════════ */
-
-interface AiInsight {
-  type: 'positive' | 'negative' | 'neutral' | 'action'
-  icon: string
-  title: string
-  description: string
-}
-
-interface AiPrediction {
-  metric: string
-  current: number
-  predicted: number
-  trend: 'up' | 'down' | 'stable'
-  confidence: number
-}
-
-interface AiInsightsData {
-  summary: string
-  keyInsights: AiInsight[]
-  predictions: AiPrediction[]
-}
-
-const INSIGHT_STYLES: Record<string, { bg: string; iconColor: string; border: string }> = {
-  positive: { bg: 'bg-emerald-50', iconColor: 'text-emerald-600', border: 'border-emerald-200' },
-  negative: { bg: 'bg-red-50', iconColor: 'text-red-600', border: 'border-red-200' },
-  action: { bg: 'bg-amber-50', iconColor: 'text-amber-600', border: 'border-amber-200' },
-  neutral: { bg: 'bg-sky-50', iconColor: 'text-sky-600', border: 'border-sky-200' },
-}
-
-const ICON_MAP: Record<string, typeof Building2> = {
-  TrendingUp, ShieldCheck, Sparkles, AlertTriangle, ShieldAlert, FileSearch,
-  Mail, Target, Users, Building2, Clock, Zap, FileText, ShieldX,
+function getActivityIcon(type: string) {
+  switch (type) {
+    case 'import': return <Upload className="w-4 h-4 text-primary" />;
+    case 'draft': return <FileText className="w-4 h-4 text-primary" />;
+    case 'sent': return <Send className="w-4 h-4 text-cyan-400" />;
+    case 'bounce': return <AlertTriangle className="w-4 h-4 text-red-400" />;
+    case 'ai': return <Sparkles className="w-4 h-4 text-primary" />;
+    case 'reply': return <Mail className="w-4 h-4 text-emerald-400" />;
+    default: return <Zap className="w-4 h-4 text-muted-foreground" />;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -222,437 +141,249 @@ const ICON_MAP: Record<string, typeof Building2> = {
    ═══════════════════════════════════════════════════════════════════════ */
 
 export function DashboardScreen() {
-  const { setActiveView, setSelectedCompanyId, setSelectedContactId, setCompanyStatusFilter } = useAppStore()
-
-  /* ── Data fetch ── */
-  const { data, isLoading, error, refetch } = useQuery<DashboardData>({
-    queryKey: ['dashboard'],
-    queryFn: () =>
-      fetch('/api/dashboard').then(r => {
-        if (!r.ok) throw new Error('Failed to load dashboard data')
-        return r.json()
-      }),
-    refetchInterval: 30_000,
-  })
-
-  /* ── AI Insights fetch ── */
-  const { data: insightsData, isLoading: insightsLoading } = useQuery<AiInsightsData>({
-    queryKey: ['ai-insights'],
-    queryFn: () =>
-      fetch('/api/ai/insights').then(r => {
-        if (!r.ok) throw new Error('Failed to load AI insights')
-        return r.json()
-      }),
-    refetchInterval: 5 * 60_000,
-    retry: 1,
-  })
-
-  /* ── Loading state ── */
-  if (isLoading || !data) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 tracking-tight">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Sales intelligence overview</p>
-        </div>
-        <SkeletonGrid cols={4} panels={4} />
-      </div>
-    )
-  }
-
-  /* ── Error state ── */
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 tracking-tight">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Sales intelligence overview</p>
-        </div>
-        <div className="rounded-xl bg-red-50 border border-red-200 p-6 flex items-start gap-4">
-          <AlertTriangle className="size-6 text-red-500 shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-red-900">Failed to load dashboard</p>
-            <p className="text-sm text-red-700 mt-0.5">{error.message}</p>
-          </div>
-          <Button
-            variant="outline"
-            className="border-red-200 text-red-700 hover:bg-red-50 shrink-0"
-            onClick={() => refetch()}
-          >
-            <RefreshCw className="size-3.5 mr-1.5" /> Retry
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  /* ── Derived data ── */
-  const emailHealthData: EmailHealthSlice[] = [
-    { name: 'Valid', value: data.healthyEmails, color: EMAIL_HEALTH_COLORS[0] },
-    { name: 'Risky', value: data.riskyEmails, color: EMAIL_HEALTH_COLORS[1] },
-    { name: 'Invalid', value: data.invalidEmails, color: EMAIL_HEALTH_COLORS[2] },
-  ].filter((s) => s.value > 0)
-
-  const totalEmails = data.healthyEmails + data.riskyEmails + data.invalidEmails
-  const activityItems = data.recentActivity.slice(0, 8)
-
-  /* ── Helpers ── */
-  function handleKpiDrillDown(view: 'companies' | 'contacts' | 'email-generation', label: string) {
-    if (view === 'companies') {
-      setCompanyStatusFilter('all')
-    }
-    setActiveView(view)
-  }
-
-  function handleActivityClick(item: (typeof activityItems)[number]) {
-    if (item.companyId) {
-      setSelectedCompanyId(item.companyId)
-      setActiveView('company-profile')
-    } else if (item.contactId) {
-      setSelectedContactId(item.contactId)
-      setActiveView('contact-profile')
-    }
-  }
-
-  /* ═══════════════════════════════════════════════════════════════════
-     Render
-     ═══════════════════════════════════════════════════════════════════ */
+  const setActiveView = useAppStore((s) => s.setActiveView);
 
   return (
-    <div className="space-y-6">
-      {/* ── Page Header ── */}
+    <div className="space-y-6 fade-in">
+      {/* Header */}
       <div>
-        <h1 className="text-lg font-bold text-gray-900 tracking-tight">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Sales intelligence overview</p>
+        <h1 className="text-2xl font-semibold text-foreground tracking-tight">Dashboard</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Overview of your lead intelligence and outreach pipeline.
+        </p>
       </div>
 
-      {/* ── Row 1: KPI Cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {KPI_CARDS.map((card, idx) => {
-          const Icon = card.icon
-          return (
-            <div
-              key={card.label}
-              className="rounded-xl bg-white card-rest p-5 slide-up"
-              style={{ animationDelay: `${idx * 60}ms` }}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 space-y-1">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{card.label}</p>
-                  <p className="text-2xl font-bold text-gray-900 tracking-tight tabular-nums leading-tight">
-                    {card.value(data)}
-                  </p>
-                  <p className="text-xs text-gray-400">{card.sub(data)}</p>
+      {/* Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        {METRIC_CARDS.map((m) => (
+          <Card
+            key={m.label}
+            className="bg-card border-border hover:border-border/80 transition-colors cursor-default"
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className={`flex items-center justify-center w-9 h-9 rounded-lg ${m.iconBg}`}>
+                  <m.icon className={`w-[18px] h-[18px] ${m.iconColor}`} />
                 </div>
-                <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${card.iconBg}`}>
-                  <Icon className={`size-5 ${card.iconColor}`} />
-                </div>
+                {m.badge && (
+                  <Badge variant="outline" className={`text-[10px] px-2 py-0 border ${m.badge.color}`}>
+                    {m.badge.text}
+                  </Badge>
+                )}
+                {m.delta && (
+                  <span className={`text-xs font-medium flex items-center gap-0.5 ${m.deltaColor}`}>
+                    {m.deltaIcon && <m.deltaIcon className="w-3 h-3" />}
+                    {m.delta}
+                  </span>
+                )}
               </div>
+              <div className="text-2xl font-bold text-foreground tabular-nums">{m.value}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {m.subtext || m.indicator ? (
+                  <span className={m.indicator?.color}>{m.subtext || m.indicator?.text}</span>
+                ) : (
+                  m.label
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Email Health Pie */}
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-2 px-4 pt-4">
+            <CardTitle className="text-sm font-medium text-foreground">Email Health Distribution</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={EMAIL_HEALTH_DISTRIBUTION}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={80}
+                    paddingAngle={3}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {EMAIL_HEALTH_DISTRIBUTION.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip
+                    contentStyle={{
+                      backgroundColor: 'oklch(0.17 0.01 260)',
+                      border: '1px solid oklch(0.27 0.005 260)',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      color: 'oklch(0.93 0 0)',
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex items-center justify-center gap-4 mt-2">
+              {EMAIL_HEALTH_DISTRIBUTION.map((item) => (
+                <div key={item.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                  {item.name} ({item.value})
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Weekly Activity Area */}
+        <Card className="bg-card border-border lg:col-span-2">
+          <CardHeader className="pb-2 px-4 pt-4">
+            <CardTitle className="text-sm font-medium text-foreground">Weekly Activity</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={WEEKLY_ACTIVITY}>
+                  <defs>
+                    <linearGradient id="sentGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="oklch(0.78 0.14 75)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="oklch(0.78 0.14 75)" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="replyGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#059669" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="day"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'oklch(0.6 0 0)', fontSize: 11 }}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'oklch(0.6 0 0)', fontSize: 11 }}
+                  />
+                  <RechartsTooltip
+                    contentStyle={{
+                      backgroundColor: 'oklch(0.17 0.01 260)',
+                      border: '1px solid oklch(0.27 0.005 260)',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      color: 'oklch(0.93 0 0)',
+                    }}
+                  />
+                  <Area type="monotone" dataKey="sent" stroke="oklch(0.78 0.14 75)" strokeWidth={2} fill="url(#sentGrad)" />
+                  <Area type="monotone" dataKey="replies" stroke="#059669" strokeWidth={2} fill="url(#replyGrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex items-center justify-center gap-6 mt-2">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="w-2.5 h-2.5 rounded-full bg-primary" />
+                Emails Sent
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#059669' }} />
+                Replies
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions + Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Quick Actions */}
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-3 px-4 pt-4">
+            <CardTitle className="text-sm font-medium text-foreground">Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0 space-y-2">
+            {[
+              { label: 'Import Leads', icon: Upload, view: 'import' as const },
+              { label: 'Review Drafts', icon: FileText, view: 'drafts' as const, badge: '23' },
+              { label: 'Send Queue', icon: Send, view: 'queue' as const },
+              { label: 'Find Duplicates', icon: Copy, view: 'duplicates' as const },
+              { label: 'Capability Library', icon: Sparkles, view: 'capability-library' as const },
+            ].map((action) => (
               <button
-                onClick={() => handleKpiDrillDown(card.view, card.label)}
-                className="mt-3 flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700 transition-colors group cursor-pointer"
+                key={action.label}
+                onClick={() => setActiveView(action.view)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-white/[0.04] hover:text-foreground transition-colors text-left"
               >
-                View all
-                <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
+                <action.icon className="w-4 h-4 shrink-0" />
+                <span className="flex-1">{action.label}</span>
+                {action.badge && (
+                  <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-[11px] bg-primary/15 text-primary border-0">
+                    {action.badge}
+                  </Badge>
+                )}
               </button>
-            </div>
-          )
-        })}
-      </div>
+            ))}
+          </CardContent>
+        </Card>
 
-      {/* ── Row 1.5: AI Insights Panel ── */}
-      <div className="rounded-xl bg-white card-rest slide-up overflow-hidden" style={{ animationDelay: '200ms' }}>
-        {/* Gradient top border */}
-        <div className="h-1 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-400" />
-        <div className="p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-amber-50">
-                <Sparkles className="size-3.5 text-amber-600" />
-              </div>
-              <h2 className="text-sm font-semibold text-gray-900 tracking-tight">AI Insights</h2>
-            </div>
-            {!insightsLoading && insightsData && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 h-7 px-2"
-                onClick={() => setActiveView('tasks')}
-              >
-                View Recommendations
-                <ArrowRight className="size-3 ml-1" />
-              </Button>
-            )}
-          </div>
-
-          {insightsLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-16 w-full rounded-lg" />
+        {/* Recent Activity */}
+        <Card className="bg-card border-border lg:col-span-2">
+          <CardHeader className="pb-3 px-4 pt-4">
+            <CardTitle className="text-sm font-medium text-foreground">Recent Activity</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <ScrollArea className="h-[280px]">
+              <div className="space-y-1">
+                {RECENT_ACTIVITY.map((item, i) => (
+                  <div key={item.id}>
+                    <div className="flex items-start gap-3 px-2 py-2.5 rounded-lg hover:bg-white/[0.02] transition-colors">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-md bg-white/[0.04] mt-0.5 shrink-0">
+                        {getActivityIcon(item.type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-foreground leading-snug">{item.message}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {formatDistanceToNow(new Date(item.time), { addSuffix: true })}
+                        </p>
+                      </div>
+                    </div>
+                    {i < RECENT_ACTIVITY.length - 1 && <Separator className="ml-12" />}
+                  </div>
                 ))}
               </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* AI Scoring Banner */}
+      <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
+        <CardContent className="flex items-center gap-4 p-4">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/15 shrink-0">
+            <Sparkles className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground">
+              AI Scoring Engine
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {DASHBOARD_METRICS.aiScored} of {DASHBOARD_METRICS.totalContacts} contacts scored ({DASHBOARD_METRICS.aiScoredPct}%).
+              {DASHBOARD_METRICS.totalContacts - DASHBOARD_METRICS.aiScored > 0 && ` ${DASHBOARD_METRICS.totalContacts - DASHBOARD_METRICS.aiScored} remaining.`}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-24 h-2 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${DASHBOARD_METRICS.aiScoredPct}%` }}
+              />
             </div>
-          ) : insightsData ? (
-            <>
-              <p className="text-sm text-gray-600 leading-relaxed">{insightsData.summary}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
-                {insightsData.keyInsights.map((insight, idx) => {
-                  const style = INSIGHT_STYLES[insight.type] ?? INSIGHT_STYLES.neutral
-                  const IconComp = ICON_MAP[insight.icon] ?? FileText
-                  return (
-                    <div
-                      key={idx}
-                      className={`flex items-start gap-3 rounded-lg border p-3 ${style.bg} ${style.border}`}
-                    >
-                      <IconComp className={`size-4 mt-0.5 shrink-0 ${style.iconColor}`} />
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-gray-900 leading-tight">{insight.title}</p>
-                        <p className="text-xs text-gray-600 mt-0.5 leading-snug line-clamp-2">{insight.description}</p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-              {/* Predictions row */}
-              {insightsData.predictions.length > 0 && (
-                <div className="flex flex-wrap gap-4 mt-4 pt-3 border-t border-gray-100">
-                  {insightsData.predictions.map((pred, idx) => {
-                    const TrendIcon = pred.trend === 'up' ? ArrowUpRight : pred.trend === 'down' ? ArrowDownRight : Minus
-                    const trendColor = pred.trend === 'up' ? 'text-emerald-600' : pred.trend === 'down' ? 'text-red-600' : 'text-gray-400'
-                    return (
-                      <div key={idx} className="flex items-center gap-2 text-xs">
-                        <span className="text-gray-500">{pred.metric}</span>
-                        <span className="font-semibold text-gray-900 tabular-nums">{pred.current}</span>
-                        <TrendIcon className={`size-3 ${trendColor}`} />
-                        <span className={`font-medium tabular-nums ${trendColor}`}>{pred.predicted}</span>
-                        <span className="text-gray-400">({pred.confidence}%)</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </>
-          ) : null}
-        </div>
-      </div>
-
-      {/* ── Row 2: Pipeline Chart + Email Health Donut ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Pipeline Chart */}
-        <div className="lg:col-span-2 rounded-xl bg-white card-rest p-5 slide-up" style={{ animationDelay: '340ms' }}>
-          <div className="flex items-center gap-2 mb-5">
-            <Target className="size-4 text-gray-400" />
-            <h2 className="text-sm font-semibold text-gray-900 tracking-tight">Sales Pipeline</h2>
+            <span className="text-sm font-semibold text-primary tabular-nums">{DASHBOARD_METRICS.aiScoredPct}%</span>
           </div>
-          <div className="w-full" style={{ height: 280 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={data.pipeline}
-                layout="vertical"
-                margin={{ top: 0, right: 36, bottom: 0, left: 0 }}
-              >
-                <XAxis type="number" hide />
-                <YAxis
-                  type="category"
-                  dataKey="label"
-                  width={85}
-                  tick={{ fontSize: 12, fill: '#6B7280' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip content={<PipelineTooltip />} cursor={{ fill: 'rgba(0,0,0,0.02)' }} />
-                <Bar
-                  dataKey="count"
-                  radius={[0, 6, 6, 0]}
-                  maxBarSize={24}
-                  animationDuration={700}
-                  animationEasing="ease-out"
-                >
-                  {data.pipeline.map((stage) => (
-                    <Cell
-                      key={stage.label}
-                      fill={PIPELINE_COLORS[stage.label] ?? '#9CA3AF'}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Email Health Donut */}
-        <div className="rounded-xl bg-white card-rest p-5 slide-up" style={{ animationDelay: '400ms' }}>
-          <div className="flex items-center gap-2 mb-5">
-            <ShieldCheck className="size-4 text-gray-400" />
-            <h2 className="text-sm font-semibold text-gray-900 tracking-tight">Email Health</h2>
-          </div>
-          <div className="relative flex items-center justify-center" style={{ height: 200 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={emailHealthData.length > 0 ? emailHealthData : [{ name: 'No data', value: 1, color: '#F3F4F6' }]}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={58}
-                  outerRadius={82}
-                  paddingAngle={emailHealthData.length > 1 ? 3 : 0}
-                  dataKey="value"
-                  strokeWidth={0}
-                  animationDuration={700}
-                  animationEasing="ease-out"
-                >
-                  {emailHealthData.length > 0
-                    ? emailHealthData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))
-                    : <Cell fill="#F3F4F6" />
-                  }
-                </Pie>
-                <Tooltip content={<EmailHealthTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-            {/* Center label */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-2xl font-bold text-gray-900 tabular-nums leading-none">{totalEmails}</span>
-              <span className="text-[10px] uppercase tracking-wider text-gray-400 font-medium mt-1">total</span>
-            </div>
-          </div>
-          {/* Legend */}
-          <div className="mt-4 space-y-2">
-            {emailHealthData.length > 0 ? (
-              emailHealthData.map((slice) => (
-                <div key={slice.name} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block size-2.5 rounded-full" style={{ backgroundColor: slice.color }} />
-                    <span className="text-gray-600">{slice.name}</span>
-                  </div>
-                  <span className="font-semibold text-gray-900 tabular-nums">{slice.value}</span>
-                </div>
-              ))
-            ) : (
-              <p className="text-xs text-gray-400 text-center py-2">No email data yet</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Row 3: Activity Feed + Quick Actions ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Recent Activity */}
-        <div className="lg:col-span-2 rounded-xl bg-white card-rest p-5 slide-up" style={{ animationDelay: '460ms' }}>
-          <div className="flex items-center gap-2 mb-4">
-            <Clock className="size-4 text-gray-400" />
-            <h2 className="text-sm font-semibold text-gray-900 tracking-tight">Recent Activity</h2>
-          </div>
-          <div className="space-y-0 divide-y divide-gray-100 max-h-96 overflow-y-auto">
-            {activityItems.length > 0 ? (
-              activityItems.map((item) => {
-                const { icon: ActivityIcon, color, bg } = getActivityIcon(item.action)
-                const isClickable = !!item.companyId || !!item.contactId
-                return (
-                  <div
-                    key={item.id}
-                    className={`flex items-start gap-3 py-3 first:pt-0 last:pb-0 ${
-                      isClickable ? 'cursor-pointer group' : ''
-                    }`}
-                    onClick={() => isClickable && handleActivityClick(item)}
-                  >
-                    <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${bg} mt-0.5`}>
-                      <ActivityIcon className={`size-4 ${color}`} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-gray-700 leading-snug">
-                        {item.company?.name && (
-                          <span className="font-medium text-gray-900 group-hover:text-amber-600 transition-colors">
-                            {item.company.name}
-                          </span>
-                        )}
-                        {item.contact?.name && !item.company?.name && (
-                          <span className="font-medium text-gray-900 group-hover:text-amber-600 transition-colors">
-                            {item.contact.name}
-                          </span>
-                        )}
-                        {(item.company?.name || item.contact?.name) && item.details ? ' — ' : ''}
-                        {item.details || item.action.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
-                      </p>
-                    </div>
-                    {isClickable && (
-                      <ChevronRight className="size-4 text-gray-300 group-hover:text-amber-400 shrink-0 mt-1 transition-colors" />
-                    )}
-                  </div>
-                )
-              })
-            ) : (
-              <div className="flex flex-col items-center justify-center py-10">
-                <Activity className="size-8 text-gray-200 mb-2" />
-                <p className="text-sm text-gray-400">No recent activity</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="rounded-xl bg-white card-rest p-5 slide-up" style={{ animationDelay: '520ms' }}>
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="size-4 text-gray-400" />
-            <h2 className="text-sm font-semibold text-gray-900 tracking-tight">Quick Actions</h2>
-          </div>
-          <div className="space-y-3">
-            {[
-              {
-                icon: Upload,
-                title: 'Import Data',
-                description: 'Upload CSV or connect a data source',
-                view: 'import' as const,
-              },
-              {
-                icon: FileSearch,
-                title: 'Generate Research',
-                description: 'View companies to run AI research',
-                view: 'companies' as const,
-              },
-              {
-                icon: Mail,
-                title: 'Validate Emails',
-                description: 'Check and verify contact emails',
-                view: 'contacts' as const,
-              },
-              {
-                icon: ShieldAlert,
-                title: 'Upload Knowledge',
-                description: 'Add capability docs for better drafts',
-                view: 'knowledge-library' as const,
-              },
-            ].map((action) => {
-              const ActionIcon = action.icon
-              return (
-                <button
-                  key={action.title}
-                  onClick={() => setActiveView(action.view)}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-amber-50 hover:border-amber-200/60 transition-all duration-150 group cursor-pointer text-left"
-                >
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 group-hover:bg-amber-100 transition-colors">
-                    <ActionIcon className="size-4 text-amber-600" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900 group-hover:text-amber-700 transition-colors leading-tight">
-                      {action.title}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5 leading-snug">{action.description}</p>
-                  </div>
-                  <ArrowRight className="size-4 text-gray-300 group-hover:text-amber-500 shrink-0 transition-colors" />
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
-  )
+  );
 }

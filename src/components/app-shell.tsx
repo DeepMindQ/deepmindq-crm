@@ -1,618 +1,352 @@
-'use client'
+'use client';
 
-import * as React from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { motion, AnimatePresence } from 'framer-motion'
-import Image from 'next/image'
+import React, { useCallback, useState } from 'react';
 import {
-  LayoutDashboard, Building2, Users, Upload, Settings, Search,
-  Bell, HelpCircle, LogOut, ChevronDown, Command, X, CheckCircle2, Sparkles,
-  BookOpen, MailPlus, Target, TrendingUp, ArrowRight, FileCode2,
-  Sun, Moon, CheckSquare, Kanban, Mail, FileText, Shield, BarChart3,
-} from 'lucide-react'
+  LayoutDashboard,
+  Users,
+  Building2,
+  Upload,
+  FileText,
+  Send,
+  BookOpen,
+  MessageSquare,
+  Copy,
+  Shield,
+  Settings,
+  Brain,
+  Search,
+  Bell,
+  ChevronLeft,
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeft,
+} from 'lucide-react';
+import { useAppStore } from '@/lib/store';
+import type { ViewId } from '@/lib/store';
+import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  SidebarProvider, Sidebar, SidebarHeader, SidebarContent,
-  SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarMenu,
-  SidebarMenuItem, SidebarMenuButton, SidebarRail, SidebarSeparator,
-  SidebarInset, SidebarTrigger,
-} from '@/components/ui/sidebar'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Input } from '@/components/ui/input'
-import { Separator } from '@/components/ui/separator'
-import {
-  Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb'
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Skeleton } from '@/components/ui/skeleton'
-const MOCK_SESSION = {
-  user: { id: 'demo-1', name: 'Ravi Shanker', email: 'ravi@deepmindq.com', role: 'admin' as const },
-}
-function signOut(options?: { callbackUrl?: string }) {
-  window.location.href = options?.callbackUrl || '/login'
-}
-import { toast } from 'sonner'
-import { useTheme } from 'next-themes'
-import { CommandPalette } from '@/components/shared/command-palette'
-import { AiChatSidebar } from '@/components/shared/ai-chat-sidebar'
-import { AiChatButton } from '@/components/shared/ai-chat-button'
-import { useAppStore } from '@/lib/store'
-import { cn } from '@/lib/utils'
-import type { ActiveView } from '@/lib/types'
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
-// ── Sidebar Navigation Groups ──
-const MAIN_NAV: { view: ActiveView; label: string; icon: React.ElementType }[] = [
-  { view: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { view: 'companies', label: 'Companies', icon: Building2 },
-  { view: 'contacts', label: 'Contacts', icon: Users },
-  { view: 'opportunities', label: 'Pipeline', icon: Kanban },
-  { view: 'tasks', label: 'Tasks', icon: CheckSquare },
-]
+/* ═══════════════════════════════════════════════════════════════════════
+   Navigation Configuration
+   ═══════════════════════════════════════════════════════════════════════ */
 
-const AI_NAV: { view: ActiveView; label: string; icon: React.ElementType }[] = [
-  { view: 'email-generation', label: 'AI Emails', icon: MailPlus },
-  { view: 'sequences', label: 'Sequences', icon: Mail },
-  { view: 'knowledge-library', label: 'Knowledge', icon: BookOpen },
-  { view: 'prompt-templates', label: 'Prompts', icon: FileCode2 },
-]
-
-const ANALYTICS_NAV: { view: ActiveView; label: string; icon: React.ElementType }[] = [
-  { view: 'reports', label: 'Analytics', icon: BarChart3 },
-  { view: 'audit-logs', label: 'Audit Log', icon: Shield },
-]
-
-const pageTitles: Record<ActiveView, string> = {
-  dashboard: 'Dashboard', companies: 'Companies',
-  'company-profile': 'Company Profile', contacts: 'Contacts',
-  'contact-profile': 'Contact Profile',
-  tasks: 'Tasks',
-  opportunities: 'Pipeline',
-  'email-generation': 'AI Emails',
-  'knowledge-library': 'Knowledge Library',
-  'prompt-templates': 'Prompt Library',
-  import: 'Import', settings: 'Settings',
-  'audit-logs': 'Audit Logs',
-  sequences: 'Sequences',
-  reports: 'Analytics',
+interface NavItem {
+  label: string;
+  view: ViewId;
+  icon: React.ElementType;
+  badge?: string;
+  badgeCount?: number;
+  isHeart?: boolean;
 }
 
-const pageDescriptions: Record<ActiveView, string> = {
-  dashboard: 'Overview of your lead pipeline',
-  companies: 'Target company accounts',
-  'company-profile': 'Detailed company intelligence',
-  contacts: 'Contact database & outreach',
-  'contact-profile': 'Contact details & activity',
-  tasks: 'Manage tasks and to-dos',
-  opportunities: 'Sales pipeline management',
-  'email-generation': 'Generate AI outreach emails',
-  'knowledge-library': 'Capability documents & snippets',
-  'prompt-templates': 'Manage email & research prompt templates',
-  import: 'Bulk data import',
-  settings: 'Configuration & preferences',
-  'audit-logs': 'Activity & audit trail',
-  sequences: 'Email sequence campaigns',
-  reports: 'Comprehensive reports & analytics',
-}
+const NAV_ITEMS: NavItem[] = [
+  { label: 'Dashboard', view: 'dashboard', icon: LayoutDashboard },
+  { label: 'Leads', view: 'leads', icon: Users },
+  { label: 'Companies', view: 'companies', icon: Building2 },
+  { label: 'Import', view: 'import', icon: Upload },
+  { label: 'Draft Review', view: 'drafts', icon: FileText, badgeCount: 23 },
+  { label: 'Send Queue', view: 'queue', icon: Send },
+  { label: 'Capability Library', view: 'capability-library', icon: BookOpen, isHeart: true },
+  { label: 'Replies & Bounces', view: 'replies', icon: MessageSquare },
+  { label: 'Duplicates', view: 'duplicates', icon: Copy },
+  { label: 'Audit Log', view: 'audit', icon: Shield },
+  { label: 'Settings', view: 'settings', icon: Settings },
+];
 
-const contentVariants = { initial: { opacity: 0, y: 4 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -4 } }
-const contentTransition = { duration: 0.2, ease: [0.16, 1, 0.3, 1] }
+/* ═══════════════════════════════════════════════════════════════════════
+   Sidebar Nav Button
+   ═══════════════════════════════════════════════════════════════════════ */
 
-interface NotificationItem {
-  id: string
-  action?: string
-  type?: string
-  title?: string
-  description?: string
-  companyId?: string
-  contactId?: string
-  createdAt?: string
-}
+function NavButton({
+  item,
+  active,
+  collapsed,
+  onClick,
+}: {
+  item: NavItem;
+  active: boolean;
+  collapsed: boolean;
+  onClick: () => void;
+}) {
+  const Icon = item.icon;
 
-interface PipelineItem { label: string; count: number }
+  const button = (
+    <button
+      onClick={onClick}
+      className={`
+        group relative flex items-center w-full gap-3 rounded-lg text-sm font-medium
+        transition-all duration-200 ease-out outline-none
+        ${collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'}
+        ${
+          active
+            ? 'bg-primary/15 text-primary'
+            : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground'
+        }
+        focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-[oklch(0.11_0.01_260)]
+      `}
+      aria-current={active ? 'page' : undefined}
+    >
+      {/* Active accent line */}
+      {active && (
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary" />
+      )}
 
-function getInitials(name?: string | null): string {
-  if (!name) return '?'
-  const parts = name.trim().split(/\s+/)
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-  return parts[0][0].toUpperCase()
-}
+      <Icon
+        className={`shrink-0 transition-colors duration-200 ${
+          active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+        }`}
+        size={20}
+        strokeWidth={active ? 2.2 : 1.8}
+      />
 
-export function AppShell({ children }: { children: React.ReactNode }) {
-  const session = MOCK_SESSION
-  const userName = session?.user?.name || 'User'
-  const userEmail = session?.user?.email || ''
-  const userInitials = getInitials(userName)
-  const {
-    activeView, selectedCompanyId, selectedContactId, companyStatusFilter,
-    setActiveView, setSelectedCompanyId, setSelectedContactId,
-  } = useAppStore()
-  const queryClient = useQueryClient()
-  const [showNotifications, setShowNotifications] = React.useState(false)
-  const [showHelp, setShowHelp] = React.useState(false)
-  const [aiChatOpen, setAiChatOpen] = React.useState(false)
-  const { theme, setTheme } = useTheme()
+      {!collapsed && (
+        <span className="truncate">{item.label}</span>
+      )}
 
-  // ── Notifications ──
-  const { data: notifData, isLoading: notifLoading, error: notifError } = useQuery({
-    queryKey: ['recent-notifications'],
-    queryFn: () => fetch('/api/timeline?limit=5').then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to fetch'))),
-    staleTime: 30_000,
-  })
-  const notifications = Array.isArray(notifData) ? notifData.slice(0, 5) : notifData?.entries?.slice(0, 5) || []
+      {!collapsed && item.isHeart && (
+        <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded">
+          Heart
+        </span>
+      )}
 
-  // ── Pipeline indicator data (dashboard stats) ──
-  const { data: dashData, error: dashError } = useQuery({
-    queryKey: ['dashboard-pipeline-brief'],
-    queryFn: () => fetch('/api/dashboard').then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to fetch'))),
-    refetchInterval: 60_000,
-  })
+      {!collapsed && item.badgeCount !== undefined && item.badgeCount > 0 && (
+        <Badge
+          variant="secondary"
+          className="ml-auto h-5 min-w-5 px-1.5 text-[11px] font-semibold bg-primary/15 text-primary border-0"
+        >
+          {item.badgeCount}
+        </Badge>
+      )}
+    </button>
+  );
 
-  // ── Fetch company name for dynamic breadcrumb ──
-  const { data: companyBrief, error: companyError } = useQuery({
-    queryKey: ['company-breadcrumb', selectedCompanyId],
-    queryFn: () => fetch(`/api/companies/${selectedCompanyId}`).then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to fetch'))),
-    enabled: activeView === 'company-profile' && !!selectedCompanyId,
-    staleTime: 30_000,
-  })
-
-  // ── Fetch contact name for dynamic breadcrumb ──
-  const { data: contactBrief, error: contactError } = useQuery({
-    queryKey: ['contact-breadcrumb', selectedContactId],
-    queryFn: () => fetch(`/api/contacts/${selectedContactId}`).then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to fetch'))),
-    enabled: activeView === 'contact-profile' && !!selectedContactId,
-    staleTime: 30_000,
-  })
-
-  // ── Dynamic breadcrumbs with entity names ──
-  const breadcrumbItems = React.useMemo(() => {
-    if (activeView === 'company-profile') {
-      const companyName = companyBrief?.name || 'Company'
-      return [
-        {
-          label: 'Companies',
-          view: 'companies' as ActiveView,
-          hint: companyStatusFilter && companyStatusFilter !== 'all' ? `filtered: ${companyStatusFilter}` : undefined,
-        },
-        { label: companyName, isPage: true },
-      ]
-    }
-    if (activeView === 'contact-profile') {
-      const contactName = contactBrief?.name || 'Contact'
-      return [
-        {
-          label: 'Contacts',
-          view: 'contacts' as ActiveView,
-        },
-        { label: contactName, isPage: true },
-      ]
-    }
-    return [{ label: pageTitles[activeView], isPage: true }]
-  }, [activeView, companyBrief?.name, contactBrief?.name, companyStatusFilter])
-
-  // ── Pipeline summary for header indicator ──
-  const pipelineCount = React.useMemo(() => {
-    if (!dashData?.pipeline) return null
-    const active = dashData.pipeline.filter((p: PipelineItem) =>
-      !['won', 'lost'].includes(p.label.toLowerCase())
-    )
-    return active.reduce((sum: number, p: PipelineItem) => sum + p.count, 0)
-  }, [dashData])
-
-  const isNavActive = (view: ActiveView): boolean => {
-    if (view === 'companies' && activeView === 'company-profile') return true
-    if (view === 'contacts' && activeView === 'contact-profile') return true
-    return activeView === view
+  if (collapsed) {
+    return (
+      <Tooltip delayDuration={0}>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipContent
+          side="right"
+          sideOffset={12}
+          className="bg-[oklch(0.17_0.01_260)] border-[oklch(0.27_0.005_260)] text-foreground"
+        >
+          <p className="font-medium">{item.label}</p>
+          {item.badgeCount !== undefined && item.badgeCount > 0 && (
+            <p className="text-xs text-muted-foreground mt-0.5">{item.badgeCount} pending</p>
+          )}
+          {item.isHeart && (
+            <p className="text-[10px] uppercase tracking-wider text-primary mt-0.5">The Heart</p>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    );
   }
 
+  return button;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Sidebar
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function Sidebar() {
+  const { activeView, sidebarCollapsed, setActiveView, toggleSidebar } = useAppStore();
+
+  const handleNavClick = useCallback(
+    (view: ViewId) => {
+      setActiveView(view);
+    },
+    [setActiveView]
+  );
+
   return (
-    <SidebarProvider>
-      {/* ── Sidebar ── */}
-      <Sidebar collapsible="icon" className="border-r border-gray-200/80 bg-white">
-        <SidebarHeader className="px-4 py-5">
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 ring-1 ring-amber-200/60">
-              <Image src="/logo.png" alt="DeepMindQ" width={20} height={20} className="rounded-sm" />
-            </div>
-            <span className="truncate text-[15px] font-semibold tracking-tight text-gray-900">
-              Deep<span className="text-amber-600">MindQ</span>
+    <aside
+      className={`
+        fixed top-0 left-0 z-40 h-screen flex flex-col
+        bg-[oklch(0.11_0.01_260)] border-r border-[oklch(0.22_0.005_260)]
+        transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
+        ${sidebarCollapsed ? 'w-16' : 'w-[260px]'}
+      `}
+    >
+      {/* ── Brand ── */}
+      <div
+        className={`
+          flex items-center h-16 shrink-0 border-b border-[oklch(0.22_0.005_260)]
+          transition-all duration-300 ${sidebarCollapsed ? 'px-3 justify-center' : 'px-5'}
+        `}
+      >
+        <div className="flex items-center gap-2.5 overflow-hidden">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/15 shrink-0">
+            <Brain className="w-[18px] h-[18px] text-primary" strokeWidth={2.2} />
+          </div>
+          {!sidebarCollapsed && (
+            <span className="text-[17px] font-bold tracking-tight text-foreground whitespace-nowrap fade-in">
+              DeepMind<span className="text-primary">Q</span>
             </span>
-          </div>
-        </SidebarHeader>
-
-        <SidebarContent className="px-3 gap-0">
-          {/* ── Main ── */}
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {MAIN_NAV.map((item) => (
-                  <SidebarMenuItem key={item.view}>
-                    <SidebarMenuButton
-                      isActive={isNavActive(item.view)}
-                      onClick={() => setActiveView(item.view)}
-                      tooltip={{ children: item.label, side: 'right' as const, align: 'center' as const, className: 'font-medium text-xs bg-white text-gray-700 border border-gray-200 shadow-sm' }}
-                      className={cn(
-                        'rounded-lg transition-all duration-150',
-                        'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
-                        'data-[active=true]:bg-amber-50 data-[active=true]:text-amber-700',
-                        'data-[active=true]:font-medium',
-                      )}
-                    >
-                      <item.icon className="size-4 shrink-0" />
-                      <span className="truncate">{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          {/* ── AI & Content ── */}
-          <div className="px-3 pt-4 pb-1">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 group-data-[collapsible=icon]:hidden">AI & Content</p>
-          </div>
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {AI_NAV.map((item) => (
-                  <SidebarMenuItem key={item.view}>
-                    <SidebarMenuButton
-                      isActive={isNavActive(item.view)}
-                      onClick={() => setActiveView(item.view)}
-                      tooltip={{ children: item.label, side: 'right' as const, align: 'center' as const, className: 'font-medium text-xs bg-white text-gray-700 border border-gray-200 shadow-sm' }}
-                      className={cn(
-                        'rounded-lg transition-all duration-150',
-                        'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
-                        'data-[active=true]:bg-amber-50 data-[active=true]:text-amber-700',
-                        'data-[active=true]:font-medium',
-                      )}
-                    >
-                      <item.icon className="size-4 shrink-0" />
-                      <span className="truncate">{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          {/* ── Insights ── */}
-          <div className="px-3 pt-4 pb-1">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 group-data-[collapsible=icon]:hidden">Insights</p>
-          </div>
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {ANALYTICS_NAV.map((item) => (
-                  <SidebarMenuItem key={item.view}>
-                    <SidebarMenuButton
-                      isActive={isNavActive(item.view)}
-                      onClick={() => setActiveView(item.view)}
-                      tooltip={{ children: item.label, side: 'right' as const, align: 'center' as const, className: 'font-medium text-xs bg-white text-gray-700 border border-gray-200 shadow-sm' }}
-                      className={cn(
-                        'rounded-lg transition-all duration-150',
-                        'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
-                        'data-[active=true]:bg-amber-50 data-[active=true]:text-amber-700',
-                        'data-[active=true]:font-medium',
-                      )}
-                    >
-                      <item.icon className="size-4 shrink-0" />
-                      <span className="truncate">{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          {/* ── System (bottom-pinned) ── */}
-          <div className="px-3 pt-4 pb-1">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 group-data-[collapsible=icon]:hidden">System</p>
-          </div>
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {[
-                  { view: 'import' as ActiveView, label: 'Import', icon: Upload },
-                  { view: 'settings' as ActiveView, label: 'Settings', icon: Settings },
-                ].map((item) => (
-                  <SidebarMenuItem key={item.view}>
-                    <SidebarMenuButton
-                      isActive={isNavActive(item.view)}
-                      onClick={() => setActiveView(item.view)}
-                      tooltip={{ children: item.label, side: 'right' as const, align: 'center' as const, className: 'font-medium text-xs bg-white text-gray-700 border border-gray-200 shadow-sm' }}
-                      className={cn(
-                        'rounded-lg transition-all duration-150',
-                        'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
-                        'data-[active=true]:bg-amber-50 data-[active=true]:text-amber-700',
-                        'data-[active=true]:font-medium',
-                      )}
-                    >
-                      <item.icon className="size-4 shrink-0" />
-                      <span className="truncate">{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-
-        <SidebarFooter className="mt-auto">
-          <SidebarSeparator className="bg-gray-200/80" />
-          <div className="flex items-center gap-2 px-3 py-2">
-            <Avatar className="size-8 shrink-0">
-              <AvatarFallback className="bg-amber-100 text-xs font-semibold text-amber-700">{userInitials}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium leading-none text-gray-900">{userName}</p>
-              <p className="mt-1 truncate text-[11px] text-gray-500">{userEmail}</p>
-            </div>
-          </div>
-        </SidebarFooter>
-        <SidebarRail />
-      </Sidebar>
-
-      {/* ── Main ── */}
-      <SidebarInset className="relative bg-gray-50/80">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-gray-200/80 bg-white/80 px-4 backdrop-blur-xl">
-          <SidebarTrigger className="-ml-1.5 text-gray-400 hover:text-gray-900 transition-colors" />
-          <Separator orientation="vertical" className="mx-1 h-4 bg-gray-200/80" />
-
-          {/* Breadcrumbs — dynamic with entity names */}
-          <Breadcrumb className="hidden sm:flex">
-            <BreadcrumbList>
-              {breadcrumbItems.map((item, i) => (
-                <React.Fragment key={`${item.label}-${i}`}>
-                  {i > 0 && <BreadcrumbSeparator />}
-                  <BreadcrumbItem>
-                    {item.isPage ? (
-                      <BreadcrumbPage className="text-sm font-medium text-gray-900 max-w-[200px] truncate">{item.label}</BreadcrumbPage>
-                    ) : (
-                      <div className="flex items-center gap-1.5">
-                        <BreadcrumbLink
-                          href="#"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            if ('view' in item && item.view) {
-                              // Navigation context preservation: if going to companies,
-                              // keep the current filter context
-                              setActiveView(item.view)
-                            }
-                          }}
-                          className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
-                        >
-                          {item.label}
-                        </BreadcrumbLink>
-                        {/* Filter context indicator */}
-                        {'hint' in item && item.hint && (
-                          <Badge
-                            variant="outline"
-                            className="hidden lg:inline-flex h-4 text-[9px] font-medium px-1.5 border-gray-200 text-gray-400 bg-gray-50 rounded-full normal-case tracking-normal"
-                          >
-                            {item.hint}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-                  </BreadcrumbItem>
-                </React.Fragment>
-              ))}
-            </BreadcrumbList>
-          </Breadcrumb>
-
-
-          <div className="flex-1"></div>
-
-          {/* ── Pipeline Indicator ── */}
-          {pipelineCount !== null && pipelineCount > 0 && (
-            <button
-              onClick={() => setActiveView('dashboard')}
-              className="hidden lg:flex items-center gap-2 h-8 rounded-lg border border-amber-200/60 bg-amber-50/60 px-3 text-xs text-amber-700 hover:bg-amber-50 transition-colors cursor-pointer group"
-              title={`${pipelineCount} active companies in pipeline`}
-            >
-              <Target className="size-3.5 text-amber-500" />
-              <span className="font-medium tabular-nums">{pipelineCount}</span>
-              <span className="text-amber-500 hidden xl:inline">in pipeline</span>
-            </button>
           )}
-
-          {/* Cmd+K Search */}
-          <button
-            onClick={() => {
-              const isMac = navigator.platform?.toUpperCase().includes('MAC')
-              document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: isMac, ctrlKey: !isMac }))
-            }}
-            className="hidden md:flex items-center gap-2 h-8 w-56 rounded-lg border border-gray-200 bg-gray-50/80 px-3 text-sm text-gray-400 hover:bg-gray-100 hover:border-gray-300 transition-all duration-150 cursor-pointer group"
-          >
-            <Search className="size-3.5 text-gray-400" />
-            <span className="flex-1 text-left">Search...</span>
-            <kbd className="flex items-center gap-0.5 rounded border border-gray-200 bg-white px-1 py-0.5 text-[10px] font-medium text-gray-400 group-hover:border-gray-300 transition-colors">
-              <Command className="size-2.5" />K
-            </kbd>
-          </button>
-
-          {/* Notification bell */}
-          <button onClick={() => setShowNotifications((prev) => !prev)} className="relative p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors press-scale">
-            <Bell className="size-4" />
-            {notifications.length > 0 && (
-              <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500 ring-2 ring-white" />
-            )}
-          </button>
-
-          {/* Theme Toggle */}
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors press-scale"
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
-          </button>
-
-          {/* Help */}
-          <button onClick={() => setShowHelp(true)} className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors press-scale">
-            <HelpCircle className="size-4" />
-          </button>
-
-          {/* User dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-lg hover:bg-gray-100 transition-colors">
-                <Avatar className="size-7">
-                  <AvatarFallback className="bg-amber-100 text-[10px] font-semibold text-amber-700">{userInitials}</AvatarFallback>
-                </Avatar>
-                <ChevronDown className="size-3 text-gray-400" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5 elevation-float">
-              <div className="px-2 py-1.5 mb-1">
-                <p className="text-sm font-semibold text-gray-900">{userName}</p>
-                <p className="text-xs text-gray-500">{userEmail}</p>
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="rounded-lg text-sm text-gray-700 cursor-pointer" onClick={() => setShowHelp(true)}>
-                <HelpCircle className="size-4 mr-2 text-gray-400" /> Help & Documentation
-              </DropdownMenuItem>
-              <DropdownMenuItem className="rounded-lg text-sm text-red-600 cursor-pointer" onClick={() => signOut({ callbackUrl: '/login' })}>
-                <LogOut className="size-4 mr-2" /> Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </header>
-
-        {/* Content */}
-        <div className="flex-1 overflow-auto p-6">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={activeView}
-              variants={contentVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="mx-auto h-full max-w-7xl"
-            >
-              {children}
-            </motion.div>
-          </AnimatePresence>
         </div>
+      </div>
 
-        {/* Notification Panel */}
-        <AnimatePresence>
-          {showNotifications && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.2 }}
-              className="absolute right-0 top-14 bottom-0 w-80 bg-white border-l border-gray-200/80 shadow-modal z-40 overflow-hidden"
+      {/* ── Navigation ── */}
+      <ScrollArea className="flex-1 py-3">
+        <nav className="flex flex-col gap-0.5" role="navigation" aria-label="Main navigation">
+          {NAV_ITEMS.map((item) => (
+            <div
+              key={item.view}
+              className={sidebarCollapsed ? 'px-2' : 'px-3'}
             >
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
-                <button onClick={() => setShowNotifications(false)} className="p-1 rounded-md hover:bg-gray-100 transition-colors">
-                  <X className="size-4 text-gray-400" />
-                </button>
-              </div>
-              <div className="p-3 space-y-1 max-h-[calc(100%-3.5rem)] overflow-y-auto">
-                {notifError
-                  ? <p className="text-sm text-red-400 text-center py-8">Failed to load notifications</p>
-                  : notifLoading
-                    ? Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="flex items-center gap-3 p-3 rounded-lg">
-                          <Skeleton className="size-8 rounded-lg shrink-0" />
-                          <div className="flex-1 space-y-1.5">
-                            <Skeleton className="h-3.5 w-3/4 rounded" />
-                            <Skeleton className="h-3 w-full rounded" />
-                          </div>
-                        </div>
-                      ))
-                    : notifications.length === 0
-                      ? <p className="text-sm text-gray-400 text-center py-8">No recent activity</p>
-                      : notifications.map((n: NotificationItem) => {
-                          const iconMap: Record<string, { bg: string; icon: React.ElementType; color: string }> = {
-                            import: { bg: 'bg-emerald-50', icon: CheckCircle2, color: 'text-emerald-600' },
-                            email: { bg: 'bg-blue-50', icon: MailPlus, color: 'text-blue-600' },
-                            research: { bg: 'bg-amber-50', icon: Sparkles, color: 'text-amber-600' },
-                          }
-                          const type = (n.type || n.action || '').toLowerCase().includes('import') ? 'import'
-                            : (n.type || n.action || '').toLowerCase().includes('email') ? 'email'
-                            : (n.type || n.action || '').toLowerCase().includes('research') ? 'research'
-                            : 'import'
-                          const cfg = iconMap[type] || iconMap.import
-                          const IconComp = cfg.icon
-                          const timeAgo = n.createdAt ? new Date(n.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
-                          return (
-                            <div
-                              key={n.id}
-                              className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                              onClick={() => {
-                                setShowNotifications(false)
-                                if (n.companyId) {
-                                  setSelectedCompanyId(n.companyId)
-                                } else if (n.contactId) {
-                                  setSelectedContactId(n.contactId)
-                                }
-                              }}
-                            >
-                              <div className={`size-8 rounded-lg ${cfg.bg} flex items-center justify-center shrink-0`}><IconComp className={`size-4 ${cfg.color}`} /></div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">{n.title || n.description || n.action || 'Activity'}</p>
-                                {n.description && <p className="text-[11px] text-gray-500 truncate">{n.description}</p>}
-                              </div>
-                              {timeAgo && <span className="text-[10px] text-gray-400 shrink-0">{timeAgo}</span>}
-                            </div>
-                          )
-                        })
-                }
-              </div>
-              {/* View All Activity Link */}
-              <div className="border-t border-gray-100 px-3 pt-2 pb-3">
-                <button
-                  onClick={() => { setShowNotifications(false); setActiveView('dashboard') }}
-                  className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-amber-600 hover:text-amber-700 transition-colors py-1.5 rounded-lg hover:bg-amber-50"
-                >
-                  View All Activity
-                  <ArrowRight className="size-3" />
-                </button>
-              </div>
-            </motion.div>
+              <NavButton
+                item={item}
+                active={activeView === item.view}
+                collapsed={sidebarCollapsed}
+                onClick={() => handleNavClick(item.view)}
+              />
+            </div>
+          ))}
+        </nav>
+      </ScrollArea>
+
+      {/* ── Collapse Toggle ── */}
+      <div className="shrink-0 border-t border-[oklch(0.22_0.005_260)] p-2">
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            <button
+              onClick={toggleSidebar}
+              className={`
+                flex items-center w-full gap-3 rounded-lg text-sm font-medium
+                text-muted-foreground hover:bg-white/[0.04] hover:text-foreground
+                transition-all duration-200 outline-none
+                focus-visible:ring-2 focus-visible:ring-ring
+                ${sidebarCollapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'}
+              `}
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="w-5 h-5" />
+              ) : (
+                <>
+                  <PanelLeftClose className="w-[18px] h-[18px]" strokeWidth={1.8} />
+                  <span className="truncate">Collapse</span>
+                </>
+              )}
+            </button>
+          </TooltipTrigger>
+          {sidebarCollapsed && (
+            <TooltipContent
+              side="right"
+              sideOffset={12}
+              className="bg-[oklch(0.17_0.01_260)] border-[oklch(0.27_0.005_260)] text-foreground"
+            >
+              Expand sidebar
+            </TooltipContent>
           )}
-        </AnimatePresence>
-      </SidebarInset>
+        </Tooltip>
+      </div>
+    </aside>
+  );
+}
 
-      <CommandPalette />
+/* ═══════════════════════════════════════════════════════════════════════
+   Header
+   ═══════════════════════════════════════════════════════════════════════ */
 
-      {/* AI Chat Sidebar + FAB */}
-      <AiChatSidebar isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} />
-      <AiChatButton isOpen={aiChatOpen} onToggle={() => setAiChatOpen(prev => !prev)} />
+function Header() {
+  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
+  const setSidebarCollapsed = useAppStore((s) => s.setSidebarCollapsed);
 
-      {/* Help Dialog */}
-      <Dialog open={showHelp} onOpenChange={setShowHelp}>
-        <DialogContent className="sm:max-w-md rounded-xl p-6">
-          <DialogHeader><DialogTitle className="text-gray-900">Help & Documentation</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2 text-sm text-gray-700">
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-2">Keyboard Shortcuts:</h4>
-              <ul className="space-y-1.5 text-gray-600">
-                <li className="flex items-center gap-2"><kbd className="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[11px] font-medium text-gray-500">Cmd/Ctrl + K</kbd> Open command palette</li>
-                <li className="flex items-center gap-2"><kbd className="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[11px] font-medium text-gray-500">Cmd/Ctrl + B</kbd> Toggle sidebar</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-2">Getting Started:</h4>
-              <ol className="list-decimal list-inside space-y-1.5 text-gray-600">
-                <li>Import companies via CSV or add manually</li>
-                <li>Generate AI research cards for companies</li>
-                <li>Validate email addresses</li>
-                <li>Generate personalized outreach emails</li>
-                <li>Track opportunities through the pipeline</li>
-              </ol>
-            </div>
+  return (
+    <header
+      className={`
+        sticky top-0 z-30 flex items-center h-16 gap-4 px-6
+        bg-[oklch(0.11_0.01_260)]/80 backdrop-blur-xl
+        border-b border-[oklch(0.22_0.005_260)]
+        transition-[padding-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
+        ${sidebarCollapsed ? 'pl-20' : 'pl-[276px]'}
+      `}
+    >
+      {/* Mobile sidebar toggle */}
+      <button
+        onClick={() => setSidebarCollapsed(false)}
+        className="lg:hidden flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors"
+        aria-label="Open sidebar"
+      >
+        <PanelLeft className="w-5 h-5" />
+      </button>
+
+      {/* Search */}
+      <div className="flex-1 max-w-xl">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none" />
+          <Input
+            type="search"
+            placeholder="Search leads, companies..."
+            className="h-9 pl-9 bg-white/[0.04] border-[oklch(0.27_0.005_260)] text-foreground placeholder:text-muted-foreground/50 focus-visible:border-primary/40 focus-visible:ring-primary/20"
+          />
+          <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground/50 bg-white/[0.04] border border-[oklch(0.27_0.005_260)] rounded">
+            <span className="text-[10px]">⌘</span>K
+          </kbd>
+        </div>
+      </div>
+
+      {/* Right actions */}
+      <div className="flex items-center gap-2">
+        {/* Notifications */}
+        <button
+          className="relative flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="Notifications"
+        >
+          <Bell className="w-[18px] h-[18px]" strokeWidth={1.8} />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-[oklch(0.11_0.01_260)]" />
+        </button>
+
+        {/* Separator */}
+        <div className="w-px h-6 bg-[oklch(0.27_0.005_260)] mx-1" />
+
+        {/* User */}
+        <div className="flex items-center gap-3 pl-1">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
+              RS
+            </AvatarFallback>
+          </Avatar>
+          <div className="hidden md:flex flex-col">
+            <span className="text-sm font-medium text-foreground leading-tight">Ravi Shanker</span>
+            <span className="text-[11px] text-muted-foreground leading-tight">Administrator</span>
           </div>
-        </DialogContent>
-      </Dialog>
-    </SidebarProvider>
-  )
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   App Shell
+   ═══════════════════════════════════════════════════════════════════════ */
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Sidebar />
+      <div
+        className={`
+          flex flex-col min-h-screen
+          transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
+          ${sidebarCollapsed ? 'ml-16' : 'ml-[260px]'}
+        `}
+      >
+        <Header />
+        <main className="flex-1 p-6">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
 }

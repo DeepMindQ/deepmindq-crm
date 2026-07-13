@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   PageTransition, AnimatedCard, StaggerGrid, StaggerItem,
   SectionHeader, AnimatedBar, TabBar, GradientCard, PulseDot, StatValue,
+  GlassPanel, StatCard,
 } from '@/components/ui/animated-components';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,9 +28,13 @@ import {
   Plus, Trash2, Eye, X, Loader2, ChevronRight, AlertTriangle,
   CheckCircle2, ArrowUpRight, Sparkles, Filter, RefreshCw,
   TrendingUp, Globe, Users, Building2, Lightbulb, Info,
-  ChevronDown, ChevronUp, Tag, Shield,
+  ChevronDown, ChevronUp, Tag, Shield, GitBranch, Network, Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  Treemap, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar,
+  XAxis, YAxis, Tooltip, Legend,
+} from 'recharts';
 
 /* ═══════════════════════════════════════════════════
    Types
@@ -80,10 +85,19 @@ interface KnowledgeScreenProps {
    ═══════════════════════════════════════════════════ */
 const TABS = [
   { key: 'library', label: 'Knowledge Library' },
+  { key: 'graph', label: 'Knowledge Graph' },
   { key: 'search', label: 'RAG Search Engine' },
   { key: 'coverage', label: 'Coverage & Gaps' },
   { key: 'upload', label: 'Upload & Extract' },
 ];
+
+const GRAPH_CATEGORY_COLORS: Record<string, string> = {
+  service_line: '#D4AF37',
+  case_study: '#10b981',
+  proof_point: '#3b82f6',
+  objection_response: '#f59e0b',
+  cta: '#a855f7',
+};
 
 const CATEGORY_CONFIG: Record<string, { icon: typeof Layers; color: string; badge: string }> = {
   service_line: { icon: Layers, color: '#3B82F6', badge: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
@@ -170,6 +184,15 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
   const [coverage, setCoverage] = useState<CoverageData | null>(null);
   const [coverageLoading, setCoverageLoading] = useState(false);
 
+  // ── Knowledge Graph state ──
+  const [graphData, setGraphData] = useState<any>(null);
+  const [graphLoading, setGraphLoading] = useState(false);
+  const [selectedGraphNode, setSelectedGraphNode] = useState<any>(null);
+
+  // ── Version History state ──
+  const [versionHistory, setVersionHistory] = useState<any>(null);
+  const [versionLoading, setVersionLoading] = useState(false);
+
   // ── C-13: Knowledge Health state ──
   const [healthData, setHealthData] = useState<any>(null);
   const [healthLoading, setHealthLoading] = useState(false);
@@ -220,7 +243,31 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
 
   useEffect(() => {
     if (activeTab === 'coverage') { loadCoverage(); loadHealth(); }
+    if (activeTab === 'graph') { loadGraphData(); }
   }, [activeTab, loadCoverage]);
+
+  // ── Load graph data ──
+  const loadGraphData = useCallback(async () => {
+    setGraphLoading(true);
+    try {
+      const res = await fetch('/api/knowledge/graph');
+      const data = await res.json();
+      setGraphData(data);
+    } catch { setGraphData(null); }
+    setGraphLoading(false);
+  }, []);
+
+  // ── Load version history for an asset ──
+  const loadVersionHistory = useCallback(async (assetId: string) => {
+    setVersionLoading(true);
+    setVersionHistory(null);
+    try {
+      const res = await fetch(`/api/knowledge/graph?assetId=${assetId}&versions=true`);
+      const data = await res.json();
+      setVersionHistory(data);
+    } catch { setVersionHistory(null); }
+    setVersionLoading(false);
+  }, []);
 
   // ── C-13: Load Knowledge Health ──
   const loadHealth = useCallback(async () => {
@@ -655,7 +702,264 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
         )}
 
         {/* ═══════════════════════════════════════════
-            TAB 2: RAG Search Engine
+            TAB 2: Knowledge Graph
+            ═══════════════════════════════════════════ */}
+        {activeTab === 'graph' && (
+          <div className="space-y-4">
+            {/* Graph stats bar */}
+            <StaggerGrid className="grid grid-cols-2 lg:grid-cols-4 gap-3" stagger={0.05}>
+              <StaggerItem>
+                <StatCard
+                  label="Total Nodes"
+                  value={graphData?.totalAssets || 0}
+                  icon={Network}
+                  color={gold}
+                  delay={0}
+                />
+              </StaggerItem>
+              <StaggerItem>
+                <StatCard
+                  label="Connections"
+                  value={graphData?.edges?.length || 0}
+                  icon={GitBranch}
+                  color="#10b981"
+                  delay={0.05}
+                />
+              </StaggerItem>
+              <StaggerItem>
+                <StatCard
+                  label="Service Lines"
+                  value={Object.keys(graphData?.serviceLines || {}).length}
+                  icon={Layers}
+                  color="#3b82f6"
+                  delay={0.1}
+                />
+              </StaggerItem>
+              <StaggerItem>
+                <StatCard
+                  label="Categories"
+                  value={Object.keys(graphData?.categories || {}).length}
+                  icon={Target}
+                  color="#a855f7"
+                  delay={0.15}
+                />
+              </StaggerItem>
+            </StaggerGrid>
+
+            {/* Treemap visualization */}
+            {graphLoading ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="rounded-xl border border-border bg-card/60 p-6 space-y-4">
+                    <Skeleton className="h-5 w-1/2" />
+                    <Skeleton className="h-[300px] w-full" />
+                  </div>
+                ))}
+              </div>
+            ) : graphData && graphData.nodes && graphData.nodes.length > 0 ? (
+              <>
+                {/* Treemap */}
+                <AnimatedCard delay={0.1}>
+                  <div className="p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <SectionHeader title="Knowledge Map" subtitle="Assets grouped by service line — cell size reflects relevance score, color indicates category" />
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {Object.entries(GRAPH_CATEGORY_COLORS).map(([cat, color]) => (
+                          <div key={cat} className="flex items-center gap-1.5">
+                            <div className="w-2.5 h-2.5 rounded-sm" style={{ background: color }} />
+                            <span className="text-[10px] text-muted-foreground">{CATEGORY_LABELS[cat] || cat}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="h-[380px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <Treemap
+                          data={buildTreemapData(graphData.nodes)}
+                          dataKey="size"
+                          aspectRatio={4 / 3}
+                          stroke="rgba(255,255,255,0.06)"
+                          content={<CustomTreemapContent />}
+                        />
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </AnimatedCard>
+
+                {/* Charts row: Donut + Bar */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Category Donut */}
+                  <AnimatedCard delay={0.15}>
+                    <div className="p-5">
+                      <SectionHeader title="Category Distribution" subtitle="Knowledge asset types breakdown" />
+                      <div className="h-[260px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={Object.entries(graphData.categories || {}).map(([name, value]) => ({
+                                name: CATEGORY_LABELS[name] || name,
+                                value: value as number,
+                                category: name,
+                              }))}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={55}
+                              outerRadius={90}
+                              paddingAngle={3}
+                              dataKey="value"
+                              stroke="none"
+                            >
+                              {Object.entries(graphData.categories || {}).map(([name]) => (
+                                <Cell
+                                  key={name}
+                                  fill={GRAPH_CATEGORY_COLORS[name] || '#D4AF37'}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              contentStyle={{
+                                background: 'rgba(10,12,20,0.95)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                                color: '#e2e8f0',
+                              }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </AnimatedCard>
+
+                  {/* Service Line Bar Chart */}
+                  <AnimatedCard delay={0.2}>
+                    <div className="p-5\">
+                      <SectionHeader title="Service Line Distribution" subtitle="Assets per service line" />
+                      <div className="h-[260px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={Object.entries(graphData.serviceLines || {})
+                              .map(([name, count]) => ({ name, count: count as number }))
+                              .sort((a, b) => b.count - a.count)}
+                            layout="vertical"
+                            margin={{ left: 10, right: 20, top: 5, bottom: 5 }}
+                          >
+                            <XAxis
+                              type="number"
+                              tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
+                              axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+                              tickLine={false}
+                              gridLine={{ stroke: 'rgba(255,255,255,0.04)' }}
+                            />
+                            <YAxis
+                              type="category"
+                              dataKey="name"
+                              tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }}
+                              axisLine={false}
+                              tickLine={false}
+                              width={140}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                background: 'rgba(10,12,20,0.95)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                                color: '#e2e8f0',
+                              }}
+                            />
+                            <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={24}>
+                              {Object.entries(graphData.serviceLines || {}).map((_, idx) => (
+                                <Cell
+                                  key={idx}
+                                  fill={idx === 0 ? gold : `rgba(212,175,55,${Math.max(0.3, 1 - idx * 0.15)})`}
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </AnimatedCard>
+                </div>
+
+                {/* Selected node detail */}
+                <AnimatePresence>
+                  {selectedGraphNode && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -12 }}
+                    >
+                      <GlassPanel className="p-5\">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-9 h-9 rounded-lg flex items-center justify-center\"
+                              style={{ background: `${GRAPH_CATEGORY_COLORS[selectedGraphNode.category] || gold}15` }}
+                            >
+                              <Network className="w-4 h-4" style={{ color: GRAPH_CATEGORY_COLORS[selectedGraphNode.category] || gold }} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">{selectedGraphNode.label}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="outline" className={`text-[10px] ${(CATEGORY_CONFIG[selectedGraphNode.category] || CATEGORY_CONFIG.service_line).badge}`}>
+                                  {CATEGORY_LABELS[selectedGraphNode.category] || selectedGraphNode.category}
+                                </Badge>
+                                {selectedGraphNode.group && selectedGraphNode.group !== selectedGraphNode.category && (
+                                  <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
+                                    {selectedGraphNode.group}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setSelectedGraphNode(null)}
+                            className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-4 gap-4 mt-3">
+                          <div className="text-center p-3 rounded-lg bg-black/20 border border-white/[0.06]">
+                            <p className="text-lg font-bold tabular-nums" style={{ color: gold }}>{selectedGraphNode.score}</p>
+                            <p className="text-[10px] text-muted-foreground">Score</p>
+                          </div>
+                          <div className="text-center p-3 rounded-lg bg-black/20 border border-white/[0.06]">
+                            <p className="text-lg font-bold tabular-nums text-emerald-400">{selectedGraphNode.upvotes}</p>
+                            <p className="text-[10px] text-muted-foreground">Upvotes</p>
+                          </div>
+                          <div className="text-center p-3 rounded-lg bg-black/20 border border-white/[0.06]">
+                            <p className="text-lg font-bold tabular-nums text-blue-400">{selectedGraphNode.usedInEmails}</p>
+                            <p className="text-[10px] text-muted-foreground">Used in Emails</p>
+                          </div>
+                          <div className="text-center p-3 rounded-lg bg-black/20 border border-white/[0.06]">
+                            <p className="text-lg font-bold tabular-nums text-muted-foreground">v{selectedGraphNode.version}</p>
+                            <p className="text-[10px] text-muted-foreground">Version</p>
+                          </div>
+                        </div>
+                      </GlassPanel>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
+            ) : (
+              <AnimatedCard>
+                <div className="text-center py-16 space-y-4">
+                  <Network className="w-12 h-12 text-muted-foreground/30 mx-auto" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">No knowledge graph data</p>
+                    <p className="text-xs text-muted-foreground mt-1">Add knowledge assets to see the knowledge graph visualization</p>
+                  </div>
+                </div>
+              </AnimatedCard>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════
+            TAB 3: RAG Search Engine
             ═══════════════════════════════════════════ */}
         {activeTab === 'search' && (
           <div className="space-y-4">
@@ -973,7 +1277,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
         )}
 
         {/* ═══════════════════════════════════════════
-            TAB 3: Coverage & Gaps
+            TAB 4: Coverage & Gaps
             ═══════════════════════════════════════════ */}
         {activeTab === 'coverage' && (
           <div className="space-y-4">
@@ -1211,27 +1515,143 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                   </div>
                 </AnimatedCard>
 
-                {/* Category Distribution */}
-                <AnimatedCard delay={0.3}>
-                  <div className="p-5">
-                    <SectionHeader title="Category Distribution" subtitle="Balance of knowledge asset types" />
-                    <StaggerGrid className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" stagger={0.05}>
-                      {coverage.categories.map(cat => {
-                        const config = CATEGORY_CONFIG[cat.name] || CATEGORY_CONFIG.service_line;
-                        const Icon = config.icon;
-                        return (
-                          <StaggerItem key={cat.name}>
-                            <div className="p-4 rounded-xl border border-border bg-background/50 text-center space-y-2">
-                              <div className="w-10 h-10 rounded-lg flex items-center justify-center mx-auto" style={{ background: `${config.color}15` }}>
-                                <Icon className="w-5 h-5" style={{ color: config.color }} />
+                {/* Category Distribution — with Donut Chart */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <AnimatedCard delay={0.3}>
+                    <div className="p-5">
+                      <SectionHeader title="Category Distribution" subtitle="Balance of knowledge asset types" />
+                      <StaggerGrid className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" stagger={0.05}>
+                        {coverage.categories.map(cat => {
+                          const config = CATEGORY_CONFIG[cat.name] || CATEGORY_CONFIG.service_line;
+                          const Icon = config.icon;
+                          return (
+                            <StaggerItem key={cat.name}>
+                              <div className="p-4 rounded-xl border border-border bg-background/50 text-center space-y-2">
+                                <div className="w-10 h-10 rounded-lg flex items-center justify-center mx-auto" style={{ background: `${config.color}15` }}>
+                                  <Icon className="w-5 h-5" style={{ color: config.color }} />
+                                </div>
+                                <StatValue value={cat.count} />
+                                <p className="text-[11px] text-muted-foreground">{CATEGORY_LABELS[cat.name] || cat.name}</p>
                               </div>
-                              <StatValue value={cat.count} />
-                              <p className="text-[11px] text-muted-foreground">{CATEGORY_LABELS[cat.name] || cat.name}</p>
-                            </div>
-                          </StaggerItem>
-                        );
-                      })}
-                    </StaggerGrid>
+                            </StaggerItem>
+                          );
+                        })}
+                      </StaggerGrid>
+                    </div>
+                  </AnimatedCard>
+
+                  {/* Category Donut Chart */}
+                  <AnimatedCard delay={0.35}>
+                    <div className="p-5">
+                      <SectionHeader title="Category Breakdown" subtitle="Visual distribution of asset types" />
+                      <div className="h-[220px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={coverage.categories.map(cat => ({
+                                name: CATEGORY_LABELS[cat.name] || cat.name,
+                                value: cat.count,
+                              }))}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={50}
+                              outerRadius={85}
+                              paddingAngle={3}
+                              dataKey="value"
+                              stroke="none"
+                            >
+                              {coverage.categories.map((cat) => (
+                                <Cell
+                                  key={cat.name}
+                                  fill={GRAPH_CATEGORY_COLORS[cat.name] || (CATEGORY_CONFIG[cat.name] || CATEGORY_CONFIG.service_line).color}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              contentStyle={{
+                                background: 'rgba(10,12,20,0.95)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                                color: '#e2e8f0',
+                              }}
+                            />
+                            <Legend
+                              iconType="circle"
+                              iconSize={8}
+                              wrapperStyle={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </AnimatedCard>
+                </div>
+
+                {/* Industry Coverage Bar Chart */}
+                <AnimatedCard delay={0.4}>
+                  <div className="p-5">
+                    <SectionHeader title="Industry Coverage Map" subtitle="Asset count per industry — highlights knowledge gaps" />
+                    <div className="h-[280px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={coverage.industries
+                            .map(ind => ({ name: ind.name, count: ind.count, coverage: ind.coverage }))
+                            .sort((a, b) => b.count - a.count)}
+                          layout="vertical"
+                          margin={{ left: 10, right: 20, top: 5, bottom: 5 }}
+                        >
+                          <XAxis
+                            type="number"
+                            tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
+                            axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+                            tickLine={false}
+                            gridLine={{ stroke: 'rgba(255,255,255,0.04)' }}
+                          />
+                          <YAxis
+                            type="category"
+                            dataKey="name"
+                            tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }}
+                            axisLine={false}
+                            tickLine={false}
+                            width={120}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              background: 'rgba(10,12,20,0.95)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                              color: '#e2e8f0',
+                            }}
+                            formatter={(value: number, name: string) => [`${value} assets`, name]}
+                          />
+                          <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={20}>
+                            {coverage.industries.map((ind, idx) => (
+                              <Cell
+                                key={ind.name}
+                                fill={ind.count === 0 ? '#EF4444' : ind.coverage >= 70 ? '#10B981' : ind.coverage >= 40 ? '#FBBF24' : '#F87171'}
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    {/* Gaps legend */}
+                    <div className="flex items-center gap-4 mt-3 justify-center">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
+                        <span className="text-[10px] text-muted-foreground">Good Coverage</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
+                        <span className="text-[10px] text-muted-foreground">Partial Coverage</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-sm bg-red-500" />
+                        <span className="text-[10px] text-muted-foreground">Gap / No Assets</span>
+                      </div>
+                    </div>
                   </div>
                 </AnimatedCard>
               </>
@@ -1247,7 +1667,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
         )}
 
         {/* ═══════════════════════════════════════════
-            TAB 4: Upload & AI Knowledge Extraction
+            TAB 5: Upload & AI Knowledge Extraction
             ═══════════════════════════════════════════ */}
         {activeTab === 'upload' && (
           <div className="space-y-4">
@@ -1573,8 +1993,8 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
       {/* ═══════════════════════════════════════════
           View Asset Dialog
           ═══════════════════════════════════════════ */}
-      <Dialog open={!!viewAsset} onOpenChange={() => setViewAsset(null)}>
-        <DialogContent className="max-w-2xl bg-card border-border max-h-[80vh] overflow-y-auto">
+      <Dialog open={!!viewAsset} onOpenChange={(open) => { if (!open) { setViewAsset(null); setVersionHistory(null); } }}>
+        <DialogContent className="max-w-2xl bg-card border-border max-h-[85vh] overflow-y-auto">
           {viewAsset && (
             <>
               <DialogHeader>
@@ -1626,6 +2046,97 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                       <p className="text-sm text-foreground mt-0.5">{viewAsset.evidence}</p>
                     </div>
                   )}
+                </div>
+
+                {/* Version History Section */}
+                <Separator className="my-2" />
+                <div>
+                  <button
+                    onClick={() => loadVersionHistory(viewAsset.id)}
+                    className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
+                  >
+                    <GitBranch className="w-4 h-4" style={{ color: gold }} />
+                    Version History
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                  </button>
+
+                  <AnimatePresence>
+                    {versionLoading && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="flex items-center gap-2 mt-3 py-4 justify-center"
+                      >
+                        <Loader2 className="w-4 h-4 animate-spin" style={{ color: gold }} />
+                        <span className="text-xs text-muted-foreground">Loading version history...</span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <AnimatePresence>
+                    {versionHistory && !versionLoading && versionHistory.history && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-3 overflow-hidden"
+                      >
+                        <div className="relative pl-6">
+                          {/* Vertical timeline line */}
+                          <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border" />
+
+                          {versionHistory.history.map((entry: any, idx: number) => {
+                            const isCurrent = entry.version === versionHistory.currentVersion;
+                            return (
+                              <motion.div
+                                key={entry.version}
+                                initial={{ opacity: 0, x: -8 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: idx * 0.08 }}
+                                className="relative pb-4 last:pb-0"
+                              >
+                                {/* Timeline dot */}
+                                <div
+                                  className="absolute left-[-17px] top-1.5 w-3.5 h-3.5 rounded-full border-2"
+                                  style={{
+                                    borderColor: isCurrent ? gold : 'rgba(255,255,255,0.15)',
+                                    background: isCurrent ? `${gold}40` : 'transparent',
+                                    boxShadow: isCurrent ? `0 0 8px ${gold}60` : 'none',
+                                  }}
+                                />
+
+                                <div className={`p-3 rounded-lg border ${isCurrent ? 'border-primary/30 bg-primary/5' : 'border-border bg-card/50'}`}>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-semibold text-foreground">v{entry.version}</span>
+                                      {isCurrent && (
+                                        <span
+                                          className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                                          style={{ background: `${gold}20`, color: gold, border: `1px solid ${gold}40` }}
+                                        >
+                                          CURRENT
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                      <Clock className="w-3 h-3" />
+                                      {new Date(entry.updatedAt).toLocaleDateString('en-US', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: 'numeric',
+                                      })}
+                                    </div>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">{entry.changes}</p>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
             </>
@@ -1765,4 +2276,110 @@ function buildCoverage(assets: KnowledgeAsset[]): CoverageData {
       avgScore: 0,
     },
   };
+}
+
+/* ═══════════════════════════════════════════════════
+   Knowledge Graph Helpers
+   ═══════════════════════════════════════════════════ */
+
+/** Build treemap data from graph nodes, grouped by service line */
+function buildTreemapData(nodes: any[]) {
+  const grouped: Record<string, any[]> = {};
+  nodes.forEach(node => {
+    const group = node.group || 'Unassigned';
+    if (!grouped[group]) grouped[group] = [];
+    grouped[group].push(node);
+  });
+
+  return [
+    {
+      name: 'Knowledge Base',
+      children: Object.entries(grouped).map(([name, children]) => ({
+        name,
+        children: children.map((child: any) => ({
+          name: child.label,
+          size: Math.max(1, child.score || child.size || 1),
+          category: child.category,
+          id: child.id,
+          node: child,
+        })),
+      })),
+    },
+  ];
+}
+
+/** Custom treemap cell renderer */
+function CustomTreemapContent(props: any) {
+  const { x, y, width, height, name, depth, category, node } = props;
+
+  // Skip rendering if too small
+  if (width < 40 || height < 28) return null;
+
+  // Service line group header
+  if (depth === 1) {
+    return (
+      <g>
+        <rect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          fill="rgba(255,255,255,0.02)"
+          stroke="rgba(255,255,255,0.06)"
+          rx={6}
+        />
+        {width > 80 && (
+          <text
+            x={x + 8}
+            y={y + 18}
+            fill="rgba(255,255,255,0.5)"
+            fontSize={10}
+            fontWeight={600}
+          >
+            {name}
+          </text>
+        )}
+      </g>
+    );
+  }
+
+  // Leaf node (asset)
+  const color = GRAPH_CATEGORY_COLORS[category] || '#D4AF37';
+  const opacity = 0.7 + (Math.min((node?.score || 1) / 10, 1)) * 0.3;
+  const isTooSmall = width < 60 || height < 36;
+
+  return (
+    <g
+      style={{ cursor: 'pointer' }}
+      onClick={() => node && props.onNodeClick?.(node)}
+    >
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fill={color}
+        fillOpacity={opacity * 0.25}
+        stroke={color}
+        strokeOpacity={0.4}
+        strokeWidth={1}
+        rx={4}
+      />
+      {!isTooSmall && (
+        <text
+          x={x + 6}
+          y={y + height / 2 + 1}
+          fill="rgba(255,255,255,0.85)"
+          fontSize={10}
+          fontWeight={500}
+        >
+          {width > 100 && name.length > 0
+            ? name.length > Math.floor((width - 12) / 6)
+              ? name.slice(0, Math.floor((width - 12) / 6)) + '…'
+              : name
+            : ''}
+        </text>
+      )}
+    </g>
+  );
 }

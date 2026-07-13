@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  FileText, Check, X, Eye, AlertTriangle, Sparkles, Building2, Mail, User, Tag, Target, BookOpen, Flag, FileCode2, CheckCircle2, Search, SlidersHorizontal, ChevronDown, ChevronUp, Send, Calendar as CalendarIcon, Clock, Reply, Trash2, RefreshCw, GitBranch,
+  FileText, Check, X, Eye, AlertTriangle, Sparkles, Building2, Mail, User, Tag, Target, BookOpen, Flag, FileCode2, CheckCircle2, Search, SlidersHorizontal, ChevronDown, ChevronUp, ChevronRight, Send, Calendar as CalendarIcon, Clock, Reply, Trash2, RefreshCw, GitBranch, MessagesSquare,
 } from 'lucide-react';
 import {
   Select,
@@ -52,6 +52,15 @@ interface AssumptionFlag {
   confidence: string;
 }
 
+interface ReplyItem {
+  id: string;
+  draftId?: string;
+  subject?: string;
+  body?: string;
+  category?: string;
+  receivedAt?: string;
+}
+
 interface Draft {
   id: string;
   contactId: string;
@@ -63,8 +72,12 @@ interface Draft {
   confidenceScore?: number;
   status: string;
   createdAt?: string;
+  messageId?: string;
+  inReplyTo?: string;
+  references?: string;
   sourceSnippets?: SourceSnippet[];
   assumptionFlags?: AssumptionFlag[];
+  replies?: ReplyItem[];
 }
 
 const TAB_OPTIONS = [
@@ -147,6 +160,10 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
   // E-06: Follow-up state
   const [followUpDraftId, setFollowUpDraftId] = useState<string | null>(null);
   const [followUpLoading, setFollowUpLoading] = useState(false);
+
+  // Thread view state
+  const [viewMode, setViewMode] = useState<'flat' | 'thread'>('flat');
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const params = tab !== 'all' ? `?status=${tab}` : '';
@@ -289,6 +306,45 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
     );
   }, [drafts, searchQuery]);
 
+  // Thread grouping: group drafts by contact
+  const threadGroups = useMemo(() => {
+    const map = new Map<string, { contact: Contact; drafts: Draft[] }>();
+    for (const d of filteredDrafts) {
+      const key = d.contactId;
+      if (!map.has(key)) {
+        map.set(key, {
+          contact: d.contact || { id: key, name: 'Unknown' },
+          drafts: [],
+        });
+      }
+      map.get(key)!.drafts.push(d);
+    }
+    // Sort each thread's drafts by createdAt ascending (oldest first)
+    for (const group of map.values()) {
+      group.drafts.sort((a, b) => {
+        const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return da - db;
+      });
+    }
+    // Sort threads by most recent draft (newest first)
+    return Array.from(map.values()).sort((a, b) => {
+      const aLast = a.drafts[a.drafts.length - 1];
+      const bLast = b.drafts[b.drafts.length - 1];
+      const aTime = aLast?.createdAt ? new Date(aLast.createdAt).getTime() : 0;
+      const bTime = bLast?.createdAt ? new Date(bLast.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
+  }, [filteredDrafts]);
+
+  const toggleThread = (contactId: string) => {
+    setExpandedThreads(prev => {
+      const next = new Set(prev);
+      if (next.has(contactId)) next.delete(contactId); else next.add(contactId);
+      return next;
+    });
+  };
+
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
@@ -394,6 +450,31 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
           />
         </div>
         <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          {/* View mode toggle */}
+          <div className="flex items-center rounded-lg bg-white/[0.03] border border-white/[0.08] p-0.5">
+            <button
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                viewMode === 'flat'
+                  ? 'bg-primary/15 text-primary border border-primary/25'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => setViewMode('flat')}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              All Drafts
+            </button>
+            <button
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                viewMode === 'thread'
+                  ? 'bg-primary/15 text-primary border border-primary/25'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => setViewMode('thread')}
+            >
+              <MessagesSquare className="w-3.5 h-3.5" />
+              Thread View
+            </button>
+          </div>
           <Button
             variant="outline"
             size="sm"
@@ -768,157 +849,365 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
         </motion.div>
       )}
 
-      {/* -- Drafts Table -- */}
-      <div className="flex items-center justify-between">
-        <SectionHeader
-          title="Draft Queue"
-          subtitle={`${filteredDrafts.length} draft${filteredDrafts.length !== 1 ? 's' : ''} found`}
-          className="!mb-0"
-        />
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={filteredDrafts.length > 0 && selectedIds.size === filteredDrafts.length}
-            onChange={toggleSelectAll}
-            className="w-4 h-4 rounded border-white/20 bg-white/5 text-primary accent-primary"
-          />
-          <span className="text-xs text-muted-foreground">Select All</span>
-        </label>
-      </div>
+      {/* -- Drafts Table / Thread View -- */}
+      {viewMode === 'flat' ? (
+        <>
+          <div className="flex items-center justify-between">
+            <SectionHeader
+              title="Draft Queue"
+              subtitle={`${filteredDrafts.length} draft${filteredDrafts.length !== 1 ? 's' : ''} found`}
+              className="!mb-0"
+            />
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={filteredDrafts.length > 0 && selectedIds.size === filteredDrafts.length}
+                onChange={toggleSelectAll}
+                className="w-4 h-4 rounded border-white/20 bg-white/5 text-primary accent-primary"
+              />
+              <span className="text-xs text-muted-foreground">Select All</span>
+            </label>
+          </div>
 
-      {loading ? (
-        <AnimatedCard hover={false}>
-          <CardContent className="p-6 space-y-4">
-            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
-          </CardContent>
-        </AnimatedCard>
-      ) : filteredDrafts.length === 0 ? (
-        <EmptyState
-          icon={FileText}
-          title="No drafts found"
-          description={searchQuery ? 'Try adjusting your search query or filters.' : 'Drafts will appear here once generated from your leads.'}
-          action={navigateTo && !searchQuery ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs border-primary/30 text-primary hover:bg-primary/10"
-              onClick={() => navigateTo('import')}
-            >
-              Import leads first
-            </Button>
-          ) : undefined}
-        />
-      ) : (
-        <StaggerGrid className="space-y-2" stagger={0.04}>
-          {filteredDrafts.map(draft => (
-            <StaggerItem key={draft.id}>
-              <AnimatedCard
-                glow={
-                  draft.status === 'approved' ? 'rgba(16, 185, 129, 0.08)' :
-                  draft.status === 'rejected' ? 'rgba(239, 68, 68, 0.08)' :
-                  'rgba(212, 175, 55, 0.08)'
-                }
-                className="!rounded-xl"
-              >
-                <div className="flex items-center gap-4 px-5 py-4">
-                  {/* E-12: Checkbox */}
-                  <label className="shrink-0 cursor-pointer" onClick={e => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(draft.id)}
-                      onChange={() => toggleSelect(draft.id)}
-                      className="w-4 h-4 rounded border-white/20 bg-white/5 text-primary accent-primary"
-                    />
-                  </label>
+          {loading ? (
+            <AnimatedCard hover={false}>
+              <CardContent className="p-6 space-y-4">
+                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
+              </CardContent>
+            </AnimatedCard>
+          ) : filteredDrafts.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="No drafts found"
+              description={searchQuery ? 'Try adjusting your search query or filters.' : 'Drafts will appear here once generated from your leads.'}
+              action={navigateTo && !searchQuery ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs border-primary/30 text-primary hover:bg-primary/10"
+                  onClick={() => navigateTo('import')}
+                >
+                  Import leads first
+                </Button>
+              ) : undefined}
+            />
+          ) : (
+            <StaggerGrid className="space-y-2" stagger={0.04}>
+              {filteredDrafts.map(draft => (
+                <StaggerItem key={draft.id}>
+                  <AnimatedCard
+                    glow={
+                      draft.status === 'approved' ? 'rgba(16, 185, 129, 0.08)' :
+                      draft.status === 'rejected' ? 'rgba(239, 68, 68, 0.08)' :
+                      'rgba(212, 175, 55, 0.08)'
+                    }
+                    className="!rounded-xl"
+                  >
+                    <div className="flex items-center gap-4 px-5 py-4">
+                      {/* E-12: Checkbox */}
+                      <label className="shrink-0 cursor-pointer" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(draft.id)}
+                          onChange={() => toggleSelect(draft.id)}
+                          className="w-4 h-4 rounded border-white/20 bg-white/5 text-primary accent-primary"
+                        />
+                      </label>
 
-                  {/* Status indicator */}
-                  <div className="shrink-0">
-                    {draft.status === 'approved' ? (
-                      <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      {/* Status indicator */}
+                      <div className="shrink-0">
+                        {draft.status === 'approved' ? (
+                          <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          </div>
+                        ) : draft.status === 'rejected' ? (
+                          <div className="w-8 h-8 rounded-lg bg-red-500/15 flex items-center justify-center">
+                            <X className="w-4 h-4 text-red-400" />
+                          </div>
+                        ) : (
+                          <PulseDot color="#F59E0B" />
+                        )}
                       </div>
-                    ) : draft.status === 'rejected' ? (
-                      <div className="w-8 h-8 rounded-lg bg-red-500/15 flex items-center justify-center">
-                        <X className="w-4 h-4 text-red-400" />
-                      </div>
-                    ) : (
-                      <PulseDot color="#F59E0B" />
-                    )}
-                  </div>
 
-                  {/* Contact info */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-sm font-semibold text-foreground truncate">{draft.contact?.name || 'Unknown'}</span>
-                      <Badge variant="outline" className={DRAFT_STATUS_COLORS[draft.status] || DRAFT_STATUS_COLORS.draft}>
-                        {draft.status.replace(/_/g, ' ')}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      {draft.contact?.company?.name && (
-                        <span className="flex items-center gap-1">
-                          <Building2 className="w-3 h-3" />
-                          {draft.contact.company.name}
+                      {/* Contact info */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-sm font-semibold text-foreground truncate">{draft.contact?.name || 'Unknown'}</span>
+                          <Badge variant="outline" className={DRAFT_STATUS_COLORS[draft.status] || DRAFT_STATUS_COLORS.draft}>
+                            {draft.status.replace(/_/g, ' ')}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          {draft.contact?.company?.name && (
+                            <span className="flex items-center gap-1">
+                              <Building2 className="w-3 h-3" />
+                              {draft.contact.company.name}
+                            </span>
+                          )}
+                          <span className="hidden sm:inline">|</span>
+                          <span className="hidden sm:inline truncate max-w-[240px] md:max-w-[320px]">{draft.subject}</span>
+                        </div>
+                      </div>
+
+                      {/* Confidence */}
+                      <div className="hidden sm:flex items-center gap-2 shrink-0">
+                        <span className={`text-sm font-bold tabular-nums ${confidenceColor(draft.confidenceScore)}`}>
+                          {draft.confidenceScore != null ? `${draft.confidenceScore}%` : '-'}
                         </span>
-                      )}
-                      <span className="hidden sm:inline">|</span>
-                      <span className="hidden sm:inline truncate max-w-[240px] md:max-w-[320px]">{draft.subject}</span>
+                      </div>
+
+                      {/* Date */}
+                      <div className="hidden md:block text-xs text-muted-foreground tabular-nums shrink-0 w-20 text-right">
+                        {draft.createdAt || '-'}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {(draft.status === 'approved' || draft.status === 'sent') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-all"
+                            onClick={(e) => { e.stopPropagation(); handleFollowUp(draft); }}
+                            disabled={followUpLoading}
+                          >
+                            <Reply className="w-3.5 h-3.5 mr-1" />
+                            <span className="hidden lg:inline">Follow Up</span>
+                          </Button>
+                        )}
+                        {navigateTo && draft.contact?.name && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 text-[11px] text-muted-foreground hover:text-foreground"
+                            onClick={(e) => { e.stopPropagation(); navigateTo('leads'); }}
+                          >
+                            <User className="w-3 h-3 mr-1" />
+                            <span className="hidden lg:inline">Leads</span>
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-xs text-primary hover:text-primary/80 hover:bg-primary/10 transition-all"
+                          onClick={() => openDraft(draft)}
+                        >
+                          <Eye className="w-3.5 h-3.5 mr-1" />
+                          Review
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  </AnimatedCard>
+                </StaggerItem>
+              ))}
+            </StaggerGrid>
+          )}
+        </>
+      ) : (
+        /* ═══════════════════════════════════════════════
+           THREAD VIEW — drafts grouped by contact
+           ═══════════════════════════════════════════════ */
+        <>
+          <div className="flex items-center justify-between">
+            <SectionHeader
+              title="Conversation Threads"
+              subtitle={`${threadGroups.length} thread${threadGroups.length !== 1 ? 's' : ''} across ${filteredDrafts.length} draft${filteredDrafts.length !== 1 ? 's' : ''}`}
+              className="!mb-0"
+            />
+          </div>
 
-                  {/* Confidence */}
-                  <div className="hidden sm:flex items-center gap-2 shrink-0">
-                    <span className={`text-sm font-bold tabular-nums ${confidenceColor(draft.confidenceScore)}`}>
-                      {draft.confidenceScore != null ? `${draft.confidenceScore}%` : '-'}
-                    </span>
-                  </div>
+          {loading ? (
+            <AnimatedCard hover={false}>
+              <CardContent className="p-6 space-y-4">
+                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
+              </CardContent>
+            </AnimatedCard>
+          ) : threadGroups.length === 0 ? (
+            <EmptyState
+              icon={MessagesSquare}
+              title="No threads found"
+              description={searchQuery ? 'Try adjusting your search query or filters.' : 'Threads will appear when multiple drafts exist for a contact.'}
+            />
+          ) : (
+            <StaggerGrid className="space-y-3" stagger={0.05}>
+              {threadGroups.map(group => {
+                const { contact, drafts: threadDrafts } = group;
+                const isExpanded = expandedThreads.has(contact.id);
+                const lastDraft = threadDrafts[threadDrafts.length - 1];
 
-                  {/* Date */}
-                  <div className="hidden md:block text-xs text-muted-foreground tabular-nums shrink-0 w-20 text-right">
-                    {draft.createdAt || '-'}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {/* E-06: Follow Up button for sent/approved drafts */}
-                    {(draft.status === 'approved' || draft.status === 'sent') && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-all"
-                        onClick={(e) => { e.stopPropagation(); handleFollowUp(draft); }}
-                        disabled={followUpLoading}
+                return (
+                  <StaggerItem key={contact.id}>
+                    <GlassPanel className="overflow-hidden">
+                      {/* Thread header — always visible */}
+                      <button
+                        className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-white/[0.02] transition-colors"
+                        onClick={() => toggleThread(contact.id)}
                       >
-                        <Reply className="w-3.5 h-3.5 mr-1" />
-                        <span className="hidden lg:inline">Follow Up</span>
-                      </Button>
-                    )}
-                    {navigateTo && draft.contact?.name && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 text-[11px] text-muted-foreground hover:text-foreground"
-                        onClick={(e) => { e.stopPropagation(); navigateTo('leads'); }}
-                      >
-                        <User className="w-3 h-3 mr-1" />
-                        <span className="hidden lg:inline">Leads</span>
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 text-xs text-primary hover:text-primary/80 hover:bg-primary/10 transition-all"
-                      onClick={() => openDraft(draft)}
-                    >
-                      <Eye className="w-3.5 h-3.5 mr-1" />
-                      Review
-                    </Button>
-                  </div>
-                </div>
-              </AnimatedCard>
-            </StaggerItem>
-          ))}
-        </StaggerGrid>
+                        {/* Expand/collapse icon */}
+                        <motion.div
+                          animate={{ rotate: isExpanded ? 90 : 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="shrink-0"
+                        >
+                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                        </motion.div>
+
+                        {/* Contact avatar placeholder */}
+                        <div
+                          className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-sm font-bold"
+                          style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05))', color: '#D4AF37' }}
+                        >
+                          {(contact.name || 'U').charAt(0).toUpperCase()}
+                        </div>
+
+                        {/* Contact info */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-sm font-semibold text-foreground truncate">{contact.name}</span>
+                            <Badge variant="outline" className="bg-white/[0.05] border-white/[0.1] text-muted-foreground text-[10px] px-1.5">
+                              {threadDrafts.length} draft{threadDrafts.length !== 1 ? 's' : ''}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            {contact.email && (
+                              <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{contact.email}</span>
+                            )}
+                            {contact.company?.name && (
+                              <><span className="hidden sm:inline">|</span><span className="hidden sm:inline flex items-center gap-1"><Building2 className="w-3 h-3" />{contact.company.name}</span></>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Last draft subject preview */}
+                        <div className="hidden md:block text-xs text-muted-foreground truncate max-w-[200px] lg:max-w-[300px]">
+                          {lastDraft?.subject}
+                        </div>
+
+                        {/* Last draft status */}
+                        {lastDraft && (
+                          <Badge variant="outline" className={`shrink-0 text-[10px] ${DRAFT_STATUS_COLORS[lastDraft.status] || DRAFT_STATUS_COLORS.draft}`}>
+                            {lastDraft.status.replace(/_/g, ' ')}
+                          </Badge>
+                        )}
+                      </button>
+
+                      {/* Thread body — collapsible */}
+                      <AnimatePresence initial={false}>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                            className="overflow-hidden"
+                          >
+                            <div className="border-t border-white/[0.06]">
+                              {threadDrafts.map((draft, idx) => {
+                                const isFollowUp = !!draft.inReplyTo;
+                                const bodyPreview = draft.body.length > 100 ? draft.body.slice(0, 100) + '...' : draft.body;
+                                const replyLinked = draft.replies && draft.replies.length > 0 ? draft.replies[0] : null;
+
+                                return (
+                                  <div key={draft.id} className="relative">
+                                    {/* Vertical connector line */}
+                                    {idx < threadDrafts.length - 1 && (
+                                      <div className="absolute left-[29px] top-[52px] bottom-0 w-px bg-gradient-to-b from-primary/20 to-transparent" />
+                                    )}
+
+                                    <div className="flex gap-4 px-5 py-3 hover:bg-white/[0.015] transition-colors">
+                                      {/* Thread dot / connector node */}
+                                      <div className="shrink-0 flex flex-col items-center pt-1">
+                                        <div className={`w-2.5 h-2.5 rounded-full border-2 ${
+                                          draft.status === 'approved' ? 'bg-emerald-400 border-emerald-400/30' :
+                                          draft.status === 'rejected' ? 'bg-red-400 border-red-400/30' :
+                                          draft.status === 'sent' ? 'bg-blue-400 border-blue-400/30' :
+                                          'bg-amber-400 border-amber-400/30'
+                                        }`} />
+                                      </div>
+
+                                      {/* Draft content */}
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          {isFollowUp && (
+                                            <Reply className="w-3 h-3 text-amber-400" />
+                                          )}
+                                          <span className="text-sm font-semibold text-foreground truncate">{draft.subject}</span>
+                                          <Badge variant="outline" className={`text-[10px] shrink-0 ${DRAFT_STATUS_COLORS[draft.status] || DRAFT_STATUS_COLORS.draft}`}>
+                                            {draft.status.replace(/_/g, ' ')}
+                                          </Badge>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground leading-relaxed mb-1.5">{bodyPreview}</p>
+                                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{draft.createdAt}</span>
+                                          {draft.confidenceScore != null && (
+                                            <span className={`font-medium tabular-nums ${confidenceColor(draft.confidenceScore)}`}>
+                                              {draft.confidenceScore}% confidence
+                                            </span>
+                                          )}
+                                          {draft.messageId && (
+                                            <span className="hidden lg:flex items-center gap-1 text-zinc-600">
+                                              <MessagesSquare className="w-3 h-3" />threaded
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        {/* Linked reply snippet */}
+                                        {replyLinked && (
+                                          <div className="mt-2 pl-3 border-l-2 border-primary/20">
+                                            <p className="text-[10px] font-semibold text-primary mb-0.5 flex items-center gap-1">
+                                              <Reply className="w-3 h-3" /> Reply received
+                                              {replyLinked.category && (
+                                                <Badge variant="outline" className="text-[9px] ml-1 border-white/[0.08] text-zinc-500">{replyLinked.category}</Badge>
+                                              )}
+                                            </p>
+                                            <p className="text-[11px] text-muted-foreground leading-relaxed truncate max-w-lg">
+                                              {replyLinked.body && replyLinked.body.length > 80
+                                                ? replyLinked.body.slice(0, 80) + '...'
+                                                : replyLinked.body || 'No content'}
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Actions */}
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        {(draft.status === 'approved' || draft.status === 'sent') && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 text-[10px] text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                                            onClick={(e) => { e.stopPropagation(); handleFollowUp(draft); }}
+                                            disabled={followUpLoading}
+                                          >
+                                            <Reply className="w-3 h-3 mr-0.5" />
+                                            <span className="hidden xl:inline">Follow Up</span>
+                                          </Button>
+                                        )}
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 text-[10px] text-primary hover:text-primary/80 hover:bg-primary/10"
+                                          onClick={() => openDraft(draft)}
+                                        >
+                                          <Eye className="w-3 h-3 mr-0.5" />
+                                          Review
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </GlassPanel>
+                  </StaggerItem>
+                );
+              })}
+            </StaggerGrid>
+          )}
+        </>
       )}
 
       {/* -- Knowledge Search Dialog -- */}

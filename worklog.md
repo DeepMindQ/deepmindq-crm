@@ -400,3 +400,80 @@ Stage Summary:
 - Replies screen now has expandable bodies, quick actions (follow-up, mark positive/negative, suppress), and a detail modal
 - Queue screen now has send-all button with toast feedback, bulk selection with checkboxes, floating bulk action toolbar (pause/resume/retry/cancel), enhanced status indicators with tooltips and retry badges
 - Build verified clean - all 940+ lines compile successfully
+
+---
+Task ID: 6
+Agent: Lookalike Discovery + Team Performance Agent
+Task: Add lookalike discovery API, team performance API, and team performance UI to settings
+
+Work Log:
+- Created /api/leads/lookalike/route.ts with pattern extraction and similarity scoring
+- Created /api/team/performance/route.ts with per-member metrics
+- Added Team Performance section to settings screen with performance table, summary cards, and assignment actions
+- Verified build compiles clean (no TS/lint errors in changed files)
+
+Stage Summary:
+- Lookalike API analyzes reference leads and finds similar untouched leads with match scoring (industry +25, role +25, size +20, country +15, score proximity +15)
+- Team performance API calculates per-member KPIs (status breakdown, reply/bounce rates, event counts, avg score)
+- Settings screen now shows Team Performance as 6th tab with: 4 summary StatCards (team size, total assigned, avg reply rate, top performer), performance table with avatar initials (gold gradient), color-coded reply rates, stacked status distribution bars, per-member recharts BarCharts, and assignment action buttons (Auto-Assign Unassigned, Rebalance)
+- TypeScript compilation verified clean for all 3 files
+---
+Task ID: 5
+Agent: Signal Detection + Smart Scheduling Agent
+Task: Add signal detection API, optimal scheduling API, and signals panel to dashboard
+
+Work Log:
+- Created /api/signals/route.ts with 7 signal types (high-engagement, score spike, stale lead, bounce risk, unassigned high-value, sequence dropout, positive reply)
+- Created /api/leads/schedule-optimal/route.ts with timezone-aware scheduling (30+ region patterns, Tue-Thu 9-11 AM optimal window)
+- Added signals panel to dashboard-screen.tsx with collapsible panel, severity-coded borders, type summary chips, dismiss functionality with AnimatePresence animations
+- Verified build compiles clean
+
+Stage Summary:
+- 7 signal types detecting high-engagement leads, score spikes, stale leads, bounce risks, unassigned high-value, sequence dropouts, positive replies
+- Optimal scheduling with timezone detection for 30+ regions mapping to UTC offsets
+- Dashboard now shows real-time signals panel between Quick Actions and Stats Grid with PulseDot counter, type chips, dismiss buttons
+- Build verified clean (no new lint errors)
+---
+Task ID: 7
+Agent: Knowledge Graph + Version Control Agent
+Task: Add knowledge graph visualization and version control UI
+
+Work Log:
+- Created /api/knowledge/graph/route.ts with graph data and version history endpoints
+- Added Knowledge Graph tab (TAB 2) to knowledge library screen using recharts Treemap
+- Added StatCards for graph metrics (Total Nodes, Connections, Service Lines, Categories)
+- Added Treemap visualization with custom SVG content renderer grouped by service line
+- Added Category Distribution donut chart (recharts PieChart) in graph tab
+- Added Service Line Distribution horizontal bar chart (recharts BarChart) in graph tab
+- Added selected node detail panel with GlassPanel showing score/upvotes/usedInEmails/version
+- Added Version History timeline panel to the View Asset Dialog with vertical timeline UI
+- Enhanced Coverage tab with Category Breakdown donut chart alongside existing category cards
+- Added Industry Coverage Map bar chart with color-coded gap indicators (green/amber/red)
+- Added buildTreemapData() and CustomTreemapContent() helper functions
+- Fixed tab numbering (TAB 3→RAG Search, TAB 4→Coverage, TAB 5→Upload)
+- Verified build compiles clean with zero new errors
+
+Stage Summary:
+- Knowledge graph API (/api/knowledge/graph) returns nodes and edges for visualization
+- Treemap visualization shows assets grouped by service line with category coloring
+- Version history shows vertical timeline of asset changes with gold CURRENT badge
+- Coverage dashboard enhanced with donut chart, industry bar chart, and gap legend
+- Build verified clean, no new lint errors introduced
+
+---
+Task ID: 8
+Agent: GDPR Compliance + Thread Tracking Agent
+Task: Add compliance API/dashboard and thread view to drafts
+
+Work Log:
+- Created /api/compliance/route.ts with GET (consent distribution, suppression stats, data completeness, risk flags, retention metrics, recent consent changes) and POST (export_contact_data, delete_contact, export_all_consented, clean_stale_suppressions) handlers
+- Enhanced drafts-screen.tsx with Thread View toggle (flat/thread) in header, viewMode state, threadGroups computed grouping by contact, collapsible thread cards with AnimatePresence, vertical connector lines, reply snippets, per-draft action buttons
+- Added ComplianceSection component to settings-screen.tsx with compliance score card (color-coded), recharts PieChart donut for consent distribution, risk flags panel with fix buttons, quick actions (export data, clean suppressions, view suppression list), recent consent changes mini-table
+- Added 'compliance' tab to SETTINGS_TABS and TAB_ICONS in settings-screen
+- Verified build compiles clean — no errors
+
+Stage Summary:
+- Compliance API returns consent distribution, suppression breakdown, risk flags, and supports GDPR actions (export, delete, clean)
+- Drafts screen now has Thread View showing conversations grouped by contact with expand/collapse via framer-motion
+- Settings screen shows GDPR compliance dashboard with donut chart, risk flag panel, and quick actions
+- Build verified clean

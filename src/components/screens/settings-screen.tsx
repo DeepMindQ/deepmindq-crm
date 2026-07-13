@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   PageTransition,
@@ -13,6 +13,7 @@ import {
   ShimmerText,
   PulseDot,
   AnimatedCard,
+  StatCard,
 } from '@/components/ui/animated-components';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,7 +41,31 @@ import {
   RotateCcw,
   CheckCircle2,
   XCircle,
+  Users,
+  Trophy,
+  RefreshCw,
+  ArrowRightLeft,
+  Send,
+  MessageSquare,
+  AlertTriangle,
+  Target,
+  ShieldAlert,
+  Download,
+  Trash2,
+  ExternalLink,
 } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  PieChart,
+  Pie,
+} from 'recharts';
 
 // ── Shared gold-focus input className ───────────────────────
 const INPUT_CLS =
@@ -135,6 +160,723 @@ function ToggleRow({
   );
 }
 
+// ── Status colors for the stacked bar ──────────────────────
+const STATUS_ORDER = ['imported', 'cleaned', 'drafted', 'queued', 'sent', 'replied', 'bounced'] as const;
+const STATUS_COLORS: Record<string, string> = {
+  imported: '#6b7280',
+  cleaned: '#8b5cf6',
+  drafted: '#3b82f6',
+  queued: '#f59e0b',
+  sent: '#D4AF37',
+  replied: '#10b981',
+  bounced: '#ef4444',
+};
+
+interface TeamMember {
+  name: string;
+  avatar: string;
+  totalAssigned: number;
+  statusBreakdown: Record<string, number>;
+  avgScore: number;
+  openCount: number;
+  clickCount: number;
+  replyCount: number;
+  replyRate: number;
+  bounceRate: number;
+}
+
+// ── Custom recharts tooltip ────────────────────────────────
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; dataKey: string; color: string }>; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-white/10 bg-[#1a1c2e] px-3 py-2 text-xs shadow-xl backdrop-blur-sm">
+      <p className="font-semibold text-foreground mb-1">{label}</p>
+      {payload.map((p, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+          <span className="text-muted-foreground capitalize">{p.dataKey}:</span>
+          <span className="text-foreground font-medium">{p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Team Performance Section ──────────────────────────────
+function TeamPerformanceSection() {
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [assigning, setAssigning] = useState(false);
+
+  const fetchPerformance = useCallback(async () => {
+    try {
+      const res = await fetch('/api/team/performance');
+      if (res.ok) {
+        const data = await res.json();
+        setMembers(data.members || []);
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPerformance();
+  }, [fetchPerformance]);
+
+  const runAssignment = async (method: 'unassigned' | 'all') => {
+    setAssigning(true);
+    try {
+      // First, get the contact IDs
+      let url = '/api/leads/assign';
+      const res = await fetch(url);
+      const summary = await res.json();
+
+      // For simplicity, call the assign endpoint
+      const assignRes = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contactIds: ['_all'], // sentinel — backend will handle
+          method: 'round_robin',
+          _assignMode: method,
+        }),
+      });
+      const result = await assignRes.json();
+      toast.success(result.message || `${method === 'all' ? 'Rebalanced' : 'Auto-assigned'} successfully`);
+      fetchPerformance();
+    } catch {
+      toast.error('Assignment failed');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  // Derived summary
+  const totalTeamSize = members.length;
+  const totalContacts = members.reduce((s, m) => s + m.totalAssigned, 0);
+  const teamAvgReplyRate = members.length > 0
+    ? Math.round(members.reduce((s, m) => s + m.replyRate, 0) / members.length)
+    : 0;
+  const topPerformer = members.length > 0 ? members[0] : null;
+
+  return (
+    <StaggerGrid stagger={0.08} className="space-y-6">
+      {/* ── Header panel ─────────────────────────────────── */}
+      <StaggerItem>
+        <GlassPanel className="p-0 overflow-hidden">
+          <div
+            className="px-6 py-4 flex items-center justify-between gap-3 flex-wrap"
+            style={{
+              background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.06), transparent)',
+              borderBottom: '1px solid rgba(212, 175, 55, 0.1)',
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.06))' }}
+              >
+                <Users className="size-4.5" style={{ color: '#D4AF37' }} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground tracking-tight">
+                  <ShimmerText>Team Performance</ShimmerText>
+                </h3>
+                <p className="text-xs text-muted-foreground">Track individual KPIs, reply rates, and contact distribution</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={assigning}
+                  className="border-[#D4AF37]/40 text-[#D4AF37] hover:bg-[#D4AF37]/10 transition-all duration-300"
+                  onClick={() => runAssignment('unassigned')}
+                >
+                  {assigning ? <RefreshCw className="size-3.5 mr-1.5 animate-spin" /> : <ArrowRightLeft className="size-3.5 mr-1.5" />}
+                  Auto-Assign Unassigned
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={assigning}
+                  className="border-border text-muted-foreground hover:bg-accent transition-all duration-300"
+                  onClick={() => runAssignment('all')}
+                >
+                  <RefreshCw className={`size-3.5 mr-1.5 ${assigning ? 'animate-spin' : ''}`} />
+                  Rebalance
+                </Button>
+              </motion.div>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* ── Summary Cards ────────────────────────────── */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard label="Team Size" value={totalTeamSize} icon={Users} color="#D4AF37" delay={0} />
+              <StatCard label="Total Assigned" value={totalContacts} icon={Target} color="#3b82f6" delay={0.05} />
+              <StatCard
+                label="Avg Reply Rate"
+                value={`${teamAvgReplyRate}%`}
+                icon={MessageSquare}
+                color="#10b981"
+                delay={0.1}
+              />
+              <StatCard
+                label="Top Performer"
+                value={topPerformer ? topPerformer.name.split(' ')[0] : '—'}
+                icon={Trophy}
+                color="#f59e0b"
+                delay={0.15}
+              />
+            </div>
+
+            {/* ── Loading state ────────────────────────────── */}
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <RefreshCw className="size-5 text-[#D4AF37] animate-spin" />
+                <span className="ml-3 text-sm text-muted-foreground">Loading team data…</span>
+              </div>
+            ) : members.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <Users className="size-10 text-muted-foreground/30 mb-3" />
+                <p className="text-sm font-medium text-muted-foreground">No team members yet</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Assign contacts to team members to see performance data</p>
+              </div>
+            ) : (
+              <>
+                {/* ── Performance Table ─────────────────────── */}
+                <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+                  <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 z-10">
+                        <tr
+                          className="text-left text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                          style={{ background: 'rgba(10, 12, 20, 0.95)', backdropFilter: 'blur(8px)' }}
+                        >
+                          <th className="px-4 py-3 whitespace-nowrap">Member</th>
+                          <th className="px-4 py-3 text-right whitespace-nowrap">Assigned</th>
+                          <th className="px-4 py-3 text-right whitespace-nowrap">Sent</th>
+                          <th className="px-4 py-3 text-right whitespace-nowrap">Replied</th>
+                          <th className="px-4 py-3 text-right whitespace-nowrap">Bounced</th>
+                          <th className="px-4 py-3 text-right whitespace-nowrap">Reply Rate</th>
+                          <th className="px-4 py-3 text-right whitespace-nowrap">Avg Score</th>
+                          <th className="px-4 py-3 whitespace-nowrap min-w-[200px]">Status Distribution</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/[0.04]">
+                        {members.map((m, idx) => {
+                          const sentCount = m.statusBreakdown['sent'] || 0;
+                          const repliedCount = m.statusBreakdown['replied'] || 0;
+                          const bouncedCount = m.statusBreakdown['bounced'] || 0;
+
+                          // Reply rate color
+                          const replyColor = m.replyRate > 20 ? '#10b981' : m.replyRate >= 10 ? '#f59e0b' : '#ef4444';
+
+                          // Stacked bar data
+                          const barData = STATUS_ORDER
+                            .filter(s => (m.statusBreakdown[s] || 0) > 0)
+                            .map(s => ({ name: s, value: m.statusBreakdown[s] || 0 }));
+
+                          const barTotal = barData.reduce((sum, d) => sum + d.value, 0);
+
+                          return (
+                            <motion.tr
+                              key={m.name}
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: idx * 0.05, duration: 0.3 }}
+                              className="hover:bg-white/[0.02] transition-colors"
+                            >
+                              {/* Avatar + Name */}
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-3">
+                                  <div
+                                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                                    style={{
+                                      background: `linear-gradient(135deg, #D4AF37, #9A8340)`,
+                                      boxShadow: idx === 0 ? '0 0 12px rgba(212, 175, 55, 0.4)' : 'none',
+                                    }}
+                                  >
+                                    {m.avatar}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium text-foreground truncate">{m.name}</p>
+                                    {idx === 0 && (
+                                      <span className="text-[10px] font-semibold text-[#D4AF37] flex items-center gap-1">
+                                        <Trophy className="size-2.5" /> Top Performer
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-right tabular-nums text-foreground">{m.totalAssigned}</td>
+                              <td className="px-4 py-3 text-right tabular-nums text-foreground">{sentCount}</td>
+                              <td className="px-4 py-3 text-right tabular-nums text-emerald-400 font-medium">{repliedCount}</td>
+                              <td className="px-4 py-3 text-right tabular-nums text-red-400">{bouncedCount}</td>
+                              <td className="px-4 py-3 text-right">
+                                <span className="font-bold tabular-nums" style={{ color: replyColor }}>
+                                  {m.replyRate}%
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{m.avgScore}</td>
+                              {/* Stacked bar */}
+                              <td className="px-4 py-3">
+                                <div className="h-2.5 rounded-full overflow-hidden bg-white/[0.06] flex">
+                                  {barData.map(d => {
+                                    const pct = barTotal > 0 ? (d.value / barTotal) * 100 : 0;
+                                    return (
+                                      <motion.div
+                                        key={d.name}
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${pct}%` }}
+                                        transition={{ delay: idx * 0.05 + 0.2, duration: 0.6 }}
+                                        className="h-full"
+                                        style={{ background: STATUS_COLORS[d.name] || '#6b7280' }}
+                                        title={`${d.name}: ${d.value}`}
+                                      />
+                                    );
+                                  })}
+                                </div>
+                              </td>
+                            </motion.tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* ── Per-member bar charts ─────────────────── */}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                  {members.slice(0, 4).map((m, idx) => {
+                    const chartData = STATUS_ORDER
+                      .filter(s => (m.statusBreakdown[s] || 0) > 0)
+                      .map(s => ({
+                        name: s.charAt(0).toUpperCase() + s.slice(1, 4),
+                        value: m.statusBreakdown[s] || 0,
+                        color: STATUS_COLORS[s],
+                      }));
+
+                    return (
+                      <motion.div
+                        key={m.name}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 + idx * 0.08 }}
+                      >
+                        <GlassPanel className="p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                                style={{ background: 'linear-gradient(135deg, #D4AF37, #9A8340)' }}
+                              >
+                                {m.avatar}
+                              </div>
+                              <span className="text-xs font-medium text-foreground truncate">{m.name}</span>
+                            </div>
+                            <span className="text-xs font-bold tabular-nums" style={{
+                              color: m.replyRate > 20 ? '#10b981' : m.replyRate >= 10 ? '#f59e0b' : '#ef4444',
+                            }}>
+                              {m.replyRate}% reply
+                            </span>
+                          </div>
+                          <div className="h-24">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                                <XAxis
+                                  dataKey="name"
+                                  tick={{ fontSize: 9, fill: '#6b7280' }}
+                                  axisLine={false}
+                                  tickLine={false}
+                                />
+                                <YAxis hide />
+                                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+                                <Bar dataKey="value" radius={[3, 3, 0, 0]} maxBarSize={24}>
+                                  {chartData.map((entry, i) => (
+                                    <Cell key={i} fill={entry.color} />
+                                  ))}
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </GlassPanel>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        </GlassPanel>
+      </StaggerItem>
+    </StaggerGrid>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   GDPR Compliance Section
+   ═══════════════════════════════════════════════════════════ */
+
+interface ComplianceData {
+  summary: {
+    totalContacts: number;
+    consented: number;
+    unknown: number;
+    suppressed: number;
+    complianceRate: string;
+    emailVerifiedRate: string;
+  };
+  consentBreakdown: Record<string, number>;
+  suppressionBreakdown: Record<string, number>;
+  recentChanges: Array<{ id: string; action: string; entity: string; entityId?: string; details?: string; createdAt: string }>;
+  retentionDays: number;
+  riskFlags: Array<{ type: string; count: number; message: string; fixable?: boolean; fixAction?: string }>;
+}
+
+const CONSENT_COLORS: Record<string, string> = {
+  opted_in: '#10B981',
+  unknown: '#D4AF37',
+  opted_out: '#EF4444',
+};
+
+function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => void }) {
+  const [data, setData] = useState<ComplianceData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/compliance')
+      .then(r => r.json())
+      .then(d => { setData(d); })
+      .catch(() => { /* silent */ })
+      .finally(() => { setLoading(false); });
+  }, []);
+
+  const runAction = async (action: string, fixAction?: string) => {
+    const key = fixAction || action;
+    setActionLoading(key);
+    try {
+      const res = await fetch('/api/compliance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: fixAction || action }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        toast.success(result.message || `${action} completed`);
+        // Refresh data
+        const fresh = await fetch('/api/compliance').then(r => r.json());
+        setData(fresh);
+      } else {
+        toast.error(result.error || 'Action failed');
+      }
+    } catch {
+      toast.error('Network error');
+    }
+    setActionLoading(null);
+  };
+
+  const complianceRate = data ? parseFloat(data.summary.complianceRate) : 0;
+  const complianceColor = complianceRate >= 80 ? '#10B981' : complianceRate >= 50 ? '#F59E0B' : '#EF4444';
+  const complianceLabel = complianceRate >= 80 ? 'Compliant' : complianceRate >= 50 ? 'Needs Attention' : 'Non-Compliant';
+
+  const pieData = data
+    ? [
+        { name: 'Opted In', value: data.consentBreakdown.opted_in || 0, fill: CONSENT_COLORS.opted_in },
+        { name: 'Unknown', value: data.consentBreakdown.unknown || 0, fill: CONSENT_COLORS.unknown },
+        { name: 'Opted Out', value: data.consentBreakdown.opted_out || 0, fill: CONSENT_COLORS.opted_out },
+      ].filter(d => d.value > 0)
+    : [];
+
+  return (
+    <StaggerGrid stagger={0.08} className="space-y-6">
+      {/* ── Header ───────────────────────────────────────── */}
+      <StaggerItem>
+        <GlassPanel className="p-0 overflow-hidden">
+          <div
+            className="px-6 py-4 flex items-center gap-3"
+            style={{
+              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.06), rgba(212, 175, 55, 0.04), transparent)',
+              borderBottom: '1px solid rgba(239, 68, 68, 0.1)',
+            }}
+          >
+            <div
+              className="w-9 h-9 rounded-lg flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(212, 175, 55, 0.08))' }}
+            >
+              <ShieldAlert className="size-4.5 text-red-400" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-foreground tracking-tight">
+                <ShimmerText>GDPR Compliance Dashboard</ShimmerText>
+              </h3>
+              <p className="text-xs text-muted-foreground">Monitor consent status, risk flags, and data retention</p>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="w-6 h-6 text-muted-foreground animate-spin" />
+              </div>
+            ) : !data ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Failed to load compliance data</p>
+            ) : (
+              <div className="space-y-6">
+                {/* ── Score + Donut Chart ────────────────────── */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Compliance Score Card */}
+                  <div className="lg:col-span-1">
+                    <GlassPanel className="p-6 flex flex-col items-center justify-center">
+                      <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-3">Compliance Score</p>
+                      <div className="relative">
+                        <span
+                          className="text-5xl font-bold tabular-nums"
+                          style={{ color: complianceColor }}
+                        >
+                          {data.summary.complianceRate}%
+                        </span>
+                      </div>
+                      <Badge
+                        className="mt-3 text-xs font-medium"
+                        style={{
+                          background: `${complianceColor}20`,
+                          color: complianceColor,
+                          border: `1px solid ${complianceColor}40`,
+                        }}
+                      >
+                        {complianceLabel}
+                      </Badge>
+                      <div className="mt-4 w-full space-y-2 text-xs text-muted-foreground">
+                        <div className="flex items-center justify-between">
+                          <span>Total contacts</span>
+                          <span className="font-semibold text-foreground tabular-nums">{data.summary.totalContacts}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Opted in</span>
+                          <span className="font-semibold text-emerald-400 tabular-nums">{data.summary.consented}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Unknown status</span>
+                          <span className="font-semibold text-amber-400 tabular-nums">{data.summary.unknown}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Suppressed</span>
+                          <span className="font-semibold text-red-400 tabular-nums">{data.summary.suppressed}</span>
+                        </div>
+                        <Separator className="bg-border/40 !my-2" />
+                        <div className="flex items-center justify-between">
+                          <span>Email verified</span>
+                          <span className="font-semibold text-foreground tabular-nums">{data.summary.emailVerifiedRate}%</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Data retention</span>
+                          <span className="font-semibold text-foreground tabular-nums">{data.retentionDays} days</span>
+                        </div>
+                      </div>
+                    </GlassPanel>
+                  </div>
+
+                  {/* Donut Chart */}
+                  <div className="lg:col-span-1">
+                    <GlassPanel className="p-6">
+                      <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-4">Consent Distribution</p>
+                      {pieData.length > 0 ? (
+                        <div className="h-[200px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={pieData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={55}
+                                outerRadius={85}
+                                paddingAngle={3}
+                                dataKey="value"
+                                stroke="none"
+                              >
+                                {pieData.map((entry, idx) => (
+                                  <Cell key={idx} fill={entry.fill} />
+                                ))}
+                              </Pie>
+                              <Tooltip
+                                contentStyle={{
+                                  background: 'rgba(10, 12, 20, 0.95)',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  borderRadius: '8px',
+                                  fontSize: '12px',
+                                  color: '#e4e4e7',
+                                }}
+                                itemStyle={{ color: '#e4e4e7' }}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-[200px] flex items-center justify-center text-xs text-muted-foreground">No data</div>
+                      )}
+                      <div className="flex flex-wrap justify-center gap-4 mt-2">
+                        {pieData.map(d => (
+                          <div key={d.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ background: d.fill }} />
+                            <span>{d.name}</span>
+                            <span className="font-semibold text-foreground tabular-nums">{d.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </GlassPanel>
+                  </div>
+
+                  {/* Risk Flags */}
+                  <div className="lg:col-span-1">
+                    <GlassPanel className="p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <AlertTriangle className="w-4 h-4 text-amber-400" />
+                        <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">Risk Flags</p>
+                        {data.riskFlags.length > 0 && (
+                          <Badge className="bg-red-500/15 text-red-300 border-red-500/30 text-[10px] ml-auto">{data.riskFlags.length}</Badge>
+                        )}
+                      </div>
+
+                      {data.riskFlags.length === 0 ? (
+                        <div className="text-center py-6">
+                          <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                          <p className="text-xs text-emerald-400 font-medium">No risk flags</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">All compliance checks passed</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+                          {data.riskFlags.map(flag => (
+                            <div key={flag.type} className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                              <div className="flex items-start justify-between gap-2 mb-1">
+                                <p className="text-xs font-medium text-foreground leading-snug">{flag.message}</p>
+                                <Badge className="bg-red-500/15 text-red-300 border-red-500/30 text-[10px] shrink-0 tabular-nums">{flag.count}</Badge>
+                              </div>
+                              {flag.fixable && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 text-[10px] text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 mt-1"
+                                  disabled={actionLoading === flag.fixAction}
+                                  onClick={() => runAction('fix', flag.fixAction)}
+                                >
+                                  {actionLoading === flag.fixAction ? (
+                                    <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-3 h-3 mr-1" />
+                                  )}
+                                  Fix
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </GlassPanel>
+                  </div>
+                </div>
+
+                {/* ── Quick Actions ────────────────────────────── */}
+                <GlassPanel className="p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div
+                      className="w-1 h-4 rounded-full"
+                      style={{ background: 'linear-gradient(180deg, #D4AF37, #9A8340)' }}
+                    />
+                    <h4 className="text-sm font-semibold text-foreground">Quick Actions</h4>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Button
+                        variant="outline"
+                        className="h-9 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50"
+                        disabled={actionLoading === 'export_all_consented'}
+                        onClick={() => runAction('export_all_consented')}
+                      >
+                        {actionLoading === 'export_all_consented' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                        Export All Contact Data
+                      </Button>
+                    </motion.div>
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Button
+                        variant="outline"
+                        className="h-9 text-xs gap-1.5 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50"
+                        disabled={actionLoading === 'clean_stale_suppressions'}
+                        onClick={() => runAction('clean', 'clean_stale_suppressions')}
+                      >
+                        {actionLoading === 'clean_stale_suppressions' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        Clean Stale Suppressions
+                      </Button>
+                    </motion.div>
+                    {navigateTo && (
+                      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                        <Button
+                          variant="outline"
+                          className="h-9 text-xs gap-1.5 border-border text-muted-foreground hover:text-foreground hover:bg-accent"
+                          onClick={() => navigateTo('bounces')}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          View Suppression List
+                        </Button>
+                      </motion.div>
+                    )}
+                  </div>
+                </GlassPanel>
+
+                {/* ── Recent Consent Changes ────────────────────── */}
+                <GlassPanel className="p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div
+                      className="w-1 h-4 rounded-full"
+                      style={{ background: 'linear-gradient(180deg, #D4AF37, #9A8340)' }}
+                    />
+                    <h4 className="text-sm font-semibold text-foreground">Recent Consent Changes</h4>
+                    <span className="text-[10px] text-muted-foreground ml-1">(last 30 days)</span>
+                  </div>
+
+                  {data.recentChanges.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-4">No consent changes recorded recently</p>
+                  ) : (
+                    <div className="space-y-0 max-h-[280px] overflow-y-auto">
+                      {data.recentChanges.map((log, idx) => (
+                        <div key={log.id}>
+                          <div className="flex items-center gap-3 py-2.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-primary/60 shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs text-foreground truncate">{log.details || log.action}</p>
+                              <p className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+                                {new Date(log.createdAt).toLocaleString('en-US', {
+                                  month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                                })}
+                                {log.entityId && (
+                                  <span className="ml-2 text-zinc-600">ID: {log.entityId.slice(0, 8)}...</span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          {idx < data.recentChanges.length - 1 && <Separator className="bg-border/30" />}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </GlassPanel>
+              </div>
+            )}
+          </div>
+        </GlassPanel>
+      </StaggerItem>
+    </StaggerGrid>
+  );
+}
+
 export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: string) => void }) {
   // ── Active tab ───────────────────────────────────────────
   const [activeTab, setActiveTab] = useState('mailbox');
@@ -204,6 +946,8 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
     { key: 'verification', label: 'Verification' },
     { key: 'scoring', label: 'Lead Scoring' },
     { key: 'suppression', label: 'Suppression' },
+    { key: 'team', label: 'Team Performance' },
+    { key: 'compliance', label: 'Compliance' },
   ];
 
   // ── Tab icon map ─────────────────────────────────────────
@@ -213,6 +957,8 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
     verification: ShieldCheck,
     scoring: Star,
     suppression: Ban,
+    team: Users,
+    compliance: ShieldAlert,
   };
 
   return (
@@ -251,7 +997,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
           />
           <div className="flex items-center gap-2 ml-5">
             <PulseDot />
-            <span className="text-xs text-muted-foreground">System active - 5 modules configured</span>
+            <span className="text-xs text-muted-foreground">System active - 7 modules configured</span>
           </div>
         </div>
 
@@ -897,6 +1643,20 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
               </GlassPanel>
             </StaggerItem>
           </StaggerGrid>
+        </TabsContent>
+
+        {/* ═══════════════════════════════════════════════════════
+            TAB 6 - Team Performance
+           ═══════════════════════════════════════════════════════ */}
+        <TabsContent value="team" className="mt-6 space-y-6">
+          <TeamPerformanceSection />
+        </TabsContent>
+
+        {/* ═══════════════════════════════════════════════════════
+            TAB 7 - GDPR Compliance
+           ═══════════════════════════════════════════════════════ */}
+        <TabsContent value="compliance" className="mt-6 space-y-6">
+          <ComplianceSection navigateTo={navigateTo} />
         </TabsContent>
       </Tabs>
     </div>

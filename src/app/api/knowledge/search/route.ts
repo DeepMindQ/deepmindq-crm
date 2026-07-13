@@ -15,7 +15,8 @@ const DEMO_CAPABILITIES = [
     targetRoles: 'CTO, VP of Engineering, Head of AI, Data Science Director, Chief Digital Officer',
     problems: 'Manual processes, data silos, inaccurate predictions, slow time-to-insight, lack of AI strategy',
     evidence: '150+ enterprise ML deployments, average 3x ROI within 12 months',
-    content: 'End-to-end ML pipeline development, model training, MLOps, and intelligent automation solutions. We help enterprises build production-grade AI systems that drive measurable business outcomes.',
+    content: 'End-to-end ML pipeline development, model training, MLOps, and intelligent automation solutions. We help enterprises build production-grade AI systems that drive measurable business outcomes. Our team specializes in NLP, computer vision, recommendation systems, predictive analytics, and generative AI. We have delivered 150+ enterprise ML deployments with an average 3x ROI within 12 months.',
+    targetCompanySizes: 'Mid-Market, Enterprise',
   },
   {
     id: 'demo-sl-2',
@@ -27,7 +28,8 @@ const DEMO_CAPABILITIES = [
     targetRoles: 'CTO, VP of Engineering, Cloud Architect, Head of Infrastructure, DevOps Director',
     problems: 'Legacy infrastructure, high cloud costs, vendor lock-in, compliance constraints, scalability issues',
     evidence: '200+ cloud migrations completed, 99.99% uptime SLA achieved',
-    content: 'Multi-cloud architecture design, migration strategy, and cloud-native application development on AWS, Azure, and GCP. Specializing in complex enterprise migrations with zero downtime.',
+    content: 'Multi-cloud architecture design, migration strategy, and cloud-native application development on AWS, Azure, and GCP. Specializing in complex enterprise migrations with zero downtime. 200+ cloud migrations completed with 99.99% uptime SLA.',
+    targetCompanySizes: 'Mid-Market, Enterprise',
   },
   {
     id: 'demo-sl-3',
@@ -39,7 +41,8 @@ const DEMO_CAPABILITIES = [
     targetRoles: 'CDO, Head of Data, VP of Analytics, Data Engineering Lead, BI Director',
     problems: 'Data fragmentation, poor data quality, slow reporting, regulatory compliance, lack of real-time insights',
     evidence: '50+ enterprise data platforms built, 85% reduction in reporting time',
-    content: 'Enterprise data platform design, real-time analytics, data governance, and warehouse modernization. Transforming how organizations collect, process, and derive value from their data.',
+    content: 'Enterprise data platform design, real-time analytics, data governance, and warehouse modernization. Transforming how organizations collect, process, and derive value from their data. Expertise in Snowflake, Databricks, dbt, and real-time streaming architectures.',
+    targetCompanySizes: 'Mid-Market, Enterprise',
   },
   {
     id: 'demo-sl-4',
@@ -51,7 +54,21 @@ const DEMO_CAPABILITIES = [
     targetRoles: 'CEO, CIO, COO, Chief Digital Officer, VP of Technology',
     problems: 'Outdated systems, manual workflows, digital skills gap, change resistance, unclear transformation roadmap',
     evidence: '80+ transformation programs delivered, 60% efficiency gains on average',
-    content: 'Legacy system modernization, process automation, and technology strategy consulting. Helping enterprises navigate digital disruption with pragmatic, outcome-focused approaches.',
+    content: 'Legacy system modernization, process automation, and technology strategy consulting. Helping enterprises navigate digital disruption with pragmatic, outcome-focused approaches. 80+ transformation programs delivered with 60% efficiency gains.',
+    targetCompanySizes: 'Mid-Market, Enterprise, Startup',
+  },
+  {
+    id: 'demo-sl-5',
+    title: 'Cybersecurity & Compliance',
+    summary: 'Security architecture, compliance frameworks (SOC 2, HIPAA, PCI-DSS), penetration testing, and incident response.',
+    category: 'service_line',
+    serviceLine: 'Cybersecurity',
+    targetIndustries: 'Financial Services, Healthcare, Government, Technology',
+    targetRoles: 'CISO, CTO, VP of Security, Compliance Officer, IT Director',
+    problems: 'Security breaches, compliance gaps, legacy vulnerabilities, threat detection, audit preparation',
+    evidence: 'Zero breaches across 100+ security assessments, 99.7% compliance pass rate',
+    content: 'Security architecture, compliance frameworks (SOC 2, HIPAA, PCI-DSS), penetration testing, and incident response. We protect critical infrastructure and sensitive data with defense-in-depth strategies.',
+    targetCompanySizes: 'Enterprise',
   },
   {
     id: 'demo-cs-1',
@@ -64,6 +81,7 @@ const DEMO_CAPABILITIES = [
     problems: 'Document processing, compliance overhead, manual data entry',
     evidence: '85% reduction in processing time, $2.5M annual savings',
     content: 'A Fortune 500 financial services firm was drowning in document processing — thousands of loan applications, compliance filings, and client onboarding documents processed manually each week. We deployed an AI-powered document automation system that reduced processing time by 85%, saving $2.5M annually and eliminating 95% of manual errors.',
+    targetCompanySizes: 'Enterprise',
   },
   {
     id: 'demo-cs-2',
@@ -76,6 +94,7 @@ const DEMO_CAPABILITIES = [
     problems: 'Legacy monolith, frequent downtime, slow deployments, HIPAA compliance',
     evidence: '200+ microservices migrated, 99.99% uptime, 10x deployment frequency',
     content: 'A healthcare platform running a legacy monolith was experiencing frequent outages and couldn\'t scale to meet growing demand. We migrated 200+ microservices to a cloud-native architecture on AWS with full HIPAA compliance, achieving 99.99% uptime and a 10x increase in deployment frequency.',
+    targetCompanySizes: 'Enterprise',
   },
   {
     id: 'demo-cs-3',
@@ -88,6 +107,33 @@ const DEMO_CAPABILITIES = [
     problems: 'Delayed reporting, inventory waste, poor demand forecasting',
     evidence: '85% reduction in reporting latency, $12M inventory savings, 30% improvement in forecast accuracy',
     content: 'A top-10 retailer was making inventory decisions on 24-hour-old data, leading to $40M in annual overstock and stockout costs. We built a real-time analytics platform that processes 2B+ events daily, reducing reporting latency by 85% and enabling same-day inventory decisions that save $12M annually.',
+    targetCompanySizes: 'Enterprise',
+  },
+  {
+    id: 'demo-cs-4',
+    title: 'Mid-Market Manufacturer — Predictive Maintenance',
+    summary: 'Deployed predictive maintenance AI for a mid-market manufacturer, reducing unplanned downtime by 72% and saving $1.8M annually.',
+    category: 'case_study',
+    serviceLine: 'AI & Machine Learning',
+    targetIndustries: 'Manufacturing',
+    targetRoles: 'VP of Operations, Head of Engineering, Plant Manager',
+    problems: 'Unplanned downtime, equipment failures, maintenance costs',
+    evidence: '72% reduction in unplanned downtime, $1.8M annual savings',
+    content: 'A mid-market manufacturer with 12 facilities was losing $2.5M annually to unplanned equipment downtime. We deployed IoT sensors and a predictive maintenance AI model that identifies failures 48 hours in advance, reducing unplanned downtime by 72% and saving $1.8M per year.',
+    targetCompanySizes: 'Mid-Market',
+  },
+  {
+    id: 'demo-cs-5',
+    title: 'Startup Fintech — Data Platform Foundation',
+    summary: 'Built the entire data infrastructure for a Series B fintech startup from scratch in 8 weeks.',
+    category: 'case_study',
+    serviceLine: 'Data Engineering',
+    targetIndustries: 'Financial Services, Technology',
+    targetRoles: 'CTO, Head of Data, VP of Engineering',
+    problems: 'No data infrastructure, manual reporting, data silos',
+    evidence: '8-week delivery, processes 500M events/day, supports 50+ dashboards',
+    content: 'A Series B fintech startup had no data infrastructure and was making all decisions on gut feel. We designed and built their entire data platform from scratch — ingestion pipelines, warehouse, real-time analytics, and BI dashboards — in just 8 weeks. The platform now processes 500M events daily and powers 50+ operational dashboards.',
+    targetCompanySizes: 'Startup, Mid-Market',
   },
   {
     id: 'demo-pp-1',
@@ -100,6 +146,7 @@ const DEMO_CAPABILITIES = [
     problems: null,
     evidence: '150+ projects, 97% client retention rate',
     content: 'DeepMindQ has delivered 150+ successful enterprise implementations across financial services, healthcare, manufacturing, and technology sectors, maintaining a 97% client retention rate.',
+    targetCompanySizes: 'Mid-Market, Enterprise',
   },
   {
     id: 'demo-pp-2',
@@ -112,6 +159,20 @@ const DEMO_CAPABILITIES = [
     problems: null,
     evidence: '3x average ROI, 12-month payback period',
     content: 'Clients leveraging DeepMindQ AI and cloud solutions see an average 3x return on investment within the first 12 months, measured by cost savings, revenue impact, and operational efficiency gains.',
+    targetCompanySizes: 'Mid-Market, Enterprise',
+  },
+  {
+    id: 'demo-pp-3',
+    title: 'Certified Across All Major Clouds',
+    summary: 'AWS Advanced Partner, Azure Gold Partner, and GCP Partner with 200+ cloud certifications across the team.',
+    category: 'proof_point',
+    serviceLine: 'Cloud Engineering',
+    targetIndustries: null,
+    targetRoles: null,
+    problems: null,
+    evidence: 'AWS Advanced, Azure Gold, GCP Partner, 200+ certifications',
+    content: 'DeepMindQ holds AWS Advanced Partner, Azure Gold Partner, and GCP Partner designations. Our team maintains 200+ individual cloud certifications across architecture, security, data, and AI/ML specialties.',
+    targetCompanySizes: 'Mid-Market, Enterprise',
   },
   {
     id: 'demo-cta-1',
@@ -124,6 +185,33 @@ const DEMO_CAPABILITIES = [
     problems: null,
     evidence: null,
     content: 'A low-friction call-to-action that has achieved a 34% positive response rate across industries.',
+    targetCompanySizes: null,
+  },
+  {
+    id: 'demo-cta-2',
+    title: 'Specific Use Case Discussion',
+    summary: 'Could we schedule 20 minutes to walk through a specific use case relevant to [company]?',
+    category: 'cta',
+    serviceLine: null,
+    targetIndustries: null,
+    targetRoles: null,
+    problems: null,
+    evidence: null,
+    content: 'A tailored CTA referencing a specific use case achieves 2.5x higher response rates than generic meeting requests.',
+    targetCompanySizes: null,
+  },
+  {
+    id: 'demo-cta-3',
+    title: 'Share Case Study CTA',
+    summary: 'I recently put together a short case study on how we helped a [similar company] achieve [outcome]. Mind if I send it over?',
+    category: 'cta',
+    serviceLine: null,
+    targetIndustries: null,
+    targetRoles: null,
+    problems: null,
+    evidence: null,
+    content: 'Case study CTAs achieve the highest engagement rate (41%) because they offer value before asking for anything.',
+    targetCompanySizes: null,
   },
   {
     id: 'demo-or-1',
@@ -136,6 +224,7 @@ const DEMO_CAPABILITIES = [
     problems: 'Budget constraints, procurement cycles, uncertain ROI',
     evidence: '78% of pilot clients expand to full engagements',
     content: 'We understand timing is a concern. Many of our clients start with a focused pilot — typically a 4-6 week engagement that demonstrates clear ROI before any broader commitment. 78% of clients who start with a pilot go on to expand the engagement.',
+    targetCompanySizes: 'Mid-Market, Enterprise',
   },
   {
     id: 'demo-or-2',
@@ -148,6 +237,20 @@ const DEMO_CAPABILITIES = [
     problems: 'Internal capability concerns, team overlap, budget justification',
     evidence: '65% of engagements augment existing internal teams',
     content: 'That makes sense — most of our clients have strong internal teams. We typically complement what they\'re already doing, whether that\'s providing specialized expertise, accelerating timelines, or bringing cross-industry patterns they wouldn\'t see otherwise.',
+    targetCompanySizes: 'Mid-Market, Enterprise',
+  },
+  {
+    id: 'demo-or-3',
+    title: 'Need More Time Objection',
+    summary: 'Absolutely understand — this isn\'t a decision that needs to be made today. Would it be helpful if I shared a 2-page brief on how we typically approach [specific problem] so you have it ready when the timing is right?',
+    category: 'objection_response',
+    serviceLine: null,
+    targetIndustries: null,
+    targetRoles: 'CEO, CIO, COO, VP of Technology',
+    problems: 'Timing concerns, decision fatigue, competing priorities',
+    evidence: 'Sharing relevant content maintains 68% of conversations for follow-up',
+    content: 'Absolutely understand — this isn\'t a decision that needs to be made today. Would it be helpful if I shared a 2-page brief on how we typically approach [specific problem] so you have it ready when the timing is right?',
+    targetCompanySizes: null,
   },
 ];
 
@@ -166,6 +269,34 @@ interface CapabilityRecord {
   problems?: string | null;
   evidence?: string | null;
   content?: string | null;
+  targetCompanySizes?: string | null;
+}
+
+/** Search parameter interface */
+interface KnowledgeSearchParams {
+  query: string;
+  industry?: string;
+  role?: string;
+  category?: string;
+  serviceLine?: string;
+  companySize?: string;
+  problems?: string;
+  minRelevanceScore?: number;
+  limit?: number;
+  includeContent?: boolean;
+  searchMode?: 'keyword' | 'semantic' | 'hybrid';
+  boostFields?: Record<string, number>;
+  excludeCategories?: string[];
+}
+
+/** Map company size descriptions to standard labels */
+function normalizeCompanySize(size?: string): string | null {
+  if (!size) return null;
+  const s = size.toLowerCase().trim();
+  if (/startup|seed|series [ab]|1[-–]10|1[-–]50/i.test(s)) return 'Startup';
+  if (/mid.?market|mid.?sized|50[-–]500|50[-–]1000/i.test(s)) return 'Mid-Market';
+  if (/enterprise|large|1000\+|500\+|5000\+|fortune/i.test(s)) return 'Enterprise';
+  return size;
 }
 
 /** Extract meaningful tokens from a query string */
@@ -177,42 +308,91 @@ function tokenize(text: string): string[] {
     .filter(w => w.length > 1);
 }
 
-/** Score a single capability against the query tokens */
+/**
+ * Compute semantic similarity using TF overlap.
+ * This is a lightweight approximation of semantic search
+ * that works without external embedding services.
+ */
+function semanticScore(
+  queryTokens: string[],
+  fieldTokens: string[]
+): number {
+  if (queryTokens.length === 0 || fieldTokens.length === 0) return 0;
+  const querySet = new Set(queryTokens);
+  const fieldSet = new Set(fieldTokens);
+  const intersection = new Set([...querySet].filter(t => fieldSet.has(t)));
+  const union = new Set([...querySet, ...fieldSet]);
+  // Jaccard similarity
+  return union.size === 0 ? 0 : intersection.size / union.size;
+}
+
+/** Score a single capability against the query and all parameters */
 function scoreCapability(
   cap: CapabilityRecord,
   queryTokens: string[],
-  industry?: string,
-  role?: string
+  params: KnowledgeSearchParams
 ): { score: number; matchedFields: string[] } {
   const matchedFields: string[] = [];
   let score = 0;
 
-  // Searchable text fields with weights
+  // ── Base field weights (can be overridden by boostFields) ──
+  const baseWeights: Record<string, number> = {
+    title: 3.0,
+    summary: 2.5,
+    content: 2.0,
+    targetIndustries: 2.0,
+    targetRoles: 1.5,
+    problems: 1.5,
+    evidence: 1.0,
+  };
+  const weights = { ...baseWeights, ...(params.boostFields || {}) };
+
+  // Searchable text fields
   const fields: Array<{ name: string; value: string | null; weight: number }> = [
-    { name: 'title', value: cap.title, weight: 3.0 },
-    { name: 'summary', value: cap.summary, weight: 2.5 },
-    { name: 'content', value: cap.content ?? null, weight: 2.0 },
-    { name: 'targetIndustries', value: cap.targetIndustries ?? null, weight: 2.0 },
-    { name: 'targetRoles', value: cap.targetRoles ?? null, weight: 1.5 },
-    { name: 'problems', value: cap.problems ?? null, weight: 1.5 },
-    { name: 'evidence', value: cap.evidence ?? null, weight: 1.0 },
+    { name: 'title', value: cap.title, weight: weights.title || baseWeights.title },
+    { name: 'summary', value: cap.summary, weight: weights.summary || baseWeights.summary },
+    { name: 'content', value: cap.content ?? null, weight: weights.content || baseWeights.content },
+    { name: 'targetIndustries', value: cap.targetIndustries ?? null, weight: weights.targetIndustries || baseWeights.targetIndustries },
+    { name: 'targetRoles', value: cap.targetRoles ?? null, weight: weights.targetRoles || baseWeights.targetRoles },
+    { name: 'problems', value: cap.problems ?? null, weight: weights.problems || baseWeights.problems },
+    { name: 'evidence', value: cap.evidence ?? null, weight: weights.evidence || baseWeights.evidence },
   ];
 
-  // Keyword matching
-  for (const field of fields) {
-    if (!field.value) continue;
-    const fieldLower = field.value.toLowerCase();
-    for (const token of queryTokens) {
-      if (fieldLower.includes(token)) {
-        score += field.weight;
-        if (!matchedFields.includes(field.name)) {
+  const searchMode = params.searchMode || 'keyword';
+
+  // ── Keyword matching ──
+  if (searchMode === 'keyword' || searchMode === 'hybrid') {
+    for (const field of fields) {
+      if (!field.value) continue;
+      const fieldLower = field.value.toLowerCase();
+      for (const token of queryTokens) {
+        if (fieldLower.includes(token)) {
+          score += field.weight;
+          if (!matchedFields.includes(field.name)) {
+            matchedFields.push(field.name);
+          }
+        }
+      }
+    }
+  }
+
+  // ── Semantic matching (TF overlap) ──
+  if (searchMode === 'semantic' || searchMode === 'hybrid') {
+    const semanticWeight = searchMode === 'hybrid' ? 0.5 : 1.0;
+    for (const field of fields) {
+      if (!field.value) continue;
+      const fieldTokens = tokenize(field.value);
+      const sim = semanticScore(queryTokens, fieldTokens);
+      if (sim > 0.1) {
+        score += sim * field.weight * 5 * semanticWeight;
+        if (!matchedFields.includes(field.name) && sim > 0.2) {
           matchedFields.push(field.name);
         }
       }
     }
   }
 
-  // Exact phrase bonus — if the full query appears as a substring
+  // ── Exact phrase bonus ──
   const fullQuery = queryTokens.join(' ');
   if (fullQuery.length > 3) {
     for (const field of fields) {
@@ -226,35 +406,48 @@ function scoreCapability(
     }
   }
 
-  // Category bonus — service_line and case_study are higher value
+  // ── Problems search (specific parameter) ──
+  if (params.problems) {
+    const problemTokens = tokenize(params.problems);
+    if (cap.problems) {
+      const probFieldLower = cap.problems.toLowerCase();
+      for (const token of problemTokens) {
+        if (probFieldLower.includes(token)) {
+          score += 3;
+          if (!matchedFields.includes('problems')) {
+            matchedFields.push('problems');
+          }
+        }
+      }
+    }
+  }
+
+  // ── Category weighting ──
   if (cap.category === 'service_line') score += 2;
   if (cap.category === 'case_study') score += 3;
   if (cap.category === 'proof_point') score += 1;
-  // objection_response and cta get small bonuses
   if (cap.category === 'objection_response') score += 0.5;
   if (cap.category === 'cta') score += 0.5;
 
-  // Industry match bonus
-  if (industry && cap.targetIndustries) {
-    const industryLower = industry.toLowerCase();
+  // ── Industry match bonus ──
+  if (params.industry && cap.targetIndustries) {
+    const industryTokens = tokenize(params.industry);
     const targetsLower = cap.targetIndustries.toLowerCase();
-    const industryTokens = tokenize(industry);
     for (const token of industryTokens) {
       if (targetsLower.includes(token)) {
         score += 4;
         if (!matchedFields.includes('targetIndustries')) {
           matchedFields.push('targetIndustries');
         }
-        break; // Only bonus once per field
+        break;
       }
     }
   }
 
-  // Role match bonus
-  if (role && cap.targetRoles) {
-    const roleLower = role.toLowerCase();
+  // ── Role match bonus ──
+  if (params.role && cap.targetRoles) {
+    const roleTokens = tokenize(params.role);
     const rolesLower = cap.targetRoles.toLowerCase();
-    const roleTokens = tokenize(role);
     for (const token of roleTokens) {
       if (rolesLower.includes(token)) {
         score += 3;
@@ -266,25 +459,79 @@ function scoreCapability(
     }
   }
 
+  // ── Service line match bonus ──
+  if (params.serviceLine && cap.serviceLine) {
+    const slLower = params.serviceLine.toLowerCase();
+    const capSlLower = cap.serviceLine.toLowerCase();
+    const slTokens = tokenize(params.serviceLine);
+    for (const token of slTokens) {
+      if (capSlLower.includes(token)) {
+        score += 3.5;
+        if (!matchedFields.includes('serviceLine')) {
+          matchedFields.push('serviceLine');
+        }
+        break;
+      }
+    }
+  }
+
+  // ── Company size match bonus ──
+  if (params.companySize && cap.targetCompanySizes) {
+    const normalizedSize = normalizeCompanySize(params.companySize);
+    if (normalizedSize && cap.targetCompanySizes.toLowerCase().includes(normalizedSize.toLowerCase())) {
+      score += 2;
+    }
+  }
+
   return { score, matchedFields };
 }
 
 /* ═══════════════════════════════════════════════════
    POST /api/knowledge/search
+
+   Parameters:
+   - query (required): Search query string
+   - industry (optional): Target industry for bonus matching
+   - role (optional): Target role for bonus matching
+   - category (optional): Filter to specific category
+   - serviceLine (optional): Filter/boost by service line
+   - companySize (optional): Target company size (Startup/Mid-Market/Enterprise)
+   - problems (optional): Problem statement to match against problems field
+   - minRelevanceScore (optional): Minimum score (0-100) to include in results
+   - limit (optional): Max results (default 8)
+   - includeContent (optional): Include full content field in results
+   - searchMode (optional): 'keyword' | 'semantic' | 'hybrid' (default 'keyword')
+   - boostFields (optional): Object mapping field names to weight multipliers
+   - excludeCategories (optional): Array of categories to exclude from results
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { query, industry, role, category, limit = 5 } = body;
 
-    if (!query || typeof query !== 'string' || !query.trim()) {
+    const params: KnowledgeSearchParams = {
+      query: body.query,
+      industry: body.industry || undefined,
+      role: body.role || undefined,
+      category: body.category || undefined,
+      serviceLine: body.serviceLine || undefined,
+      companySize: body.companySize || undefined,
+      problems: body.problems || undefined,
+      minRelevanceScore: body.minRelevanceScore ?? undefined,
+      limit: body.limit || 8,
+      includeContent: body.includeContent ?? false,
+      searchMode: body.searchMode || 'keyword',
+      boostFields: body.boostFields || undefined,
+      excludeCategories: body.excludeCategories || undefined,
+    };
+
+    if (!params.query || typeof params.query !== 'string' || !params.query.trim()) {
       return NextResponse.json(
-        { error: 'query is required and must be a non-empty string' },
+        { error: 'query is required and must be a non-empty string', requiredParams: ['query'], optionalParams: ['industry', 'role', 'category', 'serviceLine', 'companySize', 'problems', 'minRelevanceScore', 'limit', 'includeContent', 'searchMode', 'boostFields', 'excludeCategories'] },
         { status: 400 }
       );
     }
 
-    // Load capabilities from DB, fall back to demo data
+    // ── Load capabilities from DB, fall back to demo data ──
     let capabilities: CapabilityRecord[] = [];
 
     try {
@@ -311,12 +558,12 @@ export async function POST(request: Request) {
       capabilities = DEMO_CAPABILITIES;
     }
 
-    const queryTokens = tokenize(query);
+    const queryTokens = tokenize(params.query);
 
-    // Score and sort
+    // ── Score, filter, and sort ──
     const scored = capabilities
       .map(cap => {
-        const { score, matchedFields } = scoreCapability(cap, queryTokens, industry, role);
+        const { score, matchedFields } = scoreCapability(cap, queryTokens, params);
         return { ...cap, relevanceScore: score, matchedFields };
       })
       .filter(item => item.relevanceScore > 0);
@@ -324,29 +571,70 @@ export async function POST(request: Request) {
     // Sort by relevance descending
     scored.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
-    // Apply category filter if provided
-    const filtered = category
-      ? scored.filter(item => item.category === category)
+    // ── Apply category filter ──
+    let filtered = params.category
+      ? scored.filter(item => item.category === params.category)
       : scored;
 
-    // Normalize scores to 0-100
+    // ── Exclude categories ──
+    if (params.excludeCategories && params.excludeCategories.length > 0) {
+      const excludeSet = new Set(params.excludeCategories);
+      filtered = filtered.filter(item => !excludeSet.has(item.category));
+    }
+
+    // ── Apply service line filter ──
+    if (params.serviceLine) {
+      const slTokens = tokenize(params.serviceLine);
+      filtered = filtered.filter(item => {
+        if (!item.serviceLine) return true; // Don't exclude items without a service line
+        const slLower = item.serviceLine.toLowerCase();
+        return slTokens.some(t => slLower.includes(t));
+      });
+    }
+
+    // ── Normalize scores to 0-100 ──
     const maxScore = filtered.length > 0 ? filtered[0].relevanceScore : 1;
-    const results = filtered.slice(0, limit).map(item => ({
-      id: item.id,
-      title: item.title,
-      summary: item.summary,
-      category: item.category,
-      relevanceScore: Math.round((item.relevanceScore / maxScore) * 100),
-      matchedFields: item.matchedFields,
-      serviceLine: item.serviceLine || undefined,
-      targetIndustries: item.targetIndustries || undefined,
-      content: item.content || undefined,
-    }));
+    let results = filtered.map(item => {
+      const result: Record<string, unknown> = {
+        id: item.id,
+        title: item.title,
+        summary: item.summary,
+        category: item.category,
+        relevanceScore: Math.round((item.relevanceScore / maxScore) * 100),
+        matchedFields: item.matchedFields,
+      };
+      if (item.serviceLine) result.serviceLine = item.serviceLine;
+      if (item.targetIndustries) result.targetIndustries = item.targetIndustries;
+      if (params.includeContent && item.content) result.content = item.content;
+      return result;
+    });
+
+    // ── Apply minimum relevance score threshold ──
+    if (params.minRelevanceScore !== undefined && params.minRelevanceScore > 0) {
+      results = results.filter(
+        (r: Record<string, unknown>) => (r.relevanceScore as number) >= params.minRelevanceScore!
+      );
+    }
+
+    // ── Apply limit ──
+    results = results.slice(0, params.limit);
 
     return NextResponse.json({
       results,
-      query: query.trim(),
+      query: params.query.trim(),
+      searchMode: params.searchMode,
+      appliedFilters: {
+        ...(params.industry ? { industry: params.industry } : {}),
+        ...(params.role ? { role: params.role } : {}),
+        ...(params.category ? { category: params.category } : {}),
+        ...(params.serviceLine ? { serviceLine: params.serviceLine } : {}),
+        ...(params.companySize ? { companySize: params.companySize } : {}),
+        ...(params.problems ? { problems: params.problems } : {}),
+        ...(params.minRelevanceScore ? { minRelevanceScore: params.minRelevanceScore } : {}),
+        ...(params.excludeCategories ? { excludeCategories: params.excludeCategories } : {}),
+      },
       totalMatches: filtered.length,
+      totalBeforeFilters: scored.length,
     });
   } catch (error) {
     console.error('Knowledge search error:', error);
@@ -355,4 +643,31 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+/* ═══════════════════════════════════════════════════
+   GET /api/knowledge/search
+   Returns parameter documentation for the knowledge engine.
+   ═══════════════════════════════════════════════════ */
+export async function GET() {
+  return NextResponse.json({
+    engine: 'DeepMindQ Knowledge Retrieval Engine v2.0',
+    description: 'Retrieves relevant capabilities, case studies, proof points, objection responses, and CTAs based on semantic and keyword matching.',
+    endpoint: 'POST /api/knowledge/search',
+    parameters: {
+      query: { type: 'string', required: true, description: 'Search query — keywords, phrases, or natural language' },
+      industry: { type: 'string', required: false, description: 'Target industry for relevance boosting (e.g. "Financial Services", "Healthcare")' },
+      role: { type: 'string', required: false, description: 'Target role for relevance boosting (e.g. "CTO", "VP of Engineering", "Head of AI")' },
+      category: { type: 'string', required: false, description: 'Filter results to a specific category: service_line, case_study, proof_point, objection_response, cta' },
+      serviceLine: { type: 'string', required: false, description: 'Filter/boost by service line (e.g. "AI & Machine Learning", "Cloud Engineering")' },
+      companySize: { type: 'string', required: false, description: 'Target company size for relevance boosting: Startup, Mid-Market, Enterprise' },
+      problems: { type: 'string', required: false, description: 'Problem statement to search against the problems field of capabilities' },
+      minRelevanceScore: { type: 'number', required: false, description: 'Minimum relevance score (0-100) threshold. Results below this are excluded.' },
+      limit: { type: 'number', required: false, default: 8, description: 'Maximum number of results to return' },
+      includeContent: { type: 'boolean', required: false, default: false, description: 'Include full content field in results (for AI prompt building)' },
+      searchMode: { type: 'string', required: false, default: 'keyword', enum: ['keyword', 'semantic', 'hybrid'], description: 'Search strategy: keyword (exact token matching), semantic (TF overlap similarity), hybrid (both)' },
+      boostFields: { type: 'object', required: false, description: 'Custom field weight multipliers. Keys: title, summary, content, targetIndustries, targetRoles, problems, evidence. Values: numeric multipliers.' },
+      excludeCategories: { type: 'array', required: false, description: 'Array of category names to exclude from results' },
+    },
+  });
 }

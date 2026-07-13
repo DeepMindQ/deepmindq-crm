@@ -12,8 +12,16 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  FileText, Check, X, Eye, AlertTriangle, Sparkles, Building2, Mail, User, Tag, Target, BookOpen, Flag, FileCode2, CheckCircle2, Search,
+  FileText, Check, X, Eye, AlertTriangle, Sparkles, Building2, Mail, User, Tag, Target, BookOpen, Flag, FileCode2, CheckCircle2, Search, SlidersHorizontal, ChevronDown, ChevronUp,
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import KnowledgeSearch from '@/components/knowledge-search';
 
 interface Contact {
@@ -104,6 +112,12 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
   const [aiTitle, setAiTitle] = useState('');
   const [aiCompany, setAiCompany] = useState('');
   const [aiIndustry, setAiIndustry] = useState('');
+  const [aiCompanySize, setAiCompanySize] = useState('');
+  const [aiServiceLine, setAiServiceLine] = useState('');
+  const [aiProblems, setAiProblems] = useState('');
+  const [aiSearchMode, setAiSearchMode] = useState('hybrid');
+  const [aiMinScore, setAiMinScore] = useState(20);
+  const [aiShowAdvanced, setAiShowAdvanced] = useState(false);
   const [aiTone, setAiTone] = useState('professional');
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiResult, setAiResult] = useState<AIDemoDraft | null>(null);
@@ -185,7 +199,12 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
           title: aiTitle || undefined,
           company: aiCompany || undefined,
           industry: aiIndustry || undefined,
+          companySize: aiCompanySize || undefined,
           tone: aiTone,
+          serviceLine: aiServiceLine || undefined,
+          problems: aiProblems || undefined,
+          knowledgeSearchMode: aiSearchMode,
+          knowledgeMinScore: aiMinScore,
         }),
       });
       const data = await res.json();
@@ -292,6 +311,98 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                 />
               </div>
             </div>
+
+            {/* Advanced Knowledge Parameters toggle */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setAiShowAdvanced(!aiShowAdvanced)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                Knowledge Engine Parameters
+                {aiShowAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+            </div>
+
+            {aiShowAdvanced && (
+              <div className="p-3 rounded-lg border border-border bg-card/50 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Company Size</Label>
+                    <Select value={aiCompanySize} onValueChange={v => setAiCompanySize(v === '__all__' ? '' : v)}>
+                      <SelectTrigger className="h-8 text-xs bg-background border-border">
+                        <SelectValue placeholder="Any Size" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border">
+                        <SelectItem value="__all__" className="text-xs">Any Size</SelectItem>
+                        <SelectItem value="Startup" className="text-xs">Startup</SelectItem>
+                        <SelectItem value="Mid-Market" className="text-xs">Mid-Market</SelectItem>
+                        <SelectItem value="Enterprise" className="text-xs">Enterprise</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Service Line</Label>
+                    <Select value={aiServiceLine} onValueChange={v => setAiServiceLine(v === '__all__' ? '' : v)}>
+                      <SelectTrigger className="h-8 text-xs bg-background border-border">
+                        <SelectValue placeholder="Auto-detect" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border">
+                        <SelectItem value="__all__" className="text-xs">Auto-detect</SelectItem>
+                        <SelectItem value="AI & Machine Learning" className="text-xs">AI & Machine Learning</SelectItem>
+                        <SelectItem value="Cloud Engineering" className="text-xs">Cloud Engineering</SelectItem>
+                        <SelectItem value="Data Engineering" className="text-xs">Data Engineering</SelectItem>
+                        <SelectItem value="Digital Transformation" className="text-xs">Digital Transformation</SelectItem>
+                        <SelectItem value="Cybersecurity" className="text-xs">Cybersecurity</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Search Mode</Label>
+                    <Select value={aiSearchMode} onValueChange={setAiSearchMode}>
+                      <SelectTrigger className="h-8 text-xs bg-background border-border">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border">
+                        <SelectItem value="keyword" className="text-xs">Keyword</SelectItem>
+                        <SelectItem value="semantic" className="text-xs">Semantic</SelectItem>
+                        <SelectItem value="hybrid" className="text-xs">Hybrid (Recommended)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Problem / Pain Points</Label>
+                  <Input
+                    placeholder="e.g. data silos, legacy infrastructure, compliance overhead"
+                    value={aiProblems}
+                    onChange={e => setAiProblems(e.target.value)}
+                    className="h-8 text-xs bg-background border-border"
+                  />
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-muted-foreground">Min Relevance Score</Label>
+                      <span className="text-xs text-primary font-medium tabular-nums">{aiMinScore}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={80}
+                      step={5}
+                      value={aiMinScore}
+                      onChange={e => setAiMinScore(Number(e.target.value))}
+                      className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer accent-primary"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center gap-3">
               <div className="space-y-1">

@@ -486,9 +486,15 @@ export default function HomePage() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [activeScreen, setActiveScreen] = useState('dashboard');
 
+  const handleLogout = () => {
+    setLoggedIn(false);
+    setActiveScreen('dashboard');
+    window.history.replaceState(null, '', '/');
+  };
+
   if (!loggedIn) {
-    return <LandingPage onLogin={() => setLoggedIn(true)} />;
+    return <LandingPage onLogin={() => { setLoggedIn(true); window.history.replaceState(null, '', '/'); }} />;
   }
 
-  return <AppShell onLogout={() => setLoggedIn(false)} navigateTo={setActiveScreen} activeScreen={activeScreen} />;
+  return <AppShell onLogout={handleLogout} navigateTo={setActiveScreen} activeScreen={activeScreen} />;
 }

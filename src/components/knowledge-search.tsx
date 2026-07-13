@@ -5,6 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -12,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, BookOpen, Plus, Loader2, ArrowUpRight, X } from 'lucide-react';
+import { Search, BookOpen, Plus, Loader2, ArrowUpRight, X, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════
    Types
@@ -38,10 +41,22 @@ interface KnowledgeSearchProps {
   defaultQuery?: string;
   /** Hide the "Use in Draft" button */
   hideUseButton?: boolean;
+  /** Pre-fill industry */
+  defaultIndustry?: string;
+  /** Pre-fill role */
+  defaultRole?: string;
+  /** Pre-fill company size */
+  defaultCompanySize?: string;
+  /** Pre-fill service line */
+  defaultServiceLine?: string;
+  /** Pre-fill problems */
+  defaultProblems?: string;
+  /** Show advanced parameters panel by default */
+  showAdvanced?: boolean;
 }
 
 /* ═══════════════════════════════════════════════════
-   Category badge color map
+   Constants
    ═══════════════════════════════════════════════════ */
 const CATEGORY_COLORS: Record<string, string> = {
   service_line: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
@@ -67,6 +82,7 @@ const MATCHED_FIELD_LABELS: Record<string, string> = {
   targetRoles: 'Roles',
   problems: 'Problems',
   evidence: 'Evidence',
+  serviceLine: 'Service Line',
 };
 
 const INDUSTRY_OPTIONS = [
@@ -95,49 +111,104 @@ const ROLE_OPTIONS = [
   'Chief Digital Officer',
 ];
 
+const COMPANY_SIZE_OPTIONS = ['Startup', 'Mid-Market', 'Enterprise'];
+
+const SERVICE_LINE_OPTIONS = [
+  'AI & Machine Learning',
+  'Cloud Engineering',
+  'Data Engineering',
+  'Digital Transformation',
+  'Cybersecurity',
+];
+
+const SEARCH_MODE_OPTIONS = [
+  { value: 'keyword', label: 'Keyword' },
+  { value: 'semantic', label: 'Semantic' },
+  { value: 'hybrid', label: 'Hybrid' },
+];
+
 export default function KnowledgeSearch({
   onUseCapability,
   navigateTo,
   compact = false,
   defaultQuery = '',
   hideUseButton = false,
+  defaultIndustry = '',
+  defaultRole = '',
+  defaultCompanySize = '',
+  defaultServiceLine = '',
+  defaultProblems = '',
+  showAdvanced = false,
 }: KnowledgeSearchProps) {
+  // Basic params
   const [query, setQuery] = useState(defaultQuery);
-  const [industry, setIndustry] = useState<string>('');
-  const [role, setRole] = useState<string>('');
+  const [industry, setIndustry] = useState(defaultIndustry);
+  const [role, setRole] = useState(defaultRole);
+
+  // Advanced params
+  const [showAdvPanel, setShowAdvPanel] = useState(showAdvanced);
+  const [category, setCategory] = useState<string>('');
+  const [companySize, setCompanySize] = useState(defaultCompanySize);
+  const [serviceLine, setServiceLine] = useState(defaultServiceLine);
+  const [problems, setProblems] = useState(defaultProblems);
+  const [searchMode, setSearchMode] = useState<string>('keyword');
+  const [minScore, setMinScore] = useState<number>(0);
+  const [includeContent, setIncludeContent] = useState(false);
+
+  // Results state
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [totalMatches, setTotalMatches] = useState(0);
+  const [appliedFilters, setAppliedFilters] = useState<Record<string, string>>({});
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
     setLoading(true);
     setSearched(true);
     try {
+      const body: Record<string, unknown> = {
+        query: query.trim(),
+        industry: industry || undefined,
+        role: role || undefined,
+        category: category || undefined,
+        companySize: companySize || undefined,
+        serviceLine: serviceLine || undefined,
+        problems: problems || undefined,
+        searchMode,
+        minRelevanceScore: minScore > 0 ? minScore : undefined,
+        includeContent,
+        limit: 10,
+      };
+
       const res = await fetch('/api/knowledge/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: query.trim(),
-          industry: industry || undefined,
-          role: role || undefined,
-          limit: 10,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       setResults(data.results || []);
       setTotalMatches(data.totalMatches || 0);
+      setAppliedFilters(data.appliedFilters || {});
     } catch {
       setResults([]);
       setTotalMatches(0);
     }
     setLoading(false);
-  }, [query, industry, role]);
+  }, [query, industry, role, category, companySize, serviceLine, problems, searchMode, minScore, includeContent]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSearch();
   };
+
+  const handleClear = () => {
+    setResults([]);
+    setSearched(false);
+    setTotalMatches(0);
+    setAppliedFilters({});
+  };
+
+  const activeFilterCount = [category, companySize, serviceLine, problems, searchMode !== 'keyword' ? searchMode : '', minScore > 0 ? String(minScore) : ''].filter(Boolean).length;
 
   return (
     <div className="space-y-4">
@@ -196,18 +267,164 @@ export default function KnowledgeSearch({
           Search
         </Button>
 
-        {searched && !compact && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => { setResults([]); setSearched(false); setTotalMatches(0); }}
-          >
-            <X className="w-3.5 h-3.5 mr-1" />
-            Clear
-          </Button>
+        {!compact && (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 text-xs text-muted-foreground hover:text-foreground relative"
+              onClick={() => setShowAdvPanel(!showAdvPanel)}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 mr-1" />
+              Advanced
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-bold">
+                  {activeFilterCount}
+                </span>
+              )}
+              {showAdvPanel ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />}
+            </Button>
+
+            {searched && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 text-xs text-muted-foreground hover:text-foreground"
+                onClick={handleClear}
+              >
+                <X className="w-3.5 h-3.5 mr-1" />
+                Clear
+              </Button>
+            )}
+          </>
         )}
       </div>
+
+      {/* ── Advanced Parameters Panel ── */}
+      {!compact && showAdvPanel && (
+        <div className="p-4 rounded-lg border border-border bg-card/50 space-y-4">
+          <p className="text-xs font-medium text-foreground">Knowledge Engine Parameters</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Category Filter */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Category</Label>
+              <Select value={category} onValueChange={v => setCategory(v === '__all__' ? '' : v)}>
+                <SelectTrigger className="h-8 text-xs bg-background border-border">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="__all__" className="text-xs">All Categories</SelectItem>
+                  {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Service Line Filter */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Service Line</Label>
+              <Select value={serviceLine} onValueChange={v => setServiceLine(v === '__all__' ? '' : v)}>
+                <SelectTrigger className="h-8 text-xs bg-background border-border">
+                  <SelectValue placeholder="Any Service Line" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="__all__" className="text-xs">Any Service Line</SelectItem>
+                  {SERVICE_LINE_OPTIONS.map(sl => (
+                    <SelectItem key={sl} value={sl} className="text-xs">{sl}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Company Size */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Company Size</Label>
+              <Select value={companySize} onValueChange={v => setCompanySize(v === '__all__' ? '' : v)}>
+                <SelectTrigger className="h-8 text-xs bg-background border-border">
+                  <SelectValue placeholder="Any Size" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="__all__" className="text-xs">Any Size</SelectItem>
+                  {COMPANY_SIZE_OPTIONS.map(cs => (
+                    <SelectItem key={cs} value={cs} className="text-xs">{cs}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Search Mode */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Search Mode</Label>
+              <Select value={searchMode} onValueChange={v => setSearchMode(v)}>
+                <SelectTrigger className="h-8 text-xs bg-background border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {SEARCH_MODE_OPTIONS.map(m => (
+                    <SelectItem key={m.value} value={m.value} className="text-xs">
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Problems */}
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs text-muted-foreground">Problem Statement (match against capability problems)</Label>
+              <Input
+                placeholder="e.g. data silos, legacy infrastructure, compliance overhead"
+                value={problems}
+                onChange={e => setProblems(e.target.value)}
+                className="h-8 text-xs bg-background border-border"
+              />
+            </div>
+          </div>
+
+          {/* Score threshold slider + include content toggle */}
+          <div className="flex items-center gap-6">
+            <div className="flex-1 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground">Min Relevance Score</Label>
+                <span className="text-xs text-primary font-medium tabular-nums">{minScore}%</span>
+              </div>
+              <Slider
+                value={[minScore]}
+                onValueChange={([v]) => setMinScore(v)}
+                min={0}
+                max={80}
+                step={5}
+                className="w-full"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 pt-4">
+              <Switch
+                checked={includeContent}
+                onCheckedChange={setIncludeContent}
+                className="data-[state=checked]:bg-primary"
+              />
+              <Label className="text-xs text-muted-foreground cursor-pointer" onClick={() => setIncludeContent(!includeContent)}>
+                Include full content
+              </Label>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Active Filters Display ── */}
+      {!compact && searched && Object.keys(appliedFilters).length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Active filters:</span>
+          {Object.entries(appliedFilters).map(([key, value]) => (
+            <Badge key={key} variant="outline" className="text-[10px] border-primary/30 text-primary bg-primary/5">
+              {key}: {String(value)}
+            </Badge>
+          ))}
+        </div>
+      )}
 
       {/* ── Results ── */}
       {loading && (
@@ -221,7 +438,9 @@ export default function KnowledgeSearch({
         <div className="text-center py-8 space-y-2">
           <BookOpen className="w-8 h-8 text-muted-foreground/40 mx-auto" />
           <p className="text-sm text-muted-foreground">No matching capabilities found</p>
-          <p className="text-xs text-muted-foreground/60">Try different keywords or remove filters</p>
+          <p className="text-xs text-muted-foreground/60">
+            Try different keywords, lower the minimum score, or remove filters
+          </p>
         </div>
       )}
 
@@ -313,6 +532,15 @@ export default function KnowledgeSearch({
                       </span>
                     )}
                   </div>
+
+                  {/* Full content (if includeContent was enabled) */}
+                  {result.content && (
+                    <div className="mt-2 p-2 rounded bg-muted/30 border border-border/50">
+                      <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-3">
+                        {result.content}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Actions */}
                   {!hideUseButton && onUseCapability && (

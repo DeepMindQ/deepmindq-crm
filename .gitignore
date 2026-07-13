@@ -42,7 +42,8 @@ yarn-error.log*
 next-env.d.ts
 local-*
 .claude
-.z-ai-config
+# .z-ai-config needed for Vercel AI engine
+# .z-ai-config
 *.log
 dev.log
 dev.out.log

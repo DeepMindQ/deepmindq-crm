@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { Toaster } from '@/components/ui/sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import {
   LayoutDashboard, Upload, Users, Building2, FileText, Send,
-  Archive, Mail, MailX, Sparkles, RefreshCw, Menu, X,
-  Brain, GitBranch, ScrollText, Settings, LogOut, BarChart3,
+  Archive, Mail, MailX, RefreshCw, Menu, X,
+  Brain, GitBranch, ScrollText, Settings, LogOut, BarChart3, Bell,
 } from 'lucide-react';
 import LandingPage from '@/app/landing-page';
+import { PageTransition } from '@/components/ui/animated-components';
 import DashboardScreen from '@/components/screens/dashboard-screen';
 import ImportScreen from '@/components/screens/import-screen';
 import LeadsScreen from '@/components/screens/leads-screen';
@@ -22,8 +24,6 @@ import PipelineScreen from '@/components/screens/pipeline-screen';
 import AnalyticsScreen from '@/components/screens/analytics-screen';
 import AuditScreen from '@/components/screens/audit-screen';
 import SettingsScreen from '@/components/screens/settings-screen';
-
-
 
 /* ═══════════════════════════════════════════════════
    App Shell (after login)
@@ -111,8 +111,6 @@ function AppShell({ onLogout, navigateTo, activeScreen }: { onLogout: () => void
   }, []);
 
   const ActiveComponent = SCREEN_MAP[activeScreen] || DashboardScreen;
-
-  // Resolve active label from all sections
   const activeLabel = NAV_SECTIONS
     .flatMap(s => s.items)
     .find(n => n.key === activeScreen)?.label || 'Dashboard';
@@ -122,52 +120,101 @@ function AppShell({ onLogout, navigateTo, activeScreen }: { onLogout: () => void
     setSidebarOpen(false);
   };
 
+  const gold = '#D4AF37';
+  const goldLight = '#E8C860';
+  const border = 'rgba(255,255,255,0.06)';
+  const textDim = '#3A4555';
+  const textMuted = '#7A8699';
+
   return (
     <div className="min-h-screen bg-background text-foreground flex">
       <Toaster theme="dark" position="top-right" />
 
-      {/* Sidebar Overlay (mobile) */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      {/* Sidebar Overlay (mobile) - animated */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Sidebar */}
-      <aside className={`fixed lg:sticky top-0 left-0 z-50 h-screen w-56 bg-card border-r border-border flex flex-col shrink-0 transition-transform duration-200 ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-      }`}>
-        <div className="h-14 flex items-center gap-2.5 px-4 border-b border-border shrink-0">
-          <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <span className="font-semibold text-sm text-foreground">DeepMindQ</span>
+      {/* Sidebar - Glassmorphism */}
+      <aside
+        className={`fixed lg:sticky top-0 left-0 z-50 h-screen w-56 flex flex-col shrink-0 transition-transform duration-300 ease-out ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+        style={{
+          background: 'rgba(8, 10, 18, 0.88)',
+          backdropFilter: 'blur(24px) saturate(1.5)',
+          borderRight: `1px solid ${border}`,
+        }}
+      >
+        {/* Logo */}
+        <div className="h-14 flex items-center gap-2.5 px-4 border-b shrink-0" style={{ borderColor: border }}>
+          <motion.div
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ background: `linear-gradient(135deg, ${gold}, ${goldLight})` }}
+            whileHover={{ scale: 1.05, rotate: 5 }}
+          >
+            <Brain className="w-4 h-4 text-white" />
+          </motion.div>
+          <span className="font-bold text-sm text-foreground tracking-tight">
+            DeepMind<span style={{ color: gold }}>Q</span>
+          </span>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-3 px-2">
+        {/* Nav Items */}
+        <nav className="flex-1 overflow-y-auto py-4 px-2.5">
           {NAV_SECTIONS.map(section => (
-            <div key={section.heading}>
-              <div className="text-[10px] uppercase tracking-[0.15em] text-zinc-600 font-medium px-3 pt-4 pb-1">
+            <div key={section.heading} className="mb-1">
+              <div className="text-[10px] uppercase tracking-[0.2em] px-3 pt-5 pb-1.5 font-medium" style={{ color: textDim }}>
                 {section.heading}
               </div>
               <div className="space-y-0.5">
                 {section.items.map(item => {
                   const Icon = item.icon;
                   const isActive = activeScreen === item.key;
+                  const count = stageCounts[item.key];
                   return (
-                    <button
+                    <motion.button
                       key={item.key}
                       onClick={() => handleNavClick(item.key)}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
+                      whileTap={{ scale: 0.97 }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm relative transition-all duration-200"
+                      style={
                         isActive
-                          ? 'bg-primary/15 text-primary font-medium'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                      }`}
+                          ? { background: 'rgba(212, 175, 55, 0.12)', color: gold }
+                          : { color: textMuted }
+                      }
                     >
-                      <Icon className="w-4 h-4 shrink-0" />
-                      <span>{item.label}</span>
-                    </button>
+                      {isActive && (
+                        <motion.div
+                          layoutId="nav-active"
+                          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full"
+                          style={{ background: gold }}
+                          transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                        />
+                      )}
+                      <Icon className={`w-4 h-4 shrink-0 transition-colors duration-200 ${isActive ? '' : 'opacity-60'}`} />
+                      <span className="flex-1 text-left">{item.label}</span>
+                      {count !== undefined && count > 0 && (
+                        <span
+                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center"
+                          style={{
+                            background: isActive ? 'rgba(212, 175, 55, 0.2)' : 'rgba(255,255,255,0.05)',
+                            color: isActive ? gold : textMuted,
+                          }}
+                        >
+                          {count}
+                        </span>
+                      )}
+                    </motion.button>
                   );
                 })}
               </div>
@@ -175,46 +222,51 @@ function AppShell({ onLogout, navigateTo, activeScreen }: { onLogout: () => void
           ))}
         </nav>
 
-        {/* Pipeline Progress Indicator */}
-        <div className="px-3 py-3 border-t border-border">
-          <div className="flex items-center justify-between px-0.5 mb-2">
-            <span className="text-[10px] uppercase tracking-[0.12em] text-zinc-500 font-medium">Pipeline</span>
+        {/* Pipeline Progress - Enhanced */}
+        <div className="px-4 py-4 border-t" style={{ borderColor: border }}>
+          <div className="flex items-center justify-between px-0.5 mb-3">
+            <span className="text-[10px] uppercase tracking-[0.2em] font-semibold" style={{ color: textDim }}>Pipeline</span>
           </div>
-          <div className="flex items-center gap-0 px-0.5">
+          <div className="flex items-center justify-between px-1">
             {PIPELINE_STAGES.map((stage, i) => {
               const count = stageCounts[stage.key] ?? 0;
               const isActive = activeScreen === stage.key;
               const hasItems = count > 0;
               return (
-                <div key={stage.key} className="flex items-center">
-                  <button
+                <div key={stage.key} className="flex items-center flex-1">
+                  <motion.button
                     onClick={() => handleNavClick(stage.key)}
-                    className="flex flex-col items-center gap-0.5 group"
+                    className="flex flex-col items-center gap-1.5 group relative"
                     title={`${stage.label}: ${count}`}
+                    whileHover={{ scale: 1.15 }}
                   >
+                    {hasItems && (
+                      <motion.div
+                        className="absolute -top-0.5 w-4 h-4 rounded-full"
+                        style={{ background: 'rgba(212, 175, 55, 0.2)' }}
+                        animate={{ scale: [1, 1.8, 1], opacity: [0.3, 0, 0.3] }}
+                        transition={{ duration: 2.5, repeat: Infinity, delay: i * 0.3 }}
+                      />
+                    )}
                     <div
-                      className={`w-3.5 h-3.5 rounded-full transition-all ${
-                        isActive
-                          ? 'ring-2 ring-offset-1 ring-offset-card'
-                          : ''
-                      }`}
+                      className={`w-3 h-3 rounded-full transition-all duration-300 ${isActive ? 'ring-2 ring-offset-1' : ''}`}
                       style={{
-                        backgroundColor: hasItems ? '#b89068' : 'rgba(113,113,122,0.25)',
-                        ...(isActive ? { '--tw-ring-color': '#b89068' } as React.CSSProperties : {}),
+                        background: hasItems ? `linear-gradient(135deg, ${gold}, ${goldLight})` : 'rgba(113,113,122,0.2)',
+                        boxShadow: hasItems ? `0 0 8px rgba(212, 175, 55, 0.3)` : 'none',
+                        ...(isActive ? { '--tw-ring-color': gold } as React.CSSProperties : {}),
                       }}
                     />
                     <span
-                      className={`text-[8px] leading-none transition-colors ${
-                        isActive ? 'text-primary font-semibold' : 'text-zinc-500'
-                      }`}
+                      className="text-[8px] leading-none font-medium transition-colors"
+                      style={{ color: isActive ? gold : textDim }}
                     >
                       {stage.label}
                     </span>
-                  </button>
+                  </motion.button>
                   {i < PIPELINE_STAGES.length - 1 && (
                     <div
-                      className="w-2.5 h-px mx-0.5 mb-3 shrink-0"
-                      style={{ backgroundColor: 'rgba(113,113,122,0.2)' }}
+                      className="w-full h-px mx-1 mb-3 shrink-0"
+                      style={{ background: 'linear-gradient(90deg, rgba(212,175,55,0.12), rgba(113,113,122,0.08))' }}
                     />
                   )}
                 </div>
@@ -223,47 +275,84 @@ function AppShell({ onLogout, navigateTo, activeScreen }: { onLogout: () => void
           </div>
         </div>
 
-        {/* User Section */}
-        <div className="p-3 border-t border-border shrink-0">
-          <div className="flex items-center gap-2.5 px-2">
-            <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-semibold">
+        {/* User Section - Gradient avatar */}
+        <div className="p-3 border-t shrink-0" style={{ borderColor: border }}>
+          <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors duration-200 hover:bg-white/[0.03]">
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
+              style={{ background: `linear-gradient(135deg, ${gold}, #9A8340)`, boxShadow: `0 0 12px rgba(212,175,55,0.2)` }}
+            >
               RS
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-foreground truncate">Ravi Shanker</p>
-              <p className="text-[10px] text-muted-foreground">Enterprise Sales Leader</p>
+              <p className="text-xs font-semibold text-foreground truncate">Ravi Shanker</p>
+              <p className="text-[10px]" style={{ color: textDim }}>Enterprise Sales Leader</p>
             </div>
-            <button
+            <motion.button
               onClick={onLogout}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-red-400 transition-colors"
+              className="p-1.5 rounded-md transition-colors duration-200 hover:bg-red-500/10"
+              style={{ color: textDim }}
+              whileHover={{ color: '#EF4444' }}
               title="Sign out"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline">Sign Out</span>
-            </button>
+            </motion.button>
           </div>
         </div>
       </aside>
 
       {/* Main Content */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border h-14 flex items-center px-4 sm:px-6 shrink-0">
+        {/* Header - Enhanced glassmorphism */}
+        <header
+          className="sticky top-0 z-30 h-14 flex items-center px-4 sm:px-6 shrink-0 border-b"
+          style={{
+            background: 'rgba(8, 10, 18, 0.7)',
+            backdropFilter: 'blur(20px) saturate(1.5)',
+            borderColor: border,
+          }}
+        >
           <div className="flex items-center gap-3 flex-1">
-            <button
-              className="lg:hidden text-muted-foreground hover:text-foreground"
+            <motion.button
+              className="lg:hidden p-1 rounded-md"
+              style={{ color: textMuted }}
               onClick={() => setSidebarOpen(!sidebarOpen)}
+              whileTap={{ scale: 0.9 }}
             >
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-            <h1 className="text-sm font-semibold text-foreground">{activeLabel}</h1>
+            </motion.button>
+            <h1 className="text-sm font-semibold text-foreground tracking-tight">{activeLabel}</h1>
           </div>
-          <button className="text-muted-foreground hover:text-foreground transition-colors" title="Refresh">
-            <RefreshCw className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <motion.button
+              className="p-2 rounded-lg transition-colors duration-200 hover:bg-white/5 relative"
+              style={{ color: textDim }}
+              whileHover={{ color: textMuted }}
+              whileTap={{ scale: 0.9 }}
+              title="Notifications"
+            >
+              <Bell className="w-4 h-4" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: gold }} />
+            </motion.button>
+            <motion.button
+              className="p-2 rounded-lg transition-colors duration-200 hover:bg-white/5"
+              style={{ color: textDim }}
+              whileHover={{ color: textMuted }}
+              whileTap={{ scale: 0.9 }}
+              title="Refresh"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </motion.button>
+          </div>
         </header>
 
+        {/* Screen Content with Page Transition */}
         <main className="flex-1 p-4 sm:p-6">
-          <ActiveComponent key={activeScreen} navigateTo={navigateTo} />
+          <AnimatePresence mode="wait">
+            <PageTransition key={activeScreen}>
+              <ActiveComponent navigateTo={navigateTo} />
+            </PageTransition>
+          </AnimatePresence>
         </main>
       </div>
     </div>

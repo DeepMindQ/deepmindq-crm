@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AnimatedCard, StaggerGrid, StaggerItem, AnimatedBar, SectionHeader, PulseDot } from '@/components/ui/animated-components';
 import {
   Users, FileCheck, Clock, Mail, Activity, Heart, ShieldCheck, ShieldAlert, ShieldX, HelpCircle,
-  AlertTriangle, Info, Eye, ChevronRight,
+  AlertTriangle, Info, Eye, ChevronRight, ArrowUpRight,
 } from 'lucide-react';
 
 interface DashboardData {
@@ -61,13 +63,10 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
   if (loading) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-[100px] rounded-lg" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)}
-        </div>
+        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Skeleton className="h-64 rounded-lg" />
-          <Skeleton className="h-64 rounded-lg" />
+          <Skeleton className="h-72 rounded-xl" />
+          <Skeleton className="h-72 rounded-xl" />
         </div>
       </div>
     );
@@ -112,111 +111,146 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
     alerts.push({ icon: AlertTriangle, text: `Draft review backlog growing (${data.draftsPendingReview} pending)`, color: 'bg-amber-500/10 border-amber-500/25 text-amber-400', viewScreen: 'drafts', viewLabel: 'Review' });
   }
   if (data.queuePending > 20) {
-    alerts.push({ icon: Info, text: `Large queue pending (${data.queuePending} in queue) — consider throttling`, color: 'bg-blue-500/10 border-blue-500/25 text-blue-400', viewScreen: 'queue', viewLabel: 'View' });
+    alerts.push({ icon: Info, text: `Large queue pending (${data.queuePending} in queue) - consider throttling`, color: 'bg-blue-500/10 border-blue-500/25 text-blue-400', viewScreen: 'queue', viewLabel: 'View' });
   }
   if (eh.invalid > 0) {
-    alerts.push({ icon: ShieldX, text: `Invalid emails detected (${eh.invalid}) — consider cleanup`, color: 'bg-red-500/10 border-red-500/25 text-red-400', viewScreen: 'leads', viewLabel: 'Clean' });
+    alerts.push({ icon: ShieldX, text: `Invalid emails detected (${eh.invalid}) - consider cleanup`, color: 'bg-red-500/10 border-red-500/25 text-red-400', viewScreen: 'leads', viewLabel: 'Clean' });
   }
   if (data.suppressionsCount > 0) {
-    alerts.push({ icon: ShieldAlert, text: `Suppressions active (${data.suppressionsCount}) — review periodically`, color: 'bg-zinc-500/10 border-zinc-500/25 text-zinc-400', viewScreen: 'leads', viewLabel: 'View' });
+    alerts.push({ icon: ShieldAlert, text: `Suppressions active (${data.suppressionsCount}) - review periodically`, color: 'bg-zinc-500/10 border-zinc-500/25 text-zinc-400', viewScreen: 'leads', viewLabel: 'View' });
   }
 
   return (
-    <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-6 pr-1">
-      {/* Mini Pipeline Funnel */}
-      <Card className="bg-card border border-border">
-        <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary" />
-            Pipeline Funnel
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4">
-          <div className="flex items-end gap-1.5 h-[68px]">
-            {funnelStages.map(stage => {
-              const widthPct = Math.max((stage.count / funnelMax) * 100, 4);
+    <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-5 pr-1">
+      {/* Pipeline Funnel - Animated */}
+      <AnimatedCard hover={false} className="!rounded-xl overflow-hidden">
+        <div className="px-5 pt-5 pb-1">
+          <SectionHeader title="Pipeline Funnel" />
+        </div>
+        <div className="px-5 pb-5">
+          <div className="flex items-end gap-2 h-[80px]">
+            {funnelStages.map((stage, i) => {
+              const widthPct = Math.max((stage.count / funnelMax) * 100, 6);
               return (
-                <div key={stage.label} className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
-                  <span className="text-xs font-semibold text-primary tabular-nums">{stage.count}</span>
+                <motion.div
+                  key={stage.label}
+                  className="flex-1 flex flex-col items-center gap-1.5 min-w-0"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: i * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }}
+                >
+                  <motion.span
+                    className="text-xs font-bold tabular-nums"
+                    style={{ color: '#D4AF37' }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: i * 0.08 + 0.3 }}
+                  >{stage.count}</motion.span>
                   <div className="w-full flex justify-center">
-                    <div
-                      className={`${stage.color} rounded-sm transition-all duration-500 min-h-[28px]`}
-                      style={{ width: `${widthPct}%`, height: '28px' }}
-                    />
+                    <motion.div
+                      className="rounded-md"
+                      style={{ height: '36px' }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${widthPct}%` }}
+                      transition={{ duration: 0.8, delay: 0.2 + i * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    >
+                      <div className={`w-full h-full rounded-md ${stage.color}`} style={{ opacity: 0.7 }} />
+                    </motion.div>
                   </div>
-                  <span className="text-[10px] text-muted-foreground truncate w-full text-center">{stage.label}</span>
-                </div>
+                  <span className="text-[10px] text-muted-foreground truncate w-full text-center font-medium">{stage.label}</span>
+                </motion.div>
               );
             })}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Warnings / Alerts */}
-      {alerts.length > 0 && (
-        <div className="space-y-2">
-          {alerts.map((alert, i) => (
-            <div
-              key={i}
-              className={`flex items-center justify-between rounded-md border px-3 py-2 ${alert.color}`}
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <alert.icon className="w-4 h-4 shrink-0" />
-                <span className="text-xs font-medium truncate">{alert.text}</span>
-              </div>
-              {alert.viewScreen && navigateTo && (
-                <button
-                  onClick={() => navigateTo(alert.viewScreen!)}
-                  className="flex items-center gap-0.5 text-xs font-medium shrink-0 hover:underline ml-2"
-                >
-                  {alert.viewLabel || 'View'}
-                  <ChevronRight className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          ))}
         </div>
+      </AnimatedCard>
+
+      {/* Alerts - Animated */}
+      {alerts.length > 0 && (
+        <StaggerGrid className="space-y-2" stagger={0.08}>
+          {alerts.map((alert, i) => (
+            <StaggerItem key={i}>
+              <motion.div
+                className={`flex items-center justify-between rounded-lg border px-4 py-3 ${alert.color}`}
+                whileHover={{ x: 2 }}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <alert.icon className="w-4 h-4 shrink-0" />
+                  <span className="text-xs font-medium truncate">{alert.text}</span>
+                </div>
+                {alert.viewScreen && navigateTo && (
+                  <motion.button
+                    onClick={() => navigateTo(alert.viewScreen!)}
+                    className="flex items-center gap-1 text-xs font-medium shrink-0 hover:underline ml-3"
+                    whileHover={{ x: 2 }}
+                  >
+                    {alert.viewLabel || 'View'}
+                    <ArrowUpRight className="w-3 h-3" />
+                  </motion.button>
+                )}
+              </motion.div>
+            </StaggerItem>
+          ))}
+        </StaggerGrid>
       )}
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stat Cards - Staggered with gradients */}
+      <StaggerGrid className="grid grid-cols-2 lg:grid-cols-4 gap-4" stagger={0.08}>
         {[
-          { label: 'Total Leads', value: totalLeads, icon: Users, screen: undefined },
-          { label: 'Ready for Review', value: data.draftsPendingReview, icon: FileCheck, screen: 'drafts' },
-          { label: 'In Queue', value: data.queuePending, icon: Clock, screen: 'queue' },
-          { label: 'Replies This Week', value: data.repliesThisWeek, icon: Mail, screen: 'replies' },
+          { label: 'Total Leads', value: totalLeads, icon: Users, screen: undefined, gradient: 'gold' },
+          { label: 'Ready for Review', value: data.draftsPendingReview, icon: FileCheck, screen: 'drafts', gradient: 'purple' },
+          { label: 'In Queue', value: data.queuePending, icon: Clock, screen: 'queue', gradient: 'blue' },
+          { label: 'Replies This Week', value: data.repliesThisWeek, icon: Mail, screen: 'replies', gradient: 'green' },
         ].map(s => (
-          <Card
-            key={s.label}
-            className={`bg-card border border-border ${s.screen && navigateTo ? CLICKABLE : ''}`}
-            onClick={() => s.screen && navigateTo?.(s.screen)}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">{s.label}</p>
-                  <p className="text-2xl font-bold text-primary mt-1 tabular-nums">{s.value.toLocaleString()}</p>
+          <StaggerItem key={s.label}>
+            <motion.div
+              className="rounded-xl border p-[1px] cursor-default"
+              style={{
+                background: `linear-gradient(135deg, ${
+                  s.gradient === 'gold' ? 'rgba(212,175,55,0.15)' :
+                  s.gradient === 'blue' ? 'rgba(59,130,246,0.15)' :
+                  s.gradient === 'green' ? 'rgba(16,185,129,0.15)' :
+                  'rgba(139,92,246,0.15)'
+                }, transparent 60%)`,
+              }}
+              whileHover={{ y: -3 }}
+              onClick={() => s.screen && navigateTo?.(s.screen)}
+            >
+              <div className="rounded-xl bg-card p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wider">{s.label}</p>
+                    <p className="text-2xl font-bold tabular-nums mt-1.5" style={{ color: '#D4AF37' }}>{s.value.toLocaleString()}</p>
+                  </div>
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center"
+                    style={{
+                      background: s.gradient === 'gold' ? 'rgba(212,175,55,0.12)' :
+                        s.gradient === 'blue' ? 'rgba(59,130,246,0.12)' :
+                        s.gradient === 'green' ? 'rgba(16,185,129,0.12)' :
+                        'rgba(139,92,246,0.12)',
+                    }}
+                  >
+                    <s.icon className="w-5 h-5" style={{
+                      color: s.gradient === 'gold' ? '#D4AF37' :
+                             s.gradient === 'blue' ? '#3B82F6' :
+                             s.gradient === 'green' ? '#10B981' : '#8B5CF6',
+                    }} />
+                  </div>
                 </div>
-                <s.icon className="w-5 h-5 text-muted-foreground" />
               </div>
-            </CardContent>
-          </Card>
+            </motion.div>
+          </StaggerItem>
         ))}
-      </div>
+      </StaggerGrid>
 
       {/* Recent Batches + Status Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="bg-card border border-border">
-          <CardHeader className="pb-3 pt-4 px-4">
-            <CardTitle
-              className={`text-sm font-semibold flex items-center gap-2 ${navigateTo ? CLICKABLE : ''}`}
-              onClick={() => navigateTo?.('import')}
-            >
-              <Activity className="w-4 h-4 text-primary" />
-              Recent Batches
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
+        <AnimatedCard hover={false} className="!rounded-xl">
+          <div className="px-5 pt-5 pb-1">
+            <SectionHeader title="Recent Batches" />
+          </div>
+          <div className="px-5 pb-5">
             <Table>
               <TableHeader>
                 <TableRow className="border-border hover:bg-transparent">
@@ -246,114 +280,126 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                 )}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          </div>
+        </AnimatedCard>
 
-        <Card className="bg-card border border-border">
-          <CardHeader className="pb-3 pt-4 px-4">
-            <CardTitle
-              className={`text-sm font-semibold flex items-center gap-2 ${navigateTo ? CLICKABLE : ''}`}
-              onClick={() => navigateTo?.('leads')}
-            >
-              <Users className="w-4 h-4 text-primary" />
-              Lead Status Breakdown
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="space-y-2">
+        <AnimatedCard hover={false} className="!rounded-xl">
+          <div className="px-5 pt-5 pb-1">
+            <SectionHeader title="Lead Status" />
+          </div>
+          <div className="px-5 pb-5">
+            <div className="space-y-2.5">
               {statusBreakdown.map(s => (
-                <div key={s.status} className="flex items-center justify-between py-1">
-                  <div className="flex items-center gap-2">
+                <motion.div
+                  key={s.status}
+                  className="flex items-center justify-between py-1.5"
+                  whileHover={{ x: 4 }}
+                >
+                  <div className="flex items-center gap-2.5">
                     <span className={`w-2 h-2 rounded-full ${STATUS_DOT[s.status] || 'bg-zinc-500'}`} />
                     <span className="text-sm text-foreground capitalize">{s.status.replace(/_/g, ' ')}</span>
                   </div>
-                  <span className="text-sm font-medium text-primary tabular-nums">{s.count.toLocaleString()}</span>
-                </div>
+                  <span className="text-sm font-semibold tabular-nums" style={{ color: '#D4AF37' }}>{s.count.toLocaleString()}</span>
+                </motion.div>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </AnimatedCard>
       </div>
 
-      {/* Email Health Distribution */}
-      <Card className="bg-card border border-border">
-        <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Heart className="w-4 h-4 text-primary" />
-            Email Health Distribution
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4">
+      {/* Email Health - Enhanced */}
+      <AnimatedCard hover={false} className="!rounded-xl">
+        <div className="px-5 pt-5 pb-1">
+          <SectionHeader title="Email Health" />
+        </div>
+        <div className="px-5 pb-5">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {([
               { key: 'valid', label: 'Valid', icon: ShieldCheck, color: 'bg-emerald-400' },
               { key: 'risky', label: 'Risky', icon: ShieldAlert, color: 'bg-amber-400' },
               { key: 'invalid', label: 'Invalid', icon: ShieldX, color: 'bg-red-400' },
               { key: 'unknown', label: 'Unknown', icon: HelpCircle, color: 'bg-zinc-500' },
-            ] as const).map(h => {
+            ] as const).map((h, i) => {
               const count = eh[h.key];
               const pct = healthTotal > 0 ? (count / healthTotal) * 100 : 0;
+              const barColor = h.key === 'valid' ? '#10B981' : h.key === 'risky' ? '#F59E0B' : h.key === 'invalid' ? '#EF4444' : '#71717A';
               return (
-                <div key={h.key} className="space-y-2">
+                <div key={h.key} className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <h.icon className={`w-3.5 h-3.5 ${h.color.replace('bg-', 'text-')}`} />
+                      <h.icon className="w-3.5 h-3.5" style={{ color: barColor }} />
                       <span className="text-sm text-foreground">{h.label}</span>
                     </div>
-                    <span className="text-sm font-medium tabular-nums text-primary">{count}</span>
+                    <span className="text-sm font-semibold tabular-nums" style={{ color: barColor }}>{count}</span>
                   </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full ${h.color} transition-all`} style={{ width: `${pct}%` }} />
+                  <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{ background: barColor }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${pct}%` }}
+                      transition={{ duration: 0.8, delay: 0.2 + i * 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    />
                   </div>
                 </div>
               );
             })}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </AnimatedCard>
 
-      {/* Quick Counts */}
-      <div className="grid grid-cols-3 gap-4">
-        <Card
-          className={`bg-card border border-border ${navigateTo ? CLICKABLE : ''}`}
-          onClick={() => navigateTo?.('bounces')}
-        >
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-md bg-red-500/15 flex items-center justify-center">
-              <ShieldX className="w-4 h-4 text-red-400" />
+      {/* Quick Counts - Gradient border */}
+      <StaggerGrid className="grid grid-cols-3 gap-4" stagger={0.08}>
+        <StaggerItem>
+          <motion.div
+            className="rounded-xl border p-[1px] cursor-pointer"
+            style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.12), transparent 60%)' }}
+            whileHover={{ y: -2 }}
+            onClick={() => navigateTo?.('bounces')}
+          >
+            <div className="rounded-xl bg-card p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.12)' }}>
+                <ShieldX className="w-4 h-4" style={{ color: '#EF4444' }} />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Bounces</p>
+                <p className="text-lg font-bold text-foreground tabular-nums">{data.bouncesCount}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Bounces</p>
-              <p className="text-lg font-semibold text-foreground tabular-nums">{data.bouncesCount}</p>
+          </motion.div>
+        </StaggerItem>
+        <StaggerItem>
+          <div className="rounded-xl border p-[1px]" style={{ background: 'linear-gradient(135deg, rgba(113,113,122,0.1), transparent 60%)' }}>
+            <div className="rounded-xl bg-card p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(113,113,122,0.1)' }}>
+                <ShieldAlert className="w-4 h-4" style={{ color: '#71717A' }} />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Suppressions</p>
+                <p className="text-lg font-bold text-foreground tabular-nums">{data.suppressionsCount}</p>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border border-border">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-md bg-slate-500/15 flex items-center justify-center">
-              <ShieldAlert className="w-4 h-4 text-slate-400" />
+          </div>
+        </StaggerItem>
+        <StaggerItem>
+          <motion.div
+            className="rounded-xl border p-[1px] cursor-pointer"
+            style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.12), transparent 60%)' }}
+            whileHover={{ y: -2 }}
+            onClick={() => navigateTo?.('companies')}
+          >
+            <div className="rounded-xl bg-card p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.12)' }}>
+                <Activity className="w-4 h-4" style={{ color: '#D4AF37' }} />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Companies</p>
+                <p className="text-lg font-bold text-foreground tabular-nums">{data.totalCompanies}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Suppressions</p>
-              <p className="text-lg font-semibold text-foreground tabular-nums">{data.suppressionsCount}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card
-          className={`bg-card border border-border ${navigateTo ? CLICKABLE : ''}`}
-          onClick={() => navigateTo?.('companies')}
-        >
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-md bg-primary/15 flex items-center justify-center">
-              <Activity className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Companies</p>
-              <p className="text-lg font-semibold text-foreground tabular-nums">{data.totalCompanies}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          </motion.div>
+        </StaggerItem>
+      </StaggerGrid>
     </div>
   );
 }

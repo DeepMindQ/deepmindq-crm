@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,7 +14,8 @@ import {
 } from 'lucide-react';
 import {
   PageTransition, AnimatedCard, StaggerGrid, StaggerItem,
-  SectionHeader,
+  SectionHeader, GlassPanel, StatCard, AnimatedCounter,
+  ShimmerText, GradientCard,
 } from '@/components/ui/animated-components';
 
 /* ═══════════════════════════════════════════════════
@@ -120,6 +120,18 @@ const STAGE_PALETTE = {
   },
 } as const;
 
+const STAGE_GLOW_COLORS: Record<string, string> = {
+  import: 'rgba(161, 161, 170, 0.35)',
+  verified: 'rgba(59, 130, 246, 0.35)',
+  drafted: 'rgba(245, 158, 11, 0.35)',
+  approved: 'rgba(168, 85, 247, 0.35)',
+  queued: 'rgba(99, 102, 241, 0.35)',
+  sent: 'rgba(16, 185, 129, 0.35)',
+  replied: 'rgba(34, 197, 94, 0.35)',
+  bounced: 'rgba(239, 68, 68, 0.35)',
+  suppressed: 'rgba(100, 116, 139, 0.35)',
+};
+
 function pct(value: number, total: number) {
   if (total === 0) return 0;
   return Math.round((value / total) * 100);
@@ -157,16 +169,17 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
     load();
   }, []);
 
-  /* ── Loading state ── */
+  /* -- Loading state -- */
   if (loading) {
     return (
-      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-6 pr-1">
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-8 pr-1">
+        <Skeleton className="h-32 w-full rounded-xl" />
         <Skeleton className="h-10 w-64 rounded-lg" />
-        <Skeleton className="h-40 w-full rounded-lg" />
+        <Skeleton className="h-48 w-full rounded-xl" />
         <div className="grid grid-cols-3 gap-4">
-          {[...Array(9)].map((_, i) => <Skeleton key={i} className="h-20 rounded-lg" />)}
+          {[...Array(9)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
-        <Skeleton className="h-20 w-full rounded-lg" />
+        <Skeleton className="h-20 w-full rounded-xl" />
       </div>
     );
   }
@@ -179,7 +192,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
     );
   }
 
-  /* ── Compute stage counts ── */
+  /* -- Compute stage counts -- */
   const { contactsByStatus: cbs, emailHealthDistribution: eh, draftsPendingReview, queuePending, repliesThisWeek, bouncesCount, suppressionsCount } = dashData;
 
   const importedCount = totalLeads || Object.values(cbs).reduce((a, b) => a + b, 0);
@@ -201,7 +214,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
   const replyRate = sentCount > 0 ? rate(repliedCount, sentCount) : '-';
   const bounceRate = sentCount > 0 ? rate(bouncedCount, sentCount) : '-';
 
-  /* ── Build stages array ── */
+  /* -- Build stages array -- */
   const stages: PipelineStage[] = [
     {
       key: 'import',
@@ -301,43 +314,157 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
      ═══════════════════════════════════════════════════ */
   return (
     <PageTransition>
-      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-6 pr-1">
-        {/* ── Header ── */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Layers className="w-5 h-5 text-primary" />
-              Outreach Pipeline
-            </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Visual funnel from import to reply -{' '}
-              <span className="text-primary font-medium tabular-nums">{importedCount.toLocaleString()}</span> total leads
-            </p>
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-8 pr-1">
+
+        {/* ══════════════════════════════════════════════
+           Hero Banner
+           ══════════════════════════════════════════════ */}
+        <GlassPanel
+          className="relative overflow-hidden px-6 py-8"
+        >
+          {/* Background gradient accents */}
+          <div
+            className="absolute inset-0 opacity-40 pointer-events-none"
+            style={{
+              background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.12) 0%, transparent 40%, rgba(59, 130, 246, 0.08) 70%, transparent 100%)',
+            }}
+          />
+          <div
+            className="absolute top-0 right-0 w-72 h-72 pointer-events-none opacity-20 blur-3xl"
+            style={{
+              background: 'radial-gradient(circle, rgba(212, 175, 55, 0.3), transparent 70%)',
+            }}
+          />
+
+          <div className="relative flex items-center justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.08))',
+                    boxShadow: '0 0 16px rgba(212, 175, 55, 0.15)',
+                  }}
+                >
+                  <Layers className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">
+                    <ShimmerText>Outreach Pipeline</ShimmerText>
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Visual funnel from import to reply
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-baseline gap-3 pl-1">
+                <span className="text-5xl font-black tabular-nums text-primary tracking-tighter">
+                  <AnimatedCounter value={importedCount} />
+                </span>
+                <span className="text-base font-medium text-muted-foreground">total leads in pipeline</span>
+              </div>
+            </div>
+
+            <div className="hidden sm:flex flex-col items-end gap-2">
+              {dashData._demo && (
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/25 text-[10px] uppercase tracking-wider px-3 py-1">
+                  Demo Data
+                </Badge>
+              )}
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" style={{ boxShadow: '0 0 8px rgba(52, 211, 153, 0.5)' }} />
+                  {sentCount.toLocaleString()} sent
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-green-400" style={{ boxShadow: '0 0 8px rgba(74, 222, 128, 0.5)' }} />
+                  {repliedCount.toLocaleString()} replied
+                </span>
+              </div>
+            </div>
           </div>
-          {dashData._demo && (
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px] uppercase tracking-wider">
-              Demo Data
-            </Badge>
-          )}
-        </div>
+        </GlassPanel>
+
+        {/* ══════════════════════════════════════════════
+           Key Metrics (StatCard)
+           ══════════════════════════════════════════════ */}
+        <SectionHeader
+          title="Key Metrics"
+          subtitle="Core performance indicators across the outreach funnel"
+        />
+        <StaggerGrid className="grid grid-cols-2 lg:grid-cols-4 gap-4" stagger={0.08}>
+          <StaggerItem>
+            <StatCard
+              label="Delivery Rate"
+              value={deliveryRate}
+              icon={Send}
+              color="#34D399"
+              delay={0}
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <StatCard
+              label="Reply Rate"
+              value={replyRate}
+              icon={Mail}
+              color="#4ADE80"
+              delay={0.08}
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <StatCard
+              label="Bounce Rate"
+              value={bounceRate}
+              icon={AlertTriangle}
+              color="#F87171"
+              delay={0.16}
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <StatCard
+              label="Conversion"
+              value={importedCount > 0 ? rate(repliedCount, importedCount) : '0%'}
+              icon={TrendingUp}
+              color="#D4AF37"
+              delay={0.24}
+            />
+          </StaggerItem>
+        </StaggerGrid>
 
         {/* ══════════════════════════════════════════════
            Funnel Visualization
            ══════════════════════════════════════════════ */}
-        <SectionHeader title="Pipeline Funnel" />
-        <AnimatedCard hover={false}>
-          <CardContent className="px-4 py-4 space-y-3">
+        <SectionHeader
+          title="Pipeline Funnel"
+          subtitle="Stage-by-stage volume from import through response tracking"
+        />
+        <GlassPanel className="px-5 py-5">
+          <div className="space-y-3">
             {stages.map((stage, idx) => {
               const widthPct = pct(stage.count, maxCount);
               const funnelPct = pct(stage.count, importedCount);
               const Icon = stage.icon;
+              const glowColor = STAGE_GLOW_COLORS[stage.key] || 'rgba(212, 175, 55, 0.3)';
               return (
                 <div key={stage.key} className="group relative">
                   {/* Row: label + bar */}
                   <div className="flex items-center gap-3">
                     {/* Label column */}
                     <div className="w-32 sm:w-36 shrink-0 flex items-center gap-2">
-                      <div className={`w-7 h-7 rounded-md ${stage.accentBg} flex items-center justify-center shrink-0`}>
+                      <div
+                        className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 transition-shadow duration-300 group-hover:shadow-lg"
+                        style={{
+                          background: stage.accentBg,
+                          boxShadow: `0 0 0px transparent`,
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLDivElement).style.boxShadow = `0 0 12px ${glowColor}`;
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLDivElement).style.boxShadow = '0 0 0px transparent';
+                        }}
+                      >
                         <Icon className={`w-3.5 h-3.5 ${stage.iconColor}`} />
                       </div>
                       <div className="min-w-0">
@@ -345,7 +472,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
                       </div>
                     </div>
 
-                    {/* Funnel bar */}
+                    {/* Funnel bar with glow */}
                     <div className="flex-1 min-w-0">
                       <div className={`h-8 ${stage.barBg} rounded-md overflow-hidden relative`}>
                         <motion.div
@@ -353,6 +480,9 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
                           initial={{ width: 0 }}
                           animate={{ width: `${Math.max(widthPct, 4)}%` }}
                           transition={{ duration: 0.7, delay: idx * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }}
+                          style={{
+                            boxShadow: `0 0 10px ${glowColor}, 0 0 4px ${glowColor}`,
+                          }}
                         >
                           <span className="text-[11px] font-bold text-white tabular-nums drop-shadow-sm">
                             {stage.count.toLocaleString()}
@@ -386,221 +516,238 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
                 </div>
               );
             })}
-          </CardContent>
-        </AnimatedCard>
+          </div>
+        </GlassPanel>
 
         {/* ══════════════════════════════════════════════
            Detailed Stage Breakdown Grid
            ══════════════════════════════════════════════ */}
-        <SectionHeader title="Stage Breakdown" />
-        <Card className="bg-card border border-border">
-          <CardContent className="px-4 pb-4 pt-4">
-            <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {stages.map(stage => {
-                const Icon = stage.icon;
-                const funnelPct = pct(stage.count, importedCount);
-                return (
-                  <StaggerItem key={stage.key}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className={`rounded-lg border border-border p-3 hover:border-muted-foreground/30 transition-colors cursor-pointer group`}>
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <div className={`w-8 h-8 rounded-md ${stage.accentBg} flex items-center justify-center`}>
-                                <Icon className={`w-4 h-4 ${stage.iconColor}`} />
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-foreground leading-tight">{stage.label}</p>
-                                <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{stage.sublabel}</p>
-                              </div>
+        <SectionHeader
+          title="Stage Breakdown"
+          subtitle="Detailed metrics for each pipeline stage with navigation hints"
+        />
+        <GlassPanel className="px-4 py-4">
+          <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {stages.map(stage => {
+              const Icon = stage.icon;
+              const funnelPct = pct(stage.count, importedCount);
+              const glowColor = STAGE_GLOW_COLORS[stage.key] || 'rgba(212, 175, 55, 0.2)';
+              return (
+                <StaggerItem key={stage.key}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        className="rounded-lg border border-border/60 p-3 cursor-pointer group transition-all duration-300 relative"
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.02)',
+                        }}
+                        onMouseEnter={(e) => {
+                          const el = e.currentTarget as HTMLDivElement;
+                          el.style.borderColor = glowColor;
+                          el.style.boxShadow = `0 0 16px ${glowColor}, inset 0 0 0 1px ${glowColor}`;
+                          el.style.background = `linear-gradient(135deg, ${glowColor.replace('0.35', '0.06')}, transparent 60%)`;
+                        }}
+                        onMouseLeave={(e) => {
+                          const el = e.currentTarget as HTMLDivElement;
+                          el.style.borderColor = '';
+                          el.style.boxShadow = '';
+                          el.style.background = 'rgba(255, 255, 255, 0.02)';
+                        }}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-8 h-8 rounded-md ${stage.accentBg} flex items-center justify-center`}>
+                              <Icon className={`w-4 h-4 ${stage.iconColor}`} />
                             </div>
-                            <ArrowRight className="w-3 h-3 text-muted-foreground/0 group-hover:text-muted-foreground transition-colors mt-2" />
-                          </div>
-
-                          {/* Count badge */}
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-2xl font-bold text-primary tabular-nums">{stage.count.toLocaleString()}</span>
-                            <span className="text-[11px] text-muted-foreground tabular-nums">{funnelPct}% of total</span>
-                          </div>
-
-                          {/* Progress bar */}
-                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${stage.barFill} transition-all duration-700`}
-                              style={{ width: `${funnelPct}%` }}
-                            />
-                          </div>
-
-                          {/* Optional badge */}
-                          {stage.badge && (
-                            <div className="mt-2">
-                              <Badge variant="outline" className={`text-[10px] ${stage.badgeColor}`}>
-                                {stage.badge}
-                              </Badge>
+                            <div>
+                              <p className="text-sm font-medium text-foreground leading-tight">{stage.label}</p>
+                              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{stage.sublabel}</p>
                             </div>
-                          )}
+                          </div>
+                          <ArrowRight className="w-3 h-3 text-muted-foreground/0 group-hover:text-muted-foreground transition-colors mt-2" />
                         </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs">
-                        <p>{stage.navHint || stage.label}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </StaggerItem>
-                );
-              })}
-            </StaggerGrid>
-          </CardContent>
-        </Card>
 
-        {/* ══════════════════════════════════════════════
-           Key Metrics Summary
-           ══════════════════════════════════════════════ */}
-        <SectionHeader title="Key Metrics" />
-        <StaggerGrid className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StaggerItem>
-            <motion.div whileHover={{ y: -2 }} className="rounded-xl border p-[1px]" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), transparent 60%)' }}>
-              <div className="rounded-xl bg-card p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Delivery Rate</p>
-                    <p className="text-xl font-bold text-emerald-400 mt-0.5 tabular-nums">{deliveryRate}</p>
-                  </div>
-                  <div className="w-8 h-8 rounded-md bg-emerald-500/15 flex items-center justify-center">
-                    <Send className="w-4 h-4 text-emerald-400" />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </StaggerItem>
-          <StaggerItem>
-            <motion.div whileHover={{ y: -2 }} className="rounded-xl border p-[1px]" style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), transparent 60%)' }}>
-              <div className="rounded-xl bg-card p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Reply Rate</p>
-                    <p className="text-xl font-bold text-green-400 mt-0.5 tabular-nums">{replyRate}</p>
-                  </div>
-                  <div className="w-8 h-8 rounded-md bg-green-500/15 flex items-center justify-center">
-                    <Mail className="w-4 h-4 text-green-400" />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </StaggerItem>
-          <StaggerItem>
-            <motion.div whileHover={{ y: -2 }} className="rounded-xl border p-[1px]" style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), transparent 60%)' }}>
-              <div className="rounded-xl bg-card p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Bounce Rate</p>
-                    <p className="text-xl font-bold text-red-400 mt-0.5 tabular-nums">{bounceRate}</p>
-                  </div>
-                  <div className="w-8 h-8 rounded-md bg-red-500/15 flex items-center justify-center">
-                    <AlertTriangle className="w-4 h-4 text-red-400" />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </StaggerItem>
-          <StaggerItem>
-            <motion.div whileHover={{ y: -2 }} className="rounded-xl border p-[1px]" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), transparent 60%)' }}>
-              <div className="rounded-xl bg-card p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Conversion</p>
-                    <p className="text-xl font-bold text-primary mt-0.5 tabular-nums">
-                      {importedCount > 0 ? rate(repliedCount, importedCount) : '0%'}
-                    </p>
-                  </div>
-                  <div className="w-8 h-8 rounded-md bg-primary/15 flex items-center justify-center">
-                    <TrendingUp className="w-4 h-4 text-primary" />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </StaggerItem>
-        </StaggerGrid>
+                        {/* Count badge */}
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-2xl font-bold text-primary tabular-nums">{stage.count.toLocaleString()}</span>
+                          <span className="text-[11px] text-muted-foreground tabular-nums">{funnelPct}% of total</span>
+                        </div>
+
+                        {/* Progress bar with glow */}
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${stage.barFill} transition-all duration-700`}
+                            style={{
+                              width: `${funnelPct}%`,
+                              boxShadow: `0 0 8px ${glowColor}`,
+                            }}
+                          />
+                        </div>
+
+                        {/* Optional badge */}
+                        {stage.badge && (
+                          <div className="mt-2">
+                            <Badge variant="outline" className={`text-[10px] ${stage.badgeColor}`}>
+                              {stage.badge}
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      <p>{stage.navHint || stage.label}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </StaggerItem>
+              );
+            })}
+          </StaggerGrid>
+        </GlassPanel>
 
         {/* ══════════════════════════════════════════════
            Email Verification Breakdown
            ══════════════════════════════════════════════ */}
-        <SectionHeader title="Email Verification" />
-        <Card className="bg-card border border-border">
-          <CardContent className="px-4 pb-4 pt-4">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { key: 'valid', label: 'Valid', color: 'bg-emerald-400', textColor: 'text-emerald-400', icon: MailCheck },
-                { key: 'risky', label: 'Risky', color: 'bg-amber-400', textColor: 'text-amber-400', icon: AlertTriangle },
-                { key: 'invalid', label: 'Invalid', color: 'bg-red-400', textColor: 'text-red-400', icon: MailX },
-                { key: 'unknown', label: 'Unknown', color: 'bg-zinc-500', textColor: 'text-zinc-400', icon: ShieldCheck },
-              ].map((item, idx) => {
-                const count = (eh as any)?.[item.key] || 0;
-                const itemPct = pct(count, emailTotal);
-                const ItemIcon = item.icon;
-                return (
-                  <div key={item.key} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <ItemIcon className={`w-3.5 h-3.5 ${item.textColor}`} />
-                        <span className="text-sm text-foreground">{item.label}</span>
+        <SectionHeader
+          title="Email Verification"
+          subtitle="Distribution of email validity across your contact database"
+        />
+        <GlassPanel className="px-5 py-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              { key: 'valid', label: 'Valid', color: '#34D399', textColor: 'text-emerald-400', icon: MailCheck },
+              { key: 'risky', label: 'Risky', color: '#FBBF24', textColor: 'text-amber-400', icon: AlertTriangle },
+              { key: 'invalid', label: 'Invalid', color: '#F87171', textColor: 'text-red-400', icon: MailX },
+              { key: 'unknown', label: 'Unknown', color: '#A1A1AA', textColor: 'text-zinc-400', icon: ShieldCheck },
+            ].map((item, idx) => {
+              const count = (eh as Record<string, number>)?.[item.key] || 0;
+              const itemPct = pct(count, emailTotal);
+              const ItemIcon = item.icon;
+              return (
+                <div key={item.key} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center"
+                        style={{
+                          background: `${item.color}15`,
+                          boxShadow: `0 0 10px ${item.color}20`,
+                        }}
+                      >
+                        <ItemIcon className={`w-4 h-4 ${item.textColor}`} />
                       </div>
-                      <span className="text-sm font-medium text-primary tabular-nums">{count.toLocaleString()}</span>
+                      <span className="text-sm font-medium text-foreground">{item.label}</span>
                     </div>
-                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                      <motion.div
-                        className={`h-full rounded-full ${item.color}`}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${itemPct}%` }}
-                        transition={{ duration: 0.7, delay: idx * 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
-                      />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground tabular-nums">{itemPct}% of verified</p>
+                    <span
+                      className="text-lg font-bold tabular-nums"
+                      style={{ color: item.color }}
+                    >
+                      <AnimatedCounter value={count} />
+                    </span>
                   </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                  <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{
+                        background: `linear-gradient(90deg, ${item.color}, ${item.color}CC)`,
+                        boxShadow: `0 0 8px ${item.color}60`,
+                      }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${itemPct}%` }}
+                      transition={{ duration: 0.8, delay: idx * 0.12, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground tabular-nums">{itemPct}% of verified</p>
+                </div>
+              );
+            })}
+          </div>
+        </GlassPanel>
 
         {/* ══════════════════════════════════════════════
            Quick Actions
            ══════════════════════════════════════════════ */}
-        <SectionHeader title="Quick Actions" />
-        <Card className="bg-card border border-border">
-          <CardContent className="px-4 pb-4 pt-4">
-            <div className="flex flex-wrap gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 text-xs border-zinc-500/30 text-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors"
-              >
-                <UploadCloud className="w-3.5 h-3.5 mr-2" />
-                Upload New List
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 text-xs border-blue-500/30 text-foreground hover:text-blue-400 hover:border-blue-500/40 hover:bg-blue-500/5 transition-colors"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 mr-2" />
-                Verify All Emails
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 text-xs border-amber-500/30 text-foreground hover:text-amber-400 hover:border-amber-500/40 hover:bg-amber-500/5 transition-colors"
-              >
-                <FileCheck className="w-3.5 h-3.5 mr-2" />
-                Review Pending Drafts
-                {draftsPendingReview > 0 && (
-                  <Badge variant="outline" className="ml-2 bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px] px-1.5 py-0">
-                    {draftsPendingReview}
-                  </Badge>
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <SectionHeader
+          title="Quick Actions"
+          subtitle="Common pipeline operations to keep things moving"
+        />
+        <GlassPanel className="px-5 py-5">
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 text-xs font-medium border-zinc-500/30 text-foreground hover:text-white transition-all duration-300 px-5"
+              style={{
+                background: 'linear-gradient(135deg, rgba(161, 161, 170, 0.1), rgba(161, 161, 170, 0.03))',
+              }}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget as HTMLButtonElement;
+                el.style.background = 'linear-gradient(135deg, rgba(161, 161, 170, 0.25), rgba(161, 161, 170, 0.1))';
+                el.style.borderColor = 'rgba(161, 161, 170, 0.5)';
+                el.style.boxShadow = '0 0 16px rgba(161, 161, 170, 0.2)';
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget as HTMLButtonElement;
+                el.style.background = 'linear-gradient(135deg, rgba(161, 161, 170, 0.1), rgba(161, 161, 170, 0.03))';
+                el.style.borderColor = '';
+                el.style.boxShadow = '';
+              }}
+            >
+              <UploadCloud className="w-3.5 h-3.5 mr-2" />
+              Upload New List
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 text-xs font-medium border-blue-500/30 text-foreground hover:text-white transition-all duration-300 px-5"
+              style={{
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.03))',
+              }}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget as HTMLButtonElement;
+                el.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(59, 130, 246, 0.12))';
+                el.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+                el.style.boxShadow = '0 0 16px rgba(59, 130, 246, 0.25)';
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget as HTMLButtonElement;
+                el.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.03))';
+                el.style.borderColor = '';
+                el.style.boxShadow = '';
+              }}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 mr-2" />
+              Verify All Emails
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 text-xs font-medium border-amber-500/30 text-foreground hover:text-white transition-all duration-300 px-5"
+              style={{
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.03))',
+              }}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget as HTMLButtonElement;
+                el.style.background = 'linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(245, 158, 11, 0.12))';
+                el.style.borderColor = 'rgba(245, 158, 11, 0.5)';
+                el.style.boxShadow = '0 0 16px rgba(245, 158, 11, 0.25)';
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget as HTMLButtonElement;
+                el.style.background = 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.03))';
+                el.style.borderColor = '';
+                el.style.boxShadow = '';
+              }}
+            >
+              <FileCheck className="w-3.5 h-3.5 mr-2" />
+              Review Pending Drafts
+              {draftsPendingReview > 0 && (
+                <Badge variant="outline" className="ml-2 bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px] px-1.5 py-0">
+                  {draftsPendingReview}
+                </Badge>
+              )}
+            </Button>
+          </div>
+        </GlassPanel>
       </div>
     </PageTransition>
   );

@@ -9,8 +9,19 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Building2, Globe, MapPin, Briefcase, Users, X, BookOpen, StickyNote, FileText } from 'lucide-react';
-import { PageTransition, AnimatedCard, StaggerGrid, StaggerItem, SectionHeader } from '@/components/ui/animated-components';
+import { Search, Building2, Globe, MapPin, Briefcase, Users, X, BookOpen, StickyNote, FileText, BrainCircuit, UserCheck } from 'lucide-react';
+import {
+  PageTransition,
+  AnimatedCard,
+  StaggerGrid,
+  StaggerItem,
+  SectionHeader,
+  StatCard,
+  AnimatedCounter,
+  GlassPanel,
+  EmptyState,
+  GradientCard,
+} from '@/components/ui/animated-components';
 
 interface Company {
   id: string;
@@ -57,6 +68,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [companyContacts, setCompanyContacts] = useState<Contact[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   useEffect(() => {
     const params = search ? `?search=${encodeURIComponent(search)}` : '';
@@ -81,240 +93,375 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
     setLoadingContacts(false);
   };
 
+  const totalCompanies = companies.length;
+  const companiesWithResearch = companies.filter(c => c.research).length;
+  const totalContacts = companies.reduce((sum, c) => sum + (c.contactCount ?? 0), 0);
+
   const countText = loading ? 'Loading...' : `${companies.length} compan${companies.length === 1 ? 'y' : 'ies'}`;
 
   return (
     <PageTransition>
-      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-4 pr-1">
-        {/* Search */}
-        <AnimatedCard hover={false} delay={0}>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-8 pr-1 pb-8">
+
+        {/* Stats Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatCard
+            label="Total Companies"
+            value={loading ? '-' : totalCompanies}
+            icon={Building2}
+            color="#D4AF37"
+            delay={0}
+          />
+          <StatCard
+            label="With Research"
+            value={loading ? '-' : companiesWithResearch}
+            icon={BrainCircuit}
+            color="#3B82F6"
+            delay={0.08}
+          />
+          <StatCard
+            label="Total Contacts"
+            value={loading ? '-' : totalContacts}
+            icon={UserCheck}
+            color="#10B981"
+            delay={0.16}
+          />
+        </div>
+
+        {/* Search Bar */}
+        <GlassPanel className="p-0 overflow-hidden transition-all duration-300">
+          <div
+            className="relative p-4"
+            style={searchFocused ? {
+              boxShadow: '0 0 30px rgba(212, 175, 55, 0.12), 0 0 60px rgba(212, 175, 55, 0.06), inset 0 1px 0 rgba(212, 175, 55, 0.1)',
+              borderRadius: 'inherit',
+            } : undefined}
+          >
+            <Search
+              className="absolute left-7 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground transition-colors duration-200"
+              style={searchFocused ? { color: '#D4AF37' } : undefined}
+            />
             <Input
               placeholder="Search companies by name, domain, or industry..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-9 h-9 text-sm bg-background border-border"
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              className="pl-12 h-11 text-sm bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60"
             />
           </div>
-        </AnimatedCard>
+        </GlassPanel>
 
         {/* Company Grid */}
-        <SectionHeader title="Companies" subtitle={countText} />
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-36 rounded-lg" />)}
-          </div>
-        ) : (
-          <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {companies.map(company => (
-              <StaggerItem key={company.id}>
-                <motion.div
-                  className="rounded-xl border p-[1px] cursor-pointer"
-                  style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.1), transparent 60%)' }}
-                  whileHover={{ y: -3 }}
-                  onClick={() => openCompany(company)}
-                >
-                  <div className="rounded-xl bg-card p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-md bg-primary/15 flex items-center justify-center shrink-0">
-                          <Building2 className="w-4 h-4 text-primary" />
+        <div>
+          <SectionHeader title="Companies" subtitle={countText} />
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-44 rounded-xl" />)}
+            </div>
+          ) : companies.length === 0 ? (
+            <EmptyState
+              icon={Building2}
+              title="No companies found"
+              description="Try adjusting your search query or add new companies to get started."
+            />
+          ) : (
+            <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {companies.map(company => (
+                <StaggerItem key={company.id}>
+                  <motion.div
+                    className="rounded-xl cursor-pointer relative group/card"
+                    whileHover={{ y: -6, transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] } }}
+                    onClick={() => openCompany(company)}
+                  >
+                    {/* Outer glow on hover */}
+                    <div
+                      className="absolute -inset-[2px] rounded-xl opacity-0 group-hover/card:opacity-100 transition-all duration-500 blur-md"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.35), rgba(212, 175, 55, 0.08), rgba(59, 130, 246, 0.12), transparent 70%)',
+                      }}
+                    />
+                    {/* Gradient border */}
+                    <div
+                      className="relative rounded-xl p-[1px] transition-all duration-300"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.05) 40%, rgba(59, 130, 246, 0.08) 80%, transparent)',
+                      }}
+                    >
+                      <div className="rounded-xl bg-card p-5 transition-all duration-300 group-hover/card:bg-card/95">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div
+                              className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300"
+                              style={{
+                                background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05))',
+                                boxShadow: 'inset 0 1px 0 rgba(212, 175, 55, 0.1)',
+                              }}
+                            >
+                              <Building2 className="w-5 h-5 text-primary" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-foreground truncate group-hover/card:text-primary transition-colors duration-200">{company.name}</p>
+                              {company.domain && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
+                                  <Globe className="w-3 h-3" />{company.domain}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className="bg-primary/10 text-primary border-primary/25 shrink-0 text-xs font-semibold"
+                            style={{ boxShadow: '0 0 8px rgba(212, 175, 55, 0.08)' }}
+                          >
+                            {company.contactCount ?? 0} contacts
+                          </Badge>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{company.name}</p>
-                          {company.domain && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                              <Globe className="w-3 h-3" />{company.domain}
-                            </p>
+                        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                          {company.industry && (
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/[0.05]">
+                              <Briefcase className="w-3 h-3 text-primary/70" />{company.industry}
+                            </span>
+                          )}
+                          {company.employeeSize && (
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/[0.05]">
+                              <Users className="w-3 h-3 text-primary/70" />{company.employeeSize}
+                            </span>
+                          )}
+                          {company.country && (
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/[0.05]">
+                              <MapPin className="w-3 h-3 text-primary/70" />{company.country}
+                            </span>
                           )}
                         </div>
+                        {company.research && (
+                          <div className="mt-3 flex items-center gap-1.5">
+                            <BrainCircuit className="w-3 h-3 text-blue-400" />
+                            <span className="text-[11px] text-blue-400/80 font-medium">Research available</span>
+                          </div>
+                        )}
                       </div>
-                      <Badge variant="outline" className="bg-primary/15 text-primary border-primary/30 shrink-0">
-                        {company.contactCount ?? 0}
-                      </Badge>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      {company.industry && (
-                        <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" />{company.industry}</span>
-                      )}
-                      {company.employeeSize && (
-                        <span className="flex items-center gap-1"><Users className="w-3 h-3" />{company.employeeSize}</span>
-                      )}
-                      {company.country && (
-                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{company.country}</span>
-                      )}
-                    </div>
+                  </motion.div>
+                </StaggerItem>
+              ))}
+            </StaggerGrid>
+          )}
+        </div>
+
+        {/* Company Detail Dialog */}
+        <Dialog open={!!selectedCompany} onOpenChange={() => setSelectedCompany(null)}>
+          <DialogContent className="bg-card/90 backdrop-blur-xl border border-white/[0.08] text-foreground max-w-2xl max-h-[85vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="text-base flex items-center justify-between pr-6">
+                <span className="flex items-center gap-2.5">
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.05))',
+                      boxShadow: '0 0 12px rgba(212, 175, 55, 0.1)',
+                    }}
+                  >
+                    <Building2 className="w-4 h-4 text-primary" />
                   </div>
-                </motion.div>
-              </StaggerItem>
-            ))}
-            {companies.length === 0 && (
-              <div className="col-span-full text-muted-foreground text-sm text-center py-12">
-                No companies found.
-              </div>
-            )}
-          </StaggerGrid>
-        )}
-
-      {/* ── Company Detail Dialog ── */}
-      <Dialog open={!!selectedCompany} onOpenChange={() => setSelectedCompany(null)}>
-        <DialogContent className="bg-card border border-border text-foreground max-w-2xl max-h-[85vh]">
-          <DialogHeader>
-            <DialogTitle className="text-base flex items-center justify-between pr-6">
-              <span className="flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-primary" />
-                {selectedCompany?.name}
-              </span>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 shrink-0" onClick={() => setSelectedCompany(null)}>
-                <X className="w-4 h-4" />
-              </Button>
-            </DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="max-h-[70vh] pr-2">
-            {selectedCompany && (
-              <div className="space-y-4 pb-4">
-                {/* Company Info */}
-                <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
-                  {selectedCompany.domain && (
-                    <span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5 text-primary" />{selectedCompany.domain}</span>
-                  )}
-                  {selectedCompany.industry && (
-                    <span className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5 text-primary" />{selectedCompany.industry}</span>
-                  )}
-                  {selectedCompany.employeeSize && (
-                    <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5 text-primary" />{selectedCompany.employeeSize}</span>
-                  )}
-                  {selectedCompany.country && (
-                    <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-primary" />{selectedCompany.country}</span>
-                  )}
-                </div>
-
-                <Separator className="bg-border" />
-
-                {/* Research Card */}
-                {selectedCompany.research && (
-                  <AnimatedCard hover={false} delay={0.1}>
-                    <div className="space-y-2.5">
-                      <h4 className="text-xs font-semibold flex items-center gap-2 text-primary">
-                        <BookOpen className="w-3.5 h-3.5" />
-                        Company Research
-                      </h4>
-                      {selectedCompany.research.businessOverview && (
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Business Overview</p>
-                          <p className="text-sm text-foreground leading-relaxed">{selectedCompany.research.businessOverview}</p>
-                        </div>
+                  {selectedCompany?.name}
+                </span>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0 rounded-lg" onClick={() => setSelectedCompany(null)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="max-h-[70vh] pr-2">
+              {selectedCompany && (
+                <div className="space-y-5 pb-4">
+                  {/* Company Info Glass Panel */}
+                  <GlassPanel className="p-4">
+                    <div className="flex flex-wrap gap-x-5 gap-y-2.5 text-sm text-muted-foreground">
+                      {selectedCompany.domain && (
+                        <span className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center">
+                            <Globe className="w-3.5 h-3.5 text-primary" />
+                          </div>
+                          {selectedCompany.domain}
+                        </span>
                       )}
-                      {selectedCompany.research.currentTechLandscape && (
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Tech Landscape</p>
-                          <p className="text-sm text-foreground leading-relaxed">{selectedCompany.research.currentTechLandscape}</p>
-                        </div>
+                      {selectedCompany.industry && (
+                        <span className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center">
+                            <Briefcase className="w-3.5 h-3.5 text-primary" />
+                          </div>
+                          {selectedCompany.industry}
+                        </span>
                       )}
-                      {selectedCompany.research.potentialChallenges && (
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Challenges</p>
-                          <p className="text-sm text-foreground leading-relaxed">{selectedCompany.research.potentialChallenges}</p>
-                        </div>
+                      {selectedCompany.employeeSize && (
+                        <span className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center">
+                            <Users className="w-3.5 h-3.5 text-primary" />
+                          </div>
+                          {selectedCompany.employeeSize}
+                        </span>
                       )}
-                      {selectedCompany.research.possibleOpportunities && (
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Opportunities</p>
-                          <p className="text-sm text-foreground leading-relaxed">{selectedCompany.research.possibleOpportunities}</p>
-                        </div>
-                      )}
-                      {selectedCompany.research.relevantServices && (
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Relevant Services</p>
-                          <p className="text-sm text-foreground leading-relaxed">{selectedCompany.research.relevantServices}</p>
-                        </div>
-                      )}
-                      {selectedCompany.research.nextAction && (
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Next Action</p>
-                          <p className="text-sm text-primary font-medium">{selectedCompany.research.nextAction}</p>
-                        </div>
+                      {selectedCompany.country && (
+                        <span className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center">
+                            <MapPin className="w-3.5 h-3.5 text-primary" />
+                          </div>
+                          {selectedCompany.country}
+                        </span>
                       )}
                     </div>
-                  </AnimatedCard>
-                )}
+                  </GlassPanel>
 
-                {/* Contacts */}
-                <AnimatedCard hover={false} delay={0.1}>
-                <div>
-                  <h4 className="text-xs font-semibold flex items-center gap-2 mb-2">
-                    <Users className="w-3.5 h-3.5 text-primary" />
-                    Contacts ({companyContacts.length})
-                    {navigateTo && companyContacts.length > 0 && (
-                      <span
-                        onClick={() => { setSelectedCompany(null); navigateTo('leads'); }}
-                        className="ml-auto text-[10px] text-muted-foreground cursor-pointer hover:text-primary transition-colors font-normal"
-                      >View all contacts →</span>
-                    )}
-                  </h4>
-                  {loadingContacts ? (
-                    <div className="space-y-2">
-                      {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
-                    </div>
-                  ) : companyContacts.length > 0 ? (
-                    <div className="space-y-1.5">
-                      {companyContacts.map(c => (
-                        <div key={c.id} className="flex items-center justify-between py-1.5 px-3 rounded-md bg-background border border-border">
+                  {/* Research Card */}
+                  {selectedCompany.research && (
+                    <GlassPanel className="p-5">
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-bold flex items-center gap-2.5 text-foreground">
+                          <div className="w-7 h-7 rounded-md bg-blue-500/15 flex items-center justify-center">
+                            <BookOpen className="w-3.5 h-3.5 text-blue-400" />
+                          </div>
+                          Company Research
+                          {selectedCompany.research.confidenceScore != null && (
+                            <span className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                              {selectedCompany.research.confidenceScore}% confidence
+                            </span>
+                          )}
+                        </h4>
+                        {selectedCompany.research.businessOverview && (
                           <div>
-                            <p className="text-sm font-medium text-foreground">{c.name}</p>
-                            <p className="text-xs text-muted-foreground">{c.jobTitle || c.email || '-'}</p>
+                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Business Overview</p>
+                            <p className="text-sm text-foreground/90 leading-relaxed">{selectedCompany.research.businessOverview}</p>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {navigateTo && (
-                              <span
-                                onClick={(e) => { e.stopPropagation(); navigateTo('leads'); }}
-                                className="text-[10px] text-muted-foreground cursor-pointer hover:text-primary transition-colors"
-                              >View</span>
-                            )}
-                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px]">
-                              {c.status}
-                            </Badge>
+                        )}
+                        {selectedCompany.research.currentTechLandscape && (
+                          <div>
+                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Tech Landscape</p>
+                            <p className="text-sm text-foreground/90 leading-relaxed">{selectedCompany.research.currentTechLandscape}</p>
                           </div>
+                        )}
+                        {selectedCompany.research.potentialChallenges && (
+                          <div>
+                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Challenges</p>
+                            <p className="text-sm text-foreground/90 leading-relaxed">{selectedCompany.research.potentialChallenges}</p>
+                          </div>
+                        )}
+                        {selectedCompany.research.possibleOpportunities && (
+                          <div>
+                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Opportunities</p>
+                            <p className="text-sm text-foreground/90 leading-relaxed">{selectedCompany.research.possibleOpportunities}</p>
+                          </div>
+                        )}
+                        {selectedCompany.research.relevantServices && (
+                          <div>
+                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Relevant Services</p>
+                            <p className="text-sm text-foreground/90 leading-relaxed">{selectedCompany.research.relevantServices}</p>
+                          </div>
+                        )}
+                        {selectedCompany.research.keyDecisionMakers && (
+                          <div>
+                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Key Decision Makers</p>
+                            <p className="text-sm text-foreground/90 leading-relaxed">{selectedCompany.research.keyDecisionMakers}</p>
+                          </div>
+                        )}
+                        {selectedCompany.research.nextAction && (
+                          <GradientCard gradient="gold">
+                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Next Action</p>
+                            <p className="text-sm text-primary font-semibold leading-relaxed">{selectedCompany.research.nextAction}</p>
+                          </GradientCard>
+                        )}
+                      </div>
+                    </GlassPanel>
+                  )}
+
+                  {/* Contacts */}
+                  <GlassPanel className="p-5">
+                    <div>
+                      <h4 className="text-sm font-bold flex items-center gap-2.5 mb-4">
+                        <div className="w-7 h-7 rounded-md bg-emerald-500/15 flex items-center justify-center">
+                          <Users className="w-3.5 h-3.5 text-emerald-400" />
                         </div>
-                      ))}
+                        Contacts ({companyContacts.length})
+                        {navigateTo && companyContacts.length > 0 && (
+                          <span
+                            onClick={() => { setSelectedCompany(null); navigateTo('leads'); }}
+                            className="ml-auto text-xs text-muted-foreground cursor-pointer hover:text-primary transition-colors font-normal"
+                          >View all contacts &rarr;</span>
+                        )}
+                      </h4>
+                      {loadingContacts ? (
+                        <div className="space-y-3">
+                          {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}
+                        </div>
+                      ) : companyContacts.length > 0 ? (
+                        <div className="space-y-2">
+                          {companyContacts.map(c => (
+                            <div
+                              key={c.id}
+                              className="flex items-center justify-between py-3 px-4 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors duration-200"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                  <span className="text-xs font-bold text-primary">{c.name.charAt(0).toUpperCase()}</span>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-foreground">{c.name}</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">{c.jobTitle || c.email || '-'}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                {navigateTo && (
+                                  <span
+                                    onClick={(e) => { e.stopPropagation(); navigateTo('leads'); }}
+                                    className="text-xs text-muted-foreground cursor-pointer hover:text-primary transition-colors"
+                                  >View</span>
+                                )}
+                                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px] font-semibold">
+                                  {c.status}
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground py-2">No contacts at this company.</p>
+                      )}
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No contacts at this company.</p>
+                  </GlassPanel>
+
+                  {/* Notes */}
+                  {selectedCompany.notes && (
+                    <GlassPanel className="p-5">
+                      <div>
+                        <h4 className="text-sm font-bold flex items-center gap-2.5 mb-3">
+                          <div className="w-7 h-7 rounded-md bg-amber-500/15 flex items-center justify-center">
+                            <StickyNote className="w-3.5 h-3.5 text-amber-400" />
+                          </div>
+                          Notes
+                        </h4>
+                        <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{selectedCompany.notes}</p>
+                      </div>
+                    </GlassPanel>
+                  )}
+
+                  {/* Internal Summary */}
+                  {selectedCompany.internalSummary && (
+                    <GlassPanel className="p-5">
+                      <div>
+                        <h4 className="text-sm font-bold flex items-center gap-2.5 mb-3">
+                          <div className="w-7 h-7 rounded-md bg-purple-500/15 flex items-center justify-center">
+                            <FileText className="w-3.5 h-3.5 text-purple-400" />
+                          </div>
+                          Internal Summary
+                        </h4>
+                        <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{selectedCompany.internalSummary}</p>
+                      </div>
+                    </GlassPanel>
                   )}
                 </div>
-                </AnimatedCard>
-
-                {/* Notes */}
-                {selectedCompany.notes && (
-                  <AnimatedCard hover={false} delay={0.1}>
-                    <div>
-                      <h4 className="text-xs font-semibold flex items-center gap-2 mb-2">
-                        <StickyNote className="w-3.5 h-3.5 text-primary" />
-                        Notes
-                      </h4>
-                      <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{selectedCompany.notes}</p>
-                    </div>
-                  </AnimatedCard>
-                )}
-
-                {/* Internal Summary */}
-                {selectedCompany.internalSummary && (
-                  <AnimatedCard hover={false} delay={0.1}>
-                    <div>
-                      <h4 className="text-xs font-semibold flex items-center gap-2 mb-2">
-                        <FileText className="w-3.5 h-3.5 text-primary" />
-                        Internal Summary
-                      </h4>
-                      <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{selectedCompany.internalSummary}</p>
-                    </div>
-                  </AnimatedCard>
-                )}
-              </div>
-            )}
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
+              )}
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
       </div>
     </PageTransition>
   );

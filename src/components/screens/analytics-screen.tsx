@@ -26,6 +26,13 @@ import {
   StaggerGrid,
   StaggerItem,
   SectionHeader,
+  StatCard,
+  ShimmerText,
+  GlassPanel,
+  AnimatedBar,
+  PulseDot,
+  EmptyState,
+  AnimatedCounter,
 } from '@/components/ui/animated-components';
 import {
   BarChart3,
@@ -39,6 +46,8 @@ import {
   ArrowDownRight,
   Activity,
   FileSpreadsheet,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -217,16 +226,16 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
   // ---------- Loading skeleton ----------
   if (loading) {
     return (
-      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-6 pr-1">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-8 pr-1">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
           {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-lg" />
+            <Skeleton key={i} className="h-32 rounded-xl" />
           ))}
         </div>
-        <Skeleton className="h-52 rounded-lg" />
-        <Skeleton className="h-64 rounded-lg" />
-        <Skeleton className="h-36 rounded-lg" />
-        <Skeleton className="h-64 rounded-lg" />
+        <Skeleton className="h-56 rounded-xl" />
+        <Skeleton className="h-72 rounded-xl" />
+        <Skeleton className="h-40 rounded-xl" />
+        <Skeleton className="h-72 rounded-xl" />
       </div>
     );
   }
@@ -277,23 +286,20 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
     1,
   );
 
-  // KPI card gradient colors: gold, green, red, blue
-  const kpiGradients = [
-    'rgba(212, 175, 55, 0.15)',
-    'rgba(16, 185, 129, 0.15)',
-    'rgba(239, 68, 68, 0.15)',
-    'rgba(59, 130, 246, 0.15)',
-  ];
-
   return (
     <PageTransition>
-      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-6 pr-1">
-        {/* Header row */}
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-8 pr-1">
+        {/* ── Header row ── */}
         <div className="flex items-center justify-between">
-          <SectionHeader title="Analytics &amp; Reporting" className="!mb-0" />
-          <div className="flex items-center gap-2">
+          <div>
+            <SectionHeader title="Analytics &amp; Reporting" className="!mb-0" />
+            <p className="text-sm text-muted-foreground ml-5 mt-1">
+              Performance overview across all outreach campaigns
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
             <Select value={timeRange} onValueChange={setTimeRange}>
-              <SelectTrigger className="w-[140px] h-8 text-xs">
+              <SelectTrigger className="w-[150px] h-9 text-xs border-white/10 bg-white/[0.03]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -303,410 +309,419 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
                 <SelectItem value="90d">Last 90 days</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+            <Button variant="outline" size="sm" className="h-9 text-xs gap-2 border-white/10 bg-white/[0.03] hover:bg-white/[0.06]">
               <FileSpreadsheet className="w-3.5 h-3.5" />
               Export
             </Button>
           </div>
         </div>
 
-        {/* KPI Cards */}
-        <StaggerGrid className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Outreach Sent */}
+        {/* ── KPI Cards ── */}
+        <StaggerGrid className="grid grid-cols-2 lg:grid-cols-4 gap-5">
           <StaggerItem>
-            <motion.div
-              whileHover={{ y: -3 }}
-              className="rounded-xl border p-[1px]"
-              style={{ background: `linear-gradient(135deg, ${kpiGradients[0]}, transparent 60%)` }}
-            >
-              <div className="rounded-xl bg-card p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                    Total Outreach Sent
-                  </p>
-                  <Send className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <p className="text-3xl font-bold tabular-nums" style={{ color: '#D4AF37' }}>
-                  {totalSent.toLocaleString()}
-                </p>
-                <div className="flex items-center gap-1 mt-1">
-                  {trends.sent.positive ? (
-                    <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" />
-                  ) : (
-                    <ArrowDownRight className="w-3.5 h-3.5 text-red-400" />
-                  )}
-                  <span
-                    className={`text-xs font-medium tabular-nums ${
-                      trends.sent.positive ? 'text-emerald-400' : 'text-red-400'
-                    }`}
-                  >
-                    {trends.sent.value}%
-                  </span>
-                  <span className="text-xs text-muted-foreground ml-1">vs prev. period</span>
-                </div>
-              </div>
-            </motion.div>
+            <StatCard
+              label="Total Outreach Sent"
+              value={totalSent}
+              icon={Send}
+              color="#D4AF37"
+              delay={0}
+              trend={{ value: `${trends.sent.value}%`, up: trends.sent.positive }}
+            />
           </StaggerItem>
 
-          {/* Reply Rate */}
           <StaggerItem>
-            <motion.div
-              whileHover={{ y: -3 }}
-              className="rounded-xl border p-[1px]"
-              style={{ background: `linear-gradient(135deg, ${kpiGradients[1]}, transparent 60%)` }}
-            >
-              <div className="rounded-xl bg-card p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                    Reply Rate
-                  </p>
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <p className="text-3xl font-bold tabular-nums" style={{ color: '#D4AF37' }}>
-                  {replyRate.toFixed(1)}%
-                </p>
-                <div className="flex items-center gap-1 mt-1">
-                  {trends.reply.positive ? (
-                    <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" />
-                  ) : (
-                    <ArrowDownRight className="w-3.5 h-3.5 text-red-400" />
-                  )}
-                  <span
-                    className={`text-xs font-medium tabular-nums ${
-                      trends.reply.positive ? 'text-emerald-400' : 'text-red-400'
-                    }`}
-                  >
-                    {trends.reply.value}%
-                  </span>
-                  <span className="text-xs text-muted-foreground ml-1">vs prev. period</span>
-                </div>
-              </div>
-            </motion.div>
+            <StatCard
+              label="Reply Rate"
+              value={`${replyRate.toFixed(1)}%`}
+              icon={Mail}
+              color="#10B981"
+              delay={0.07}
+              trend={{ value: `${trends.reply.value}%`, up: trends.reply.positive }}
+            />
           </StaggerItem>
 
-          {/* Bounce Rate */}
           <StaggerItem>
-            <motion.div
-              whileHover={{ y: -3 }}
-              className="rounded-xl border p-[1px]"
-              style={{ background: `linear-gradient(135deg, ${kpiGradients[2]}, transparent 60%)` }}
-            >
-              <div className="rounded-xl bg-card p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                    Bounce Rate
-                  </p>
-                  <TrendingDown className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <p className="text-3xl font-bold tabular-nums" style={{ color: '#D4AF37' }}>
-                  {bounceRate.toFixed(1)}%
-                </p>
-                <div className="flex items-center gap-1 mt-1">
-                  {trends.bounce.positive ? (
-                    <ArrowDownRight className="w-3.5 h-3.5 text-emerald-400" />
-                  ) : (
-                    <ArrowUpRight className="w-3.5 h-3.5 text-red-400" />
-                  )}
-                  <span
-                    className={`text-xs font-medium tabular-nums ${
-                      !trends.bounce.positive ? 'text-emerald-400' : 'text-red-400'
-                    }`}
-                  >
-                    {trends.bounce.value}%
-                  </span>
-                  <span className="text-xs text-muted-foreground ml-1">vs prev. period</span>
-                </div>
-              </div>
-            </motion.div>
+            <StatCard
+              label="Bounce Rate"
+              value={`${bounceRate.toFixed(1)}%`}
+              icon={TrendingDown}
+              color="#EF4444"
+              delay={0.14}
+              trend={{ value: `${trends.bounce.value}%`, up: !trends.bounce.positive }}
+            />
           </StaggerItem>
 
-          {/* Email Health Score */}
           <StaggerItem>
-            <motion.div
-              whileHover={{ y: -3 }}
-              className="rounded-xl border p-[1px]"
-              style={{ background: `linear-gradient(135deg, ${kpiGradients[3]}, transparent 60%)` }}
-            >
-              <div className="rounded-xl bg-card p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                    Email Health Score
-                  </p>
-                  <Target className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <p className="text-3xl font-bold tabular-nums" style={{ color: '#D4AF37' }}>
-                  {avgHealth}
-                  <span className="text-base font-normal text-muted-foreground">/100</span>
-                </p>
-                <div className="flex items-center gap-1 mt-1">
-                  {trends.health.positive ? (
-                    <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" />
-                  ) : (
-                    <ArrowDownRight className="w-3.5 h-3.5 text-red-400" />
-                  )}
-                  <span
-                    className={`text-xs font-medium tabular-nums ${
-                      trends.health.positive ? 'text-emerald-400' : 'text-red-400'
-                    }`}
-                  >
-                    {trends.health.value}%
-                  </span>
-                  <span className="text-xs text-muted-foreground ml-1">vs prev. period</span>
-                </div>
-              </div>
-            </motion.div>
+            <StatCard
+              label="Email Health Score"
+              value={`${avgHealth}/100`}
+              icon={ShieldCheck}
+              color="#3B82F6"
+              delay={0.21}
+              trend={{ value: `${trends.health.value}%`, up: trends.health.positive }}
+            />
           </StaggerItem>
         </StaggerGrid>
 
-        {/* Pipeline Funnel */}
-        <SectionHeader title="Pipeline Funnel" />
-        <AnimatedCard hover={false}>
-          <div className="p-4">
-            <div className="space-y-2">
-              {FUNNEL_STAGES.map((stage, idx) => {
-                const count = d.contactsByStatus[stage.key] ?? 0;
-                const widthPct = (count / maxFunnelCount) * 100;
-                const percentOfTotal = pct(count, totalLeads);
-                return (
-                  <div key={stage.key} className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground w-16 text-right shrink-0">
-                      {stage.label}
-                    </span>
-                    <div className="flex-1 h-7 bg-muted/50 rounded-md overflow-hidden relative">
-                      <motion.div
-                        className={`h-full ${stage.color} rounded-md flex items-center px-2`}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.max(widthPct, 4)}%` }}
-                        transition={{ duration: 0.6, delay: idx * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }}
-                      >
-                        <span className="text-[11px] font-semibold text-white tabular-nums drop-shadow-sm truncate">
-                          {count.toLocaleString()}
-                        </span>
-                      </motion.div>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground w-12 tabular-nums text-right shrink-0">
-                      {percentOfTotal}%
-                    </span>
-                  </div>
-                );
-              })}
+        {/* ── Hero Metric Highlight ── */}
+        <GlassPanel className="p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                <Zap className="w-6 h-6 text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-1">
+                  Total Replies This Week
+                </p>
+                <p className="text-4xl font-bold">
+                  <ShimmerText>
+                    <AnimatedCounter value={d.repliesThisWeek} className="text-4xl font-bold" />
+                  </ShimmerText>
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-6">
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground mb-0.5">Pending Review</p>
+                <p className="text-lg font-bold tabular-nums text-amber-400">
+                  <AnimatedCounter value={d.draftsPendingReview} />
+                </p>
+              </div>
+              <div className="w-px h-10 bg-border" />
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground mb-0.5">In Queue</p>
+                <p className="text-lg font-bold tabular-nums text-blue-400">
+                  <AnimatedCounter value={d.queuePending} />
+                </p>
+              </div>
+              <div className="w-px h-10 bg-border" />
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground mb-0.5">Total Companies</p>
+                <p className="text-lg font-bold tabular-nums">
+                  <AnimatedCounter value={d.totalCompanies} />
+                </p>
+              </div>
             </div>
           </div>
-        </AnimatedCard>
+        </GlassPanel>
 
-        {/* Campaign Performance Table */}
-        <SectionHeader title="Campaign Performance" />
-        <AnimatedCard hover={false}>
-          <div className="p-4">
-            <div className="max-h-64 overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-muted-foreground text-xs">Batch</TableHead>
-                    <TableHead className="text-muted-foreground text-xs text-right">Imported</TableHead>
-                    <TableHead className="text-muted-foreground text-xs text-right">Verified %</TableHead>
-                    <TableHead className="text-muted-foreground text-xs text-right">Drafted</TableHead>
-                    <TableHead className="text-muted-foreground text-xs text-right">Sent</TableHead>
-                    <TableHead className="text-muted-foreground text-xs text-right">Replies</TableHead>
-                    <TableHead className="text-muted-foreground text-xs text-right">Reply Rate</TableHead>
-                    <TableHead className="text-muted-foreground text-xs text-right">Bounce Rate</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {campaigns.map((c, i) => (
-                    <TableRow key={i} className="border-border">
-                      <TableCell className="text-foreground text-sm font-medium max-w-[160px] truncate">
-                        {c.name}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm text-right tabular-nums">
-                        {c.imported}
-                      </TableCell>
-                      <TableCell className="text-sm text-right tabular-nums">
-                        <span className="text-emerald-400">{c.verifiedPct.toFixed(1)}%</span>
-                      </TableCell>
-                      <TableCell className="text-foreground text-sm text-right tabular-nums">
-                        {c.drafted}
-                      </TableCell>
-                      <TableCell className="text-foreground text-sm text-right tabular-nums">
-                        {c.sent}
-                      </TableCell>
-                      <TableCell className="text-foreground text-sm text-right tabular-nums">
-                        {c.replies}
-                      </TableCell>
-                      <TableCell className="text-sm text-right tabular-nums">
-                        <Badge
-                          variant="outline"
-                          className={
-                            c.replyRate >= 30
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                              : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                          }
-                        >
-                          {c.replyRate.toFixed(1)}%
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-right tabular-nums">
-                        <span
-                          className={
-                            c.bounceRate <= 5
-                              ? 'text-emerald-400'
-                              : c.bounceRate <= 10
-                              ? 'text-amber-400'
-                              : 'text-red-400'
-                          }
-                        >
-                          {c.bounceRate.toFixed(1)}%
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {campaigns.length === 0 && (
-                    <TableRow>
-                      <TableCell
-                        colSpan={8}
-                        className="text-muted-foreground text-sm text-center py-6"
-                      >
-                        No campaign data available
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        </AnimatedCard>
-
-        {/* Email Health Breakdown */}
-        <SectionHeader title="Email Health Breakdown" />
-        <AnimatedCard hover={false}>
-          <div className="p-4">
-            {/* Stacked bar */}
-            <div className="flex h-6 rounded-md overflow-hidden w-full">
-              {healthTotal > 0 && (
-                <>
-                  <motion.div
-                    className="bg-emerald-500"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(eh.valid / healthTotal) * 100}%` }}
-                    transition={{ duration: 0.7, delay: 0, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  />
-                  <motion.div
-                    className="bg-amber-500"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(eh.risky / healthTotal) * 100}%` }}
-                    transition={{ duration: 0.7, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  />
-                  <motion.div
-                    className="bg-red-500"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(eh.invalid / healthTotal) * 100}%` }}
-                    transition={{ duration: 0.7, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  />
-                  <motion.div
-                    className="bg-zinc-500"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(eh.unknown / healthTotal) * 100}%` }}
-                    transition={{ duration: 0.7, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-                  />
-                </>
-              )}
-            </div>
-
-            {/* Legend + counts */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-              {[
-                { label: 'Valid', count: eh.valid, color: 'bg-emerald-500', textColor: 'text-emerald-400' },
-                { label: 'Risky', count: eh.risky, color: 'bg-amber-500', textColor: 'text-amber-400' },
-                { label: 'Invalid', count: eh.invalid, color: 'bg-red-500', textColor: 'text-red-400' },
-                { label: 'Unknown', count: eh.unknown, color: 'bg-zinc-500', textColor: 'text-zinc-400' },
-              ].map(item => (
-                <div key={item.label} className="flex items-center gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-sm ${item.color} shrink-0`} />
-                  <span className="text-xs text-muted-foreground">{item.label}</span>
-                  <span className={`text-xs font-semibold tabular-nums ml-auto ${item.textColor}`}>
-                    {item.count.toLocaleString()}
+        {/* ── Pipeline Funnel ── */}
+        <SectionHeader
+          title="Pipeline Funnel"
+          subtitle="Conversion from import through reply"
+        />
+        <GlassPanel className="p-5">
+          <div className="space-y-3">
+            {FUNNEL_STAGES.map((stage, idx) => {
+              const count = d.contactsByStatus[stage.key] ?? 0;
+              const widthPct = (count / maxFunnelCount) * 100;
+              const percentOfTotal = pct(count, totalLeads);
+              const isLast = stage.key === 'replied';
+              return (
+                <div key={stage.key} className="flex items-center gap-3 group">
+                  <span className="text-xs font-medium text-muted-foreground w-18 text-right shrink-0 group-hover:text-foreground transition-colors">
+                    {stage.label}
                   </span>
-                  <span className="text-xs text-muted-foreground tabular-nums">
-                    ({pct(item.count, healthTotal)}%)
+                  <div className="flex-1 h-8 bg-muted/30 rounded-lg overflow-hidden relative">
+                    <motion.div
+                      className={`h-full ${stage.color} rounded-lg flex items-center px-3 relative overflow-hidden`}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.max(widthPct, 4)}%` }}
+                      transition={{ duration: 0.8, delay: idx * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    >
+                      {isLast && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_3s_ease-in-out_infinite]" style={{ backgroundSize: '200% 100%' }} />
+                      )}
+                      <span className="text-xs font-semibold text-white tabular-nums drop-shadow-sm truncate relative z-10">
+                        {count.toLocaleString()}
+                      </span>
+                    </motion.div>
+                  </div>
+                  <span className="text-xs font-semibold text-muted-foreground w-14 tabular-nums text-right shrink-0 group-hover:text-foreground transition-colors">
+                    {percentOfTotal}%
                   </span>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        </AnimatedCard>
+        </GlassPanel>
 
-        {/* Recent Activity Feed */}
-        <SectionHeader title="Recent Activity" />
-        <AnimatedCard hover={false}>
-          <div className="p-4">
-            <div className="max-h-80 overflow-y-auto space-y-0">
-              {DEMO_ACTIVITY.map((item, i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-3 py-2.5 border-b border-border last:border-b-0"
-                >
-                  <div className="mt-0.5">
-                    <item.icon className={`w-4 h-4 ${item.color}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-foreground leading-snug">{item.text}</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-                    {item.time}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </AnimatedCard>
-
-        {/* Top Companies by Contact Count */}
-        <SectionHeader title="Top Companies" subtitle="By contact count" />
-        <AnimatedCard hover={false}>
-          <div className="p-4">
+        {/* ── Campaign Performance Table ── */}
+        <SectionHeader
+          title="Campaign Performance"
+          subtitle="Per-batch metrics and delivery statistics"
+        />
+        <GlassPanel className="overflow-hidden">
+          <div className="max-h-72 overflow-y-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-border hover:bg-transparent">
-                  <TableHead className="text-muted-foreground text-xs">Company</TableHead>
-                  <TableHead className="text-muted-foreground text-xs">Industry</TableHead>
-                  <TableHead className="text-muted-foreground text-xs text-right">Contacts</TableHead>
-                  <TableHead className="text-muted-foreground text-xs text-right">Avg Score</TableHead>
+                  <TableHead className="text-muted-foreground text-xs font-semibold">Batch</TableHead>
+                  <TableHead className="text-muted-foreground text-xs font-semibold text-right">Imported</TableHead>
+                  <TableHead className="text-muted-foreground text-xs font-semibold text-right">Verified %</TableHead>
+                  <TableHead className="text-muted-foreground text-xs font-semibold text-right">Drafted</TableHead>
+                  <TableHead className="text-muted-foreground text-xs font-semibold text-right">Sent</TableHead>
+                  <TableHead className="text-muted-foreground text-xs font-semibold text-right">Replies</TableHead>
+                  <TableHead className="text-muted-foreground text-xs font-semibold text-right">Reply Rate</TableHead>
+                  <TableHead className="text-muted-foreground text-xs font-semibold text-right">Bounce Rate</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {DEMO_COMPANIES.map((c, i) => (
-                  <TableRow key={i} className="border-border">
-                    <TableCell className="text-foreground text-sm font-medium">
-                      {c.name}
+                {campaigns.map((c, i) => (
+                  <TableRow
+                    key={i}
+                    className="border-border transition-colors duration-200 hover:bg-white/[0.04] hover:shadow-[inset_0_0_0_1px_rgba(212,175,55,0.08)]"
+                  >
+                    <TableCell className="text-foreground text-sm font-medium max-w-[180px] truncate">
+                      <div className="flex items-center gap-2">
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        {c.name}
+                      </div>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-xs">
-                        {c.industry}
-                      </Badge>
+                    <TableCell className="text-muted-foreground text-sm text-right tabular-nums">
+                      {c.imported}
+                    </TableCell>
+                    <TableCell className="text-sm text-right tabular-nums">
+                      <span className="text-emerald-400 font-medium">{c.verifiedPct.toFixed(1)}%</span>
                     </TableCell>
                     <TableCell className="text-foreground text-sm text-right tabular-nums">
-                      {c.contacts}
+                      {c.drafted}
+                    </TableCell>
+                    <TableCell className="text-foreground text-sm text-right tabular-nums">
+                      {c.sent}
+                    </TableCell>
+                    <TableCell className="text-foreground text-sm text-right tabular-nums">
+                      {c.replies}
+                    </TableCell>
+                    <TableCell className="text-sm text-right tabular-nums">
+                      <Badge
+                        variant="outline"
+                        className={
+                          c.replyRate >= 30
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-semibold'
+                            : 'bg-amber-500/10 text-amber-400 border-amber-500/30 font-semibold'
+                        }
+                      >
+                        {c.replyRate.toFixed(1)}%
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-right tabular-nums">
                       <span
                         className={
-                          c.avgScore >= 85
-                            ? 'text-emerald-400'
-                            : c.avgScore >= 75
-                            ? 'text-amber-400'
-                            : 'text-red-400'
+                          c.bounceRate <= 5
+                            ? 'text-emerald-400 font-medium'
+                            : c.bounceRate <= 10
+                            ? 'text-amber-400 font-medium'
+                            : 'text-red-400 font-medium'
                         }
                       >
-                        {c.avgScore}
+                        {c.bounceRate.toFixed(1)}%
                       </span>
-                      <span className="text-muted-foreground">/100</span>
                     </TableCell>
                   </TableRow>
                 ))}
+                {campaigns.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8}>
+                      <EmptyState
+                        icon={BarChart3}
+                        title="No campaign data available"
+                        description="Import a batch to start tracking campaign performance"
+                      />
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
-        </AnimatedCard>
+        </GlassPanel>
+
+        {/* ── Email Health Breakdown ── */}
+        <SectionHeader
+          title="Email Health Breakdown"
+          subtitle="Distribution of email verification results"
+        />
+        <GlassPanel className="p-6">
+          {/* Stacked bar */}
+          <div className="flex h-8 rounded-lg overflow-hidden w-full shadow-inner">
+            {healthTotal > 0 && (
+              <>
+                <motion.div
+                  className="bg-emerald-500 relative group/valid"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(eh.valid / healthTotal) * 100}%` }}
+                  transition={{ duration: 0.8, delay: 0, ease: [0.25, 0.46, 0.45, 0.94] }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
+                </motion.div>
+                <motion.div
+                  className="bg-amber-500 relative"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(eh.risky / healthTotal) * 100}%` }}
+                  transition={{ duration: 0.8, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
+                </motion.div>
+                <motion.div
+                  className="bg-red-500 relative"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(eh.invalid / healthTotal) * 100}%` }}
+                  transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
+                </motion.div>
+                <motion.div
+                  className="bg-zinc-500 relative"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(eh.unknown / healthTotal) * 100}%` }}
+                  transition={{ duration: 0.8, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
+                </motion.div>
+              </>
+            )}
+          </div>
+
+          {/* Legend + counts */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mt-6">
+            {[
+              { label: 'Valid', count: eh.valid, color: 'bg-emerald-500', glow: 'shadow-emerald-500/30', textColor: 'text-emerald-400' },
+              { label: 'Risky', count: eh.risky, color: 'bg-amber-500', glow: 'shadow-amber-500/30', textColor: 'text-amber-400' },
+              { label: 'Invalid', count: eh.invalid, color: 'bg-red-500', glow: 'shadow-red-500/30', textColor: 'text-red-400' },
+              { label: 'Unknown', count: eh.unknown, color: 'bg-zinc-500', glow: 'shadow-zinc-500/30', textColor: 'text-zinc-400' },
+            ].map(item => (
+              <div
+                key={item.label}
+                className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors duration-200"
+              >
+                <span className={`w-3 h-3 rounded ${item.color} shadow-sm ${item.glow} shrink-0`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground">{item.label}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className={`text-sm font-bold tabular-nums ${item.textColor}`}>
+                    {item.count.toLocaleString()}
+                  </span>
+                  <span className="text-xs text-muted-foreground tabular-nums ml-1">
+                    ({pct(item.count, healthTotal)}%)
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Health score bar */}
+          <div className="mt-6 pt-5 border-t border-white/[0.06]">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-foreground">Overall Health Score</span>
+              <span className="text-sm font-bold tabular-nums">
+                <ShimmerText>
+                  {avgHealth}/100
+                </ShimmerText>
+              </span>
+            </div>
+            <AnimatedBar value={avgHealth} max={100} color="#10B981" />
+          </div>
+        </GlassPanel>
+
+        {/* ── Recent Activity Feed ── */}
+        <SectionHeader
+          title="Recent Activity"
+          subtitle="Real-time feed of your outreach pipeline"
+        />
+        <GlassPanel className="p-5">
+          <div className="max-h-96 overflow-y-auto space-y-0">
+            {DEMO_ACTIVITY.map((item, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: i * 0.04 }}
+                className="flex items-start gap-4 py-3.5 border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.02] px-2 -mx-2 rounded-md transition-colors duration-200"
+              >
+                <div className="mt-0.5 w-8 h-8 rounded-lg bg-white/[0.04] flex items-center justify-center shrink-0">
+                  <item.icon className={`w-4 h-4 ${item.color}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-foreground/90 leading-snug">{item.text}</p>
+                </div>
+                <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0 mt-0.5">
+                  {item.time}
+                </span>
+              </motion.div>
+            ))}
+          </div>
+        </GlassPanel>
+
+        {/* ── Top Companies by Contact Count ── */}
+        <SectionHeader
+          title="Top Companies"
+          subtitle="Ranked by total contact count"
+        />
+        <GlassPanel className="overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground text-xs font-semibold">Rank</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-semibold">Company</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-semibold">Industry</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-semibold text-right">Contacts</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-semibold text-right">Avg Score</TableHead>
+                <TableHead className="text-muted-foreground text-xs font-semibold text-right w-32">Health</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {DEMO_COMPANIES.map((c, i) => (
+                <TableRow
+                  key={i}
+                  className="border-border transition-colors duration-200 hover:bg-white/[0.04] hover:shadow-[inset_0_0_0_1px_rgba(212,175,55,0.08)]"
+                >
+                  <TableCell className="text-muted-foreground text-sm tabular-nums w-10">
+                    <span className="text-xs font-bold text-muted-foreground/60">#{i + 1}</span>
+                  </TableCell>
+                  <TableCell className="text-foreground text-sm font-medium">
+                    {c.name}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="bg-muted/30 text-muted-foreground border-border text-xs">
+                      {c.industry}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-foreground text-sm text-right tabular-nums">
+                    <AnimatedCounter value={c.contacts} />
+                  </TableCell>
+                  <TableCell className="text-sm text-right tabular-nums">
+                    <span
+                      className={
+                        c.avgScore >= 85
+                          ? 'text-emerald-400 font-semibold'
+                          : c.avgScore >= 75
+                          ? 'text-amber-400 font-semibold'
+                          : 'text-red-400 font-semibold'
+                      }
+                    >
+                      {c.avgScore}
+                    </span>
+                    <span className="text-muted-foreground">/100</span>
+                  </TableCell>
+                  <TableCell className="text-sm text-right pr-4">
+                    <AnimatedBar
+                      value={c.avgScore}
+                      max={100}
+                      color={c.avgScore >= 85 ? '#10B981' : c.avgScore >= 75 ? '#F59E0B' : '#EF4444'}
+                      className="ml-auto w-24"
+                      delay={i * 0.1}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </GlassPanel>
+
+        {/* ── Bottom spacer ── */}
+        <div className="h-4" />
       </div>
     </PageTransition>
   );

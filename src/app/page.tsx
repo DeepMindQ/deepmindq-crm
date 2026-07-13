@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Upload, Users, Building2, FileText, Send,
   Archive, Mail, MailX, RefreshCw, Menu, X,
-  Brain, GitBranch, ScrollText, Settings, LogOut, BarChart3, Bell,
+  Brain, GitBranch, ScrollText, Settings, LogOut, BarChart3, Bell, Cpu,
 } from 'lucide-react';
 import LandingPage from '@/app/landing-page';
 import { PageTransition } from '@/components/ui/animated-components';
@@ -18,6 +18,7 @@ import CompaniesScreen from '@/components/screens/companies-screen';
 import DraftsScreen from '@/components/screens/drafts-screen';
 import QueueScreen from '@/components/screens/queue-screen';
 import CapabilityScreen from '@/components/screens/capability-screen';
+import KnowledgeLibraryScreen from '@/components/screens/knowledge-library-screen';
 import RepliesScreen from '@/components/screens/replies-screen';
 import BouncesScreen from '@/components/screens/bounces-screen';
 import PipelineScreen from '@/components/screens/pipeline-screen';
@@ -45,6 +46,7 @@ const NAV_SECTIONS = [
       { key: 'leads', label: 'Leads', icon: Users },
       { key: 'companies', label: 'Companies', icon: Building2 },
       { key: 'capabilities', label: 'Capability Library', icon: Archive },
+      { key: 'knowledge', label: 'Knowledge Engine', icon: Brain },
     ],
   },
   {
@@ -68,11 +70,13 @@ const NAV_SECTIONS = [
 const SCREEN_MAP: Record<string, React.ComponentType<{ navigateTo?: (screen: string) => void }>> = {
   dashboard: DashboardScreen,
   import: ImportScreen,
+  knowledge: 0,
   leads: LeadsScreen,
   companies: CompaniesScreen,
   drafts: DraftsScreen,
   queue: QueueScreen,
   capabilities: CapabilityScreen,
+  knowledge: KnowledgeLibraryScreen,
   replies: RepliesScreen,
   bounces: BouncesScreen,
   pipeline: PipelineScreen,

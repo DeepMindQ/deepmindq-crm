@@ -7,7 +7,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Send, Clock, CheckCircle2, XCircle, Pause, Play, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { PageTransition, AnimatedCard, StaggerGrid, StaggerItem, SectionHeader, PulseDot } from '@/components/ui/animated-components';
+import {
+  PageTransition,
+  StaggerGrid,
+  StaggerItem,
+  SectionHeader,
+  PulseDot,
+  StatCard,
+  GlassPanel,
+  AnimatedCard,
+  EmptyState,
+} from '@/components/ui/animated-components';
 
 interface QueueItem {
   id: string;
@@ -83,138 +93,170 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
     } catch { /* ignore */ }
   };
 
+  const pendingCount = summary?.pending ?? items.filter(i => i.status === 'pending').length;
+  const scheduledCount = summary?.scheduled ?? items.filter(i => i.status === 'scheduled').length;
+  const sentTodayCount = summary?.sentToday ?? items.filter(i => i.status === 'sent').length;
+  const failedCount = summary?.failed ?? items.filter(i => i.status === 'failed').length;
+
   return (
     <PageTransition>
-      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-4 pr-1">
-        {/* Queue Status */}
-        <SectionHeader title="Queue Status" />
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-6 pr-1">
+        {/* Animated Gradient Header Banner */}
+        <motion.div
+          className="relative overflow-hidden rounded-xl"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div
+            className="absolute inset-0 animate-[bannerShift_8s_ease-in-out_infinite]"
+            style={{
+              background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.08), rgba(212, 175, 55, 0.15))',
+              backgroundSize: '300% 300%',
+            }}
+          />
+          <div className="relative border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-xl px-6 py-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  {paused ? (
+                    <div className="w-10 h-10 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                      <Pause className="w-5 h-5 text-amber-400" />
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center">
+                      <Send className="w-5 h-5 text-primary" />
+                    </div>
+                  )}
+                  <div>
+                    <h1 className="text-xl font-bold text-foreground tracking-tight">
+                      {paused ? 'Queue Paused' : 'Send Queue'}
+                    </h1>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      <span className="text-primary font-medium tabular-nums">{items.length}</span> items
+                      {!paused && ' processing'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {!paused && <PulseDot color="#D4AF37" />}
+                <Button
+                  variant={paused ? 'default' : 'outline'}
+                  size="sm"
+                  className={`h-8 text-xs ${paused ? 'bg-primary text-primary-foreground' : 'border-amber-500/30 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10'}`}
+                  onClick={togglePause}
+                >
+                  {paused ? (
+                    <><Play className="w-3.5 h-3.5 mr-1.5" />Resume All</>
+                  ) : (
+                    <><Pause className="w-3.5 h-3.5 mr-1.5" />Pause All</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+          <style>{`
+            @keyframes bannerShift {
+              0%, 100% { background-position: 0% 50%; }
+              50% { background-position: 100% 50%; }
+            }
+          `}</style>
+        </motion.div>
 
         {/* Stat Cards */}
+        <SectionHeader title="Queue Status" />
+
         <StaggerGrid className="grid grid-cols-2 lg:grid-cols-4 gap-4" stagger={0.08}>
           <StaggerItem>
-            <motion.div
-              className="rounded-xl border p-[1px]"
-              style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), transparent 60%)' }}
-              whileHover={{ y: -3 }}
-            >
-              <div className="rounded-xl bg-card p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <PulseDot color="#3B82F6" />
-                      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Pending</p>
-                    </div>
-                    <p className="text-xl font-bold mt-0.5 tabular-nums" style={{ color: '#D4AF37' }}>{summary?.pending ?? items.filter(i => i.status === 'pending').length}</p>
-                  </div>
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                </div>
-              </div>
-            </motion.div>
+            <StatCard
+              label="Pending"
+              value={pendingCount}
+              icon={Clock}
+              color="#3B82F6"
+              delay={0}
+            />
           </StaggerItem>
-
           <StaggerItem>
-            <motion.div
-              className="rounded-xl border p-[1px]"
-              style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), transparent 60%)' }}
-              whileHover={{ y: -3 }}
-            >
-              <div className="rounded-xl bg-card p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <PulseDot color="#8B5CF6" />
-                      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Scheduled</p>
-                    </div>
-                    <p className="text-xl font-bold mt-0.5 tabular-nums" style={{ color: '#D4AF37' }}>{summary?.scheduled ?? items.filter(i => i.status === 'scheduled').length}</p>
-                  </div>
-                  <Send className="w-4 h-4 text-muted-foreground" />
-                </div>
-              </div>
-            </motion.div>
+            <StatCard
+              label="Scheduled"
+              value={scheduledCount}
+              icon={Send}
+              color="#8B5CF6"
+              delay={0.08}
+            />
           </StaggerItem>
-
           <StaggerItem>
-            <motion.div
-              className="rounded-xl border p-[1px]"
-              style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), transparent 60%)' }}
-              whileHover={{ y: -3 }}
-            >
-              <div className="rounded-xl bg-card p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Sent Today</p>
-                    <p className="text-xl font-bold mt-0.5 tabular-nums" style={{ color: '#D4AF37' }}>{summary?.sentToday ?? items.filter(i => i.status === 'sent').length}</p>
-                  </div>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                </div>
-              </div>
-            </motion.div>
+            <StatCard
+              label="Sent Today"
+              value={sentTodayCount}
+              icon={CheckCircle2}
+              color="#10B981"
+              delay={0.16}
+            />
           </StaggerItem>
-
           <StaggerItem>
-            <motion.div
-              className="rounded-xl border p-[1px]"
-              style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), transparent 60%)' }}
-              whileHover={{ y: -3 }}
-            >
-              <div className="rounded-xl bg-card p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Failed</p>
-                    <p className="text-xl font-bold mt-0.5 tabular-nums" style={{ color: '#D4AF37' }}>{summary?.failed ?? items.filter(i => i.status === 'failed').length}</p>
-                  </div>
-                  <XCircle className="w-4 h-4 text-red-400" />
-                </div>
-              </div>
-            </motion.div>
+            <StatCard
+              label="Failed"
+              value={failedCount}
+              icon={XCircle}
+              color="#EF4444"
+              delay={0.24}
+            />
           </StaggerItem>
         </StaggerGrid>
-
-        {/* Controls */}
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            <Send className="w-3.5 h-3.5 inline mr-1.5" />
-            <span className="text-primary font-medium tabular-nums">{items.length}</span> items in queue
-          </p>
-          <Button
-            variant={paused ? 'default' : 'outline'}
-            size="sm"
-            className={`h-8 text-xs ${paused ? 'bg-primary text-primary-foreground' : 'border-amber-500/30 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10'}`}
-            onClick={togglePause}
-          >
-            {paused ? (
-              <><Play className="w-3.5 h-3.5 mr-1.5" />Resume All</>
-            ) : (
-              <><Pause className="w-3.5 h-3.5 mr-1.5" />Pause All</>
-            )}
-          </Button>
-        </div>
 
         {/* Queue Table */}
         <SectionHeader title="Queue" />
 
-        <AnimatedCard hover={false}>
+        <GlassPanel>
           <div className="p-0">
             {loading ? (
               <div className="p-6 space-y-3">
                 {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
               </div>
+            ) : items.length === 0 ? (
+              <EmptyState
+                icon={Send}
+                title="No items in the send queue."
+                description={navigateTo ? 'Review and schedule drafts to start sending.' : undefined}
+                action={navigateTo ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-primary/30 text-primary hover:bg-primary/10"
+                    onClick={() => navigateTo('drafts')}
+                  >
+                    Review pending drafts
+                  </Button>
+                ) : undefined}
+              />
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border hover:bg-transparent">
-                      <TableHead className="text-muted-foreground text-xs">Contact</TableHead>
-                      <TableHead className="text-muted-foreground text-xs hidden sm:table-cell">Company</TableHead>
-                      <TableHead className="text-muted-foreground text-xs">Subject</TableHead>
-                      <TableHead className="text-muted-foreground text-xs hidden md:table-cell">Scheduled At</TableHead>
-                      <TableHead className="text-muted-foreground text-xs">Status</TableHead>
-                      <TableHead className="text-muted-foreground text-xs text-right">Actions</TableHead>
+                      <TableHead className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Contact</TableHead>
+                      <TableHead className="text-muted-foreground text-xs font-medium uppercase tracking-wider hidden sm:table-cell">Company</TableHead>
+                      <TableHead className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Subject</TableHead>
+                      <TableHead className="text-muted-foreground text-xs font-medium uppercase tracking-wider hidden md:table-cell">Scheduled At</TableHead>
+                      <TableHead className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Status</TableHead>
+                      <TableHead className="text-muted-foreground text-xs font-medium uppercase tracking-wider text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {items.map(item => (
-                      <TableRow key={item.id} className="border-border">
+                    {items.map((item, idx) => (
+                      <TableRow
+                        key={item.id}
+                        className="border-border group transition-all duration-200 hover:bg-white/[0.03]"
+                        style={{ borderLeft: '3px solid transparent' }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLElement).style.borderLeftColor = '#D4AF37';
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLElement).style.borderLeftColor = 'transparent';
+                        }}
+                      >
                         <TableCell className="text-foreground text-sm font-medium">{item.contactName}</TableCell>
                         <TableCell className="text-muted-foreground text-sm hidden sm:table-cell">{item.companyName || '-'}</TableCell>
                         <TableCell className="text-foreground text-sm max-w-[220px] truncate">{item.subject}</TableCell>
@@ -239,25 +281,12 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {items.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-muted-foreground text-sm text-center py-8">
-                          No items in the send queue.
-                          {navigateTo && (
-                            <span
-                              onClick={() => navigateTo('drafts')}
-                              className="ml-2 text-xs text-primary cursor-pointer hover:text-primary/80 transition-colors"
-                            >Review pending drafts</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    )}
                   </TableBody>
                 </Table>
               </div>
             )}
           </div>
-        </AnimatedCard>
+        </GlassPanel>
       </div>
     </PageTransition>
   );

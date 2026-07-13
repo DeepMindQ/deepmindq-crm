@@ -42,10 +42,24 @@ import {
   Users,
   ArrowUpDown,
   SlidersHorizontal,
+  Database,
+  MailCheck,
+  FileEdit,
+  Send,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { PageTransition, AnimatedCard, SectionHeader } from '@/components/ui/animated-components';
+import {
+  PageTransition,
+  AnimatedCard,
+  SectionHeader,
+  StatCard,
+  StaggerGrid,
+  StaggerItem,
+  GlassPanel,
+  EmptyState,
+  ShimmerText,
+} from '@/components/ui/animated-components';
 
 /* ══════════════════════════════ Types ══════════════════════════════ */
 
@@ -137,11 +151,11 @@ function MultiSelectDropdown({
         <Button
           variant="outline"
           size="sm"
-          className="h-8 gap-1.5 text-xs font-normal border-border hover:bg-accent/50"
+          className="h-9 gap-1.5 text-xs font-normal border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/[0.15] transition-all duration-200"
         >
           <span className="truncate max-w-[120px]">{label}</span>
           {selected.length > 0 && (
-            <Badge className="bg-primary/10 border-primary/20 text-primary text-[10px] h-4 min-w-4 px-1 rounded-full">
+            <Badge className="bg-primary/15 border-primary/25 text-primary text-[10px] h-4 min-w-4 px-1.5 rounded-full font-semibold">
               {selected.length}
             </Badge>
           )}
@@ -149,20 +163,23 @@ function MultiSelectDropdown({
           <ChevronDown className="w-3 h-3 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-0" align="start">
-        <div className="p-2 border-b border-border">
+      <PopoverContent
+        className="w-64 p-0 border-white/[0.1] bg-black/60 backdrop-blur-2xl shadow-2xl shadow-black/40"
+        align="start"
+      >
+        <div className="p-2.5 border-b border-white/[0.08]">
           <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
               placeholder={`Search ${label.toLowerCase()}...`}
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
-              className="h-7 pl-7 text-xs bg-background"
+              className="h-7 pl-8 text-xs bg-white/[0.05] border-white/[0.1] text-foreground placeholder:text-muted-foreground/60 focus:border-primary/30"
             />
           </div>
         </div>
         {selected.length > 0 && (
-          <div className="px-2 py-1.5 border-b border-border flex items-center justify-between">
+          <div className="px-2.5 py-2 border-b border-white/[0.08] flex items-center justify-between">
             <span className="text-[10px] text-muted-foreground">
               {selected.length} selected
             </span>
@@ -181,14 +198,14 @@ function MultiSelectDropdown({
         )}
         <div className="max-h-60 overflow-y-auto">
           {filtered.length === 0 ? (
-            <div className="py-6 text-center text-xs text-muted-foreground">
+            <div className="py-8 text-center text-xs text-muted-foreground">
               No results found
             </div>
           ) : (
             filtered.map((option) => (
               <label
                 key={option.v}
-                className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent/50 cursor-pointer transition-colors"
+                className="flex items-center gap-2.5 px-2.5 py-2 hover:bg-white/[0.04] cursor-pointer transition-colors"
               >
                 <Checkbox
                   checked={selected.includes(option.v)}
@@ -198,7 +215,7 @@ function MultiSelectDropdown({
                 <span className="text-xs text-foreground truncate flex-1">
                   {option.v}
                 </span>
-                <span className="text-[10px] text-muted-foreground shrink-0">
+                <span className="text-[10px] text-muted-foreground/60 shrink-0 tabular-nums">
                   {option.c.toLocaleString()}
                 </span>
               </label>
@@ -390,21 +407,86 @@ export default function LeadsScreen({
 
   return (
     <PageTransition>
-    <div className="space-y-4">
-      <SectionHeader title="Leads" subtitle={metaLoading ? 'Loading contacts...' : `${(meta?.totalRecords ?? 0).toLocaleString()} total contacts`} />
+    <div className="space-y-8">
 
-      {/* ── Filter Panel Toggle ── */}
-      <div className="flex items-center gap-2">
+      {/* ═══ Page Header ═══ */}
+      <div className="flex flex-col gap-2 pt-2">
+        <div className="flex items-center gap-4">
+          <div
+            className="h-10 w-2 rounded-full"
+            style={{
+              background: 'linear-gradient(180deg, #E8C860, #D4AF37, #9A8340)',
+              boxShadow: '0 0 20px rgba(212, 175, 55, 0.3)',
+            }}
+          />
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              <ShimmerText>Leads</ShimmerText>
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1 ml-1">
+              {metaLoading
+                ? 'Loading contacts...'
+                : `${(meta?.totalRecords ?? 0).toLocaleString()} total contacts in database`}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══ Stat Cards ═══ */}
+      <StaggerGrid
+        className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+        stagger={0.08}
+      >
+        <StaggerItem>
+          <StatCard
+            label="Total Leads"
+            value={meta?.totalRecords ?? 0}
+            icon={Database}
+            color="#D4AF37"
+            delay={0}
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard
+            label="Verified Emails"
+            value={leads.filter((l) => l.email && l.email !== '-').length}
+            icon={MailCheck}
+            color="#10B981"
+            delay={0.08}
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard
+            label="Showing Results"
+            value={total}
+            icon={FileEdit}
+            color="#6366F1"
+            delay={0.16}
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard
+            label="Active Filters"
+            value={activeFilterCount}
+            icon={Filter}
+            color="#F59E0B"
+            delay={0.24}
+          />
+        </StaggerItem>
+      </StaggerGrid>
+
+      {/* ═══ Filter Panel Toggle ═══ */}
+      <div className="flex items-center gap-3">
         <Button
           variant="outline"
           size="sm"
-          className="h-8 gap-2 text-xs"
+          className="h-9 gap-2 text-xs border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/[0.15] transition-all duration-200"
           onClick={() => setFiltersOpen(!filtersOpen)}
         >
           <SlidersHorizontal className="w-3.5 h-3.5" />
           Filters
           {activeFilterCount > 0 && (
-            <Badge className="bg-primary/10 border-primary/20 text-primary text-[10px] h-4 min-w-4 px-1.5 rounded-full">
+            <Badge className="bg-primary/15 border-primary/25 text-primary text-[10px] h-4 min-w-4 px-1.5 rounded-full font-semibold">
               {activeFilterCount}
             </Badge>
           )}
@@ -418,7 +500,7 @@ export default function LeadsScreen({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 text-xs text-muted-foreground hover:text-foreground"
+            className="h-9 text-xs text-muted-foreground hover:text-foreground"
             onClick={clearAllFilters}
           >
             <X className="w-3 h-3 mr-1" />
@@ -427,101 +509,105 @@ export default function LeadsScreen({
         )}
       </div>
 
-      {/* ── Filter Panel ── */}
+      {/* ═══ Filter Panel ═══ */}
       {filtersOpen && (
-        <AnimatedCard hover={false}>
-        <div className="p-4 space-y-3">
-          {/* Search row */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              ref={searchInputRef}
-              placeholder="Search by name, email, company, title, city, or country..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-9 pl-9 pr-8 text-sm bg-background border-border"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-4 h-4" />
-              </button>
+        <GlassPanel className="overflow-hidden">
+          <div className="p-5 space-y-4">
+            {/* Search row */}
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                ref={searchInputRef}
+                placeholder="Search by name, email, company, title, city, or country..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-10 pl-10 pr-9 text-sm bg-white/[0.03] border-white/[0.08] text-foreground placeholder:text-muted-foreground/50 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 transition-all duration-200"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Filter dropdowns */}
+            {metaLoading ? (
+              <div className="flex flex-wrap gap-2">
+                {Array.from({ length: 7 }).map((_, i) => (
+                  <Skeleton key={i} className="h-9 w-28 rounded-lg bg-white/[0.05]" />
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <MultiSelectDropdown
+                  label="Country"
+                  options={meta?.countries ?? []}
+                  selected={countries}
+                  onChange={setCountries}
+                  totalCount={meta?.countries.length ?? 0}
+                />
+                <MultiSelectDropdown
+                  label="Industry"
+                  options={meta?.industries ?? []}
+                  selected={industries}
+                  onChange={setIndustries}
+                  totalCount={meta?.industries.length ?? 0}
+                />
+                <MultiSelectDropdown
+                  label="Department"
+                  options={meta?.departments ?? []}
+                  selected={departments}
+                  onChange={setDepartments}
+                  totalCount={meta?.departments.length ?? 0}
+                />
+                <MultiSelectDropdown
+                  label="Designation"
+                  options={meta?.titles ?? []}
+                  selected={titles}
+                  onChange={setTitles}
+                  totalCount={meta?.titles.length ?? 0}
+                />
+                <MultiSelectDropdown
+                  label="Company Size"
+                  options={meta?.employeeCategories ?? []}
+                  selected={empCats}
+                  onChange={setEmpCats}
+                  totalCount={meta?.employeeCategories.length ?? 0}
+                />
+                <MultiSelectDropdown
+                  label="City"
+                  options={meta?.cities ?? []}
+                  selected={cities}
+                  onChange={setCities}
+                  totalCount={meta?.cities.length ?? 0}
+                />
+                <MultiSelectDropdown
+                  label="State"
+                  options={meta?.states ?? []}
+                  selected={states}
+                  onChange={setStates}
+                  totalCount={meta?.states.length ?? 0}
+                />
+              </div>
             )}
           </div>
-
-          {/* Filter dropdowns */}
-          {metaLoading ? (
-            <div className="flex flex-wrap gap-2">
-              {Array.from({ length: 7 }).map((_, i) => (
-                <Skeleton key={i} className="h-8 w-28 rounded-md" />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              <MultiSelectDropdown
-                label="Country"
-                options={meta?.countries ?? []}
-                selected={countries}
-                onChange={setCountries}
-                totalCount={meta?.countries.length ?? 0}
-              />
-              <MultiSelectDropdown
-                label="Industry"
-                options={meta?.industries ?? []}
-                selected={industries}
-                onChange={setIndustries}
-                totalCount={meta?.industries.length ?? 0}
-              />
-              <MultiSelectDropdown
-                label="Department"
-                options={meta?.departments ?? []}
-                selected={departments}
-                onChange={setDepartments}
-                totalCount={meta?.departments.length ?? 0}
-              />
-              <MultiSelectDropdown
-                label="Designation"
-                options={meta?.titles ?? []}
-                selected={titles}
-                onChange={setTitles}
-                totalCount={meta?.titles.length ?? 0}
-              />
-              <MultiSelectDropdown
-                label="Company Size"
-                options={meta?.employeeCategories ?? []}
-                selected={empCats}
-                onChange={setEmpCats}
-                totalCount={meta?.employeeCategories.length ?? 0}
-              />
-              <MultiSelectDropdown
-                label="City"
-                options={meta?.cities ?? []}
-                selected={cities}
-                onChange={setCities}
-                totalCount={meta?.cities.length ?? 0}
-              />
-              <MultiSelectDropdown
-                label="State"
-                options={meta?.states ?? []}
-                selected={states}
-                onChange={setStates}
-                totalCount={meta?.states.length ?? 0}
-              />
-            </div>
-          )}
-        </div>
-        </AnimatedCard>
+        </GlassPanel>
       )}
 
-      {/* ── Active filter badges ── */}
+      {/* ═══ Active Filter Badges ═══ */}
       {activeFilterCount > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[10px] text-muted-foreground mr-1">Active:</span>
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-wrap items-center gap-2"
+        >
+          <span className="text-[10px] text-muted-foreground/60 mr-1 uppercase tracking-widest font-medium">Active:</span>
           {search.trim() && (
             <Badge
-              className="bg-primary/10 border-primary/20 text-primary text-[10px] h-5 px-2 gap-1 cursor-pointer hover:bg-primary/20 transition-colors"
+              className="bg-primary/10 border-primary/20 text-primary text-[10px] h-6 px-2.5 gap-1.5 cursor-pointer hover:bg-primary/20 transition-all duration-200 rounded-full"
               onClick={() => setSearch('')}
             >
               Search: &quot;{search.trim()}&quot;
@@ -531,7 +617,7 @@ export default function LeadsScreen({
           {countries.map((c) => (
             <Badge
               key={`country-${c}`}
-              className="bg-primary/10 border-primary/20 text-primary text-[10px] h-5 px-2 gap-1 cursor-pointer hover:bg-primary/20 transition-colors"
+              className="bg-primary/10 border-primary/20 text-primary text-[10px] h-6 px-2.5 gap-1.5 cursor-pointer hover:bg-primary/20 transition-all duration-200 rounded-full"
               onClick={() => setCountries(countries.filter((v) => v !== c))}
             >
               {c}
@@ -541,7 +627,7 @@ export default function LeadsScreen({
           {industries.map((v) => (
             <Badge
               key={`industry-${v}`}
-              className="bg-primary/10 border-primary/20 text-primary text-[10px] h-5 px-2 gap-1 cursor-pointer hover:bg-primary/20 transition-colors"
+              className="bg-primary/10 border-primary/20 text-primary text-[10px] h-6 px-2.5 gap-1.5 cursor-pointer hover:bg-primary/20 transition-all duration-200 rounded-full"
               onClick={() => setIndustries(industries.filter((i) => i !== v))}
             >
               {v}
@@ -551,7 +637,7 @@ export default function LeadsScreen({
           {departments.map((d) => (
             <Badge
               key={`dept-${d}`}
-              className="bg-primary/10 border-primary/20 text-primary text-[10px] h-5 px-2 gap-1 cursor-pointer hover:bg-primary/20 transition-colors"
+              className="bg-primary/10 border-primary/20 text-primary text-[10px] h-6 px-2.5 gap-1.5 cursor-pointer hover:bg-primary/20 transition-all duration-200 rounded-full"
               onClick={() => setDepartments(departments.filter((v) => v !== d))}
             >
               {d}
@@ -561,7 +647,7 @@ export default function LeadsScreen({
           {titles.slice(0, 5).map((t) => (
             <Badge
               key={`title-${t}`}
-              className="bg-primary/10 border-primary/20 text-primary text-[10px] h-5 px-2 gap-1 cursor-pointer hover:bg-primary/20 transition-colors"
+              className="bg-primary/10 border-primary/20 text-primary text-[10px] h-6 px-2.5 gap-1.5 cursor-pointer hover:bg-primary/20 transition-all duration-200 rounded-full"
               onClick={() => setTitles(titles.filter((v) => v !== t))}
             >
               {t}
@@ -569,14 +655,14 @@ export default function LeadsScreen({
             </Badge>
           ))}
           {titles.length > 5 && (
-            <Badge className="bg-primary/10 border-primary/20 text-primary text-[10px] h-5 px-2">
+            <Badge className="bg-primary/10 border-primary/20 text-primary text-[10px] h-6 px-2.5 rounded-full">
               +{titles.length - 5} more titles
             </Badge>
           )}
           {empCats.map((e) => (
             <Badge
               key={`empcat-${e}`}
-              className="bg-primary/10 border-primary/20 text-primary text-[10px] h-5 px-2 gap-1 cursor-pointer hover:bg-primary/20 transition-colors"
+              className="bg-primary/10 border-primary/20 text-primary text-[10px] h-6 px-2.5 gap-1.5 cursor-pointer hover:bg-primary/20 transition-all duration-200 rounded-full"
               onClick={() => setEmpCats(empCats.filter((v) => v !== e))}
             >
               {e}
@@ -586,7 +672,7 @@ export default function LeadsScreen({
           {cities.slice(0, 5).map((c) => (
             <Badge
               key={`city-${c}`}
-              className="bg-primary/10 border-primary/20 text-primary text-[10px] h-5 px-2 gap-1 cursor-pointer hover:bg-primary/20 transition-colors"
+              className="bg-primary/10 border-primary/20 text-primary text-[10px] h-6 px-2.5 gap-1.5 cursor-pointer hover:bg-primary/20 transition-all duration-200 rounded-full"
               onClick={() => setCities(cities.filter((v) => v !== c))}
             >
               {c}
@@ -594,243 +680,260 @@ export default function LeadsScreen({
             </Badge>
           ))}
           {cities.length > 5 && (
-            <Badge className="bg-primary/10 border-primary/20 text-primary text-[10px] h-5 px-2">
+            <Badge className="bg-primary/10 border-primary/20 text-primary text-[10px] h-6 px-2.5 rounded-full">
               +{cities.length - 5} more cities
             </Badge>
           )}
           {states.map((s) => (
             <Badge
               key={`state-${s}`}
-              className="bg-primary/10 border-primary/20 text-primary text-[10px] h-5 px-2 gap-1 cursor-pointer hover:bg-primary/20 transition-colors"
+              className="bg-primary/10 border-primary/20 text-primary text-[10px] h-6 px-2.5 gap-1.5 cursor-pointer hover:bg-primary/20 transition-all duration-200 rounded-full"
               onClick={() => setStates(states.filter((v) => v !== s))}
             >
               {s}
               <X className="w-2.5 h-2.5" />
             </Badge>
           ))}
-        </div>
+        </motion.div>
       )}
 
-      {/* ── Leads Table ── */}
-      <AnimatedCard hover={false}>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border hover:bg-transparent">
-                  <TableHead className="text-[11px] font-medium text-muted-foreground h-9 w-[180px]">
-                    Name
-                  </TableHead>
-                  <TableHead className="text-[11px] font-medium text-muted-foreground h-9 w-[200px]">
-                    Email
-                  </TableHead>
-                  <TableHead
-                    className="text-[11px] font-medium text-muted-foreground h-9 w-[160px] cursor-pointer select-none hover:text-foreground transition-colors"
-                    onClick={() => handleSort('title')}
-                  >
-                    <span className="inline-flex items-center">
-                      Title
-                      <SortIcon col="title" />
-                    </span>
-                  </TableHead>
-                  <TableHead className="text-[11px] font-medium text-muted-foreground h-9 w-[120px]">
-                    Department
-                  </TableHead>
-                  <TableHead
-                    className="text-[11px] font-medium text-muted-foreground h-9 w-[160px] cursor-pointer select-none hover:text-foreground transition-colors"
-                    onClick={() => handleSort('company')}
-                  >
-                    <span className="inline-flex items-center">
-                      Company
-                      <SortIcon col="company" />
-                    </span>
-                  </TableHead>
-                  <TableHead
-                    className="text-[11px] font-medium text-muted-foreground h-9 w-[140px] cursor-pointer select-none hover:text-foreground transition-colors"
-                    onClick={() => handleSort('industry')}
-                  >
-                    <span className="inline-flex items-center">
-                      Industry
-                      <SortIcon col="industry" />
-                    </span>
-                  </TableHead>
-                  <TableHead
-                    className="text-[11px] font-medium text-muted-foreground h-9 w-[120px] cursor-pointer select-none hover:text-foreground transition-colors"
-                    onClick={() => handleSort('city')}
-                  >
-                    <span className="inline-flex items-center">
-                      City
-                      <SortIcon col="city" />
-                    </span>
-                  </TableHead>
-                  <TableHead
-                    className="text-[11px] font-medium text-muted-foreground h-9 w-[100px] cursor-pointer select-none hover:text-foreground transition-colors"
-                    onClick={() => handleSort('country')}
-                  >
-                    <span className="inline-flex items-center">
-                      Country
-                      <SortIcon col="country" />
-                    </span>
-                  </TableHead>
-                  <TableHead className="text-[11px] font-medium text-muted-foreground h-9 w-[100px]">
-                    Size
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {leadsLoading ? (
-                  Array.from({ length: 15 }).map((_, i) => (
-                    <TableRow key={`skel-${i}`} className="border-border hover:bg-transparent">
-                      <TableCell colSpan={9} className="py-0">
-                        <Skeleton className="h-8 w-full my-0.5" />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : leads.length === 0 ? (
-                  <TableRow className="border-border hover:bg-transparent">
-                    <TableCell colSpan={9} className="h-32 text-center">
-                      <div className="flex flex-col items-center gap-2">
-                        <Users className="w-8 h-8 text-muted-foreground/50" />
-                        <p className="text-sm text-muted-foreground">
-                          No leads found
-                        </p>
-                        {activeFilterCount > 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-xs"
-                            onClick={clearAllFilters}
-                          >
-                            Clear filters
-                          </Button>
-                        )}
-                      </div>
+      {/* ═══ Leads Table ═══ */}
+      <GlassPanel className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-white/[0.06] hover:bg-transparent">
+                <TableHead className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider h-11 w-[180px]">
+                  Name
+                </TableHead>
+                <TableHead className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider h-11 w-[200px]">
+                  Email
+                </TableHead>
+                <TableHead
+                  className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider h-11 w-[160px] cursor-pointer select-none hover:text-foreground transition-colors"
+                  onClick={() => handleSort('title')}
+                >
+                  <span className="inline-flex items-center">
+                    Title
+                    <SortIcon col="title" />
+                  </span>
+                </TableHead>
+                <TableHead className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider h-11 w-[120px]">
+                  Department
+                </TableHead>
+                <TableHead
+                  className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider h-11 w-[160px] cursor-pointer select-none hover:text-foreground transition-colors"
+                  onClick={() => handleSort('company')}
+                >
+                  <span className="inline-flex items-center">
+                    Company
+                    <SortIcon col="company" />
+                  </span>
+                </TableHead>
+                <TableHead
+                  className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider h-11 w-[140px] cursor-pointer select-none hover:text-foreground transition-colors"
+                  onClick={() => handleSort('industry')}
+                >
+                  <span className="inline-flex items-center">
+                    Industry
+                    <SortIcon col="industry" />
+                  </span>
+                </TableHead>
+                <TableHead
+                  className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider h-11 w-[120px] cursor-pointer select-none hover:text-foreground transition-colors"
+                  onClick={() => handleSort('city')}
+                >
+                  <span className="inline-flex items-center">
+                    City
+                    <SortIcon col="city" />
+                  </span>
+                </TableHead>
+                <TableHead
+                  className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider h-11 w-[100px] cursor-pointer select-none hover:text-foreground transition-colors"
+                  onClick={() => handleSort('country')}
+                >
+                  <span className="inline-flex items-center">
+                    Country
+                    <SortIcon col="country" />
+                  </span>
+                </TableHead>
+                <TableHead className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider h-11 w-[100px]">
+                  Size
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {leadsLoading ? (
+                Array.from({ length: 15 }).map((_, i) => (
+                  <TableRow key={`skel-${i}`} className="border-white/[0.04] hover:bg-transparent">
+                    <TableCell colSpan={9} className="py-0">
+                      <Skeleton className="h-10 w-full my-0.5 bg-white/[0.03]" />
                     </TableCell>
                   </TableRow>
-                ) : (
-                  leads.map((lead) => (
-                    <TableRow
-                      key={lead.id}
-                      className="border-border cursor-pointer hover:bg-accent/30 transition-colors"
-                      onClick={() => openDetail(lead)}
+                ))
+              ) : leads.length === 0 ? (
+                <TableRow className="border-white/[0.04] hover:bg-transparent">
+                  <TableCell colSpan={9} className="h-48">
+                    <EmptyState
+                      icon={Users}
+                      title="No leads found"
+                      description={activeFilterCount > 0 ? 'Try adjusting your filters or search terms to find what you are looking for.' : 'No contacts match your current criteria.'}
+                      action={
+                        activeFilterCount > 0 ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs border-primary/20 text-primary hover:bg-primary/10 hover:border-primary/30 transition-all duration-200"
+                            onClick={clearAllFilters}
+                          >
+                            <X className="w-3 h-3 mr-1" />
+                            Clear all filters
+                          </Button>
+                        ) : undefined
+                      }
+                    />
+                  </TableCell>
+                </TableRow>
+              ) : (
+                leads.map((lead, idx) => (
+                  <motion.tr
+                    key={lead.id}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.25, delay: Math.min(idx * 0.02, 0.4) }}
+                    className="group border-white/[0.04] cursor-pointer transition-all duration-200 hover:bg-white/[0.04] relative"
+                    style={{ borderLeft: '3px solid transparent' }}
+                    onClick={() => openDetail(lead)}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderLeftColor = '#D4AF37';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderLeftColor = 'transparent';
+                    }}
+                  >
+                    <td className="py-3 px-4 text-xs text-foreground font-medium relative z-10">
+                      {lead.rawName || '-'}
+                    </td>
+                    <td className="py-3 px-4 text-xs text-muted-foreground truncate max-w-[200px] relative z-10">
+                      {lead.email || '-'}
+                    </td>
+                    <td className="py-3 px-4 text-xs text-muted-foreground truncate max-w-[160px] relative z-10">
+                      {lead.title || '-'}
+                    </td>
+                    <td className="py-3 px-4 text-xs text-muted-foreground truncate max-w-[120px] relative z-10">
+                      {lead.department || '-'}
+                    </td>
+                    <td className="py-3 px-4 text-xs text-foreground truncate max-w-[160px] relative z-10">
+                      {lead.company || '-'}
+                    </td>
+                    <td className="py-3 px-4 text-xs text-muted-foreground truncate max-w-[140px] relative z-10">
+                      {lead.industry || '-'}
+                    </td>
+                    <td className="py-3 px-4 text-xs text-muted-foreground truncate max-w-[120px] relative z-10">
+                      {lead.city || '-'}
+                    </td>
+                    <td className="py-3 px-4 text-xs text-muted-foreground truncate max-w-[100px] relative z-10">
+                      {lead.country || '-'}
+                    </td>
+                    <td className="py-3 px-4 text-xs text-muted-foreground relative z-10">
+                      {lead.employeeCategory || '-'}
+                    </td>
+                  </motion.tr>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* ═══ Pagination ═══ */}
+        {!leadsLoading && total > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-5 py-4 border-t border-white/[0.06]">
+            <div className="text-xs text-muted-foreground">
+              Showing{' '}
+              <span className="text-foreground font-medium tabular-nums">{showingFrom.toLocaleString()}</span>
+              {' - '}
+              <span className="text-foreground font-medium tabular-nums">{showingTo.toLocaleString()}</span>
+              {' of '}
+              <span className="text-foreground font-medium tabular-nums">{total.toLocaleString()}</span>
+              {' results'}
+            </div>
+            <div className="flex items-center gap-4">
+              {/* Page size selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Rows:</span>
+                <div className="flex gap-0.5 p-0.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <Button
+                      key={size}
+                      variant={limit === size ? 'default' : 'ghost'}
+                      size="sm"
+                      className={`h-7 px-3 text-xs rounded-md transition-all duration-200 ${
+                        limit === size
+                          ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-white/[0.04]'
+                      }`}
+                      onClick={() => setLimit(size)}
                     >
-                      <TableCell className="py-2 text-xs text-foreground font-medium">
-                        {lead.rawName || '-'}
-                      </TableCell>
-                      <TableCell className="py-2 text-xs text-muted-foreground truncate max-w-[200px]">
-                        {lead.email || '-'}
-                      </TableCell>
-                      <TableCell className="py-2 text-xs text-muted-foreground truncate max-w-[160px]">
-                        {lead.title || '-'}
-                      </TableCell>
-                      <TableCell className="py-2 text-xs text-muted-foreground truncate max-w-[120px]">
-                        {lead.department || '-'}
-                      </TableCell>
-                      <TableCell className="py-2 text-xs text-foreground truncate max-w-[160px]">
-                        {lead.company || '-'}
-                      </TableCell>
-                      <TableCell className="py-2 text-xs text-muted-foreground truncate max-w-[140px]">
-                        {lead.industry || '-'}
-                      </TableCell>
-                      <TableCell className="py-2 text-xs text-muted-foreground truncate max-w-[120px]">
-                        {lead.city || '-'}
-                      </TableCell>
-                      <TableCell className="py-2 text-xs text-muted-foreground truncate max-w-[100px]">
-                        {lead.country || '-'}
-                      </TableCell>
-                      <TableCell className="py-2 text-xs text-muted-foreground">
-                        {lead.employeeCategory || '-'}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* ── Pagination ── */}
-          {!leadsLoading && total > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-border">
-              <div className="text-xs text-muted-foreground">
-                Showing {showingFrom.toLocaleString()}-{showingTo.toLocaleString()} of{' '}
-                {total.toLocaleString()} results
+                      {size}
+                    </Button>
+                  ))}
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                {/* Page size selector */}
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-muted-foreground">Rows:</span>
-                  <div className="flex gap-0.5">
-                    {PAGE_SIZE_OPTIONS.map((size) => (
-                      <Button
-                        key={size}
-                        variant={limit === size ? 'default' : 'ghost'}
-                        size="sm"
-                        className={`h-7 px-2 text-xs ${
-                          limit === size
-                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                        onClick={() => setLimit(size)}
-                      >
-                        {size}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
 
-                <Separator orientation="vertical" className="h-5" />
+              <Separator orientation="vertical" className="h-5 bg-white/[0.08]" />
 
-                {/* Page controls */}
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    disabled={page <= 1}
-                    onClick={() => setPage(1)}
-                  >
-                    <ChevronsLeft className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    disabled={page <= 1}
-                    onClick={() => setPage(page - 1)}
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                  </Button>
-                  <span className="text-xs text-foreground px-2 min-w-[80px] text-center">
-                    Page {page} of {totalPages}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage(page + 1)}
-                  >
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage(totalPages)}
-                  >
-                    <ChevronsRight className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
+              {/* Page controls */}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 hover:bg-white/[0.06] text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={page <= 1}
+                  onClick={() => setPage(1)}
+                >
+                  <ChevronsLeft className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 hover:bg-white/[0.06] text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={page <= 1}
+                  onClick={() => setPage(page - 1)}
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </Button>
+                <span className="text-xs text-foreground px-3 min-w-[90px] text-center tabular-nums font-medium">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 hover:bg-white/[0.06] text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(page + 1)}
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 hover:bg-white/[0.06] text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(totalPages)}
+                >
+                  <ChevronsRight className="w-3.5 h-3.5" />
+                </Button>
               </div>
             </div>
-          )}
-      </AnimatedCard>
+          </div>
+        )}
+      </GlassPanel>
 
-      {/* ── Lead Detail Dialog ── */}
+      {/* ═══ Lead Detail Dialog ═══ */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="sm:max-w-lg bg-card border-border">
+        <DialogContent className="sm:max-w-lg bg-card/95 backdrop-blur-2xl border-white/[0.08] shadow-2xl shadow-black/40">
           <DialogHeader>
-            <DialogTitle className="text-base text-foreground">
+            <DialogTitle className="text-base text-foreground font-semibold">
               {selectedLead?.rawName || 'Lead Details'}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
@@ -838,78 +941,78 @@ export default function LeadsScreen({
             </DialogDescription>
           </DialogHeader>
           {selectedLead && (
-            <div className="space-y-4 mt-2">
+            <div className="space-y-5 mt-3">
               {/* Name & Title */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider">
+                <div className="space-y-1.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium">
                     <Users className="w-3 h-3" />
                     Name
                   </div>
-                  <p className="text-sm text-foreground">{selectedLead.rawName || '-'}</p>
+                  <p className="text-sm text-foreground font-medium">{selectedLead.rawName || '-'}</p>
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider">
+                <div className="space-y-1.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium">
                     <Briefcase className="w-3 h-3" />
                     Title
                   </div>
-                  <p className="text-sm text-foreground">{selectedLead.title || '-'}</p>
+                  <p className="text-sm text-foreground font-medium">{selectedLead.title || '-'}</p>
                 </div>
               </div>
 
               {/* Department & Company */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider">
+                <div className="space-y-1.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium">
                     <Building2 className="w-3 h-3" />
                     Department
                   </div>
-                  <p className="text-sm text-foreground">{selectedLead.department || '-'}</p>
+                  <p className="text-sm text-foreground font-medium">{selectedLead.department || '-'}</p>
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider">
+                <div className="space-y-1.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium">
                     <Building2 className="w-3 h-3" />
                     Company
                   </div>
-                  <p className="text-sm text-foreground">{selectedLead.company || '-'}</p>
+                  <p className="text-sm text-foreground font-medium">{selectedLead.company || '-'}</p>
                 </div>
               </div>
 
               {/* Industry & Company Size */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider">
+                <div className="space-y-1.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium">
                     <Globe className="w-3 h-3" />
                     Industry
                   </div>
-                  <p className="text-sm text-foreground">{selectedLead.industry || '-'}</p>
+                  <p className="text-sm text-foreground font-medium">{selectedLead.industry || '-'}</p>
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider">
+                <div className="space-y-1.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium">
                     <Users className="w-3 h-3" />
                     Company Size
                   </div>
-                  <p className="text-sm text-foreground">
+                  <p className="text-sm text-foreground font-medium">
                     {selectedLead.employeeCategory || '-'}
                     {selectedLead.employeeNumber && selectedLead.employeeCategory !== '-' && (
-                      <span className="text-muted-foreground"> ({selectedLead.employeeNumber})</span>
+                      <span className="text-muted-foreground font-normal"> ({selectedLead.employeeNumber})</span>
                     )}
                   </p>
                 </div>
               </div>
 
-              <Separator className="bg-border" />
+              <Separator className="bg-white/[0.06]" />
 
               {/* Email */}
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider">
+              <div className="space-y-1.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium">
                   <Mail className="w-3 h-3" />
                   Email
                 </div>
                 {selectedLead.email ? (
                   <a
                     href={`mailto:${selectedLead.email}`}
-                    className="text-sm text-primary hover:underline flex items-center gap-1"
+                    className="text-sm text-primary hover:underline flex items-center gap-1.5"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {selectedLead.email}
@@ -921,8 +1024,8 @@ export default function LeadsScreen({
               </div>
 
               {/* LinkedIn */}
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider">
+              <div className="space-y-1.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium">
                   <Globe className="w-3 h-3" />
                   LinkedIn
                 </div>
@@ -935,7 +1038,7 @@ export default function LeadsScreen({
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline flex items-center gap-1"
+                    className="text-sm text-primary hover:underline flex items-center gap-1.5"
                     onClick={(e) => e.stopPropagation()}
                   >
                     View Profile
@@ -947,8 +1050,8 @@ export default function LeadsScreen({
               </div>
 
               {/* Website */}
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider">
+              <div className="space-y-1.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium">
                   <Globe className="w-3 h-3" />
                   Website
                 </div>
@@ -961,7 +1064,7 @@ export default function LeadsScreen({
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline flex items-center gap-1"
+                    className="text-sm text-primary hover:underline flex items-center gap-1.5"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {selectedLead.website}
@@ -973,12 +1076,12 @@ export default function LeadsScreen({
               </div>
 
               {/* Location */}
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider">
+              <div className="space-y-1.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium">
                   <MapPin className="w-3 h-3" />
                   Location
                 </div>
-                <p className="text-sm text-foreground">
+                <p className="text-sm text-foreground font-medium">
                   {[selectedLead.city, selectedLead.state, selectedLead.country]
                     .filter(Boolean)
                     .join(', ') || '-'}

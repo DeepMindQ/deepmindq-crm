@@ -2,7 +2,16 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { PageTransition, AnimatedCard, SectionHeader, TabBar } from '@/components/ui/animated-components';
+import {
+  PageTransition,
+  StaggerGrid,
+  StaggerItem,
+  SectionHeader,
+  TabBar,
+  StatCard,
+  GlassPanel,
+  EmptyState,
+} from '@/components/ui/animated-components';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,13 +41,16 @@ import {
   Activity,
   ChevronLeft,
   ChevronRight,
+  BarChart3,
+  Hash,
+  Layers,
 } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface AuditEntry {
   id: string;
-  timestamp: string;          // ISO string
+  timestamp: string;
   userId: string;
   action: string;
   entityType: string;
@@ -59,16 +71,42 @@ const ACTION_COLORS: Record<string, string> = {
   verify:  'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
 };
 
+// ── Action accent hex colors (for left border bar) ─────────────────────────
+
+const ACTION_ACCENT_HEX: Record<string, string> = {
+  create:  '#34d399',
+  update:  '#60a5fa',
+  delete:  '#f87171',
+  approve: '#4ade80',
+  reject:  '#fbbf24',
+  send:    '#c084fc',
+  import:  '#38bdf8',
+  verify:  '#22d3ee',
+};
+
+// ── Action accent colors (for StatCard) ────────────────────────────────────
+
+const ACTION_ACCENT_COLORS: Record<string, string> = {
+  create:  '#34d399',
+  update:  '#60a5fa',
+  delete:  '#f87171',
+  approve: '#4ade80',
+  reject:  '#fbbf24',
+  send:    '#c084fc',
+  import:  '#38bdf8',
+  verify:  '#22d3ee',
+};
+
 // ── Entity icon map ────────────────────────────────────────────────────────
 
 const ENTITY_ICONS: Record<string, string> = {
-  Contact:      '👤',
-  Company:      '🏢',
-  Draft:        '📝',
-  SendQueue:    '📤',
-  ImportBatch:  '📦',
-  Suppression:  '🚫',
-  Capability:   '⚙️',
+  Contact:      '\u{1F464}',
+  Company:      '\u{1F3E2}',
+  Draft:        '\u{1F4DD}',
+  SendQueue:    '\u{1F4E4}',
+  ImportBatch:  '\u{1F4E6}',
+  Suppression:  '\u{1F6AB}',
+  Capability:   '\u2699\uFE0F',
 };
 
 // ── Relative time helper ───────────────────────────────────────────────────
@@ -160,12 +198,10 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
     if (!data) return [];
     let result = [...data];
 
-    // Entity type filter
     if (entityFilter !== 'All') {
       result = result.filter(e => e.entityType === entityFilter);
     }
 
-    // Date range filter
     const now = Date.now();
     if (dateRange === '7d') {
       result = result.filter(e => now - new Date(e.timestamp).getTime() <= 7 * 86400_000);
@@ -173,7 +209,6 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
       result = result.filter(e => now - new Date(e.timestamp).getTime() <= 30 * 86400_000);
     }
 
-    // Search filter
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(e =>
@@ -187,12 +222,27 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
     return result;
   }, [data, entityFilter, dateRange, search]);
 
+  // ── Derived: stats ─────────────────────────────────────────────────────
+  const stats = useMemo(() => {
+    if (!data) return { total: 0, topAction: 'N/A', topActionColor: '#D4AF37', uniqueEntities: 0 };
+
+    const total = data.length;
+
+    const actionCounts: Record<string, number> = {};
+    data.forEach(e => { actionCounts[e.action] = (actionCounts[e.action] || 0) + 1; });
+    const topAction = Object.entries(actionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+    const topActionColor = ACTION_ACCENT_COLORS[topAction] || '#D4AF37';
+
+    const entitySet = new Set(data.map(e => e.entityType));
+
+    return { total, topAction, topActionColor, uniqueEntities: entitySet.size };
+  }, [data]);
+
   // ── Derived: paginated data ────────────────────────────────────────────
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const safePage   = Math.min(page, totalPages);
   const paged      = filtered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
 
-  // Reset page when filters change
   useEffect(() => { setPage(1); }, [search, entityFilter, dateRange]);
 
   const toggleRow = useCallback((id: string) => {
@@ -206,9 +256,14 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
   // ── Loading skeleton ───────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-14 rounded-lg" />
-        <Skeleton className="h-[460px] rounded-lg" />
+      <div className="space-y-6">
+        <Skeleton className="h-20 rounded-xl" />
+        <div className="grid grid-cols-3 gap-4">
+          <Skeleton className="h-28 rounded-xl" />
+          <Skeleton className="h-28 rounded-xl" />
+          <Skeleton className="h-28 rounded-xl" />
+        </div>
+        <Skeleton className="h-[500px] rounded-xl" />
       </div>
     );
   }
@@ -216,13 +271,21 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <PageTransition>
-      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-4 pr-1">
-        {/* ── Header ──────────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <SectionHeader title="Audit Log" className="!mb-0" />
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-8 pr-1 pb-4">
+
+        {/* ── Page Header ───────────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 pt-2">
+          <div className="flex items-center gap-4">
+            <SectionHeader
+              title="Audit Log"
+              subtitle="Track every action across your workspace"
+              className="!mb-0"
+            />
             {data && (
-              <Badge variant="outline" className="text-xs font-normal text-muted-foreground mt-0.5">
+              <Badge
+                variant="outline"
+                className="text-xs font-normal text-muted-foreground mt-1 border-primary/20 bg-primary/5"
+              >
                 {filtered.length} {filtered.length === 1 ? 'entry' : 'entries'}
               </Badge>
             )}
@@ -230,7 +293,7 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
           <Button
             variant="outline"
             size="sm"
-            className="w-fit text-muted-foreground hover:text-foreground border-border"
+            className="w-fit text-muted-foreground hover:text-foreground border-border hover:border-primary/30 hover:bg-primary/5 transition-all duration-300"
             onClick={handleExport}
           >
             <Download className="h-3.5 w-3.5 mr-1.5" />
@@ -238,24 +301,55 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
           </Button>
         </div>
 
-        {/* ── Search & Filter Bar ──────────────────────────────────────── */}
-        <AnimatedCard hover={false}>
-          <div className="p-4 space-y-3">
+        {/* ── Stat Cards ────────────────────────────────────────────────── */}
+        <StaggerGrid className="grid grid-cols-1 sm:grid-cols-3 gap-4" stagger={0.1}>
+          <StaggerItem>
+            <StatCard
+              label="Total Actions"
+              value={stats.total}
+              icon={BarChart3}
+              color="#D4AF37"
+              delay={0}
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <StatCard
+              label="Most Common Action"
+              value={stats.topAction.toUpperCase()}
+              icon={Activity}
+              color={stats.topActionColor}
+              delay={0.1}
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <StatCard
+              label="Unique Entities"
+              value={stats.uniqueEntities}
+              icon={Layers}
+              color="#818cf8"
+              delay={0.2}
+            />
+          </StaggerItem>
+        </StaggerGrid>
+
+        {/* ── Search & Filter Bar (GlassPanel) ──────────────────────────── */}
+        <GlassPanel className="overflow-hidden">
+          <div className="p-5 space-y-4">
             {/* Row 1: Search + Entity filter */}
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search actions, entities, details..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="pl-9 h-9 bg-background border-border text-foreground placeholder:text-muted-foreground"
+                  className="pl-10 h-10 bg-white/[0.04] border-white/[0.08] text-foreground placeholder:text-muted-foreground/60 focus:border-primary/40 focus:ring-primary/10 transition-all duration-200"
                 />
               </div>
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
                 <Select value={entityFilter} onValueChange={setEntityFilter}>
-                  <SelectTrigger className="w-[170px] h-9 bg-background border-border text-foreground">
+                  <SelectTrigger className="w-[180px] h-10 bg-white/[0.04] border-white/[0.08] text-foreground focus:border-primary/40 transition-all duration-200">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -270,158 +364,172 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
             {/* Row 2: Date range tabs */}
             <TabBar tabs={DATE_TABS} active={dateRange} onChange={setDateRange} />
           </div>
-        </AnimatedCard>
+        </GlassPanel>
 
-        {/* ── Audit Table ──────────────────────────────────────────────── */}
-        <AnimatedCard hover={false}>
-          <div className="p-0">
-            {filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
-                <Activity className="h-10 w-10 opacity-30" />
-                <p className="text-sm">No audit entries match your filters.</p>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-border hover:bg-transparent">
-                        <TableHead className="text-muted-foreground text-xs font-medium w-[140px]">
-                          <Clock className="inline h-3 w-3 mr-1" />
-                          Timestamp
-                        </TableHead>
-                        <TableHead className="text-muted-foreground text-xs font-medium w-[120px]">
-                          <User className="inline h-3 w-3 mr-1" />
-                          User
-                        </TableHead>
-                        <TableHead className="text-muted-foreground text-xs font-medium w-[90px]">
-                          Action
-                        </TableHead>
-                        <TableHead className="text-muted-foreground text-xs font-medium w-[180px]">
-                          <FileText className="inline h-3 w-3 mr-1" />
-                          Entity
-                        </TableHead>
-                        <TableHead className="text-muted-foreground text-xs font-medium">
-                          Details
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paged.map(entry => {
-                        const isExpanded = expandedRow === entry.id;
-                        const actionColor = ACTION_COLORS[entry.action] || 'bg-zinc-500/15 text-zinc-300 border-zinc-500/30';
-                        const entityIcon  = ENTITY_ICONS[entry.entityType] || '📋';
-                        const isLong      = entry.details.length > 80;
+        {/* ── Audit Table (GlassPanel) ──────────────────────────────────── */}
+        <GlassPanel className="overflow-hidden">
+          {filtered.length === 0 ? (
+            <EmptyState
+              icon={Activity}
+              title="No matching audit entries"
+              description="Try adjusting your search query or filters to find what you are looking for."
+            />
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/[0.06] hover:bg-transparent">
+                      <TableHead className="text-muted-foreground text-xs font-medium w-[140px] h-11">
+                        <Clock className="inline h-3 w-3 mr-1.5 opacity-60" />
+                        Timestamp
+                      </TableHead>
+                      <TableHead className="text-muted-foreground text-xs font-medium w-[120px] h-11">
+                        <User className="inline h-3 w-3 mr-1.5 opacity-60" />
+                        User
+                      </TableHead>
+                      <TableHead className="text-muted-foreground text-xs font-medium w-[100px] h-11">
+                        Action
+                      </TableHead>
+                      <TableHead className="text-muted-foreground text-xs font-medium w-[190px] h-11">
+                        <FileText className="inline h-3 w-3 mr-1.5 opacity-60" />
+                        Entity
+                      </TableHead>
+                      <TableHead className="text-muted-foreground text-xs font-medium h-11">
+                        Details
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paged.map((entry, idx) => {
+                      const isExpanded = expandedRow === entry.id;
+                      const actionColor = ACTION_COLORS[entry.action] || 'bg-zinc-500/15 text-zinc-300 border-zinc-500/30';
+                      const accentHex = ACTION_ACCENT_HEX[entry.action] || '#a1a1aa';
+                      const entityIcon  = ENTITY_ICONS[entry.entityType] || '\u{1F4CB}';
+                      const isLong      = entry.details.length > 80;
 
-                        return (
-                          <TableRow
-                            key={entry.id}
-                            className="border-border hover:bg-muted/30 cursor-pointer transition-colors"
-                            onClick={() => isLong && toggleRow(entry.id)}
-                          >
-                            {/* Timestamp */}
-                            <TableCell className="text-muted-foreground text-xs whitespace-nowrap py-3">
+                      return (
+                        <motion.tr
+                          key={entry.id}
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.3, delay: idx * 0.04 }}
+                          className="group border-b border-white/[0.04] hover:bg-white/[0.03] cursor-pointer transition-colors duration-200"
+                          style={{ borderLeftWidth: '3px', borderLeftStyle: 'solid', borderLeftColor: 'transparent' }}
+                          whileHover={{ borderLeftColor: accentHex }}
+                          onClick={() => isLong && toggleRow(entry.id)}
+                        >
+                          {/* Timestamp */}
+                          <TableCell className="text-muted-foreground text-xs whitespace-nowrap py-3.5">
+                            <div className="flex items-center gap-1.5">
+                              <Hash className="h-3 w-3 opacity-30" />
                               {relativeTime(entry.timestamp)}
-                            </TableCell>
+                            </div>
+                          </TableCell>
 
-                            {/* User */}
-                            <TableCell className="text-foreground text-xs font-medium py-3">
-                              {entry.userId}
-                            </TableCell>
+                          {/* User */}
+                          <TableCell className="text-foreground text-xs font-medium py-3.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary/70 shrink-0">
+                                {entry.userId.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                              </div>
+                              <span className="truncate">{entry.userId}</span>
+                            </div>
+                          </TableCell>
 
-                            {/* Action */}
-                            <TableCell className="py-3">
-                              <Badge
-                                variant="outline"
-                                className={`text-[10px] font-semibold uppercase tracking-wider ${actionColor}`}
-                              >
-                                {entry.action}
-                              </Badge>
-                            </TableCell>
+                          {/* Action */}
+                          <TableCell className="py-3.5">
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] font-semibold uppercase tracking-wider transition-all duration-200 ${actionColor}`}
+                            >
+                              {entry.action}
+                            </Badge>
+                          </TableCell>
 
-                            {/* Entity */}
-                            <TableCell className="py-3">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-sm shrink-0">{entityIcon}</span>
-                                <div className="min-w-0">
-                                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none mb-0.5">
-                                    {entry.entityType}
-                                  </div>
-                                  <div className="text-xs text-foreground font-medium truncate">
-                                    {entry.entityName}
-                                  </div>
+                          {/* Entity */}
+                          <TableCell className="py-3.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm shrink-0">{entityIcon}</span>
+                              <div className="min-w-0">
+                                <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wider leading-none mb-0.5">
+                                  {entry.entityType}
+                                </div>
+                                <div className="text-xs text-foreground font-medium truncate">
+                                  {entry.entityName}
                                 </div>
                               </div>
-                            </TableCell>
+                            </div>
+                          </TableCell>
 
-                            {/* Details */}
-                            <TableCell className="py-3 max-w-[360px]">
-                              <p className={`text-xs text-muted-foreground leading-relaxed ${isLong && isExpanded ? '' : 'line-clamp-2'}`}>
-                                {entry.details}
-                              </p>
-                              {isLong && (
-                                <button
-                                  className="text-[10px] text-primary hover:underline mt-0.5"
-                                  onClick={e => { e.stopPropagation(); toggleRow(entry.id); }}
-                                >
-                                  {isExpanded ? 'Show less' : 'Show more'}
-                                </button>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
+                          {/* Details */}
+                          <TableCell className="py-3.5 max-w-[360px]">
+                            <p className={`text-xs text-muted-foreground/80 leading-relaxed ${isLong && isExpanded ? '' : 'line-clamp-2'}`}>
+                              {entry.details}
+                            </p>
+                            {isLong && (
+                              <button
+                                className="text-[10px] text-primary hover:text-primary/80 hover:underline mt-1 font-medium transition-colors duration-150"
+                                onClick={e => { e.stopPropagation(); toggleRow(entry.id); }}
+                              >
+                                {isExpanded ? 'Show less' : 'Show more'}
+                              </button>
+                            )}
+                          </TableCell>
+                        </motion.tr>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
 
-                {/* ── Pagination ────────────────────────────────────── */}
-                <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-                  <p className="text-xs text-muted-foreground">
-                    Showing {(safePage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(safePage * ITEMS_PER_PAGE, filtered.length)} of {filtered.length}
-                  </p>
-                  <div className="flex items-center gap-1">
+              {/* ── Pagination ────────────────────────────────────────── */}
+              <div className="flex items-center justify-between px-5 py-4 border-t border-white/[0.06]">
+                <p className="text-xs text-muted-foreground/60">
+                  Showing {(safePage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(safePage * ITEMS_PER_PAGE, filtered.length)} of {filtered.length}
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 border-white/[0.08] text-muted-foreground hover:text-foreground hover:border-white/[0.15] transition-all duration-200"
+                    disabled={safePage <= 1}
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
                     <Button
-                      variant="outline"
+                      key={p}
+                      variant={p === safePage ? 'default' : 'outline'}
                       size="sm"
-                      className="h-7 w-7 p-0 border-border text-muted-foreground hover:text-foreground"
-                      disabled={safePage <= 1}
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      className={`h-8 w-8 p-0 text-xs font-medium transition-all duration-200 ${
+                        p === safePage
+                          ? 'bg-gradient-to-br from-yellow-500/90 to-amber-600/90 text-black shadow-lg shadow-amber-500/20 hover:from-yellow-500 hover:to-amber-600 border-0'
+                          : 'border-white/[0.08] text-muted-foreground hover:text-foreground hover:border-white/[0.15] hover:bg-white/[0.04]'
+                      }`}
+                      onClick={() => setPage(p)}
                     >
-                      <ChevronLeft className="h-3.5 w-3.5" />
+                      {p}
                     </Button>
+                  ))}
 
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                      <Button
-                        key={p}
-                        variant={p === safePage ? 'default' : 'outline'}
-                        size="sm"
-                        className={`h-7 w-7 p-0 text-xs ${
-                          p === safePage
-                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                            : 'border-border text-muted-foreground hover:text-foreground'
-                        }`}
-                        onClick={() => setPage(p)}
-                      >
-                        {p}
-                      </Button>
-                    ))}
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 w-7 p-0 border-border text-muted-foreground hover:text-foreground"
-                      disabled={safePage >= totalPages}
-                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    >
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 border-white/[0.08] text-muted-foreground hover:text-foreground hover:border-white/[0.15] transition-all duration-200"
+                    disabled={safePage >= totalPages}
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
-              </>
-            )}
-          </div>
-        </AnimatedCard>
+              </div>
+            </>
+          )}
+        </GlassPanel>
+
       </div>
     </PageTransition>
   );

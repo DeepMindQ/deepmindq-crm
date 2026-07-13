@@ -23,6 +23,8 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import KnowledgeSearch from '@/components/knowledge-search';
+import { motion } from 'framer-motion';
+import { PageTransition, AnimatedCard, SectionHeader, TabBar } from '@/components/ui/animated-components';
 
 interface Contact {
   id: string;
@@ -217,59 +219,48 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
         setAiError(data.error || 'Generation failed');
       }
     } catch {
-      setAiError('Network error — please try again');
+      setAiError('Network error - please try again');
     }
     setAiGenerating(false);
   };
 
+  const tabData = TAB_OPTIONS.map(t => ({ key: t.value, label: t.label }));
+
   return (
+    <PageTransition>
     <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-4 pr-1">
-      {/* ── Tab Filters ── */}
-      <Card className="bg-card border border-border">
-        <CardContent className="p-2">
-          <div className="flex items-center gap-1">
-            {TAB_OPTIONS.map(t => (
-              <Button
-                key={t.value}
-                variant={tab === t.value ? 'default' : 'ghost'}
-                size="sm"
-                className={`h-8 text-xs px-3 ${tab === t.value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                onClick={() => setTab(t.value)}
-              >
-                {t.label}
-              </Button>
-            ))}
-            <div className="flex-1" />
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs gap-1.5 border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              onClick={() => setShowKnowledgeSearch(true)}
-            >
-              <Search className="w-3.5 h-3.5" />
-              Search Knowledge Base
-            </Button>
-            <Button
-              variant={showAiDemo ? 'default' : 'outline'}
-              size="sm"
-              className={`h-8 text-xs gap-1.5 ${showAiDemo ? 'bg-primary text-primary-foreground' : 'border-primary/30 text-primary hover:bg-primary/10'}`}
-              onClick={() => setShowAiDemo(!showAiDemo)}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              Test AI Engine
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <SectionHeader title="Email Drafts" />
+      <div className="flex items-center gap-3">
+        <TabBar tabs={tabData} active={tab} onChange={setTab} />
+        <div className="flex-1" />
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs gap-1.5 border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          onClick={() => setShowKnowledgeSearch(true)}
+        >
+          <Search className="w-3.5 h-3.5" />
+          Search Knowledge Base
+        </Button>
+        <Button
+          variant={showAiDemo ? 'default' : 'outline'}
+          size="sm"
+          className={`h-8 text-xs gap-1.5 ${showAiDemo ? 'bg-primary text-primary-foreground' : 'border-primary/30 text-primary hover:bg-primary/10'}`}
+          onClick={() => setShowAiDemo(!showAiDemo)}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          Test AI Engine
+        </Button>
+      </div>
 
       {/* ── AI Demo Panel ── */}
       {showAiDemo && (
-        <Card className="bg-card border border-primary/20">
+        <AnimatedCard hover={false} className="!border-primary/20">
           <CardHeader className="pb-2 pt-3 px-4">
             <CardTitle className="text-sm font-semibold flex items-center gap-2 text-primary">
               <Sparkles className="w-4 h-4" />
               AI Draft Generator
-              <span className="text-[10px] font-normal text-muted-foreground ml-1">No database needed — test the AI engine directly</span>
+              <span className="text-[10px] font-normal text-muted-foreground ml-1">No database needed - test the AI engine directly</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-3">
@@ -468,7 +459,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                     }
                   </Badge>
                   {aiResult.generationMethod === 'template' && (
-                    <span className="text-[10px] text-muted-foreground">Template engine used — AI API was unavailable</span>
+                    <span className="text-[10px] text-muted-foreground">Template engine used - AI API was unavailable</span>
                   )}
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -526,11 +517,11 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
               </div>
             )}
           </CardContent>
-        </Card>
+        </AnimatedCard>
       )}
 
       {/* ── Drafts Table ── */}
-      <Card className="bg-card border border-border">
+      <AnimatedCard hover={false}>
         <CardContent className="p-0">
           {loading ? (
             <div className="p-6 space-y-3">
@@ -554,7 +545,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                   {drafts.map(draft => (
                     <TableRow key={draft.id} className="border-border">
                       <TableCell className="text-foreground text-sm font-medium">
-                        <span>{draft.contact?.name || '—'}</span>
+                        <span>{draft.contact?.name || '-'}</span>
                         {navigateTo && draft.contact?.name && (
                           <span
                             onClick={(e) => { e.stopPropagation(); navigateTo('leads'); }}
@@ -562,7 +553,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                           >View in Leads</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-sm hidden sm:table-cell">{draft.contact?.company?.name || '—'}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm hidden sm:table-cell">{draft.contact?.company?.name || '-'}</TableCell>
                       <TableCell className="text-foreground text-sm max-w-[200px] md:max-w-[280px] truncate">{draft.subject}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={DRAFT_STATUS_COLORS[draft.status] || DRAFT_STATUS_COLORS.draft}>
@@ -570,9 +561,9 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                         </Badge>
                       </TableCell>
                       <TableCell className={`text-right text-sm tabular-nums hidden sm:table-cell ${confidenceColor(draft.confidenceScore)}`}>
-                        {draft.confidenceScore ?? '—'}
+                        {draft.confidenceScore ?? '-'}
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-xs text-right hidden md:table-cell whitespace-nowrap">{draft.createdAt || '—'}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs text-right hidden md:table-cell whitespace-nowrap">{draft.createdAt || '-'}</TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
@@ -604,7 +595,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
             </div>
           )}
         </CardContent>
-      </Card>
+      </AnimatedCard>
 
       {/* ── Knowledge Search Dialog ── */}
       <Dialog open={showKnowledgeSearch} onOpenChange={setShowKnowledgeSearch}>
@@ -690,7 +681,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-4 pb-3 space-y-1.5">
-                    <p className="text-sm font-medium text-foreground">{selectedDraft.contact?.name || '—'}</p>
+                    <p className="text-sm font-medium text-foreground">{selectedDraft.contact?.name || '-'}</p>
                     {selectedDraft.contact?.email && (
                       <p className="text-xs text-muted-foreground flex items-center gap-1"><Mail className="w-3 h-3" />{selectedDraft.contact.email}</p>
                     )}
@@ -900,5 +891,6 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
         </DialogContent>
       </Dialog>
     </div>
+    </PageTransition>
   );
 }

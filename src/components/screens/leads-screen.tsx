@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +44,8 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion } from 'framer-motion';
+import { PageTransition, AnimatedCard, SectionHeader } from '@/components/ui/animated-components';
 
 /* ══════════════════════════════ Types ══════════════════════════════ */
 
@@ -388,23 +389,9 @@ export default function LeadsScreen({
   /* ════════════════════════ Render ════════════════════════ */
 
   return (
+    <PageTransition>
     <div className="space-y-4">
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Users className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">Leads</h2>
-            <p className="text-xs text-muted-foreground">
-              {metaLoading
-                ? 'Loading contacts...'
-                : `${(meta?.totalRecords ?? 0).toLocaleString()} contacts available`}
-            </p>
-          </div>
-        </div>
-      </div>
+      <SectionHeader title="Leads" subtitle={metaLoading ? 'Loading contacts...' : `${(meta?.totalRecords ?? 0).toLocaleString()} total contacts`} />
 
       {/* ── Filter Panel Toggle ── */}
       <div className="flex items-center gap-2">
@@ -442,7 +429,8 @@ export default function LeadsScreen({
 
       {/* ── Filter Panel ── */}
       {filtersOpen && (
-        <div className="bg-card/50 border border-border rounded-lg p-4 space-y-3">
+        <AnimatedCard hover={false}>
+        <div className="p-4 space-y-3">
           {/* Search row */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -524,6 +512,7 @@ export default function LeadsScreen({
             </div>
           )}
         </div>
+        </AnimatedCard>
       )}
 
       {/* ── Active filter badges ── */}
@@ -623,8 +612,7 @@ export default function LeadsScreen({
       )}
 
       {/* ── Leads Table ── */}
-      <Card className="bg-card border border-border">
-        <CardContent className="p-0">
+      <AnimatedCard hover={false}>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -726,31 +714,31 @@ export default function LeadsScreen({
                       onClick={() => openDetail(lead)}
                     >
                       <TableCell className="py-2 text-xs text-foreground font-medium">
-                        {lead.rawName || '—'}
+                        {lead.rawName || '-'}
                       </TableCell>
                       <TableCell className="py-2 text-xs text-muted-foreground truncate max-w-[200px]">
-                        {lead.email || '—'}
+                        {lead.email || '-'}
                       </TableCell>
                       <TableCell className="py-2 text-xs text-muted-foreground truncate max-w-[160px]">
-                        {lead.title || '—'}
+                        {lead.title || '-'}
                       </TableCell>
                       <TableCell className="py-2 text-xs text-muted-foreground truncate max-w-[120px]">
-                        {lead.department || '—'}
+                        {lead.department || '-'}
                       </TableCell>
                       <TableCell className="py-2 text-xs text-foreground truncate max-w-[160px]">
-                        {lead.company || '—'}
+                        {lead.company || '-'}
                       </TableCell>
                       <TableCell className="py-2 text-xs text-muted-foreground truncate max-w-[140px]">
-                        {lead.industry || '—'}
+                        {lead.industry || '-'}
                       </TableCell>
                       <TableCell className="py-2 text-xs text-muted-foreground truncate max-w-[120px]">
-                        {lead.city || '—'}
+                        {lead.city || '-'}
                       </TableCell>
                       <TableCell className="py-2 text-xs text-muted-foreground truncate max-w-[100px]">
-                        {lead.country || '—'}
+                        {lead.country || '-'}
                       </TableCell>
                       <TableCell className="py-2 text-xs text-muted-foreground">
-                        {lead.employeeCategory || '—'}
+                        {lead.employeeCategory || '-'}
                       </TableCell>
                     </TableRow>
                   ))
@@ -836,8 +824,7 @@ export default function LeadsScreen({
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </AnimatedCard>
 
       {/* ── Lead Detail Dialog ── */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
@@ -859,14 +846,14 @@ export default function LeadsScreen({
                     <Users className="w-3 h-3" />
                     Name
                   </div>
-                  <p className="text-sm text-foreground">{selectedLead.rawName || '—'}</p>
+                  <p className="text-sm text-foreground">{selectedLead.rawName || '-'}</p>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider">
                     <Briefcase className="w-3 h-3" />
                     Title
                   </div>
-                  <p className="text-sm text-foreground">{selectedLead.title || '—'}</p>
+                  <p className="text-sm text-foreground">{selectedLead.title || '-'}</p>
                 </div>
               </div>
 
@@ -877,14 +864,14 @@ export default function LeadsScreen({
                     <Building2 className="w-3 h-3" />
                     Department
                   </div>
-                  <p className="text-sm text-foreground">{selectedLead.department || '—'}</p>
+                  <p className="text-sm text-foreground">{selectedLead.department || '-'}</p>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider">
                     <Building2 className="w-3 h-3" />
                     Company
                   </div>
-                  <p className="text-sm text-foreground">{selectedLead.company || '—'}</p>
+                  <p className="text-sm text-foreground">{selectedLead.company || '-'}</p>
                 </div>
               </div>
 
@@ -895,7 +882,7 @@ export default function LeadsScreen({
                     <Globe className="w-3 h-3" />
                     Industry
                   </div>
-                  <p className="text-sm text-foreground">{selectedLead.industry || '—'}</p>
+                  <p className="text-sm text-foreground">{selectedLead.industry || '-'}</p>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wider">
@@ -903,8 +890,8 @@ export default function LeadsScreen({
                     Company Size
                   </div>
                   <p className="text-sm text-foreground">
-                    {selectedLead.employeeCategory || '—'}
-                    {selectedLead.employeeNumber && selectedLead.employeeCategory !== '—' && (
+                    {selectedLead.employeeCategory || '-'}
+                    {selectedLead.employeeNumber && selectedLead.employeeCategory !== '-' && (
                       <span className="text-muted-foreground"> ({selectedLead.employeeNumber})</span>
                     )}
                   </p>
@@ -929,7 +916,7 @@ export default function LeadsScreen({
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 ) : (
-                  <p className="text-sm text-muted-foreground">—</p>
+                  <p className="text-sm text-muted-foreground">-</p>
                 )}
               </div>
 
@@ -955,7 +942,7 @@ export default function LeadsScreen({
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 ) : (
-                  <p className="text-sm text-muted-foreground">—</p>
+                  <p className="text-sm text-muted-foreground">-</p>
                 )}
               </div>
 
@@ -981,7 +968,7 @@ export default function LeadsScreen({
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 ) : (
-                  <p className="text-sm text-muted-foreground">—</p>
+                  <p className="text-sm text-muted-foreground">-</p>
                 )}
               </div>
 
@@ -994,7 +981,7 @@ export default function LeadsScreen({
                 <p className="text-sm text-foreground">
                   {[selectedLead.city, selectedLead.state, selectedLead.country]
                     .filter(Boolean)
-                    .join(', ') || '—'}
+                    .join(', ') || '-'}
                 </p>
               </div>
             </div>
@@ -1002,5 +989,6 @@ export default function LeadsScreen({
         </DialogContent>
       </Dialog>
     </div>
+    </PageTransition>
   );
 }

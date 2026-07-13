@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { motion } from 'framer-motion';
+import { PageTransition, AnimatedCard, StaggerGrid, StaggerItem, SectionHeader, TabBar } from '@/components/ui/animated-components';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -286,6 +287,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
   }
 
   return (
+    <PageTransition>
     <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-4 pr-1">
       {/* Info Note */}
       {navigateTo && (
@@ -298,7 +300,8 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
         </p>
       )}
 
-      {/* Top Bar: Actions + Search + Tabs */}
+      <SectionHeader title="Capability Library" />
+      <AnimatedCard hover={false}>
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex items-center gap-2 shrink-0">
           <Button size="sm" className="h-8 text-xs gap-1.5" onClick={openCreate}>
@@ -318,64 +321,65 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
           />
         </div>
       </div>
+      </AnimatedCard>
 
       {/* Category Tabs */}
-      <div className="flex gap-1 flex-wrap">
-        {TABS.map(t => (
-          <Button key={t.value} variant={tab === t.value ? 'default' : 'ghost'} size="sm"
-            className={`h-8 text-xs px-3 ${tab === t.value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-            onClick={() => { setTab(t.value); setSearch(''); }}>
-            {t.label}
-          </Button>
-        ))}
-      </div>
+      <TabBar
+        tabs={TABS.map(t => ({ key: t.value, label: t.label }))}
+        active={tab}
+        onChange={(key) => { setTab(key); setSearch(''); }}
+      />
 
       {/* Card Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(cap => {
           const Icon = CAT_ICON[cap.category] || Tag;
           return (
-            <Card key={cap.id} className="bg-card border border-border hover:border-primary/40 transition-colors">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <Icon className="w-3.5 h-3.5 text-primary shrink-0" />
-                      <h3 className="text-sm font-semibold text-foreground truncate">{cap.title}</h3>
+            <StaggerItem key={cap.id}>
+              <motion.div whileHover={{ y: -2 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
+                <div className="rounded-xl border p-[1px]" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.1), transparent 60%)' }}>
+                  <div className="rounded-xl bg-card p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <Icon className="w-3.5 h-3.5 text-primary shrink-0" />
+                          <h3 className="text-sm font-semibold text-foreground truncate">{cap.title}</h3>
+                        </div>
+                        <Badge variant="outline" className={`text-[10px] ${CAT_BADGE[cap.category] || ''}`}>
+                          {CAT_LABEL[cap.category] || cap.category}
+                        </Badge>
+                      </div>
+                      <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${cap.isActive ? 'bg-emerald-400' : 'bg-zinc-500'}`} title={cap.isActive ? 'Active' : 'Inactive'} />
                     </div>
-                    <Badge variant="outline" className={`text-[10px] ${CAT_BADGE[cap.category] || ''}`}>
-                      {CAT_LABEL[cap.category] || cap.category}
-                    </Badge>
+                    <p className="text-xs text-muted-foreground mt-2 line-clamp-3 leading-relaxed">{cap.summary}</p>
+                    {cap.serviceLine && (
+                      <p className="text-[11px] text-muted-foreground mt-2 flex items-center gap-1">
+                        <Layers className="w-3 h-3" />{cap.serviceLine}
+                      </p>
+                    )}
+                    {cap.targetIndustries && (
+                      <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                        <Tag className="w-3 h-3" />{cap.targetIndustries}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-1 mt-3">
+                      <Button variant="ghost" size="sm" className="h-7 text-xs text-primary hover:text-primary/80 px-2"
+                        onClick={() => setSelected(cap)}>
+                        <Eye className="w-3.5 h-3.5 mr-1" />View
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground px-2"
+                        onClick={() => openEdit(cap)}>
+                        <Pencil className="w-3.5 h-3.5 mr-1" />Edit
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-red-400 px-2 ml-auto"
+                        onClick={() => setDeleteId(cap.id)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
-                  <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${cap.isActive ? 'bg-emerald-400' : 'bg-zinc-500'}`} title={cap.isActive ? 'Active' : 'Inactive'} />
                 </div>
-                <p className="text-xs text-muted-foreground mt-2 line-clamp-3 leading-relaxed">{cap.summary}</p>
-                {cap.serviceLine && (
-                  <p className="text-[11px] text-muted-foreground mt-2 flex items-center gap-1">
-                    <Layers className="w-3 h-3" />{cap.serviceLine}
-                  </p>
-                )}
-                {cap.targetIndustries && (
-                  <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
-                    <Tag className="w-3 h-3" />{cap.targetIndustries}
-                  </p>
-                )}
-                <div className="flex items-center gap-1 mt-3">
-                  <Button variant="ghost" size="sm" className="h-7 text-xs text-primary hover:text-primary/80 px-2"
-                    onClick={() => setSelected(cap)}>
-                    <Eye className="w-3.5 h-3.5 mr-1" />View
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground px-2"
-                    onClick={() => openEdit(cap)}>
-                    <Pencil className="w-3.5 h-3.5 mr-1" />Edit
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-red-400 px-2 ml-auto"
-                    onClick={() => setDeleteId(cap.id)}>
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+              </motion.div>
+            </StaggerItem>
           );
         })}
         {filtered.length === 0 && (
@@ -383,7 +387,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
             {search ? 'No capabilities match your search.' : 'No capabilities in this category. Add some to improve AI draft quality.'}
           </div>
         )}
-      </div>
+      </StaggerGrid>
 
       {/* ═══ View Dialog ═══ */}
       {selected && (
@@ -621,7 +625,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 <>
                   <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
                   <p className="text-sm text-foreground">Drag & drop or click to upload</p>
-                  <p className="text-xs text-muted-foreground mt-1">.txt, .md, .pdf, .docx — max 5MB</p>
+                  <p className="text-xs text-muted-foreground mt-1">.txt, .md, .pdf, .docx - max 5MB</p>
                 </>
               )}
             </div>
@@ -664,5 +668,6 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </PageTransition>
   );
 }

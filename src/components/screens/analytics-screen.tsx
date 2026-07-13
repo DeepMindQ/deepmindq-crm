@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +19,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { motion } from 'framer-motion';
+import {
+  PageTransition,
+  AnimatedCard,
+  StaggerGrid,
+  StaggerItem,
+  SectionHeader,
+} from '@/components/ui/animated-components';
 import {
   BarChart3,
   TrendingUp,
@@ -241,7 +248,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
   const trends = {
     sent: { value: 12.4, positive: true },
     reply: { value: 3.2, positive: true },
-    bounce: { value: 1.8, positive: false }, // lower is better
+    bounce: { value: 1.8, positive: false },
     health: { value: 2.1, positive: true },
   };
 
@@ -270,434 +277,437 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
     1,
   );
 
+  // KPI card gradient colors: gold, green, red, blue
+  const kpiGradients = [
+    'rgba(212, 175, 55, 0.15)',
+    'rgba(16, 185, 129, 0.15)',
+    'rgba(239, 68, 68, 0.15)',
+    'rgba(59, 130, 246, 0.15)',
+  ];
+
   return (
-    <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-6 pr-1">
-      {/* ── Header row ── */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-primary" />
-          Analytics &amp; Reporting
-        </h2>
-        <div className="flex items-center gap-2">
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-[140px] h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="24h">Last 24 hours</SelectItem>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="90d">Last 90 days</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            Export
-          </Button>
+    <PageTransition>
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-6 pr-1">
+        {/* Header row */}
+        <div className="flex items-center justify-between">
+          <SectionHeader title="Analytics &amp; Reporting" className="!mb-0" />
+          <div className="flex items-center gap-2">
+            <Select value={timeRange} onValueChange={setTimeRange}>
+              <SelectTrigger className="w-[140px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="24h">Last 24 hours</SelectItem>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+                <SelectItem value="90d">Last 90 days</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Export
+            </Button>
+          </div>
         </div>
-      </div>
 
-      {/* ══════════════════════════════════════════════════════════════════
-          1. KPI Cards
-      ══════════════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Outreach Sent */}
-        <Card className="bg-card border border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                Total Outreach Sent
-              </p>
-              <Send className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <p className="text-3xl font-bold text-foreground tabular-nums">
-              {totalSent.toLocaleString()}
-            </p>
-            <div className="flex items-center gap-1 mt-1">
-              {trends.sent.positive ? (
-                <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" />
-              ) : (
-                <ArrowDownRight className="w-3.5 h-3.5 text-red-400" />
-              )}
-              <span
-                className={`text-xs font-medium tabular-nums ${
-                  trends.sent.positive ? 'text-emerald-400' : 'text-red-400'
-                }`}
-              >
-                {trends.sent.value}%
-              </span>
-              <span className="text-xs text-muted-foreground ml-1">vs prev. period</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Reply Rate */}
-        <Card className="bg-card border border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                Reply Rate
-              </p>
-              <Mail className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <p className="text-3xl font-bold text-foreground tabular-nums">
-              {replyRate.toFixed(1)}%
-            </p>
-            <div className="flex items-center gap-1 mt-1">
-              {trends.reply.positive ? (
-                <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" />
-              ) : (
-                <ArrowDownRight className="w-3.5 h-3.5 text-red-400" />
-              )}
-              <span
-                className={`text-xs font-medium tabular-nums ${
-                  trends.reply.positive ? 'text-emerald-400' : 'text-red-400'
-                }`}
-              >
-                {trends.reply.value}%
-              </span>
-              <span className="text-xs text-muted-foreground ml-1">vs prev. period</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Bounce Rate */}
-        <Card className="bg-card border border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                Bounce Rate
-              </p>
-              <TrendingDown className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <p className="text-3xl font-bold text-foreground tabular-nums">
-              {bounceRate.toFixed(1)}%
-            </p>
-            <div className="flex items-center gap-1 mt-1">
-              {/* Lower bounce is good — green when decreasing */}
-              {trends.bounce.positive ? (
-                <ArrowDownRight className="w-3.5 h-3.5 text-emerald-400" />
-              ) : (
-                <ArrowUpRight className="w-3.5 h-3.5 text-red-400" />
-              )}
-              <span
-                className={`text-xs font-medium tabular-nums ${
-                  !trends.bounce.positive ? 'text-emerald-400' : 'text-red-400'
-                }`}
-              >
-                {trends.bounce.value}%
-              </span>
-              <span className="text-xs text-muted-foreground ml-1">vs prev. period</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Email Health Score */}
-        <Card className="bg-card border border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                Email Health Score
-              </p>
-              <Target className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <p className="text-3xl font-bold text-foreground tabular-nums">
-              {avgHealth}
-              <span className="text-base font-normal text-muted-foreground">/100</span>
-            </p>
-            <div className="flex items-center gap-1 mt-1">
-              {trends.health.positive ? (
-                <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" />
-              ) : (
-                <ArrowDownRight className="w-3.5 h-3.5 text-red-400" />
-              )}
-              <span
-                className={`text-xs font-medium tabular-nums ${
-                  trends.health.positive ? 'text-emerald-400' : 'text-red-400'
-                }`}
-              >
-                {trends.health.value}%
-              </span>
-              <span className="text-xs text-muted-foreground ml-1">vs prev. period</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════════════════
-          2. Pipeline Funnel Chart
-      ══════════════════════════════════════════════════════════════════ */}
-      <Card className="bg-card border border-border">
-        <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-primary" />
-            Pipeline Funnel
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4">
-          <div className="space-y-2">
-            {FUNNEL_STAGES.map(stage => {
-              const count = d.contactsByStatus[stage.key] ?? 0;
-              const widthPct = (count / maxFunnelCount) * 100;
-              const percentOfTotal = pct(count, totalLeads);
-              return (
-                <div key={stage.key} className="flex items-center gap-3">
-                  <span className="text-xs text-muted-foreground w-16 text-right shrink-0">
-                    {stage.label}
+        {/* KPI Cards */}
+        <StaggerGrid className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Outreach Sent */}
+          <StaggerItem>
+            <motion.div
+              whileHover={{ y: -3 }}
+              className="rounded-xl border p-[1px]"
+              style={{ background: `linear-gradient(135deg, ${kpiGradients[0]}, transparent 60%)` }}
+            >
+              <div className="rounded-xl bg-card p-4">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                    Total Outreach Sent
+                  </p>
+                  <Send className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <p className="text-3xl font-bold tabular-nums" style={{ color: '#D4AF37' }}>
+                  {totalSent.toLocaleString()}
+                </p>
+                <div className="flex items-center gap-1 mt-1">
+                  {trends.sent.positive ? (
+                    <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <ArrowDownRight className="w-3.5 h-3.5 text-red-400" />
+                  )}
+                  <span
+                    className={`text-xs font-medium tabular-nums ${
+                      trends.sent.positive ? 'text-emerald-400' : 'text-red-400'
+                    }`}
+                  >
+                    {trends.sent.value}%
                   </span>
-                  <div className="flex-1 h-7 bg-muted/50 rounded-md overflow-hidden relative">
-                    <div
-                      className={`h-full ${stage.color} rounded-md transition-all duration-500 flex items-center px-2`}
-                      style={{ width: `${Math.max(widthPct, 4)}%` }}
-                    >
-                      <span className="text-[11px] font-semibold text-white tabular-nums drop-shadow-sm truncate">
-                        {count.toLocaleString()}
-                      </span>
+                  <span className="text-xs text-muted-foreground ml-1">vs prev. period</span>
+                </div>
+              </div>
+            </motion.div>
+          </StaggerItem>
+
+          {/* Reply Rate */}
+          <StaggerItem>
+            <motion.div
+              whileHover={{ y: -3 }}
+              className="rounded-xl border p-[1px]"
+              style={{ background: `linear-gradient(135deg, ${kpiGradients[1]}, transparent 60%)` }}
+            >
+              <div className="rounded-xl bg-card p-4">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                    Reply Rate
+                  </p>
+                  <Mail className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <p className="text-3xl font-bold tabular-nums" style={{ color: '#D4AF37' }}>
+                  {replyRate.toFixed(1)}%
+                </p>
+                <div className="flex items-center gap-1 mt-1">
+                  {trends.reply.positive ? (
+                    <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <ArrowDownRight className="w-3.5 h-3.5 text-red-400" />
+                  )}
+                  <span
+                    className={`text-xs font-medium tabular-nums ${
+                      trends.reply.positive ? 'text-emerald-400' : 'text-red-400'
+                    }`}
+                  >
+                    {trends.reply.value}%
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-1">vs prev. period</span>
+                </div>
+              </div>
+            </motion.div>
+          </StaggerItem>
+
+          {/* Bounce Rate */}
+          <StaggerItem>
+            <motion.div
+              whileHover={{ y: -3 }}
+              className="rounded-xl border p-[1px]"
+              style={{ background: `linear-gradient(135deg, ${kpiGradients[2]}, transparent 60%)` }}
+            >
+              <div className="rounded-xl bg-card p-4">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                    Bounce Rate
+                  </p>
+                  <TrendingDown className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <p className="text-3xl font-bold tabular-nums" style={{ color: '#D4AF37' }}>
+                  {bounceRate.toFixed(1)}%
+                </p>
+                <div className="flex items-center gap-1 mt-1">
+                  {trends.bounce.positive ? (
+                    <ArrowDownRight className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <ArrowUpRight className="w-3.5 h-3.5 text-red-400" />
+                  )}
+                  <span
+                    className={`text-xs font-medium tabular-nums ${
+                      !trends.bounce.positive ? 'text-emerald-400' : 'text-red-400'
+                    }`}
+                  >
+                    {trends.bounce.value}%
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-1">vs prev. period</span>
+                </div>
+              </div>
+            </motion.div>
+          </StaggerItem>
+
+          {/* Email Health Score */}
+          <StaggerItem>
+            <motion.div
+              whileHover={{ y: -3 }}
+              className="rounded-xl border p-[1px]"
+              style={{ background: `linear-gradient(135deg, ${kpiGradients[3]}, transparent 60%)` }}
+            >
+              <div className="rounded-xl bg-card p-4">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                    Email Health Score
+                  </p>
+                  <Target className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <p className="text-3xl font-bold tabular-nums" style={{ color: '#D4AF37' }}>
+                  {avgHealth}
+                  <span className="text-base font-normal text-muted-foreground">/100</span>
+                </p>
+                <div className="flex items-center gap-1 mt-1">
+                  {trends.health.positive ? (
+                    <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <ArrowDownRight className="w-3.5 h-3.5 text-red-400" />
+                  )}
+                  <span
+                    className={`text-xs font-medium tabular-nums ${
+                      trends.health.positive ? 'text-emerald-400' : 'text-red-400'
+                    }`}
+                  >
+                    {trends.health.value}%
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-1">vs prev. period</span>
+                </div>
+              </div>
+            </motion.div>
+          </StaggerItem>
+        </StaggerGrid>
+
+        {/* Pipeline Funnel */}
+        <SectionHeader title="Pipeline Funnel" />
+        <AnimatedCard hover={false}>
+          <div className="p-4">
+            <div className="space-y-2">
+              {FUNNEL_STAGES.map((stage, idx) => {
+                const count = d.contactsByStatus[stage.key] ?? 0;
+                const widthPct = (count / maxFunnelCount) * 100;
+                const percentOfTotal = pct(count, totalLeads);
+                return (
+                  <div key={stage.key} className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground w-16 text-right shrink-0">
+                      {stage.label}
+                    </span>
+                    <div className="flex-1 h-7 bg-muted/50 rounded-md overflow-hidden relative">
+                      <motion.div
+                        className={`h-full ${stage.color} rounded-md flex items-center px-2`}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.max(widthPct, 4)}%` }}
+                        transition={{ duration: 0.6, delay: idx * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }}
+                      >
+                        <span className="text-[11px] font-semibold text-white tabular-nums drop-shadow-sm truncate">
+                          {count.toLocaleString()}
+                        </span>
+                      </motion.div>
                     </div>
+                    <span className="text-xs font-medium text-muted-foreground w-12 tabular-nums text-right shrink-0">
+                      {percentOfTotal}%
+                    </span>
                   </div>
-                  <span className="text-xs font-medium text-muted-foreground w-12 tabular-nums text-right shrink-0">
-                    {percentOfTotal}%
+                );
+              })}
+            </div>
+          </div>
+        </AnimatedCard>
+
+        {/* Campaign Performance Table */}
+        <SectionHeader title="Campaign Performance" />
+        <AnimatedCard hover={false}>
+          <div className="p-4">
+            <div className="max-h-64 overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-muted-foreground text-xs">Batch</TableHead>
+                    <TableHead className="text-muted-foreground text-xs text-right">Imported</TableHead>
+                    <TableHead className="text-muted-foreground text-xs text-right">Verified %</TableHead>
+                    <TableHead className="text-muted-foreground text-xs text-right">Drafted</TableHead>
+                    <TableHead className="text-muted-foreground text-xs text-right">Sent</TableHead>
+                    <TableHead className="text-muted-foreground text-xs text-right">Replies</TableHead>
+                    <TableHead className="text-muted-foreground text-xs text-right">Reply Rate</TableHead>
+                    <TableHead className="text-muted-foreground text-xs text-right">Bounce Rate</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {campaigns.map((c, i) => (
+                    <TableRow key={i} className="border-border">
+                      <TableCell className="text-foreground text-sm font-medium max-w-[160px] truncate">
+                        {c.name}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm text-right tabular-nums">
+                        {c.imported}
+                      </TableCell>
+                      <TableCell className="text-sm text-right tabular-nums">
+                        <span className="text-emerald-400">{c.verifiedPct.toFixed(1)}%</span>
+                      </TableCell>
+                      <TableCell className="text-foreground text-sm text-right tabular-nums">
+                        {c.drafted}
+                      </TableCell>
+                      <TableCell className="text-foreground text-sm text-right tabular-nums">
+                        {c.sent}
+                      </TableCell>
+                      <TableCell className="text-foreground text-sm text-right tabular-nums">
+                        {c.replies}
+                      </TableCell>
+                      <TableCell className="text-sm text-right tabular-nums">
+                        <Badge
+                          variant="outline"
+                          className={
+                            c.replyRate >= 30
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                              : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                          }
+                        >
+                          {c.replyRate.toFixed(1)}%
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-right tabular-nums">
+                        <span
+                          className={
+                            c.bounceRate <= 5
+                              ? 'text-emerald-400'
+                              : c.bounceRate <= 10
+                              ? 'text-amber-400'
+                              : 'text-red-400'
+                          }
+                        >
+                          {c.bounceRate.toFixed(1)}%
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {campaigns.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={8}
+                        className="text-muted-foreground text-sm text-center py-6"
+                      >
+                        No campaign data available
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </AnimatedCard>
+
+        {/* Email Health Breakdown */}
+        <SectionHeader title="Email Health Breakdown" />
+        <AnimatedCard hover={false}>
+          <div className="p-4">
+            {/* Stacked bar */}
+            <div className="flex h-6 rounded-md overflow-hidden w-full">
+              {healthTotal > 0 && (
+                <>
+                  <motion.div
+                    className="bg-emerald-500"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(eh.valid / healthTotal) * 100}%` }}
+                    transition={{ duration: 0.7, delay: 0, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  />
+                  <motion.div
+                    className="bg-amber-500"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(eh.risky / healthTotal) * 100}%` }}
+                    transition={{ duration: 0.7, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  />
+                  <motion.div
+                    className="bg-red-500"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(eh.invalid / healthTotal) * 100}%` }}
+                    transition={{ duration: 0.7, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  />
+                  <motion.div
+                    className="bg-zinc-500"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(eh.unknown / healthTotal) * 100}%` }}
+                    transition={{ duration: 0.7, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  />
+                </>
+              )}
+            </div>
+
+            {/* Legend + counts */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+              {[
+                { label: 'Valid', count: eh.valid, color: 'bg-emerald-500', textColor: 'text-emerald-400' },
+                { label: 'Risky', count: eh.risky, color: 'bg-amber-500', textColor: 'text-amber-400' },
+                { label: 'Invalid', count: eh.invalid, color: 'bg-red-500', textColor: 'text-red-400' },
+                { label: 'Unknown', count: eh.unknown, color: 'bg-zinc-500', textColor: 'text-zinc-400' },
+              ].map(item => (
+                <div key={item.label} className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-sm ${item.color} shrink-0`} />
+                  <span className="text-xs text-muted-foreground">{item.label}</span>
+                  <span className={`text-xs font-semibold tabular-nums ml-auto ${item.textColor}`}>
+                    {item.count.toLocaleString()}
+                  </span>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    ({pct(item.count, healthTotal)}%)
                   </span>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </AnimatedCard>
 
-      {/* ══════════════════════════════════════════════════════════════════
-          3. Campaign Performance Table
-      ══════════════════════════════════════════════════════════════════ */}
-      <Card className="bg-card border border-border">
-        <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-primary" />
-            Campaign Performance
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4">
-          <div className="max-h-64 overflow-y-auto">
+        {/* Recent Activity Feed */}
+        <SectionHeader title="Recent Activity" />
+        <AnimatedCard hover={false}>
+          <div className="p-4">
+            <div className="max-h-80 overflow-y-auto space-y-0">
+              {DEMO_ACTIVITY.map((item, i) => (
+                <div
+                  key={i}
+                  className="flex items-start gap-3 py-2.5 border-b border-border last:border-b-0"
+                >
+                  <div className="mt-0.5">
+                    <item.icon className={`w-4 h-4 ${item.color}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-foreground leading-snug">{item.text}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
+                    {item.time}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </AnimatedCard>
+
+        {/* Top Companies by Contact Count */}
+        <SectionHeader title="Top Companies" subtitle="By contact count" />
+        <AnimatedCard hover={false}>
+          <div className="p-4">
             <Table>
               <TableHeader>
                 <TableRow className="border-border hover:bg-transparent">
-                  <TableHead className="text-muted-foreground text-xs">Batch</TableHead>
-                  <TableHead className="text-muted-foreground text-xs text-right">Imported</TableHead>
-                  <TableHead className="text-muted-foreground text-xs text-right">Verified %</TableHead>
-                  <TableHead className="text-muted-foreground text-xs text-right">Drafted</TableHead>
-                  <TableHead className="text-muted-foreground text-xs text-right">Sent</TableHead>
-                  <TableHead className="text-muted-foreground text-xs text-right">Replies</TableHead>
-                  <TableHead className="text-muted-foreground text-xs text-right">Reply Rate</TableHead>
-                  <TableHead className="text-muted-foreground text-xs text-right">Bounce Rate</TableHead>
+                  <TableHead className="text-muted-foreground text-xs">Company</TableHead>
+                  <TableHead className="text-muted-foreground text-xs">Industry</TableHead>
+                  <TableHead className="text-muted-foreground text-xs text-right">Contacts</TableHead>
+                  <TableHead className="text-muted-foreground text-xs text-right">Avg Score</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {campaigns.map((c, i) => (
+                {DEMO_COMPANIES.map((c, i) => (
                   <TableRow key={i} className="border-border">
-                    <TableCell className="text-foreground text-sm font-medium max-w-[160px] truncate">
+                    <TableCell className="text-foreground text-sm font-medium">
                       {c.name}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm text-right tabular-nums">
-                      {c.imported}
-                    </TableCell>
-                    <TableCell className="text-sm text-right tabular-nums">
-                      <span className="text-emerald-400">{c.verifiedPct.toFixed(1)}%</span>
-                    </TableCell>
-                    <TableCell className="text-foreground text-sm text-right tabular-nums">
-                      {c.drafted}
-                    </TableCell>
-                    <TableCell className="text-foreground text-sm text-right tabular-nums">
-                      {c.sent}
-                    </TableCell>
-                    <TableCell className="text-foreground text-sm text-right tabular-nums">
-                      {c.replies}
-                    </TableCell>
-                    <TableCell className="text-sm text-right tabular-nums">
-                      <Badge
-                        variant="outline"
-                        className={
-                          c.replyRate >= 30
-                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                            : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                        }
-                      >
-                        {c.replyRate.toFixed(1)}%
+                    <TableCell>
+                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-xs">
+                        {c.industry}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-foreground text-sm text-right tabular-nums">
+                      {c.contacts}
                     </TableCell>
                     <TableCell className="text-sm text-right tabular-nums">
                       <span
                         className={
-                          c.bounceRate <= 5
+                          c.avgScore >= 85
                             ? 'text-emerald-400'
-                            : c.bounceRate <= 10
+                            : c.avgScore >= 75
                             ? 'text-amber-400'
                             : 'text-red-400'
                         }
                       >
-                        {c.bounceRate.toFixed(1)}%
+                        {c.avgScore}
                       </span>
+                      <span className="text-muted-foreground">/100</span>
                     </TableCell>
                   </TableRow>
                 ))}
-                {campaigns.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="text-muted-foreground text-sm text-center py-6"
-                    >
-                      No campaign data available
-                    </TableCell>
-                  </TableRow>
-                )}
               </TableBody>
             </Table>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* ══════════════════════════════════════════════════════════════════
-          4. Email Health Breakdown
-      ══════════════════════════════════════════════════════════════════ */}
-      <Card className="bg-card border border-border">
-        <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary" />
-            Email Health Breakdown
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4">
-          {/* Stacked bar */}
-          <div className="flex h-6 rounded-md overflow-hidden w-full">
-            {healthTotal > 0 && (
-              <>
-                <div
-                  className="bg-emerald-500 transition-all"
-                  style={{ width: `${(eh.valid / healthTotal) * 100}%` }}
-                />
-                <div
-                  className="bg-amber-500 transition-all"
-                  style={{ width: `${(eh.risky / healthTotal) * 100}%` }}
-                />
-                <div
-                  className="bg-red-500 transition-all"
-                  style={{ width: `${(eh.invalid / healthTotal) * 100}%` }}
-                />
-                <div
-                  className="bg-zinc-500 transition-all"
-                  style={{ width: `${(eh.unknown / healthTotal) * 100}%` }}
-                />
-              </>
-            )}
-          </div>
-
-          {/* Legend + counts */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-            {[
-              { label: 'Valid', count: eh.valid, color: 'bg-emerald-500', textColor: 'text-emerald-400' },
-              { label: 'Risky', count: eh.risky, color: 'bg-amber-500', textColor: 'text-amber-400' },
-              { label: 'Invalid', count: eh.invalid, color: 'bg-red-500', textColor: 'text-red-400' },
-              { label: 'Unknown', count: eh.unknown, color: 'bg-zinc-500', textColor: 'text-zinc-400' },
-            ].map(item => (
-              <div key={item.label} className="flex items-center gap-2">
-                <span className={`w-2.5 h-2.5 rounded-sm ${item.color} shrink-0`} />
-                <span className="text-xs text-muted-foreground">{item.label}</span>
-                <span className={`text-xs font-semibold tabular-nums ml-auto ${item.textColor}`}>
-                  {item.count.toLocaleString()}
-                </span>
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  ({pct(item.count, healthTotal)}%)
-                </span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ══════════════════════════════════════════════════════════════════
-          5. Recent Activity Feed
-      ══════════════════════════════════════════════════════════════════ */}
-      <Card className="bg-card border border-border">
-        <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary" />
-            Recent Activity
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4">
-          <div className="max-h-80 overflow-y-auto space-y-0">
-            {DEMO_ACTIVITY.map((item, i) => (
-              <div
-                key={i}
-                className="flex items-start gap-3 py-2.5 border-b border-border last:border-b-0"
-              >
-                <div className="mt-0.5">
-                  <item.icon className={`w-4 h-4 ${item.color}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground leading-snug">{item.text}</p>
-                </div>
-                <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-                  {item.time}
-                </span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ══════════════════════════════════════════════════════════════════
-          6. Top Companies by Contact Count
-      ══════════════════════════════════════════════════════════════════ */}
-      <Card className="bg-card border border-border">
-        <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Users className="w-4 h-4 text-primary" />
-            Top Companies by Contact Count
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground text-xs">Company</TableHead>
-                <TableHead className="text-muted-foreground text-xs">Industry</TableHead>
-                <TableHead className="text-muted-foreground text-xs text-right">Contacts</TableHead>
-                <TableHead className="text-muted-foreground text-xs text-right">Avg Score</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {DEMO_COMPANIES.map((c, i) => (
-                <TableRow key={i} className="border-border">
-                  <TableCell className="text-foreground text-sm font-medium">
-                    {c.name}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-xs">
-                      {c.industry}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-foreground text-sm text-right tabular-nums">
-                    {c.contacts}
-                  </TableCell>
-                  <TableCell className="text-sm text-right tabular-nums">
-                    <span
-                      className={
-                        c.avgScore >= 85
-                          ? 'text-emerald-400'
-                          : c.avgScore >= 75
-                          ? 'text-amber-400'
-                          : 'text-red-400'
-                      }
-                    >
-                      {c.avgScore}
-                    </span>
-                    <span className="text-muted-foreground">/100</span>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+        </AnimatedCard>
+      </div>
+    </PageTransition>
   );
 }

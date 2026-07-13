@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion } from 'framer-motion';
+import { PageTransition, AnimatedCard, SectionHeader } from '@/components/ui/animated-components';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import {
   Mail,
   Clock,
@@ -28,7 +29,6 @@ import {
   RotateCcw,
   CheckCircle2,
   XCircle,
-  Settings,
 } from 'lucide-react';
 
 // ── Timezone list ──────────────────────────────────────────────
@@ -84,6 +84,9 @@ function getUserTimezone() {
 }
 
 export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: string) => void }) {
+  // ── Active tab ───────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState('mailbox');
+
   // ── Toast state ─────────────────────────────────────────────
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const showToast = (msg: string) => {
@@ -142,70 +145,75 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
     setWorkDays((prev) => prev.map((d, i) => (i === idx ? !d : d)));
   };
 
+  // ── Tab items ──────────────────────────────────────────────
+  const SETTINGS_TABS = [
+    { value: 'mailbox', label: 'Mailbox', icon: Mail },
+    { value: 'hours', label: 'Working Hours', icon: Clock },
+    { value: 'verification', label: 'Verification', icon: ShieldCheck },
+    { value: 'scoring', label: 'Lead Scoring', icon: Star },
+    { value: 'suppression', label: 'Suppression', icon: Ban },
+  ];
+
   return (
-    <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-6 pr-1">
-      {/* ── Toast notification ─────────────────────────────────── */}
-      {toastMessage && (
-        <div className="fixed top-6 right-6 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-300 shadow-lg backdrop-blur-sm">
-            <CheckCircle2 className="size-4" />
-            {toastMessage}
+    <PageTransition>
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-6 pr-1">
+        {/* ── Toast notification ─────────────────────────────────── */}
+        {toastMessage && (
+          <div className="fixed top-6 right-6 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-300 shadow-lg backdrop-blur-sm">
+              <CheckCircle2 className="size-4" />
+              {toastMessage}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ── Page header ───────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
-          <Settings className="size-5 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Settings</h1>
-          <p className="text-sm text-muted-foreground">
-            Configure your DeepMindQ workspace preferences
-          </p>
-        </div>
-      </div>
+        {/* ── Page header ───────────────────────────────────────── */}
+        <SectionHeader title="Settings" subtitle="Configure your DeepMindQ workspace preferences" />
 
-      <Separator />
+        {/* ── Tab bar with gold active indicator ─────────────────── */}
+        <div className="flex flex-wrap gap-1 p-1 rounded-lg bg-white/[0.03] border border-border">
+          {SETTINGS_TABS.map(tab => {
+            const isActive = activeTab === tab.value;
+            const Icon = tab.icon;
+            return (
+              <motion.button
+                key={tab.value}
+                onClick={() => setActiveTab(tab.value)}
+                className={`relative flex items-center gap-1.5 px-4 py-2 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap transition-colors ${
+                  isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/70'
+                }`}
+                whileTap={{ scale: 0.97 }}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="settings-tab"
+                    className="absolute inset-0 rounded-md"
+                    style={{ background: 'rgba(212, 175, 55, 0.1)', border: '1px solid rgba(212, 175, 55, 0.2)' }}
+                    transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                  />
+                )}
+                <Icon className="size-3.5 relative z-10 hidden sm:block" />
+                <span className="relative z-10">{tab.label}</span>
+              </motion.button>
+            );
+          })}
+        </div>
 
-      {/* ── Tabs ───────────────────────────────────────────────── */}
-      <Tabs defaultValue="mailbox" className="w-full">
-        <TabsList className="flex flex-wrap w-full h-auto gap-1 bg-card border border-border p-1">
-          <TabsTrigger value="mailbox" className="gap-1.5 text-xs sm:text-sm">
-            <Mail className="size-3.5 hidden sm:block" />
-            Mailbox
-          </TabsTrigger>
-          <TabsTrigger value="hours" className="gap-1.5 text-xs sm:text-sm">
-            <Clock className="size-3.5 hidden sm:block" />
-            Working Hours
-          </TabsTrigger>
-          <TabsTrigger value="verification" className="gap-1.5 text-xs sm:text-sm">
-            <ShieldCheck className="size-3.5 hidden sm:block" />
-            Verification
-          </TabsTrigger>
-          <TabsTrigger value="scoring" className="gap-1.5 text-xs sm:text-sm">
-            <Star className="size-3.5 hidden sm:block" />
-            Lead Scoring
-          </TabsTrigger>
-          <TabsTrigger value="suppression" className="gap-1.5 text-xs sm:text-sm">
-            <Ban className="size-3.5 hidden sm:block" />
-            Suppression
-          </TabsTrigger>
-        </TabsList>
+        {/* ── Tabs content ───────────────────────────────────────── */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
 
         {/* ═══════════════════════════════════════════════════════
-            TAB 1 — Mailbox Configuration
+            TAB 1 - Mailbox Configuration
            ═══════════════════════════════════════════════════════ */}
         <TabsContent value="mailbox" className="mt-4 space-y-4">
-          <Card className="border-border bg-card">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-base">
+          <AnimatedCard hover={false} delay={0.05}>
+            <div className="p-6 space-y-5">
+              {/* Section title */}
+              <div className="flex items-center gap-2 text-base font-semibold text-foreground">
                 <Mail className="size-4 text-primary" />
                 Outlook Mailbox
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-5">
+              </div>
+
               {/* Email address */}
               <div className="space-y-2">
                 <Label htmlFor="outlook-email" className="text-sm text-muted-foreground">
@@ -304,22 +312,22 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                   Save Settings
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </AnimatedCard>
         </TabsContent>
 
         {/* ═══════════════════════════════════════════════════════
-            TAB 2 — Working Hours
+            TAB 2 - Working Hours
            ═══════════════════════════════════════════════════════ */}
         <TabsContent value="hours" className="mt-4 space-y-4">
-          <Card className="border-border bg-card">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-base">
+          <AnimatedCard hover={false} delay={0.05}>
+            <div className="p-6 space-y-5">
+              {/* Section title */}
+              <div className="flex items-center gap-2 text-base font-semibold text-foreground">
                 <Clock className="size-4 text-primary" />
                 Working Hours Configuration
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-5">
+              </div>
+
               {/* Time selects */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-2xl">
                 <div className="space-y-2">
@@ -426,22 +434,22 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                   Save Settings
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </AnimatedCard>
         </TabsContent>
 
         {/* ═══════════════════════════════════════════════════════
-            TAB 3 — Email Verification
+            TAB 3 - Email Verification
            ═══════════════════════════════════════════════════════ */}
         <TabsContent value="verification" className="mt-4 space-y-4">
-          <Card className="border-border bg-card">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-base">
+          <AnimatedCard hover={false} delay={0.05}>
+            <div className="p-6 space-y-5">
+              {/* Section title */}
+              <div className="flex items-center gap-2 text-base font-semibold text-foreground">
                 <ShieldCheck className="size-4 text-primary" />
                 Email Verification Rules
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-5">
+              </div>
+
               <div className="space-y-4">
                 {/* Auto-verify */}
                 <div className="flex items-center justify-between max-w-lg">
@@ -541,25 +549,24 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                   Save Settings
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </AnimatedCard>
         </TabsContent>
 
         {/* ═══════════════════════════════════════════════════════
-            TAB 4 — Lead Scoring
+            TAB 4 - Lead Scoring
            ═══════════════════════════════════════════════════════ */}
         <TabsContent value="scoring" className="mt-4 space-y-4">
-          <Card className="border-border bg-card">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-base">
+          <AnimatedCard hover={false} delay={0.05}>
+            <div className="p-6 space-y-5">
+              {/* Section title */}
+              <div className="flex items-center gap-2 text-base font-semibold text-foreground">
                 <Star className="size-4 text-primary" />
                 Lead Scoring Rules
-              </CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
+              </div>
+              <p className="text-sm text-muted-foreground">
                 Adjust point values for each scoring criterion. Leads are ranked by total score.
               </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
               {scoringRules.map((rule, idx) => (
                 <div key={rule.id}>
                   <div className="flex items-center justify-between gap-4 max-w-lg">
@@ -614,25 +621,24 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                   Save Rules
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </AnimatedCard>
         </TabsContent>
 
         {/* ═══════════════════════════════════════════════════════
-            TAB 5 — Suppression Rules
+            TAB 5 - Suppression Rules
            ═══════════════════════════════════════════════════════ */}
         <TabsContent value="suppression" className="mt-4 space-y-4">
-          <Card className="border-border bg-card">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-base">
+          <AnimatedCard hover={false} delay={0.05}>
+            <div className="p-6 space-y-5">
+              {/* Section title */}
+              <div className="flex items-center gap-2 text-base font-semibold text-foreground">
                 <Ban className="size-4 text-primary" />
                 Suppression Rules
-              </CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
+              </div>
+              <p className="text-sm text-muted-foreground">
                 Control when contacts are automatically suppressed from future campaigns.
               </p>
-            </CardHeader>
-            <CardContent className="space-y-5">
               {/* Auto-suppress on hard bounce */}
               <div className="flex items-center justify-between max-w-lg">
                 <div className="space-y-0.5">
@@ -703,10 +709,11 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                   Save Settings
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </AnimatedCard>
         </TabsContent>
       </Tabs>
     </div>
+    </PageTransition>
   );
 }

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion } from 'framer-motion';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -9,9 +10,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import {
   Upload, ShieldCheck, FileText, CheckCircle2, Clock,
   Send, Mail, MailX, Ban, ChevronRight, ArrowRight,
-  UploadCloud, MailCheck, FileCheck, ListChecks,
-  Layers, TrendingUp, AlertTriangle, Zap,
+  UploadCloud, MailCheck, FileCheck,
+  Layers, TrendingUp, AlertTriangle,
 } from 'lucide-react';
+import {
+  PageTransition, AnimatedCard, StaggerGrid, StaggerItem,
+  SectionHeader,
+} from '@/components/ui/animated-components';
 
 /* ═══════════════════════════════════════════════════
    Types
@@ -192,9 +197,9 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
   const suppressedCount = suppressionsCount;
   const batchesCount = dashData.recentBatches?.length || 0;
 
-  const deliveryRate = sentCount > 0 ? rate(sentCount - bouncedCount, sentCount) : '—';
-  const replyRate = sentCount > 0 ? rate(repliedCount, sentCount) : '—';
-  const bounceRate = sentCount > 0 ? rate(bouncedCount, sentCount) : '—';
+  const deliveryRate = sentCount > 0 ? rate(sentCount - bouncedCount, sentCount) : '-';
+  const replyRate = sentCount > 0 ? rate(repliedCount, sentCount) : '-';
+  const bounceRate = sentCount > 0 ? rate(bouncedCount, sentCount) : '-';
 
   /* ── Build stages array ── */
   const stages: PipelineStage[] = [
@@ -213,7 +218,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
       icon: ShieldCheck,
       count: verifiedCount,
       ...STAGE_PALETTE.verified,
-      sublabel: `${validEmails} valid · ${riskyEmails} risky · ${invalidEmails} invalid`,
+      sublabel: `${validEmails} valid - ${riskyEmails} risky - ${invalidEmails} invalid`,
       navHint: 'Go to Leads',
     },
     {
@@ -295,311 +300,308 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
      Render
      ═══════════════════════════════════════════════════ */
   return (
-    <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-6 pr-1">
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Layers className="w-5 h-5 text-primary" />
-            Outreach Pipeline
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Visual funnel from import to reply &mdash;{' '}
-            <span className="text-primary font-medium tabular-nums">{importedCount.toLocaleString()}</span> total leads
-          </p>
+    <PageTransition>
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-6 pr-1">
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Layers className="w-5 h-5 text-primary" />
+              Outreach Pipeline
+            </h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Visual funnel from import to reply -{' '}
+              <span className="text-primary font-medium tabular-nums">{importedCount.toLocaleString()}</span> total leads
+            </p>
+          </div>
+          {dashData._demo && (
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px] uppercase tracking-wider">
+              Demo Data
+            </Badge>
+          )}
         </div>
-        {dashData._demo && (
-          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px] uppercase tracking-wider">
-            Demo Data
-          </Badge>
-        )}
-      </div>
 
-      {/* ══════════════════════════════════════════════
-         Funnel Visualization
-         ══════════════════════════════════════════════ */}
-      <Card className="bg-card border border-border">
-        <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-primary" />
-            Pipeline Funnel
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4 space-y-3">
-          {stages.map((stage, idx) => {
-            const widthPct = pct(stage.count, maxCount);
-            const funnelPct = pct(stage.count, importedCount);
-            const Icon = stage.icon;
-            return (
-              <div key={stage.key} className="group relative">
-                {/* Row: label + bar */}
-                <div className="flex items-center gap-3">
-                  {/* Label column */}
-                  <div className="w-32 sm:w-36 shrink-0 flex items-center gap-2">
-                    <div className={`w-7 h-7 rounded-md ${stage.accentBg} flex items-center justify-center shrink-0`}>
-                      <Icon className={`w-3.5 h-3.5 ${stage.iconColor}`} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-foreground leading-tight truncate">{stage.label}</p>
-                    </div>
-                  </div>
-
-                  {/* Funnel bar */}
-                  <div className="flex-1 min-w-0">
-                    <div className={`h-8 ${stage.barBg} rounded-md overflow-hidden relative`}>
-                      <div
-                        className={`h-full ${stage.barFill} rounded-md flex items-center justify-end pr-2 transition-all duration-700`}
-                        style={{ width: `${Math.max(widthPct, 4)}%` }}
-                      >
-                        <span className="text-[11px] font-bold text-white tabular-nums drop-shadow-sm">
-                          {stage.count.toLocaleString()}
-                        </span>
-                      </div>
-                      {/* Percentage overlay on right when bar is small */}
-                      {widthPct < 20 && (
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground tabular-nums">
-                          {funnelPct}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Funnel % column */}
-                  <div className="w-12 shrink-0 text-right">
-                    <span className="text-[11px] text-muted-foreground tabular-nums">{funnelPct}%</span>
-                  </div>
-                </div>
-
-                {/* Connector arrow (except last) */}
-                {idx < stages.length - 1 && (
-                  <div className="flex items-center gap-3 mt-0.5">
-                    <div className="w-32 sm:w-36" />
-                    <div className="flex-1 flex justify-center">
-                      <ChevronRight className="w-3 h-3 text-muted-foreground/30" />
-                    </div>
-                    <div className="w-12" />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </CardContent>
-      </Card>
-
-      {/* ══════════════════════════════════════════════
-         Detailed Stage Breakdown Grid
-         ══════════════════════════════════════════════ */}
-      <Card className="bg-card border border-border">
-        <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <ListChecks className="w-4 h-4 text-primary" />
-            Stage Breakdown
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {stages.map(stage => {
-              const Icon = stage.icon;
+        {/* ══════════════════════════════════════════════
+           Funnel Visualization
+           ══════════════════════════════════════════════ */}
+        <SectionHeader title="Pipeline Funnel" />
+        <AnimatedCard hover={false}>
+          <CardContent className="px-4 py-4 space-y-3">
+            {stages.map((stage, idx) => {
+              const widthPct = pct(stage.count, maxCount);
               const funnelPct = pct(stage.count, importedCount);
+              const Icon = stage.icon;
               return (
-                <Tooltip key={stage.key}>
-                  <TooltipTrigger asChild>
-                    <div className={`rounded-lg border border-border p-3 hover:border-muted-foreground/30 transition-colors cursor-pointer group`}>
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-8 h-8 rounded-md ${stage.accentBg} flex items-center justify-center`}>
-                            <Icon className={`w-4 h-4 ${stage.iconColor}`} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-foreground leading-tight">{stage.label}</p>
-                            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{stage.sublabel}</p>
-                          </div>
-                        </div>
-                        <ArrowRight className="w-3 h-3 text-muted-foreground/0 group-hover:text-muted-foreground transition-colors mt-2" />
+                <div key={stage.key} className="group relative">
+                  {/* Row: label + bar */}
+                  <div className="flex items-center gap-3">
+                    {/* Label column */}
+                    <div className="w-32 sm:w-36 shrink-0 flex items-center gap-2">
+                      <div className={`w-7 h-7 rounded-md ${stage.accentBg} flex items-center justify-center shrink-0`}>
+                        <Icon className={`w-3.5 h-3.5 ${stage.iconColor}`} />
                       </div>
-
-                      {/* Count badge */}
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-2xl font-bold text-primary tabular-nums">{stage.count.toLocaleString()}</span>
-                        <span className="text-[11px] text-muted-foreground tabular-nums">{funnelPct}% of total</span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-foreground leading-tight truncate">{stage.label}</p>
                       </div>
-
-                      {/* Progress bar */}
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${stage.barFill} transition-all duration-700`}
-                          style={{ width: `${funnelPct}%` }}
-                        />
-                      </div>
-
-                      {/* Optional badge */}
-                      {stage.badge && (
-                        <div className="mt-2">
-                          <Badge variant="outline" className={`text-[10px] ${stage.badgeColor}`}>
-                            {stage.badge}
-                          </Badge>
-                        </div>
-                      )}
                     </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="text-xs">
-                    <p>{stage.navHint || stage.label}</p>
-                  </TooltipContent>
-                </Tooltip>
+
+                    {/* Funnel bar */}
+                    <div className="flex-1 min-w-0">
+                      <div className={`h-8 ${stage.barBg} rounded-md overflow-hidden relative`}>
+                        <motion.div
+                          className={`h-full ${stage.barFill} rounded-md flex items-center justify-end pr-2`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.max(widthPct, 4)}%` }}
+                          transition={{ duration: 0.7, delay: idx * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }}
+                        >
+                          <span className="text-[11px] font-bold text-white tabular-nums drop-shadow-sm">
+                            {stage.count.toLocaleString()}
+                          </span>
+                        </motion.div>
+                        {/* Percentage overlay on right when bar is small */}
+                        {widthPct < 20 && (
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground tabular-nums">
+                            {funnelPct}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Funnel % column */}
+                    <div className="w-12 shrink-0 text-right">
+                      <span className="text-[11px] text-muted-foreground tabular-nums">{funnelPct}%</span>
+                    </div>
+                  </div>
+
+                  {/* Connector arrow (except last) */}
+                  {idx < stages.length - 1 && (
+                    <div className="flex items-center gap-3 mt-0.5">
+                      <div className="w-32 sm:w-36" />
+                      <div className="flex-1 flex justify-center">
+                        <ChevronRight className="w-3 h-3 text-muted-foreground/30" />
+                      </div>
+                      <div className="w-12" />
+                    </div>
+                  )}
+                </div>
               );
             })}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </AnimatedCard>
 
-      {/* ══════════════════════════════════════════════
-         Key Metrics Summary
-         ══════════════════════════════════════════════ */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* ══════════════════════════════════════════════
+           Detailed Stage Breakdown Grid
+           ══════════════════════════════════════════════ */}
+        <SectionHeader title="Stage Breakdown" />
         <Card className="bg-card border border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Delivery Rate</p>
-                <p className="text-xl font-bold text-emerald-400 mt-0.5 tabular-nums">{deliveryRate}</p>
+          <CardContent className="px-4 pb-4 pt-4">
+            <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {stages.map(stage => {
+                const Icon = stage.icon;
+                const funnelPct = pct(stage.count, importedCount);
+                return (
+                  <StaggerItem key={stage.key}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className={`rounded-lg border border-border p-3 hover:border-muted-foreground/30 transition-colors cursor-pointer group`}>
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-8 h-8 rounded-md ${stage.accentBg} flex items-center justify-center`}>
+                                <Icon className={`w-4 h-4 ${stage.iconColor}`} />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-foreground leading-tight">{stage.label}</p>
+                                <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{stage.sublabel}</p>
+                              </div>
+                            </div>
+                            <ArrowRight className="w-3 h-3 text-muted-foreground/0 group-hover:text-muted-foreground transition-colors mt-2" />
+                          </div>
+
+                          {/* Count badge */}
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-2xl font-bold text-primary tabular-nums">{stage.count.toLocaleString()}</span>
+                            <span className="text-[11px] text-muted-foreground tabular-nums">{funnelPct}% of total</span>
+                          </div>
+
+                          {/* Progress bar */}
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${stage.barFill} transition-all duration-700`}
+                              style={{ width: `${funnelPct}%` }}
+                            />
+                          </div>
+
+                          {/* Optional badge */}
+                          {stage.badge && (
+                            <div className="mt-2">
+                              <Badge variant="outline" className={`text-[10px] ${stage.badgeColor}`}>
+                                {stage.badge}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        <p>{stage.navHint || stage.label}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </StaggerItem>
+                );
+              })}
+            </StaggerGrid>
+          </CardContent>
+        </Card>
+
+        {/* ══════════════════════════════════════════════
+           Key Metrics Summary
+           ══════════════════════════════════════════════ */}
+        <SectionHeader title="Key Metrics" />
+        <StaggerGrid className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StaggerItem>
+            <motion.div whileHover={{ y: -2 }} className="rounded-xl border p-[1px]" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), transparent 60%)' }}>
+              <div className="rounded-xl bg-card p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Delivery Rate</p>
+                    <p className="text-xl font-bold text-emerald-400 mt-0.5 tabular-nums">{deliveryRate}</p>
+                  </div>
+                  <div className="w-8 h-8 rounded-md bg-emerald-500/15 flex items-center justify-center">
+                    <Send className="w-4 h-4 text-emerald-400" />
+                  </div>
+                </div>
               </div>
-              <div className="w-8 h-8 rounded-md bg-emerald-500/15 flex items-center justify-center">
-                <Send className="w-4 h-4 text-emerald-400" />
+            </motion.div>
+          </StaggerItem>
+          <StaggerItem>
+            <motion.div whileHover={{ y: -2 }} className="rounded-xl border p-[1px]" style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), transparent 60%)' }}>
+              <div className="rounded-xl bg-card p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Reply Rate</p>
+                    <p className="text-xl font-bold text-green-400 mt-0.5 tabular-nums">{replyRate}</p>
+                  </div>
+                  <div className="w-8 h-8 rounded-md bg-green-500/15 flex items-center justify-center">
+                    <Mail className="w-4 h-4 text-green-400" />
+                  </div>
+                </div>
               </div>
+            </motion.div>
+          </StaggerItem>
+          <StaggerItem>
+            <motion.div whileHover={{ y: -2 }} className="rounded-xl border p-[1px]" style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), transparent 60%)' }}>
+              <div className="rounded-xl bg-card p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Bounce Rate</p>
+                    <p className="text-xl font-bold text-red-400 mt-0.5 tabular-nums">{bounceRate}</p>
+                  </div>
+                  <div className="w-8 h-8 rounded-md bg-red-500/15 flex items-center justify-center">
+                    <AlertTriangle className="w-4 h-4 text-red-400" />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </StaggerItem>
+          <StaggerItem>
+            <motion.div whileHover={{ y: -2 }} className="rounded-xl border p-[1px]" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), transparent 60%)' }}>
+              <div className="rounded-xl bg-card p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Conversion</p>
+                    <p className="text-xl font-bold text-primary mt-0.5 tabular-nums">
+                      {importedCount > 0 ? rate(repliedCount, importedCount) : '0%'}
+                    </p>
+                  </div>
+                  <div className="w-8 h-8 rounded-md bg-primary/15 flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-primary" />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </StaggerItem>
+        </StaggerGrid>
+
+        {/* ══════════════════════════════════════════════
+           Email Verification Breakdown
+           ══════════════════════════════════════════════ */}
+        <SectionHeader title="Email Verification" />
+        <Card className="bg-card border border-border">
+          <CardContent className="px-4 pb-4 pt-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { key: 'valid', label: 'Valid', color: 'bg-emerald-400', textColor: 'text-emerald-400', icon: MailCheck },
+                { key: 'risky', label: 'Risky', color: 'bg-amber-400', textColor: 'text-amber-400', icon: AlertTriangle },
+                { key: 'invalid', label: 'Invalid', color: 'bg-red-400', textColor: 'text-red-400', icon: MailX },
+                { key: 'unknown', label: 'Unknown', color: 'bg-zinc-500', textColor: 'text-zinc-400', icon: ShieldCheck },
+              ].map((item, idx) => {
+                const count = (eh as any)?.[item.key] || 0;
+                const itemPct = pct(count, emailTotal);
+                const ItemIcon = item.icon;
+                return (
+                  <div key={item.key} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ItemIcon className={`w-3.5 h-3.5 ${item.textColor}`} />
+                        <span className="text-sm text-foreground">{item.label}</span>
+                      </div>
+                      <span className="text-sm font-medium text-primary tabular-nums">{count.toLocaleString()}</span>
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <motion.div
+                        className={`h-full rounded-full ${item.color}`}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${itemPct}%` }}
+                        transition={{ duration: 0.7, delay: idx * 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground tabular-nums">{itemPct}% of verified</p>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
+
+        {/* ══════════════════════════════════════════════
+           Quick Actions
+           ══════════════════════════════════════════════ */}
+        <SectionHeader title="Quick Actions" />
         <Card className="bg-card border border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Reply Rate</p>
-                <p className="text-xl font-bold text-green-400 mt-0.5 tabular-nums">{replyRate}</p>
-              </div>
-              <div className="w-8 h-8 rounded-md bg-green-500/15 flex items-center justify-center">
-                <Mail className="w-4 h-4 text-green-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Bounce Rate</p>
-                <p className="text-xl font-bold text-red-400 mt-0.5 tabular-nums">{bounceRate}</p>
-              </div>
-              <div className="w-8 h-8 rounded-md bg-red-500/15 flex items-center justify-center">
-                <AlertTriangle className="w-4 h-4 text-red-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Conversion</p>
-                <p className="text-xl font-bold text-primary mt-0.5 tabular-nums">
-                  {importedCount > 0 ? rate(repliedCount, importedCount) : '0%'}
-                </p>
-              </div>
-              <div className="w-8 h-8 rounded-md bg-primary/15 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-primary" />
-              </div>
+          <CardContent className="px-4 pb-4 pt-4">
+            <div className="flex flex-wrap gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs border-zinc-500/30 text-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors"
+              >
+                <UploadCloud className="w-3.5 h-3.5 mr-2" />
+                Upload New List
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs border-blue-500/30 text-foreground hover:text-blue-400 hover:border-blue-500/40 hover:bg-blue-500/5 transition-colors"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 mr-2" />
+                Verify All Emails
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs border-amber-500/30 text-foreground hover:text-amber-400 hover:border-amber-500/40 hover:bg-amber-500/5 transition-colors"
+              >
+                <FileCheck className="w-3.5 h-3.5 mr-2" />
+                Review Pending Drafts
+                {draftsPendingReview > 0 && (
+                  <Badge variant="outline" className="ml-2 bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px] px-1.5 py-0">
+                    {draftsPendingReview}
+                  </Badge>
+                )}
+              </Button>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* ══════════════════════════════════════════════
-         Email Verification Breakdown
-         ══════════════════════════════════════════════ */}
-      <Card className="bg-card border border-border">
-        <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-blue-400" />
-            Email Verification Breakdown
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { key: 'valid', label: 'Valid', color: 'bg-emerald-400', textColor: 'text-emerald-400', icon: MailCheck },
-              { key: 'risky', label: 'Risky', color: 'bg-amber-400', textColor: 'text-amber-400', icon: AlertTriangle },
-              { key: 'invalid', label: 'Invalid', color: 'bg-red-400', textColor: 'text-red-400', icon: MailX },
-              { key: 'unknown', label: 'Unknown', color: 'bg-zinc-500', textColor: 'text-zinc-400', icon: ShieldCheck },
-            ].map(item => {
-              const count = (eh as any)?.[item.key] || 0;
-              const itemPct = pct(count, emailTotal);
-              const ItemIcon = item.icon;
-              return (
-                <div key={item.key} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <ItemIcon className={`w-3.5 h-3.5 ${item.textColor}`} />
-                      <span className="text-sm text-foreground">{item.label}</span>
-                    </div>
-                    <span className="text-sm font-medium text-primary tabular-nums">{count.toLocaleString()}</span>
-                  </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${item.color} transition-all duration-700`}
-                      style={{ width: `${itemPct}%` }}
-                    />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground tabular-nums">{itemPct}% of verified</p>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ══════════════════════════════════════════════
-         Quick Actions
-         ══════════════════════════════════════════════ */}
-      <Card className="bg-card border border-border">
-        <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Zap className="w-4 h-4 text-primary" />
-            Quick Actions
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4">
-          <div className="flex flex-wrap gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 text-xs border-zinc-500/30 text-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors"
-            >
-              <UploadCloud className="w-3.5 h-3.5 mr-2" />
-              Upload New List
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 text-xs border-blue-500/30 text-foreground hover:text-blue-400 hover:border-blue-500/40 hover:bg-blue-500/5 transition-colors"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 mr-2" />
-              Verify All Emails
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 text-xs border-amber-500/30 text-foreground hover:text-amber-400 hover:border-amber-500/40 hover:bg-amber-500/5 transition-colors"
-            >
-              <FileCheck className="w-3.5 h-3.5 mr-2" />
-              Review Pending Drafts
-              {draftsPendingReview > 0 && (
-                <Badge variant="outline" className="ml-2 bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px] px-1.5 py-0">
-                  {draftsPendingReview}
-                </Badge>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    </PageTransition>
   );
 }

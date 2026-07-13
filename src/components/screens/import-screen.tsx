@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion } from 'framer-motion';
+import { PageTransition, AnimatedCard, SectionHeader } from '@/components/ui/animated-components';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -70,7 +71,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
       const d = await batchRes.json();
       setBatches(Array.isArray(d) ? d : d.batches || []);
     } catch {
-      setUploadResult({ success: false, message: 'Network error — please try again.' });
+      setUploadResult({ success: false, message: 'Network error - please try again.' });
     }
     setUploading(false);
   };
@@ -98,42 +99,46 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
   }
 
   return (
+    <PageTransition>
     <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-6 pr-1">
-      {/* ── Upload Area ── */}
-      <Card className="bg-card border border-border">
-        <CardContent className="p-6">
-          <div
-            className={`border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center gap-3 transition-colors cursor-pointer ${
-              dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-            }`}
-            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {uploading ? (
-              <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Upload className="w-10 h-10 text-muted-foreground" />
-            )}
-            <div className="text-center">
-              <p className="text-sm font-medium text-foreground">
-                {uploading ? 'Processing file...' : 'Upload CSV or Excel'}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {uploading ? 'Parsing rows, detecting duplicates, scoring leads...' : 'Drag & drop or click to browse. Supports .csv, .xlsx, .xls'}
-              </p>
+      {/* Upload Area */}
+      <SectionHeader title="Import Leads" />
+      <div className="rounded-xl border p-[1px]" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.12), transparent 60%)' }}>
+        <AnimatedCard hover={false}>
+          <div className="p-6">
+            <div
+              className={`border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center gap-3 transition-colors cursor-pointer ${
+                dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+              }`}
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {uploading ? (
+                <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Upload className="w-10 h-10 text-muted-foreground" />
+              )}
+              <div className="text-center">
+                <p className="text-sm font-medium text-foreground">
+                  {uploading ? 'Processing file...' : 'Upload CSV or Excel'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {uploading ? 'Parsing rows, detecting duplicates, scoring leads...' : 'Drag & drop or click to browse. Supports .csv, .xlsx, .xls'}
+                </p>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                className="hidden"
+                onChange={handleFileInput}
+              />
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              className="hidden"
-              onChange={handleFileInput}
-            />
           </div>
-        </CardContent>
-      </Card>
+        </AnimatedCard>
+      </div>
 
       {/* ── Upload Result Banner ── */}
       {uploadResult && (
@@ -172,16 +177,11 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
         </div>
       )}
 
-      {/* ── Batch History ── */}
-      <Card className="bg-card border border-border">
-        <CardHeader className="pb-3 pt-4 px-4">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <FileSpreadsheet className="w-4 h-4 text-primary" />
-            Import History
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4">
-          <Table>
+      {/* Batch History */}
+      <SectionHeader title="Import History" />
+      <AnimatedCard hover={false}>
+          <div className="px-4 pt-4">
+            <Table>
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground text-xs">Filename</TableHead>
@@ -238,10 +238,10 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+          </div>
+      </AnimatedCard>
 
-      {/* ── Batch Detail Dialog ── */}
+      {/* Batch Detail Dialog */}
       <Dialog open={!!selectedBatch} onOpenChange={() => setSelectedBatch(null)}>
         <DialogContent className="bg-card border border-border text-foreground max-w-md">
           <DialogHeader>
@@ -291,5 +291,6 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
         </DialogContent>
       </Dialog>
     </div>
+    </PageTransition>
   );
 }

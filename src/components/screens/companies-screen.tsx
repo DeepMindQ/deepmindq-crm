@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, Building2, Globe, MapPin, Briefcase, Users, X, BookOpen, StickyNote, FileText } from 'lucide-react';
+import { PageTransition, AnimatedCard, StaggerGrid, StaggerItem, SectionHeader } from '@/components/ui/animated-components';
 
 interface Company {
   id: string;
@@ -80,11 +81,13 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
     setLoadingContacts(false);
   };
 
+  const countText = loading ? 'Loading...' : `${companies.length} compan${companies.length === 1 ? 'y' : 'ies'}`;
+
   return (
-    <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-4 pr-1">
-      {/* ── Search ── */}
-      <Card className="bg-card border border-border">
-        <CardContent className="p-4">
+    <PageTransition>
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-4 pr-1">
+        {/* Search */}
+        <AnimatedCard hover={false} delay={0}>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -94,62 +97,65 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
               className="pl-9 h-9 text-sm bg-background border-border"
             />
           </div>
-        </CardContent>
-      </Card>
+        </AnimatedCard>
 
-      {/* ── Company Grid ── */}
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-36 rounded-lg" />)}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {companies.map(company => (
-            <Card
-              key={company.id}
-              className="bg-card border border-border hover:border-primary/40 transition-colors cursor-pointer group"
-              onClick={() => openCompany(company)}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-md bg-primary/15 flex items-center justify-center shrink-0">
-                      <Building2 className="w-4 h-4 text-primary" />
+        {/* Company Grid */}
+        <SectionHeader title="Companies" subtitle={countText} />
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-36 rounded-lg" />)}
+          </div>
+        ) : (
+          <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {companies.map(company => (
+              <StaggerItem key={company.id}>
+                <motion.div
+                  className="rounded-xl border p-[1px] cursor-pointer"
+                  style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.1), transparent 60%)' }}
+                  whileHover={{ y: -3 }}
+                  onClick={() => openCompany(company)}
+                >
+                  <div className="rounded-xl bg-card p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-md bg-primary/15 flex items-center justify-center shrink-0">
+                          <Building2 className="w-4 h-4 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{company.name}</p>
+                          {company.domain && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <Globe className="w-3 h-3" />{company.domain}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="bg-primary/15 text-primary border-primary/30 shrink-0">
+                        {company.contactCount ?? 0}
+                      </Badge>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{company.name}</p>
-                      {company.domain && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <Globe className="w-3 h-3" />{company.domain}
-                        </p>
+                    <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      {company.industry && (
+                        <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" />{company.industry}</span>
+                      )}
+                      {company.employeeSize && (
+                        <span className="flex items-center gap-1"><Users className="w-3 h-3" />{company.employeeSize}</span>
+                      )}
+                      {company.country && (
+                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{company.country}</span>
                       )}
                     </div>
                   </div>
-                  <Badge variant="outline" className="bg-primary/15 text-primary border-primary/30 shrink-0">
-                    {company.contactCount ?? 0}
-                  </Badge>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  {company.industry && (
-                    <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" />{company.industry}</span>
-                  )}
-                  {company.employeeSize && (
-                    <span className="flex items-center gap-1"><Users className="w-3 h-3" />{company.employeeSize}</span>
-                  )}
-                  {company.country && (
-                    <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{company.country}</span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {companies.length === 0 && (
-            <div className="col-span-full text-muted-foreground text-sm text-center py-12">
-              No companies found.
-            </div>
-          )}
-        </div>
-      )}
+                </motion.div>
+              </StaggerItem>
+            ))}
+            {companies.length === 0 && (
+              <div className="col-span-full text-muted-foreground text-sm text-center py-12">
+                No companies found.
+              </div>
+            )}
+          </StaggerGrid>
+        )}
 
       {/* ── Company Detail Dialog ── */}
       <Dialog open={!!selectedCompany} onOpenChange={() => setSelectedCompany(null)}>
@@ -188,14 +194,12 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
 
                 {/* Research Card */}
                 {selectedCompany.research && (
-                  <Card className="bg-background border border-border">
-                    <CardHeader className="pb-2 pt-3 px-4">
-                      <CardTitle className="text-xs font-semibold flex items-center gap-2 text-primary">
+                  <AnimatedCard hover={false} delay={0.1}>
+                    <div className="space-y-2.5">
+                      <h4 className="text-xs font-semibold flex items-center gap-2 text-primary">
                         <BookOpen className="w-3.5 h-3.5" />
                         Company Research
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-3 space-y-2.5">
+                      </h4>
                       {selectedCompany.research.businessOverview && (
                         <div>
                           <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Business Overview</p>
@@ -232,11 +236,12 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                           <p className="text-sm text-primary font-medium">{selectedCompany.research.nextAction}</p>
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </AnimatedCard>
                 )}
 
                 {/* Contacts */}
+                <AnimatedCard hover={false} delay={0.1}>
                 <div>
                   <h4 className="text-xs font-semibold flex items-center gap-2 mb-2">
                     <Users className="w-3.5 h-3.5 text-primary" />
@@ -258,7 +263,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                         <div key={c.id} className="flex items-center justify-between py-1.5 px-3 rounded-md bg-background border border-border">
                           <div>
                             <p className="text-sm font-medium text-foreground">{c.name}</p>
-                            <p className="text-xs text-muted-foreground">{c.jobTitle || c.email || '—'}</p>
+                            <p className="text-xs text-muted-foreground">{c.jobTitle || c.email || '-'}</p>
                           </div>
                           <div className="flex items-center gap-2">
                             {navigateTo && (
@@ -278,11 +283,11 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                     <p className="text-sm text-muted-foreground">No contacts at this company.</p>
                   )}
                 </div>
+                </AnimatedCard>
 
                 {/* Notes */}
                 {selectedCompany.notes && (
-                  <>
-                    <Separator className="bg-border" />
+                  <AnimatedCard hover={false} delay={0.1}>
                     <div>
                       <h4 className="text-xs font-semibold flex items-center gap-2 mb-2">
                         <StickyNote className="w-3.5 h-3.5 text-primary" />
@@ -290,13 +295,12 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                       </h4>
                       <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{selectedCompany.notes}</p>
                     </div>
-                  </>
+                  </AnimatedCard>
                 )}
 
                 {/* Internal Summary */}
                 {selectedCompany.internalSummary && (
-                  <>
-                    <Separator className="bg-border" />
+                  <AnimatedCard hover={false} delay={0.1}>
                     <div>
                       <h4 className="text-xs font-semibold flex items-center gap-2 mb-2">
                         <FileText className="w-3.5 h-3.5 text-primary" />
@@ -304,13 +308,14 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                       </h4>
                       <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{selectedCompany.internalSummary}</p>
                     </div>
-                  </>
+                  </AnimatedCard>
                 )}
               </div>
             )}
           </ScrollArea>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </PageTransition>
   );
 }

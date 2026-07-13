@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Users, FileCheck, Clock, Mail, Activity, Heart, ShieldCheck, ShieldAlert, ShieldX, HelpCircle,
+  AlertTriangle, Info, Eye, ChevronRight,
 } from 'lucide-react';
 
 interface DashboardData {
@@ -44,7 +45,9 @@ function fmtDate(iso: string) {
   try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return iso; }
 }
 
-export default function DashboardScreen() {
+const CLICKABLE = 'cursor-pointer hover:opacity-80 transition-opacity';
+
+export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: string) => void }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -58,6 +61,7 @@ export default function DashboardScreen() {
   if (loading) {
     return (
       <div className="space-y-6">
+        <Skeleton className="h-[100px] rounded-lg" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)}
         </div>
@@ -78,17 +82,115 @@ export default function DashboardScreen() {
   const { emailHealthDistribution: eh } = data;
   const healthTotal = eh.valid + eh.risky + eh.invalid + eh.unknown;
 
+  // --- Pipeline Funnel Data ---
+  const importedCount = (data.contactsByStatus['imported'] || 0) + (data.contactsByStatus['cleaned'] || 0) + (data.contactsByStatus['duplicate'] || 0);
+  const verifiedCount = eh.valid + eh.risky;
+  const draftedCount = data.contactsByStatus['drafted'] || 0;
+  const inReviewCount = data.draftsPendingReview;
+  const queuedCount = data.queuePending;
+  const sentCount = data.contactsByStatus['sent'] || 0;
+  const repliedCount = data.repliesThisWeek;
+
+  const funnelStages = [
+    { label: 'Imported', count: importedCount, color: 'bg-zinc-500' },
+    { label: 'Verified', count: verifiedCount, color: 'bg-blue-500' },
+    { label: 'Drafted', count: draftedCount, color: 'bg-amber-500' },
+    { label: 'In Review', count: inReviewCount, color: 'bg-purple-500' },
+    { label: 'Queued', count: queuedCount, color: 'bg-indigo-500' },
+    { label: 'Sent', count: sentCount, color: 'bg-emerald-500' },
+    { label: 'Replied', count: repliedCount, color: 'bg-green-500' },
+  ];
+
+  const funnelMax = Math.max(...funnelStages.map(s => s.count), 1);
+
+  // --- Alerts ---
+  const alerts: { icon: typeof AlertTriangle; text: string; color: string; viewScreen?: string; viewLabel?: string }[] = [];
+  if (data.bouncesCount > 0) {
+    alerts.push({ icon: AlertTriangle, text: `Bounce rate needs attention (${data.bouncesCount} bounces)`, color: 'bg-amber-500/10 border-amber-500/25 text-amber-400', viewScreen: 'bounces', viewLabel: 'View' });
+  }
+  if (data.draftsPendingReview > 5) {
+    alerts.push({ icon: AlertTriangle, text: `Draft review backlog growing (${data.draftsPendingReview} pending)`, color: 'bg-amber-500/10 border-amber-500/25 text-amber-400', viewScreen: 'drafts', viewLabel: 'Review' });
+  }
+  if (data.queuePending > 20) {
+    alerts.push({ icon: Info, text: `Large queue pending (${data.queuePending} in queue) — consider throttling`, color: 'bg-blue-500/10 border-blue-500/25 text-blue-400', viewScreen: 'queue', viewLabel: 'View' });
+  }
+  if (eh.invalid > 0) {
+    alerts.push({ icon: ShieldX, text: `Invalid emails detected (${eh.invalid}) — consider cleanup`, color: 'bg-red-500/10 border-red-500/25 text-red-400', viewScreen: 'leads', viewLabel: 'Clean' });
+  }
+  if (data.suppressionsCount > 0) {
+    alerts.push({ icon: ShieldAlert, text: `Suppressions active (${data.suppressionsCount}) — review periodically`, color: 'bg-zinc-500/10 border-zinc-500/25 text-zinc-400', viewScreen: 'leads', viewLabel: 'View' });
+  }
+
   return (
     <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-6 pr-1">
+      {/* Mini Pipeline Funnel */}
+      <Card className="bg-card border border-border">
+        <CardHeader className="pb-2 pt-4 px-4">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Activity className="w-4 h-4 text-primary" />
+            Pipeline Funnel
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-4">
+          <div className="flex items-end gap-1.5 h-[68px]">
+            {funnelStages.map(stage => {
+              const widthPct = Math.max((stage.count / funnelMax) * 100, 4);
+              return (
+                <div key={stage.label} className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+                  <span className="text-xs font-semibold text-primary tabular-nums">{stage.count}</span>
+                  <div className="w-full flex justify-center">
+                    <div
+                      className={`${stage.color} rounded-sm transition-all duration-500 min-h-[28px]`}
+                      style={{ width: `${widthPct}%`, height: '28px' }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground truncate w-full text-center">{stage.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Warnings / Alerts */}
+      {alerts.length > 0 && (
+        <div className="space-y-2">
+          {alerts.map((alert, i) => (
+            <div
+              key={i}
+              className={`flex items-center justify-between rounded-md border px-3 py-2 ${alert.color}`}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <alert.icon className="w-4 h-4 shrink-0" />
+                <span className="text-xs font-medium truncate">{alert.text}</span>
+              </div>
+              {alert.viewScreen && navigateTo && (
+                <button
+                  onClick={() => navigateTo(alert.viewScreen!)}
+                  className="flex items-center gap-0.5 text-xs font-medium shrink-0 hover:underline ml-2"
+                >
+                  {alert.viewLabel || 'View'}
+                  <ChevronRight className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Leads', value: totalLeads, icon: Users },
-          { label: 'Ready for Review', value: data.draftsPendingReview, icon: FileCheck },
-          { label: 'In Queue', value: data.queuePending, icon: Clock },
-          { label: 'Replies This Week', value: data.repliesThisWeek, icon: Mail },
+          { label: 'Total Leads', value: totalLeads, icon: Users, screen: undefined },
+          { label: 'Ready for Review', value: data.draftsPendingReview, icon: FileCheck, screen: 'drafts' },
+          { label: 'In Queue', value: data.queuePending, icon: Clock, screen: 'queue' },
+          { label: 'Replies This Week', value: data.repliesThisWeek, icon: Mail, screen: 'replies' },
         ].map(s => (
-          <Card key={s.label} className="bg-card border border-border">
+          <Card
+            key={s.label}
+            className={`bg-card border border-border ${s.screen && navigateTo ? CLICKABLE : ''}`}
+            onClick={() => s.screen && navigateTo?.(s.screen)}
+          >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -106,7 +208,10 @@ export default function DashboardScreen() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="bg-card border border-border">
           <CardHeader className="pb-3 pt-4 px-4">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <CardTitle
+              className={`text-sm font-semibold flex items-center gap-2 ${navigateTo ? CLICKABLE : ''}`}
+              onClick={() => navigateTo?.('import')}
+            >
               <Activity className="w-4 h-4 text-primary" />
               Recent Batches
             </CardTitle>
@@ -146,7 +251,10 @@ export default function DashboardScreen() {
 
         <Card className="bg-card border border-border">
           <CardHeader className="pb-3 pt-4 px-4">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <CardTitle
+              className={`text-sm font-semibold flex items-center gap-2 ${navigateTo ? CLICKABLE : ''}`}
+              onClick={() => navigateTo?.('leads')}
+            >
               <Users className="w-4 h-4 text-primary" />
               Lead Status Breakdown
             </CardTitle>
@@ -206,7 +314,10 @@ export default function DashboardScreen() {
 
       {/* Quick Counts */}
       <div className="grid grid-cols-3 gap-4">
-        <Card className="bg-card border border-border">
+        <Card
+          className={`bg-card border border-border ${navigateTo ? CLICKABLE : ''}`}
+          onClick={() => navigateTo?.('bounces')}
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-8 h-8 rounded-md bg-red-500/15 flex items-center justify-center">
               <ShieldX className="w-4 h-4 text-red-400" />
@@ -228,7 +339,10 @@ export default function DashboardScreen() {
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-card border border-border">
+        <Card
+          className={`bg-card border border-border ${navigateTo ? CLICKABLE : ''}`}
+          onClick={() => navigateTo?.('companies')}
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-8 h-8 rounded-md bg-primary/15 flex items-center justify-center">
               <Activity className="w-4 h-4 text-primary" />

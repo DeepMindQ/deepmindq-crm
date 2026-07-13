@@ -33,7 +33,11 @@ const STATUS_COLORS: Record<string, string> = {
   paused: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
 };
 
-export default function QueueScreen() {
+interface QueueScreenProps {
+  navigateTo?: (screen: string) => void;
+}
+
+export default function QueueScreen({ navigateTo }: QueueScreenProps) {
   const [items, setItems] = useState<QueueItem[]>([]);
   const [summary, setSummary] = useState<QueueSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -181,9 +185,17 @@ export default function QueueScreen() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground">
-                          <Eye className="w-3.5 h-3.5" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground">
+                            <Eye className="w-3.5 h-3.5" />
+                          </Button>
+                          {navigateTo && (
+                            <span
+                              onClick={(e) => { e.stopPropagation(); navigateTo('drafts'); }}
+                              className="text-xs text-muted-foreground cursor-pointer hover:text-primary transition-colors whitespace-nowrap"
+                            >View Draft</span>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -191,6 +203,12 @@ export default function QueueScreen() {
                     <TableRow>
                       <TableCell colSpan={6} className="text-muted-foreground text-sm text-center py-8">
                         No items in the send queue.
+                        {navigateTo && (
+                          <span
+                            onClick={() => navigateTo('drafts')}
+                            className="ml-2 text-xs text-primary cursor-pointer hover:text-primary/80 transition-colors"
+                          >Review pending drafts →</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   )}

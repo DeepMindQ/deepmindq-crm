@@ -45,7 +45,11 @@ const CAT_LABEL: Record<string, string> = {
   objection_response: 'Objection Response', cta: 'CTA',
 };
 
-export default function CapabilityScreen() {
+interface CapabilityScreenProps {
+  navigateTo?: (screen: string) => void;
+}
+
+export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) {
   const [items, setItems] = useState<Capability[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('all');
@@ -66,6 +70,17 @@ export default function CapabilityScreen() {
 
   return (
     <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-4 pr-1">
+      {/* Info Note */}
+      {navigateTo && (
+        <p className="text-xs text-muted-foreground">
+          Capabilities are used by the AI draft engine.{' '}
+          <span
+            onClick={() => navigateTo('drafts')}
+            className="text-primary cursor-pointer hover:text-primary/80 transition-colors"
+          >View generated drafts →</span>
+        </p>
+      )}
+
       {/* Tabs */}
       <div className="flex gap-1 flex-wrap">
         {TABS.map(t => (
@@ -116,7 +131,9 @@ export default function CapabilityScreen() {
           );
         })}
         {items.length === 0 && (
-          <div className="col-span-full text-muted-foreground text-sm text-center py-12">No capabilities in this category.</div>
+          <div className="col-span-full text-muted-foreground text-sm text-center py-12">
+            No capabilities in this category. Add some to improve AI draft quality.
+          </div>
         )}
       </div>
 

@@ -198,7 +198,7 @@ export async function POST(request: Request) {
           }
           if (bestScore >= 70 && bestMatch) {
             companyId = bestMatch;
-            companyCache.set(normalizedName, companyId);
+            companyCache.set(normalizedName!, companyId);
           } else {
             // Create new company
             const newCompany = await db.company.create({
@@ -211,7 +211,7 @@ export async function POST(request: Request) {
               },
             });
             companyId = newCompany.id;
-            companyCache.set(normalizedName, companyId);
+            companyCache.set(normalizedName!, companyId!);
             existingCompanies.push(newCompany);
           }
         }
@@ -231,7 +231,7 @@ export async function POST(request: Request) {
             },
           });
           companyId = newCompany.id;
-          companyCache.set(phNorm, companyId);
+          companyCache.set(phNorm!, companyId!);
           existingCompanies.push(newCompany);
         }
       }

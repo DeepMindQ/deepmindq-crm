@@ -28,7 +28,11 @@ const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
 };
 
-export default function ImportScreen() {
+interface ImportScreenProps {
+  navigateTo?: (screen: string) => void;
+}
+
+export default function ImportScreen({ navigateTo }: ImportScreenProps) {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -155,6 +159,12 @@ export default function ImportScreen() {
                 <span className="text-xs text-muted-foreground">Invalid: <span className="text-red-400 font-medium tabular-nums">{uploadResult.details.invalid}</span></span>
               </div>
             )}
+            {uploadResult.success && navigateTo && (
+              <span
+                onClick={() => navigateTo('leads')}
+                className="inline-block mt-2 text-xs text-primary cursor-pointer hover:text-primary/80 transition-colors"
+              >View imported leads →</span>
+            )}
           </div>
           <button onClick={() => setUploadResult(null)} className="text-muted-foreground hover:text-foreground shrink-0">
             <X className="w-4 h-4" />
@@ -199,15 +209,23 @@ export default function ImportScreen() {
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs text-right whitespace-nowrap">{b.createdAt}</TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs text-primary hover:text-primary/80"
-                      onClick={() => setSelectedBatch(b)}
-                    >
-                      <Eye className="w-3.5 h-3.5 mr-1" />
-                      View
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-primary hover:text-primary/80"
+                        onClick={() => setSelectedBatch(b)}
+                      >
+                        <Eye className="w-3.5 h-3.5 mr-1" />
+                        View
+                      </Button>
+                      {navigateTo && b.acceptedRows > 0 && (
+                        <span
+                          onClick={(e) => { e.stopPropagation(); navigateTo('leads'); }}
+                          className="text-xs text-muted-foreground cursor-pointer hover:text-primary transition-colors whitespace-nowrap"
+                        >View Leads</span>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

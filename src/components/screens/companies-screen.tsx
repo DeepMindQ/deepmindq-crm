@@ -45,7 +45,11 @@ interface Contact {
   status: string;
 }
 
-export default function CompaniesScreen() {
+interface CompaniesScreenProps {
+  navigateTo?: (screen: string) => void;
+}
+
+export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -237,6 +241,12 @@ export default function CompaniesScreen() {
                   <h4 className="text-xs font-semibold flex items-center gap-2 mb-2">
                     <Users className="w-3.5 h-3.5 text-primary" />
                     Contacts ({companyContacts.length})
+                    {navigateTo && companyContacts.length > 0 && (
+                      <span
+                        onClick={() => { setSelectedCompany(null); navigateTo('leads'); }}
+                        className="ml-auto text-[10px] text-muted-foreground cursor-pointer hover:text-primary transition-colors font-normal"
+                      >View all contacts →</span>
+                    )}
                   </h4>
                   {loadingContacts ? (
                     <div className="space-y-2">
@@ -250,9 +260,17 @@ export default function CompaniesScreen() {
                             <p className="text-sm font-medium text-foreground">{c.name}</p>
                             <p className="text-xs text-muted-foreground">{c.jobTitle || c.email || '—'}</p>
                           </div>
-                          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px]">
-                            {c.status}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            {navigateTo && (
+                              <span
+                                onClick={(e) => { e.stopPropagation(); navigateTo('leads'); }}
+                                className="text-[10px] text-muted-foreground cursor-pointer hover:text-primary transition-colors"
+                              >View</span>
+                            )}
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px]">
+                              {c.status}
+                            </Badge>
+                          </div>
                         </div>
                       ))}
                     </div>

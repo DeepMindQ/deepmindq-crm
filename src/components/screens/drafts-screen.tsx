@@ -76,7 +76,11 @@ interface AIDemoDraft {
   generatedAt: string;
 }
 
-export default function DraftsScreen() {
+interface DraftsScreenProps {
+  navigateTo?: (screen: string) => void;
+}
+
+export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('all');
@@ -386,7 +390,15 @@ export default function DraftsScreen() {
                 <TableBody>
                   {drafts.map(draft => (
                     <TableRow key={draft.id} className="border-border">
-                      <TableCell className="text-foreground text-sm font-medium">{draft.contact?.name || '—'}</TableCell>
+                      <TableCell className="text-foreground text-sm font-medium">
+                        <span>{draft.contact?.name || '—'}</span>
+                        {navigateTo && draft.contact?.name && (
+                          <span
+                            onClick={(e) => { e.stopPropagation(); navigateTo('leads'); }}
+                            className="ml-2 text-xs text-muted-foreground cursor-pointer hover:text-primary transition-colors"
+                          >View in Leads</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-muted-foreground text-sm hidden sm:table-cell">{draft.contact?.company?.name || '—'}</TableCell>
                       <TableCell className="text-foreground text-sm max-w-[200px] md:max-w-[280px] truncate">{draft.subject}</TableCell>
                       <TableCell>
@@ -415,6 +427,12 @@ export default function DraftsScreen() {
                     <TableRow>
                       <TableCell colSpan={7} className="text-muted-foreground text-sm text-center py-8">
                         No drafts found.
+                        {navigateTo && (
+                          <span
+                            onClick={() => navigateTo('import')}
+                            className="ml-2 text-xs text-primary cursor-pointer hover:text-primary/80 transition-colors"
+                          >Import leads first</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   )}
@@ -621,6 +639,22 @@ export default function DraftsScreen() {
                 )}
 
                 <Separator className="bg-border" />
+
+                {/* Navigation Links */}
+                <div className="flex items-center gap-3 mb-1">
+                  {selectedDraft.status === 'approved' && navigateTo && (
+                    <span
+                      onClick={() => { setSelectedDraft(null); navigateTo('queue'); }}
+                      className="text-xs text-muted-foreground cursor-pointer hover:text-primary transition-colors"
+                    >View in Queue →</span>
+                  )}
+                  {navigateTo && selectedDraft.contact?.company?.id && (
+                    <span
+                      onClick={() => navigateTo('companies')}
+                      className="text-xs text-muted-foreground cursor-pointer hover:text-primary transition-colors"
+                    >View Company →</span>
+                  )}
+                </div>
 
                 {/* Action Buttons */}
                 <div className="flex items-center justify-end gap-2">

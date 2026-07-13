@@ -31,7 +31,7 @@ const BOUNCE_TYPE_COLORS: Record<string, string> = {
   soft: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
 };
 
-export default function BouncesScreen() {
+export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: string) => void }) {
   const [bounces, setBounces] = useState<BounceEntry[]>([]);
   const [suppressions, setSuppressions] = useState<SuppressionEntry[]>([]);
   const [loadingBounces, setLoadingBounces] = useState(true);

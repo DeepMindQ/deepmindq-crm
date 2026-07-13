@@ -43,7 +43,11 @@ const CATEGORY_ICONS: Record<string, typeof Tag> = {
   other: Mail,
 };
 
-export default function RepliesScreen() {
+interface RepliesScreenProps {
+  navigateTo?: (screen: string) => void;
+}
+
+export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
   const [replies, setReplies] = useState<Reply[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -110,6 +114,7 @@ export default function RepliesScreen() {
                     <TableHead className="text-muted-foreground text-xs">Subject</TableHead>
                     <TableHead className="text-muted-foreground text-xs">Category</TableHead>
                     <TableHead className="text-muted-foreground text-xs text-right hidden md:table-cell">Received At</TableHead>
+                    <TableHead className="text-muted-foreground text-xs text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -117,7 +122,15 @@ export default function RepliesScreen() {
                     const Icon = CATEGORY_ICONS[reply.category] || Mail;
                     return (
                       <TableRow key={reply.id} className="border-border">
-                        <TableCell className="text-foreground text-sm font-medium">{reply.contactName}</TableCell>
+                        <TableCell className="text-foreground text-sm font-medium">
+                          <span>{reply.contactName}</span>
+                          {navigateTo && (
+                            <span
+                              onClick={(e) => { e.stopPropagation(); navigateTo('leads'); }}
+                              className="ml-2 text-xs text-muted-foreground cursor-pointer hover:text-primary transition-colors"
+                            >View Contact</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-muted-foreground text-sm hidden sm:table-cell">{reply.companyName || '—'}</TableCell>
                         <TableCell className="text-foreground text-sm max-w-[240px] md:max-w-[320px] truncate">{reply.subject}</TableCell>
                         <TableCell>
@@ -127,13 +140,27 @@ export default function RepliesScreen() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs text-right hidden md:table-cell whitespace-nowrap">{reply.receivedAt}</TableCell>
+                        <TableCell className="text-right">
+                          {navigateTo && reply.category === 'unsubscribe' && (
+                            <span
+                              onClick={(e) => { e.stopPropagation(); navigateTo('bounces'); }}
+                              className="text-xs text-muted-foreground cursor-pointer hover:text-primary transition-colors whitespace-nowrap"
+                            >Add to Suppression</span>
+                          )}
+                        </TableCell>
                       </TableRow>
                     );
                   })}
                   {replies.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-muted-foreground text-sm text-center py-8">
+                      <TableCell colSpan={6} className="text-muted-foreground text-sm text-center py-8">
                         No replies found.
+                        {navigateTo && (
+                          <span
+                            onClick={() => navigateTo('queue')}
+                            className="ml-2 text-xs text-primary cursor-pointer hover:text-primary/80 transition-colors"
+                          >Send emails to start getting replies →</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   )}

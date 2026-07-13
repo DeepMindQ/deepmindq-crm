@@ -38,58 +38,7 @@ const FF = {
   mono: "ui-monospace, 'Cascadia Code', 'Fira Code', monospace",
 };
 
-/* ═══════════════════════════════════════════════════
-   Page Loader
-   ═══════════════════════════════════════════════════ */
-function PageLoader({ onComplete }: { onComplete: () => void }) {
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setProgress(p => {
-        if (p >= 100) { clearInterval(interval); return 100; }
-        return p + Math.random() * 15 + 5;
-      });
-    }, 80);
-    const timeout = setTimeout(onComplete, 1800);
-    return () => { clearInterval(interval); clearTimeout(timeout); };
-  }, [onComplete]);
-
-  return (
-    <motion.div
-      className="fixed inset-0 z-[200] flex flex-col items-center justify-center"
-      style={{ background: C.bg }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.6, ease: [0.76, 0, 0.24, 1] }}
-    >
-      <div className="flex items-center gap-3 mb-10">
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center"
-          style={{ background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` }}>
-          <Brain className="w-6 h-6 text-white" />
-        </div>
-        <span className="text-2xl font-bold tracking-tight" style={{ fontFamily: FF.sans }}>
-          DeepMind<span style={{ color: C.gold }}>Q</span>
-        </span>
-      </div>
-      <div className="w-48 h-[2px] rounded-full overflow-hidden" style={{ background: C.border }}>
-        <motion.div
-          className="h-full rounded-full"
-          style={{ background: `linear-gradient(90deg, ${C.gold}, ${C.goldLight})` }}
-          animate={{ width: `${Math.min(progress, 100)}%` }}
-          transition={{ duration: 0.2 }}
-        />
-      </div>
-      <p
-        className="text-xs mt-4 tracking-[0.2em] uppercase"
-        style={{ color: C.textDim }}
-      >
-        Loading intelligence...
-      </p>
-    </motion.div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════
+/* ═════════════════════════════════════════
    Scroll Progress Bar
    ═══════════════════════════════════════════════════ */
 function ScrollProgress() {
@@ -486,7 +435,6 @@ export default function LandingPage({ onLogin }: { onLogin: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [loaded, setLoaded] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -510,26 +458,17 @@ export default function LandingPage({ onLogin }: { onLogin: () => void }) {
 
   return (
     <>
-      <AnimatePresence mode="wait">
-        {!loaded && <PageLoader onComplete={() => setLoaded(true)} />}
-      </AnimatePresence>
+      <div
+        className="relative" style={{ background: C.bg, color: C.text, fontFamily: FF.sans, minHeight: '100vh' }}
+      >
+        <CursorGlow />
+        <GrainOverlay />
+        <ScrollProgress />
 
-      {loaded && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          className="relative" style={{ background: C.bg, color: C.text, fontFamily: FF.sans }}
-        >
-          <CursorGlow />
-          <GrainOverlay />
-          <ScrollProgress />
-
-          {/* ══════ STICKY NAV ══════ */}
-          <motion.nav
-            initial={{ y: -100 }}
+        {/* ══════ STICKY NAV ══════ */}
+        <motion.nav
             animate={{ y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+            transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="fixed top-0 left-0 right-0 z-50 border-b"
             style={{ background: 'rgba(6, 9, 15, 0.75)', backdropFilter: 'blur(24px) saturate(1.8)', borderColor: C.border }}
           >
@@ -1012,9 +951,8 @@ export default function LandingPage({ onLogin }: { onLogin: () => void }) {
               </p>
             </div>
           </footer>
-        </motion.div>
-      )}
-    </>
+        </div>
+      </>
   );
 }
 

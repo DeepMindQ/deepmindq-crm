@@ -299,9 +299,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 25 * 1024 * 1024) {
       return NextResponse.json(
-        { error: 'File too large. Maximum 5MB allowed.' },
+        { error: 'File too large. Maximum 25MB allowed.' },
         { status: 400 }
       );
     }

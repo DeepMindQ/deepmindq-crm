@@ -73,6 +73,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
+    // File size limit: 25MB
+    const MAX_FILE_SIZE = 25 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: `File too large. Maximum ${MAX_FILE_SIZE / (1024 * 1024)}MB allowed. Your file is ${(file.size / (1024 * 1024)).toFixed(1)}MB.` },
+        { status: 400 }
+      );
+    }
+
     const ext = file.name.split('.').pop()?.toLowerCase();
     if (!['csv', 'xlsx', 'xls'].includes(ext || '')) {
       return NextResponse.json({ error: 'Only CSV and Excel files are supported' }, { status: 400 });

@@ -54,6 +54,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
     message: string;
     details?: { total: number; accepted: number; duplicates: number; invalid: number };
   } | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -66,7 +67,22 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
       .catch(() => setLoading(false));
   }, []);
 
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   const handleFileUpload = async (file: File) => {
+    // Client-side file size check (25MB)
+    if (file.size > 25 * 1024 * 1024) {
+      setUploadResult({
+        success: false,
+        message: `File too large (${formatFileSize(file.size)}). Maximum size is 25MB.`,
+      });
+      return;
+    }
+
     setUploading(true);
     setUploadResult(null);
     const formData = new FormData();
@@ -102,12 +118,18 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file) handleFileUpload(file);
+    if (file) {
+      setSelectedFile(file);
+      handleFileUpload(file);
+    }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) handleFileUpload(file);
+    if (file) {
+      setSelectedFile(file);
+      handleFileUpload(file);
+    }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -274,6 +296,8 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                     <p className="text-base font-semibold text-foreground">
                       {uploading ? (
                         <ShimmerText>Processing file...</ShimmerText>
+                      ) : selectedFile ? (
+                        <span className="text-primary">{selectedFile.name}</span>
                       ) : (
                         'Upload CSV or Excel'
                       )}
@@ -281,7 +305,9 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                     <p className="text-sm text-muted-foreground mt-2 max-w-sm">
                       {uploading
                         ? 'Parsing rows, detecting duplicates, scoring leads...'
-                        : 'Drag and drop or click to browse. Supports .csv, .xlsx, .xls'}
+                        : selectedFile
+                          ? `${formatFileSize(selectedFile.size)} — Click or drop to re-upload`
+                          : 'Drag and drop or click to browse. Supports .csv, .xlsx, .xls (max 25MB)'}
                     </p>
                   </div>
                   <input

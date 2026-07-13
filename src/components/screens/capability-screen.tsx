@@ -751,8 +751,8 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
       toast.error('Unsupported file type. Use .txt, .md, .pdf, or .docx');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File too large (max 5MB)');
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error('File too large (max 25MB)');
       return;
     }
 

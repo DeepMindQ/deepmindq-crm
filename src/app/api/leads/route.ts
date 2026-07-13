@@ -1,108 +1,172 @@
-import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
 
 /* ═══════════════════════════════════════════════════
-   Demo leads — shown when no real DB data exists
-   ═══════════════════════════════════════════════════ */
-const DEMO_LEADS = [
-  { id: 'demo-1', rawName: 'Sarah Chen', normalizedName: 'sarah chen', email: 'sarah.chen@stripe.com', title: 'VP of Engineering', role: 'executive', status: 'cleaned', emailHealth: 'valid', leadScore: 92, companyId: 'demo-c1', company: { id: 'demo-c1', rawName: 'Stripe', normalizedName: 'stripe', industry: 'Fintech', domain: 'stripe.com' }, createdAt: new Date(Date.now() - 86400000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'demo-2', rawName: 'Michael Torres', normalizedName: 'michael torres', email: 'm.torres@salesforce.com', title: 'Chief Technology Officer', role: 'executive', status: 'drafted', emailHealth: 'valid', leadScore: 95, companyId: 'demo-c2', company: { id: 'demo-c2', rawName: 'Salesforce', normalizedName: 'salesforce', industry: 'Technology', domain: 'salesforce.com' }, createdAt: new Date(Date.now() - 172800000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'demo-3', rawName: 'Priya Sharma', normalizedName: 'priya sharma', email: 'priya.sharma@infosys.com', title: 'Director of Digital Transformation', role: 'executive', status: 'queued', emailHealth: 'valid', leadScore: 88, companyId: 'demo-c3', company: { id: 'demo-c3', rawName: 'Infosys', normalizedName: 'infosys', industry: 'IT Services', domain: 'infosys.com' }, createdAt: new Date(Date.now() - 259200000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'demo-4', rawName: 'James O\'Brien', normalizedName: 'james o\'brien', email: 'jobrien@jpmorgan.com', title: 'Head of AI & Machine Learning', role: 'manager', status: 'sent', emailHealth: 'valid', leadScore: 85, companyId: 'demo-c4', company: { id: 'demo-c4', rawName: 'JPMorgan Chase', normalizedName: 'jpmorgan chase', industry: 'Financial Services', domain: 'jpmorgan.com' }, createdAt: new Date(Date.now() - 345600000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'demo-5', rawName: 'Aisha Patel', normalizedName: 'aisha patel', email: 'aisha.p@apollohospital.com', title: 'Chief Information Officer', role: 'executive', status: 'replied', emailHealth: 'valid', leadScore: 90, companyId: 'demo-c5', company: { id: 'demo-c5', rawName: 'Apollo Hospitals', normalizedName: 'apollo hospitals', industry: 'Healthcare', domain: 'apollohospital.com' }, createdAt: new Date(Date.now() - 432000000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'demo-6', rawName: 'David Kim', normalizedName: 'david kim', email: 'd.kim@samsung.com', title: 'Senior Director of Cloud Engineering', role: 'manager', status: 'cleaned', emailHealth: 'valid', leadScore: 82, companyId: 'demo-c6', company: { id: 'demo-c6', rawName: 'Samsung Electronics', normalizedName: 'samsung electronics', industry: 'Technology', domain: 'samsung.com' }, createdAt: new Date(Date.now() - 518400000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'demo-7', rawName: 'Emily Watson', normalizedName: 'emily watson', email: 'e.watson@nhs.uk', title: 'Head of Data & Analytics', role: 'manager', status: 'imported', emailHealth: 'risky', leadScore: 72, companyId: 'demo-c7', company: { id: 'demo-c7', rawName: 'NHS Digital', normalizedName: 'nhs digital', industry: 'Healthcare', domain: 'nhs.uk' }, createdAt: new Date(Date.now() - 604800000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'demo-8', rawName: 'Rajesh Kumar', normalizedName: 'rajesh kumar', email: 'rajesh.k@tata.com', title: 'VP of Technology', role: 'executive', status: 'cleaned', emailHealth: 'valid', leadScore: 87, companyId: 'demo-c8', company: { id: 'demo-c8', rawName: 'Tata Consultancy Services', normalizedName: 'tata consultancy services', industry: 'IT Services', domain: 'tata.com' }, createdAt: new Date(Date.now() - 691200000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'demo-9', rawName: 'Lisa Chang', normalizedName: 'lisa chang', email: 'l.chang@shopify.com', title: 'Director of Engineering', role: 'manager', status: 'bounced', emailHealth: 'invalid', leadScore: 45, companyId: 'demo-c9', company: { id: 'demo-c9', rawName: 'Shopify', normalizedName: 'shopify', industry: 'E-commerce', domain: 'shopify.com' }, createdAt: new Date(Date.now() - 777600000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'demo-10', rawName: 'Robert Fischer', normalizedName: 'robert fischer', email: 'r.fischer@siemens.com', title: 'Chief Digital Officer', role: 'executive', status: 'cleaned', emailHealth: 'valid', leadScore: 91, companyId: 'demo-c10', company: { id: 'demo-c10', rawName: 'Siemens AG', normalizedName: 'siemens ag', industry: 'Manufacturing', domain: 'siemens.com' }, createdAt: new Date(Date.now() - 864000000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'demo-11', rawName: 'Nina Okonkwo', normalizedName: 'nina okonkwo', email: 'nina.o@paystack.com', title: 'Engineering Manager', role: 'manager', status: 'cleaned', emailHealth: 'valid', leadScore: 78, companyId: 'demo-c11', company: { id: 'demo-c11', rawName: 'Paystack', normalizedName: 'paystack', industry: 'Fintech', domain: 'paystack.com' }, createdAt: new Date(Date.now() - 950400000).toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'demo-12', rawName: 'Tom Bradley', normalizedName: 'tom bradley', email: 't.bradley@boeing.com', title: 'Sr. Architect, Cloud Platform', role: 'technical', status: 'imported', emailHealth: 'valid', leadScore: 74, companyId: 'demo-c12', company: { id: 'demo-c12', rawName: 'Boeing', normalizedName: 'boeing', industry: 'Aerospace', domain: 'boeing.com' }, createdAt: new Date(Date.now() - 1036800000).toISOString(), updatedAt: new Date().toISOString() },
-];
+   Lead data is stored as static JSON chunks in
+   /public/data/leads-chunk-{n}.json
 
+   The API loads them on first request (cached in-memory
+   within the serverless function lifecycle), then applies
+   all filters server-side and returns paginated results.
+
+   Supports filtering by:
+   - search (text): name, email, title, company, city, country
+   - country, industry, department, empCat, city, state (exact or multi)
+   - title (designation)
+   - page, limit, sortBy
+   ═══════════════════════════════════════════════════ */
+
+type LeadRecord = {
+  fn: string; ln: string; email: string; title: string; dept: string;
+  li: string; company: string; web: string; empCat: string; empNum: string;
+  industry: string; cli: string; city: string; state: string; country: string;
+};
+
+let cachedLeads: LeadRecord[] | null = null;
+let cachedMeta: any = null;
+
+const TOTAL_CHUNKS = 9;
+
+async function loadAllLeads(): Promise<LeadRecord[]> {
+  if (cachedLeads) return cachedLeads;
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
+  const all: LeadRecord[] = [];
+  for (let i = 0; i < TOTAL_CHUNKS; i++) {
+    try {
+      const url = `${baseUrl}/data/leads-chunk-${i}.json`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const chunk = await res.json();
+        all.push(...chunk);
+      }
+    } catch (err) {
+      console.error(`Failed to load chunk ${i}:`, err);
+    }
+  }
+  cachedLeads = all;
+  return all;
+}
+
+async function loadMeta() {
+  if (cachedMeta) return cachedMeta;
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
+  try {
+    const res = await fetch(`${baseUrl}/data/leads-metadata.json`);
+    if (res.ok) {
+      cachedMeta = await res.json();
+    }
+  } catch { /* ignore */ }
+  return cachedMeta;
+}
+
+/* ── Filter helpers ── */
+function matchesText(record: LeadRecord, query: string): boolean {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  const name = `${record.fn} ${record.ln}`.toLowerCase();
+  return (
+    name.includes(q) ||
+    record.email.toLowerCase().includes(q) ||
+    record.title.toLowerCase().includes(q) ||
+    record.company.toLowerCase().includes(q) ||
+    record.city.toLowerCase().includes(q) ||
+    record.state.toLowerCase().includes(q) ||
+    record.country.toLowerCase().includes(q) ||
+    record.dept.toLowerCase().includes(q) ||
+    record.industry.toLowerCase().includes(q)
+  );
+}
+
+function matchesMulti(value: string, filterValues: string[]): boolean {
+  if (!filterValues || filterValues.length === 0) return true;
+  return filterValues.some(f => f.toLowerCase() === value.toLowerCase());
+}
+
+/* ── GET /api/leads ── */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+
+    // Parse filter params
     const search = searchParams.get('search') || '';
-    const status = searchParams.get('status') || '';
-    const company = searchParams.get('company') || '';
-    const sortBy = searchParams.get('sortBy') || 'createdAt';
+    const countries = searchParams.get('country')?.split(',').filter(Boolean) || [];
+    const industries = searchParams.get('industry')?.split(',').filter(Boolean) || [];
+    const departments = searchParams.get('department')?.split(',').filter(Boolean) || [];
+    const empCats = searchParams.get('empCat')?.split(',').filter(Boolean) || [];
+    const cities = searchParams.get('city')?.split(',').filter(Boolean) || [];
+    const states = searchParams.get('state')?.split(',').filter(Boolean) || [];
+    const titles = searchParams.get('title')?.split(',').filter(Boolean) || [];
+
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const sortBy = searchParams.get('sortBy') || 'company';
+    const metaOnly = searchParams.get('meta') === 'true';
 
-    const where: Prisma.ContactWhereInput = {};
-
-    if (search) {
-      where.OR = [
-        { normalizedName: { contains: search } },
-        { editedName: { contains: search } },
-        { rawName: { contains: search } },
-        { email: { contains: search } },
-        { title: { contains: search } },
-        { company: { normalizedName: { contains: search } } },
-        { company: { rawName: { contains: search } } },
-      ];
+    // Return metadata only (for building filter dropdowns)
+    if (metaOnly) {
+      const meta = await loadMeta();
+      return NextResponse.json({ meta, _source: 'excel' });
     }
 
-    if (status) {
-      where.status = status;
-    }
+    // Load all leads
+    const leads = await loadAllLeads();
 
-    if (company) {
-      where.company = {
-        OR: [
-          { normalizedName: { contains: company } },
-          { rawName: { contains: company } },
-        ],
-      };
-    }
-
-    const sortMap: Record<string, Prisma.ContactOrderByWithRelationInput> = {
-      createdAt: { createdAt: 'desc' },
-      updatedAt: { updatedAt: 'desc' },
-      leadScore: { leadScore: 'desc' },
-      name: { normalizedName: 'asc' },
-      email: { email: 'asc' },
-    };
-    const orderBy = sortMap[sortBy] || sortMap.createdAt;
-
-    const skip = (page - 1) * limit;
-
-    const [leads, total] = await Promise.all([
-      db.contact.findMany({
-        where,
-        include: { company: true },
-        orderBy,
-        skip,
-        take: limit,
-      }),
-      db.contact.count({ where }),
-    ]);
-
-    const totalPages = Math.ceil(total / limit);
-
-    // If no real data, return demo leads
-    if (total === 0 && !search && !status && !company) {
-      const demoFiltered = DEMO_LEADS.slice(skip, skip + limit);
-      return NextResponse.json({
-        leads: demoFiltered,
-        total: DEMO_LEADS.length,
-        page,
-        totalPages: Math.ceil(DEMO_LEADS.length / limit),
-        _demo: true,
-      });
-    }
-
-    return NextResponse.json({ leads, total, page, totalPages });
-  } catch (error) {
-    console.error('Leads error:', error);
-    // Return demo data on error too
-    return NextResponse.json({
-      leads: DEMO_LEADS.slice(0, 20),
-      total: DEMO_LEADS.length,
-      page: 1,
-      totalPages: 1,
-      _demo: true,
+    // Apply filters
+    const filtered = leads.filter(r => {
+      if (search && !matchesText(r, search)) return false;
+      if (countries.length > 0 && !matchesMulti(r.country, countries)) return false;
+      if (industries.length > 0 && !matchesMulti(r.industry, industries)) return false;
+      if (departments.length > 0 && !matchesMulti(r.dept, departments)) return false;
+      if (empCats.length > 0 && !matchesMulti(r.empCat, empCats)) return false;
+      if (cities.length > 0 && !matchesMulti(r.city, cities)) return false;
+      if (states.length > 0 && !matchesMulti(r.state, states)) return false;
+      if (titles.length > 0 && !matchesMulti(r.title, titles)) return false;
+      return true;
     });
+
+    // Sort
+    const sortKey = sortBy as keyof LeadRecord;
+    filtered.sort((a, b) => {
+      const va = (a[sortKey] || '').toString().toLowerCase();
+      const vb = (b[sortKey] || '').toString().toLowerCase();
+      return va.localeCompare(vb);
+    });
+
+    // Paginate
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const start = (page - 1) * limit;
+    const pageData = filtered.slice(start, start + limit);
+
+    // Transform to API format
+    const results = pageData.map((r, i) => ({
+      id: `lead-${start + i}`,
+      rawName: `${r.fn} ${r.ln}`.trim(),
+      email: r.email,
+      title: r.title,
+      department: r.dept,
+      linkedin: r.li,
+      company: r.company,
+      website: r.web,
+      employeeCategory: r.empCat,
+      employeeNumber: r.empNum,
+      industry: r.industry,
+      city: r.city,
+      state: r.state,
+      country: r.country,
+    }));
+
+    return NextResponse.json({
+      leads: results,
+      total,
+      page,
+      totalPages,
+      _source: 'excel',
+    });
+  } catch (error) {
+    console.error('Leads API error:', error);
+    return NextResponse.json(
+      { error: 'Failed to load leads', leads: [], total: 0, page: 1, totalPages: 0 },
+      { status: 500 }
+    );
   }
 }

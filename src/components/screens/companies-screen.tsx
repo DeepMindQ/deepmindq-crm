@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -96,6 +97,9 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
 
   const totalCompanies = companies.length;
   const companiesWithResearch = companies.filter(c => c.research).length;
+  const countText = search
+    ? `${totalCompanies} result${totalCompanies !== 1 ? 's' : ''} for "${search}"`
+    : `${totalCompanies} compan${totalCompanies !== 1 ? 'ies' : 'y'}`;
   const totalContacts = companies.reduce((sum, c) => sum + (c.contactCount ?? 0), 0);
 
   /* ── L-03: Enrich company ── */

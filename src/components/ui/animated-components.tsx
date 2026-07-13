@@ -349,11 +349,11 @@ export function ShimmerText({ children, className = '' }: { children: ReactNode;
 /* ═══════════════════════════════════════════════════
    Glass Panel - frosted glass container
    ═══════════════════════════════════════════════════ */
-export function GlassPanel({ children, className = '' }: { children: ReactNode; className?: string }) {
+export function GlassPanel({ children, className = '', style }: { children: ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
     <div
       className={`rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl ${className}`}
-      style={{ boxShadow: '0 4px 30px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05)' }}
+      style={{ boxShadow: '0 4px 30px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05)', ...style }}
     >
       {children}
     </div>

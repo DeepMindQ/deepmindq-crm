@@ -849,7 +849,6 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                               tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
                               axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
                               tickLine={false}
-                              gridLine={{ stroke: 'rgba(255,255,255,0.04)' }}
                             />
                             <YAxis
                               type="category"

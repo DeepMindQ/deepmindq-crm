@@ -1,33 +1,79 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense, Component, type ReactNode } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PageTransition } from '@/components/ui/animated-components';
 
 import {
   LayoutDashboard, Upload, Users, Building2, FileText, Send,
   Archive, Mail, XCircle, RefreshCw, Menu, X,
-  Brain, GitBranch, ScrollText, Settings, LogOut, BarChart3, Bell, Cpu, LayoutTemplate, Layers,
+  Brain, GitBranch, ScrollText, Settings, LogOut, BarChart3, Bell, Cpu, LayoutTemplate, Layers, AlertTriangle, Loader2,
 } from 'lucide-react';
+
 import LandingPage from '@/app/landing-page';
-import { PageTransition } from '@/components/ui/animated-components';
-import DashboardScreen from '@/components/screens/dashboard-screen';
-import ImportScreen from '@/components/screens/import-screen';
-import LeadsScreen from '@/components/screens/leads-screen';
-import CompaniesScreen from '@/components/screens/companies-screen';
-import SegmentsScreen from '@/components/screens/segments-screen';
-import DraftsScreen from '@/components/screens/drafts-screen';
-import QueueScreen from '@/components/screens/queue-screen';
-import CapabilityScreen from '@/components/screens/capability-screen';
-import KnowledgeLibraryScreen from '@/components/screens/knowledge-library-screen';
-import RepliesScreen from '@/components/screens/replies-screen';
-import BouncesScreen from '@/components/screens/bounces-screen';
-import PipelineScreen from '@/components/screens/pipeline-screen';
-import AnalyticsScreen from '@/components/screens/analytics-screen';
-import AuditScreen from '@/components/screens/audit-screen';
-import SettingsScreen from '@/components/screens/settings-screen';
-import TemplatesScreen from '@/components/screens/templates-screen';
-import SequencesScreen from '@/components/screens/sequences-screen';
+
+/* ── Lazy-loaded screen components ── */
+const DashboardScreen = lazy(() => import('@/components/screens/dashboard-screen'));
+const ImportScreen = lazy(() => import('@/components/screens/import-screen'));
+const LeadsScreen = lazy(() => import('@/components/screens/leads-screen'));
+const CompaniesScreen = lazy(() => import('@/components/screens/companies-screen'));
+const SegmentsScreen = lazy(() => import('@/components/screens/segments-screen'));
+const DraftsScreen = lazy(() => import('@/components/screens/drafts-screen'));
+const QueueScreen = lazy(() => import('@/components/screens/queue-screen'));
+const CapabilityScreen = lazy(() => import('@/components/screens/capability-screen'));
+const KnowledgeLibraryScreen = lazy(() => import('@/components/screens/knowledge-library-screen'));
+const RepliesScreen = lazy(() => import('@/components/screens/replies-screen'));
+const BouncesScreen = lazy(() => import('@/components/screens/bounces-screen'));
+const PipelineScreen = lazy(() => import('@/components/screens/pipeline-screen'));
+const AnalyticsScreen = lazy(() => import('@/components/screens/analytics-screen'));
+const AuditScreen = lazy(() => import('@/components/screens/audit-screen'));
+const SettingsScreen = lazy(() => import('@/components/screens/settings-screen'));
+const TemplatesScreen = lazy(() => import('@/components/screens/templates-screen'));
+const SequencesScreen = lazy(() => import('@/components/screens/sequences-screen'));
+
+/* ── Screen-level error boundary ── */
+interface ScreenErrorBoundaryState { hasError: boolean; error?: Error }
+class ScreenErrorBoundary extends Component<{ children: ReactNode; name: string }, ScreenErrorBoundaryState> {
+  constructor(props: { children: ReactNode; name: string }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center py-24 text-center px-4">
+          <div className="w-14 h-14 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
+            <AlertTriangle className="w-7 h-7 text-red-400" />
+          </div>
+          <p className="text-sm font-medium text-foreground mb-1">Screen failed to load</p>
+          <p className="text-xs text-muted-foreground max-w-sm mb-4">
+            {this.props.name} encountered an error. Other screens still work fine.
+          </p>
+          <button
+            className="px-4 py-2 text-xs font-medium rounded-lg bg-white/5 border border-white/10 text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors"
+            onClick={() => this.setState({ hasError: false, error: undefined })}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/* ── Screen loading fallback ── */
+function ScreenLoader() {
+  return (
+    <div className="flex items-center justify-center py-24">
+      <Loader2 className="w-6 h-6 animate-spin text-primary/50" />
+    </div>
+  );
+}
 
 /* ═══════════════════════════════════════════════════
    App Shell (after login)
@@ -73,7 +119,7 @@ const NAV_SECTIONS = [
   },
 ];
 
-const SCREEN_MAP: Record<string, React.ComponentType<{ navigateTo?: (screen: string) => void }>> = {
+const SCREEN_MAP: Record<string, React.LazyExoticComponent<React.ComponentType<{ navigateTo?: (screen: string) => void }>>> = {
   dashboard: DashboardScreen,
   import: ImportScreen,
   leads: LeadsScreen,
@@ -92,6 +138,9 @@ const SCREEN_MAP: Record<string, React.ComponentType<{ navigateTo?: (screen: str
   audit: AuditScreen,
   settings: SettingsScreen,
 };
+
+const SCREEN_LABELS: Record<string, string> = {};
+NAV_SECTIONS.forEach(s => s.items.forEach(i => { SCREEN_LABELS[i.key] = i.label; }));
 
 const PIPELINE_STAGES = [
   { key: 'import', label: 'Import' },
@@ -122,10 +171,8 @@ function AppShell({ onLogout, navigateTo, activeScreen }: { onLogout: () => void
       .catch(() => {});
   }, []);
 
-  const ActiveComponent = SCREEN_MAP[activeScreen] || DashboardScreen;
-  const activeLabel = NAV_SECTIONS
-    .flatMap(s => s.items)
-    .find(n => n.key === activeScreen)?.label || 'Dashboard';
+  const LazyComponent = SCREEN_MAP[activeScreen] || DashboardScreen;
+  const activeLabel = SCREEN_LABELS[activeScreen] || 'Dashboard';
 
   const handleNavClick = (key: string) => {
     navigateTo(key);
@@ -142,7 +189,7 @@ function AppShell({ onLogout, navigateTo, activeScreen }: { onLogout: () => void
     <div className="min-h-screen bg-background text-foreground flex">
       <Toaster theme="dark" position="top-right" />
 
-      {/* Sidebar Overlay (mobile) - animated */}
+      {/* Sidebar Overlay (mobile) */}
       <AnimatePresence>
         {sidebarOpen && (
           <motion.div
@@ -234,7 +281,7 @@ function AppShell({ onLogout, navigateTo, activeScreen }: { onLogout: () => void
           ))}
         </nav>
 
-        {/* Pipeline Progress - Enhanced */}
+        {/* Pipeline Progress */}
         <div className="px-4 py-4 border-t" style={{ borderColor: border }}>
           <div className="flex items-center justify-between px-0.5 mb-3">
             <span className="text-[10px] uppercase tracking-[0.2em] font-semibold" style={{ color: textDim }}>Pipeline</span>
@@ -287,7 +334,7 @@ function AppShell({ onLogout, navigateTo, activeScreen }: { onLogout: () => void
           </div>
         </div>
 
-        {/* User Section - Gradient avatar */}
+        {/* User Section */}
         <div className="p-3 border-t shrink-0" style={{ borderColor: border }}>
           <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors duration-200 hover:bg-white/[0.03]">
             <div
@@ -315,7 +362,7 @@ function AppShell({ onLogout, navigateTo, activeScreen }: { onLogout: () => void
 
       {/* Main Content */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Header - Enhanced glassmorphism */}
+        {/* Header */}
         <header
           className="sticky top-0 z-30 h-14 flex items-center px-4 sm:px-6 shrink-0 border-b"
           style={{
@@ -358,11 +405,15 @@ function AppShell({ onLogout, navigateTo, activeScreen }: { onLogout: () => void
           </div>
         </header>
 
-        {/* Screen Content with Page Transition */}
+        {/* Screen Content with Error Boundary + Suspense */}
         <main className="flex-1 p-4 sm:p-6">
           <AnimatePresence mode="wait">
             <PageTransition key={activeScreen}>
-              <ActiveComponent navigateTo={navigateTo} />
+              <ScreenErrorBoundary name={activeLabel}>
+                <Suspense fallback={<ScreenLoader />}>
+                  <LazyComponent navigateTo={navigateTo} />
+                </Suspense>
+              </ScreenErrorBoundary>
             </PageTransition>
           </AnimatePresence>
         </main>

@@ -35,6 +35,7 @@ const C = {
 const FF = {
   sans: "var(--font-inter), 'Inter', system-ui, sans-serif",
   serif: "var(--font-playfair), 'Playfair Display', Georgia, serif",
+  mono: "ui-monospace, 'Cascadia Code', 'Fira Code', monospace",
 };
 
 /* ═══════════════════════════════════════════════════
@@ -61,12 +62,7 @@ function PageLoader({ onComplete }: { onComplete: () => void }) {
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.6, ease: [0.76, 0, 0.24, 1] }}
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-        className="flex items-center gap-3 mb-10"
-      >
+      <div className="flex items-center gap-3 mb-10">
         <div className="w-10 h-10 rounded-lg flex items-center justify-center"
           style={{ background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` }}>
           <Brain className="w-6 h-6 text-white" />
@@ -74,25 +70,21 @@ function PageLoader({ onComplete }: { onComplete: () => void }) {
         <span className="text-2xl font-bold tracking-tight" style={{ fontFamily: FF.sans }}>
           DeepMind<span style={{ color: C.gold }}>Q</span>
         </span>
-      </motion.div>
+      </div>
       <div className="w-48 h-[2px] rounded-full overflow-hidden" style={{ background: C.border }}>
         <motion.div
           className="h-full rounded-full"
           style={{ background: `linear-gradient(90deg, ${C.gold}, ${C.goldLight})` }}
-          initial={{ width: '0%' }}
           animate={{ width: `${Math.min(progress, 100)}%` }}
           transition={{ duration: 0.2 }}
         />
       </div>
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
+      <p
         className="text-xs mt-4 tracking-[0.2em] uppercase"
         style={{ color: C.textDim }}
       >
         Loading intelligence...
-      </motion.p>
+      </p>
     </motion.div>
   );
 }

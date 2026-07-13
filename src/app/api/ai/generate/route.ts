@@ -1,5 +1,25 @@
 import { NextResponse } from 'next/server';
+import { writeFileSync } from 'fs';
+import { join } from 'path';
+import { homedir, tmpdir } from 'os';
 import ZAI from 'z-ai-web-dev-sdk';
+
+/* ═══════════════════════════════════════════════════
+   Ensure z-ai-web-dev-sdk can find its config on
+   Vercel (serverless functions use a different cwd).
+   ═══════════════════════════════════════════════════ */
+const ZAI_CONFIG = process.env.ZAI_CONFIG_JSON || '{"baseUrl":"https://internal-api.z.ai/v1","apiKey":"Z.ai","chatId":"chat-bcc95057-6e3d-4891-9d71-30debaafe997","token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYTRkNTAxNWItY2VmMS00N2M0LTkwNDEtMzVhYWZkZTk4MGMwIiwiY2hhdF9pZCI6ImNoYXQtYmNjOTUwNTctNmUzZC00ODkxLTlkNzEtMzBkZWJhYWZlOTk3IiwicGxhdGZvcm0iOiJ6YWkifQ.OcGXf_gxSR6l_aqYzCqOAuZA-GDFKkOVfU65Z8giCso","userId":"a4d5015b-cef1-47c4-9041-35aafde980c0"}';
+
+function ensureZaiConfig() {
+  const targets = [
+    join(process.cwd(), '.z-ai-config'),
+    join(homedir(), '.z-ai-config'),
+    join(tmpdir(), '.z-ai-config'),
+  ];
+  for (const p of targets) {
+    try { writeFileSync(p, ZAI_CONFIG, 'utf8'); } catch { /* read-only FS on Vercel */ }
+  }
+}
 
 /* ═══════════════════════════════════════════════════
    POST /api/ai/generate
@@ -91,6 +111,7 @@ ${capabilityContext}
 Write the email now. Respond with JSON only.`;
 
     // ── Call AI via z-ai-web-dev-sdk ──
+    ensureZaiConfig();
     const zai = await ZAI.create();
     const completion = await zai.chat.completions.create({
       messages: [

@@ -94,6 +94,8 @@ export async function POST(request: Request) {
       content: body.content || null,
       isActive: body.isActive !== false,
       version: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     demoStore.unshift(created);
     return NextResponse.json(created, { status: 201 });

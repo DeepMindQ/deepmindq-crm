@@ -12,7 +12,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -152,13 +151,19 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
 
   // ── Upload state ──
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadExtractedText, setUploadExtractedText] = useState('');
   const [uploadLoading, setUploadLoading] = useState(false);
-  const [uploadPreviewOpen, setUploadPreviewOpen] = useState(false);
-  const [uploadCategory, setUploadCategory] = useState('service_line');
-  const [uploadServiceLine, setUploadServiceLine] = useState('');
-  const [uploadTitle, setUploadTitle] = useState('');
-  const [uploadSaving, setUploadSaving] = useState(false);
+  const [uploadStep, setUploadStep] = useState<'idle' | 'uploading' | 'extracting' | 'generating' | 'done' | 'error'>('idle');
+  const [uploadResult, setUploadResult] = useState<{
+    extractedText: string;
+    fileName: string;
+    wordCount: number;
+    readingTime: number;
+    aiExtractionUsed: boolean;
+    overallSummary: string;
+    assetsGenerated: number;
+    assets: Array<Record<string, unknown>>;
+  } | null>(null);
+  const [uploadError, setUploadError] = useState('');
 
   // ── Coverage state ──
   const [coverage, setCoverage] = useState<CoverageData | null>(null);
@@ -246,50 +251,63 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
     setSearchLoading(false);
   }, [searchQuery, searchIndustry, searchRole, searchMode, minScore, searchProblems, searchCompanySize]);
 
-  // ── Handle file upload ──
+  // ── Handle file upload — now auto-generates knowledge assets ──
   const handleUpload = useCallback(async () => {
     if (!uploadFile) return;
     setUploadLoading(true);
+    setUploadError('');
+    setUploadResult(null);
+    setUploadStep('uploading');
     try {
       const formData = new FormData();
       formData.append('file', uploadFile);
+      formData.append('autoGenerate', 'true');
       const res = await fetch('/api/capabilities/upload', {
         method: 'POST',
         body: formData,
       });
       const data = await res.json();
-      if (data.extractedText) {
-        setUploadExtractedText(data.extractedText);
-        setUploadPreviewOpen(true);
-        // Auto-derive title from filename
-        const nameWithoutExt = uploadFile.name.replace(/\.[^/.]+$/, '');
-        setUploadTitle(nameWithoutExt);
-      } else {
-        toast.error(data.error || 'Failed to extract text');
+      if (!res.ok) {
+        throw new Error(data.error || 'Upload failed');
       }
-    } catch {
-      toast.error('Upload failed');
+      setUploadStep('done');
+      setUploadResult({
+        extractedText: data.extractedText || '',
+        fileName: data.fileName || uploadFile.name,
+        wordCount: data.wordCount || 0,
+        readingTime: data.readingTime || 1,
+        aiExtractionUsed: data.aiExtractionUsed || false,
+        overallSummary: data.overallSummary || '',
+        assetsGenerated: data.assetsGenerated || 0,
+        assets: data.assets || [],
+      });
+      if (data.assetsGenerated > 0) {
+        toast.success(`${data.assetsGenerated} knowledge asset${data.assetsGenerated > 1 ? 's' : ''} generated and saved from "${uploadFile.name}"`);
+        loadAssets();
+      } else {
+        toast.success(`Text extracted from "${uploadFile.name}" (${data.wordCount || 0} words)`);
+      }
+      setUploadFile(null);
+    } catch (err) {
+      setUploadStep('error');
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+      toast.error(err instanceof Error ? err.message : 'Upload failed');
     }
     setUploadLoading(false);
-  }, [uploadFile]);
+  }, [uploadFile, loadAssets]);
 
-  // ── Save extracted content as a knowledge asset ──
+  // ── Save extracted content as a knowledge asset (manual fallback) ──
   const handleSaveExtracted = useCallback(async () => {
-    if (!uploadTitle.trim()) {
-      toast.error('Please enter a title');
-      return;
-    }
-    setUploadSaving(true);
+    if (!uploadResult?.extractedText) return;
     try {
-      // Split long text into chunks if needed
+      const nameWithoutExt = uploadResult.fileName.replace(/\.[^/.]+$/, '');
       const maxChunkLen = 2000;
-      const text = uploadExtractedText;
+      const text = uploadResult.extractedText;
       const chunks: string[] = [];
 
       if (text.length <= maxChunkLen) {
         chunks.push(text);
       } else {
-        // Split by paragraphs, then group into chunks
         const paragraphs = text.split(/\n\n+/).filter(Boolean);
         let current = '';
         for (const para of paragraphs) {
@@ -309,26 +327,20 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            title: uploadTitle.trim() + suffix,
+            title: nameWithoutExt + suffix,
             summary: chunks[i].slice(0, 200).trim() + (chunks[i].length > 200 ? '...' : ''),
             content: chunks[i],
-            category: uploadCategory,
-            serviceLine: uploadServiceLine || null,
+            category: 'service_line',
           }),
         });
       }
 
-      toast.success(`Saved ${chunks.length} knowledge asset${chunks.length > 1 ? 's' : ''} from upload`);
-      setUploadPreviewOpen(false);
-      setUploadFile(null);
-      setUploadExtractedText('');
-      setUploadTitle('');
+      toast.success(`Manually saved ${chunks.length} asset${chunks.length > 1 ? 's' : ''} to knowledge base`);
       loadAssets();
     } catch {
       toast.error('Failed to save knowledge asset');
     }
-    setUploadSaving(false);
-  }, [uploadTitle, uploadExtractedText, uploadCategory, uploadServiceLine, loadAssets]);
+  }, [uploadResult, loadAssets]);
 
   // ── Add manual asset ──
   const handleAddAsset = useCallback(async () => {
@@ -1096,21 +1108,75 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
         )}
 
         {/* ═══════════════════════════════════════════
-            TAB 4: Upload & Extract
+            TAB 4: Upload & AI Knowledge Extraction
             ═══════════════════════════════════════════ */}
         {activeTab === 'upload' && (
           <div className="space-y-4">
+            {/* Upload Card */}
             <AnimatedCard delay={0.1}>
               <div className="p-6">
-                <SectionHeader title="Document Upload" subtitle="Upload .txt, .md, .pdf, or .docx files. Text is extracted and stored as knowledge assets for RAG retrieval." />
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.2), rgba(212,175,55,0.05))' }}>
+                    <Upload className="w-4.5 h-4.5" style={{ color: gold }} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Document Upload & AI Knowledge Extraction</h3>
+                    <p className="text-xs text-muted-foreground">Upload a document — text is extracted, analyzed by AI, and automatically saved as structured knowledge assets for RAG retrieval</p>
+                  </div>
+                </div>
+
+                {/* Processing progress */}
+                {uploadLoading && (
+                  <div className="mt-4 p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="w-4 h-4 animate-spin" style={{ color: gold }} />
+                      <span className="text-sm text-foreground font-medium">
+                        {uploadStep === 'uploading' && 'Uploading document...'}
+                        {uploadStep === 'extracting' && 'Extracting text content...'}
+                        {uploadStep === 'generating' && 'AI is analyzing and generating knowledge assets...'}
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {[
+                        { label: 'Upload file', done: ['extracting', 'generating', 'done'].includes(uploadStep) },
+                        { label: 'Extract text', done: ['generating', 'done'].includes(uploadStep) },
+                        { label: 'AI knowledge generation', done: uploadStep === 'done' },
+                        { label: 'Save to knowledge base', done: uploadStep === 'done' },
+                      ].map((step, i) => (
+                        <div key={i} className="flex items-center gap-2.5">
+                          {step.done ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          ) : (
+                            <div className="w-3.5 h-3.5 rounded-full border border-muted-foreground/30 shrink-0" />
+                          )}
+                          <span className={`text-xs ${step.done ? 'text-emerald-400' : 'text-muted-foreground'}`}>{step.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Error state */}
+                {uploadStep === 'error' && (
+                  <div className="mt-4 p-4 rounded-xl border border-red-500/20 bg-red-500/5 flex items-start gap-3">
+                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-red-400 font-medium">Upload failed</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{uploadError}</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Drop zone */}
                 <div
-                  className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/30 transition-colors mt-4"
-                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors mt-4 ${
+                    uploadLoading ? 'border-border/50 opacity-50 pointer-events-none' : 'border-border hover:border-primary/30'
+                  }`}
+                  onClick={() => !uploadLoading && fileInputRef.current?.click()}
                   onDragOver={e => { e.preventDefault(); }}
                   onDrop={e => {
                     e.preventDefault();
+                    if (uploadLoading) return;
                     const file = e.dataTransfer.files[0];
                     if (file) setUploadFile(file);
                   }}
@@ -1134,7 +1200,8 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                   </p>
                 </div>
 
-                {uploadFile && (
+                {/* File selected + upload button */}
+                {uploadFile && !uploadLoading && (
                   <div className="mt-4 flex items-center justify-between p-3 rounded-lg border border-border bg-card/50">
                     <div className="flex items-center gap-3">
                       <FileText className="w-4 h-4" style={{ color: gold }} />
@@ -1148,14 +1215,13 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                         size="sm"
                         className="h-8 text-xs gap-1.5"
                         style={{ background: `linear-gradient(135deg, ${gold}, ${goldLight})`, color: '#000' }}
-                        disabled={uploadLoading}
                         onClick={handleUpload}
                       >
-                        {uploadLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                        Extract & Preview
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Upload & Generate Knowledge
                       </Button>
                       <button
-                        onClick={() => setUploadFile(null)}
+                        onClick={() => { setUploadFile(null); setUploadStep('idle'); setUploadResult(null); setUploadError(''); }}
                         className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-colors"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -1166,20 +1232,188 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
               </div>
             </AnimatedCard>
 
-            {/* How it works */}
-            <StaggerGrid className="grid grid-cols-1 md:grid-cols-3 gap-4" stagger={0.08} delay={0.2}>
+            {/* Upload Results — Generated Assets */}
+            {uploadResult && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-4"
+              >
+                {/* Summary banner */}
+                <AnimatedCard delay={0.15}>
+                  <div className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: uploadResult.aiExtractionUsed ? 'rgba(16,185,129,0.15)' : 'rgba(212,175,55,0.1)' }}>
+                        {uploadResult.aiExtractionUsed ? (
+                          <Sparkles className="w-4.5 h-4.5 text-emerald-400" />
+                        ) : (
+                          <FileText className="w-4.5 h-4.5" style={{ color: gold }} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground">
+                          {uploadResult.aiExtractionUsed
+                            ? `AI extracted ${uploadResult.assetsGenerated} knowledge asset${uploadResult.assetsGenerated !== 1 ? 's' : ''} and saved to knowledge base`
+                            : `Text extracted (${uploadResult.wordCount.toLocaleString()} words, ~${uploadResult.readingTime} min read)`}
+                        </p>
+                        {uploadResult.overallSummary && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{uploadResult.overallSummary}</p>
+                        )}
+                        <div className="flex items-center gap-3 mt-2">
+                          <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
+                            {uploadResult.fileName}
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
+                            {uploadResult.wordCount.toLocaleString()} words
+                          </Badge>
+                          {uploadResult.aiExtractionUsed && (
+                            <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400">
+                              <Sparkles className="w-2.5 h-2.5 mr-1" />
+                              AI-Powered
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => { setUploadResult(null); setUploadStep('idle'); }}
+                        className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </AnimatedCard>
+
+                {/* Generated assets list */}
+                {uploadResult.assets.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground font-medium px-1">
+                      Generated Knowledge Assets
+                    </p>
+                    {uploadResult.assets.map((asset, i) => {
+                      const cat = String(asset.category || 'service_line');
+                      const config = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG.service_line;
+                      const Icon = config.icon;
+                      return (
+                        <motion.div
+                          key={String(asset.id) || `gen-${i}`}
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.05 * i }}
+                          className="p-3 rounded-xl border border-border bg-card/50 hover:bg-card/80 transition-colors"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${config.color}15` }}>
+                              <Icon className="w-3.5 h-3.5" style={{ color: config.color }} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="text-xs font-medium text-foreground truncate">{String(asset.title || 'Untitled')}</p>
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                              </div>
+                              <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{String(asset.summary || '')}</p>
+                              <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                                <Badge variant="outline" className={`text-[10px] ${config.badge}`}>
+                                  {CATEGORY_LABELS[cat] || cat}
+                                </Badge>
+                                {asset.serviceLine && (
+                                  <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
+                                    {String(asset.serviceLine)}
+                                  </Badge>
+                                )}
+                                {asset.targetIndustries && (
+                                  <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
+                                    <Globe className="w-2.5 h-2.5 mr-0.5" />
+                                    {String(asset.targetIndustries).split(',').slice(0, 2).join(', ')}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Manual save fallback if AI didn't generate assets */}
+                {uploadResult.assets.length === 0 && uploadResult.extractedText && (
+                  <AnimatedCard delay={0.2}>
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-400" />
+                          <p className="text-xs text-amber-400 font-medium">No knowledge assets were auto-generated</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-[11px] gap-1.5"
+                          onClick={() => { setActiveTab('library'); }}
+                        >
+                          <Database className="w-3 h-3" />
+                          View Knowledge Library
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        The document text was extracted but AI couldn&apos;t identify structured knowledge assets. You can manually save the raw text, or add assets manually via the &quot;Add Asset&quot; button.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          className="h-8 text-xs gap-1.5"
+                          style={{ background: `linear-gradient(135deg, ${gold}, ${goldLight})`, color: '#000' }}
+                          onClick={handleSaveExtracted}
+                        >
+                          <Database className="w-3.5 h-3.5" />
+                          Save Raw Text as Knowledge Asset
+                        </Button>
+                      </div>
+                    </div>
+                  </AnimatedCard>
+                )}
+
+                {/* Action: go test the knowledge */}
+                {uploadResult.assetsGenerated > 0 && (
+                  <AnimatedCard delay={0.25}>
+                    <div className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Zap className="w-5 h-5" style={{ color: gold }} />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Test your new knowledge in the RAG engine</p>
+                          <p className="text-xs text-muted-foreground">Switch to the RAG Search tab to verify the uploaded knowledge is being retrieved correctly</p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                        onClick={() => setActiveTab('search')}
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        Test RAG Search
+                      </Button>
+                    </div>
+                  </AnimatedCard>
+                )}
+              </motion.div>
+            )}
+
+            {/* How it works — pipeline flow */}
+            <StaggerGrid className="grid grid-cols-1 md:grid-cols-4 gap-3" stagger={0.08} delay={0.2}>
               {[
-                { icon: Upload, title: '1. Upload', desc: 'Upload documents in .txt, .md, .pdf, or .docx format. The system extracts all text content automatically.' },
-                { icon: Cpu, title: '2. Index', desc: 'Extracted content is chunked and stored as knowledge assets with category, service line, and industry metadata.' },
-                { icon: Zap, title: '3. Retrieve', desc: 'The RAG engine retrieves relevant knowledge when generating personalized emails, matching by industry, role, and problems.' },
+                { icon: Upload, title: '1. Upload', desc: 'Drop a .txt, .md, .pdf, or .docx file (max 5MB)', color: '#D4AF37' },
+                { icon: FileText, title: '2. Extract', desc: 'Text is automatically extracted from the document content', color: '#3B82F6' },
+                { icon: Sparkles, title: '3. AI Analyze', desc: 'AI identifies service lines, case studies, proof points, and more', color: '#10B981' },
+                { icon: Database, title: '4. Auto-Save', desc: 'Structured assets are saved to the knowledge base for RAG retrieval', color: '#8B5CF6' },
               ].map(step => (
                 <StaggerItem key={step.title}>
-                  <AnimatedCard className="p-5 text-center space-y-3">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto" style={{ background: 'rgba(212,175,55,0.1)' }}>
-                      <step.icon className="w-6 h-6" style={{ color: gold }} />
+                  <AnimatedCard className="p-4 text-center space-y-2.5">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto" style={{ background: `${step.color}15` }}>
+                      <step.icon className="w-5 h-5" style={{ color: step.color }} />
                     </div>
-                    <p className="text-sm font-semibold text-foreground">{step.title}</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{step.desc}</p>
+                    <p className="text-xs font-semibold text-foreground">{step.title}</p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">{step.desc}</p>
                   </AnimatedCard>
                 </StaggerItem>
               ))}
@@ -1248,93 +1482,6 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
               </div>
             </>
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* ═══════════════════════════════════════════
-          Upload Preview Dialog
-          ═══════════════════════════════════════════ */}
-      <Dialog open={uploadPreviewOpen} onOpenChange={setUploadPreviewOpen}>
-        <DialogContent className="max-w-3xl bg-card border-border max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4" style={{ color: gold }} />
-              Extracted Knowledge Preview
-            </DialogTitle>
-            <DialogDescription>
-              Review the extracted text, set metadata, and save as a knowledge asset for RAG retrieval.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Title *</Label>
-                <Input
-                  value={uploadTitle}
-                  onChange={e => setUploadTitle(e.target.value)}
-                  className="h-9 text-sm bg-background border-border"
-                  placeholder="Knowledge asset title"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Category</Label>
-                <Select value={uploadCategory} onValueChange={setUploadCategory}>
-                  <SelectTrigger className="h-9 text-sm bg-background border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
-                      <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label className="text-xs text-muted-foreground">Service Line (optional)</Label>
-                <Select value={uploadServiceLine} onValueChange={v => setUploadServiceLine(v === '__none__' ? '' : v)}>
-                  <SelectTrigger className="h-9 text-sm bg-background border-border">
-                    <SelectValue placeholder="Select service line" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="__none__" className="text-xs">None</SelectItem>
-                    {SERVICE_LINE_LIST.map(sl => (
-                      <SelectItem key={sl} value={sl} className="text-xs">{sl}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <Label className="text-xs text-muted-foreground">Extracted Content</Label>
-                <span className="text-[10px] text-muted-foreground tabular-nums">{uploadExtractedText.length.toLocaleString()} characters</span>
-              </div>
-              <Textarea
-                value={uploadExtractedText}
-                onChange={e => setUploadExtractedText(e.target.value)}
-                className="min-h-[200px] max-h-[400px] text-xs bg-background border-border font-mono"
-              />
-              {uploadExtractedText.length > 2000 && (
-                <p className="text-[10px] text-amber-400 mt-1 flex items-center gap-1">
-                  <Info className="w-3 h-3" />
-                  Long content will be automatically split into {Math.ceil(uploadExtractedText.length / 2000)} chunks for optimal RAG retrieval
-                </p>
-              )}
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" size="sm" className="text-xs" onClick={() => setUploadPreviewOpen(false)}>Cancel</Button>
-              <Button
-                size="sm"
-                className="text-xs gap-1.5"
-                style={{ background: `linear-gradient(135deg, ${gold}, ${goldLight})`, color: '#000' }}
-                disabled={uploadSaving || !uploadTitle.trim()}
-                onClick={handleSaveExtracted}
-              >
-                {uploadSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Database className="w-3.5 h-3.5" />}
-                Save to Knowledge Base
-              </Button>
-            </div>
-          </div>
         </DialogContent>
       </Dialog>
 

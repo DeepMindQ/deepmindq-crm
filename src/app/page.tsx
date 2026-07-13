@@ -70,7 +70,6 @@ const NAV_SECTIONS = [
 const SCREEN_MAP: Record<string, React.ComponentType<{ navigateTo?: (screen: string) => void }>> = {
   dashboard: DashboardScreen,
   import: ImportScreen,
-  knowledge: 0,
   leads: LeadsScreen,
   companies: CompaniesScreen,
   drafts: DraftsScreen,

@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
 import { createHash } from 'crypto';
+import { checkSyntax, checkDisposable, checkRoleBased, checkFreeProvider, scoreEmail } from '@/lib/email-verify';
 
 function sha256(str: string): string {
   return 'sha256:' + createHash('sha256').update(str).digest('hex');
@@ -246,21 +247,10 @@ export async function POST(request: Request) {
         roleBucket = 'technical';
       }
 
-      // Simple email health scoring
-      let emailHealth = 'unknown';
-      let emailHealthScore = 0;
-      if (rawEmail) {
-        if (rawEmail.includes('+') || rawEmail.includes('test@') || rawEmail.includes('noreply')) {
-          emailHealth = 'risky';
-          emailHealthScore = 30;
-        } else if (rawEmail.endsWith('.edu') || rawEmail.endsWith('.gov')) {
-          emailHealth = 'valid';
-          emailHealthScore = 95;
-        } else {
-          emailHealth = 'valid';
-          emailHealthScore = 85;
-        }
-      }
+      // Email health scoring using verification engine
+      const emailResult = rawEmail ? scoreEmail(rawEmail) : { health: 'unknown', score: 0, issues: [] };
+      const emailHealth = emailResult.health;
+      const emailHealthScore = emailResult.score;
 
       // Simple lead scoring
       let leadScore = 50;

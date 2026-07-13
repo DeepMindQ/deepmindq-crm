@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, Search, Sparkles, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Search, Sparkles, Eye, ChevronLeft, ChevronRight, ShieldCheck, MailCheck } from 'lucide-react';
 
 interface Company { id: string; name: string; domain?: string; industry?: string; }
 interface Lead {
@@ -68,6 +68,8 @@ export default function LeadsScreen() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [generating, setGenerating] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState<string | null>(null);
+  const [verifyResult, setVerifyResult] = useState<Record<string, any>>({});
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Fetch leads when filters/page/refreshKey change
@@ -114,6 +116,46 @@ export default function LeadsScreen() {
   const handleCompanyChange = (val: string) => {
     setCompanyFilter(val);
     setPage(1);
+  };
+
+  const handleVerifyEmail = async (lead: Lead) => {
+    if (!lead.email) return;
+    setVerifying(lead.id);
+    try {
+      const res = await fetch('/api/verify-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: lead.email, companyDomain: lead.company?.domain }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setVerifyResult(prev => ({ ...prev, [lead.id]: data.result }));
+      }
+    } catch {}
+    setVerifying(null);
+  };
+
+  const handleVerifyAll = async () => {
+    const emails = leads.filter(l => l.email).map(l => ({ email: l.email, companyDomain: l.company?.domain }));
+    if (emails.length === 0) return;
+    setVerifying('all');
+    try {
+      const res = await fetch('/api/verify-email', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emails }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const map: Record<string, any> = {};
+        for (const r of data.results) {
+          const lead = leads.find(l => l.email === r.email);
+          if (lead) map[lead.id] = r;
+        }
+        setVerifyResult(map);
+      }
+    } catch {}
+    setVerifying(null);
   };
 
   const handleGenerateDraft = async (lead: Lead) => {
@@ -171,12 +213,25 @@ export default function LeadsScreen() {
         </CardContent>
       </Card>
 
-      {/* ── Total Count ── */}
+      {/* ── Total Count + Actions ── */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           <Users className="w-3.5 h-3.5 inline mr-1.5" />
           <span className="text-primary font-medium tabular-nums">{totalCount}</span> leads total
         </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+          disabled={verifying === 'all' || leads.length === 0}
+          onClick={handleVerifyAll}
+        >
+          {verifying === 'all' ? (
+            <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <><MailCheck className="w-3.5 h-3.5" />Verify All Emails</>
+          )}
+        </Button>
       </div>
 
       {/* ── Leads Table ── */}
@@ -217,10 +272,27 @@ export default function LeadsScreen() {
                           </Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          <div className="flex items-center gap-1.5">
-                            <span className={`w-2 h-2 rounded-full ${health.dot}`} />
-                            <span className={`text-xs capitalize ${health.text}`}>{lead.emailHealth || 'unknown'}</span>
-                          </div>
+                          {verifyResult[lead.id] ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`w-2 h-2 rounded-full ${
+                                  verifyResult[lead.id].status === 'valid' ? 'bg-emerald-400' :
+                                  verifyResult[lead.id].status === 'risky' ? 'bg-amber-400' : 'bg-red-400'
+                                }`} />
+                                <span className={`text-xs capitalize ${
+                                  verifyResult[lead.id].status === 'valid' ? 'text-emerald-400' :
+                                  verifyResult[lead.id].status === 'risky' ? 'text-amber-400' : 'text-red-400'
+                                }`}>{verifyResult[lead.id].status}</span>
+                                <span className="text-xs text-zinc-500 tabular-nums ml-1">{verifyResult[lead.id].score}</span>
+                              </div>
+                              <p className="text-[10px] text-zinc-600 max-w-[160px] truncate">{verifyResult[lead.id].recommendation}</p>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <span className={`w-2 h-2 rounded-full ${health.dot}`} />
+                              <span className={`text-xs capitalize ${health.text}`}>{lead.emailHealth || 'unknown'}</span>
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="text-right hidden sm:table-cell">
                           <span className={`text-sm font-medium tabular-nums ${
@@ -231,6 +303,22 @@ export default function LeadsScreen() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
+                            {lead.email && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs text-emerald-400 hover:text-emerald-300"
+                                disabled={verifying === lead.id}
+                                onClick={() => handleVerifyEmail(lead)}
+                                title="Verify email"
+                              >
+                                {verifying === lead.id ? (
+                                  <div className="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <ShieldCheck className="w-3.5 h-3.5" />
+                                )}
+                              </Button>
+                            )}
                             {canGenerate && (
                               <Button
                                 variant="ghost"

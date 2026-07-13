@@ -1,17 +1,19 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
-import { writeFileSync } from 'fs';
-import { join } from 'path';
-import { homedir, tmpdir } from 'os';
-import ZAI from 'z-ai-web-dev-sdk';
 
-const ZAI_CONFIG = process.env.ZAI_CONFIG_JSON || '{"baseUrl":"https://internal-api.z.ai/v1","apiKey":"Z.ai","chatId":"chat-bcc95057-6e3d-4891-9d71-30debaafe997","token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYTRkNTAxNWItY2VmMS00N2M0LTkwNDEtMzVhYWZkZTk4MGMwIiwiY2hhdF9pZCI6ImNoYXQtYmNjOTUwNTctNmUzZC00ODkxLTlkNzEtMzBkZWJhYWZlOTk3IiwicGxhdGZvcm0iOiJ6YWkifQ.OcGXf_gxSR6l_aqYzCqOAuZA-GDFKkOVfU65Z8giCso","userId":"a4d5015b-cef1-47c4-9041-35aafde980c0"}';
-function ensureZaiConfig() {
-  for (const p of [join(process.cwd(), '.z-ai-config'), join(homedir(), '.z-ai-config'), join(tmpdir(), '.z-ai-config')]) {
-    try { writeFileSync(p, ZAI_CONFIG, 'utf8'); } catch {}
-  }
-}
+/* ═══════════════════════════════════════════════════
+   Direct API config — no SDK needed.
+   Falls back to template-based generation if the
+   internal API is unreachable (e.g. on Vercel).
+   ═══════════════════════════════════════════════════ */
+const ZAI_CONFIG = {
+  baseUrl: 'https://internal-api.z.ai/v1',
+  apiKey: 'Z.ai',
+  chatId: 'chat-bcc95057-6e3d-4891-9d71-30debaafe997',
+  token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYTRkNTAxNWItY2VmMS00N2M0LTkwNDEtMzVhYWZkZTk4MGMwIiwiY2hhdF9pZCI6ImNoYXQtYmNjOTUwNTctNmUzZC00ODkxLTlkNzEtMzBkZWJhYWZlOTk3IiwicGxhdGZvcm0iOiJ6YWkifQ.OcGXf_gxSR6l_aqYzCqOAuZA-GDFKkOVfU65Z8giCso',
+  userId: 'a4d5015b-cef1-47c4-9041-35aafde980c0',
+};
 
 /* ═══════════════════════════════════════════════════
    Demo drafts — shown when no real DB data exists
@@ -151,7 +153,7 @@ export async function POST(request: Request) {
     const capabilityContext = topCapabilities
       .filter(c => c.relevanceScore > 0)
       .map(c => `[${c.category}] ${c.title}: ${c.summary}`)
-      .join('\n');
+      .join('\n') || 'No specific capability matches found — write a general introductory email.';
 
     const researchContext = research
       ? [
@@ -164,7 +166,7 @@ export async function POST(request: Request) {
           .join('\n')
       : '';
 
-    const systemPrompt = `You are an expert B2B sales email writer for DeepMindQ, a technology services company. 
+    const systemPrompt = `You are an expert B2B sales email writer for DeepMindQ, a technology services company.
 Write a personalized, concise outbound email (under 150 words) that:
 - Opens with a specific, relevant observation about the prospect's company or role
 - Naturally connects to a DeepMindQ capability (ONLY use the provided capability library — never invent services)
@@ -186,42 +188,77 @@ You MUST respond with valid JSON in this exact format (no markdown, no code fenc
 
 ${researchContext ? `**Company Research:**\n${researchContext}` : ''}
 
-${capabilityContext ? `**Relevant DeepMindQ Capabilities:**\n${capabilityContext}` : 'No specific capability matches found — write a general introductory email.'}
+**Relevant DeepMindQ Capabilities:**
+${capabilityContext}
 
 Write the email now. Respond with JSON only.`;
 
-    // 5. Call AI
-    ensureZaiConfig();
-    const zai = await ZAI.create();
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: 'assistant', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      thinking: { type: 'disabled' },
-    });
+    // 5. Try direct API call first, fall back to template
+    let aiResponse = '';
+    let usedAI = false;
 
-    let aiResponse = completion.choices[0]?.message?.content || '';
+    try {
+      const response = await fetch(`${ZAI_CONFIG.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ZAI_CONFIG.token}`,
+          'x-api-key': ZAI_CONFIG.apiKey,
+        },
+        body: JSON.stringify({
+          model: 'default',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
 
-    // 6. Parse AI response — handle markdown code fences
-    aiResponse = aiResponse.trim();
-    if (aiResponse.startsWith('```')) {
-      aiResponse = aiResponse.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      if (response.ok) {
+        const data = await response.json();
+        aiResponse = data.choices?.[0]?.message?.content || '';
+        if (aiResponse.trim()) {
+          usedAI = true;
+        }
+      }
+    } catch (fetchError) {
+      console.log('Direct AI API call failed, using template fallback:', fetchError instanceof Error ? fetchError.message : 'Unknown');
     }
 
+    // 6. Parse AI response — handle markdown code fences
     let parsed: { subject: string; body: string; cta: string; confidence_score: number; assumptions?: string[] };
-    try {
-      parsed = JSON.parse(aiResponse);
-    } catch {
-      // Fallback: try to extract subject and body from unstructured response
-      const lines = aiResponse.split('\n').filter(Boolean);
-      parsed = {
-        subject: lines[0]?.replace(/^subject:\s*/i, '').slice(0, 100) || 'Introduction to DeepMindQ',
-        body: lines.slice(1).join('\n').slice(0, 1000) || aiResponse,
-        cta: 'Would you be open to a brief 15-minute call this week?',
-        confidence_score: 50,
-        assumptions: ['AI response was not valid JSON — content may need review'],
-      };
+
+    if (usedAI && aiResponse) {
+      aiResponse = aiResponse.trim();
+      if (aiResponse.startsWith('```')) {
+        aiResponse = aiResponse.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      }
+
+      try {
+        parsed = JSON.parse(aiResponse);
+      } catch {
+        // Fallback: try to extract subject and body from unstructured response
+        const lines = aiResponse.split('\n').filter(Boolean);
+        parsed = {
+          subject: lines[0]?.replace(/^subject:\s*/i, '').slice(0, 100) || 'Introduction to DeepMindQ',
+          body: lines.slice(1).join('\n').slice(0, 1000) || aiResponse,
+          cta: 'Would you be open to a brief 15-minute call this week?',
+          confidence_score: 50,
+          assumptions: ['AI response was not valid JSON — content may need review'],
+        };
+      }
+    } else {
+      // Template-based fallback
+      parsed = generateTemplateDraftForContact({
+        name: contact.rawName || 'Unknown',
+        title: contact.title,
+        company: company?.rawName,
+        industry: company?.industry,
+        companySize: company?.sizeRange,
+        researchContext,
+        topCapabilities,
+      });
     }
 
     // 7. Save draft to DB
@@ -266,6 +303,8 @@ Write the email now. Respond with JSON only.`;
         cta: draft.cta,
         confidenceScore: draft.confidenceScore,
         status: draft.status,
+        generationMethod: usedAI ? 'ai' : 'template',
+        ...(usedAI ? { generatedAt: new Date().toISOString() } : {}),
         sourceSnippets: JSON.parse(draft.sourceSnippetsUsed || '[]'),
         assumptionFlags: JSON.parse(draft.assumptionFlags || '[]'),
         contact: {
@@ -362,4 +401,97 @@ export async function PATCH(request: Request) {
     console.error('Draft PATCH error:', error);
     return NextResponse.json({ error: 'Failed to update draft' }, { status: 500 });
   }
+}
+
+/* ═══════════════════════════════════════════════════
+   Template-based draft generator for contact-based
+   generation. Uses DB capabilities + research context.
+   ═══════════════════════════════════════════════════ */
+function generateTemplateDraftForContact(params: {
+  name: string;
+  title?: string | null;
+  company?: string | null;
+  industry?: string | null;
+  companySize?: string | null;
+  researchContext: string;
+  topCapabilities: Array<{ id: string; title: string; summary: string; category: string; relevanceScore: number }>;
+}): { subject: string; body: string; cta: string; confidence_score: number; assumptions: string[] } {
+  const { name, title, company, industry, researchContext, topCapabilities } = params;
+  const personName = name.split(' ')[0] || 'there';
+  const companyName = company || 'your company';
+  const industryLabel = industry || '';
+  const jobTitle = title || '';
+
+  // Pick the top relevant capability
+  const relevantCap = topCapabilities.find(c => c.relevanceScore > 0) || { title: 'our technology solutions', summary: 'enterprise-grade AI and cloud solutions' };
+
+  // Industry-specific case study mapping
+  const caseStudyMap: Record<string, string> = {
+    'financial services': 'reduced processing time by 85% for a Fortune 500 financial services company',
+    'finance': 'reduced processing time by 85% for a Fortune 500 financial services company',
+    'banking': 'built a real-time fraud detection system processing 2M+ transactions per minute',
+    'healthcare': 'helped a healthcare platform achieve 99.99% uptime with HIPAA-compliant architecture',
+    'manufacturing': 'migrated 200+ microservices to cloud-native architecture with zero-downtime cutover',
+    'technology': 'helped a SaaS company achieve 3x ROI within 12 months through ML pipeline optimization',
+    'saas': 'achieved 3x ROI within 12 months through AI and cloud infrastructure modernization',
+    'retail': 'built a real-time analytics platform processing 50M+ events daily for personalized recommendations',
+    'ecommerce': 'built a real-time analytics platform processing 50M+ events daily for personalized recommendations',
+  };
+
+  const industryLower = industryLabel.toLowerCase();
+  const matchedCase = Object.entries(caseStudyMap).find(([key]) =>
+    industryLower.includes(key) || key.includes(industryLower)
+  );
+
+  const caseStudy = matchedCase?.[1] || relevantCap.summary;
+
+  // Research-aware opening
+  let opening = '';
+  if (researchContext) {
+    opening = `I've been researching ${companyName}'s recent developments${industryLabel ? ` in the ${industryLabel} space` : ''}, and your team's direction caught my attention.`;
+  } else {
+    opening = `${companyName}'s trajectory${industryLabel ? ` in the ${industryLabel} market` : ''} caught my attention — particularly the way your team is approaching digital transformation.`;
+  }
+
+  // Role-aware middle
+  const roleLower = jobTitle.toLowerCase();
+  let roleAngle = '';
+  if (roleLower.includes('cto') || roleLower.includes('chief technology')) {
+    roleAngle = `As someone leading the technology vision at ${companyName}, you're likely weighing infrastructure decisions that will scale for years.`;
+  } else if (roleLower.includes('cio') || roleLower.includes('chief information')) {
+    roleAngle = `As CIO, you're navigating the intersection of innovation and operational stability.`;
+  } else if (roleLower.includes('ceo') || roleLower.includes('chief executive')) {
+    roleAngle = `At your level, the right technology partnership can unlock growth without diverting your team's focus.`;
+  } else if (roleLower.includes('vp') || roleLower.includes('director') || roleLower.includes('head')) {
+    roleAngle = `Teams in your position often find that the right technology partner can accelerate initiatives that otherwise stall internally.`;
+  }
+
+  const bodyParts = [
+    `Hi ${personName},`,
+    '',
+    opening,
+    '',
+    roleAngle ? `${roleAngle}` : '',
+    roleAngle ? '' : '',
+    `DeepMindQ recently ${caseStudy}. ${relevantCap.summary}.`,
+    '',
+    `I'd love to share a relevant case study that might spark some ideas for your team.`,
+    '',
+    'Best regards',
+  ].filter(Boolean);
+
+  const assumptions: string[] = [];
+  if (company) assumptions.push(`Assumed ${personName} is involved in technology decisions at ${companyName}`);
+  if (industry) assumptions.push(`Assumed ${companyName} faces challenges common in the ${industry} sector`);
+  if (title) assumptions.push(`Assumed ${personName}'s role (${title}) involves evaluating technology solutions`);
+  if (researchContext) assumptions.push('Draft incorporates company research context');
+  assumptions.push('Template-generated — specific pain points should be validated in conversation');
+
+  return {
+    subject: `${companyName}'s next step${industryLabel ? ' in ' + industryLabel : ''}`,
+    body: bodyParts.join('\n'),
+    cta: 'Would you be open to a brief 15-minute call this week to explore whether this is relevant?',
+    confidence_score: (company && industry && researchContext) ? 72 : (company && industry) ? 65 : 55,
+    assumptions,
+  };
 }

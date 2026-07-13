@@ -22,6 +22,25 @@ function ensureZaiConfig() {
 }
 
 /* ═══════════════════════════════════════════════════
+   Internal: call knowledge retrieval API
+   ═══════════════════════════════════════════════════ */
+async function retrieveKnowledge(query: string, industry?: string, role?: string) {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const res = await fetch(`${baseUrl}/api/knowledge/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, industry, role, limit: 8 }),
+    });
+    const data = await res.json();
+    return data.results || [];
+  } catch (err) {
+    console.error('Knowledge retrieval failed, using fallback:', err);
+    return [];
+  }
+}
+
+/* ═══════════════════════════════════════════════════
    POST /api/ai/generate
    Standalone AI draft generation — no database needed.
    Accepts contact info inline and returns a generated
@@ -56,8 +75,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'name is required' }, { status: 400 });
     }
 
-    // ── Capability Library context (embedded, no DB needed) ──
-    const capabilityContext = `
+    // ── Build a search query from the prospect context ──
+    const searchParts = [industry, title, company].filter(Boolean);
+    const searchQuery = searchParts.length > 0
+      ? searchParts.join(' ')
+      : 'enterprise technology solutions';
+
+    // ── Retrieve relevant capabilities via knowledge search ──
+    const retrievedCapabilities = await retrieveKnowledge(
+      searchQuery,
+      industry || undefined,
+      title || undefined
+    );
+
+    // Build capability context from retrieved results
+    let capabilityContext: string;
+    let sourceSnippets: Array<{
+      id: string;
+      title: string;
+      snippetType: string;
+      relevanceScore: number;
+    }>;
+
+    if (retrievedCapabilities.length > 0) {
+      capabilityContext = retrievedCapabilities
+        .map(cap => `[${cap.category}] ${cap.title}: ${cap.summary}`)
+        .join('\n');
+      sourceSnippets = retrievedCapabilities.map(cap => ({
+        id: cap.id,
+        title: cap.title,
+        snippetType: cap.category,
+        relevanceScore: cap.relevanceScore,
+      }));
+    } else {
+      // Fallback to embedded context
+      capabilityContext = `
 [service_line] AI & Machine Learning: End-to-end ML pipeline development, model training, MLOps, and intelligent automation solutions.
 [service_line] Cloud Engineering: Multi-cloud architecture design, migration strategy, and cloud-native application development on AWS, Azure, and GCP.
 [service_line] Data Engineering: Enterprise data platform design, real-time analytics, data governance, and warehouse modernization.
@@ -68,6 +120,13 @@ export async function POST(request: Request) {
 [proof_point] Average 3x ROI within 12 months for clients leveraging our AI and cloud solutions.
 [cta] Would you be open to a brief 15-minute call to explore how this might apply to your team?`;
 
+      sourceSnippets = [
+        { id: 'fallback-1', title: 'AI & Machine Learning', snippetType: 'service_line', relevanceScore: 100 },
+        { id: 'fallback-2', title: 'Cloud Engineering', snippetType: 'service_line', relevanceScore: 100 },
+        { id: 'fallback-3', title: 'Fortune 500 Document Automation', snippetType: 'case_study', relevanceScore: 100 },
+      ];
+    }
+
     // ── Build the AI prompt ──
     const toneInstruction: Record<string, string> = {
       professional:
@@ -77,6 +136,10 @@ export async function POST(request: Request) {
       executive:
         'Write in a concise, C-suite appropriate tone. Direct, data-driven, respectful of their time.',
     };
+
+    const retrievalNote = retrievedCapabilities.length > 0
+      ? `\n\nThe following capabilities were retrieved from the knowledge base based on relevance to "${searchQuery}" (scores shown):\n${retrievedCapabilities.map(c => `  - [${c.relevanceScore}%] ${c.title} (${c.category})`).join('\n')}\n\nPrioritize the highest-scored capabilities.`
+      : '\n\nNo specific capabilities were retrieved from the knowledge base — use the general capability library below.';
 
     const systemPrompt = `You are an expert B2B sales email writer for DeepMindQ, a technology services company specializing in AI, Cloud Engineering, Data Engineering, and Digital Transformation.
 
@@ -90,6 +153,7 @@ Write a personalized, concise outbound email (under 150 words) that:
 - Is professional but conversational
 - NEVER mention pricing or make unsubstantiated claims
 - NEVER use generic templates — every email must feel unique to this specific prospect
+${retrievalNote}
 
 You MUST respond with valid JSON in this exact format (no markdown, no code fences):
 {"subject": "email subject line", "body": "email body text", "cta": "call to action text", "confidence_score": 75, "assumptions": ["any assumptions made"]}`;
@@ -105,7 +169,7 @@ You MUST respond with valid JSON in this exact format (no markdown, no code fenc
 
 ${additionalContext ? `**Additional Context:**\n${additionalContext}` : ''}
 
-**DeepMindQ Capabilities:**
+**DeepMindQ Capabilities (retrieved from knowledge base):**
 ${capabilityContext}
 
 Write the email now. Respond with JSON only.`;
@@ -167,11 +231,7 @@ Write the email now. Respond with JSON only.`;
           Math.max(0, parsed.confidence_score || 50)
         ),
         assumptions: parsed.assumptions || [],
-        sourceSnippets: [
-          { id: 'cap-1', title: 'AI & Machine Learning', snippetType: 'service_line' },
-          { id: 'cap-2', title: 'Cloud Engineering', snippetType: 'service_line' },
-          { id: 'cap-3', title: 'Fortune 500 Document Automation', snippetType: 'case_study' },
-        ],
+        sourceSnippets,
         generatedAt: new Date().toISOString(),
       },
     });

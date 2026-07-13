@@ -10,7 +10,7 @@ import {
   LayoutDashboard, Upload, Users, Building2, FileText, Send,
   Archive, Mail, MailX, Sparkles, RefreshCw, Menu, X,
   Eye, EyeOff, Building, UsersRound, Target, BookOpen, SendHorizontal, BarChart3,
-  Brain, GitBranch, ScrollText, Settings,
+  Brain, GitBranch, ScrollText, Settings, LogOut,
 } from 'lucide-react';
 import DashboardScreen from '@/components/screens/dashboard-screen';
 import ImportScreen from '@/components/screens/import-screen';
@@ -444,10 +444,11 @@ function AppShell({ onLogout, navigateTo, activeScreen }: { onLogout: () => void
             </div>
             <button
               onClick={onLogout}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-red-400 transition-colors"
               title="Sign out"
             >
-              <X className="w-3.5 h-3.5" />
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">Sign Out</span>
             </button>
           </div>
         </div>

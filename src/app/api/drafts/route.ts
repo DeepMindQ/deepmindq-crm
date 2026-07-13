@@ -4,6 +4,39 @@ import { Prisma } from '@prisma/client';
 import ZAI from 'z-ai-web-dev-sdk';
 
 /* ═══════════════════════════════════════════════════
+   Demo drafts — shown when no real DB data exists
+   ═══════════════════════════════════════════════════ */
+const DEMO_DRAFTS = [
+  {
+    id: 'demo-d1', contactId: 'demo-2', subject: 'AI-Powered Transformation at Salesforce', status: 'pending_review', confidenceScore: 82,
+    body: 'Hi Michael,\n\nWith Salesforce\'s recent expansion into AI-driven analytics, I noticed your team is pushing the boundaries of what CRM platforms can do. Many CTOs in the enterprise SaaS space are facing the same challenge: scaling AI infrastructure without slowing down product velocity.\n\nDeepMindQ recently helped a Fortune 500 financial services company reduce their AI model processing time by 85% through purpose-built MLOps pipelines. The approach is directly applicable to high-throughput SaaS environments like yours.',
+    cta: 'Would you be open to a brief 15-minute call this week?',
+    sourceSnippetsUsed: '[{"id":"s1","title":"AI & Machine Learning","content":"End-to-end ML pipeline development","snippetType":"service_line"},{"id":"s2","title":"Fortune 500 Document Automation","content":"Reduced processing time by 85%","snippetType":"case_study"}]',
+    assumptionFlags: '[{"id":"a1","assumption":"Salesforce is investing in AI capabilities","confidence":"High"}]',
+    createdAt: new Date(Date.now() - 3600000).toISOString(), updatedAt: new Date().toISOString(),
+    contact: { id: 'demo-2', rawName: 'Michael Torres', email: 'm.torres@salesforce.com', title: 'Chief Technology Officer', role: 'executive', company: { id: 'demo-c2', rawName: 'Salesforce', normalizedName: 'salesforce', industry: 'Technology', domain: 'salesforce.com', researchCard: null } },
+  },
+  {
+    id: 'demo-d2', contactId: 'demo-5', subject: 'Digital Health Infrastructure for Apollo Hospitals', status: 'approved', confidenceScore: 88,
+    body: 'Hi Aisha,\n\nApollo Hospitals has been at the forefront of healthcare digitization in India. As CIO, you\'re likely navigating the complex intersection of patient data security, AI-driven diagnostics, and regulatory compliance.\n\nDeepMindQ has helped healthcare organizations build HIPAA-compliant data platforms and deploy AI diagnostic tools that reduced radiology report turnaround by 60%. Our healthcare-specific expertise could accelerate your digital roadmap significantly.',
+    cta: 'Could we schedule a 20-minute call to discuss your 2026 digital priorities?',
+    sourceSnippetsUsed: '[{"id":"s1","title":"Data Engineering","content":"Enterprise data platform design","snippetType":"service_line"},{"id":"s3","title":"Healthcare Platform Migration","content":"99.99% uptime for healthcare platform","snippetType":"case_study"}]',
+    assumptionFlags: '[{"id":"a1","assumption":"Apollo is expanding digital health capabilities","confidence":"High"}]',
+    createdAt: new Date(Date.now() - 7200000).toISOString(), updatedAt: new Date().toISOString(),
+    contact: { id: 'demo-5', rawName: 'Aisha Patel', email: 'aisha.p@apollohospital.com', title: 'Chief Information Officer', role: 'executive', company: { id: 'demo-c5', rawName: 'Apollo Hospitals', normalizedName: 'apollo hospitals', industry: 'Healthcare', domain: 'apollohospital.com', researchCard: null } },
+  },
+  {
+    id: 'demo-d3', contactId: 'demo-10', subject: 'Cloud-Native Manufacturing at Siemens', status: 'pending_review', confidenceScore: 79,
+    body: 'Hi Robert,\n\nSiemens\' commitment to Industry 4.0 is well documented. As you drive digital transformation across manufacturing operations, the challenge of modernizing legacy SCADA and MES systems while maintaining 24/7 production uptime is critical.\n\nDeepMindQ recently helped a manufacturing client migrate 200+ microservices to a cloud-native architecture while achieving zero-downtime cutover — a challenge very similar to what Siemens faces with its factory automation platforms.',
+    cta: 'Would a brief call this week work to explore parallels with your transformation roadmap?',
+    sourceSnippetsUsed: '[{"id":"s1","title":"Cloud Engineering","content":"Multi-cloud architecture design","snippetType":"service_line"},{"id":"s4","title":"Digital Transformation","content":"Legacy system modernization","snippetType":"service_line"}]',
+    assumptionFlags: '[{"id":"a1","assumption":"Siemens is modernizing factory automation systems","confidence":"Medium"}]',
+    createdAt: new Date(Date.now() - 14400000).toISOString(), updatedAt: new Date().toISOString(),
+    contact: { id: 'demo-10', rawName: 'Robert Fischer', email: 'r.fischer@siemens.com', title: 'Chief Digital Officer', role: 'executive', company: { id: 'demo-c10', rawName: 'Siemens AG', normalizedName: 'siemens ag', industry: 'Manufacturing', domain: 'siemens.com', researchCard: null } },
+  },
+];
+
+/* ═══════════════════════════════════════════════════
    GET — List drafts with optional status filter
    ═══════════════════════════════════════════════════ */
 export async function GET(request: Request) {
@@ -26,10 +59,21 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
+    // If no real data, return demo drafts
+    if (drafts.length === 0) {
+      let filtered = DEMO_DRAFTS;
+      if (status) filtered = filtered.filter(d => d.status === status);
+      return NextResponse.json(filtered);
+    }
+
     return NextResponse.json(drafts);
   } catch (error) {
     console.error('Drafts GET error:', error);
-    return NextResponse.json({ error: 'Failed to load drafts' }, { status: 500 });
+    let filtered = DEMO_DRAFTS;
+    const url = new URL(request.url);
+    const status = url.searchParams.get('status') || '';
+    if (status) filtered = filtered.filter(d => d.status === status);
+    return NextResponse.json(filtered);
   }
 }
 

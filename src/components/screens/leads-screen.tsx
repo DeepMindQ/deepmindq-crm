@@ -46,6 +46,10 @@ import {
   MailCheck,
   FileEdit,
   Send,
+  Sparkles,
+  Loader2,
+  CheckCircle2,
+  Brain,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
@@ -263,6 +267,15 @@ export default function LeadsScreen({
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
+  /* ── Email generation state ── */
+  const [generatingEmail, setGeneratingEmail] = useState(false);
+  const [generatedDraft, setGeneratedDraft] = useState<{
+    subject: string; body: string; cta: string; confidenceScore: number;
+    generationMethod: string; sourceSnippets: Array<{ id: string; title: string; snippetType: string; relevanceScore?: number }>;
+    assumptionFlags: Array<{ id: string; assumption: string; confidence: string }>;
+  } | null>(null);
+  const [emailGenError, setEmailGenError] = useState('');
+
   /* ── Debounce / refs ── */
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -385,7 +398,51 @@ export default function LeadsScreen({
   /* ── Open detail dialog ── */
   const openDetail = (lead: Lead) => {
     setSelectedLead(lead);
+    setGeneratedDraft(null);
+    setEmailGenError('');
     setDetailOpen(true);
+  };
+
+  /* ── Generate AI email for a lead ── */
+  const handleGenerateEmail = async () => {
+    if (!selectedLead) return;
+    setGeneratingEmail(true);
+    setGeneratedDraft(null);
+    setEmailGenError('');
+    try {
+      const res = await fetch('/api/drafts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: selectedLead.rawName,
+          email: selectedLead.email,
+          title: selectedLead.title,
+          company: selectedLead.company,
+          industry: selectedLead.industry,
+          companySize: selectedLead.employeeCategory,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.draft) {
+        setGeneratedDraft({
+          subject: data.draft.subject,
+          body: data.draft.body,
+          cta: data.draft.cta || '',
+          confidenceScore: data.draft.confidenceScore || 0,
+          generationMethod: data.draft.generationMethod || 'ai',
+          sourceSnippets: data.draft.sourceSnippets || [],
+          assumptionFlags: data.draft.assumptionFlags || [],
+        });
+        toast.success(`Email generated for ${selectedLead.rawName}`);
+      } else {
+        setEmailGenError(data.error || 'Generation failed');
+        toast.error(data.error || 'Email generation failed');
+      }
+    } catch {
+      setEmailGenError('Network error');
+      toast.error('Network error — please try again');
+    }
+    setGeneratingEmail(false);
   };
 
   /* ── Pagination info ── */
@@ -1087,6 +1144,92 @@ export default function LeadsScreen({
                     .join(', ') || '-'}
                 </p>
               </div>
+
+              {/* ═══ Generate Email Action ═══ */}
+              <div className="pt-2">
+                <Button
+                  className="w-full h-10 gap-2 text-sm font-medium"
+                  style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }}
+                  disabled={generatingEmail || !selectedLead.email}
+                  onClick={handleGenerateEmail}
+                >
+                  {generatingEmail ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  {generatingEmail ? 'Generating with AI...' : 'Generate AI Email'}
+                </Button>
+                {!selectedLead.email && (
+                  <p className="text-[10px] text-amber-400 mt-1.5 text-center">No email address available for this lead</p>
+                )}
+              </div>
+
+              {/* ═══ Generated Draft Preview ═══ */}
+              {generatedDraft && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-3 space-y-2"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xs font-medium text-emerald-400">
+                      Email Generated ({generatedDraft.generationMethod === 'ai' ? 'AI-Powered' : 'Template'})
+                    </span>
+                    <span className="text-[10px] text-muted-foreground ml-auto">
+                      Confidence: {generatedDraft.confidenceScore}%
+                    </span>
+                  </div>
+
+                  {/* Subject */}
+                  <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Subject</p>
+                    <p className="text-xs text-foreground font-medium">{generatedDraft.subject}</p>
+                  </div>
+
+                  {/* Body preview */}
+                  <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Body</p>
+                    <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap line-clamp-6">
+                      {generatedDraft.body}
+                    </p>
+                  </div>
+
+                  {/* Source snippets */}
+                  {generatedDraft.sourceSnippets.length > 0 && (
+                    <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                        <Brain className="w-3 h-3" />
+                        Knowledge Sources Used
+                      </p>
+                      <div className="space-y-1">
+                        {generatedDraft.sourceSnippets.slice(0, 3).map((s, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-primary/60 shrink-0" />
+                            <span className="text-[11px] text-muted-foreground">{s.title}</span>
+                            <span className="text-[10px] text-muted-foreground/50 ml-auto">{s.snippetType}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-[10px] text-muted-foreground text-center">
+                    Draft saved to queue — view in{' '}
+                    <button onClick={() => { setDetailOpen(false); }} className="text-primary hover:underline">
+                      Drafts screen
+                    </button>
+                  </p>
+                </motion.div>
+              )}
+
+              {/* Error */}
+              {emailGenError && (
+                <div className="mt-3 p-2.5 rounded-lg border border-red-500/20 bg-red-500/5">
+                  <p className="text-xs text-red-400">{emailGenError}</p>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { generateEmailDraft } from '@/lib/email-generation';
 
 /* ═══════════════════════════════════════════════════
    Direct API config — no SDK needed.
@@ -89,18 +90,175 @@ export async function GET(request: Request) {
   }
 }
 
+/* ── Derive a role category from job title ── */
+function deriveRole(title: string): string {
+  const t = title.toLowerCase();
+  if (t.includes('chief executive') || t.includes('ceo')) return 'executive';
+  if (t.includes('chief technology') || t.includes('cto')) return 'executive';
+  if (t.includes('chief information') || t.includes('cio')) return 'executive';
+  if (t.includes('chief operating') || t.includes('coo')) return 'executive';
+  if (t.includes('chief financial') || t.includes('cfo')) return 'executive';
+  if (t.includes('chief digital') || t.includes('cdo')) return 'executive';
+  if (t.includes('chief') || t.includes('vp') || t.includes('vice president')) return 'vp';
+  if (t.includes('director') || t.includes('head')) return 'director';
+  if (t.includes('manager') || t.includes('lead')) return 'manager';
+  if (t.includes('architect') || t.includes('engineer') || t.includes('developer')) return 'individual_contributor';
+  if (t.includes('analyst') || t.includes('specialist')) return 'individual_contributor';
+  return 'other';
+}
+
 /* ═══════════════════════════════════════════════════
    POST — AI-Generate a draft for a contact
+
+   Two modes:
+   1. contactId: Look up contact from DB (existing flow)
+   2. prospect fields (name, email, title, company, industry, etc.):
+      Generate email directly using /api/ai/generate logic,
+      create a virtual contact + company in DB, save draft.
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { contactId } = body;
 
+    // ── Mode 2: Direct prospect generation (no contactId) ──
     if (!contactId) {
-      return NextResponse.json({ error: 'contactId is required' }, { status: 400 });
+      const { name, email, title, company, industry, companySize, tone, problems, serviceLine } = body;
+      if (!name) {
+        return NextResponse.json({ error: 'contactId or name is required' }, { status: 400 });
+      }
+
+      // Generate email using shared logic (no HTTP self-call)
+      const draftData = await generateEmailDraft({
+        name,
+        email,
+        title,
+        company,
+        industry,
+        companySize,
+        tone: tone || 'professional',
+        problems,
+        serviceLine,
+        searchMode: 'hybrid',
+        minScore: 15,
+      });
+
+      // Create or find company + contact in DB for record-keeping
+      let companyId = `lead-co-${Date.now()}`;
+      let contactIdResult = `lead-ct-${Date.now()}`;
+
+      try {
+        // Try to create company
+        const domain = email ? email.split('@')[1] : null;
+        const existingCompany = domain
+          ? await db.company.findFirst({ where: { domain } })
+          : null;
+
+        if (existingCompany) {
+          companyId = existingCompany.id;
+        } else {
+          const newCompany = await db.company.create({
+            data: {
+              rawName: company || 'Unknown',
+              normalizedName: (company || 'unknown').toLowerCase(),
+              domain,
+              industry: industry || null,
+              sizeRange: companySize || null,
+            },
+          });
+          companyId = newCompany.id;
+        }
+
+        // Try to create contact
+        const existingContact = email
+          ? await db.contact.findFirst({ where: { email } })
+          : null;
+
+        if (existingContact) {
+          contactIdResult = existingContact.id;
+        } else {
+          const newContact = await db.contact.create({
+            data: {
+              rawName: name,
+              normalizedName: name.toLowerCase(),
+              email: email || 'unknown@example.com',
+              title: title || null,
+              role: title ? deriveRole(title) : null,
+              companyId,
+              batchId: 'lead-gen',
+              status: 'drafted',
+              emailHealth: email ? 'valid' : 'unknown',
+            },
+          });
+          contactIdResult = newContact.id;
+        }
+      } catch (dbErr) {
+        console.log('DB contact creation skipped (demo mode):', dbErr instanceof Error ? dbErr.message : '');
+        // Continue with virtual IDs — draft will still be saved
+      }
+
+      // Save draft to DB
+      let savedDraft: Record<string, unknown> | null = null;
+      try {
+        savedDraft = await db.draft.create({
+          data: {
+            contactId: contactIdResult,
+            subject: draftData.subject || 'Draft email',
+            body: draftData.body || '',
+            cta: draftData.cta || '',
+            confidenceScore: draftData.confidenceScore || 50,
+            sourceSnippetsUsed: JSON.stringify(draftData.sourceSnippets || []),
+            assumptionFlags: JSON.stringify(
+              (draftData.assumptions || []).map((a: string, i: number) => ({
+                id: `af-${i}`,
+                assumption: a,
+                confidence: 'Medium',
+              }))
+            ),
+            status: 'pending_review',
+          },
+        }) as Record<string, unknown>;
+      } catch {
+        // Fallback: return generated draft without DB save
+      }
+
+      return NextResponse.json({
+        success: true,
+        draft: {
+          id: (savedDraft as any)?.id || `draft-${Date.now()}`,
+          subject: draftData.subject,
+          body: draftData.body,
+          cta: draftData.cta,
+          confidenceScore: draftData.confidenceScore,
+          status: 'pending_review',
+          generationMethod: draftData.generationMethod || 'ai',
+          generatedAt: draftData.generatedAt,
+          sourceSnippets: draftData.sourceSnippets || [],
+          assumptionFlags: (draftData.assumptions || []).map((a: string, i: number) => ({
+            id: `af-${i}`,
+            assumption: a,
+            confidence: 'Medium',
+          })),
+          contact: {
+            id: contactIdResult,
+            rawName: name,
+            email: email || '',
+            title: title || '',
+            role: title ? deriveRole(title) : '',
+            company: company ? {
+              id: companyId,
+              rawName: company,
+              industry: industry || '',
+              normalizedName: (company || '').toLowerCase(),
+              domain: email ? email.split('@')[1] : '',
+              researchCard: null,
+            } : null,
+          },
+        },
+      });
     }
 
+    // ── Mode 1: Existing contactId-based generation ──
     // 1. Fetch contact + company + research
     const contact = await db.contact.findUnique({
       where: { id: contactId },

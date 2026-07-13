@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Mail, MailCheck, MailX, Clock, MinusCircle, Tag, TrendingUp, TrendingDown, Inbox } from 'lucide-react';
+import { Mail, MailCheck, Ban, Clock, MinusCircle, Tag, TrendingUp, TrendingDown, Inbox } from 'lucide-react';
 import {
   PageTransition,
   SectionHeader,
@@ -54,7 +54,7 @@ const CATEGORY_BORDER_COLORS: Record<string, string> = {
 
 const CATEGORY_ICONS: Record<string, typeof Tag> = {
   positive: MailCheck,
-  negative: MailX,
+  negative: Ban,
   out_of_office: Clock,
   unsubscribe: MinusCircle,
   other: Mail,

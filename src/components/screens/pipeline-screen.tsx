@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Upload, ShieldCheck, FileText, CheckCircle2, Clock,
-  Send, Mail, MailX, Ban, ChevronRight, ArrowRight,
+  Send, Mail, Ban, ChevronRight, ArrowRight,
   UploadCloud, MailCheck, FileCheck,
   Layers, TrendingUp, AlertTriangle,
 } from 'lucide-react';
@@ -288,7 +288,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
     {
       key: 'bounced',
       label: 'Bounced',
-      icon: MailX,
+      icon: Ban,
       count: bouncedCount,
       ...STAGE_PALETTE.bounced,
       badge: `${bounceRate} bounce rate`,
@@ -616,7 +616,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
             {[
               { key: 'valid', label: 'Valid', color: '#34D399', textColor: 'text-emerald-400', icon: MailCheck },
               { key: 'risky', label: 'Risky', color: '#FBBF24', textColor: 'text-amber-400', icon: AlertTriangle },
-              { key: 'invalid', label: 'Invalid', color: '#F87171', textColor: 'text-red-400', icon: MailX },
+              { key: 'invalid', label: 'Invalid', color: '#F87171', textColor: 'text-red-400', icon: Ban },
               { key: 'unknown', label: 'Unknown', color: '#A1A1AA', textColor: 'text-zinc-400', icon: ShieldCheck },
             ].map((item, idx) => {
               const count = (eh as Record<string, number>)?.[item.key] || 0;

@@ -31,21 +31,48 @@ model Contact {
   suppressionReason String?
   lastCheckedAt    DateTime?
   lastContactedAt  DateTime?
+
+  // L-02: Advanced lead scoring
+  companyFitScore    Int @default(0)
+  engagementScore    Int @default(0)
+  enrichmentScore    Int @default(0)
+  aiConversionScore  Float @default(0)
+
+  // L-03: Enrichment data (JSON string)
+  enrichmentData     String?
+
+  // L-12: GDPR consent tracking
+  consentSource      String?  // form, list_purchase, manual, double_opt_in
+  consentDate        DateTime?
+  consentIp          String?
+
+  // L-14: Lead assignment
+  assignedTo         String?
+
+  // L-15: Lead source tracking
+  source             String?  // linkedin, event, referral, cold_list, inbound, manual
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  batch    ImportBatch @relation(fields: [batchId], references: [id])
-  drafts      Draft[]
-  replies     Reply[]
-  bounces     Bounce[]
-  suppression Suppression?
+  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  batch        ImportBatch    @relation(fields: [batchId], references: [id])
+  drafts       Draft[]
+  replies      Reply[]
+  bounces      Bounce[]
+  suppression  Suppression?
+  notes        ContactNote[]
+  events       EmailEvent[]
+  segments     SegmentContact[]
+  sequenceEnrollments SequenceEnrollment[]
 
   @@index([email])
   @@index([companyId])
   @@index([status])
   @@index([batchId])
   @@index([leadScore])
+  @@index([assignedTo])
+  @@index([source])
 }
 
 model Company {
@@ -100,6 +127,16 @@ model CompanyResearchCard {
   relevantServices    String?
   keyDecisionMakers   String?
   internalNotes       String?
+
+  // L-03: Enrichment fields
+  revenue           String?
+  employeeCount     String?
+  fundingStage      String?
+  techStack         String?   // JSON string
+  socialProfiles    String?   // JSON string
+  enrichmentSource  String?
+  enrichmentDate    DateTime?
+
   lastResearchedAt    DateTime @updatedAt
   createdAt           DateTime @default(now())
 
@@ -118,6 +155,19 @@ model CompanyNote {
   @@index([companyId])
 }
 
+// L-13: Contact notes
+model ContactNote {
+  id        String   @id @default(cuid())
+  contactId String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+}
+
 // ── Capability Library (per SDD Section 10) ──
 
 model CapabilityAsset {
@@ -128,17 +178,108 @@ model CapabilityAsset {
   serviceLine String?
   targetIndustries String?
   targetRoles  String?
+  targetCompanySizes String?   // C-03: was missing from schema
   problems    String?
   evidence    String?
   content     String?  // full text
   isActive    Boolean  @default(true)
   version     Int      @default(1)
+
+  // C-08: Asset relationships
+  parentAssetId String?
+
+  // C-15: Tagging system
+  tags        String?   // JSON array string
+
+  // C-09: Feedback scoring
+  upvotes     Int      @default(0)
+  downvotes   Int      @default(0)
+  usedInEmails Int     @default(0)
+
+  // C-06: Deduplication
+  contentHash String?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([category])
   @@index([serviceLine])
   @@index([isActive])
+  @@index([parentAssetId])
+  @@index([contentHash])
+}
+
+// ── Email Template System (E-14) ──
+
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  subject     String
+  body        String
+  cta         String?
+  serviceLine String?
+  tone        String   @default("professional") // professional, casual, executive
+  category    String?  // intro, follow_up, case_study, cta, custom
+  variables   String?  // JSON array of placeholder names
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([serviceLine])
+  @@index([isActive])
+}
+
+// ── Email Sequences / Drip Campaigns (E-15) ──
+
+model EmailSequence {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  serviceLine String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  steps       SequenceStep[]
+  enrollments SequenceEnrollment[]
+
+  @@index([serviceLine])
+  @@index([isActive])
+}
+
+model SequenceStep {
+  id          String   @id @default(cuid())
+  sequenceId  String
+  stepNumber  Int
+  delayDays   Int      @default(3)
+  subject     String
+  body        String
+  cta         String?
+  templateId  String?
+
+  sequence    EmailSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  @@index([sequenceId])
+  @@unique([sequenceId, stepNumber])
+}
+
+model SequenceEnrollment {
+  id           String   @id @default(cuid())
+  sequenceId   String
+  contactId    String
+  currentStep  Int      @default(1)
+  status       String   @default("active") // active, completed, paused, cancelled
+  startedAt    DateTime @default(now())
+  nextStepAt   DateTime?
+  completedAt  DateTime?
+
+  sequence     EmailSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  contact      Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([sequenceId])
+  @@index([contactId])
+  @@index([status])
+  @@index([nextStepAt])
 }
 
 // ── Draft & Send (per SDD Sections 11-12) ──
@@ -155,6 +296,24 @@ model Draft {
   reviewNotes       String?
   status            String   @default("pending_review") // pending_review, approved, rejected, sent
   rejectReason      String?
+
+  // E-06: Email thread tracking
+  messageId         String?   // our Message-ID header
+  inReplyTo         String?   // In-Reply-To header
+  references        String?   // References header (JSON array string)
+
+  // E-10: A/B testing
+  variantLabel      String?   // e.g. "variant_a", "variant_b", "control"
+  abTestId          String?
+
+  // E-11: Tracking
+  trackingPixelId   String?
+
+  // E-15: Sequence tracking
+  sequenceId        String?
+  sequenceStepId    String?
+  abTest            ABTest?  @relation(fields: [abTestId], references: [id])
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -163,6 +322,8 @@ model Draft {
 
   @@index([contactId])
   @@index([status])
+  @@index([abTestId])
+  @@index([sequenceId])
 }
 
 model SendQueue {
@@ -173,6 +334,17 @@ model SendQueue {
   status        String   @default("pending") // pending, scheduled, sent, failed, paused
   failureReason String?
   retryCount    Int      @default(0)
+
+  // E-01: Provider tracking
+  providerId    String?   // ID returned by email provider (Resend, SendGrid, etc.)
+  provider      String?   // "resend", "sendgrid", "ses", "postmark"
+
+  // E-11: Engagement tracking
+  openCount     Int      @default(0)
+  clickCount    Int      @default(0)
+  replied       Boolean  @default(false)
+  bounced       Boolean  @default(false)
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -182,11 +354,48 @@ model SendQueue {
   @@index([scheduledAt])
 }
 
+// ── Email Events (E-11) ──
+
+model EmailEvent {
+  id         String   @id @default(cuid())
+  queueId    String?
+  contactId  String
+  draftId    String?
+  eventType  String   // open, click, reply, bounce, unsubscribe, complaint
+  metadata   String?  // JSON string with event-specific data (URL for clicks, agent for opens, etc.)
+  createdAt  DateTime @default(now())
+
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([queueId])
+  @@index([contactId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+// ── A/B Tests (E-10) ──
+
+model ABTest {
+  id            String   @id @default(cuid())
+  name          String
+  status        String   @default("running") // running, completed, cancelled
+  winnerVariant String?
+  totalSends    Int      @default(0)
+  createdAt     DateTime @default(now())
+  completedAt   DateTime?
+
+  drafts        Draft[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
 // ── Feedback (per SDD Section 13) ──
 
 model Reply {
   id           String   @id @default(cuid())
   contactId    String
+  draftId      String?   // E-06: link reply to specific draft
   subject      String?
   body         String?
   category     String?  // positive, negative, out_of_office, unsubscribe, other
@@ -196,24 +405,29 @@ model Reply {
 
   @@index([contactId])
   @@index([category])
+  @@index([draftId])
 }
 
 model Bounce {
   id           String   @id @default(cuid())
   contactId    String
+  queueId      String?   // E-08: link bounce to specific send
   bounceType   String?  // hard, soft
   reason       String?
+  providerData String?  // E-08: raw provider bounce data
   bouncedAt    DateTime @default(now())
 
   contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@index([contactId])
+  @@index([queueId])
 }
 
 model Suppression {
   id            String   @id @default(cuid())
   contactId     String   @unique
   reason        String   // unsubscribe, bounce, manual, negative_reply
+  method        String?  // E-09: manual, auto_webhook, auto_bounce
   createdAt     DateTime @default(now())
   removedAt     DateTime?
   removedBy     String?
@@ -222,6 +436,38 @@ model Suppression {
   contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@index([reason])
+  @@index([method])
+}
+
+// ── Lead Segments (L-04) ──
+
+model Segment {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  filters       String   // JSON string: {industry: [...], status: [...], scoreRange: [min, max], ...}
+  contactCount  Int      @default(0)
+  isStatic      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  contacts      SegmentContact[]
+
+  @@index([name])
+}
+
+model SegmentContact {
+  id         String   @id @default(cuid())
+  segmentId  String
+  contactId  String
+  addedAt    DateTime @default(now())
+
+  segment    Segment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  contact    Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([segmentId, contactId])
+  @@index([segmentId])
+  @@index([contactId])
 }
 
 // ── Audit (per SDD Section 16) ──

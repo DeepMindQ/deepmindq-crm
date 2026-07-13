@@ -1,5 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { getVectorIndex } from '@/lib/vector-index';
+import { tokenize, queryToVector } from '@/lib/embeddings';
 
 /* ═══════════════════════════════════════════════════
    Demo fallback capabilities when DB is empty
@@ -17,6 +19,7 @@ const DEMO_CAPABILITIES = [
     evidence: '150+ enterprise ML deployments, average 3x ROI within 12 months',
     content: 'End-to-end ML pipeline development, model training, MLOps, and intelligent automation solutions. We help enterprises build production-grade AI systems that drive measurable business outcomes. Our team specializes in NLP, computer vision, recommendation systems, predictive analytics, and generative AI. We have delivered 150+ enterprise ML deployments with an average 3x ROI within 12 months.',
     targetCompanySizes: 'Mid-Market, Enterprise',
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: '["ai","ml","automation"]',
   },
   {
     id: 'demo-sl-2',
@@ -30,6 +33,7 @@ const DEMO_CAPABILITIES = [
     evidence: '200+ cloud migrations completed, 99.99% uptime SLA achieved',
     content: 'Multi-cloud architecture design, migration strategy, and cloud-native application development on AWS, Azure, and GCP. Specializing in complex enterprise migrations with zero downtime. 200+ cloud migrations completed with 99.99% uptime SLA.',
     targetCompanySizes: 'Mid-Market, Enterprise',
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: '["cloud","aws","azure","gcp","migration"]',
   },
   {
     id: 'demo-sl-3',
@@ -43,6 +47,7 @@ const DEMO_CAPABILITIES = [
     evidence: '50+ enterprise data platforms built, 85% reduction in reporting time',
     content: 'Enterprise data platform design, real-time analytics, data governance, and warehouse modernization. Transforming how organizations collect, process, and derive value from their data. Expertise in Snowflake, Databricks, dbt, and real-time streaming architectures.',
     targetCompanySizes: 'Mid-Market, Enterprise',
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: '["data","analytics","snowflake","databricks"]',
   },
   {
     id: 'demo-sl-4',
@@ -56,6 +61,7 @@ const DEMO_CAPABILITIES = [
     evidence: '80+ transformation programs delivered, 60% efficiency gains on average',
     content: 'Legacy system modernization, process automation, and technology strategy consulting. Helping enterprises navigate digital disruption with pragmatic, outcome-focused approaches. 80+ transformation programs delivered with 60% efficiency gains.',
     targetCompanySizes: 'Mid-Market, Enterprise, Startup',
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: '["digital","transformation","modernization"]',
   },
   {
     id: 'demo-sl-5',
@@ -69,6 +75,7 @@ const DEMO_CAPABILITIES = [
     evidence: 'Zero breaches across 100+ security assessments, 99.7% compliance pass rate',
     content: 'Security architecture, compliance frameworks (SOC 2, HIPAA, PCI-DSS), penetration testing, and incident response. We protect critical infrastructure and sensitive data with defense-in-depth strategies.',
     targetCompanySizes: 'Enterprise',
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: '["security","compliance","soc2","hipaa"]',
   },
   {
     id: 'demo-cs-1',
@@ -82,6 +89,7 @@ const DEMO_CAPABILITIES = [
     evidence: '85% reduction in processing time, $2.5M annual savings',
     content: 'A Fortune 500 financial services firm was drowning in document processing — thousands of loan applications, compliance filings, and client onboarding documents processed manually each week. We deployed an AI-powered document automation system that reduced processing time by 85%, saving $2.5M annually and eliminating 95% of manual errors.',
     targetCompanySizes: 'Enterprise',
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: '["ai","automation","financial-services","document-processing"]',
   },
   {
     id: 'demo-cs-2',
@@ -95,6 +103,7 @@ const DEMO_CAPABILITIES = [
     evidence: '200+ microservices migrated, 99.99% uptime, 10x deployment frequency',
     content: 'A healthcare platform running a legacy monolith was experiencing frequent outages and couldn\'t scale to meet growing demand. We migrated 200+ microservices to a cloud-native architecture on AWS with full HIPAA compliance, achieving 99.99% uptime and a 10x increase in deployment frequency.',
     targetCompanySizes: 'Enterprise',
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: '["cloud","migration","healthcare","aws"]',
   },
   {
     id: 'demo-cs-3',
@@ -108,6 +117,7 @@ const DEMO_CAPABILITIES = [
     evidence: '85% reduction in reporting latency, $12M inventory savings, 30% improvement in forecast accuracy',
     content: 'A top-10 retailer was making inventory decisions on 24-hour-old data, leading to $40M in annual overstock and stockout costs. We built a real-time analytics platform that processes 2B+ events daily, reducing reporting latency by 85% and enabling same-day inventory decisions that save $12M annually.',
     targetCompanySizes: 'Enterprise',
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: '["data","analytics","retail","real-time"]',
   },
   {
     id: 'demo-cs-4',
@@ -121,6 +131,7 @@ const DEMO_CAPABILITIES = [
     evidence: '72% reduction in unplanned downtime, $1.8M annual savings',
     content: 'A mid-market manufacturer with 12 facilities was losing $2.5M annually to unplanned equipment downtime. We deployed IoT sensors and a predictive maintenance AI model that identifies failures 48 hours in advance, reducing unplanned downtime by 72% and saving $1.8M per year.',
     targetCompanySizes: 'Mid-Market',
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: '["ai","iot","manufacturing","predictive-maintenance"]',
   },
   {
     id: 'demo-cs-5',
@@ -134,6 +145,7 @@ const DEMO_CAPABILITIES = [
     evidence: '8-week delivery, processes 500M events/day, supports 50+ dashboards',
     content: 'A Series B fintech startup had no data infrastructure and was making all decisions on gut feel. We designed and built their entire data platform from scratch — ingestion pipelines, warehouse, real-time analytics, and BI dashboards — in just 8 weeks. The platform now processes 500M events daily and powers 50+ operational dashboards.',
     targetCompanySizes: 'Startup, Mid-Market',
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: '["data","fintech","startup","platform"]',
   },
   {
     id: 'demo-pp-1',
@@ -147,6 +159,7 @@ const DEMO_CAPABILITIES = [
     evidence: '150+ projects, 97% client retention rate',
     content: 'DeepMindQ has delivered 150+ successful enterprise implementations across financial services, healthcare, manufacturing, and technology sectors, maintaining a 97% client retention rate.',
     targetCompanySizes: 'Mid-Market, Enterprise',
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: '["enterprise","track-record"]',
   },
   {
     id: 'demo-pp-2',
@@ -160,6 +173,7 @@ const DEMO_CAPABILITIES = [
     evidence: '3x average ROI, 12-month payback period',
     content: 'Clients leveraging DeepMindQ AI and cloud solutions see an average 3x return on investment within the first 12 months, measured by cost savings, revenue impact, and operational efficiency gains.',
     targetCompanySizes: 'Mid-Market, Enterprise',
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: '["roi","metrics"]',
   },
   {
     id: 'demo-pp-3',
@@ -173,6 +187,7 @@ const DEMO_CAPABILITIES = [
     evidence: 'AWS Advanced, Azure Gold, GCP Partner, 200+ certifications',
     content: 'DeepMindQ holds AWS Advanced Partner, Azure Gold Partner, and GCP Partner designations. Our team maintains 200+ individual cloud certifications across architecture, security, data, and AI/ML specialties.',
     targetCompanySizes: 'Mid-Market, Enterprise',
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: '["cloud","certifications","aws","azure","gcp"]',
   },
   {
     id: 'demo-cta-1',
@@ -186,6 +201,7 @@ const DEMO_CAPABILITIES = [
     evidence: null,
     content: 'A low-friction call-to-action that has achieved a 34% positive response rate across industries.',
     targetCompanySizes: null,
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: null,
   },
   {
     id: 'demo-cta-2',
@@ -199,6 +215,7 @@ const DEMO_CAPABILITIES = [
     evidence: null,
     content: 'A tailored CTA referencing a specific use case achieves 2.5x higher response rates than generic meeting requests.',
     targetCompanySizes: null,
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: null,
   },
   {
     id: 'demo-cta-3',
@@ -212,6 +229,7 @@ const DEMO_CAPABILITIES = [
     evidence: null,
     content: 'Case study CTAs achieve the highest engagement rate (41%) because they offer value before asking for anything.',
     targetCompanySizes: null,
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: null,
   },
   {
     id: 'demo-or-1',
@@ -225,6 +243,7 @@ const DEMO_CAPABILITIES = [
     evidence: '78% of pilot clients expand to full engagements',
     content: 'We understand timing is a concern. Many of our clients start with a focused pilot — typically a 4-6 week engagement that demonstrates clear ROI before any broader commitment. 78% of clients who start with a pilot go on to expand the engagement.',
     targetCompanySizes: 'Mid-Market, Enterprise',
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: '["budget","objection","pilot"]',
   },
   {
     id: 'demo-or-2',
@@ -238,6 +257,7 @@ const DEMO_CAPABILITIES = [
     evidence: '65% of engagements augment existing internal teams',
     content: 'That makes sense — most of our clients have strong internal teams. We typically complement what they\'re already doing, whether that\'s providing specialized expertise, accelerating timelines, or bringing cross-industry patterns they wouldn\'t see otherwise.',
     targetCompanySizes: 'Mid-Market, Enterprise',
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: '["objection","internal-team","augmentation"]',
   },
   {
     id: 'demo-or-3',
@@ -251,6 +271,7 @@ const DEMO_CAPABILITIES = [
     evidence: 'Sharing relevant content maintains 68% of conversations for follow-up',
     content: 'Absolutely understand — this isn\'t a decision that needs to be made today. Would it be helpful if I shared a 2-page brief on how we typically approach [specific problem] so you have it ready when the timing is right?',
     targetCompanySizes: null,
+    upvotes: 0, downvotes: 0, usedInEmails: 0, tags: null,
   },
 ];
 
@@ -270,6 +291,10 @@ interface CapabilityRecord {
   evidence?: string | null;
   content?: string | null;
   targetCompanySizes?: string | null;
+  tags?: string | null;
+  upvotes: number;
+  downvotes: number;
+  usedInEmails: number;
 }
 
 /** Search parameter interface */
@@ -287,6 +312,7 @@ interface KnowledgeSearchParams {
   searchMode?: 'keyword' | 'semantic' | 'hybrid';
   boostFields?: Record<string, number>;
   excludeCategories?: string[];
+  tags?: string[]; // C-15: tag filtering
 }
 
 /** Map company size descriptions to standard labels */
@@ -299,41 +325,61 @@ function normalizeCompanySize(size?: string): string | null {
   return size;
 }
 
-/** Extract meaningful tokens from a query string */
-function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s&+]/g, ' ')
-    .split(/\s+/)
-    .filter(w => w.length > 1);
+/**
+ * Parse tags from JSON string to string array.
+ */
+function parseTags(tagsStr: string | null | undefined): string[] {
+  if (!tagsStr) return [];
+  try {
+    const parsed = JSON.parse(tagsStr);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return tagsStr.split(',').map(t => t.trim()).filter(Boolean);
+  }
 }
 
 /**
- * Compute semantic similarity using TF overlap.
- * This is a lightweight approximation of semantic search
- * that works without external embedding services.
+ * Compute keyword match score between query tokens and a field.
  */
-function semanticScore(
+function keywordFieldScore(queryTokens: string[], fieldValue: string, weight: number): number {
+  if (!fieldValue || queryTokens.length === 0) return 0;
+  const fieldLower = fieldValue.toLowerCase();
+  let score = 0;
+  for (const token of queryTokens) {
+    if (fieldLower.includes(token)) {
+      score += weight;
+    }
+  }
+  return score;
+}
+
+/**
+ * Compute semantic score using TF-IDF vector index.
+ * Returns 0 if index not available.
+ */
+function semanticFieldScore(
   queryTokens: string[],
-  fieldTokens: string[]
+  assetId: string,
+  vectorIndex: ReturnType<typeof getVectorIndex> | null,
+  queryVector: Float64Array | null,
+  weight: number
 ): number {
-  if (queryTokens.length === 0 || fieldTokens.length === 0) return 0;
-  const querySet = new Set(queryTokens);
-  const fieldSet = new Set(fieldTokens);
-  const intersection = new Set([...querySet].filter(t => fieldSet.has(t)));
-  const union = new Set([...querySet, ...fieldSet]);
-  // Jaccard similarity
-  return union.size === 0 ? 0 : intersection.size / union.size;
+  if (!vectorIndex || !queryVector || queryVector.length === 0) return 0;
+  const score = vectorIndex.getScore(assetId, queryVector);
+  return score * weight * 5; // Scale to match keyword scoring range
 }
 
 /** Score a single capability against the query and all parameters */
 function scoreCapability(
   cap: CapabilityRecord,
   queryTokens: string[],
-  params: KnowledgeSearchParams
+  params: KnowledgeSearchParams,
+  vectorIndex: ReturnType<typeof getVectorIndex> | null,
+  queryVector: Float64Array | null
 ): { score: number; matchedFields: string[] } {
   const matchedFields: string[] = [];
-  let score = 0;
+  let keywordScore = 0;
+  let semanticScore = 0;
 
   // ── Base field weights (can be overridden by boostFields) ──
   const baseWeights: Record<string, number> = {
@@ -367,7 +413,7 @@ function scoreCapability(
       const fieldLower = field.value.toLowerCase();
       for (const token of queryTokens) {
         if (fieldLower.includes(token)) {
-          score += field.weight;
+          keywordScore += field.weight;
           if (!matchedFields.includes(field.name)) {
             matchedFields.push(field.name);
           }
@@ -376,20 +422,26 @@ function scoreCapability(
     }
   }
 
-  // ── Semantic matching (TF overlap) ──
+  // ── Semantic matching via TF-IDF vector index (C-01, C-02) ──
   if (searchMode === 'semantic' || searchMode === 'hybrid') {
-    const semanticWeight = searchMode === 'hybrid' ? 0.5 : 1.0;
-    for (const field of fields) {
-      if (!field.value) continue;
-      const fieldTokens = tokenize(field.value);
-      const sim = semanticScore(queryTokens, fieldTokens);
-      if (sim > 0.1) {
-        score += sim * field.weight * 5 * semanticWeight;
-        if (!matchedFields.includes(field.name) && sim > 0.2) {
-          matchedFields.push(field.name);
-        }
-      }
+    const semScore = semanticFieldScore(queryTokens, cap.id, vectorIndex, queryVector, 1.0);
+    if (semScore > 0.1) {
+      semanticScore += semScore;
+      // Add matched fields based on semantic score threshold
+      if (semScore > 0.2 && !matchedFields.includes('title')) matchedFields.push('title');
+      if (semScore > 0.1 && !matchedFields.includes('summary')) matchedFields.push('summary');
     }
+  }
+
+  // ── Combine keyword and semantic scores ──
+  let score: number;
+  if (searchMode === 'keyword') {
+    score = keywordScore;
+  } else if (searchMode === 'semantic') {
+    score = semanticScore;
+  } else {
+    // Hybrid: 50% keyword, 50% semantic
+    score = (keywordScore * 0.5) + (semanticScore * 0.5);
   }
 
   // ── Exact phrase bonus ──
@@ -475,12 +527,36 @@ function scoreCapability(
     }
   }
 
-  // ── Company size match bonus ──
+  // ── Company size match bonus (C-03) ──
   if (params.companySize && cap.targetCompanySizes) {
     const normalizedSize = normalizeCompanySize(params.companySize);
     if (normalizedSize && cap.targetCompanySizes.toLowerCase().includes(normalizedSize.toLowerCase())) {
       score += 2;
+      if (!matchedFields.includes('targetCompanySizes')) {
+        matchedFields.push('targetCompanySizes');
+      }
     }
+  }
+
+  // ── Tag match bonus (C-15) ──
+  if (params.tags && params.tags.length > 0 && cap.tags) {
+    const assetTags = parseTags(cap.tags);
+    const tagSet = new Set(assetTags.map(t => t.toLowerCase()));
+    for (const searchTag of params.tags) {
+      if (tagSet.has(searchTag.toLowerCase())) {
+        score += 2;
+        break; // Only bonus once for tag match
+      }
+    }
+  }
+
+  // ── Feedback factor (C-09): (upvotes - downvotes) * 0.5 ──
+  const feedbackFactor = ((cap.upvotes || 0) - (cap.downvotes || 0)) * 0.5;
+  score += feedbackFactor;
+
+  // ── Used in emails bonus (C-09) ──
+  if (cap.usedInEmails > 0) {
+    score += Math.min(cap.usedInEmails * 0.2, 2); // Cap at +2
   }
 
   return { score, matchedFields };
@@ -503,6 +579,7 @@ function scoreCapability(
    - searchMode (optional): 'keyword' | 'semantic' | 'hybrid' (default 'keyword')
    - boostFields (optional): Object mapping field names to weight multipliers
    - excludeCategories (optional): Array of categories to exclude from results
+   - tags (optional): Array of tag strings to filter/match (C-15)
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
   try {
@@ -522,17 +599,19 @@ export async function POST(request: Request) {
       searchMode: body.searchMode || 'keyword',
       boostFields: body.boostFields || undefined,
       excludeCategories: body.excludeCategories || undefined,
+      tags: body.tags || undefined,
     };
 
     if (!params.query || typeof params.query !== 'string' || !params.query.trim()) {
       return NextResponse.json(
-        { error: 'query is required and must be a non-empty string', requiredParams: ['query'], optionalParams: ['industry', 'role', 'category', 'serviceLine', 'companySize', 'problems', 'minRelevanceScore', 'limit', 'includeContent', 'searchMode', 'boostFields', 'excludeCategories'] },
+        { error: 'query is required and must be a non-empty string', requiredParams: ['query'], optionalParams: ['industry', 'role', 'category', 'serviceLine', 'companySize', 'problems', 'minRelevanceScore', 'limit', 'includeContent', 'searchMode', 'boostFields', 'excludeCategories', 'tags'] },
         { status: 400 }
       );
     }
 
     // ── Load capabilities from DB, fall back to demo data ──
     let capabilities: CapabilityRecord[] = [];
+    let usedDB = false;
 
     try {
       const dbCaps = await db.capabilityAsset.findMany({
@@ -550,20 +629,41 @@ export async function POST(request: Request) {
           problems: c.problems,
           evidence: c.evidence,
           content: c.content,
+          targetCompanySizes: c.targetCompanySizes,
+          tags: c.tags,
+          upvotes: c.upvotes || 0,
+          downvotes: c.downvotes || 0,
+          usedInEmails: c.usedInEmails || 0,
         }));
+        usedDB = true;
       } else {
-        capabilities = DEMO_CAPABILITIES;
+        capabilities = DEMO_CAPABILITIES as CapabilityRecord[];
       }
     } catch {
-      capabilities = DEMO_CAPABILITIES;
+      capabilities = DEMO_CAPABILITIES as CapabilityRecord[];
     }
 
     const queryTokens = tokenize(params.query);
 
+    // ── Build/rebuild vector index if using semantic or hybrid mode (C-01, C-02) ──
+    let vectorIndex: ReturnType<typeof getVectorIndex> | null = null;
+    let queryVector: Float64Array | null = null;
+
+    if (params.searchMode === 'semantic' || params.searchMode === 'hybrid') {
+      vectorIndex = getVectorIndex();
+      if (!vectorIndex.isReady() && usedDB) {
+        // Auto-build on first semantic/hybrid search
+        vectorIndex.build(capabilities);
+      }
+      if (vectorIndex.isReady()) {
+        queryVector = vectorIndex.queryToVector(params.query);
+      }
+    }
+
     // ── Score, filter, and sort ──
     const scored = capabilities
       .map(cap => {
-        const { score, matchedFields } = scoreCapability(cap, queryTokens, params);
+        const { score, matchedFields } = scoreCapability(cap, queryTokens, params, vectorIndex, queryVector);
         return { ...cap, relevanceScore: score, matchedFields };
       })
       .filter(item => item.relevanceScore > 0);
@@ -586,9 +686,19 @@ export async function POST(request: Request) {
     if (params.serviceLine) {
       const slTokens = tokenize(params.serviceLine);
       filtered = filtered.filter(item => {
-        if (!item.serviceLine) return true; // Don't exclude items without a service line
+        if (!item.serviceLine) return true;
         const slLower = item.serviceLine.toLowerCase();
         return slTokens.some(t => slLower.includes(t));
+      });
+    }
+
+    // ── Apply tag filter (C-15): only include assets that have ANY of the specified tags ──
+    if (params.tags && params.tags.length > 0) {
+      const tagSet = new Set(params.tags.map(t => t.toLowerCase()));
+      filtered = filtered.filter(item => {
+        if (!item.tags) return false;
+        const assetTags = parseTags(item.tags);
+        return assetTags.some(t => tagSet.has(t.toLowerCase()));
       });
     }
 
@@ -602,9 +712,16 @@ export async function POST(request: Request) {
         category: item.category,
         relevanceScore: Math.round((item.relevanceScore / maxScore) * 100),
         matchedFields: item.matchedFields,
+        upvotes: item.upvotes || 0,
+        downvotes: item.downvotes || 0,
+        usedInEmails: item.usedInEmails || 0,
       };
       if (item.serviceLine) result.serviceLine = item.serviceLine;
       if (item.targetIndustries) result.targetIndustries = item.targetIndustries;
+      if (item.tags) {
+        const parsed = parseTags(item.tags);
+        if (parsed.length > 0) result.tags = parsed;
+      }
       if (params.includeContent && item.content) result.content = item.content;
       return result;
     });
@@ -623,6 +740,7 @@ export async function POST(request: Request) {
       results,
       query: params.query.trim(),
       searchMode: params.searchMode,
+      vectorIndexReady: vectorIndex?.isReady() || false,
       appliedFilters: {
         ...(params.industry ? { industry: params.industry } : {}),
         ...(params.role ? { role: params.role } : {}),
@@ -632,6 +750,7 @@ export async function POST(request: Request) {
         ...(params.problems ? { problems: params.problems } : {}),
         ...(params.minRelevanceScore ? { minRelevanceScore: params.minRelevanceScore } : {}),
         ...(params.excludeCategories ? { excludeCategories: params.excludeCategories } : {}),
+        ...(params.tags ? { tags: params.tags } : {}),
       },
       totalMatches: filtered.length,
       totalBeforeFilters: scored.length,
@@ -651,8 +770,8 @@ export async function POST(request: Request) {
    ═══════════════════════════════════════════════════ */
 export async function GET() {
   return NextResponse.json({
-    engine: 'DeepMindQ Knowledge Retrieval Engine v2.0',
-    description: 'Retrieves relevant capabilities, case studies, proof points, objection responses, and CTAs based on semantic and keyword matching.',
+    engine: 'DeepMindQ Knowledge Retrieval Engine v3.0',
+    description: 'Retrieves relevant capabilities, case studies, proof points, objection responses, and CTAs based on TF-IDF semantic and keyword matching.',
     endpoint: 'POST /api/knowledge/search',
     parameters: {
       query: { type: 'string', required: true, description: 'Search query — keywords, phrases, or natural language' },
@@ -665,9 +784,10 @@ export async function GET() {
       minRelevanceScore: { type: 'number', required: false, description: 'Minimum relevance score (0-100) threshold. Results below this are excluded.' },
       limit: { type: 'number', required: false, default: 8, description: 'Maximum number of results to return' },
       includeContent: { type: 'boolean', required: false, default: false, description: 'Include full content field in results (for AI prompt building)' },
-      searchMode: { type: 'string', required: false, default: 'keyword', enum: ['keyword', 'semantic', 'hybrid'], description: 'Search strategy: keyword (exact token matching), semantic (TF overlap similarity), hybrid (both)' },
+      searchMode: { type: 'string', required: false, default: 'keyword', enum: ['keyword', 'semantic', 'hybrid'], description: 'Search strategy: keyword (exact token matching), semantic (TF-IDF cosine similarity), hybrid (50% keyword + 50% semantic)' },
       boostFields: { type: 'object', required: false, description: 'Custom field weight multipliers. Keys: title, summary, content, targetIndustries, targetRoles, problems, evidence. Values: numeric multipliers.' },
       excludeCategories: { type: 'array', required: false, description: 'Array of category names to exclude from results' },
+      tags: { type: 'array', required: false, description: 'Array of tag strings. Results must have at least one matching tag.' },
     },
   });
 }

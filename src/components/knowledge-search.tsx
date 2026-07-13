@@ -15,7 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, BookOpen, Plus, Loader2, ArrowUpRight, X, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, BookOpen, Plus, Loader2, ArrowUpRight, X, SlidersHorizontal, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { toast } from 'sonner';
 
 /* ═══════════════════════════════════════════════════
    Types
@@ -30,6 +31,10 @@ interface SearchResult {
   serviceLine?: string;
   targetIndustries?: string;
   content?: string;
+  upvotes?: number;
+  downvotes?: number;
+  usedInEmails?: number;
+  tags?: string[];
 }
 
 interface KnowledgeSearchProps {
@@ -83,6 +88,7 @@ const MATCHED_FIELD_LABELS: Record<string, string> = {
   problems: 'Problems',
   evidence: 'Evidence',
   serviceLine: 'Service Line',
+  targetCompanySizes: 'Company Size',
 };
 
 const INDUSTRY_OPTIONS = [
@@ -155,12 +161,19 @@ export default function KnowledgeSearch({
   const [minScore, setMinScore] = useState<number>(0);
   const [includeContent, setIncludeContent] = useState(false);
 
+  // Tags filter (C-15)
+  const [tagInput, setTagInput] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
   // Results state
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [totalMatches, setTotalMatches] = useState(0);
   const [appliedFilters, setAppliedFilters] = useState<Record<string, string>>({});
+
+  // Feedback state (C-09)
+  const [feedbackState, setFeedbackState] = useState<Record<string, 'upvote' | 'downvote'>>({});
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
@@ -179,6 +192,7 @@ export default function KnowledgeSearch({
         minRelevanceScore: minScore > 0 ? minScore : undefined,
         includeContent,
         limit: 10,
+        tags: selectedTags.length > 0 ? selectedTags : undefined,
       };
 
       const res = await fetch('/api/knowledge/search', {
@@ -195,7 +209,7 @@ export default function KnowledgeSearch({
       setTotalMatches(0);
     }
     setLoading(false);
-  }, [query, industry, role, category, companySize, serviceLine, problems, searchMode, minScore, includeContent]);
+  }, [query, industry, role, category, companySize, serviceLine, problems, searchMode, minScore, includeContent, selectedTags]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSearch();
@@ -208,7 +222,71 @@ export default function KnowledgeSearch({
     setAppliedFilters({});
   };
 
-  const activeFilterCount = [category, companySize, serviceLine, problems, searchMode !== 'keyword' ? searchMode : '', minScore > 0 ? String(minScore) : ''].filter(Boolean).length;
+  // Tag input handler (C-15)
+  const handleAddTag = () => {
+    const tag = tagInput.trim().toLowerCase();
+    if (tag && !selectedTags.includes(tag)) {
+      setSelectedTags(prev => [...prev, tag]);
+      setTagInput('');
+    }
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddTag();
+    }
+    if (e.key === 'Backspace' && tagInput === '' && selectedTags.length > 0) {
+      setSelectedTags(prev => prev.slice(0, -1));
+    }
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    setSelectedTags(prev => prev.filter(t => t !== tag));
+  };
+
+  // Feedback handler (C-09)
+  const handleFeedback = async (assetId: string, type: 'upvote' | 'downvote') => {
+    const isToggle = feedbackState[assetId] === type;
+    if (isToggle) {
+      setFeedbackState(prev => {
+        const next = { ...prev };
+        delete next[assetId];
+        return next;
+      });
+      return;
+    }
+    setFeedbackState(prev => ({ ...prev, [assetId]: type }));
+    try {
+      await fetch('/api/knowledge/search/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assetId, type }),
+      });
+      // Update local counts
+      setResults(prev => prev.map(r => {
+        if (r.id !== assetId) return r;
+        return {
+          ...r,
+          upvotes: (r.upvotes || 0) + (type === 'upvote' ? 1 : 0),
+          downvotes: (r.downvotes || 0) + (type === 'downvote' ? 1 : 0),
+        };
+      }));
+      toast.success(type === 'upvote' ? 'Upvoted' : 'Downvoted', { description: 'Feedback recorded. Results will be re-ranked in future searches.' });
+    } catch {
+      toast.error('Failed to record feedback');
+    }
+  };
+
+  const activeFilterCount = [
+    category,
+    companySize,
+    serviceLine,
+    problems,
+    searchMode !== 'keyword' ? searchMode : '',
+    minScore > 0 ? String(minScore) : '',
+    selectedTags.length > 0 ? `${selectedTags.length} tags` : '',
+  ].filter(Boolean).length;
 
   return (
     <div className="space-y-4">
@@ -247,6 +325,19 @@ export default function KnowledgeSearch({
                 <SelectItem value="__all__" className="text-xs">Any Role</SelectItem>
                 {ROLE_OPTIONS.map(r => (
                   <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* C-03: Company Size quick filter in main bar */}
+            <Select value={companySize} onValueChange={v => setCompanySize(v === '__all__' ? '' : v)}>
+              <SelectTrigger className="h-9 w-[130px] text-xs bg-background border-border">
+                <SelectValue placeholder="Company Size" />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border">
+                <SelectItem value="__all__" className="text-xs">Any Size</SelectItem>
+                {COMPANY_SIZE_OPTIONS.map(cs => (
+                  <SelectItem key={cs} value={cs} className="text-xs">{cs}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -338,7 +429,7 @@ export default function KnowledgeSearch({
               </Select>
             </div>
 
-            {/* Company Size */}
+            {/* Company Size (C-03) */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Company Size</Label>
               <Select value={companySize} onValueChange={v => setCompanySize(v === '__all__' ? '' : v)}>
@@ -383,6 +474,35 @@ export default function KnowledgeSearch({
             </div>
           </div>
 
+          {/* C-15: Tags filter */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Filter by Tags</Label>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1 flex-1 min-w-[150px]">
+                {selectedTags.map(tag => (
+                  <Badge key={tag} variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary bg-primary/5">
+                    {tag}
+                    <button onClick={() => handleRemoveTag(tag)} className="hover:text-primary-foreground transition-colors">
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </Badge>
+                ))}
+                <Input
+                  placeholder={selectedTags.length === 0 ? "Type a tag and press Enter..." : "Add another..."}
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  className="h-7 text-xs bg-background border-border flex-1 min-w-[120px]"
+                />
+              </div>
+              {tagInput.trim() && (
+                <Button variant="ghost" size="sm" className="h-7 text-[10px] text-primary hover:bg-primary/10" onClick={handleAddTag}>
+                  <Plus className="w-3 h-3 mr-1" />Add
+                </Button>
+              )}
+            </div>
+          </div>
+
           {/* Score threshold slider + include content toggle */}
           <div className="flex items-center gap-6">
             <div className="flex-1 space-y-1.5">
@@ -420,7 +540,7 @@ export default function KnowledgeSearch({
           <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Active filters:</span>
           {Object.entries(appliedFilters).map(([key, value]) => (
             <Badge key={key} variant="outline" className="text-[10px] border-primary/30 text-primary bg-primary/5">
-              {key}: {String(value)}
+              {key}: {Array.isArray(value) ? value.join(', ') : String(value)}
             </Badge>
           ))}
         </div>
@@ -516,6 +636,17 @@ export default function KnowledgeSearch({
                     </div>
                   </div>
 
+                  {/* Tags row (C-15) */}
+                  {result.tags && result.tags.length > 0 && (
+                    <div className="flex items-center gap-1 mt-2 flex-wrap">
+                      {result.tags.slice(0, 5).map(tag => (
+                        <Badge key={tag} variant="outline" className="text-[9px] border-border/50 text-muted-foreground bg-muted/30 px-1.5 py-0">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Meta row */}
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
                     {result.matchedFields.map(field => (
@@ -531,6 +662,12 @@ export default function KnowledgeSearch({
                         → {result.serviceLine}
                       </span>
                     )}
+                    {/* C-09: Usage indicator */}
+                    {(result.usedInEmails || 0) > 0 && (
+                      <span className="text-[10px] text-emerald-400/70 ml-auto">
+                        Used in {result.usedInEmails} email{result.usedInEmails! > 1 ? 's' : ''}
+                      </span>
+                    )}
                   </div>
 
                   {/* Full content (if includeContent was enabled) */}
@@ -542,9 +679,9 @@ export default function KnowledgeSearch({
                     </div>
                   )}
 
-                  {/* Actions */}
-                  {!hideUseButton && onUseCapability && (
-                    <div className="mt-2 flex justify-end">
+                  {/* Actions: Use + Feedback (C-09) */}
+                  <div className="mt-2 flex items-center justify-between">
+                    {!hideUseButton && onUseCapability && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -554,8 +691,35 @@ export default function KnowledgeSearch({
                         <Plus className="w-3 h-3" />
                         Use in Draft
                       </Button>
+                    )}
+                    <div className="flex items-center gap-1 ml-auto">
+                      <span className="text-[9px] text-muted-foreground mr-1">
+                        {(result.upvotes || 0)}/{(result.downvotes || 0)}
+                      </span>
+                      <button
+                        onClick={() => handleFeedback(result.id, 'upvote')}
+                        className={`p-1 rounded transition-colors ${
+                          feedbackState[result.id] === 'upvote'
+                            ? 'text-emerald-400 bg-emerald-400/10'
+                            : 'text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-400/5'
+                        }`}
+                        title="Relevant result"
+                      >
+                        <ThumbsUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleFeedback(result.id, 'downvote')}
+                        className={`p-1 rounded transition-colors ${
+                          feedbackState[result.id] === 'downvote'
+                            ? 'text-red-400 bg-red-400/10'
+                            : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-400/5'
+                        }`}
+                        title="Not relevant"
+                      >
+                        <ThumbsDown className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                  )}
+                  </div>
                 </div>
               ))}
             </div>

@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Building2, Globe, MapPin, Briefcase, Users, X, BookOpen, StickyNote, FileText, BrainCircuit, UserCheck } from 'lucide-react';
+import { Search, Building2, Globe, MapPin, Briefcase, Users, X, BookOpen, StickyNote, FileText, BrainCircuit, UserCheck, Sparkles, Loader2 } from 'lucide-react';
 import {
   PageTransition,
   AnimatedCard,
@@ -69,6 +69,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
   const [companyContacts, setCompanyContacts] = useState<Contact[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [enrichingId, setEnrichingId] = useState<string | null>(null);
 
   useEffect(() => {
     const params = search ? `?search=${encodeURIComponent(search)}` : '';
@@ -97,7 +98,34 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
   const companiesWithResearch = companies.filter(c => c.research).length;
   const totalContacts = companies.reduce((sum, c) => sum + (c.contactCount ?? 0), 0);
 
-  const countText = loading ? 'Loading...' : `${companies.length} compan${companies.length === 1 ? 'y' : 'ies'}`;
+  /* ── L-03: Enrich company ── */
+  const handleEnrich = async (companyId: string) => {
+    setEnrichingId(companyId);
+    try {
+      const res = await fetch('/api/companies/enrich', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Enriched ${selectedCompany?.name || 'company'} data`);
+        // Refresh companies list
+        const listRes = await fetch(`/api/companies${search ? `?search=${encodeURIComponent(search)}` : ''}`);
+        const listData = await listRes.json();
+        const list = Array.isArray(listData) ? listData : listData.companies || [];
+        setCompanies(list.map((c: any) => ({ ...c, name: c.rawName || c.name })));
+        // Refresh dialog company
+        if (selectedCompany) {
+          const updated = list.find((c: any) => c.id === companyId);
+          if (updated) setSelectedCompany({ ...updated, name: updated.rawName || updated.name });
+        }
+      } else {
+        toast.error(data.error || 'Enrichment failed');
+      }
+    } catch { toast.error('Enrichment failed'); }
+    setEnrichingId(null);
+  };
+
 
   return (
     <PageTransition>
@@ -240,6 +268,13 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                             <span className="text-[11px] text-blue-400/80 font-medium">Research available</span>
                           </div>
                         )}
+                        {/* L-03: Enrichment indicator */}
+                        {(company as any).researchCard?.enrichmentSource && (
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <Sparkles className="w-3 h-3 text-primary/70" />
+                            <span className="text-[11px] text-primary/60 font-medium">AI Enriched</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -266,9 +301,22 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                   </div>
                   {selectedCompany?.name}
                 </span>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0 rounded-lg" onClick={() => setSelectedCompany(null)}>
-                  <X className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  {/* L-03: Enrich Button */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1.5 border-primary/20 text-primary hover:bg-primary/10"
+                    disabled={enrichingId === selectedCompany?.id}
+                    onClick={(e) => { e.stopPropagation(); handleEnrich(selectedCompany!.id); }}
+                  >
+                    {enrichingId === selectedCompany?.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                    Enrich
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0 rounded-lg" onClick={() => setSelectedCompany(null)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
               </DialogTitle>
             </DialogHeader>
             <ScrollArea className="max-h-[70vh] pr-2">

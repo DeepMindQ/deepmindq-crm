@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MailX, ShieldOff, Trash2, AlertTriangle, TrendingDown, ShieldAlert, AlertOctagon, Ban } from 'lucide-react';
+import { Ban, ShieldOff, Trash2, AlertTriangle, TrendingDown, ShieldAlert } from 'lucide-react';
 
 interface BounceEntry {
   id: string;
@@ -125,7 +125,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
             <StatCard
               label="Hard Bounces"
               value={hardBounces}
-              icon={AlertOctagon}
+              icon={Ban}
               color="#F97316"
               delay={0.08}
             />
@@ -168,7 +168,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
             <div className="px-6 pt-5 pb-2">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center">
-                  <MailX className="w-4.5 h-4.5 text-red-400" />
+                  <Ban className="w-4.5 h-4.5 text-red-400" />
                 </div>
                 <div className="flex-1">
                   <h3 className="text-sm font-semibold text-foreground">Bounce Log</h3>
@@ -188,7 +188,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
               </div>
             ) : bounces.length === 0 ? (
               <EmptyState
-                icon={MailX}
+                icon={Ban}
                 title="No bounces recorded"
                 description="All emails have been delivered successfully. Bounces will appear here if any are detected."
                 className="pb-4"

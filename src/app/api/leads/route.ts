@@ -68,8 +68,11 @@ async function fetchLeadsFromDB(params: {
   limit: number;
   sortBy: string;
   sortDir: string;
+  consentStatuses?: string[];
+  assignees?: string[];
+  sources?: string[];
 }) {
-  const { search, countries, industries, departments, cities, states, titles, statuses, roles, page, limit, sortBy, sortDir } = params;
+  const { search, countries, industries, departments, cities, states, titles, statuses, roles, page, limit, sortBy, sortDir, consentStatuses, assignees, sources } = params;
 
   const where: any = {};
 
@@ -102,6 +105,15 @@ async function fetchLeadsFromDB(params: {
   if (roles.length > 0) {
     where.role = { in: roles };
   }
+  if (consentStatuses && consentStatuses.length > 0) {
+    where.consentStatus = { in: consentStatuses };
+  }
+  if (assignees && assignees.length > 0) {
+    where.assignedTo = { in: assignees };
+  }
+  if (sources && sources.length > 0) {
+    where.source = { in: sources };
+  }
 
   // Sorting
   const sortField: any = {};
@@ -119,7 +131,7 @@ async function fetchLeadsFromDB(params: {
       where,
       include: {
         company: {
-          select: { rawName: true, industry: true, domain: true, location: true, sizeRange: true },
+          select: { rawName: true, industry: true, domain: true, location: true, sizeRange: true, researchCard: { select: { enrichmentSource: true } } },
         },
       },
       orderBy: sortField,
@@ -163,6 +175,13 @@ async function fetchLeadsFromDB(params: {
         phone: c.phone,
         companyId: c.companyId,
         batchId: c.batchId,
+        companyFitScore: c.companyFitScore,
+        engagementScore: c.engagementScore,
+        enrichmentScore: c.enrichmentScore,
+        consentStatus: c.consentStatus,
+        assignedTo: c.assignedTo,
+        source: c.source,
+        hasEnrichedCompany: !!c.company?.researchCard?.enrichmentSource,
       },
     };
   });
@@ -260,7 +279,7 @@ async function fetchLeadsFromStatic(params: {
 /* ── DB metadata builder (for filter dropdowns) ── */
 async function fetchDBMeta() {
   const [allContacts, allCompanies] = await Promise.all([
-    db.contact.findMany({ select: { role: true, status: true, location: true } }),
+    db.contact.findMany({ select: { role: true, status: true, location: true, consentStatus: true, assignedTo: true, source: true } }),
     db.company.findMany({ select: { industry: true, sizeRange: true, location: true } }),
   ]);
 
@@ -298,6 +317,9 @@ async function fetchDBMeta() {
     titles: [], // DB doesn't have separate title metadata
     cities: Object.entries(cities).map(([v, c]) => ({ v, c })).sort((a, b) => b.c - a.c),
     states: Object.entries(states).map(([v, c]) => ({ v, c })).sort((a, b) => b.c - a.c),
+    consentStatuses: countBy(allContacts, 'consentStatus'),
+    assignees: countBy(allContacts, 'assignedTo'),
+    sources: countBy(allContacts, 'source'),
     totalRecords: allContacts.length,
   };
 }
@@ -350,8 +372,11 @@ export async function GET(request: Request) {
     }
 
     if (source === 'db') {
+      const consentStatuses = searchParams.get('consentStatus')?.split(',').filter(Boolean) || [];
+      const assignees = searchParams.get('assignee')?.split(',').filter(Boolean) || [];
+      const sources = searchParams.get('source')?.split(',').filter(Boolean) || [];
       const result = await fetchLeadsFromDB({
-        search, countries, industries, departments, cities, states, titles, statuses, roles, page, limit, sortBy, sortDir,
+        search, countries, industries, departments, cities, states, titles, statuses, roles, page, limit, sortBy, sortDir, consentStatuses, assignees, sources,
       });
       return NextResponse.json(result);
     }
@@ -360,8 +385,11 @@ export async function GET(request: Request) {
     try {
       const dbCount = await db.contact.count();
       if (dbCount > 0) {
+        const consentStatuses = searchParams.get('consentStatus')?.split(',').filter(Boolean) || [];
+        const assignees = searchParams.get('assignee')?.split(',').filter(Boolean) || [];
+        const sources = searchParams.get('source')?.split(',').filter(Boolean) || [];
         const result = await fetchLeadsFromDB({
-          search, countries, industries, departments, cities, states, titles, statuses, roles, page, limit, sortBy, sortDir,
+          search, countries, industries, departments, cities, states, titles, statuses, roles, page, limit, sortBy, sortDir, consentStatuses, assignees, sources,
         });
         return NextResponse.json(result);
       }

@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  FileText, Check, X, Eye, AlertTriangle, Sparkles, Building2, Mail, User, Tag, Target, BookOpen, Flag, FileCode2, CheckCircle2, Search, SlidersHorizontal, ChevronDown, ChevronUp,
+  FileText, Check, X, Eye, AlertTriangle, Sparkles, Building2, Mail, User, Tag, Target, BookOpen, Flag, FileCode2, CheckCircle2, Search, SlidersHorizontal, ChevronDown, ChevronUp, Send, Calendar as CalendarIcon, Clock, Reply, Trash2, RefreshCw, GitBranch,
 } from 'lucide-react';
 import {
   Select,
@@ -23,7 +23,8 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import KnowledgeSearch from '@/components/knowledge-search';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import {
   PageTransition, AnimatedCard, StaggerGrid, StaggerItem, SectionHeader,
   TabBar, StatCard, GlassPanel, EmptyState, GradientCard, PulseDot,
@@ -132,6 +133,21 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
   // Search filter
   const [searchQuery, setSearchQuery] = useState('');
 
+  // E-12: Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  // E-10: A/B test state
+  const [showAbTest, setShowAbTest] = useState(false);
+  const [abTestName, setAbTestName] = useState('');
+  const [abTestServiceLine, setAbTestServiceLine] = useState('');
+  const [abTestTone, setAbTestTone] = useState('professional');
+  const [abTestLoading, setAbTestLoading] = useState(false);
+
+  // E-06: Follow-up state
+  const [followUpDraftId, setFollowUpDraftId] = useState<string | null>(null);
+  const [followUpLoading, setFollowUpLoading] = useState(false);
+
   useEffect(() => {
     const params = tab !== 'all' ? `?status=${tab}` : '';
     fetch(`/api/drafts${params}`)
@@ -164,18 +180,41 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
     setIsEditing(false);
   };
 
+  // Scheduling state (E-05)
+  const [scheduleMode, setScheduleMode] = useState<'now' | 'schedule'>('now');
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('09:00');
+
   const handleApprove = async () => {
     if (!selectedDraft) return;
     try {
+      const payload: Record<string, unknown> = {
+        id: selectedDraft.id,
+        status: 'approved',
+        ...(isEditing ? { subject: editSubject, body: editBody, cta: editCta } : {}),
+      };
+      if (scheduleMode === 'schedule' && scheduleDate) {
+        payload.scheduledAt = new Date(`${scheduleDate}T${scheduleTime || '09:00'}:00`).toISOString();
+      } else {
+        payload.scheduledAt = 'now';
+      }
       await fetch('/api/drafts', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selectedDraft.id, status: 'approved', ...(isEditing ? { subject: editSubject, body: editBody, cta: editCta } : {}) }),
+        body: JSON.stringify(payload),
       });
       setSelectedDraft(null);
+      setScheduleMode('now');
+      setScheduleDate('');
+      setScheduleTime('09:00');
       setRefreshKey(k => k + 1);
     } catch { /* ignore */ }
   };
+
+  // Get tomorrow's date as default min
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const minDateStr = tomorrowDate.toISOString().split('T')[0];
 
   const handleReject = async () => {
     if (!selectedDraft) return;
@@ -250,6 +289,91 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
     );
   }, [drafts, searchQuery]);
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredDrafts.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredDrafts.map(d => d.id)));
+    }
+  };
+
+  const handleBulkAction = async (action: string) => {
+    if (selectedIds.size === 0) return;
+    setBulkLoading(true);
+    try {
+      const res = await fetch('/api/drafts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds), action }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Bulk ${action} completed`);
+        setSelectedIds(new Set());
+        setRefreshKey(k => k + 1);
+      } else {
+        toast.error('Bulk action failed');
+      }
+    } catch { toast.error('Network error'); }
+    setBulkLoading(false);
+  };
+
+  const handleFollowUp = async (draft: Draft) => {
+    if (!draft.contactId) return;
+    setFollowUpLoading(true);
+    try {
+      const res = await fetch('/api/drafts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactId: draft.contactId, inReplyToDraftId: draft.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Follow-up draft created');
+        setRefreshKey(k => k + 1);
+      }
+    } catch { toast.error('Failed to create follow-up'); }
+    setFollowUpLoading(false);
+  };
+
+  const handleCreateAbTest = async () => {
+    if (!abTestName || selectedIds.size === 0) {
+      toast.error('Test name and selected drafts required');
+      return;
+    }
+    setAbTestLoading(true);
+    try {
+      const contactIds = drafts
+        .filter(d => selectedIds.has(d.id))
+        .map(d => d.contactId)
+        .filter(Boolean);
+      const res = await fetch('/api/ab-tests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: abTestName, contactIds, serviceLine: abTestServiceLine || undefined, tone: abTestTone }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`A/B test created with ${data.test.variants?.length || 0} variants`);
+        setShowAbTest(false);
+        setSelectedIds(new Set());
+        setRefreshKey(k => k + 1);
+      } else {
+        toast.error(data.error || 'Failed to create test');
+      }
+    } catch { toast.error('Network error'); }
+    setAbTestLoading(false);
+  };
+
+  const hasSentDrafts = drafts.some(d => d.status === 'approved' || d.status === 'sent');
   const tabData = TAB_OPTIONS.map(t => ({
     key: t.value,
     label: t.label,
@@ -269,7 +393,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
             className="!mb-0"
           />
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
           <Button
             variant="outline"
             size="sm"
@@ -277,7 +401,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
             onClick={() => setShowKnowledgeSearch(true)}
           >
             <Search className="w-3.5 h-3.5" />
-            Search Knowledge Base
+            Knowledge Base
           </Button>
           <Button
             variant={showAiDemo ? 'default' : 'outline'}
@@ -286,8 +410,19 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
             onClick={() => setShowAiDemo(!showAiDemo)}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Test AI Engine
+            AI Test
           </Button>
+          {selectedIds.size > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 text-xs gap-1.5 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-all"
+              onClick={() => setShowAbTest(true)}
+            >
+              <GitBranch className="w-3.5 h-3.5" />
+              A/B Test ({selectedIds.size})
+            </Button>
+          )}
         </div>
       </div>
 
@@ -634,10 +769,22 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
       )}
 
       {/* -- Drafts Table -- */}
-      <SectionHeader
-        title="Draft Queue"
-        subtitle={`${filteredDrafts.length} draft${filteredDrafts.length !== 1 ? 's' : ''} found`}
-      />
+      <div className="flex items-center justify-between">
+        <SectionHeader
+          title="Draft Queue"
+          subtitle={`${filteredDrafts.length} draft${filteredDrafts.length !== 1 ? 's' : ''} found`}
+          className="!mb-0"
+        />
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={filteredDrafts.length > 0 && selectedIds.size === filteredDrafts.length}
+            onChange={toggleSelectAll}
+            className="w-4 h-4 rounded border-white/20 bg-white/5 text-primary accent-primary"
+          />
+          <span className="text-xs text-muted-foreground">Select All</span>
+        </label>
+      </div>
 
       {loading ? (
         <AnimatedCard hover={false}>
@@ -674,6 +821,16 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                 className="!rounded-xl"
               >
                 <div className="flex items-center gap-4 px-5 py-4">
+                  {/* E-12: Checkbox */}
+                  <label className="shrink-0 cursor-pointer" onClick={e => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(draft.id)}
+                      onChange={() => toggleSelect(draft.id)}
+                      className="w-4 h-4 rounded border-white/20 bg-white/5 text-primary accent-primary"
+                    />
+                  </label>
+
                   {/* Status indicator */}
                   <div className="shrink-0">
                     {draft.status === 'approved' ? (
@@ -723,6 +880,19 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
 
                   {/* Actions */}
                   <div className="flex items-center gap-1.5 shrink-0">
+                    {/* E-06: Follow Up button for sent/approved drafts */}
+                    {(draft.status === 'approved' || draft.status === 'sent') && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-all"
+                        onClick={(e) => { e.stopPropagation(); handleFollowUp(draft); }}
+                        disabled={followUpLoading}
+                      >
+                        <Reply className="w-3.5 h-3.5 mr-1" />
+                        <span className="hidden lg:inline">Follow Up</span>
+                      </Button>
+                    )}
                     {navigateTo && draft.contact?.name && (
                       <Button
                         variant="ghost"
@@ -1025,7 +1195,70 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                   )}
                 </div>
 
-                {/* Action Buttons */}
+                {/* Action Buttons + Scheduling (E-05) */}
+                {selectedDraft.status === 'pending_review' && (
+                  <GlassPanel className="p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-6 h-6 rounded-md bg-primary/15 flex items-center justify-center">
+                        <Clock className="w-3.5 h-3.5 text-primary" />
+                      </div>
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-foreground">Delivery Options</h3>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="flex items-center gap-2">
+                        <button
+                          className={`px-3.5 py-2 rounded-lg text-xs font-medium border transition-all ${
+                            scheduleMode === 'now'
+                              ? 'bg-primary/15 border-primary/40 text-primary'
+                              : 'bg-white/[0.03] border-white/[0.08] text-muted-foreground hover:text-foreground hover:border-white/[0.15]'
+                          }`}
+                          onClick={() => setScheduleMode('now')}
+                        >
+                          <Send className="w-3 h-3 inline mr-1.5" />
+                          Send Now
+                        </button>
+                        <button
+                          className={`px-3.5 py-2 rounded-lg text-xs font-medium border transition-all ${
+                            scheduleMode === 'schedule'
+                              ? 'bg-primary/15 border-primary/40 text-primary'
+                              : 'bg-white/[0.03] border-white/[0.08] text-muted-foreground hover:text-foreground hover:border-white/[0.15]'
+                          }`}
+                          onClick={() => setScheduleMode('schedule')}
+                        >
+                          <CalendarIcon className="w-3 h-3 inline mr-1.5" />
+                          Schedule
+                        </button>
+                      </div>
+                      {scheduleMode === 'schedule' && (
+                        <motion.div
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className="flex items-center gap-2"
+                        >
+                          <Input
+                            type="date"
+                            min={minDateStr}
+                            value={scheduleDate}
+                            onChange={e => setScheduleDate(e.target.value)}
+                            className="h-8 w-[150px] text-xs bg-white/[0.03] border-white/[0.08] focus:border-primary/30"
+                          />
+                          <Input
+                            type="time"
+                            value={scheduleTime}
+                            onChange={e => setScheduleTime(e.target.value)}
+                            className="h-8 w-[100px] text-xs bg-white/[0.03] border-white/[0.08] focus:border-primary/30"
+                          />
+                          {scheduleDate && (
+                            <span className="text-[10px] text-muted-foreground">
+                              {new Date(`${scheduleDate}T${scheduleTime}`).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </motion.div>
+                      )}
+                    </div>
+                  </GlassPanel>
+                )}
+
                 <div className="flex items-center justify-end gap-3">
                   <Button
                     variant="outline"
@@ -1040,14 +1273,108 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                     size="sm"
                     className="h-10 px-5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all"
                     onClick={handleApprove}
+                    disabled={scheduleMode === 'schedule' && !scheduleDate}
                   >
                     <Check className="w-4 h-4 mr-2" />
-                    Approve & Queue
+                    {scheduleMode === 'schedule' && scheduleDate ? 'Approve & Schedule' : 'Approve & Queue'}
                   </Button>
                 </div>
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* E-12: Floating Bulk Action Bar */}
+      <AnimatePresence>
+        {selectedIds.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
+          >
+            <GlassPanel className="flex items-center gap-3 px-5 py-3 shadow-2xl shadow-black/40" style={{ borderColor: 'rgba(212, 175, 55, 0.3)' }}>
+              <span className="text-sm font-semibold text-primary">{selectedIds.size} selected</span>
+              <div className="w-px h-6 bg-border" />
+              <Button size="sm" className="h-8 text-xs gap-1.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border-0" onClick={() => handleBulkAction('approve')} disabled={bulkLoading}>
+                <Check className="w-3.5 h-3.5" /> Approve
+              </Button>
+              <Button size="sm" className="h-8 text-xs gap-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 border-0" onClick={() => handleBulkAction('reject')} disabled={bulkLoading}>
+                <X className="w-3.5 h-3.5" /> Reject
+              </Button>
+              <Button size="sm" className="h-8 text-xs gap-1.5 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border-0" onClick={() => handleBulkAction('regenerate')} disabled={bulkLoading}>
+                <RefreshCw className="w-3.5 h-3.5" /> Regenerate
+              </Button>
+              <Button size="sm" className="h-8 text-xs gap-1.5 bg-white/10 text-muted-foreground hover:bg-white/15 border-0" onClick={() => handleBulkAction('delete')} disabled={bulkLoading}>
+                <Trash2 className="w-3.5 h-3.5" /> Delete
+              </Button>
+              <div className="w-px h-6 bg-border" />
+              <button onClick={() => setSelectedIds(new Set())} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                Clear
+              </button>
+            </GlassPanel>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* E-10: A/B Test Creation Dialog */}
+      <Dialog open={showAbTest} onOpenChange={setShowAbTest}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <GitBranch className="w-4 h-4 text-emerald-400" />
+              Create A/B Test
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Generate multiple subject line variants for {selectedIds.size} selected contacts
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Test Name</Label>
+              <Input
+                value={abTestName}
+                onChange={e => setAbTestName(e.target.value)}
+                placeholder="e.g., Q3 Enterprise AI Outreach"
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Service Line</Label>
+                <Select value={abTestServiceLine} onValueChange={setAbTestServiceLine}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Auto" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AI & Machine Learning">AI & ML</SelectItem>
+                    <SelectItem value="Cloud Engineering">Cloud</SelectItem>
+                    <SelectItem value="Data Engineering">Data</SelectItem>
+                    <SelectItem value="Digital Transformation">DX</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tone</Label>
+                <Select value={abTestTone} onValueChange={setAbTestTone}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="professional">Professional</SelectItem>
+                    <SelectItem value="casual">Casual</SelectItem>
+                    <SelectItem value="executive">Executive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="p-3 rounded-lg bg-white/[0.03] border border-border/50 text-xs text-muted-foreground">
+              AI will generate 3 subject line variants (curiosity-driven, value-driven, control) and assign them randomly across the {selectedIds.size} contacts.
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowAbTest(false)}>Cancel</Button>
+              <Button onClick={handleCreateAbTest} disabled={abTestLoading} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                {abTestLoading ? 'Creating...' : 'Create Test'}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -6,8 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import {
   LayoutDashboard, Upload, Users, Building2, FileText, Send,
-  Archive, Mail, MailX, RefreshCw, Menu, X,
-  Brain, GitBranch, ScrollText, Settings, LogOut, BarChart3, Bell, Cpu,
+  Archive, Mail, XCircle, RefreshCw, Menu, X,
+  Brain, GitBranch, ScrollText, Settings, LogOut, BarChart3, Bell, Cpu, LayoutTemplate, Layers,
 } from 'lucide-react';
 import LandingPage from '@/app/landing-page';
 import { PageTransition } from '@/components/ui/animated-components';
@@ -15,6 +15,7 @@ import DashboardScreen from '@/components/screens/dashboard-screen';
 import ImportScreen from '@/components/screens/import-screen';
 import LeadsScreen from '@/components/screens/leads-screen';
 import CompaniesScreen from '@/components/screens/companies-screen';
+import SegmentsScreen from '@/components/screens/segments-screen';
 import DraftsScreen from '@/components/screens/drafts-screen';
 import QueueScreen from '@/components/screens/queue-screen';
 import CapabilityScreen from '@/components/screens/capability-screen';
@@ -25,6 +26,8 @@ import PipelineScreen from '@/components/screens/pipeline-screen';
 import AnalyticsScreen from '@/components/screens/analytics-screen';
 import AuditScreen from '@/components/screens/audit-screen';
 import SettingsScreen from '@/components/screens/settings-screen';
+import TemplatesScreen from '@/components/screens/templates-screen';
+import SequencesScreen from '@/components/screens/sequences-screen';
 
 /* ═══════════════════════════════════════════════════
    App Shell (after login)
@@ -44,6 +47,7 @@ const NAV_SECTIONS = [
     items: [
       { key: 'import', label: 'Import', icon: Upload },
       { key: 'leads', label: 'Leads', icon: Users },
+      { key: 'segments', label: 'Segments', icon: Layers },
       { key: 'companies', label: 'Companies', icon: Building2 },
       { key: 'capabilities', label: 'Capability Library', icon: Archive },
       { key: 'knowledge', label: 'Knowledge Engine', icon: Brain },
@@ -54,8 +58,10 @@ const NAV_SECTIONS = [
     items: [
       { key: 'drafts', label: 'Drafts', icon: FileText },
       { key: 'queue', label: 'Send Queue', icon: Send },
+      { key: 'templates', label: 'Templates', icon: LayoutTemplate },
+      { key: 'sequences', label: 'Sequences', icon: GitBranch },
       { key: 'replies', label: 'Replies', icon: Mail },
-      { key: 'bounces', label: 'Bounces & Suppressions', icon: MailX },
+      { key: 'bounces', label: 'Bounces & Suppressions', icon: XCircle },
     ],
   },
   {
@@ -71,9 +77,12 @@ const SCREEN_MAP: Record<string, React.ComponentType<{ navigateTo?: (screen: str
   dashboard: DashboardScreen,
   import: ImportScreen,
   leads: LeadsScreen,
+  segments: SegmentsScreen,
   companies: CompaniesScreen,
   drafts: DraftsScreen,
   queue: QueueScreen,
+  templates: TemplatesScreen,
+  sequences: SequencesScreen,
   capabilities: CapabilityScreen,
   knowledge: KnowledgeLibraryScreen,
   replies: RepliesScreen,

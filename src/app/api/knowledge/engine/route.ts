@@ -47,6 +47,7 @@ export async function POST(request: Request) {
     } catch { /* use demo */ }
 
     if (action === 'coverage') return analyzeCoverage(capabilities, body);
+    if (action === 'coverage_v2') return analyzeCoverageV2(capabilities, body);
     if (action === 'test') return testSearch(body);
     return getStats(capabilities);
   } catch (error) {
@@ -181,6 +182,139 @@ function analyzeCoverage(capabilities: any[], body: any) {
     overallScore: Math.round(
       Object.values(slCompleteness).reduce((sum, sl) => sum + sl.score, 0) / Math.max(1, Object.keys(slCompleteness).length)
     ),
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   C-13: Enhanced Coverage Analysis v2
+   Knowledge Health scoring with per-industry, per-role,
+   service-line completeness, overall health, and gaps
+   ═══════════════════════════════════════════════════ */
+function analyzeCoverageV2(capabilities: any[], _body: any) {
+  // Reference lists for gap detection
+  const REFERENCE_INDUSTRIES = [
+    'Financial Services', 'Healthcare', 'Technology', 'Manufacturing',
+    'Retail', 'Energy', 'Media', 'Government', 'Education', 'Telecommunications',
+  ];
+  const REFERENCE_ROLES = [
+    'CTO', 'CIO', 'CEO', 'COO', 'CFO', 'VP of Engineering',
+    'Head of AI', 'Head of Data', 'VP of Analytics',
+    'Cloud Architect', 'Head of Infrastructure', 'Chief Digital Officer',
+    'CISO', 'VP of Security', 'Data Science Director',
+  ];
+
+  // Collect all industries and roles from assets
+  const industryMap: Record<string, number> = {};
+  const roleMap: Record<string, number> = {};
+  const slAssets: Record<string, any[]> = {};
+
+  capabilities.forEach(cap => {
+    // Industries
+    if (cap.targetIndustries) {
+      cap.targetIndustries.split(',').map(s => s.trim()).filter(Boolean).forEach(ind => {
+        industryMap[ind] = (industryMap[ind] || 0) + 1;
+      });
+    }
+    // Roles
+    if (cap.targetRoles) {
+      cap.targetRoles.split(',').map(s => s.trim()).filter(Boolean).forEach(role => {
+        roleMap[role] = (roleMap[role] || 0) + 1;
+      });
+    }
+    // Group by service line
+    if (cap.serviceLine) {
+      if (!slAssets[cap.serviceLine]) slAssets[cap.serviceLine] = [];
+      slAssets[cap.serviceLine].push(cap);
+    }
+  });
+
+  // Per-industry coverage score
+  const maxIndustryAssets = Math.max(1, ...Object.values(industryMap));
+  const industryScores = REFERENCE_INDUSTRIES.map(ind => {
+    const count = industryMap[ind] || 0;
+    return {
+      name: ind,
+      count,
+      hasAssets: count > 0,
+      score: Math.min(100, Math.round((count / maxIndustryAssets) * 100)),
+      coveragePct: count > 0 ? 100 : 0,
+    };
+  });
+
+  const industriesWithAssets = industryScores.filter(i => i.hasAssets).length;
+  const industryCoverageScore = Math.round((industriesWithAssets / REFERENCE_INDUSTRIES.length) * 100);
+
+  // Per-role coverage score
+  const maxRoleAssets = Math.max(1, ...Object.values(roleMap));
+  const roleScores = REFERENCE_ROLES.map(role => {
+    const count = roleMap[role] || 0;
+    return {
+      name: role,
+      count,
+      hasAssets: count > 0,
+      score: Math.min(100, Math.round((count / maxRoleAssets) * 100)),
+      coveragePct: count > 0 ? 100 : 0,
+    };
+  });
+
+  const rolesWithAssets = roleScores.filter(r => r.hasAssets).length;
+  const roleCoverageScore = Math.round((rolesWithAssets / REFERENCE_ROLES.length) * 100);
+
+  // Service line completeness
+  const slCompleteness = Object.entries(slAssets).map(([sl, items]) => {
+    const categories = new Set(items.map(c => c.category));
+    const hasSL = categories.has('service_line');
+    const hasCS = categories.has('case_study');
+    const hasPP = categories.has('proof_point');
+    const hasOR = categories.has('objection_response');
+    const hasCTA = categories.has('cta');
+    const score = (hasSL ? 30 : 0) + (hasCS ? 25 : 0) + (hasPP ? 20 : 0) + (hasOR ? 15 : 0) + (hasCTA ? 10 : 0);
+    return { name: sl, count: items.length, hasSL, hasCS, hasPP, hasOR, hasCTA, score };
+  });
+
+  const avgSLScore = slCompleteness.length > 0
+    ? Math.round(slCompleteness.reduce((sum, sl) => sum + sl.score, 0) / slCompleteness.length)
+    : 0;
+
+  // Gap list: industries/roles with 0 assets
+  const industryGaps = industryScores.filter(i => !i.hasAssets).map(i => i.name);
+  const roleGaps = roleScores.filter(r => !r.hasAssets).map(r => r.name);
+
+  // Overall health: weighted average
+  const overallHealthScore = Math.round(
+    (industryCoverageScore * 0.25) +
+    (roleCoverageScore * 0.2) +
+    (avgSLScore * 0.35) +
+    Math.min(100, capabilities.length * 5) * 0.2  // volume bonus (max at 20 assets)
+  );
+
+  // Health label
+  let healthLabel = 'Critical';
+  let healthColor = '#EF4444';
+  if (overallHealthScore >= 80) { healthLabel = 'Excellent'; healthColor = '#10B981'; }
+  else if (overallHealthScore >= 60) { healthLabel = 'Good'; healthColor = '#34D399'; }
+  else if (overallHealthScore >= 40) { healthLabel = 'Needs Improvement'; healthColor = '#FBBF24'; }
+  else if (overallHealthScore >= 20) { healthLabel = 'Poor'; healthColor = '#F97316'; }
+
+  return NextResponse.json({
+    overallHealthScore,
+    healthLabel,
+    healthColor,
+    dimensions: {
+      industryCoverage: { score: industryCoverageScore, label: 'Industry Coverage', detail: `${industriesWithAssets}/${REFERENCE_INDUSTRIES.length} industries` },
+      roleCoverage: { score: roleCoverageScore, label: 'Role Coverage', detail: `${rolesWithAssets}/${REFERENCE_ROLES.length} roles` },
+      serviceLineCompleteness: { score: avgSLScore, label: 'Service Line Depth', detail: `${slCompleteness.length} service lines` },
+      assetVolume: { score: Math.min(100, capabilities.length * 5), label: 'Asset Volume', detail: `${capabilities.length} total assets` },
+    },
+    industries: industryScores,
+    roles: roleScores,
+    serviceLines: slCompleteness,
+    gaps: {
+      industries: industryGaps,
+      roles: roleGaps,
+      totalGaps: industryGaps.length + roleGaps.length,
+    },
+    totalAssets: capabilities.length,
   });
 }
 

@@ -27,7 +27,7 @@ import {
   Plus, Trash2, Eye, X, Loader2, ChevronRight, AlertTriangle,
   CheckCircle2, ArrowUpRight, Sparkles, Filter, RefreshCw,
   TrendingUp, Globe, Users, Building2, Lightbulb, Info,
-  ChevronDown, ChevronUp, Tag,
+  ChevronDown, ChevronUp, Tag, Shield,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -151,6 +151,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
 
   // ── Upload state ──
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]); // C-14: multi-file
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadStep, setUploadStep] = useState<'idle' | 'uploading' | 'extracting' | 'generating' | 'done' | 'error'>('idle');
   const [uploadResult, setUploadResult] = useState<{
@@ -168,6 +169,10 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
   // ── Coverage state ──
   const [coverage, setCoverage] = useState<CoverageData | null>(null);
   const [coverageLoading, setCoverageLoading] = useState(false);
+
+  // ── C-13: Knowledge Health state ──
+  const [healthData, setHealthData] = useState<any>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
 
   // ── Add dialog state ──
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -214,8 +219,23 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'coverage') loadCoverage();
+    if (activeTab === 'coverage') { loadCoverage(); loadHealth(); }
   }, [activeTab, loadCoverage]);
+
+  // ── C-13: Load Knowledge Health ──
+  const loadHealth = useCallback(async () => {
+    setHealthLoading(true);
+    try {
+      const res = await fetch('/api/knowledge/engine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'coverage_v2' }),
+      });
+      const data = await res.json();
+      setHealthData(data);
+    } catch { setHealthData(null); }
+    setHealthLoading(false);
+  }, []);
 
   // ── Handle RAG Search ──
   const handleSearch = useCallback(async () => {
@@ -251,16 +271,17 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
     setSearchLoading(false);
   }, [searchQuery, searchIndustry, searchRole, searchMode, minScore, searchProblems, searchCompanySize]);
 
-  // ── Handle file upload — now auto-generates knowledge assets ──
+  // ── Handle file upload — C-14: supports multiple files
   const handleUpload = useCallback(async () => {
-    if (!uploadFile) return;
+    const filesToUpload = uploadFiles.length > 0 ? uploadFiles : (uploadFile ? [uploadFile] : []);
+    if (filesToUpload.length === 0) return;
     setUploadLoading(true);
     setUploadError('');
     setUploadResult(null);
     setUploadStep('uploading');
     try {
       const formData = new FormData();
-      formData.append('file', uploadFile);
+      filesToUpload.forEach(f => formData.append('file', f));
       formData.append('autoGenerate', 'true');
       const res = await fetch('/api/capabilities/upload', {
         method: 'POST',
@@ -271,30 +292,47 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
         throw new Error(data.error || 'Upload failed');
       }
       setUploadStep('done');
-      setUploadResult({
-        extractedText: data.extractedText || '',
-        fileName: data.fileName || uploadFile.name,
-        wordCount: data.wordCount || 0,
-        readingTime: data.readingTime || 1,
-        aiExtractionUsed: data.aiExtractionUsed || false,
-        overallSummary: data.overallSummary || '',
-        assetsGenerated: data.assetsGenerated || 0,
-        assets: data.assets || [],
-      });
-      if (data.assetsGenerated > 0) {
-        toast.success(`${data.assetsGenerated} knowledge asset${data.assetsGenerated > 1 ? 's' : ''} generated and saved from "${uploadFile.name}"`);
+      // Handle multi-file results
+      if (data.totalFiles > 1) {
+        const firstResult = data.results?.[0] || {};
+        setUploadResult({
+          extractedText: firstResult.extractedText || '',
+          fileName: `${data.totalFiles} files uploaded`,
+          wordCount: (data.results || []).reduce((s: number, r: any) => s + (r.wordCount || 0), 0),
+          readingTime: Math.max(1, Math.ceil(((data.results || []).reduce((s: number, r: any) => s + (r.wordCount || 0), 0)) / 200)),
+          aiExtractionUsed: (data.results || []).some((r: any) => r.aiExtractionUsed),
+          overallSummary: data.totalAssetsGenerated > 0 ? `Generated ${data.totalAssetsGenerated} assets from ${data.totalFiles} files` : '',
+          assetsGenerated: data.totalAssetsGenerated || 0,
+          assets: (data.results || []).flatMap((r: any) => r.assets || []),
+        });
+      } else {
+        setUploadResult({
+          extractedText: data.extractedText || '',
+          fileName: data.fileName || uploadFile?.name || filesToUpload[0]?.name || '',
+          wordCount: data.wordCount || 0,
+          readingTime: data.readingTime || 1,
+          aiExtractionUsed: data.aiExtractionUsed || false,
+          overallSummary: data.overallSummary || '',
+          assetsGenerated: data.assetsGenerated || 0,
+          assets: data.assets || [],
+        });
+      }
+      const totalAssets = data.totalAssetsGenerated ?? data.assetsGenerated ?? 0;
+      if (totalAssets > 0) {
+        toast.success(`${totalAssets} knowledge asset${totalAssets > 1 ? 's' : ''} generated from "${filesToUpload.length} file${filesToUpload.length > 1 ? 's' : ''}"`);
         loadAssets();
       } else {
-        toast.success(`Text extracted from "${uploadFile.name}" (${data.wordCount || 0} words)`);
+        toast.success(`Text extracted from ${filesToUpload.length} file${filesToUpload.length > 1 ? 's' : ''}`);
       }
       setUploadFile(null);
+      setUploadFiles([]);
     } catch (err) {
       setUploadStep('error');
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
       toast.error(err instanceof Error ? err.message : 'Upload failed');
     }
     setUploadLoading(false);
-  }, [uploadFile, loadAssets]);
+  }, [uploadFile, uploadFiles, loadAssets]);
 
   // ── Save extracted content as a knowledge asset (manual fallback) ──
   const handleSaveExtracted = useCallback(async () => {
@@ -939,6 +977,107 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
             ═══════════════════════════════════════════ */}
         {activeTab === 'coverage' && (
           <div className="space-y-4">
+            {/* C-13: Knowledge Health Card */}
+            {healthLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="rounded-xl border border-border bg-card/60 p-5 space-y-3">
+                    <Skeleton className="h-5 w-1/2" /><Skeleton className="h-3 w-full" /><Skeleton className="h-3 w-3/4" />
+                  </div>
+                ))}
+              </div>
+            ) : healthData && !healthData.error ? (
+              <>
+                {/* Overall Health Score */}
+                <GradientCard gradient="gold">
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                          <Shield className="w-5 h-5" style={{ color: gold }} />
+                          Knowledge Health
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">Comprehensive knowledge base quality assessment</p>
+                      </div>
+                      <Badge
+                        className="text-sm px-3 py-1 font-bold"
+                        style={{
+                          background: `${healthData.healthColor}20`,
+                          color: healthData.healthColor,
+                          border: `1px solid ${healthData.healthColor}40`,
+                        }}
+                      >
+                        {healthData.overallHealthScore}%
+                      </Badge>
+                    </div>
+
+                    {/* Dimension breakdown */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      {Object.entries(healthData.dimensions || {}).map(([key, dim]: [string, any]) => (
+                        <div key={key} className="p-3 rounded-lg bg-black/20 border border-white/[0.06]">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{dim.label}</span>
+                            <span className="text-xs font-bold tabular-nums" style={{
+                              color: dim.score >= 70 ? '#10B981' : dim.score >= 40 ? '#FBBF24' : '#EF4444'
+                            }}>{dim.score}%</span>
+                          </div>
+                          <div className="w-full h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                            <motion.div
+                              className="h-full rounded-full"
+                              style={{ background: dim.score >= 70 ? '#10B981' : dim.score >= 40 ? '#FBBF24' : '#EF4444' }}
+                              initial={{ width: 0 }}
+                              animate={{ width: `${dim.score}%` }}
+                              transition={{ duration: 0.8 }}
+                            />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-1">{dim.detail}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Gap Alerts */}
+                    {healthData.gaps && healthData.gaps.totalGaps > 0 && (
+                      <div className="mt-4 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5">
+                        <div className="flex items-center gap-2 mb-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-400" />
+                          <span className="text-xs font-semibold text-amber-400">{healthData.gaps.totalGaps} Coverage Gaps Detected</span>
+                        </div>
+                        {healthData.gaps.industries.length > 0 && (
+                          <div className="mb-1">
+                            <span className="text-[10px] text-muted-foreground">No industry coverage: </span>
+                            <span className="text-[10px] text-amber-300">{healthData.gaps.industries.join(', ')}</span>
+                          </div>
+                        )}
+                        {healthData.gaps.roles.length > 0 && (
+                          <div>
+                            <span className="text-[10px] text-muted-foreground">No role coverage: </span>
+                            <span className="text-[10px] text-amber-300">{healthData.gaps.roles.join(', ')}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Service Line Completeness */}
+                    {healthData.serviceLines && healthData.serviceLines.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        <p className="text-xs font-semibold text-foreground">Service Line Completeness</p>
+                        {healthData.serviceLines.map((sl: any) => (
+                          <div key={sl.name} className="flex items-center gap-3">
+                            <span className="text-xs text-muted-foreground w-40 shrink-0 truncate">{sl.name}</span>
+                            <div className="flex-1">
+                              <AnimatedBar value={sl.score} max={100} color={sl.score >= 70 ? '#10B981' : sl.score >= 40 ? '#FBBF24' : '#EF4444'} />
+                            </div>
+                            <span className="text-xs tabular-nums text-foreground w-8 text-right">{sl.score}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </GradientCard>
+              </>
+            ) : null}
+
+            {/* Original coverage content */}
             {coverageLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -1177,56 +1316,65 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                   onDrop={e => {
                     e.preventDefault();
                     if (uploadLoading) return;
-                    const file = e.dataTransfer.files[0];
-                    if (file) setUploadFile(file);
+                    const files = Array.from(e.dataTransfer.files);
+                    if (files.length === 1) { setUploadFile(files[0]); setUploadFiles([]); }
+                    else if (files.length > 1) { setUploadFiles(files); setUploadFile(null); }
                   }}
                 >
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept=".txt,.md,.pdf,.docx"
+                    multiple
                     className="hidden"
                     onChange={e => {
-                      const file = e.target.files?.[0];
-                      if (file) setUploadFile(file);
+                      const files = Array.from(e.target.files || []);
+                      if (files.length === 1) { setUploadFile(files[0]); setUploadFiles([]); }
+                      else if (files.length > 1) { setUploadFiles(files); setUploadFile(null); }
                     }}
                   />
                   <Upload className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
                   <p className="text-sm text-muted-foreground mb-1">
-                    {uploadFile ? uploadFile.name : 'Click to upload or drag and drop'}
+                    {uploadFiles.length > 0 ? `${uploadFiles.length} files selected` : uploadFile ? uploadFile.name : 'Click to upload or drag and drop'}
                   </p>
                   <p className="text-[11px] text-muted-foreground/60">
-                    Supports .txt, .md, .pdf, .docx (max 5MB)
+                    Supports .txt, .md, .pdf, .docx (max 25MB) — multiple files supported
                   </p>
                 </div>
 
-                {/* File selected + upload button */}
-                {uploadFile && !uploadLoading && (
-                  <div className="mt-4 flex items-center justify-between p-3 rounded-lg border border-border bg-card/50">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-4 h-4" style={{ color: gold }} />
-                      <div>
-                        <p className="text-xs font-medium text-foreground">{uploadFile.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{(uploadFile.size / 1024).toFixed(1)} KB</p>
+                {/* File selected + upload button — C-14: multi-file */}
+                {!uploadLoading && (uploadFile || uploadFiles.length > 0) && (
+                  <div className="mt-4 space-y-2">
+                    {uploadFile && (
+                      <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card/50">
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-4 h-4" style={{ color: gold }} />
+                          <div><p className="text-xs font-medium text-foreground">{uploadFile.name}</p><p className="text-[10px] text-muted-foreground">{(uploadFile.size / 1024).toFixed(1)} KB</p></div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" className="h-8 text-xs gap-1.5" style={{ background: `linear-gradient(135deg, ${gold}, ${goldLight})`, color: '#000' }} onClick={handleUpload}><Sparkles className="w-3.5 h-3.5" />Upload & Generate</Button>
+                          <button onClick={() => { setUploadFile(null); setUploadStep('idle'); setUploadResult(null); setUploadError(''); }} className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        className="h-8 text-xs gap-1.5"
-                        style={{ background: `linear-gradient(135deg, ${gold}, ${goldLight})`, color: '#000' }}
-                        onClick={handleUpload}
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Upload & Generate Knowledge
-                      </Button>
-                      <button
-                        onClick={() => { setUploadFile(null); setUploadStep('idle'); setUploadResult(null); setUploadError(''); }}
-                        className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-colors"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    )}
+                    {uploadFiles.length > 0 && (
+                      <div className="p-3 rounded-lg border border-border bg-card/50">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-medium text-foreground">{uploadFiles.length} files selected</span>
+                          <button onClick={() => { setUploadFiles([]); setUploadStep('idle'); setUploadResult(null); setUploadError(''); }} className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                        <div className="max-h-32 overflow-y-auto space-y-1 mb-3">
+                          {uploadFiles.map((f, i) => (
+                            <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <FileText className="w-3 h-3" style={{ color: gold }} />
+                              <span className="flex-1 truncate">{f.name}</span>
+                              <span>{(f.size / 1024).toFixed(1)} KB</span>
+                            </div>
+                          ))}
+                        </div>
+                        <Button size="sm" className="h-8 text-xs gap-1.5 w-full" style={{ background: `linear-gradient(135deg, ${gold}, ${goldLight})`, color: '#000' }} onClick={handleUpload}><Sparkles className="w-3.5 h-3.5" />Upload & Generate from {uploadFiles.length} Files</Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

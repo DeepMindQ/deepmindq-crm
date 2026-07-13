@@ -65,6 +65,17 @@ const DRAFT_STATUS_COLORS: Record<string, string> = {
   draft: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
 };
 
+/* ── AI Demo Draft Type ── */
+interface AIDemoDraft {
+  subject: string;
+  body: string;
+  cta: string;
+  confidenceScore: number;
+  assumptions: string[];
+  sourceSnippets: { id: string; title: string; snippetType: string }[];
+  generatedAt: string;
+}
+
 export default function DraftsScreen() {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +86,17 @@ export default function DraftsScreen() {
   const [editCta, setEditCta] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
+
+  // AI Demo state
+  const [showAiDemo, setShowAiDemo] = useState(false);
+  const [aiName, setAiName] = useState('');
+  const [aiTitle, setAiTitle] = useState('');
+  const [aiCompany, setAiCompany] = useState('');
+  const [aiIndustry, setAiIndustry] = useState('');
+  const [aiTone, setAiTone] = useState('professional');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiResult, setAiResult] = useState<AIDemoDraft | null>(null);
+  const [aiError, setAiError] = useState('');
 
   useEffect(() => {
     const params = tab !== 'all' ? `?status=${tab}` : '';
@@ -136,12 +158,41 @@ export default function DraftsScreen() {
 
   const confidenceColor = (s?: number) => !s ? 'text-zinc-500' : s >= 85 ? 'text-emerald-400' : s >= 70 ? 'text-amber-400' : 'text-red-400';
 
+  const handleAiGenerate = async () => {
+    if (!aiName.trim()) return;
+    setAiGenerating(true);
+    setAiError('');
+    setAiResult(null);
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: aiName,
+          title: aiTitle || undefined,
+          company: aiCompany || undefined,
+          industry: aiIndustry || undefined,
+          tone: aiTone,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.draft) {
+        setAiResult(data.draft);
+      } else {
+        setAiError(data.error || 'Generation failed');
+      }
+    } catch {
+      setAiError('Network error — please try again');
+    }
+    setAiGenerating(false);
+  };
+
   return (
     <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-4 pr-1">
       {/* ── Tab Filters ── */}
       <Card className="bg-card border border-border">
         <CardContent className="p-2">
-          <div className="flex gap-1">
+          <div className="flex items-center gap-1">
             {TAB_OPTIONS.map(t => (
               <Button
                 key={t.value}
@@ -153,9 +204,163 @@ export default function DraftsScreen() {
                 {t.label}
               </Button>
             ))}
+            <div className="flex-1" />
+            <Button
+              variant={showAiDemo ? 'default' : 'outline'}
+              size="sm"
+              className={`h-8 text-xs gap-1.5 ${showAiDemo ? 'bg-primary text-primary-foreground' : 'border-primary/30 text-primary hover:bg-primary/10'}`}
+              onClick={() => setShowAiDemo(!showAiDemo)}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Test AI Engine
+            </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* ── AI Demo Panel ── */}
+      {showAiDemo && (
+        <Card className="bg-card border border-primary/20">
+          <CardHeader className="pb-2 pt-3 px-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-primary">
+              <Sparkles className="w-4 h-4" />
+              AI Draft Generator
+              <span className="text-[10px] font-normal text-muted-foreground ml-1">No database needed — test the AI engine directly</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Contact Name *</label>
+                <Input
+                  placeholder="e.g. Sarah Chen"
+                  value={aiName}
+                  onChange={e => setAiName(e.target.value)}
+                  className="h-8 text-sm bg-background border-border"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Job Title</label>
+                <Input
+                  placeholder="e.g. VP of Engineering"
+                  value={aiTitle}
+                  onChange={e => setAiTitle(e.target.value)}
+                  className="h-8 text-sm bg-background border-border"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Company</label>
+                <Input
+                  placeholder="e.g. Acme Corp"
+                  value={aiCompany}
+                  onChange={e => setAiCompany(e.target.value)}
+                  className="h-8 text-sm bg-background border-border"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Industry</label>
+                <Input
+                  placeholder="e.g. Financial Services"
+                  value={aiIndustry}
+                  onChange={e => setAiIndustry(e.target.value)}
+                  className="h-8 text-sm bg-background border-border"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Tone</label>
+                <div className="flex gap-1">
+                  {(['professional', 'casual', 'executive'] as const).map(t => (
+                    <Button
+                      key={t}
+                      variant={aiTone === t ? 'default' : 'outline'}
+                      size="sm"
+                      className={`h-7 text-[11px] px-2.5 capitalize ${aiTone === t ? 'bg-primary text-primary-foreground' : 'border-border text-muted-foreground'}`}
+                      onClick={() => setAiTone(t)}
+                    >
+                      {t}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex-1" />
+              <Button
+                size="sm"
+                className="h-8 text-xs bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                disabled={!aiName.trim() || aiGenerating}
+                onClick={handleAiGenerate}
+              >
+                {aiGenerating ? (
+                  <div className="w-3.5 h-3.5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <><Sparkles className="w-3.5 h-3.5 mr-1.5" />Generate Draft</>
+                )}
+              </Button>
+            </div>
+
+            {aiError && (
+              <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-md px-3 py-2">{aiError}</p>
+            )}
+
+            {/* AI Result */}
+            {aiResult && (
+              <div className="space-y-3 pt-2 border-t border-border">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                  <div className="lg:col-span-2 space-y-3">
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Subject</p>
+                      <p className="text-sm font-medium text-foreground">{aiResult.subject}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Email Body</p>
+                      <div className="p-3 rounded-md bg-background border border-border">
+                        <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{aiResult.body}</p>
+                      </div>
+                    </div>
+                    {aiResult.cta && (
+                      <div className="space-y-1">
+                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Call to Action</p>
+                        <p className="text-sm text-primary">{aiResult.cta}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Confidence</span>
+                      <span className={`text-sm font-bold tabular-nums ${confidenceColor(aiResult.confidenceScore)}`}>{aiResult.confidenceScore}%</span>
+                    </div>
+                    {aiResult.assumptions.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] font-medium text-amber-400 uppercase tracking-wider">Assumptions</p>
+                        {aiResult.assumptions.map((a, i) => (
+                          <div key={i} className="flex items-start gap-1.5">
+                            <AlertTriangle className="w-3 h-3 text-amber-400 mt-0.5 shrink-0" />
+                            <p className="text-xs text-muted-foreground">{a}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {aiResult.sourceSnippets.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] font-medium text-primary uppercase tracking-wider">Source Capabilities</p>
+                        {aiResult.sourceSnippets.map(s => (
+                          <div key={s.id} className="flex items-center gap-1.5">
+                            <BookOpen className="w-3 h-3 text-primary shrink-0" />
+                            <span className="text-xs text-muted-foreground">{s.title}</span>
+                            <Badge variant="outline" className="text-[9px] border-border text-zinc-500 ml-auto">{s.snippetType?.replace('_', ' ')}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Drafts Table ── */}
       <Card className="bg-card border border-border">

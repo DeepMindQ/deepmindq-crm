@@ -1,17 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AnimatedCard, StaggerGrid, StaggerItem, AnimatedBar, SectionHeader, PulseDot } from '@/components/ui/animated-components';
 import {
-  Users, FileCheck, Clock, Mail, Activity, Heart, ShieldCheck, ShieldAlert, ShieldX, HelpCircle,
-  AlertTriangle, Info, Eye, ChevronRight, ArrowUpRight,
+  AnimatedCard, StaggerGrid, StaggerItem, SectionHeader,
+  PulseDot, StatCard,
+} from '@/components/ui/animated-components';
+import {
+  Users, Building2, FilePenLine, Clock, Mail, MailCheck,
+  ShieldX, ShieldAlert, ShieldCheck, ArrowRight,
+  Sparkles, Upload, BarChart3, Send, RefreshCw, Loader2,
+  Zap, Inbox, UserPlus, Eye, MessageSquare, AlertTriangle,
+  ChevronRight, Flame, Target,
 } from 'lucide-react';
 
+/* ═══════════════════════════════════════════════════════════════
+   Types
+   ═══════════════════════════════════════════════════════════════ */
 interface DashboardData {
   contactsByStatus: Record<string, number>;
   totalCompanies: number;
@@ -24,46 +31,195 @@ interface DashboardData {
   emailHealthDistribution: { valid: number; risky: number; invalid: number; unknown: number };
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  staged: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
-  processing: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-  completed: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-  archived: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
-};
-
-const STATUS_DOT: Record<string, string> = {
-  imported: 'bg-zinc-400',
-  cleaned: 'bg-blue-400',
-  drafted: 'bg-amber-400',
-  queued: 'bg-purple-400',
-  sent: 'bg-emerald-400',
-  replied: 'bg-emerald-500',
-  bounced: 'bg-red-400',
-  suppressed: 'bg-slate-400',
-  archived: 'bg-zinc-500',
-};
-
-function fmtDate(iso: string) {
-  try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return iso; }
+interface HotLead {
+  id: string;
+  rawName: string;
+  title: string;
+  company: string;
+  _dbFields: {
+    leadScore: number;
+    status: string;
+  };
 }
 
-const CLICKABLE = 'cursor-pointer hover:opacity-80 transition-opacity';
+interface AuditEntry {
+  id: string;
+  action: string;
+  entity: string;
+  entityId?: string;
+  details?: string;
+  createdAt: string;
+}
 
+/* ═══════════════════════════════════════════════════════════════
+   Pipeline Funnel Config
+   ═══════════════════════════════════════════════════════════════ */
+const FUNNEL_STAGES = [
+  { key: 'imported', label: 'Imported', icon: Upload, navScreen: 'import', barColor: '#71717A', barBg: 'rgba(113,113,122,0.15)' },
+  { key: 'cleaned', label: 'Cleaned', icon: ShieldCheck, navScreen: 'leads', barColor: '#3B82F6', barBg: 'rgba(59,130,246,0.15)' },
+  { key: 'drafted', label: 'Drafted', icon: FilePenLine, navScreen: 'drafts', barColor: '#F59E0B', barBg: 'rgba(245,158,11,0.15)' },
+  { key: 'queued', label: 'Queued', icon: Clock, navScreen: 'queue', barColor: '#A855F7', barBg: 'rgba(168,85,247,0.15)' },
+  { key: 'sent', label: 'Sent', icon: Send, navScreen: 'queue', barColor: '#10B981', barBg: 'rgba(16,185,129,0.15)' },
+  { key: 'replied', label: 'Replied', icon: MailCheck, navScreen: 'replies', barColor: '#D4AF37', barBg: 'rgba(212,175,55,0.15)' },
+] as const;
+
+/* ═══════════════════════════════════════════════════════════════
+   Activity Feed Config
+   ═══════════════════════════════════════════════════════════════ */
+const ACTIVITY_CONFIG: Record<string, { icon: typeof Zap; color: string; bg: string; label: string }> = {
+  lead_imported:    { icon: UserPlus, color: '#3B82F6', bg: 'rgba(59,130,246,0.12)', label: 'Lead Imported' },
+  draft_generated:  { icon: FilePenLine, color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', label: 'Draft Generated' },
+  email_sent:       { icon: Send, color: '#10B981', bg: 'rgba(16,185,129,0.12)', label: 'Email Sent' },
+  email_opened:     { icon: Eye, color: '#A855F7', bg: 'rgba(168,85,247,0.12)', label: 'Email Opened' },
+  reply_received:   { icon: MessageSquare, color: '#D4AF37', bg: 'rgba(212,175,55,0.12)', label: 'Reply Received' },
+  bounce_detected:  { icon: AlertTriangle, color: '#EF4444', bg: 'rgba(239,68,68,0.12)', label: 'Bounce Detected' },
+};
+
+function getActivityConfig(action: string) {
+  const lower = action.toLowerCase();
+  for (const [key, config] of Object.entries(ACTIVITY_CONFIG)) {
+    if (lower.includes(key)) return config;
+  }
+  return { icon: Zap, color: '#71717A', bg: 'rgba(113,113,122,0.12)', label: action.replace(/_/g, ' ') };
+}
+
+function formatTimestamp(iso: string) {
+  const now = Date.now();
+  const then = new Date(iso).getTime();
+  const diff = now - then;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function formatActivityDetails(action: string, details?: string): string {
+  if (details) return details;
+  const lower = action.toLowerCase();
+  if (lower.includes('lead_imported')) return 'New leads were imported into the system';
+  if (lower.includes('draft_generated')) return 'AI-generated email draft was created';
+  if (lower.includes('email_sent')) return 'Email was successfully delivered';
+  if (lower.includes('email_opened')) return 'Recipient opened the email';
+  if (lower.includes('reply_received')) return 'Received a response from the recipient';
+  if (lower.includes('bounce_detected')) return 'Email delivery failed — bounce recorded';
+  return action.replace(/_/g, ' ');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Score Badge
+   ═══════════════════════════════════════════════════════════════ */
+function ScoreBadge({ score }: { score: number }) {
+  const color = score >= 70 ? '#10B981' : score >= 40 ? '#F59E0B' : '#EF4444';
+  const bg = score >= 70 ? 'rgba(16,185,129,0.12)' : score >= 40 ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)';
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold tabular-nums"
+      style={{ color, background: bg }}
+    >
+      <Flame className="w-3 h-3" />
+      {score}
+    </span>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Main Component
+   ═══════════════════════════════════════════════════════════════ */
 export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: string) => void }) {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [hotLeads, setHotLeads] = useState<HotLead[]>([]);
+  const [activity, setActivity] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sendingAll, setSendingAll] = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
 
-  useEffect(() => {
-    fetch('/api/dashboard')
-      .then(r => r.json())
-      .then(d => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
+  /* ── Data Fetching ── */
+  const fetchDashboard = useCallback(async () => {
+    try {
+      const res = await fetch('/api/dashboard');
+      const d = await res.json();
+      setData(d);
+    } catch {
+      // keep loading state
+    }
   }, []);
 
+  const fetchHotLeads = useCallback(async () => {
+    try {
+      const res = await fetch('/api/leads?sortBy=leadScore&sortDir=desc&limit=5&source=db');
+      const d = await res.json();
+      if (d.leads) setHotLeads(d.leads.slice(0, 5));
+    } catch {
+      // no-op
+    }
+  }, []);
+
+  const fetchActivity = useCallback(async () => {
+    try {
+      const res = await fetch('/api/audit?limit=10');
+      const d = await res.json();
+      if (Array.isArray(d)) setActivity(d.slice(0, 10));
+    } catch {
+      // no-op
+    }
+  }, []);
+
+  useEffect(() => {
+    Promise.all([fetchDashboard(), fetchHotLeads(), fetchActivity()]).finally(() => setLoading(false));
+  }, [fetchDashboard, fetchHotLeads, fetchActivity]);
+
+  /* ── Quick Actions ── */
+  const handleSendAll = async () => {
+    setSendingAll(true);
+    try {
+      const res = await fetch('/api/email-worker', { method: 'POST' });
+      const d = await res.json();
+      if (res.ok) {
+        toast.success(`Worker triggered — ${d.processed ?? 'emails queued'} processed`);
+        fetchDashboard();
+      } else {
+        toast.error(d.error || 'Failed to trigger email worker');
+      }
+    } catch {
+      toast.error('Network error — could not reach email worker');
+    } finally {
+      setSendingAll(false);
+    }
+  };
+
+  const handleRecalculate = async () => {
+    setRecalculating(true);
+    try {
+      const res = await fetch('/api/leads/recalculate-scores', { method: 'POST' });
+      const d = await res.json();
+      if (res.ok) {
+        toast.success(`Scores recalculated for ${d.updated ?? 0} leads`);
+        fetchHotLeads();
+      } else {
+        toast.error(d.error || 'Failed to recalculate scores');
+      }
+    } catch {
+      toast.error('Network error — could not recalculate');
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
+  /* ── Loading State ── */
   if (loading) {
     return (
-      <div className="space-y-6">
-        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+      <div className="space-y-5">
+        <Skeleton className="h-44 rounded-xl" />
+        <div className="flex gap-3">
+          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-11 flex-1 rounded-lg" />)}
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Skeleton className="h-72 rounded-xl" />
           <Skeleton className="h-72 rounded-xl" />
@@ -76,330 +232,475 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
     return <div className="text-muted-foreground text-sm p-6">Failed to load dashboard data.</div>;
   }
 
+  /* ── Computed Values ── */
   const totalLeads = Object.values(data.contactsByStatus).reduce((a, b) => a + b, 0);
-  const statusBreakdown = Object.entries(data.contactsByStatus).map(([status, count]) => ({ status, count }));
   const { emailHealthDistribution: eh } = data;
   const healthTotal = eh.valid + eh.risky + eh.invalid + eh.unknown;
+  const validPct = healthTotal > 0 ? Math.round((eh.valid / healthTotal) * 100) : 0;
 
-  // --- Pipeline Funnel Data ---
-  const importedCount = (data.contactsByStatus['imported'] || 0) + (data.contactsByStatus['cleaned'] || 0) + (data.contactsByStatus['duplicate'] || 0);
-  const verifiedCount = eh.valid + eh.risky;
-  const draftedCount = data.contactsByStatus['drafted'] || 0;
-  const inReviewCount = data.draftsPendingReview;
-  const queuedCount = data.queuePending;
-  const sentCount = data.contactsByStatus['sent'] || 0;
-  const repliedCount = data.repliesThisWeek;
+  // Funnel stage counts
+  const funnelCounts = FUNNEL_STAGES.map(s => data.contactsByStatus[s.key] || 0);
+  const funnelMax = Math.max(...funnelCounts, 1);
 
-  const funnelStages = [
-    { label: 'Imported', count: importedCount, color: 'bg-zinc-500' },
-    { label: 'Verified', count: verifiedCount, color: 'bg-blue-500' },
-    { label: 'Drafted', count: draftedCount, color: 'bg-amber-500' },
-    { label: 'In Review', count: inReviewCount, color: 'bg-purple-500' },
-    { label: 'Queued', count: queuedCount, color: 'bg-indigo-500' },
-    { label: 'Sent', count: sentCount, color: 'bg-emerald-500' },
-    { label: 'Replied', count: repliedCount, color: 'bg-green-500' },
-  ];
-
-  const funnelMax = Math.max(...funnelStages.map(s => s.count), 1);
-
-  // --- Alerts ---
-  const alerts: { icon: typeof AlertTriangle; text: string; color: string; viewScreen?: string; viewLabel?: string }[] = [];
-  if (data.bouncesCount > 0) {
-    alerts.push({ icon: AlertTriangle, text: `Bounce rate needs attention (${data.bouncesCount} bounces)`, color: 'bg-amber-500/10 border-amber-500/25 text-amber-400', viewScreen: 'bounces', viewLabel: 'View' });
-  }
-  if (data.draftsPendingReview > 5) {
-    alerts.push({ icon: AlertTriangle, text: `Draft review backlog growing (${data.draftsPendingReview} pending)`, color: 'bg-amber-500/10 border-amber-500/25 text-amber-400', viewScreen: 'drafts', viewLabel: 'Review' });
-  }
-  if (data.queuePending > 20) {
-    alerts.push({ icon: Info, text: `Large queue pending (${data.queuePending} in queue) - consider throttling`, color: 'bg-blue-500/10 border-blue-500/25 text-blue-400', viewScreen: 'queue', viewLabel: 'View' });
-  }
-  if (eh.invalid > 0) {
-    alerts.push({ icon: ShieldX, text: `Invalid emails detected (${eh.invalid}) - consider cleanup`, color: 'bg-red-500/10 border-red-500/25 text-red-400', viewScreen: 'leads', viewLabel: 'Clean' });
-  }
-  if (data.suppressionsCount > 0) {
-    alerts.push({ icon: ShieldAlert, text: `Suppressions active (${data.suppressionsCount}) - review periodically`, color: 'bg-zinc-500/10 border-zinc-500/25 text-zinc-400', viewScreen: 'leads', viewLabel: 'View' });
+  // Conversion rates between consecutive stages
+  const conversionRates: (number | null)[] = [];
+  for (let i = 0; i < funnelCounts.length - 1; i++) {
+    const from = funnelCounts[i];
+    const to = funnelCounts[i + 1];
+    conversionRates.push(from > 0 ? Math.round((to / from) * 100) : null);
   }
 
+  /* ═══════════════════════════════════════════════════════════
+     RENDER
+     ═══════════════════════════════════════════════════════════ */
   return (
     <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-5 pr-1">
-      {/* Pipeline Funnel - Animated */}
+      {/* ─────────────────────────────────────────────
+          1. PIPELINE FUNNEL — Command Center Hero
+          ───────────────────────────────────────────── */}
       <AnimatedCard hover={false} className="!rounded-xl overflow-hidden">
         <div className="px-5 pt-5 pb-1">
-          <SectionHeader title="Pipeline Funnel" />
+          <div className="flex items-center justify-between">
+            <SectionHeader title="Pipeline Funnel" subtitle="Lead conversion across outreach stages" />
+            <div className="flex items-center gap-2">
+              <PulseDot color="#D4AF37" />
+              <span className="text-xs text-muted-foreground font-medium">Live</span>
+            </div>
+          </div>
         </div>
-        <div className="px-5 pb-5">
-          <div className="flex items-end gap-2 h-[80px]">
-            {funnelStages.map((stage, i) => {
-              const widthPct = Math.max((stage.count / funnelMax) * 100, 6);
+        <div className="px-5 pb-5 pt-2">
+          <div className="flex items-stretch gap-1">
+            {FUNNEL_STAGES.map((stage, i) => {
+              const count = funnelCounts[i];
+              const widthPct = Math.max((count / funnelMax) * 100, 8);
+              const convRate = conversionRates[i];
+              const StageIcon = stage.icon;
+              const isLast = i === FUNNEL_STAGES.length - 1;
+
               return (
-                <motion.div
-                  key={stage.label}
-                  className="flex-1 flex flex-col items-center gap-1.5 min-w-0"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: i * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }}
-                >
-                  <motion.span
-                    className="text-xs font-bold tabular-nums"
-                    style={{ color: '#D4AF37' }}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: i * 0.08 + 0.3 }}
-                  >{stage.count}</motion.span>
-                  <div className="w-full flex justify-center">
-                    <motion.div
-                      className="rounded-md"
-                      style={{ height: '36px' }}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${widthPct}%` }}
-                      transition={{ duration: 0.8, delay: 0.2 + i * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }}
+                <div key={stage.key} className="flex-1 flex flex-col items-center min-w-0">
+                  {/* Stage Column — clickable */}
+                  <motion.button
+                    className="w-full flex flex-col items-center gap-2 group py-2 px-1 rounded-lg transition-colors hover:bg-white/[0.03]"
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: i * 0.07, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    onClick={() => navigateTo?.(stage.navScreen)}
+                    whileHover={{ y: -2 }}
+                  >
+                    {/* Icon */}
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:scale-110"
+                      style={{ background: stage.barBg }}
                     >
-                      <div className={`w-full h-full rounded-md ${stage.color}`} style={{ opacity: 0.7 }} />
-                    </motion.div>
-                  </div>
-                  <span className="text-[10px] text-muted-foreground truncate w-full text-center font-medium">{stage.label}</span>
-                </motion.div>
+                      <StageIcon className="w-4 h-4" style={{ color: stage.barColor }} />
+                    </div>
+
+                    {/* Count */}
+                    <motion.span
+                      className="text-lg font-bold tabular-nums"
+                      style={{ color: isLast ? '#D4AF37' : stage.barColor }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: i * 0.07 + 0.3 }}
+                    >
+                      {count.toLocaleString()}
+                    </motion.span>
+
+                    {/* Proportional Bar */}
+                    <div className="w-full h-2.5 rounded-full overflow-hidden" style={{ background: stage.barBg }}>
+                      <motion.div
+                        className="h-full rounded-full"
+                        style={{ background: `linear-gradient(90deg, ${stage.barColor}CC, ${stage.barColor})` }}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${widthPct}%` }}
+                        transition={{ duration: 0.9, delay: 0.15 + i * 0.07, ease: [0.22, 1, 0.36, 1] }}
+                      />
+                    </div>
+
+                    {/* Label */}
+                    <span className="text-[11px] text-muted-foreground font-medium tracking-wide uppercase">{stage.label}</span>
+                  </motion.button>
+
+                  {/* Conversion Arrow between stages */}
+                  {!isLast && (
+                    <div className="flex items-center self-center -mx-0.5" style={{ marginBottom: '32px' }}>
+                      <motion.div
+                        className="flex flex-col items-center gap-0.5"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: i * 0.07 + 0.5 }}
+                      >
+                        {convRate !== null ? (
+                          <>
+                            <ArrowRight className="w-3 h-3 text-muted-foreground/40" />
+                            <span
+                              className="text-[9px] font-bold tabular-nums whitespace-nowrap"
+                              style={{ color: convRate >= 40 ? '#10B981' : convRate >= 15 ? '#F59E0B' : '#EF4444' }}
+                            >
+                              {convRate}%
+                            </span>
+                          </>
+                        ) : (
+                          <ArrowRight className="w-3 h-3 text-muted-foreground/20" />
+                        )}
+                      </motion.div>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
         </div>
       </AnimatedCard>
 
-      {/* Alerts - Animated */}
-      {alerts.length > 0 && (
-        <StaggerGrid className="space-y-2" stagger={0.08}>
-          {alerts.map((alert, i) => (
-            <StaggerItem key={i}>
-              <motion.div
-                className={`flex items-center justify-between rounded-lg border px-4 py-3 ${alert.color}`}
-                whileHover={{ x: 2 }}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <alert.icon className="w-4 h-4 shrink-0" />
-                  <span className="text-xs font-medium truncate">{alert.text}</span>
-                </div>
-                {alert.viewScreen && navigateTo && (
-                  <motion.button
-                    onClick={() => navigateTo(alert.viewScreen!)}
-                    className="flex items-center gap-1 text-xs font-medium shrink-0 hover:underline ml-3"
-                    whileHover={{ x: 2 }}
-                  >
-                    {alert.viewLabel || 'View'}
-                    <ArrowUpRight className="w-3 h-3" />
-                  </motion.button>
-                )}
-              </motion.div>
-            </StaggerItem>
-          ))}
-        </StaggerGrid>
-      )}
+      {/* ─────────────────────────────────────────────
+          2. QUICK ACTION BUTTONS
+          ───────────────────────────────────────────── */}
+      <StaggerGrid className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" stagger={0.06}>
+        {/* Generate Drafts */}
+        <StaggerItem>
+          <motion.button
+            className="relative w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl text-left group transition-all duration-300 hover:border-[#D4AF37]/30 hover:bg-white/[0.05]"
+            whileHover={{ y: -2, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigateTo?.('drafts')}
+          >
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[#D4AF37]/10 group-hover:bg-[#D4AF37]/20 transition-colors">
+              <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate">Generate Drafts</p>
+              <p className="text-[11px] text-muted-foreground">AI email drafts</p>
+            </div>
+            {data.draftsPendingReview > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#D4AF37] text-[10px] font-bold text-black flex items-center justify-center shadow-lg">
+                {data.draftsPendingReview > 99 ? '99+' : data.draftsPendingReview}
+              </span>
+            )}
+          </motion.button>
+        </StaggerItem>
 
-      {/* Stat Cards - Staggered with gradients */}
-      <StaggerGrid className="grid grid-cols-2 lg:grid-cols-4 gap-4" stagger={0.08}>
-        {[
-          { label: 'Total Leads', value: totalLeads, icon: Users, screen: undefined, gradient: 'gold' },
-          { label: 'Ready for Review', value: data.draftsPendingReview, icon: FileCheck, screen: 'drafts', gradient: 'purple' },
-          { label: 'In Queue', value: data.queuePending, icon: Clock, screen: 'queue', gradient: 'blue' },
-          { label: 'Replies This Week', value: data.repliesThisWeek, icon: Mail, screen: 'replies', gradient: 'green' },
-        ].map(s => (
-          <StaggerItem key={s.label}>
-            <motion.div
-              className="rounded-xl border p-[1px] cursor-default"
-              style={{
-                background: `linear-gradient(135deg, ${
-                  s.gradient === 'gold' ? 'rgba(212,175,55,0.15)' :
-                  s.gradient === 'blue' ? 'rgba(59,130,246,0.15)' :
-                  s.gradient === 'green' ? 'rgba(16,185,129,0.15)' :
-                  'rgba(139,92,246,0.15)'
-                }, transparent 60%)`,
-              }}
-              whileHover={{ y: -3 }}
-              onClick={() => s.screen && navigateTo?.(s.screen)}
-            >
-              <div className="rounded-xl bg-card p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wider">{s.label}</p>
-                    <p className="text-2xl font-bold tabular-nums mt-1.5" style={{ color: '#D4AF37' }}>{s.value.toLocaleString()}</p>
-                  </div>
-                  <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center"
-                    style={{
-                      background: s.gradient === 'gold' ? 'rgba(212,175,55,0.12)' :
-                        s.gradient === 'blue' ? 'rgba(59,130,246,0.12)' :
-                        s.gradient === 'green' ? 'rgba(16,185,129,0.12)' :
-                        'rgba(139,92,246,0.12)',
-                    }}
-                  >
-                    <s.icon className="w-5 h-5" style={{
-                      color: s.gradient === 'gold' ? '#D4AF37' :
-                             s.gradient === 'blue' ? '#3B82F6' :
-                             s.gradient === 'green' ? '#10B981' : '#8B5CF6',
-                    }} />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </StaggerItem>
-        ))}
+        {/* Send All Pending */}
+        <StaggerItem>
+          <motion.button
+            className="relative w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl text-left group transition-all duration-300 hover:border-emerald-500/30 hover:bg-white/[0.05] disabled:opacity-50 disabled:cursor-not-allowed"
+            whileHover={!sendingAll ? { y: -2, scale: 1.01 } : {}}
+            whileTap={!sendingAll ? { scale: 0.98 } : {}}
+            onClick={handleSendAll}
+            disabled={sendingAll}
+          >
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
+              {sendingAll ? (
+                <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4 text-emerald-400" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate">Send All Pending</p>
+              <p className="text-[11px] text-muted-foreground">{sendingAll ? 'Sending...' : 'Trigger worker'}</p>
+            </div>
+            {data.queuePending > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-emerald-500 text-[10px] font-bold text-black flex items-center justify-center shadow-lg">
+                {data.queuePending > 99 ? '99+' : data.queuePending}
+              </span>
+            )}
+          </motion.button>
+        </StaggerItem>
+
+        {/* Recalculate Scores */}
+        <StaggerItem>
+          <motion.button
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl text-left group transition-all duration-300 hover:border-blue-500/30 hover:bg-white/[0.05] disabled:opacity-50 disabled:cursor-not-allowed"
+            whileHover={!recalculating ? { y: -2, scale: 1.01 } : {}}
+            whileTap={!recalculating ? { scale: 0.98 } : {}}
+            onClick={handleRecalculate}
+            disabled={recalculating}
+          >
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
+              {recalculating ? (
+                <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 text-blue-400" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate">Recalculate Scores</p>
+              <p className="text-[11px] text-muted-foreground">{recalculating ? 'Updating...' : 'Refresh lead scores'}</p>
+            </div>
+          </motion.button>
+        </StaggerItem>
+
+        {/* Import Leads */}
+        <StaggerItem>
+          <motion.button
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl text-left group transition-all duration-300 hover:border-purple-500/30 hover:bg-white/[0.05]"
+            whileHover={{ y: -2, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigateTo?.('import')}
+          >
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
+              <Upload className="w-4 h-4 text-purple-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate">Import Leads</p>
+              <p className="text-[11px] text-muted-foreground">Upload CSV / XLSX</p>
+            </div>
+          </motion.button>
+        </StaggerItem>
+
+        {/* View Analytics */}
+        <StaggerItem>
+          <motion.button
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl text-left group transition-all duration-300 hover:border-amber-500/30 hover:bg-white/[0.05]"
+            whileHover={{ y: -2, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigateTo?.('analytics')}
+          >
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors">
+              <BarChart3 className="w-4 h-4 text-amber-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate">View Analytics</p>
+              <p className="text-[11px] text-muted-foreground">Performance insights</p>
+            </div>
+          </motion.button>
+        </StaggerItem>
       </StaggerGrid>
 
-      {/* Recent Batches + Status Breakdown */}
+      {/* ─────────────────────────────────────────────
+          3. STATS GRID — 2 rows × 4 columns
+          ───────────────────────────────────────────── */}
+      <StaggerGrid className="grid grid-cols-2 lg:grid-cols-4 gap-4" stagger={0.06}>
+        {/* Row 1 */}
+        <StaggerItem>
+          <StatCard
+            label="Total Leads"
+            value={totalLeads}
+            icon={Users}
+            color="#D4AF37"
+            delay={0}
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard
+            label="Companies"
+            value={data.totalCompanies}
+            icon={Building2}
+            color="#A855F7"
+            delay={0.06}
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <motion.div
+            className="cursor-pointer"
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            onClick={() => navigateTo?.('drafts')}
+          >
+            <StatCard
+              label="Pending Drafts"
+              value={data.draftsPendingReview}
+              icon={FilePenLine}
+              color="#F59E0B"
+              delay={0.12}
+            />
+          </motion.div>
+        </StaggerItem>
+        <StaggerItem>
+          <motion.div
+            className="cursor-pointer"
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            onClick={() => navigateTo?.('queue')}
+          >
+            <StatCard
+              label="Queue Pending"
+              value={data.queuePending}
+              icon={Clock}
+              color="#3B82F6"
+              delay={0.18}
+            />
+          </motion.div>
+        </StaggerItem>
+
+        {/* Row 2 */}
+        <StaggerItem>
+          <motion.div
+            className="cursor-pointer"
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            onClick={() => navigateTo?.('replies')}
+          >
+            <StatCard
+              label="Replies This Week"
+              value={data.repliesThisWeek}
+              icon={Mail}
+              color="#10B981"
+              delay={0.24}
+            />
+          </motion.div>
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard
+            label="Bounces"
+            value={data.bouncesCount}
+            icon={ShieldX}
+            color="#EF4444"
+            delay={0.30}
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard
+            label="Suppressions"
+            value={data.suppressionsCount}
+            icon={ShieldAlert}
+            color="#71717A"
+            delay={0.36}
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard
+            label="Email Health"
+            value={`${validPct}%`}
+            icon={ShieldCheck}
+            color={validPct >= 80 ? '#10B981' : validPct >= 50 ? '#F59E0B' : '#EF4444'}
+            delay={0.42}
+          />
+        </StaggerItem>
+      </StaggerGrid>
+
+      {/* ─────────────────────────────────────────────
+          4. HOT LEADS + ACTIVITY FEED — Side by Side
+          ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* ── Hot Leads Panel ── */}
         <AnimatedCard hover={false} className="!rounded-xl">
           <div className="px-5 pt-5 pb-1">
-            <SectionHeader title="Recent Batches" />
+            <div className="flex items-center justify-between">
+              <SectionHeader title="Hot Leads" subtitle="Top prospects by score" />
+              <motion.button
+                className="flex items-center gap-1 text-xs font-medium text-[#D4AF37] hover:underline"
+                whileHover={{ x: 2 }}
+                onClick={() => navigateTo?.('leads')}
+              >
+                View All <ChevronRight className="w-3 h-3" />
+              </motion.button>
+            </div>
           </div>
           <div className="px-5 pb-5">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border hover:bg-transparent">
-                  <TableHead className="text-muted-foreground text-xs">Filename</TableHead>
-                  <TableHead className="text-muted-foreground text-xs text-right">Rows</TableHead>
-                  <TableHead className="text-muted-foreground text-xs text-right">Accepted</TableHead>
-                  <TableHead className="text-muted-foreground text-xs">Status</TableHead>
-                  <TableHead className="text-muted-foreground text-xs text-right">Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.recentBatches.map(b => (
-                  <TableRow key={b.id} className="border-border">
-                    <TableCell className="text-foreground text-sm font-medium max-w-[160px] truncate">{b.fileName}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm text-right tabular-nums">{b.totalRows}</TableCell>
-                    <TableCell className="text-foreground text-sm text-right tabular-nums">{b.acceptedRows}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={STATUS_COLORS[b.status] || ''}>
-                        {b.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs text-right whitespace-nowrap">{fmtDate(b.createdAt)}</TableCell>
-                  </TableRow>
+            {hotLeads.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="w-12 h-12 rounded-xl bg-white/[0.04] flex items-center justify-center mb-3">
+                  <Target className="w-6 h-6 text-muted-foreground/40" />
+                </div>
+                <p className="text-sm text-muted-foreground">No scored leads yet</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Import leads to see rankings</p>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {hotLeads.map((lead, i) => (
+                  <motion.button
+                    key={lead.id}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] transition-colors text-left group"
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4, delay: 0.1 + i * 0.06 }}
+                    onClick={() => navigateTo?.('leads')}
+                  >
+                    {/* Rank */}
+                    <span className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0"
+                      style={{
+                        background: i === 0 ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.04)',
+                        color: i === 0 ? '#D4AF37' : 'text-muted-foreground',
+                      }}
+                    >
+                      {i + 1}
+                    </span>
+
+                    {/* Lead Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate group-hover:text-[#D4AF37] transition-colors">
+                        {lead.rawName}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {lead.title && `${lead.title}`}
+                        {lead.title && lead.company && ' · '}
+                        {lead.company}
+                      </p>
+                    </div>
+
+                    {/* Score Badge */}
+                    <ScoreBadge score={lead._dbFields?.leadScore ?? 0} />
+                  </motion.button>
                 ))}
-                {data.recentBatches.length === 0 && (
-                  <TableRow><TableCell colSpan={5} className="text-muted-foreground text-sm text-center py-6">No batches yet</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
+              </div>
+            )}
           </div>
         </AnimatedCard>
 
+        {/* ── Recent Activity Feed ── */}
         <AnimatedCard hover={false} className="!rounded-xl">
           <div className="px-5 pt-5 pb-1">
-            <SectionHeader title="Lead Status" />
+            <div className="flex items-center justify-between">
+              <SectionHeader title="Recent Activity" subtitle="Latest actions in your pipeline" />
+              <div className="flex items-center gap-1.5">
+                <PulseDot color="#10B981" />
+                <span className="text-[11px] text-muted-foreground font-medium">Auto-refresh</span>
+              </div>
+            </div>
           </div>
           <div className="px-5 pb-5">
-            <div className="space-y-2.5">
-              {statusBreakdown.map(s => (
-                <motion.div
-                  key={s.status}
-                  className="flex items-center justify-between py-1.5"
-                  whileHover={{ x: 4 }}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className={`w-2 h-2 rounded-full ${STATUS_DOT[s.status] || 'bg-zinc-500'}`} />
-                    <span className="text-sm text-foreground capitalize">{s.status.replace(/_/g, ' ')}</span>
-                  </div>
-                  <span className="text-sm font-semibold tabular-nums" style={{ color: '#D4AF37' }}>{s.count.toLocaleString()}</span>
-                </motion.div>
-              ))}
-            </div>
+            {activity.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="w-12 h-12 rounded-xl bg-white/[0.04] flex items-center justify-center mb-3">
+                  <Inbox className="w-6 h-6 text-muted-foreground/40" />
+                </div>
+                <p className="text-sm text-muted-foreground">No activity yet</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Actions will appear here as they happen</p>
+              </div>
+            ) : (
+              <div className="relative">
+                {/* Timeline line */}
+                <div className="absolute left-[15px] top-3 bottom-3 w-px bg-white/[0.06]" />
+
+                <div className="space-y-0.5">
+                  {activity.map((entry, i) => {
+                    const config = getActivityConfig(entry.action);
+                    const ActivityIcon = config.icon;
+                    return (
+                      <motion.div
+                        key={entry.id}
+                        className="relative flex gap-3 px-1 py-2.5 rounded-lg hover:bg-white/[0.02] transition-colors"
+                        initial={{ opacity: 0, x: -12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.4, delay: 0.1 + i * 0.05 }}
+                      >
+                        {/* Icon node on timeline */}
+                        <div
+                          className="relative z-10 w-[30px] h-[30px] rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                          style={{ background: config.bg }}
+                        >
+                          <ActivityIcon className="w-3.5 h-3.5" style={{ color: config.color }} />
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-foreground">{config.label}</span>
+                            <span className="text-[10px] text-muted-foreground/50">{formatTimestamp(entry.createdAt)}</span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">
+                            {formatActivityDetails(entry.action, entry.details)}
+                          </p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </AnimatedCard>
       </div>
-
-      {/* Email Health - Enhanced */}
-      <AnimatedCard hover={false} className="!rounded-xl">
-        <div className="px-5 pt-5 pb-1">
-          <SectionHeader title="Email Health" />
-        </div>
-        <div className="px-5 pb-5">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {([
-              { key: 'valid', label: 'Valid', icon: ShieldCheck, color: 'bg-emerald-400' },
-              { key: 'risky', label: 'Risky', icon: ShieldAlert, color: 'bg-amber-400' },
-              { key: 'invalid', label: 'Invalid', icon: ShieldX, color: 'bg-red-400' },
-              { key: 'unknown', label: 'Unknown', icon: HelpCircle, color: 'bg-zinc-500' },
-            ] as const).map((h, i) => {
-              const count = eh[h.key];
-              const pct = healthTotal > 0 ? (count / healthTotal) * 100 : 0;
-              const barColor = h.key === 'valid' ? '#10B981' : h.key === 'risky' ? '#F59E0B' : h.key === 'invalid' ? '#EF4444' : '#71717A';
-              return (
-                <div key={h.key} className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <h.icon className="w-3.5 h-3.5" style={{ color: barColor }} />
-                      <span className="text-sm text-foreground">{h.label}</span>
-                    </div>
-                    <span className="text-sm font-semibold tabular-nums" style={{ color: barColor }}>{count}</span>
-                  </div>
-                  <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                    <motion.div
-                      className="h-full rounded-full"
-                      style={{ background: barColor }}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${pct}%` }}
-                      transition={{ duration: 0.8, delay: 0.2 + i * 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </AnimatedCard>
-
-      {/* Quick Counts - Gradient border */}
-      <StaggerGrid className="grid grid-cols-3 gap-4" stagger={0.08}>
-        <StaggerItem>
-          <motion.div
-            className="rounded-xl border p-[1px] cursor-pointer"
-            style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.12), transparent 60%)' }}
-            whileHover={{ y: -2 }}
-            onClick={() => navigateTo?.('bounces')}
-          >
-            <div className="rounded-xl bg-card p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.12)' }}>
-                <ShieldX className="w-4 h-4" style={{ color: '#EF4444' }} />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Bounces</p>
-                <p className="text-lg font-bold text-foreground tabular-nums">{data.bouncesCount}</p>
-              </div>
-            </div>
-          </motion.div>
-        </StaggerItem>
-        <StaggerItem>
-          <div className="rounded-xl border p-[1px]" style={{ background: 'linear-gradient(135deg, rgba(113,113,122,0.1), transparent 60%)' }}>
-            <div className="rounded-xl bg-card p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(113,113,122,0.1)' }}>
-                <ShieldAlert className="w-4 h-4" style={{ color: '#71717A' }} />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Suppressions</p>
-                <p className="text-lg font-bold text-foreground tabular-nums">{data.suppressionsCount}</p>
-              </div>
-            </div>
-          </div>
-        </StaggerItem>
-        <StaggerItem>
-          <motion.div
-            className="rounded-xl border p-[1px] cursor-pointer"
-            style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.12), transparent 60%)' }}
-            whileHover={{ y: -2 }}
-            onClick={() => navigateTo?.('companies')}
-          >
-            <div className="rounded-xl bg-card p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.12)' }}>
-                <Activity className="w-4 h-4" style={{ color: '#D4AF37' }} />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Companies</p>
-                <p className="text-lg font-bold text-foreground tabular-nums">{data.totalCompanies}</p>
-              </div>
-            </div>
-          </motion.div>
-        </StaggerItem>
-      </StaggerGrid>
     </div>
   );
 }

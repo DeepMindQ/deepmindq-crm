@@ -39,7 +39,8 @@ import {
   Loader2, CheckCircle2, Brain, ShieldCheck, ShieldAlert, ShieldX, UserPlus,
   StickyNote, Clock, Activity, Tag, AlertTriangle, SendHorizontal, Linkedin,
   Link, CalendarDays, Handshake, Inbox, List, MousePointerClick,
-  Download, Copy, RefreshCw, GitMerge, Eye, Ban,
+  Download, Copy, RefreshCw, GitMerge, Eye, Ban, MoreHorizontal, FileText, Phone,
+  MessageSquarePlus, LayoutList, Building, ChevronRight as ChevronRightIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -67,6 +68,8 @@ interface Lead {
     leadScore?: number; emailHealth?: string; emailHealthScore?: number;
     status?: string; role?: string; phone?: string; companyId?: string; batchId?: string;
     consentStatus?: string; assignedTo?: string; source?: string;
+    companyFitScore?: number; engagementScore?: number; enrichmentScore?: number;
+    hasEnrichedCompany?: boolean; createdAt?: string;
   };
 }
 
@@ -231,6 +234,19 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
   const [statusTransitions, setStatusTransitions] = useState<Record<string, string[]>>({});
   const [transitioningId, setTransitioningId] = useState<string | null>(null);
 
+  /* Task 2: Inline note from row action */
+  const [inlineNoteOpen, setInlineNoteOpen] = useState(false);
+  const [inlineNoteLeadId, setInlineNoteLeadId] = useState<string>('');
+  const [inlineNoteText, setInlineNoteText] = useState('');
+  const [inlineNoteSaving, setInlineNoteSaving] = useState(false);
+
+  /* Task 2: Bulk status update dialog */
+  const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
+  const [bulkNewStatus, setBulkNewStatus] = useState('');
+
+  /* Task 2: Slide-over detail panel */
+  const [slideOverOpen, setSlideOverOpen] = useState(false);
+
   /* Debounce */
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -354,6 +370,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
     setNotes([]);
     setTimeline([]);
     setNewNote('');
+    setSlideOverOpen(true);
     setDetailOpen(true);
 
     // Load timeline
@@ -565,6 +582,139 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
     setTransitioningId(null);
   };
 
+  /* Task 2: Quick draft from row action */
+  const handleQuickDraft = async (lead: Lead, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      toast.loading('Generating draft...', { id: 'quick-draft' });
+      const res = await fetch('/api/drafts', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactId: lead.id, name: lead.rawName, email: lead.email, title: lead.title, company: lead.company, industry: lead.industry, companySize: lead.employeeCategory }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Draft generated for ${lead.rawName}`, { id: 'quick-draft' });
+        if (navigateTo) navigateTo('drafts');
+      } else {
+        toast.error(data.error || 'Draft generation failed', { id: 'quick-draft' });
+      }
+    } catch {
+      toast.error('Network error', { id: 'quick-draft' });
+    }
+  };
+
+  /* Task 2: Open inline note dialog */
+  const openInlineNote = (lead: Lead, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setInlineNoteLeadId(lead.id);
+    setInlineNoteText('');
+    setInlineNoteOpen(true);
+  };
+
+  /* Task 2: Save inline note */
+  const handleInlineNoteSave = async () => {
+    if (!inlineNoteText.trim()) return;
+    setInlineNoteSaving(true);
+    try {
+      const res = await fetch(`/api/contacts/${inlineNoteLeadId}/notes`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: inlineNoteText.trim() }),
+      });
+      if (res.ok) {
+        toast.success('Note added');
+        setInlineNoteOpen(false);
+        setInlineNoteText('');
+        fetchLeads();
+      } else {
+        toast.error('Failed to add note');
+      }
+    } catch { toast.error('Failed to add note'); }
+    setInlineNoteSaving(false);
+  };
+
+  /* Task 2: Bulk generate drafts */
+  const handleBulkGenerateDrafts = async () => {
+    if (selectedIds.size === 0) return;
+    toast.loading(`Generating drafts for ${selectedIds.size} leads...`, { id: 'bulk-drafts' });
+    let count = 0;
+    for (const id of Array.from(selectedIds)) {
+      try {
+        const res = await fetch('/api/drafts', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contactId: id }),
+        });
+        const data = await res.json();
+        if (data.success) count++;
+      } catch { /* skip */ }
+    }
+    toast.success(`Generated ${count} draft(s) for ${selectedIds.size} leads`, { id: 'bulk-drafts' });
+    if (count > 0 && navigateTo) navigateTo('drafts');
+  };
+
+  /* Task 2: Bulk export selected */
+  const handleBulkExportSelected = async () => {
+    if (selectedIds.size === 0) return;
+    try {
+      const res = await fetch(`/api/leads/export?ids=${Array.from(selectedIds).join(',')}`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `deepmindq-leads-selected-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success('Selected leads exported');
+      }
+    } catch { toast.error('Export failed'); }
+  };
+
+  /* Task 2: Bulk status update */
+  const handleBulkStatusUpdate = async () => {
+    if (selectedIds.size === 0 || !bulkNewStatus) return;
+    try {
+      const res = await fetch('/api/leads/status', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds), status: bulkNewStatus }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Updated ${selectedIds.size} leads to ${bulkNewStatus}`);
+        setBulkStatusOpen(false);
+        setBulkNewStatus('');
+        setSelectedIds(new Set());
+        fetchLeads();
+      } else {
+        toast.error(data.error || 'Bulk status update failed');
+      }
+    } catch { toast.error('Bulk status update failed'); }
+  };
+
+  /* Task 2: Compute data completeness score */
+  const computeCompleteness = (lead: Lead): number => {
+    let filled = 0;
+    const fields = [lead.rawName, lead.email, lead.title, lead.department, lead.company, lead.industry, lead.city, lead.state, lead.country, lead.website, lead.linkedin, lead.employeeCategory];
+    fields.forEach(f => { if (f && f.trim()) filled++; });
+    if (lead._dbFields?.phone) filled++;
+    return Math.round((filled / (fields.length + 1)) * 15);
+  };
+
+  /* Task 2: Get score color */
+  const getScoreColor = (score: number | null | undefined) => {
+    if (score == null) return '#71717a';
+    if (score >= 70) return '#10b981';
+    if (score >= 40) return '#f59e0b';
+    return '#ef4444';
+  };
+
+  /* Task 2: Get score bar color */
+  const getBarColor = (value: number, max: number) => {
+    const pct = (value / max) * 100;
+    if (pct >= 70) return '#10b981';
+    if (pct >= 40) return '#f59e0b';
+    return '#ef4444';
+  };
+
   const SortIcon = ({ col }: { col: SortColumn }) => {
     if (sortBy !== col) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30 inline" />;
     return sortDir === 'asc' ? <ChevronUp className="w-3 h-3 ml-1 text-primary inline" /> : <ChevronDown className="w-3 h-3 ml-1 text-primary inline" />;
@@ -704,13 +854,14 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                 <TableHead className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider h-11 w-[100px]">Source</TableHead>
                 <TableHead className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider h-11 w-[80px]">Assignee</TableHead>
                 <TableHead className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider h-11 w-[90px] cursor-pointer" onClick={() => handleSort('country')}><span className="inline-flex items-center">Country<SortIcon col="country" /></span></TableHead>
+                <TableHead className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider h-11 w-[40px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {leadsLoading ? (
-                Array.from({ length: 15 }).map((_, i) => <TableRow key={`skel-${i}`} className="border-white/[0.04] hover:bg-transparent"><TableCell colSpan={12} className="py-0"><Skeleton className="h-10 w-full my-0.5 bg-white/[0.03]" /></TableCell></TableRow>)
+                Array.from({ length: 15 }).map((_, i) => <TableRow key={`skel-${i}`} className="border-white/[0.04] hover:bg-transparent"><TableCell colSpan={13} className="py-0"><Skeleton className="h-10 w-full my-0.5 bg-white/[0.03]" /></TableCell></TableRow>)
               ) : leads.length === 0 ? (
-                <TableRow className="border-white/[0.04] hover:bg-transparent"><TableCell colSpan={12} className="h-48"><EmptyState icon={Users} title="No leads found" description={activeFilterCount > 0 ? 'Try adjusting your filters.' : 'No contacts match your criteria.'} action={activeFilterCount > 0 ? <Button variant="outline" size="sm" className="text-xs border-primary/20 text-primary" onClick={clearAllFilters}><X className="w-3 h-3 mr-1" />Clear all</Button> : undefined} /></TableCell></TableRow>
+                <TableRow className="border-white/[0.04] hover:bg-transparent"><TableCell colSpan={13} className="h-48"><EmptyState icon={Users} title="No leads found" description={activeFilterCount > 0 ? 'Try adjusting your filters.' : 'No contacts match your criteria.'} action={activeFilterCount > 0 ? <Button variant="outline" size="sm" className="text-xs border-primary/20 text-primary" onClick={clearAllFilters}><X className="w-3 h-3 mr-1" />Clear all</Button> : undefined} /></TableCell></TableRow>
               ) : leads.map((lead, idx) => {
                 const dbf = lead._dbFields;
                 const health = dbf?.emailHealth || 'unknown';
@@ -730,7 +881,17 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                     <td className="py-3 px-3 relative z-10" onClick={e => e.stopPropagation()}>
                       <Checkbox checked={selectedIds.has(lead.id)} onCheckedChange={() => toggleSelect(lead.id)} className="h-3.5 w-3.5" />
                     </td>
-                    <td className="py-3 px-4 text-xs text-foreground font-medium relative z-10">{lead.rawName || '-'}</td>
+                    <td className="py-3 px-4 text-xs text-foreground font-medium relative z-10 flex items-center gap-2">
+                      {lead.rawName || '-'}
+                      {dbf?.leadScore != null && (
+                        <span
+                          className="shrink-0 inline-flex items-center justify-center h-5 min-w-[22px] px-1 rounded-full text-[10px] font-bold tabular-nums"
+                          style={{ backgroundColor: `${getScoreColor(dbf.leadScore)}18`, color: getScoreColor(dbf.leadScore), border: `1px solid ${getScoreColor(dbf.leadScore)}30` }}
+                        >
+                          {dbf.leadScore}
+                        </span>
+                      )}
+                    </td>
                     <td className="py-3 px-4 text-xs text-muted-foreground truncate max-w-[200px] relative z-10 flex items-center gap-1.5">
                       {lead.email || '-'}
                       {/* L-10: Click health badge to verify */}
@@ -852,6 +1013,44 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                     {/* L-14: Assignee */}
                     <td className="py-3 px-3 text-xs text-muted-foreground truncate max-w-[80px] relative z-10">{assignee || '-'}</td>
                     <td className="py-3 px-4 text-xs text-muted-foreground truncate max-w-[90px] relative z-10">{lead.country || '-'}</td>
+                    {/* Task 2: Actions column */}
+                    <td className="py-3 px-2 relative z-10" onClick={e => e.stopPropagation()}>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-white/[0.06] text-muted-foreground hover:text-foreground">
+                            <MoreHorizontal className="w-3.5 h-3.5" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-48 p-1 border-white/[0.1] bg-black/90 backdrop-blur-2xl shadow-xl shadow-black/40" align="end">
+                          <button
+                            className="w-full text-left text-xs text-foreground px-3 py-2 rounded-md hover:bg-white/[0.06] transition-colors flex items-center gap-2.5"
+                            onClick={(e) => handleQuickDraft(lead, e)}
+                          >
+                            <FileText className="w-3.5 h-3.5 text-primary/70" />Generate Draft
+                          </button>
+                          <button
+                            className="w-full text-left text-xs text-foreground px-3 py-2 rounded-md hover:bg-white/[0.06] transition-colors flex items-center gap-2.5"
+                            onClick={(e) => openInlineNote(lead, e)}
+                          >
+                            <MessageSquarePlus className="w-3.5 h-3.5 text-emerald-400/70" />Add Note
+                          </button>
+                          <button
+                            className="w-full text-left text-xs text-foreground px-3 py-2 rounded-md hover:bg-white/[0.06] transition-colors flex items-center gap-2.5"
+                            onClick={(e) => { e.stopPropagation(); openDetail(lead); }}
+                          >
+                            <LayoutList className="w-3.5 h-3.5 text-amber-400/70" />View Timeline
+                          </button>
+                          {navigateTo && (
+                            <button
+                              className="w-full text-left text-xs text-foreground px-3 py-2 rounded-md hover:bg-white/[0.06] transition-colors flex items-center gap-2.5"
+                              onClick={(e) => { e.stopPropagation(); navigateTo('companies'); }}
+                            >
+                              <Building className="w-3.5 h-3.5 text-blue-400/70" />View Company
+                            </button>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                    </td>
                   </motion.tr>
                 );
               })}
@@ -887,123 +1086,195 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
         )}
       </GlassPanel>
 
-      {/* ═════════════════════════ Lead Detail Panel (Sheet) ═════════════════════════ */}
-      <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-        <SheetContent className="w-full sm:max-w-xl bg-card/95 backdrop-blur-2xl border-white/[0.08] text-foreground overflow-y-auto">
-          <SheetHeader className="pr-6">
-            <SheetTitle className="text-base font-semibold text-foreground">{selectedLead?.rawName || 'Lead Details'}</SheetTitle>
-          </SheetHeader>
+      {/* ═════════════════════════ Lead Detail Slide-Over Panel ═════════════════════════ */}
+      <AnimatePresence>
+        {slideOverOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+              onClick={() => { setSlideOverOpen(false); setDetailOpen(false); }}
+            />
+            {/* Panel */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed right-0 top-0 h-full w-full sm:w-[420px] z-50 flex flex-col border-l border-white/[0.08] overflow-hidden"
+              style={{
+                background: 'rgba(15, 17, 25, 0.95)',
+                backdropFilter: 'blur(40px)',
+                boxShadow: '-20px 0 60px rgba(0, 0, 0, 0.5), inset 1px 0 0 rgba(255, 255, 255, 0.05)',
+              }}
+            >
+              {selectedLead && (
+                <>
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] shrink-0">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))', border: '1px solid rgba(212,175,55,0.2)' }}>
+                        <span className="text-sm font-bold text-primary">{(selectedLead.rawName || '?').charAt(0).toUpperCase()}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-sm font-semibold text-foreground truncate">{selectedLead.rawName || 'Lead Details'}</h2>
+                          {selectedLead._dbFields?.leadScore != null && (
+                            <span
+                              className="shrink-0 inline-flex items-center justify-center h-5 min-w-[22px] px-1.5 rounded-full text-[10px] font-bold tabular-nums"
+                              style={{ backgroundColor: `${getScoreColor(selectedLead._dbFields.leadScore)}18`, color: getScoreColor(selectedLead._dbFields.leadScore), border: `1px solid ${getScoreColor(selectedLead._dbFields.leadScore)}30` }}
+                            >
+                              {selectedLead._dbFields.leadScore}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{selectedLead.title} {selectedLead.company ? `at ${selectedLead.company}` : ''}</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-white/[0.06] shrink-0" onClick={() => { setSlideOverOpen(false); setDetailOpen(false); }}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
 
-          {selectedLead && (
-            <div className="mt-6 space-y-6 pr-6 pb-24">
-              {/* Tabs */}
-              <TabBar
-                tabs={[
-                  { key: 'info', label: 'Details' },
-                  { key: 'timeline', label: 'Timeline', count: timeline.length || undefined },
-                  { key: 'notes', label: 'Notes', count: notes.length || undefined },
-                ]}
-                active={detailTab}
-                onChange={setDetailTab}
-              />
+                  {/* Tabs */}
+                  <div className="px-5 pt-4 shrink-0">
+                    <TabBar
+                      tabs={[
+                        { key: 'info', label: 'Details' },
+                        { key: 'scores', label: 'Scores' },
+                        { key: 'timeline', label: 'Timeline', count: timeline.length || undefined },
+                        { key: 'notes', label: 'Notes', count: notes.length || undefined },
+                      ]}
+                      active={detailTab}
+                      onChange={setDetailTab}
+                    />
+                  </div>
+
+                  {/* Scrollable content */}
+                  <ScrollArea className="flex-1 mt-4">
+                    <div className="px-5 pb-24 space-y-4">
 
               {/* ═══ INFO TAB ═══ */}
               {detailTab === 'info' && (
                 <div className="space-y-4">
-                  {/* Name & Title */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Users className="w-3 h-3" />Name</div>
-                      <p className="text-sm text-foreground font-medium mt-1">{selectedLead.rawName || '-'}</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Briefcase className="w-3 h-3" />Title</div>
-                      <p className="text-sm text-foreground font-medium mt-1">{selectedLead.title || '-'}</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Building2 className="w-3 h-3" />Company</div>
-                      <p className="text-sm text-foreground font-medium mt-1">{selectedLead.company || '-'}</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Globe className="w-3 h-3" />Industry</div>
-                      <p className="text-sm text-foreground font-medium mt-1">{selectedLead.industry || '-'}</p>
-                    </div>
-                  </div>
-
-                  {/* Email */}
-                  <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Mail className="w-3 h-3" />Email</div>
-                      {selectedLead._dbFields?.emailHealth && (
-                        <Badge variant="outline" className={`text-[10px] h-5 px-1.5 rounded-full border-0 ${HEALTH_COLORS[selectedLead._dbFields.emailHealth]}`}>
-                          {selectedLead._dbFields.emailHealth} ({selectedLead._dbFields.emailHealthScore}/100)
-                        </Badge>
-                      )}
-                    </div>
-                    {selectedLead.email ? (
-                      <a href={`mailto:${selectedLead.email}`} className="text-sm text-primary hover:underline flex items-center gap-1.5 mt-1" onClick={e => e.stopPropagation()}>{selectedLead.email}<ExternalLink className="w-3 h-3" /></a>
-                    ) : <p className="text-sm text-muted-foreground mt-1">-</p>}
-                  </div>
-
-                  {/* Location */}
-                  <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><MapPin className="w-3 h-3" />Location</div>
-                    <p className="text-sm text-foreground font-medium mt-1">{[selectedLead.city, selectedLead.state, selectedLead.country].filter(Boolean).join(', ') || '-'}</p>
-                  </div>
-
-                  <Separator className="bg-white/[0.06]" />
-
-                  {/* L-12: Consent Status */}
-                  <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium mb-2">
-                      <ShieldCheck className="w-3 h-3" />GDPR Consent
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className={`text-xs px-2 py-0.5 ${CONSENT_COLORS[selectedLead._dbFields?.consentStatus || 'unknown']}`}>
-                        {selectedLead._dbFields?.consentStatus || 'unknown'}
-                      </Badge>
-                      <div className="flex gap-1.5 ml-auto">
-                        <Button size="sm" variant="ghost" className="h-7 text-[10px] text-emerald-400 hover:bg-emerald-500/10 px-2" onClick={() => selectedLead._dbFields && handleUpdateConsent(selectedLead._dbFields?.companyId || selectedLead.id, 'opted_in')}>Opt In</Button>
-                        <Button size="sm" variant="ghost" className="h-7 text-[10px] text-red-400 hover:bg-red-500/10 px-2" onClick={() => selectedLead._dbFields && handleUpdateConsent(selectedLead._dbFields?.companyId || selectedLead.id, 'opted_out')}>Opt Out</Button>
+                  {/* Contact Info Section */}
+                  <div>
+                    <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-semibold mb-2">Contact Info</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Users className="w-3 h-3" />Name</div>
+                        <p className="text-sm text-foreground font-medium mt-1">{selectedLead.rawName || '-'}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Briefcase className="w-3 h-3" />Title</div>
+                        <p className="text-sm text-foreground font-medium mt-1">{selectedLead.title || '-'}</p>
                       </div>
                     </div>
-                    {selectedLead._dbFields?.consentStatus === 'opted_out' && (
-                      <div className="flex items-center gap-1.5 mt-2 text-[10px] text-amber-400">
-                        <AlertTriangle className="w-3 h-3" />
-                        This lead has opted out — drafting is not recommended
+                    <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] mt-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Mail className="w-3 h-3" />Email</div>
+                        {selectedLead._dbFields?.emailHealth && (
+                          <Badge variant="outline" className={`text-[10px] h-5 px-1.5 rounded-full border-0 ${HEALTH_COLORS[selectedLead._dbFields.emailHealth]}`}>
+                            {selectedLead._dbFields.emailHealth} ({selectedLead._dbFields.emailHealthScore}/100)
+                          </Badge>
+                        )}
+                      </div>
+                      {selectedLead.email ? (
+                        <a href={`mailto:${selectedLead.email}`} className="text-sm text-primary hover:underline flex items-center gap-1.5 mt-1">{selectedLead.email}<ExternalLink className="w-3 h-3" /></a>
+                      ) : <p className="text-sm text-muted-foreground mt-1">-</p>}
+                    </div>
+                    {selectedLead._dbFields?.phone && (
+                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] mt-2">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Phone className="w-3 h-3" />Phone</div>
+                        <p className="text-sm text-foreground font-medium mt-1">{selectedLead._dbFields.phone}</p>
+                      </div>
+                    )}
+                    <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] mt-2">
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><MapPin className="w-3 h-3" />Location</div>
+                      <p className="text-sm text-foreground font-medium mt-1">{[selectedLead.city, selectedLead.state, selectedLead.country].filter(Boolean).join(', ') || '-'}</p>
+                    </div>
+                    {selectedLead.linkedin && (
+                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] mt-2">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Linkedin className="w-3 h-3" />LinkedIn</div>
+                        <a href={selectedLead.linkedin.startsWith('http') ? selectedLead.linkedin : `https://${selectedLead.linkedin}`} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1.5 mt-1">View Profile<ExternalLink className="w-3 h-3" /></a>
                       </div>
                     )}
                   </div>
 
-                  {/* L-14: Assignee */}
-                  <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><UserPlus className="w-3 h-3" />Assigned To</div>
-                    <p className="text-sm text-foreground font-medium mt-1">{selectedLead._dbFields?.assignedTo || 'Unassigned'}</p>
-                  </div>
+                  <Separator className="bg-white/[0.06]" />
 
-                  {/* L-15: Source */}
-                  <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Tag className="w-3 h-3" />Lead Source</div>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      {(() => {
-                        const s = selectedLead._dbFields?.source;
-                        const SrcIcon = s ? SOURCE_ICONS[s] : null;
-                        return SrcIcon ? <SrcIcon className="w-3.5 h-3.5 text-primary" /> : null;
-                      })()}
-                      <p className="text-sm text-foreground font-medium">{selectedLead._dbFields?.source || '-'}</p>
+                  {/* Company Info Section */}
+                  <div>
+                    <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-semibold mb-2">Company Info</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Building2 className="w-3 h-3" />Company</div>
+                        <p className="text-sm text-foreground font-medium mt-1">{selectedLead.company || '-'}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Globe className="w-3 h-3" />Industry</div>
+                        <p className="text-sm text-foreground font-medium mt-1">{selectedLead.industry || '-'}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Users className="w-3 h-3" />Size</div>
+                        <p className="text-sm text-foreground font-medium mt-1">{selectedLead.employeeCategory || selectedLead.employeeNumber || '-'}</p>
+                      </div>
+                      {selectedLead.website && (
+                        <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Globe className="w-3 h-3" />Domain</div>
+                          <p className="text-sm text-primary font-medium mt-1 truncate">{selectedLead.website}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* LinkedIn */}
-                  {selectedLead.linkedin && (
-                    <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Linkedin className="w-3 h-3" />LinkedIn</div>
-                      <a href={selectedLead.linkedin.startsWith('http') ? selectedLead.linkedin : `https://${selectedLead.linkedin}`} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1.5 mt-1" onClick={e => e.stopPropagation()}>View Profile<ExternalLink className="w-3 h-3" /></a>
+                  <Separator className="bg-white/[0.06]" />
+
+                  {/* Metadata Section */}
+                  <div>
+                    <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-semibold mb-2">Metadata</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Activity className="w-3 h-3" />Status</div>
+                        <Badge
+                          variant="outline"
+                          className={`mt-1 text-[10px] h-5 px-1.5 rounded-full ${
+                            selectedLead._dbFields?.status === 'imported' ? 'bg-zinc-500/15 text-zinc-300 border-zinc-500/20' :
+                            selectedLead._dbFields?.status === 'sent' ? 'bg-blue-500/15 text-blue-300 border-blue-500/20' :
+                            selectedLead._dbFields?.status === 'replied' ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20' :
+                            selectedLead._dbFields?.status === 'bounced' ? 'bg-red-500/15 text-red-300 border-red-500/20' :
+                            'bg-white/[0.06] text-muted-foreground border-white/[0.08]'
+                          }`}
+                        >
+                          {selectedLead._dbFields?.status || '-'}
+                        </Badge>
+                      </div>
+                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><ShieldCheck className="w-3 h-3" />Consent</div>
+                        <Badge variant="outline" className={`mt-1 text-[10px] h-5 px-1.5 rounded-full ${CONSENT_COLORS[selectedLead._dbFields?.consentStatus || 'unknown']}`}>
+                          {selectedLead._dbFields?.consentStatus || 'unknown'}
+                        </Badge>
+                      </div>
+                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Tag className="w-3 h-3" />Source</div>
+                        <p className="text-sm text-foreground font-medium mt-1">{selectedLead._dbFields?.source || '-'}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><UserPlus className="w-3 h-3" />Assigned To</div>
+                        <p className="text-sm text-foreground font-medium mt-1">{selectedLead._dbFields?.assignedTo || 'Unassigned'}</p>
+                      </div>
                     </div>
-                  )}
+                    {selectedLead._dbFields?.createdAt && (
+                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] mt-2">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Clock className="w-3 h-3" />Created</div>
+                        <p className="text-sm text-foreground font-medium mt-1">{formatTime(selectedLead._dbFields.createdAt)}</p>
+                      </div>
+                    )}
+                  </div>
 
                   <Separator className="bg-white/[0.06]" />
 
@@ -1024,6 +1295,79 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                 </div>
               )}
 
+              {/* ═══ SCORES TAB (Task 2) ═══ */}
+              {detailTab === 'scores' && selectedLead._dbFields && (
+                <div className="space-y-4">
+                  {/* Total Score */}
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-semibold">Lead Score</p>
+                      <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: getScoreColor(selectedLead._dbFields.leadScore) }}>
+                        {selectedLead._dbFields.leadScore ?? 0}<span className="text-sm text-muted-foreground font-normal">/100</span>
+                      </p>
+                    </div>
+                    <div
+                      className="w-14 h-14 rounded-full flex items-center justify-center border-2"
+                      style={{ borderColor: getScoreColor(selectedLead._dbFields.leadScore), backgroundColor: `${getScoreColor(selectedLead._dbFields.leadScore)}10` }}
+                    >
+                      <span className="text-lg font-bold tabular-nums" style={{ color: getScoreColor(selectedLead._dbFields.leadScore) }}>
+                        {selectedLead._dbFields.leadScore ?? 0}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Score Breakdown Bars */}
+                  <div className="space-y-3">
+                    {(() => {
+                      const dbf = selectedLead._dbFields!;
+                      const bd = scoreBreakdowns[selectedLead.id];
+                      const scores = [
+                        { label: 'Role Score', value: bd?.role ?? Math.min(Math.round((dbf.companyFitScore ?? 0) * 0.6), 25), max: 25, icon: Briefcase },
+                        { label: 'Email Health', value: bd?.emailHealth ?? Math.round(((dbf.emailHealthScore ?? 0) / 100) * 15), max: 15, icon: MailCheck },
+                        { label: 'Company Fit', value: bd?.companyFit ?? Math.round(((dbf.companyFitScore ?? 0) / 100) * 20), max: 20, icon: Building2 },
+                        { label: 'Data Completeness', value: bd?.dataCompleteness ?? computeCompleteness(selectedLead), max: 15, icon: Database },
+                        { label: 'Engagement', value: bd?.engagement ?? Math.round(((dbf.engagementScore ?? 0) / 100) * 15), max: 15, icon: Activity },
+                        { label: 'Enrichment', value: bd?.enrichment ?? Math.round(((dbf.enrichmentScore ?? 0) / 100) * 10), max: 10, icon: Sparkles },
+                      ];
+                      return scores.map(s => {
+                        const pct = s.max > 0 ? Math.round((s.value / s.max) * 100) : 0;
+                        const barColor = getBarColor(s.value, s.max);
+                        return (
+                          <div key={s.label} className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <s.icon className="w-3.5 h-3.5 text-muted-foreground/50" />
+                                <span className="text-xs text-foreground/80 font-medium">{s.label}</span>
+                              </div>
+                              <span className="text-xs font-bold tabular-nums" style={{ color: barColor }}>{s.value}<span className="text-muted-foreground/40 font-normal">/{s.max}</span></span>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                              <motion.div
+                                className="h-full rounded-full"
+                                style={{ background: `linear-gradient(90deg, ${barColor}, ${barColor}CC)` }}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${pct}%` }}
+                                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+
+                  {/* Refresh score breakdown */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full h-8 gap-2 text-xs border-white/[0.08] text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"
+                    onClick={() => handleScoreHover(selectedLead.id)}
+                  >
+                    <RefreshCw className="w-3 h-3" />Refresh Breakdown
+                  </Button>
+                </div>
+              )}
+
               {/* ═══ TIMELINE TAB (L-11) ═══ */}
               {detailTab === 'timeline' && (
                 <div className="space-y-0">
@@ -1033,18 +1377,15 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                     <div className="py-12 text-center"><Activity className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" /><p className="text-sm text-muted-foreground">No activity recorded yet</p></div>
                   ) : (
                     <div className="relative">
-                      {/* Vertical line */}
                       <div className="absolute left-[15px] top-2 bottom-2 w-px bg-white/[0.08]" />
                       <div className="space-y-0">
                         {timeline.map((event, i) => {
                           const IconComp = TIMELINE_ICONS[event.type] || Activity;
                           return (
                             <motion.div key={i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i * 0.03, 0.3) }} className="relative flex gap-4 py-3 group">
-                              {/* Icon */}
                               <div className="relative z-10 w-[30px] h-[30px] rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shrink-0 group-hover:border-primary/30 transition-colors">
                                 <IconComp className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
                               </div>
-                              {/* Content */}
                               <div className="flex-1 min-w-0 pt-0.5">
                                 <p className="text-xs font-medium text-foreground">{event.title}</p>
                                 {event.description && <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{event.description}</p>}
@@ -1062,7 +1403,6 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               {/* ═══ NOTES TAB (L-13) ═══ */}
               {detailTab === 'notes' && (
                 <div className="space-y-4">
-                  {/* Add note */}
                   <div className="space-y-2">
                     <Textarea placeholder="Add a note about this lead..." value={newNote} onChange={e => setNewNote(e.target.value)} className="min-h-[80px] text-sm bg-white/[0.03] border-white/[0.08] text-foreground placeholder:text-muted-foreground/50 focus:border-primary/30 resize-none" />
                     <Button size="sm" className="h-8 text-xs gap-1.5" style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }} disabled={!newNote.trim()} onClick={handleAddNote}>
@@ -1072,7 +1412,6 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
 
                   <Separator className="bg-white/[0.06]" />
 
-                  {/* Notes list */}
                   {notesLoading ? (
                     <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 bg-white/[0.03] rounded-lg" />)}</div>
                   ) : notes.length === 0 ? (
@@ -1089,9 +1428,19 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                   )}
                 </div>
               )}
-            </div>
-          )}
-        </SheetContent>
+
+                    </div>
+                  </ScrollArea>
+                </>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Keep old Sheet hidden for compatibility — replaced by slide-over */}
+      <Sheet open={false} onOpenChange={setDetailOpen}>
+        <SheetContent className="w-full sm:max-w-xl bg-card/95 backdrop-blur-2xl border-white/[0.08] text-foreground overflow-y-auto" />
       </Sheet>
 
       {/* ═══ L-14: Assign Dialog ═══ */}
@@ -1201,6 +1550,142 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               </div>
             )}
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ Task 2: Bulk Actions Toolbar ═══ */}
+      <AnimatePresence>
+        {selectedIds.size > 0 && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-4 py-3 rounded-2xl border border-white/[0.1] shadow-2xl shadow-black/50"
+            style={{
+              background: 'rgba(15, 17, 25, 0.95)',
+              backdropFilter: 'blur(40px)',
+            }}
+          >
+            <span className="text-xs font-medium text-foreground tabular-nums pr-2 border-r border-white/[0.08]">
+              {selectedIds.size} selected
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-white/[0.06] px-3"
+              onClick={() => { setSelectedIds(new Set()); }}
+            >
+              <X className="w-3 h-3" />Clear
+            </Button>
+            <Separator orientation="vertical" className="h-5 bg-white/[0.08]" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 text-xs text-primary hover:bg-primary/10 px-3"
+              onClick={handleBulkGenerateDrafts}
+            >
+              <FileText className="w-3 h-3" />Generate Drafts
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 text-xs text-emerald-400 hover:bg-emerald-500/10 px-3"
+              onClick={() => setAssignDialogOpen(true)}
+            >
+              <UserPlus className="w-3 h-3" />Add to Segment
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 text-xs text-amber-400 hover:bg-amber-500/10 px-3"
+              onClick={handleBulkExportSelected}
+            >
+              <Download className="w-3 h-3" />Export
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-white/[0.06] px-3"
+              onClick={() => setBulkStatusOpen(true)}
+            >
+              <Activity className="w-3 h-3" />Update Status
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ═══ Task 2: Inline Note Dialog ═══ */}
+      <Dialog open={inlineNoteOpen} onOpenChange={setInlineNoteOpen}>
+        <DialogContent className="bg-card/95 backdrop-blur-xl border-white/[0.08] text-foreground max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Add Note</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">Add a note to this lead</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <Textarea
+              placeholder="Write your note here..."
+              value={inlineNoteText}
+              onChange={e => setInlineNoteText(e.target.value)}
+              className="min-h-[100px] text-sm bg-white/[0.03] border-white/[0.08] text-foreground placeholder:text-muted-foreground/50 focus:border-primary/30 resize-none"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setInlineNoteOpen(false)}>Cancel</Button>
+              <Button
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }}
+                disabled={!inlineNoteText.trim() || inlineNoteSaving}
+                onClick={handleInlineNoteSave}
+              >
+                {inlineNoteSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <StickyNote className="w-3 h-3" />}
+                {inlineNoteSaving ? 'Saving...' : 'Save Note'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ Task 2: Bulk Status Update Dialog ═══ */}
+      <Dialog open={bulkStatusOpen} onOpenChange={setBulkStatusOpen}>
+        <DialogContent className="bg-card/95 backdrop-blur-xl border-white/[0.08] text-foreground max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Update Status</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Change status for {selectedIds.size} selected lead{selectedIds.size !== 1 ? 's' : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium">New Status</label>
+              <Select value={bulkNewStatus} onValueChange={setBulkNewStatus}>
+                <SelectTrigger className="h-9 text-xs bg-white/[0.03] border-white/[0.08]"><SelectValue placeholder="Select status..." /></SelectTrigger>
+                <SelectContent className="border-white/[0.1] bg-black/60 backdrop-blur-2xl">
+                  <SelectItem value="imported" className="text-xs text-foreground">Imported</SelectItem>
+                  <SelectItem value="cleaned" className="text-xs text-foreground">Cleaned</SelectItem>
+                  <SelectItem value="drafted" className="text-xs text-foreground">Drafted</SelectItem>
+                  <SelectItem value="queued" className="text-xs text-foreground">Queued</SelectItem>
+                  <SelectItem value="sent" className="text-xs text-foreground">Sent</SelectItem>
+                  <SelectItem value="replied" className="text-xs text-foreground">Replied</SelectItem>
+                  <SelectItem value="bounced" className="text-xs text-foreground">Bounced</SelectItem>
+                  <SelectItem value="suppressed" className="text-xs text-foreground">Suppressed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setBulkStatusOpen(false)}>Cancel</Button>
+              <Button
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }}
+                disabled={!bulkNewStatus}
+                onClick={handleBulkStatusUpdate}
+              >
+                <Activity className="w-3 h-3" />Update {selectedIds.size} Leads
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

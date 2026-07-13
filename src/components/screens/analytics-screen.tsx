@@ -48,7 +48,25 @@ import {
   FileSpreadsheet,
   ShieldCheck,
   Zap,
+  Eye,
+  MousePointerClick,
+  MessageSquare,
 } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -78,11 +96,45 @@ interface DashboardData {
   };
 }
 
-interface StatsData {
-  totalSent?: number;
-  replyRate?: number;
-  bounceRate?: number;
-  avgHealthScore?: number;
+interface QueueItem {
+  id: string;
+  status: string;
+  openCount: number;
+  clickCount: number;
+  replied: boolean;
+  bounced: boolean;
+  sentAt: string | null;
+  draft: {
+    id: string;
+    subject: string | null;
+    contact: {
+      firstName: string | null;
+      lastName: string | null;
+      email: string;
+      company: {
+        name: string | null;
+      } | null;
+    };
+  } | null;
+}
+
+interface ReplyItem {
+  id: string;
+  category: string | null;
+  subject: string | null;
+  receivedAt: string;
+}
+
+interface SourceStats {
+  sources: {
+    name: string;
+    count: number;
+    drafted: number;
+    sent: number;
+    replied: number;
+    bounced: number;
+    conversionRate: number;
+  }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -91,102 +143,105 @@ interface StatsData {
 
 const DEMO_DASHBOARD: DashboardData = {
   contactsByStatus: {
-    imported: 420,
-    verified: 358,
-    drafted: 274,
-    approved: 198,
-    sent: 162,
-    replied: 47,
-    bounced: 12,
+    imported: 142,
+    cleaned: 98,
+    drafted: 34,
+    queued: 12,
+    sent: 56,
+    replied: 8,
+    bounced: 5,
   },
-  totalCompanies: 86,
+  totalCompanies: 67,
   recentBatches: [],
-  draftsPendingReview: 76,
-  queuePending: 18,
-  repliesThisWeek: 23,
-  bouncesCount: 12,
-  suppressionsCount: 5,
+  draftsPendingReview: 7,
+  queuePending: 12,
+  repliesThisWeek: 3,
+  bouncesCount: 5,
+  suppressionsCount: 2,
   emailHealthDistribution: {
-    valid: 301,
-    risky: 57,
-    invalid: 34,
-    unknown: 28,
+    valid: 210,
+    risky: 38,
+    invalid: 12,
+    unknown: 95,
   },
 };
 
-const DEMO_STATS: StatsData = {
-  totalSent: 162,
-  replyRate: 29.0,
-  bounceRate: 7.4,
-  avgHealthScore: 82,
+// ---------------------------------------------------------------------------
+// Colors
+// ---------------------------------------------------------------------------
+
+const COLORS = {
+  gold: '#D4AF37',
+  green: '#10b981',
+  red: '#ef4444',
+  amber: '#f59e0b',
+  blue: '#3b82f6',
+  purple: '#a855f7',
+  mutedText: '#7A8699',
+  gridLine: 'rgba(255,255,255,0.06)',
+  gridLineLight: 'rgba(255,255,255,0.04)',
 };
 
-const DEMO_CAMPAIGNS = [
-  {
-    name: 'Q3_leads.xlsx',
-    imported: 245,
-    verifiedPct: 88.6,
-    drafted: 187,
-    sent: 154,
-    replies: 42,
-    replyRate: 27.3,
-    bounceRate: 5.8,
-  },
-  {
-    name: 'SaaS_founders_v2.csv',
-    imported: 120,
-    verifiedPct: 91.7,
-    drafted: 98,
-    sent: 82,
-    replies: 28,
-    replyRate: 34.1,
-    bounceRate: 4.2,
-  },
-  {
-    name: 'partnership_outreach.csv',
-    imported: 55,
-    verifiedPct: 78.2,
-    drafted: 41,
-    sent: 36,
-    replies: 9,
-    replyRate: 25.0,
-    bounceRate: 11.1,
-  },
-];
-
-const DEMO_ACTIVITY = [
-  { text: "Aisha Patel replied positively", time: '5 hours ago', icon: Mail, color: 'text-emerald-400' },
-  { text: 'New import: Q3_leads.xlsx (245 rows)', time: '3 hours ago', icon: FileSpreadsheet, color: 'text-blue-400' },
-  { text: '3 emails queued for sending', time: '1 hour ago', icon: Send, color: 'text-purple-400' },
-  { text: 'Draft approved for Michael Torres', time: '15 min ago', icon: Activity, color: 'text-amber-400' },
-  { text: "Sarah Chen's email verified as valid", time: '2 min ago', icon: Target, color: 'text-emerald-400' },
-  { text: 'Bounce detected: j.smith@defunctco.com', time: '30 min ago', icon: ArrowDownRight, color: 'text-red-400' },
-  { text: 'Draft generated for Liam Nguyen', time: '45 min ago', icon: Activity, color: 'text-amber-400' },
-  { text: '5 emails sent successfully', time: '1 hour ago', icon: Send, color: 'text-emerald-400' },
-  { text: 'New import: enterprise_targets.csv (98 rows)', time: '4 hours ago', icon: FileSpreadsheet, color: 'text-blue-400' },
-  { text: 'James Park replied with interest', time: '6 hours ago', icon: Mail, color: 'text-emerald-400' },
-];
-
-const DEMO_COMPANIES = [
-  { name: 'Acme Corp', industry: 'SaaS', contacts: 24, avgScore: 91 },
-  { name: 'TechFlow Inc', industry: 'FinTech', contacts: 18, avgScore: 87 },
-  { name: 'GreenLeaf Labs', industry: 'HealthTech', contacts: 15, avgScore: 84 },
-  { name: 'NovaBuild', industry: 'Construction', contacts: 12, avgScore: 79 },
-  { name: 'DataPulse', industry: 'Analytics', contacts: 11, avgScore: 76 },
-];
-
 // ---------------------------------------------------------------------------
-// Funnel stage config
+// Custom dark tooltip
 // ---------------------------------------------------------------------------
 
-const FUNNEL_STAGES = [
-  { key: 'imported', label: 'Imported', color: 'bg-zinc-500' },
-  { key: 'verified', label: 'Verified', color: 'bg-blue-500' },
-  { key: 'drafted', label: 'Drafted', color: 'bg-amber-500' },
-  { key: 'approved', label: 'Approved', color: 'bg-purple-500' },
-  { key: 'sent', label: 'Sent', color: 'bg-emerald-500' },
-  { key: 'replied', label: 'Replied', color: 'bg-green-500' },
-] as const;
+function DarkTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      className="rounded-lg border border-white/10 px-3 py-2.5 shadow-2xl backdrop-blur-xl"
+      style={{
+        background: 'rgba(10, 12, 20, 0.92)',
+        boxShadow: '0 0 20px rgba(212, 175, 55, 0.08)',
+      }}
+    >
+      {label && <p className="text-[11px] font-medium text-muted-foreground mb-1.5">{label}</p>}
+      {payload.map((entry, i) => (
+        <div key={i} className="flex items-center gap-2 text-xs">
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: entry.color }} />
+          <span className="text-muted-foreground capitalize">{entry.name}:</span>
+          <span className="font-semibold text-foreground tabular-nums">{typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Custom legend
+// ---------------------------------------------------------------------------
+
+function ChartLegend({ payload }: { payload?: Array<{ value: string; color: string }> }) {
+  if (!payload) return null;
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 mt-3">
+      {payload.map((entry, i) => (
+        <div key={i} className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: entry.color }} />
+          <span className="text-[11px] text-muted-foreground capitalize">{entry.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Generate demo time-series data based on current totals
+// ---------------------------------------------------------------------------
+
+function generateDemoTrendData(sent: number, opens: number, clicks: number) {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const total = days.length;
+  // Distribute values across days with some variance
+  const weights = [0.12, 0.15, 0.18, 0.16, 0.14, 0.1, 0.15];
+  return days.map((day, i) => ({
+    day,
+    sent: Math.round(sent * weights[i] * (0.85 + Math.random() * 0.3)),
+    opened: Math.round(opens * weights[i] * (0.8 + Math.random() * 0.4)),
+    clicked: Math.round(clicks * weights[i] * (0.75 + Math.random() * 0.5)),
+  }));
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -202,26 +257,66 @@ function pct(value: number, total: number) {
 
 export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: string) => void }) {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [statsData, setStatsData] = useState<StatsData | null>(null);
+  const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
+  const [replies, setReplies] = useState<ReplyItem[]>([]);
+  const [sourceStats, setSourceStats] = useState<SourceStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('7d');
 
   useEffect(() => {
     Promise.all([
       fetch('/api/dashboard').then(r => r.json()).catch(() => null),
-      fetch('/api/stats').then(r => r.json()).catch(() => null),
+      fetch('/api/queue').then(r => r.json()).catch(() => []),
+      fetch('/api/replies').then(r => r.json()).catch(() => []),
+      fetch('/api/leads/source-stats').then(r => r.json()).catch(() => null),
     ])
-      .then(([dash, stats]) => {
+      .then(([dash, queue, replyData, sources]) => {
         setDashboardData(dash && dash.contactsByStatus ? dash : DEMO_DASHBOARD);
-        setStatsData(stats ? stats : DEMO_STATS);
+        setQueueItems(Array.isArray(queue) ? queue : []);
+        setReplies(Array.isArray(replyData) ? replyData : []);
+        setSourceStats(sources && sources.sources ? sources : null);
         setLoading(false);
       })
       .catch(() => {
         setDashboardData(DEMO_DASHBOARD);
-        setStatsData(DEMO_STATS);
+        setQueueItems([]);
+        setReplies([]);
+        setSourceStats(null);
         setLoading(false);
       });
   }, []);
+
+  // ── Derived data (before early return to satisfy rules of hooks) ──
+  const d = dashboardData ?? DEMO_DASHBOARD;
+
+  const sentItems = queueItems.filter(q => q.status === 'sent');
+  const totalSent = sentItems.length || d.contactsByStatus.sent || 0;
+  const totalOpens = sentItems.reduce((sum, q) => sum + (q.openCount || 0), 0);
+  const totalClicks = sentItems.reduce((sum, q) => sum + (q.clickCount || 0), 0);
+  const totalReplies = replies.length || d.contactsByStatus.replied || 0;
+
+  const openRate = totalSent > 0 ? (totalOpens / totalSent) * 100 : 0;
+  const clickRate = totalSent > 0 ? (totalClicks / totalSent) * 100 : 0;
+  const replyRate = totalSent > 0 ? (totalReplies / totalSent) * 100 : 0;
+
+  // ── 2. Pipeline Funnel ──
+  const pipelineStages = [
+    { key: 'imported', label: 'Imported' },
+    { key: 'cleaned', label: 'Cleaned' },
+    { key: 'drafted', label: 'Drafted' },
+    { key: 'queued', label: 'Queued' },
+    { key: 'sent', label: 'Sent' },
+    { key: 'replied', label: 'Replied' },
+  ];
+  const funnelData = pipelineStages.map((stage, idx) => {
+    const count = d.contactsByStatus[stage.key] ?? 0;
+    const prevCount = idx > 0 ? (d.contactsByStatus[pipelineStages[idx - 1].key] ?? 0) : count;
+    const conversionPct = prevCount > 0 ? ((count / prevCount) * 100).toFixed(1) : '—';
+    return { ...stage, count, conversionPct };
+  });
+
+  // ── 3. Engagement Trends ──
+  const trendData = generateDemoTrendData(totalSent || 56, totalOpens || 24, totalClicks || 8);
 
   // ---------- Loading skeleton ----------
   if (loading) {
@@ -232,59 +327,70 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
             <Skeleton key={i} className="h-32 rounded-xl" />
           ))}
         </div>
-        <Skeleton className="h-56 rounded-xl" />
-        <Skeleton className="h-72 rounded-xl" />
-        <Skeleton className="h-40 rounded-xl" />
-        <Skeleton className="h-72 rounded-xl" />
+        <Skeleton className="h-80 rounded-xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-80 rounded-xl" />
+          <Skeleton className="h-80 rounded-xl" />
+        </div>
+        <Skeleton className="h-64 rounded-xl" />
       </div>
     );
   }
 
-  const d = dashboardData ?? DEMO_DASHBOARD;
-  const s = statsData ?? DEMO_STATS;
+  // ── 4. Reply Categories ──
+  const categoryMap: Record<string, number> = { positive: 0, negative: 0, out_of_office: 0, other: 0 };
+  for (const r of replies) {
+    const cat = r.category || 'other';
+    if (cat in categoryMap) categoryMap[cat]++;
+    else categoryMap['other']++;
+  }
+  const replyPieData = [
+    { name: 'Positive', value: categoryMap.positive, color: COLORS.green },
+    { name: 'Negative', value: categoryMap.negative, color: COLORS.red },
+    { name: 'Out of Office', value: categoryMap.out_of_office, color: COLORS.amber },
+    { name: 'Other', value: categoryMap.other, color: COLORS.blue },
+  ];
 
-  const totalLeads = Object.values(d.contactsByStatus).reduce((a, b) => a + b, 0);
-
-  // Derived KPIs
-  const totalSent = s.totalSent ?? d.contactsByStatus.sent ?? 162;
-  const replyCount = d.contactsByStatus.replied ?? 47;
-  const bounceCount = d.bouncesCount ?? 12;
-  const replyRate = totalSent > 0 ? (replyCount / totalSent) * 100 : 0;
-  const bounceRate = totalSent > 0 ? (bounceCount / totalSent) * 100 : 0;
-  const avgHealth = s.avgHealthScore ?? 82;
-
-  // Trends (demo values)
-  const trends = {
-    sent: { value: 12.4, positive: true },
-    reply: { value: 3.2, positive: true },
-    bounce: { value: 1.8, positive: false },
-    health: { value: 2.1, positive: true },
-  };
-
-  // Campaign data: use real batches or demo
-  const campaigns =
-    d.recentBatches.length > 0
-      ? d.recentBatches.map(b => ({
-          name: b.fileName,
-          imported: b.totalRows,
-          verifiedPct: b.acceptedRows / b.totalRows * 100,
-          drafted: Math.round(b.acceptedRows * 0.72),
-          sent: Math.round(b.acceptedRows * 0.6),
-          replies: Math.round(b.acceptedRows * 0.15),
-          replyRate: (b.acceptedRows * 0.15) / (b.acceptedRows * 0.6) * 100,
-          bounceRate: 5 + Math.random() * 8,
-        }))
-      : DEMO_CAMPAIGNS;
-
-  // Email health
+  // ── 5. Email Health Distribution ──
   const eh = d.emailHealthDistribution;
   const healthTotal = eh.valid + eh.risky + eh.invalid + eh.unknown;
+  const healthData = [
+    { name: 'Valid', value: eh.valid, color: COLORS.green },
+    { name: 'Risky', value: eh.risky, color: COLORS.amber },
+    { name: 'Invalid', value: eh.invalid, color: COLORS.red },
+    { name: 'Unknown', value: eh.unknown, color: '#71717a' },
+  ];
 
-  // Funnel
-  const maxFunnelCount = Math.max(
-    ...FUNNEL_STAGES.map(st => d.contactsByStatus[st.key] ?? 0),
-    1,
-  );
+  // ── 6. Lead Source Distribution ──
+  const sourceData = sourceStats?.sources?.length
+    ? sourceStats.sources.map(s => ({
+        name: s.name.charAt(0).toUpperCase() + s.name.slice(1),
+        count: s.count,
+      }))
+    : [
+        { name: 'LinkedIn', count: 48 },
+        { name: 'Event', count: 32 },
+        { name: 'Referral', count: 28 },
+        { name: 'Cold List', count: 22 },
+        { name: 'Inbound', count: 18 },
+        { name: 'Manual', count: 14 },
+      ];
+
+  // ── 7. Top Performing Content ──
+  const topContent = sentItems
+    .filter(q => q.draft?.contact)
+    .map(q => ({
+      subject: q.draft.subject || '(No Subject)',
+      contact: [q.draft.contact.firstName, q.draft.contact.lastName].filter(Boolean).join(' ') || q.draft.contact.email,
+      company: q.draft.contact.company?.name || '—',
+      opens: q.openCount || 0,
+      clicks: q.clickCount || 0,
+      replied: q.replied,
+    }))
+    .sort((a, b) => b.opens - a.opens)
+    .slice(0, 10);
+
+  const avgHealth = healthTotal > 0 ? Math.round((eh.valid / healthTotal) * 100) : 0;
 
   return (
     <PageTransition>
@@ -316,409 +422,485 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
           </div>
         </div>
 
-        {/* ── KPI Cards ── */}
+        {/* ══════════════════════════════════════════════════════════════
+           1. Email Performance Overview — 4 Stat Cards
+           ══════════════════════════════════════════════════════════════ */}
         <StaggerGrid className="grid grid-cols-2 lg:grid-cols-4 gap-5">
           <StaggerItem>
             <StatCard
-              label="Total Outreach Sent"
+              label="Total Sent"
               value={totalSent}
               icon={Send}
               color="#D4AF37"
               delay={0}
-              trend={{ value: `${trends.sent.value}%`, up: trends.sent.positive }}
+              trend={{ value: '12.4%', up: true }}
             />
           </StaggerItem>
-
+          <StaggerItem>
+            <StatCard
+              label="Open Rate"
+              value={`${openRate.toFixed(1)}%`}
+              icon={Eye}
+              color="#10B981"
+              delay={0.07}
+              trend={{ value: '3.2%', up: true }}
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <StatCard
+              label="Click Rate"
+              value={`${clickRate.toFixed(1)}%`}
+              icon={MousePointerClick}
+              color="#3B82F6"
+              delay={0.14}
+              trend={{ value: '1.8%', up: true }}
+            />
+          </StaggerItem>
           <StaggerItem>
             <StatCard
               label="Reply Rate"
               value={`${replyRate.toFixed(1)}%`}
-              icon={Mail}
-              color="#10B981"
-              delay={0.07}
-              trend={{ value: `${trends.reply.value}%`, up: trends.reply.positive }}
-            />
-          </StaggerItem>
-
-          <StaggerItem>
-            <StatCard
-              label="Bounce Rate"
-              value={`${bounceRate.toFixed(1)}%`}
-              icon={TrendingDown}
-              color="#EF4444"
-              delay={0.14}
-              trend={{ value: `${trends.bounce.value}%`, up: !trends.bounce.positive }}
-            />
-          </StaggerItem>
-
-          <StaggerItem>
-            <StatCard
-              label="Email Health Score"
-              value={`${avgHealth}/100`}
-              icon={ShieldCheck}
-              color="#3B82F6"
+              icon={MessageSquare}
+              color="#A855F7"
               delay={0.21}
-              trend={{ value: `${trends.health.value}%`, up: trends.health.positive }}
+              trend={{ value: '2.5%', up: true }}
             />
           </StaggerItem>
         </StaggerGrid>
 
-        {/* ── Hero Metric Highlight ── */}
-        <GlassPanel className="p-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                <Zap className="w-6 h-6 text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-1">
-                  Total Replies This Week
-                </p>
-                <p className="text-4xl font-bold">
-                  <ShimmerText>
-                    <AnimatedCounter value={d.repliesThisWeek} className="text-4xl font-bold" />
-                  </ShimmerText>
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-6">
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground mb-0.5">Pending Review</p>
-                <p className="text-lg font-bold tabular-nums text-amber-400">
-                  <AnimatedCounter value={d.draftsPendingReview} />
-                </p>
-              </div>
-              <div className="w-px h-10 bg-border" />
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground mb-0.5">In Queue</p>
-                <p className="text-lg font-bold tabular-nums text-blue-400">
-                  <AnimatedCounter value={d.queuePending} />
-                </p>
-              </div>
-              <div className="w-px h-10 bg-border" />
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground mb-0.5">Total Companies</p>
-                <p className="text-lg font-bold tabular-nums">
-                  <AnimatedCounter value={d.totalCompanies} />
-                </p>
-              </div>
-            </div>
-          </div>
-        </GlassPanel>
-
-        {/* ── Pipeline Funnel ── */}
-        <SectionHeader
-          title="Pipeline Funnel"
-          subtitle="Conversion from import through reply"
-        />
-        <GlassPanel className="p-5">
-          <div className="space-y-3">
-            {FUNNEL_STAGES.map((stage, idx) => {
-              const count = d.contactsByStatus[stage.key] ?? 0;
-              const widthPct = (count / maxFunnelCount) * 100;
-              const percentOfTotal = pct(count, totalLeads);
-              const isLast = stage.key === 'replied';
-              return (
-                <div key={stage.key} className="flex items-center gap-3 group">
-                  <span className="text-xs font-medium text-muted-foreground w-18 text-right shrink-0 group-hover:text-foreground transition-colors">
-                    {stage.label}
-                  </span>
-                  <div className="flex-1 h-8 bg-muted/30 rounded-lg overflow-hidden relative">
-                    <motion.div
-                      className={`h-full ${stage.color} rounded-lg flex items-center px-3 relative overflow-hidden`}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.max(widthPct, 4)}%` }}
-                      transition={{ duration: 0.8, delay: idx * 0.08, ease: [0.25, 0.46, 0.45, 0.94] }}
-                    >
-                      {isLast && (
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_3s_ease-in-out_infinite]" style={{ backgroundSize: '200% 100%' }} />
-                      )}
-                      <span className="text-xs font-semibold text-white tabular-nums drop-shadow-sm truncate relative z-10">
-                        {count.toLocaleString()}
-                      </span>
-                    </motion.div>
-                  </div>
-                  <span className="text-xs font-semibold text-muted-foreground w-14 tabular-nums text-right shrink-0 group-hover:text-foreground transition-colors">
-                    {percentOfTotal}%
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </GlassPanel>
-
-        {/* ── Campaign Performance Table ── */}
-        <SectionHeader
-          title="Campaign Performance"
-          subtitle="Per-batch metrics and delivery statistics"
-        />
-        <GlassPanel className="overflow-hidden">
-          <div className="max-h-72 overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border hover:bg-transparent">
-                  <TableHead className="text-muted-foreground text-xs font-semibold">Batch</TableHead>
-                  <TableHead className="text-muted-foreground text-xs font-semibold text-right">Imported</TableHead>
-                  <TableHead className="text-muted-foreground text-xs font-semibold text-right">Verified %</TableHead>
-                  <TableHead className="text-muted-foreground text-xs font-semibold text-right">Drafted</TableHead>
-                  <TableHead className="text-muted-foreground text-xs font-semibold text-right">Sent</TableHead>
-                  <TableHead className="text-muted-foreground text-xs font-semibold text-right">Replies</TableHead>
-                  <TableHead className="text-muted-foreground text-xs font-semibold text-right">Reply Rate</TableHead>
-                  <TableHead className="text-muted-foreground text-xs font-semibold text-right">Bounce Rate</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {campaigns.map((c, i) => (
-                  <TableRow
-                    key={i}
-                    className="border-border transition-colors duration-200 hover:bg-white/[0.04] hover:shadow-[inset_0_0_0_1px_rgba(212,175,55,0.08)]"
-                  >
-                    <TableCell className="text-foreground text-sm font-medium max-w-[180px] truncate">
-                      <div className="flex items-center gap-2">
-                        <FileSpreadsheet className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        {c.name}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm text-right tabular-nums">
-                      {c.imported}
-                    </TableCell>
-                    <TableCell className="text-sm text-right tabular-nums">
-                      <span className="text-emerald-400 font-medium">{c.verifiedPct.toFixed(1)}%</span>
-                    </TableCell>
-                    <TableCell className="text-foreground text-sm text-right tabular-nums">
-                      {c.drafted}
-                    </TableCell>
-                    <TableCell className="text-foreground text-sm text-right tabular-nums">
-                      {c.sent}
-                    </TableCell>
-                    <TableCell className="text-foreground text-sm text-right tabular-nums">
-                      {c.replies}
-                    </TableCell>
-                    <TableCell className="text-sm text-right tabular-nums">
-                      <Badge
-                        variant="outline"
-                        className={
-                          c.replyRate >= 30
-                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-semibold'
-                            : 'bg-amber-500/10 text-amber-400 border-amber-500/30 font-semibold'
-                        }
-                      >
-                        {c.replyRate.toFixed(1)}%
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-right tabular-nums">
-                      <span
-                        className={
-                          c.bounceRate <= 5
-                            ? 'text-emerald-400 font-medium'
-                            : c.bounceRate <= 10
-                            ? 'text-amber-400 font-medium'
-                            : 'text-red-400 font-medium'
-                        }
-                      >
-                        {c.bounceRate.toFixed(1)}%
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {campaigns.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={8}>
-                      <EmptyState
-                        icon={BarChart3}
-                        title="No campaign data available"
-                        description="Import a batch to start tracking campaign performance"
-                      />
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </GlassPanel>
-
-        {/* ── Email Health Breakdown ── */}
-        <SectionHeader
-          title="Email Health Breakdown"
-          subtitle="Distribution of email verification results"
-        />
-        <GlassPanel className="p-6">
-          {/* Stacked bar */}
-          <div className="flex h-8 rounded-lg overflow-hidden w-full shadow-inner">
-            {healthTotal > 0 && (
-              <>
-                <motion.div
-                  className="bg-emerald-500 relative group/valid"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(eh.valid / healthTotal) * 100}%` }}
-                  transition={{ duration: 0.8, delay: 0, ease: [0.25, 0.46, 0.45, 0.94] }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
-                </motion.div>
-                <motion.div
-                  className="bg-amber-500 relative"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(eh.risky / healthTotal) * 100}%` }}
-                  transition={{ duration: 0.8, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
-                </motion.div>
-                <motion.div
-                  className="bg-red-500 relative"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(eh.invalid / healthTotal) * 100}%` }}
-                  transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
-                </motion.div>
-                <motion.div
-                  className="bg-zinc-500 relative"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(eh.unknown / healthTotal) * 100}%` }}
-                  transition={{ duration: 0.8, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
-                </motion.div>
-              </>
-            )}
-          </div>
-
-          {/* Legend + counts */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mt-6">
-            {[
-              { label: 'Valid', count: eh.valid, color: 'bg-emerald-500', glow: 'shadow-emerald-500/30', textColor: 'text-emerald-400' },
-              { label: 'Risky', count: eh.risky, color: 'bg-amber-500', glow: 'shadow-amber-500/30', textColor: 'text-amber-400' },
-              { label: 'Invalid', count: eh.invalid, color: 'bg-red-500', glow: 'shadow-red-500/30', textColor: 'text-red-400' },
-              { label: 'Unknown', count: eh.unknown, color: 'bg-zinc-500', glow: 'shadow-zinc-500/30', textColor: 'text-zinc-400' },
-            ].map(item => (
-              <div
-                key={item.label}
-                className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors duration-200"
+        {/* ══════════════════════════════════════════════════════════════
+           2. Pipeline Funnel — Horizontal Bar Chart
+           ══════════════════════════════════════════════════════════════ */}
+        <AnimatedCard delay={0.1}>
+          <GlassPanel className="p-5">
+            <SectionHeader
+              title="Pipeline Funnel"
+              subtitle="Conversion from import through reply"
+            />
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart
+                data={funnelData}
+                layout="vertical"
+                margin={{ top: 4, right: 60, left: 80, bottom: 4 }}
               >
-                <span className={`w-3 h-3 rounded ${item.color} shadow-sm ${item.glow} shrink-0`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">{item.label}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <span className={`text-sm font-bold tabular-nums ${item.textColor}`}>
-                    {item.count.toLocaleString()}
-                  </span>
-                  <span className="text-xs text-muted-foreground tabular-nums ml-1">
-                    ({pct(item.count, healthTotal)}%)
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Health score bar */}
-          <div className="mt-6 pt-5 border-t border-white/[0.06]">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-foreground">Overall Health Score</span>
-              <span className="text-sm font-bold tabular-nums">
-                <ShimmerText>
-                  {avgHealth}/100
-                </ShimmerText>
+                <defs>
+                  <linearGradient id="funnelGradient" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor={COLORS.gold} stopOpacity={0.85} />
+                    <stop offset="100%" stopColor={COLORS.gold} stopOpacity={0.4} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  horizontal={false}
+                  stroke={COLORS.gridLineLight}
+                  strokeDasharray="3 3"
+                />
+                <XAxis
+                  type="number"
+                  tick={{ fill: COLORS.mutedText, fontSize: 11 }}
+                  axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+                  tickLine={false}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="label"
+                  tick={{ fill: COLORS.mutedText, fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={75}
+                />
+                <Tooltip content={<DarkTooltip />} cursor={{ fill: 'rgba(212,175,55,0.04)' }} />
+                <Bar
+                  dataKey="count"
+                  fill="url(#funnelGradient)"
+                  radius={[0, 6, 6, 0]}
+                  barSize={28}
+                  name="Count"
+                >
+                  {funnelData.map((entry, idx) => (
+                    <Cell
+                      key={idx}
+                      fill={`url(#funnelGradient)`}
+                      opacity={1 - idx * 0.08}
+                    />
+                  ))}
+                </Bar>
+                {/* Conversion % labels */}
+                {funnelData.map((entry, idx) => {
+                  if (idx === 0) return null;
+                  const xPos = entry.count + 8;
+                  return (
+                    <text
+                      key={`label-${idx}`}
+                      x={xPos > 30 ? xPos : 30}
+                      y={idx * 42 + 12}
+                      fill={COLORS.mutedText}
+                      fontSize={10}
+                      className="recharts-text"
+                    >
+                      {entry.conversionPct}%
+                    </text>
+                  );
+                })}
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="flex items-center gap-2 mt-2 justify-end">
+              <span className="text-[10px] text-muted-foreground">
+                % values show stage-to-stage conversion
               </span>
             </div>
-            <AnimatedBar value={avgHealth} max={100} color="#10B981" />
-          </div>
-        </GlassPanel>
+          </GlassPanel>
+        </AnimatedCard>
 
-        {/* ── Recent Activity Feed ── */}
-        <SectionHeader
-          title="Recent Activity"
-          subtitle="Real-time feed of your outreach pipeline"
-        />
-        <GlassPanel className="p-5">
-          <div className="max-h-96 overflow-y-auto space-y-0">
-            {DEMO_ACTIVITY.map((item, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: i * 0.04 }}
-                className="flex items-start gap-4 py-3.5 border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.02] px-2 -mx-2 rounded-md transition-colors duration-200"
+        {/* ══════════════════════════════════════════════════════════════
+           3. Email Engagement Trends — Area Chart
+           ══════════════════════════════════════════════════════════════ */}
+        <AnimatedCard delay={0.15}>
+          <GlassPanel className="p-5">
+            <SectionHeader
+              title="Email Engagement Trends"
+              subtitle="Sent, opened, and clicked emails over time"
+            />
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart
+                data={trendData}
+                margin={{ top: 4, right: 4, left: -10, bottom: 0 }}
               >
-                <div className="mt-0.5 w-8 h-8 rounded-lg bg-white/[0.04] flex items-center justify-center shrink-0">
-                  <item.icon className={`w-4 h-4 ${item.color}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground/90 leading-snug">{item.text}</p>
-                </div>
-                <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0 mt-0.5">
-                  {item.time}
-                </span>
-              </motion.div>
-            ))}
-          </div>
-        </GlassPanel>
+                <defs>
+                  <linearGradient id="sentGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={COLORS.blue} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={COLORS.blue} stopOpacity={0.02} />
+                  </linearGradient>
+                  <linearGradient id="openedGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={COLORS.green} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={COLORS.green} stopOpacity={0.02} />
+                  </linearGradient>
+                  <linearGradient id="clickedGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={COLORS.gold} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={COLORS.gold} stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  stroke={COLORS.gridLine}
+                  strokeDasharray="3 3"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="day"
+                  tick={{ fill: COLORS.mutedText, fontSize: 11 }}
+                  axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: COLORS.mutedText, fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip content={<DarkTooltip />} />
+                <Legend content={<ChartLegend />} />
+                <Area
+                  type="monotone"
+                  dataKey="sent"
+                  stroke={COLORS.blue}
+                  fill="url(#sentGrad)"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: COLORS.blue, strokeWidth: 0 }}
+                  activeDot={{ r: 5, fill: COLORS.blue, strokeWidth: 2, stroke: '#0A0C14' }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="opened"
+                  stroke={COLORS.green}
+                  fill="url(#openedGrad)"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: COLORS.green, strokeWidth: 0 }}
+                  activeDot={{ r: 5, fill: COLORS.green, strokeWidth: 2, stroke: '#0A0C14' }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="clicked"
+                  stroke={COLORS.gold}
+                  fill="url(#clickedGrad)"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: COLORS.gold, strokeWidth: 0 }}
+                  activeDot={{ r: 5, fill: COLORS.gold, strokeWidth: 2, stroke: '#0A0C14' }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </GlassPanel>
+        </AnimatedCard>
 
-        {/* ── Top Companies by Contact Count ── */}
-        <SectionHeader
-          title="Top Companies"
-          subtitle="Ranked by total contact count"
-        />
-        <GlassPanel className="overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground text-xs font-semibold">Rank</TableHead>
-                <TableHead className="text-muted-foreground text-xs font-semibold">Company</TableHead>
-                <TableHead className="text-muted-foreground text-xs font-semibold">Industry</TableHead>
-                <TableHead className="text-muted-foreground text-xs font-semibold text-right">Contacts</TableHead>
-                <TableHead className="text-muted-foreground text-xs font-semibold text-right">Avg Score</TableHead>
-                <TableHead className="text-muted-foreground text-xs font-semibold text-right w-32">Health</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {DEMO_COMPANIES.map((c, i) => (
-                <TableRow
-                  key={i}
-                  className="border-border transition-colors duration-200 hover:bg-white/[0.04] hover:shadow-[inset_0_0_0_1px_rgba(212,175,55,0.08)]"
-                >
-                  <TableCell className="text-muted-foreground text-sm tabular-nums w-10">
-                    <span className="text-xs font-bold text-muted-foreground/60">#{i + 1}</span>
-                  </TableCell>
-                  <TableCell className="text-foreground text-sm font-medium">
-                    {c.name}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="bg-muted/30 text-muted-foreground border-border text-xs">
-                      {c.industry}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-foreground text-sm text-right tabular-nums">
-                    <AnimatedCounter value={c.contacts} />
-                  </TableCell>
-                  <TableCell className="text-sm text-right tabular-nums">
-                    <span
-                      className={
-                        c.avgScore >= 85
-                          ? 'text-emerald-400 font-semibold'
-                          : c.avgScore >= 75
-                          ? 'text-amber-400 font-semibold'
-                          : 'text-red-400 font-semibold'
-                      }
+        {/* ══════════════════════════════════════════════════════════════
+           4 & 5 — Two-column grid: Reply Donut + Email Health
+           ══════════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 4. Reply Category Distribution — Donut Chart */}
+          <AnimatedCard delay={0.2}>
+            <GlassPanel className="p-5">
+              <SectionHeader
+                title="Reply Categories"
+                subtitle="Breakdown of reply sentiment"
+              />
+              <div className="relative">
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <defs>
+                      <linearGradient id="piePositive" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#10b981" />
+                        <stop offset="100%" stopColor="#059669" />
+                      </linearGradient>
+                      <linearGradient id="pieNegative" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#ef4444" />
+                        <stop offset="100%" stopColor="#dc2626" />
+                      </linearGradient>
+                      <linearGradient id="pieOOO" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#f59e0b" />
+                        <stop offset="100%" stopColor="#d97706" />
+                      </linearGradient>
+                      <linearGradient id="pieOther" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#3b82f6" />
+                        <stop offset="100%" stopColor="#2563eb" />
+                      </linearGradient>
+                    </defs>
+                    <Pie
+                      data={replyPieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={3}
+                      dataKey="value"
+                      stroke="none"
                     >
-                      {c.avgScore}
+                      {replyPieData.map((entry, idx) => (
+                        <Cell
+                          key={idx}
+                          fill={`url(#${['piePositive', 'pieNegative', 'pieOOO', 'pieOther'][idx]})`}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<DarkTooltip />} />
+                    <text
+                      x="50%"
+                      y="46%"
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fill="white"
+                      fontSize={28}
+                      fontWeight="bold"
+                      className="recharts-text"
+                    >
+                      {totalReplies}
+                    </text>
+                    <text
+                      x="50%"
+                      y="60%"
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fill={COLORS.mutedText}
+                      fontSize={11}
+                      className="recharts-text"
+                    >
+                      Total Replies
+                    </text>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 mt-2">
+                {replyPieData.map((entry) => (
+                  <div key={entry.name} className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm" style={{ background: entry.color }} />
+                    <span className="text-[11px] text-muted-foreground">{entry.name}</span>
+                    <span className="text-[11px] font-semibold text-foreground tabular-nums">{entry.value}</span>
+                  </div>
+                ))}
+              </div>
+            </GlassPanel>
+          </AnimatedCard>
+
+          {/* 5. Email Health Distribution — Bar Chart */}
+          <AnimatedCard delay={0.25}>
+            <GlassPanel className="p-5">
+              <SectionHeader
+                title="Email Health Distribution"
+                subtitle="Verification status across all contacts"
+              />
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={healthData}
+                  margin={{ top: 4, right: 4, left: -10, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id="healthGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={COLORS.gold} stopOpacity={0.9} />
+                      <stop offset="100%" stopColor={COLORS.gold} stopOpacity={0.3} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    stroke={COLORS.gridLine}
+                    strokeDasharray="3 3"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fill: COLORS.mutedText, fontSize: 12 }}
+                    axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: COLORS.mutedText, fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip content={<DarkTooltip />} cursor={{ fill: 'rgba(212,175,55,0.04)' }} />
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={48} name="Count">
+                    {healthData.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.color} fillOpacity={0.8} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 mt-2">
+                {healthData.map((entry) => (
+                  <div key={entry.name} className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm" style={{ background: entry.color }} />
+                    <span className="text-[11px] text-muted-foreground">{entry.name}</span>
+                    <span className="text-[11px] font-semibold text-foreground tabular-nums">
+                      {entry.value} ({pct(entry.value, healthTotal)}%)
                     </span>
-                    <span className="text-muted-foreground">/100</span>
-                  </TableCell>
-                  <TableCell className="text-sm text-right pr-4">
-                    <AnimatedBar
-                      value={c.avgScore}
-                      max={100}
-                      color={c.avgScore >= 85 ? '#10B981' : c.avgScore >= 75 ? '#F59E0B' : '#EF4444'}
-                      className="ml-auto w-24"
-                      delay={i * 0.1}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </GlassPanel>
+                  </div>
+                ))}
+              </div>
+            </GlassPanel>
+          </AnimatedCard>
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════════
+           6. Lead Source Distribution — Horizontal Bar Chart
+           ══════════════════════════════════════════════════════════════ */}
+        <AnimatedCard delay={0.3}>
+          <GlassPanel className="p-5">
+            <SectionHeader
+              title="Lead Source Distribution"
+              subtitle="Where your contacts are coming from"
+            />
+            <ResponsiveContainer width="100%" height={Math.max(sourceData.length * 48, 200)}>
+              <BarChart
+                data={sourceData}
+                layout="vertical"
+                margin={{ top: 4, right: 60, left: 90, bottom: 4 }}
+              >
+                <defs>
+                  <linearGradient id="sourceGradient" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor={COLORS.gold} stopOpacity={0.9} />
+                    <stop offset="100%" stopColor={COLORS.gold} stopOpacity={0.35} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  horizontal={false}
+                  stroke={COLORS.gridLineLight}
+                  strokeDasharray="3 3"
+                />
+                <XAxis
+                  type="number"
+                  tick={{ fill: COLORS.mutedText, fontSize: 11 }}
+                  axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+                  tickLine={false}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  tick={{ fill: COLORS.mutedText, fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={85}
+                />
+                <Tooltip content={<DarkTooltip />} cursor={{ fill: 'rgba(212,175,55,0.04)' }} />
+                <Bar
+                  dataKey="count"
+                  fill="url(#sourceGradient)"
+                  radius={[0, 6, 6, 0]}
+                  barSize={26}
+                  name="Contacts"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </GlassPanel>
+        </AnimatedCard>
+
+        {/* ══════════════════════════════════════════════════════════════
+           7. Top Performing Content — Table
+           ══════════════════════════════════════════════════════════════ */}
+        <AnimatedCard delay={0.35}>
+          <GlassPanel className="overflow-hidden">
+            <div className="p-5 pb-3">
+              <SectionHeader
+                title="Top Performing Content"
+                subtitle="Best-engaging emails ranked by opens"
+              />
+            </div>
+            <div className="max-h-96 overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-muted-foreground text-xs font-semibold">Subject</TableHead>
+                    <TableHead className="text-muted-foreground text-xs font-semibold">Contact</TableHead>
+                    <TableHead className="text-muted-foreground text-xs font-semibold hidden sm:table-cell">Company</TableHead>
+                    <TableHead className="text-muted-foreground text-xs font-semibold text-right">Opens</TableHead>
+                    <TableHead className="text-muted-foreground text-xs font-semibold text-right">Clicks</TableHead>
+                    <TableHead className="text-muted-foreground text-xs font-semibold text-right w-24">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topContent.length > 0 ? (
+                    topContent.map((item, i) => (
+                      <TableRow
+                        key={i}
+                        className="border-border transition-colors duration-200 hover:bg-white/[0.04] hover:shadow-[inset_0_0_0_1px_rgba(212,175,55,0.08)]"
+                      >
+                        <TableCell className="text-foreground text-sm font-medium max-w-[220px] truncate">
+                          {item.subject}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm max-w-[160px] truncate">
+                          {item.contact}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm hidden sm:table-cell max-w-[140px] truncate">
+                          {item.company}
+                        </TableCell>
+                        <TableCell className="text-foreground text-sm text-right tabular-nums font-medium">
+                          {item.opens}
+                        </TableCell>
+                        <TableCell className="text-foreground text-sm text-right tabular-nums">
+                          {item.clicks}
+                        </TableCell>
+                        <TableCell className="text-sm text-right pr-4">
+                          {item.replied ? (
+                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-semibold text-[11px]">
+                              Replied
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-white/[0.03] text-muted-foreground border-border text-[11px]">
+                              Sent
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6}>
+                        <EmptyState
+                          icon={BarChart3}
+                          title="No engagement data yet"
+                          description="Send emails to see performance metrics here"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </GlassPanel>
+        </AnimatedCard>
 
         {/* ── Bottom spacer ── */}
         <div className="h-4" />

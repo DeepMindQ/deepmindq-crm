@@ -66,7 +66,7 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
         if (filterTone) params.set('tone', filterTone);
         const res = await fetch(`/api/templates?${params}`);
         const data = await res.json();
-        if (!cancelled) setTemplates(data);
+        if (!cancelled) setTemplates(Array.isArray(data) ? data : []);
       } catch {
         if (!cancelled) setTemplates([]);
       }
@@ -81,7 +81,7 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
     if (filterTone) params.set('tone', filterTone);
     const res = await fetch(`/api/templates?${params}`);
     const data = await res.json();
-    setTemplates(data);
+    setTemplates(Array.isArray(data) ? data : []);
   };
 
   // Form state

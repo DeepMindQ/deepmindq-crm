@@ -183,7 +183,11 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
     try {
       const res = await fetch('/api/dashboard');
       const d = await res.json();
-      setData(d);
+      if (d && typeof d === 'object' && d.contactsByStatus) {
+        setData(d);
+      } else {
+        setData(null);
+      }
     } catch {
       // keep loading state
     }
@@ -311,10 +315,10 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
   }
 
   /* ── Computed Values ── */
-  const totalLeads = Object.values(data.contactsByStatus).reduce((a, b) => a + b, 0);
-  const { emailHealthDistribution: eh } = data;
-  const healthTotal = eh.valid + eh.risky + eh.invalid + eh.unknown;
-  const validPct = healthTotal > 0 ? Math.round((eh.valid / healthTotal) * 100) : 0;
+  const totalLeads = Object.values(data.contactsByStatus || {}).reduce((a: number, b: number) => a + b, 0);
+  const eh = data?.emailHealthDistribution;
+  const healthTotal = eh ? (eh.valid || 0) + (eh.risky || 0) + (eh.invalid || 0) + (eh.unknown || 0) : 0;
+  const validPct = healthTotal > 0 ? Math.round(((eh?.valid || 0) / healthTotal) * 100) : 0;
 
   // Funnel stage counts
   const funnelCounts = FUNNEL_STAGES.map(s => data.contactsByStatus[s.key] || 0);
@@ -451,9 +455,9 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
               <p className="text-sm font-semibold text-foreground truncate">Generate Drafts</p>
               <p className="text-[11px] text-muted-foreground">AI email drafts</p>
             </div>
-            {data.draftsPendingReview > 0 && (
+            {(data.draftsPendingReview || 0) > 0 && (
               <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#D4AF37] text-[10px] font-bold text-black flex items-center justify-center shadow-lg">
-                {data.draftsPendingReview > 99 ? '99+' : data.draftsPendingReview}
+                {(data.draftsPendingReview || 0) > 99 ? '99+' : data.draftsPendingReview}
               </span>
             )}
           </motion.button>
@@ -479,9 +483,9 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
               <p className="text-sm font-semibold text-foreground truncate">Send All Pending</p>
               <p className="text-[11px] text-muted-foreground">{sendingAll ? 'Sending...' : 'Trigger worker'}</p>
             </div>
-            {data.queuePending > 0 && (
+            {(data.queuePending || 0) > 0 && (
               <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-emerald-500 text-[10px] font-bold text-black flex items-center justify-center shadow-lg">
-                {data.queuePending > 99 ? '99+' : data.queuePending}
+                {(data.queuePending || 0) > 99 ? '99+' : data.queuePending}
               </span>
             )}
           </motion.button>
@@ -750,7 +754,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
         <StaggerItem>
           <StatCard
             label="Companies"
-            value={data.totalCompanies}
+            value={data.totalCompanies || 0}
             icon={Building2}
             color="#A855F7"
             delay={0.06}
@@ -764,7 +768,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           >
             <StatCard
               label="Pending Drafts"
-              value={data.draftsPendingReview}
+              value={data.draftsPendingReview || 0}
               icon={FilePenLine}
               color="#F59E0B"
               delay={0.12}
@@ -779,7 +783,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           >
             <StatCard
               label="Queue Pending"
-              value={data.queuePending}
+              value={data.queuePending || 0}
               icon={Clock}
               color="#3B82F6"
               delay={0.18}
@@ -796,7 +800,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           >
             <StatCard
               label="Replies This Week"
-              value={data.repliesThisWeek}
+              value={data.repliesThisWeek || 0}
               icon={Mail}
               color="#10B981"
               delay={0.24}
@@ -806,7 +810,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
         <StaggerItem>
           <StatCard
             label="Bounces"
-            value={data.bouncesCount}
+            value={data.bouncesCount || 0}
             icon={ShieldX}
             color="#EF4444"
             delay={0.30}
@@ -815,7 +819,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
         <StaggerItem>
           <StatCard
             label="Suppressions"
-            value={data.suppressionsCount}
+            value={data.suppressionsCount || 0}
             icon={ShieldAlert}
             color="#71717A"
             delay={0.36}

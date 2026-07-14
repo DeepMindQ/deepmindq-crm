@@ -65,7 +65,7 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
     try {
       const res = await fetch('/api/sequences');
       const data = await res.json();
-      setSequences(data);
+      setSequences(Array.isArray(data) ? data : []);
     } catch {
       setSequences([]);
     }
@@ -76,7 +76,7 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
     let cancelled = false;
     fetch('/api/sequences')
       .then(r => r.json())
-      .then(data => { if (!cancelled) { setSequences(data); setLoading(false); } })
+      .then(data => { if (!cancelled) { setSequences(Array.isArray(data) ? data : []); setLoading(false); } })
       .catch(() => { if (!cancelled) { setSequences([]); setLoading(false); } });
     return () => { cancelled = true; };
   }, []);
@@ -307,7 +307,7 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
 
                     {/* Step Timeline */}
                     <div className="ml-6 space-y-0">
-                      {seq.steps.map((step, i) => (
+                      {(seq.steps || []).map((step, i) => (
                         <div key={step.id} className="flex items-start gap-3">
                           {/* Timeline line + dot */}
                           <div className="flex flex-col items-center">
@@ -343,7 +343,7 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
                       <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => openEnroll(seq)}>
                         <Users className="w-3 h-3" /> Enroll
                       </Button>
-                      <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => { setSelectedSeq(seq); setFormName(seq.name); setFormDesc(seq.description || ''); setFormServiceLine(seq.serviceLine || ''); setFormSteps(seq.steps.map(s => ({ stepNumber: s.stepNumber, delayDays: s.delayDays, subject: s.subject, body: s.bodyPreview || '', cta: s.cta || '' }))); setDialogOpen(true); }}>
+                      <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => { setSelectedSeq(seq); setFormName(seq.name); setFormDesc(seq.description || ''); setFormServiceLine(seq.serviceLine || ''); setFormSteps((seq.steps || []).map(s => ({ stepNumber: s.stepNumber, delayDays: s.delayDays, subject: s.subject, body: s.bodyPreview || '', cta: s.cta || '' }))); setDialogOpen(true); }}>
                         <Pencil className="w-3 h-3" /> Edit
                       </Button>
                     </div>
@@ -505,7 +505,7 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
                 </div>
                 {/* Step overview */}
                 <div className="flex gap-2 pt-1">
-                  {selectedSeq.steps.map(step => (
+                  {(selectedSeq.steps || []).map(step => (
                     <div key={step.id} className="flex items-center gap-1 text-[10px] text-muted-foreground">
                       <span className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ background: gold }}>
                         {step.stepNumber}

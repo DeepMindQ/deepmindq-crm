@@ -8,7 +8,7 @@ import { PageTransition } from '@/components/ui/animated-components';
 import {
   LayoutDashboard, Upload, Users, Building2, FileText, Send,
   Archive, Mail, XCircle, RefreshCw, Menu, X,
-  Brain, GitBranch, ScrollText, Settings, LogOut, BarChart3, Bell, Cpu, LayoutTemplate, Layers, AlertTriangle, Loader2,
+  Brain, GitBranch, ScrollText, Settings, LogOut, BarChart3, Bell, Cpu, LayoutTemplate, Layers, AlertTriangle, Loader2, Sparkles, Network,
 } from 'lucide-react';
 
 import LandingPage from '@/app/landing-page';
@@ -32,6 +32,8 @@ const SettingsScreen = lazy(() => import('@/components/screens/settings-screen')
 const TemplatesScreen = lazy(() => import('@/components/screens/templates-screen'));
 const SequencesScreen = lazy(() => import('@/components/screens/sequences-screen'));
 const CompanyDetailScreen = lazy(() => import('@/components/screens/company-detail-screen'));
+const CommandCenterScreen = lazy(() => import('@/components/screens/command-center-screen'));
+const MindMapScreen = lazy(() => import('@/components/screens/mind-map-screen'));
 
 /* ── Screen-level error boundary ── */
 interface ScreenErrorBoundaryState { hasError: boolean; error?: Error }
@@ -82,6 +84,13 @@ function ScreenLoader() {
 
 const NAV_SECTIONS = [
   {
+    heading: 'AI COMMAND',
+    items: [
+      { key: 'command-center', label: 'Command Center', icon: Sparkles },
+      { key: 'mind-map', label: 'Company Mind Map', icon: Network },
+    ],
+  },
+  {
     heading: 'WORKSPACE',
     items: [
       { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -121,6 +130,8 @@ const NAV_SECTIONS = [
 ];
 
 const SCREEN_MAP: Record<string, React.LazyExoticComponent<React.ComponentType<{ navigateTo?: (screen: string, companyId?: string) => void }>>> = {
+  'command-center': CommandCenterScreen,
+  'mind-map': MindMapScreen,
   dashboard: DashboardScreen,
   import: ImportScreen,
   leads: LeadsScreen,
@@ -446,7 +457,7 @@ function AppShell({ onLogout, navigateTo, activeScreen }: { onLogout: () => void
    ═══════════════════════════════════════════════════ */
 export default function HomePage() {
   const [loggedIn, setLoggedIn] = useState(false);
-  const [activeScreen, setActiveScreen] = useState('dashboard');
+  const [activeScreen, setActiveScreen] = useState('command-center');
 
   const handleLogout = () => {
     setLoggedIn(false);

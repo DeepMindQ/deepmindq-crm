@@ -76,25 +76,41 @@ model Contact {
 }
 
 model Company {
-  id              String   @id @default(cuid())
-  rawName         String
-  normalizedName  String
-  domain          String?
-  industry        String?
-  sizeRange       String?
-  location        String?
-  website         String?
-  internalSummary String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                String   @id @default(cuid())
+  rawName           String
+  normalizedName    String
+  domain            String?
+  industry          String?
+  sizeRange         String?
+  location          String?
+  country           String?
+  website           String?
+  internalSummary   String?
+  tags              String   @default("[]")   // JSON array of tag strings
+  status            String   @default("prospect") // prospect, researching, active, engaged, paused, closed_won, closed_lost
+  lifecycleStage    String   @default("discovery") // discovery, qualification, proposal, negotiation, closed
+  assignedTo        String?
+  intelligenceScore Int      @default(0)         // 0-100 composite score
+  engagementScore   Int      @default(0)         // 0-100 based on email opens/replies/clicks
+  lastEnrichedAt    DateTime?
+  lastActivityAt    DateTime?
+  source            String   @default("import") // import, manual, crm, webhook
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   contacts      Contact[]
   researchCard  CompanyResearchCard?
   notes         CompanyNote[]
+  signals       CompanySignal[]
+  timeline      CompanyTimelineEvent[]
 
   @@index([domain])
   @@index([normalizedName])
   @@index([industry])
+  @@index([status])
+  @@index([lifecycleStage])
+  @@index([assignedTo])
+  @@index([intelligenceScore])
 }
 
 model ImportBatch {
@@ -146,13 +162,53 @@ model CompanyResearchCard {
 model CompanyNote {
   id        String   @id @default(cuid())
   companyId String
+  title     String   @default("")
+  category  String   @default("general")  // research, call, meeting, general, swot, competitive, discovery
   body      String
+  author    String?
+  pinned    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
+  @@index([category])
+}
+
+model CompanySignal {
+  id          String   @id @default(cuid())
+  companyId   String
+  signalType  String                        // funding, hiring, leadership_change, tech_change, news, mention, partnership, expansion
+  title       String
+  description String?
+  source      String?
+  sourceUrl   String?
+  severity    String   @default("medium")    // low, medium, high, critical
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([signalType])
+  @@index([createdAt])
+}
+
+model CompanyTimelineEvent {
+  id          String   @id @default(cuid())
+  companyId   String
+  eventType   String                        // email_sent, email_opened, email_replied, email_bounced, note_added, enrichment, status_change, signal, contact_added, research_saved
+  title       String
+  description String?
+  metadata    String?  @default("{}")     // JSON with event-specific data
+  createdAt   DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([eventType])
+  @@index([createdAt])
 }
 
 // L-13: Contact notes

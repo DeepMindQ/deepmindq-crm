@@ -495,3 +495,44 @@ Stage Summary:
 - Drafts screen now has Thread View showing conversations grouped by contact with expand/collapse via framer-motion
 - Settings screen shows GDPR compliance dashboard with donut chart, risk flag panel, and quick actions
 - Build verified clean
+
+---
+Task ID: 3-wiring
+Agent: Wiring Agent
+Task: Wire company detail page into app routing
+
+Work Log:
+- Added selectedCompanyId state to AppShell
+- Added CompanyDetailScreen lazy import
+- Conditional render: show detail page when companyId selected, grid otherwise
+- Pass onSelectCompany callback to screens
+
+Stage Summary:
+- Company detail page accessible from grid by clicking a company
+- Back button returns to grid
+
+---
+Task ID: company-detail-mindmap
+Agent: Main Coordinator
+Task: Create Company Detail Screen and Company Mind Map components
+
+Work Log:
+- Created /src/components/company-mind-map.tsx (~310 lines): Interactive SVG mind map with center company node, 6 inner ring nodes (Contacts, Tech Stack, Research, Opportunities, Signals, Notes), expandable child nodes, trigonometry-based layout, framer-motion entry animations, gold/dark glassmorphism theme, responsive sizing with ResizeObserver, hover tooltips, click-to-expand interactions
+- Created /src/components/screens/company-detail-screen.tsx (~830 lines): Full company detail page with 6 tabs:
+  1. Overview Tab: Company profile card (name, domain, industry, size, location, country, website, status badge, lifecycle stage, assigned to, tags, intelligence/engagement score bars, internal summary), Research Intelligence card (business overview, tech landscape, challenges, opportunities, relevant services, key decision makers, revenue/employees/funding metadata, tech stack tags, social profiles), Enrich button, Edit button with inline editing mode
+  2. Mind Map Tab: Renders CompanyMindMap component with all company data
+  3. Notes Tab: Category filter (All/Research/Call/Meeting/SWOT/Competitive/Discovery/General), New Note button, Note list with title/category badge/body preview/timestamp/pin indicator/delete/expand, Note templates dropdown (SWOT Analysis, Discovery Questions, Competitive Analysis, Call Prep, Meeting Notes) that pre-fill note body
+  4. Contacts Tab: Contact cards with name/title/email/status/lead score badge/"View in Leads" link
+  5. Timeline Tab: Chronological timeline with color-coded icons per event type (email_sent, email_opened, email_replied, email_bounced, note_added, enrichment, status_change, signal, contact_added, research_saved)
+  6. Signals Tab: Signal cards with type icon, title, description, severity badges (critical=red, high=orange, medium=yellow, low=green), source link, read/unread toggle, date
+- Full dark/gold glassmorphism theme (#06090F background, #D4AF37 accent)
+- Uses all specified imports: animated-components, framer-motion, lucide-react, sonner toast, shadcn/ui components
+- Status badge colors: prospect=blue, researching=amber, active=emerald, engaged=purple, paused=gray, closed_won=green, closed_lost=red
+- Note CRUD: create, update (PATCH), delete via API calls
+- Note Dialog with title, category selector, body textarea
+
+Stage Summary:
+- Company detail screen is the flagship intelligence view with rich 6-tab layout
+- Mind map provides visual overview of company intelligence graph
+- Notes support templates for common sales workflows (SWOT, Discovery, etc.)
+- All API calls match specified endpoints

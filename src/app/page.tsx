@@ -31,6 +31,7 @@ const AuditScreen = lazy(() => import('@/components/screens/audit-screen'));
 const SettingsScreen = lazy(() => import('@/components/screens/settings-screen'));
 const TemplatesScreen = lazy(() => import('@/components/screens/templates-screen'));
 const SequencesScreen = lazy(() => import('@/components/screens/sequences-screen'));
+const CompanyDetailScreen = lazy(() => import('@/components/screens/company-detail-screen'));
 
 /* ── Screen-level error boundary ── */
 interface ScreenErrorBoundaryState { hasError: boolean; error?: Error }
@@ -119,7 +120,7 @@ const NAV_SECTIONS = [
   },
 ];
 
-const SCREEN_MAP: Record<string, React.LazyExoticComponent<React.ComponentType<{ navigateTo?: (screen: string) => void }>>> = {
+const SCREEN_MAP: Record<string, React.LazyExoticComponent<React.ComponentType<{ navigateTo?: (screen: string, companyId?: string) => void }>>> = {
   dashboard: DashboardScreen,
   import: ImportScreen,
   leads: LeadsScreen,
@@ -153,6 +154,7 @@ const PIPELINE_STAGES = [
 
 function AppShell({ onLogout, navigateTo, activeScreen }: { onLogout: () => void; navigateTo: (screen: string) => void; activeScreen: string }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -407,15 +409,32 @@ function AppShell({ onLogout, navigateTo, activeScreen }: { onLogout: () => void
 
         {/* Screen Content with Error Boundary + Suspense */}
         <main className="flex-1 p-4 sm:p-6">
-          <AnimatePresence mode="wait">
-            <PageTransition key={activeScreen}>
-              <ScreenErrorBoundary name={activeLabel}>
-                <Suspense fallback={<ScreenLoader />}>
-                  <LazyComponent navigateTo={navigateTo} />
-                </Suspense>
-              </ScreenErrorBoundary>
+          {selectedCompanyId ? (
+            <PageTransition key="company-detail">
+              <Suspense fallback={<ScreenLoader />}>
+                <ScreenErrorBoundary name="Company Detail">
+                  <CompanyDetailScreen
+                    companyId={selectedCompanyId}
+                    navigateTo={navigateTo}
+                    onBack={() => setSelectedCompanyId(null)}
+                  />
+                </ScreenErrorBoundary>
+              </Suspense>
             </PageTransition>
-          </AnimatePresence>
+          ) : (
+            <AnimatePresence mode="wait">
+              <PageTransition key={activeScreen}>
+                <ScreenErrorBoundary name={activeLabel}>
+                  <Suspense fallback={<ScreenLoader />}>
+                    <LazyComponent navigateTo={(screen: string, companyId?: string) => {
+                      if (companyId) { setSelectedCompanyId(companyId); }
+                      else { navigateTo(screen); }
+                    }} />
+                  </Suspense>
+                </ScreenErrorBoundary>
+              </PageTransition>
+            </AnimatePresence>
+          )}
         </main>
       </div>
     </div>

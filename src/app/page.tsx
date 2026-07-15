@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect, lazy, Suspense, Component, type ReactNode } from 'react';
+import { useState, useEffect, lazy, Suspense, Component, useCallback, type ReactNode } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PageTransition } from '@/components/ui/animated-components';
+import { AiChatSidebar } from '@/components/shared/ai-chat-sidebar';
+import { AiChatButton } from '@/components/shared/ai-chat-button';
+import { ErrorBoundary } from '@/components/error-boundary';
 
 import {
   LayoutDashboard, Upload, Users, Building2, FileText, Send,
@@ -11,7 +14,7 @@ import {
   Brain, GitBranch, ScrollText, Settings, LogOut, BarChart3, Bell,
   LayoutTemplate, Layers, AlertTriangle, Loader2, Sparkles, Network,
   UserPlus, Target, FileBarChart, Code2, Copy, ClipboardList, Kanban, MailPlus,
-  ChevronDown,
+  ChevronDown, ChevronRight,
 } from 'lucide-react';
 
 import LandingPage from '@/app/landing-page';
@@ -267,8 +270,43 @@ class ScreenErrorBoundary extends Component<{ children: ReactNode; name: string 
 
 function ScreenLoader() {
   return (
-    <div className="flex items-center justify-center py-24">
-      <Loader2 className="w-6 h-6 animate-spin text-primary/50" />
+    <div className="space-y-6 p-1">
+      {/* Header skeleton */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-7 w-48 rounded-lg bg-white/[0.04] animate-pulse" />
+          <div className="h-7 w-24 rounded-lg bg-white/[0.04] animate-pulse" />
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-28 rounded-lg bg-white/[0.04] animate-pulse" />
+          <div className="h-8 w-8 rounded-lg bg-white/[0.04] animate-pulse" />
+        </div>
+      </div>
+      {/* Stat cards skeleton */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-24 rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 space-y-3">
+            <div className="h-3 w-16 rounded bg-white/[0.04] animate-pulse" />
+            <div className="h-6 w-20 rounded bg-white/[0.06] animate-pulse" />
+          </div>
+        ))}
+      </div>
+      {/* Table skeleton */}
+      <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] overflow-hidden">
+        <div className="flex items-center gap-4 px-4 py-3 border-b border-white/[0.06]">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-3 flex-1 rounded bg-white/[0.04] animate-pulse" />
+          ))}
+        </div>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-4 px-4 py-3 border-b border-white/[0.04]">
+            <div className="h-4 w-4 rounded bg-white/[0.04] animate-pulse" />
+            {Array.from({ length: 5 }).map((_, j) => (
+              <div key={j} className="h-3 flex-1 rounded bg-white/[0.03] animate-pulse" style={{ animationDelay: `${(i * 5 + j) * 50}ms` }} />
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -284,18 +322,29 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
-  // URL hash sync for bookmarkability
+  // URL hash sync for bookmarkability + browser back/forward
   useEffect(() => {
-    const hash = window.location.hash.replace('#', '');
-    if (hash && SCREEN_MAP[hash]) {
-      setActiveScreen(hash);
-    }
+    const syncHash = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash && SCREEN_MAP[hash] && hash !== activeScreen) {
+        setSelectedCompanyId(null);
+        setSelectedContactId(null);
+        setActiveScreen(hash);
+      }
+    };
+    syncHash();
+    window.addEventListener('hashchange', syncHash);
+    return () => window.removeEventListener('hashchange', syncHash);
   }, []);
 
   useEffect(() => {
-    window.location.hash = activeScreen;
-    document.title = `${SCREEN_LABELS[activeScreen] || 'DeepMindQ'} — DeepMindQ`;
+    if (activeScreen) {
+      window.location.hash = activeScreen;
+      document.title = `${SCREEN_LABELS[activeScreen] || 'DeepMindQ'} — DeepMindQ`;
+    }
   }, [activeScreen]);
 
   // Listen for sub-view changes from useAppStore (dormant screens)
@@ -347,12 +396,12 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
     setSidebarOpen(false);
   };
 
-  const handleNavClick = (key: string) => {
+  const handleNavClick = useCallback((key: string) => {
     setSelectedCompanyId(null);
     setSelectedContactId(null);
     setActiveScreen(key);
     setSidebarOpen(false);
-  };
+  }, []);
 
   const toggleSection = (heading: string) => {
     setCollapsedSections(prev => ({ ...prev, [heading]: !prev[heading] }));
@@ -360,6 +409,15 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
 
   const LazyComponent = SCREEN_MAP[activeScreen] || DashboardScreen;
   const activeLabel = SCREEN_LABELS[activeScreen] || 'DeepMindQ';
+
+  // Breadcrumb trail
+  const breadcrumbs = [
+    ...(selectedCompanyId
+      ? [{ label: 'Companies', key: 'companies' }, { label: 'Company Detail' }]
+      : selectedContactId
+      ? [{ label: 'Contacts', key: 'contacts' }, { label: 'Contact Detail' }]
+      : [{ label: activeLabel }]),
+  ];
 
   /* ── Design tokens via CSS vars (no more inline gold/constants) ── */
   const styles = {
@@ -376,6 +434,13 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="min-h-screen bg-background text-foreground flex">
       <Toaster theme="dark" position="top-right" />
+
+      {/* AI Chat Sidebar */}
+      <AiChatSidebar isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} />
+      {/* AI Chat FAB — visible on small screens */}
+      <div className="md:hidden">
+        <AiChatButton isOpen={aiChatOpen} onToggle={() => setAiChatOpen(!aiChatOpen)} />
+      </div>
 
       {/* Sidebar Overlay (mobile) */}
       <AnimatePresence>
@@ -581,28 +646,113 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
             borderColor: styles.border,
           }}
         >
-          <div className="flex items-center gap-3 flex-1">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
             <motion.button
-              className="lg:hidden p-1 rounded-md"
+              className="lg:hidden p-1 rounded-md shrink-0"
               style={{ color: styles.textMuted }}
               onClick={() => setSidebarOpen(!sidebarOpen)}
               whileTap={{ scale: 0.9 }}
             >
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </motion.button>
-            <h1 className="text-sm font-semibold text-foreground tracking-tight">{activeLabel}</h1>
+            {/* Breadcrumbs */}
+            <nav className="flex items-center gap-1.5 min-w-0">
+              {breadcrumbs.map((crumb, i) => (
+                <span key={i} className="flex items-center gap-1.5 min-w-0">
+                  {i > 0 && <ChevronRight className="w-3 h-3 shrink-0" style={{ color: styles.textDim }} />}
+                  {crumb.key ? (
+                    <button
+                      onClick={() => handleNavClick(crumb.key)}
+                      className="text-xs font-medium transition-colors hover:text-[var(--color-gold)] truncate"
+                      style={{ color: styles.textMuted }}
+                    >
+                      {crumb.label}
+                    </button>
+                  ) : (
+                    <span className="text-sm font-semibold text-foreground tracking-tight truncate">{crumb.label}</span>
+                  )}
+                </span>
+              ))}
+            </nav>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
+            {/* AI Chat FAB — visible on md+ screens */}
             <motion.button
-              className="p-2 rounded-lg transition-colors duration-200 hover:bg-white/5 relative"
-              style={{ color: styles.textDim }}
+              className="hidden md:flex p-2 rounded-lg transition-colors duration-200 hover:bg-white/5"
+              style={{ color: aiChatOpen ? 'var(--color-gold)' : styles.textDim }}
               whileHover={{ color: styles.textMuted }}
               whileTap={{ scale: 0.9 }}
-              title="Notifications"
+              onClick={() => setAiChatOpen(!aiChatOpen)}
+              title="AI Assistant"
             >
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: 'var(--color-gold)' }} />
+              <Sparkles className="w-4 h-4" />
             </motion.button>
+            {/* Notifications */}
+            <div className="relative">
+              <motion.button
+                className="p-2 rounded-lg transition-colors duration-200 hover:bg-white/5 relative"
+                style={{ color: notificationsOpen ? 'var(--color-gold)' : styles.textDim }}
+                whileHover={{ color: styles.textMuted }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                title="Notifications"
+              >
+                <Bell className="w-4 h-4" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: 'var(--color-gold)' }} />
+              </motion.button>
+              {/* Notification dropdown */}
+              <AnimatePresence>
+                {notificationsOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-full mt-2 w-72 rounded-xl border z-50 overflow-hidden"
+                      style={{
+                        background: 'var(--surface-glass-heavy)',
+                        backdropFilter: 'blur(24px)',
+                        borderColor: 'var(--border-subtle)',
+                      }}
+                    >
+                      <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+                        <h3 className="text-xs font-semibold text-foreground">Notifications</h3>
+                      </div>
+                      <div className="py-2">
+                        <div className="px-4 py-3 flex items-start gap-3 hover:bg-white/[0.03] transition-colors cursor-pointer">
+                          <div className="w-8 h-8 rounded-lg bg-gold-subtle flex items-center justify-center shrink-0 mt-0.5">
+                            <Send className="w-3.5 h-3.5 text-[var(--color-gold)]" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-foreground">Emails sent successfully</p>
+                            <p className="text-[11px] mt-0.5" style={{ color: styles.textDim }}>Queue processed 5 emails</p>
+                          </div>
+                        </div>
+                        <div className="px-4 py-3 flex items-start gap-3 hover:bg-white/[0.03] transition-colors cursor-pointer">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                            <Users className="w-3.5 h-3.5 text-emerald-400" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-foreground">New contacts imported</p>
+                            <p className="text-[11px] mt-0.5" style={{ color: styles.textDim }}>Import batch completed with 234 contacts</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="px-4 py-2.5 border-t text-center" style={{ borderColor: 'var(--border-subtle)' }}>
+                        <button
+                          onClick={() => { setNotificationsOpen(false); handleNavClick('replies'); }}
+                          className="text-[11px] font-medium text-[var(--color-gold)] hover:underline"
+                        >
+                          View all activity
+                        </button>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
             <motion.button
               className="p-2 rounded-lg transition-colors duration-200 hover:bg-white/5"
               style={{ color: styles.textDim }}
@@ -706,5 +856,9 @@ export default function HomePage() {
     return <LandingPage onLogin={handleLogin} />;
   }
 
-  return <AppShell onLogout={handleLogout} />;
+  return (
+    <ErrorBoundary>
+      <AppShell onLogout={handleLogout} />
+    </ErrorBoundary>
+  );
 }

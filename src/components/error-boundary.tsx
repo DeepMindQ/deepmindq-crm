@@ -1,7 +1,6 @@
 'use client'
 import React from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 
 interface ErrorBoundaryProps {
   children: React.ReactNode
@@ -38,24 +37,27 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       if (this.props.fallback) return this.props.fallback
       return (
         <div className="flex flex-col items-center justify-center py-20 px-6">
-          <div className="flex size-14 items-center justify-center rounded-2xl bg-red-50 mb-4">
-            <AlertTriangle className="size-7 text-red-500" />
+          <div className="flex size-14 items-center justify-center rounded-2xl bg-red-500/10 mb-4">
+            <AlertTriangle className="size-7 text-red-400" />
           </div>
-          <h3 className="text-base font-semibold text-gray-900 mb-1">Something went wrong</h3>
-          <p className="text-sm text-gray-500 max-w-sm text-center mb-6">
+          <h3 className="text-base font-semibold text-foreground mb-1">Something went wrong</h3>
+          <p className="text-sm text-muted-foreground max-w-sm text-center mb-6">
             {this.state.error?.message || 'An unexpected error occurred'}
           </p>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg"
+            <button
+              className="px-4 py-2 text-xs font-medium rounded-lg bg-white/5 border border-white/10 text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors flex items-center gap-2"
               onClick={() => this.setState({ hasError: false, error: null })}
             >
-              <RefreshCw className="size-4 mr-2" /> Try Again
-            </Button>
-            <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg" onClick={this.handleReload}>
+              <RefreshCw className="size-3.5" /> Try Again
+            </button>
+            <button
+              className="px-4 py-2 text-xs font-medium rounded-lg text-white flex items-center gap-2"
+              style={{ background: 'linear-gradient(135deg, var(--color-gold), var(--color-gold-dim))' }}
+              onClick={this.handleReload}
+            >
               Reload Page
-            </Button>
+            </button>
           </div>
         </div>
       )

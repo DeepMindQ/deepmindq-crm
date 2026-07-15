@@ -58,11 +58,9 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
 
   // Sync context from store
   useEffect(() => {
-    if (selectedCompanyId && (activeView === 'company-profile')) {
+    if (selectedCompanyId && (activeView === 'company-profile' || activeView === 'companies')) {
       setContext({ companyId: selectedCompanyId })
-      // We can't fetch the name without an API call here — we'll just show the ID indicator
-      // The backend will resolve it
-    } else if (selectedContactId && (activeView === 'contact-profile')) {
+    } else if (selectedContactId && (activeView === 'contact-profile' || activeView === 'contacts')) {
       setContext({ contactId: selectedContactId })
     } else {
       setContext(null)
@@ -79,15 +77,15 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
     const el = textareaRef.current
     if (el) {
       el.style.height = 'auto'
-      el.style.height = Math.min(el.scrollHeight, 96) + 'px' // max ~4 lines
+      el.style.height = Math.min(el.scrollHeight, 96) + 'px'
     }
   }, [input])
 
   const resolveContextLabel = useCallback(() => {
-    if (selectedCompanyId && activeView === 'company-profile') {
+    if (selectedCompanyId && (activeView === 'company-profile' || activeView === 'companies')) {
       return 'Company context active'
     }
-    if (selectedContactId && activeView === 'contact-profile') {
+    if (selectedContactId && (activeView === 'contact-profile' || activeView === 'contacts')) {
       return 'Contact context active'
     }
     return null
@@ -148,7 +146,6 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
         setMessages((prev) => [...prev, errorMsg])
       } finally {
         setIsLoading(false)
-        // Refocus textarea
         setTimeout(() => textareaRef.current?.focus(), 100)
       }
     },
@@ -179,53 +176,58 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/10 z-40"
+            className="fixed inset-0 bg-black/20 z-40"
             onClick={onClose}
           />
 
-          {/* Panel */}
+          {/* Panel — dark glassmorphism to match app */}
           <motion.div
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed right-0 top-0 bottom-0 w-[400px] max-w-[calc(100vw-1rem)] bg-white border-l border-gray-200/80 shadow-xl z-50 flex flex-col"
+            className="fixed right-0 top-0 bottom-0 w-[400px] max-w-[calc(100vw-1rem)] z-50 flex flex-col border-l"
+            style={{
+              background: 'rgba(10, 14, 24, 0.95)',
+              backdropFilter: 'blur(24px) saturate(1.5)',
+              borderColor: 'var(--border-subtle)',
+            }}
           >
             {/* ── Header ── */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 border-b shrink-0" style={{ borderColor: 'var(--border-subtle)' }}>
               <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-sm">
+                <div className="size-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--color-gold), var(--color-gold-bright))' }}>
                   <Sparkles className="size-4 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-gray-900 leading-tight">AI Assistant</h2>
-                  <p className="text-[11px] text-gray-400">DeepMindQ</p>
+                  <h2 className="text-sm font-semibold text-foreground leading-tight">AI Assistant</h2>
+                  <p className="text-[11px]" style={{ color: 'var(--text-dim)' }}>DeepMindQ</p>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
                 aria-label="Close AI Assistant"
               >
-                <X className="size-4 text-gray-400" />
+                <X className="size-4" style={{ color: 'var(--color-muted-foreground)' }} />
               </button>
             </div>
 
             {/* ── Context Bar ── */}
             {currentContextLabel && (
-              <div className="px-4 py-2 bg-amber-50/60 border-b border-amber-100/60 flex items-center gap-2 shrink-0">
-                {context?.companyId && <Building2 className="size-3.5 text-amber-600 shrink-0" />}
-                {context?.contactId && <User className="size-3.5 text-amber-600 shrink-0" />}
-                {context?.opportunityId && <Target className="size-3.5 text-amber-600 shrink-0" />}
-                <span className="text-xs text-amber-700 font-medium truncate">
+              <div className="px-4 py-2 border-b flex items-center gap-2 shrink-0" style={{ background: 'color-mix(in oklch, var(--color-gold) 8%, transparent)', borderColor: 'color-mix(in oklch, var(--color-gold) 12%, transparent)' }}>
+                {context?.companyId && <Building2 className="size-3.5 shrink-0" style={{ color: 'var(--color-gold)' }} />}
+                {context?.contactId && <User className="size-3.5 shrink-0" style={{ color: 'var(--color-gold)' }} />}
+                {context?.opportunityId && <Target className="size-3.5 shrink-0" style={{ color: 'var(--color-gold)' }} />}
+                <span className="text-xs font-medium truncate" style={{ color: 'var(--color-gold)' }}>
                   Context: {currentContextLabel}
                 </span>
                 <button
                   onClick={clearContext}
-                  className="ml-auto p-0.5 rounded hover:bg-amber-100/80 transition-colors shrink-0"
+                  className="ml-auto p-0.5 rounded hover:bg-white/5 transition-colors shrink-0"
                   aria-label="Clear context"
                 >
-                  <RotateCcw className="size-3 text-amber-500" />
+                  <RotateCcw className="size-3" style={{ color: 'var(--color-gold-dim)' }} />
                 </button>
               </div>
             )}
@@ -234,11 +236,11 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
               {messages.length === 0 && !isLoading && (
                 <div className="flex flex-col items-center justify-center h-full text-center px-2">
-                  <div className="size-12 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center mb-3">
-                    <MessageSquare className="size-6 text-amber-500" />
+                  <div className="size-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'color-mix(in oklch, var(--color-gold) 12%, transparent)' }}>
+                    <MessageSquare className="size-6" style={{ color: 'var(--color-gold)' }} />
                   </div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-1">How can I help?</h3>
-                  <p className="text-xs text-gray-400 mb-6 max-w-[260px]">
+                  <h3 className="text-sm font-semibold text-foreground mb-1">How can I help?</h3>
+                  <p className="text-xs mb-6 max-w-[260px]" style={{ color: 'var(--color-muted-foreground)' }}>
                     Ask about your companies, contacts, deals, or get help with any CRM task.
                   </p>
 
@@ -248,7 +250,22 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
                       <button
                         key={s.text}
                         onClick={() => sendMessage(s.text)}
-                        className="w-full text-left px-3.5 py-2.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-amber-50 hover:border-amber-200/80 transition-all text-sm text-gray-600 hover:text-amber-800 flex items-center gap-2.5 group"
+                        className="w-full text-left px-3.5 py-2.5 rounded-xl border transition-all text-sm flex items-center gap-2.5 group"
+                        style={{
+                          borderColor: 'var(--border-subtle)',
+                          background: 'transparent',
+                          color: 'var(--color-muted-foreground)',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'color-mix(in oklch, var(--color-gold) 6%, transparent)';
+                          e.currentTarget.style.borderColor = 'color-mix(in oklch, var(--color-gold) 20%, transparent)';
+                          e.currentTarget.style.color = 'var(--color-foreground)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                          e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                          e.currentTarget.style.color = 'var(--color-muted-foreground)';
+                        }}
                       >
                         <span className="text-base shrink-0">{s.icon}</span>
                         <span className="truncate group-hover:font-medium transition-colors">{s.text}</span>
@@ -267,9 +284,14 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
                     className={cn(
                       'max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed',
                       msg.role === 'user'
-                        ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-br-md'
-                        : 'bg-gray-50 border border-gray-200/80 text-gray-700 rounded-bl-md',
+                        ? 'rounded-br-md text-white'
+                        : 'rounded-bl-md',
                     )}
+                    style={
+                      msg.role === 'user'
+                        ? { background: 'linear-gradient(135deg, var(--color-gold), var(--color-gold-dim))' }
+                        : { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)', color: 'var(--color-foreground)' }
+                    }
                   >
                     {/* Render simple markdown-like formatting */}
                     <div className="whitespace-pre-wrap break-words [&>strong]:font-semibold [&_strong]:font-semibold">
@@ -282,8 +304,9 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
                     <div
                       className={cn(
                         'text-[10px] mt-1.5',
-                        msg.role === 'user' ? 'text-amber-100 text-right' : 'text-gray-400',
+                        msg.role === 'user' ? 'text-white/60 text-right' : '',
                       )}
+                      style={msg.role !== 'user' ? { color: 'var(--text-dim)' } : undefined}
                     >
                       {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
@@ -294,11 +317,11 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
               {/* Loading indicator */}
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-gray-50 border border-gray-200/80 rounded-2xl rounded-bl-md px-4 py-3">
+                  <div className="rounded-2xl rounded-bl-md px-4 py-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)' }}>
                     <div className="flex items-center gap-1.5">
-                      <span className="size-2 rounded-full bg-amber-400 animate-bounce [animation-delay:0ms]" />
-                      <span className="size-2 rounded-full bg-amber-400 animate-bounce [animation-delay:150ms]" />
-                      <span className="size-2 rounded-full bg-amber-400 animate-bounce [animation-delay:300ms]" />
+                      <span className="size-2 rounded-full animate-bounce [animation-delay:0ms]" style={{ background: 'var(--color-gold)' }} />
+                      <span className="size-2 rounded-full animate-bounce [animation-delay:150ms]" style={{ background: 'var(--color-gold)' }} />
+                      <span className="size-2 rounded-full animate-bounce [animation-delay:300ms]" style={{ background: 'var(--color-gold)' }} />
                     </div>
                   </div>
                 </div>
@@ -308,8 +331,14 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
             </div>
 
             {/* ── Input Area ── */}
-            <div className="border-t border-gray-100 px-4 py-3 shrink-0">
-              <div className="flex items-end gap-2 bg-gray-50 rounded-2xl border border-gray-200/80 px-3 py-2 focus-within:border-amber-300 focus-within:ring-2 focus-within:ring-amber-100 transition-all">
+            <div className="border-t px-4 py-3 shrink-0" style={{ borderColor: 'var(--border-subtle)' }}>
+              <div
+                className="flex items-end gap-2 rounded-2xl px-3 py-2 transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
                 <textarea
                   ref={textareaRef}
                   value={input}
@@ -318,7 +347,7 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
                   placeholder="Ask about any company, contact, or deal..."
                   disabled={isLoading}
                   rows={1}
-                  className="flex-1 bg-transparent text-sm text-gray-900 placeholder-gray-400 resize-none outline-none min-h-[20px] max-h-[96px] py-0.5 disabled:opacity-50"
+                  className="flex-1 bg-transparent text-sm text-foreground placeholder-muted-foreground resize-none outline-none min-h-[20px] max-h-[96px] py-0.5 disabled:opacity-50"
                 />
                 <button
                   onClick={() => sendMessage(input)}
@@ -326,15 +355,20 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
                   className={cn(
                     'p-1.5 rounded-xl transition-all shrink-0',
                     input.trim() && !isLoading
-                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm hover:shadow-md active:scale-95'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed',
+                      ? 'text-white shadow-sm hover:shadow-md active:scale-95'
+                      : 'cursor-not-allowed',
                   )}
+                  style={
+                    input.trim() && !isLoading
+                      ? { background: 'linear-gradient(135deg, var(--color-gold), var(--color-gold-dim))' }
+                      : { background: 'rgba(255,255,255,0.06)', color: 'var(--text-dim)' }
+                  }
                   aria-label="Send message"
                 >
                   <Send className="size-4" />
                 </button>
               </div>
-              <p className="text-[10px] text-gray-400 mt-1.5 text-center">
+              <p className="text-[10px] mt-1.5 text-center" style={{ color: 'var(--text-dim)' }}>
                 Enter to send · Shift+Enter for new line
               </p>
             </div>

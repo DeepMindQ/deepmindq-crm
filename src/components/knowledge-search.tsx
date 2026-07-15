@@ -64,11 +64,11 @@ interface KnowledgeSearchProps {
    Constants
    ═══════════════════════════════════════════════════ */
 const CATEGORY_COLORS: Record<string, string> = {
-  service_line: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  case_study: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  service_line: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30',
+  case_study: 'bg-amber-500/15 text-amber-600 border-amber-500/30',
   proof_point: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
   objection_response: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
-  cta: 'bg-violet-500/15 text-violet-400 border-violet-500/30',
+  cta: 'bg-violet-500/15 text-violet-600 border-violet-500/30',
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -625,10 +625,10 @@ export default function KnowledgeSearch({
                       <span
                         className={`text-[10px] tabular-nums font-medium ${
                           result.relevanceScore >= 80
-                            ? 'text-emerald-400'
+                            ? 'text-emerald-600'
                             : result.relevanceScore >= 50
-                              ? 'text-amber-400'
-                              : 'text-red-400'
+                              ? 'text-amber-600'
+                              : 'text-red-600'
                         }`}
                       >
                         {result.relevanceScore}%
@@ -664,7 +664,7 @@ export default function KnowledgeSearch({
                     )}
                     {/* C-09: Usage indicator */}
                     {(result.usedInEmails || 0) > 0 && (
-                      <span className="text-[10px] text-emerald-400/70 ml-auto">
+                      <span className="text-[10px] text-emerald-600/70 ml-auto">
                         Used in {result.usedInEmails} email{result.usedInEmails! > 1 ? 's' : ''}
                       </span>
                     )}
@@ -700,8 +700,8 @@ export default function KnowledgeSearch({
                         onClick={() => handleFeedback(result.id, 'upvote')}
                         className={`p-1 rounded transition-colors ${
                           feedbackState[result.id] === 'upvote'
-                            ? 'text-emerald-400 bg-emerald-400/10'
-                            : 'text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-400/5'
+                            ? 'text-emerald-600 bg-emerald-50'
+                            : 'text-muted-foreground/50 hover:text-emerald-600 hover:bg-emerald-500/5'
                         }`}
                         title="Relevant result"
                       >
@@ -711,8 +711,8 @@ export default function KnowledgeSearch({
                         onClick={() => handleFeedback(result.id, 'downvote')}
                         className={`p-1 rounded transition-colors ${
                           feedbackState[result.id] === 'downvote'
-                            ? 'text-red-400 bg-red-400/10'
-                            : 'text-muted-foreground/50 hover:text-red-400 hover:bg-red-400/5'
+                            ? 'text-red-600 bg-red-50'
+                            : 'text-muted-foreground/50 hover:text-red-600 hover:bg-red-500/5'
                         }`}
                         title="Not relevant"
                       >

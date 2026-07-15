@@ -201,7 +201,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                             <p className="text-[11px] text-muted-foreground mt-1 truncate">{filterSummary}</p>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <Badge variant="outline" className={`${seg.isStatic ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' : 'bg-purple-500/10 text-purple-300 border-purple-500/20'} text-[10px]`}>
+                            <Badge variant="outline" className={`${seg.isStatic ? 'bg-emerald-50 text-emerald-300 border-emerald-500/20' : 'bg-purple-50 text-purple-300 border-purple-500/20'} text-[10px]`}>
                               {seg.isStatic ? 'Static' : 'Dynamic'}
                             </Badge>
                           </div>
@@ -212,7 +212,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                           </span>
                           <div className="flex items-center gap-2">
                             <Button
-                              variant="ghost" size="sm" className="h-7 text-[10px] text-muted-foreground hover:text-red-400 px-2"
+                              variant="ghost" size="sm" className="h-7 text-[10px] text-muted-foreground hover:text-red-600 px-2"
                               onClick={(e) => { e.stopPropagation(); handleDelete(seg.id, seg.name); }}
                             >
                               <Trash2 className="w-3 h-3" />
@@ -231,7 +231,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
 
         {/* Create Segment Dialog */}
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogContent className="bg-card/95 backdrop-blur-xl border-white/[0.08] text-foreground max-w-lg max-h-[85vh] overflow-hidden">
+          <DialogContent className="bg-card/95 backdrop-blur-xl border-gray-200 text-foreground max-w-lg max-h-[85vh] overflow-hidden">
             <DialogHeader>
               <DialogTitle className="text-base flex items-center gap-2">
                 <Plus className="w-4 h-4 text-primary" />
@@ -243,19 +243,19 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
               <div className="space-y-5 pb-4">
                 <div className="space-y-1.5">
                   <label className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Segment Name</label>
-                  <Input value={segName} onChange={e => setSegName(e.target.value)} placeholder="e.g. SaaS Decision Makers" className="h-9 text-sm bg-white/[0.03] border-white/[0.1]" />
+                  <Input value={segName} onChange={e => setSegName(e.target.value)} placeholder="e.g. SaaS Decision Makers" className="h-9 text-sm bg-black/[0.03] border-white/[0.1]" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Description (optional)</label>
-                  <Input value={segDesc} onChange={e => setSegDesc(e.target.value)} placeholder="What this segment is for..." className="h-9 text-sm bg-white/[0.03] border-white/[0.1]" />
+                  <Input value={segDesc} onChange={e => setSegDesc(e.target.value)} placeholder="What this segment is for..." className="h-9 text-sm bg-black/[0.03] border-white/[0.1]" />
                 </div>
-                <Separator className="bg-white/[0.06]" />
+                <Separator className="bg-black/[0.06]" />
                 <div>
                   <label className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium block mb-2">Industries</label>
                   <div className="flex flex-wrap gap-1.5">
                     {INDUSTRY_OPTIONS.map(ind => (
                       <button key={ind}
-                        className={`text-[10px] px-2.5 py-1.5 rounded-lg border transition-all duration-200 ${segIndustries.includes(ind) ? 'bg-primary/15 border-primary/25 text-primary' : 'bg-white/[0.03] border-white/[0.08] text-muted-foreground hover:bg-white/[0.06]'}`}
+                        className={`text-[10px] px-2.5 py-1.5 rounded-lg border transition-all duration-200 ${segIndustries.includes(ind) ? 'bg-primary/15 border-primary/25 text-primary' : 'bg-black/[0.03] border-gray-200 text-muted-foreground hover:bg-black/[0.06]'}`}
                         onClick={() => toggleIndustry(ind)}
                       >{ind}</button>
                     ))}
@@ -266,7 +266,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                   <div className="flex flex-wrap gap-1.5">
                     {STATUS_OPTIONS.map(st => (
                       <button key={st}
-                        className={`text-[10px] px-2.5 py-1.5 rounded-lg border transition-all duration-200 capitalize ${segStatuses.includes(st) ? 'bg-primary/15 border-primary/25 text-primary' : 'bg-white/[0.03] border-white/[0.08] text-muted-foreground hover:bg-white/[0.06]'}`}
+                        className={`text-[10px] px-2.5 py-1.5 rounded-lg border transition-all duration-200 capitalize ${segStatuses.includes(st) ? 'bg-primary/15 border-primary/25 text-primary' : 'bg-black/[0.03] border-gray-200 text-muted-foreground hover:bg-black/[0.06]'}`}
                         onClick={() => toggleStatus(st)}
                       >{st}</button>
                     ))}
@@ -275,9 +275,9 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <div>
                   <label className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium block mb-2">Lead Score Range</label>
                   <div className="flex items-center gap-3">
-                    <Input type="number" value={segScoreMin} onChange={e => setSegScoreMin(e.target.value)} className="h-8 w-20 text-xs bg-white/[0.03] border-white/[0.1]" min={0} max={100} />
+                    <Input type="number" value={segScoreMin} onChange={e => setSegScoreMin(e.target.value)} className="h-8 w-20 text-xs bg-black/[0.03] border-white/[0.1]" min={0} max={100} />
                     <span className="text-xs text-muted-foreground">to</span>
-                    <Input type="number" value={segScoreMax} onChange={e => setSegScoreMax(e.target.value)} className="h-8 w-20 text-xs bg-white/[0.03] border-white/[0.1]" min={0} max={100} />
+                    <Input type="number" value={segScoreMax} onChange={e => setSegScoreMax(e.target.value)} className="h-8 w-20 text-xs bg-black/[0.03] border-white/[0.1]" min={0} max={100} />
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -299,7 +299,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
 
         {/* Segment Detail Dialog */}
         <Dialog open={!!detailSegment} onOpenChange={() => { setDetailSegment(null); setDetailContacts([]); }}>
-          <DialogContent className="bg-card/95 backdrop-blur-xl border-white/[0.08] text-foreground max-w-3xl max-h-[85vh] overflow-hidden">
+          <DialogContent className="bg-card/95 backdrop-blur-xl border-gray-200 text-foreground max-w-3xl max-h-[85vh] overflow-hidden">
             <DialogHeader>
               <DialogTitle className="text-base flex items-center gap-2">
                 <ArrowLeft className="w-4 h-4 text-muted-foreground cursor-pointer" onClick={() => setDetailSegment(null)} />
@@ -320,14 +320,14 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
               ) : (
                 <div className="space-y-1.5 pb-4">
                   {detailContacts.map(c => (
-                    <div key={c.id} className="flex items-center gap-4 py-2.5 px-3 rounded-lg hover:bg-white/[0.03] transition-colors">
+                    <div key={c.id} className="flex items-center gap-4 py-2.5 px-3 rounded-lg hover:bg-black/[0.03] transition-colors">
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-medium text-foreground truncate">{c.rawName}</p>
                         <p className="text-[10px] text-muted-foreground truncate">{c.email}</p>
                       </div>
                       <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{c.title || '-'}</span>
                       <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{c.company}</span>
-                      <span className={`text-[10px] font-bold tabular-nums w-6 text-right ${c.leadScore >= 70 ? 'text-emerald-400' : c.leadScore >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
+                      <span className={`text-[10px] font-bold tabular-nums w-6 text-right ${c.leadScore >= 70 ? 'text-emerald-600' : c.leadScore >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
                         {c.leadScore}
                       </span>
                       <Badge variant="outline" className="text-[9px] h-4 px-1.5 bg-zinc-500/10 text-zinc-300 border-zinc-500/20 shrink-0">{c.status}</Badge>

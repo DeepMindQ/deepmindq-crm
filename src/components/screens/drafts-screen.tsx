@@ -246,7 +246,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
     } catch { /* ignore */ }
   };
 
-  const confidenceColor = (s?: number) => !s ? 'text-zinc-500' : s >= 85 ? 'text-emerald-400' : s >= 70 ? 'text-amber-400' : 'text-red-400';
+  const confidenceColor = (s?: number) => !s ? 'text-zinc-500' : s >= 85 ? 'text-emerald-600' : s >= 70 ? 'text-amber-600' : 'text-red-600';
 
   const handleAiGenerate = async () => {
     if (!aiName.trim()) return;
@@ -451,7 +451,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
         </div>
         <div className="flex items-center gap-2 shrink-0 flex-wrap">
           {/* View mode toggle */}
-          <div className="flex items-center rounded-lg bg-white/[0.03] border border-white/[0.08] p-0.5">
+          <div className="flex items-center rounded-lg bg-black/[0.03] border border-gray-200 p-0.5">
             <button
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 viewMode === 'flat'
@@ -497,7 +497,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
             <Button
               variant="outline"
               size="sm"
-              className="h-9 text-xs gap-1.5 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-all"
+              className="h-9 text-xs gap-1.5 border-emerald-500/30 text-emerald-600 hover:bg-emerald-50 transition-all"
               onClick={() => setShowAbTest(true)}
             >
               <GitBranch className="w-3.5 h-3.5" />
@@ -558,7 +558,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
               placeholder="Search drafts..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="h-9 pl-9 text-sm bg-white/[0.03] border-white/[0.08] placeholder:text-muted-foreground/60 focus:border-primary/30 focus:ring-1 focus:ring-primary/10"
+              className="h-9 pl-9 text-sm bg-black/[0.03] border-gray-200 placeholder:text-muted-foreground/60 focus:border-primary/30 focus:ring-1 focus:ring-primary/10"
             />
           </div>
         </div>
@@ -590,7 +590,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                       placeholder="e.g. Sarah Chen"
                       value={aiName}
                       onChange={e => setAiName(e.target.value)}
-                      className="h-9 text-sm bg-white/[0.03] border-white/[0.08] focus:border-primary/30"
+                      className="h-9 text-sm bg-black/[0.03] border-gray-200 focus:border-primary/30"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -599,7 +599,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                       placeholder="e.g. VP of Engineering"
                       value={aiTitle}
                       onChange={e => setAiTitle(e.target.value)}
-                      className="h-9 text-sm bg-white/[0.03] border-white/[0.08] focus:border-primary/30"
+                      className="h-9 text-sm bg-black/[0.03] border-gray-200 focus:border-primary/30"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -608,7 +608,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                       placeholder="e.g. Acme Corp"
                       value={aiCompany}
                       onChange={e => setAiCompany(e.target.value)}
-                      className="h-9 text-sm bg-white/[0.03] border-white/[0.08] focus:border-primary/30"
+                      className="h-9 text-sm bg-black/[0.03] border-gray-200 focus:border-primary/30"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -617,7 +617,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                       placeholder="e.g. Financial Services"
                       value={aiIndustry}
                       onChange={e => setAiIndustry(e.target.value)}
-                      className="h-9 text-sm bg-white/[0.03] border-white/[0.08] focus:border-primary/30"
+                      className="h-9 text-sm bg-black/[0.03] border-gray-200 focus:border-primary/30"
                     />
                   </div>
                 </div>
@@ -640,7 +640,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                       <div className="space-y-1.5">
                         <Label className="text-xs text-muted-foreground font-medium">Company Size</Label>
                         <Select value={aiCompanySize} onValueChange={v => setAiCompanySize(v === '__all__' ? '' : v)}>
-                          <SelectTrigger className="h-9 text-xs bg-white/[0.03] border-white/[0.08]">
+                          <SelectTrigger className="h-9 text-xs bg-black/[0.03] border-gray-200">
                             <SelectValue placeholder="Any Size" />
                           </SelectTrigger>
                           <SelectContent className="bg-card border-border">
@@ -655,7 +655,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                       <div className="space-y-1.5">
                         <Label className="text-xs text-muted-foreground font-medium">Service Line</Label>
                         <Select value={aiServiceLine} onValueChange={v => setAiServiceLine(v === '__all__' ? '' : v)}>
-                          <SelectTrigger className="h-9 text-xs bg-white/[0.03] border-white/[0.08]">
+                          <SelectTrigger className="h-9 text-xs bg-black/[0.03] border-gray-200">
                             <SelectValue placeholder="Auto-detect" />
                           </SelectTrigger>
                           <SelectContent className="bg-card border-border">
@@ -672,7 +672,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                       <div className="space-y-1.5">
                         <Label className="text-xs text-muted-foreground font-medium">Search Mode</Label>
                         <Select value={aiSearchMode} onValueChange={setAiSearchMode}>
-                          <SelectTrigger className="h-9 text-xs bg-white/[0.03] border-white/[0.08]">
+                          <SelectTrigger className="h-9 text-xs bg-black/[0.03] border-gray-200">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-card border-border">
@@ -690,7 +690,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                         placeholder="e.g. data silos, legacy infrastructure, compliance overhead"
                         value={aiProblems}
                         onChange={e => setAiProblems(e.target.value)}
-                        className="h-9 text-xs bg-white/[0.03] border-white/[0.08] focus:border-primary/30"
+                        className="h-9 text-xs bg-black/[0.03] border-gray-200 focus:border-primary/30"
                       />
                     </div>
 
@@ -723,7 +723,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                           key={t}
                           variant={aiTone === t ? 'default' : 'outline'}
                           size="sm"
-                          className={`h-8 text-[11px] px-3 capitalize transition-all ${aiTone === t ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20' : 'border-white/[0.08] text-muted-foreground hover:text-foreground hover:border-primary/30'}`}
+                          className={`h-8 text-[11px] px-3 capitalize transition-all ${aiTone === t ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20' : 'border-gray-200 text-muted-foreground hover:text-foreground hover:border-primary/30'}`}
                           onClick={() => setAiTone(t)}
                         >
                           {t}
@@ -750,7 +750,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                   <motion.div
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex items-start gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-2.5"
+                    className="flex items-start gap-2 text-xs text-red-600 bg-red-50 border border-red-500/20 rounded-lg px-4 py-2.5"
                   >
                     <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                     <span>{aiError}</span>
@@ -761,7 +761,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                   <motion.div
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-2.5"
+                    className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 border border-emerald-500/20 rounded-lg px-4 py-2.5"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                     <span>{aiSuccess}</span>
@@ -770,14 +770,14 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
 
                 {/* AI Result */}
                 {aiResult && (
-                  <div className="space-y-4 pt-4 border-t border-white/[0.06]">
+                  <div className="space-y-4 pt-4 border-t border-gray-200">
                     {/* Generation method badge */}
                     <div className="flex items-center gap-2">
                       <Badge
                         variant="outline"
                         className={aiResult.generationMethod === 'ai'
-                          ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px]'
-                          : 'bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px]'
+                          ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px]'
+                          : 'bg-amber-500/15 text-amber-600 border-amber-500/30 text-[10px]'
                         }
                       >
                         {aiResult.generationMethod === 'ai'
@@ -815,10 +815,10 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                         </div>
                         {aiResult.assumptions.length > 0 && (
                           <div className="space-y-2">
-                            <p className="text-[11px] font-semibold text-amber-400 uppercase tracking-widest">Assumptions</p>
+                            <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-widest">Assumptions</p>
                             {aiResult.assumptions.map((a, i) => (
                               <div key={i} className="flex items-start gap-2">
-                                <AlertTriangle className="w-3 h-3 text-amber-400 mt-0.5 shrink-0" />
+                                <AlertTriangle className="w-3 h-3 text-amber-600 mt-0.5 shrink-0" />
                                 <p className="text-xs text-muted-foreground leading-relaxed">{a}</p>
                               </div>
                             ))}
@@ -832,9 +832,9 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                                 <BookOpen className="w-3 h-3 text-primary shrink-0" />
                                 <span className="text-xs text-muted-foreground flex-1 truncate">{s.title}</span>
                                 {s.relevanceScore != null && (
-                                  <span className={`text-[9px] tabular-nums font-medium ${s.relevanceScore >= 80 ? 'text-emerald-400' : s.relevanceScore >= 50 ? 'text-amber-400' : 'text-zinc-500'}`}>{s.relevanceScore}%</span>
+                                  <span className={`text-[9px] tabular-nums font-medium ${s.relevanceScore >= 80 ? 'text-emerald-600' : s.relevanceScore >= 50 ? 'text-amber-600' : 'text-zinc-500'}`}>{s.relevanceScore}%</span>
                                 )}
-                                <Badge variant="outline" className="text-[9px] border-white/[0.08] text-zinc-500 shrink-0">{s.snippetType?.replace('_', ' ')}</Badge>
+                                <Badge variant="outline" className="text-[9px] border-gray-200 text-zinc-500 shrink-0">{s.snippetType?.replace('_', ' ')}</Badge>
                               </div>
                             ))}
                           </div>
@@ -863,7 +863,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                 type="checkbox"
                 checked={filteredDrafts.length > 0 && selectedIds.size === filteredDrafts.length}
                 onChange={toggleSelectAll}
-                className="w-4 h-4 rounded border-white/20 bg-white/5 text-primary accent-primary"
+                className="w-4 h-4 rounded border-gray-300 bg-black/5 text-primary accent-primary"
               />
               <span className="text-xs text-muted-foreground">Select All</span>
             </label>
@@ -910,7 +910,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                           type="checkbox"
                           checked={selectedIds.has(draft.id)}
                           onChange={() => toggleSelect(draft.id)}
-                          className="w-4 h-4 rounded border-white/20 bg-white/5 text-primary accent-primary"
+                          className="w-4 h-4 rounded border-gray-300 bg-black/5 text-primary accent-primary"
                         />
                       </label>
 
@@ -918,11 +918,11 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                       <div className="shrink-0">
                         {draft.status === 'approved' ? (
                           <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                           </div>
                         ) : draft.status === 'rejected' ? (
                           <div className="w-8 h-8 rounded-lg bg-red-500/15 flex items-center justify-center">
-                            <X className="w-4 h-4 text-red-400" />
+                            <X className="w-4 h-4 text-red-600" />
                           </div>
                         ) : (
                           <PulseDot color="#F59E0B" />
@@ -967,7 +967,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-all"
+                            className="h-8 text-xs text-amber-600 hover:text-amber-300 hover:bg-amber-50 transition-all"
                             onClick={(e) => { e.stopPropagation(); handleFollowUp(draft); }}
                             disabled={followUpLoading}
                           >
@@ -1064,7 +1064,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 mb-0.5">
                             <span className="text-sm font-semibold text-foreground truncate">{contact.name}</span>
-                            <Badge variant="outline" className="bg-white/[0.05] border-white/[0.1] text-muted-foreground text-[10px] px-1.5">
+                            <Badge variant="outline" className="bg-black/[0.05] border-white/[0.1] text-muted-foreground text-[10px] px-1.5">
                               {threadDrafts.length} draft{threadDrafts.length !== 1 ? 's' : ''}
                             </Badge>
                           </div>
@@ -1101,7 +1101,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                             className="overflow-hidden"
                           >
-                            <div className="border-t border-white/[0.06]">
+                            <div className="border-t border-gray-200">
                               {threadDrafts.map((draft, idx) => {
                                 const isFollowUp = !!draft.inReplyTo;
                                 const bodyPreview = draft.body.length > 100 ? draft.body.slice(0, 100) + '...' : draft.body;
@@ -1118,9 +1118,9 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                                       {/* Thread dot / connector node */}
                                       <div className="shrink-0 flex flex-col items-center pt-1">
                                         <div className={`w-2.5 h-2.5 rounded-full border-2 ${
-                                          draft.status === 'approved' ? 'bg-emerald-400 border-emerald-400/30' :
-                                          draft.status === 'rejected' ? 'bg-red-400 border-red-400/30' :
-                                          draft.status === 'sent' ? 'bg-blue-400 border-blue-400/30' :
+                                          draft.status === 'approved' ? 'bg-emerald-500 border-emerald-400/30' :
+                                          draft.status === 'rejected' ? 'bg-red-500 border-red-400/30' :
+                                          draft.status === 'sent' ? 'bg-blue-500 border-blue-400/30' :
                                           'bg-amber-400 border-amber-400/30'
                                         }`} />
                                       </div>
@@ -1129,7 +1129,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                                       <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2 mb-1">
                                           {isFollowUp && (
-                                            <Reply className="w-3 h-3 text-amber-400" />
+                                            <Reply className="w-3 h-3 text-amber-600" />
                                           )}
                                           <span className="text-sm font-semibold text-foreground truncate">{draft.subject}</span>
                                           <Badge variant="outline" className={`text-[10px] shrink-0 ${DRAFT_STATUS_COLORS[draft.status] || DRAFT_STATUS_COLORS.draft}`}>
@@ -1157,7 +1157,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                                             <p className="text-[10px] font-semibold text-primary mb-0.5 flex items-center gap-1">
                                               <Reply className="w-3 h-3" /> Reply received
                                               {replyLinked.category && (
-                                                <Badge variant="outline" className="text-[9px] ml-1 border-white/[0.08] text-zinc-500">{replyLinked.category}</Badge>
+                                                <Badge variant="outline" className="text-[9px] ml-1 border-gray-200 text-zinc-500">{replyLinked.category}</Badge>
                                               )}
                                             </p>
                                             <p className="text-[11px] text-muted-foreground leading-relaxed truncate max-w-lg">
@@ -1175,7 +1175,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                                           <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-7 text-[10px] text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                                            className="h-7 text-[10px] text-amber-600 hover:text-amber-300 hover:bg-amber-50"
                                             onClick={(e) => { e.stopPropagation(); handleFollowUp(draft); }}
                                             disabled={followUpLoading}
                                           >
@@ -1213,8 +1213,8 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
       {/* -- Knowledge Search Dialog -- */}
       <Dialog open={showKnowledgeSearch} onOpenChange={setShowKnowledgeSearch}>
         <DialogContent
-          className="backdrop-blur-xl bg-card/80 border border-white/[0.08] text-foreground max-w-2xl max-h-[85vh] shadow-2xl shadow-black/40"
-          style={{ boxShadow: '0 25px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06)' }}
+          className="backdrop-blur-xl bg-card/80 border border-gray-200 text-foreground max-w-2xl max-h-[85vh] shadow-2xl shadow-black/40"
+          style={{ boxShadow: '0 25px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(0, 0, 0, 0.05)' }}
         >
           <DialogHeader>
             <DialogTitle className="text-base flex items-center gap-2.5">
@@ -1240,7 +1240,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                     {cap.title}
                     <button
                       onClick={() => setAttachedCapabilities(prev => prev.filter(c => c.id !== cap.id))}
-                      className="ml-0.5 hover:text-red-400 transition-colors"
+                      className="ml-0.5 hover:text-red-600 transition-colors"
                     >
                       <X className="w-2.5 h-2.5" />
                     </button>
@@ -1248,7 +1248,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                 ))}
                 <button
                   onClick={() => setAttachedCapabilities([])}
-                  className="text-[10px] text-muted-foreground hover:text-red-400 transition-colors"
+                  className="text-[10px] text-muted-foreground hover:text-red-600 transition-colors"
                 >
                   Clear all
                 </button>
@@ -1275,8 +1275,8 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
       {/* -- Review Dialog -- */}
       <Dialog open={!!selectedDraft} onOpenChange={() => setSelectedDraft(null)}>
         <DialogContent
-          className="backdrop-blur-xl bg-card/80 border border-white/[0.08] text-foreground max-w-4xl max-h-[90vh]"
-          style={{ boxShadow: '0 25px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06)' }}
+          className="backdrop-blur-xl bg-card/80 border border-gray-200 text-foreground max-w-4xl max-h-[90vh]"
+          style={{ boxShadow: '0 25px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(0, 0, 0, 0.05)' }}
         >
           <DialogHeader>
             <DialogTitle className="text-base flex items-center justify-between pr-6">
@@ -1354,7 +1354,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                     </div>
                     <div className="space-y-2">
                       {selectedDraft.sourceSnippets.map(s => (
-                        <div key={s.id} className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                        <div key={s.id} className="p-2.5 rounded-lg bg-black/[0.03] border border-gray-200">
                           <p className="text-[11px] font-semibold text-foreground">{s.title}</p>
                           <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">{s.content}</p>
                         </div>
@@ -1368,14 +1368,14 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                   <GlassPanel className="p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <div className="w-6 h-6 rounded-md bg-amber-500/15 flex items-center justify-center">
-                        <Flag className="w-3.5 h-3.5 text-amber-400" />
+                        <Flag className="w-3.5 h-3.5 text-amber-600" />
                       </div>
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-amber-400">Assumptions ({selectedDraft.assumptionFlags.length})</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-amber-600">Assumptions ({selectedDraft.assumptionFlags.length})</h3>
                     </div>
                     <div className="space-y-2">
                       {selectedDraft.assumptionFlags.map(a => (
                         <div key={a.id} className="flex items-start gap-2.5">
-                          <AlertTriangle className="w-3 h-3 text-amber-400 mt-0.5 shrink-0" />
+                          <AlertTriangle className="w-3 h-3 text-amber-600 mt-0.5 shrink-0" />
                           <div>
                             <p className="text-xs text-foreground leading-relaxed">{a.assumption}</p>
                             <p className="text-[10px] text-muted-foreground mt-0.5">{a.confidence}</p>
@@ -1417,7 +1417,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                     <Input
                       value={editSubject}
                       onChange={e => setEditSubject(e.target.value)}
-                      className="text-sm bg-white/[0.03] border-white/[0.08] focus:border-primary/30"
+                      className="text-sm bg-black/[0.03] border-gray-200 focus:border-primary/30"
                     />
                   ) : (
                     <p className="text-sm font-semibold text-foreground leading-relaxed">{selectedDraft.subject}</p>
@@ -1436,7 +1436,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                       value={editBody}
                       onChange={e => setEditBody(e.target.value)}
                       rows={12}
-                      className="text-sm bg-white/[0.03] border-white/[0.08] resize-none focus:border-primary/30"
+                      className="text-sm bg-black/[0.03] border-gray-200 resize-none focus:border-primary/30"
                     />
                   ) : (
                     <ScrollArea className="max-h-[300px]">
@@ -1458,7 +1458,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                         value={editCta}
                         onChange={e => setEditCta(e.target.value)}
                         rows={2}
-                        className="text-sm bg-white/[0.03] border-white/[0.08] resize-none focus:border-primary/30"
+                        className="text-sm bg-black/[0.03] border-gray-200 resize-none focus:border-primary/30"
                       />
                     ) : (
                       <p className="text-sm text-primary font-medium leading-relaxed">{selectedDraft.cta}</p>
@@ -1466,7 +1466,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                   </GlassPanel>
                 )}
 
-                <Separator className="bg-white/[0.06]" />
+                <Separator className="bg-black/[0.06]" />
 
                 {/* Navigation Links */}
                 <div className="flex items-center gap-3 mb-1">
@@ -1499,7 +1499,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                           className={`px-3.5 py-2 rounded-lg text-xs font-medium border transition-all ${
                             scheduleMode === 'now'
                               ? 'bg-primary/15 border-primary/40 text-primary'
-                              : 'bg-white/[0.03] border-white/[0.08] text-muted-foreground hover:text-foreground hover:border-white/[0.15]'
+                              : 'bg-black/[0.03] border-gray-200 text-muted-foreground hover:text-foreground hover:border-gray-300'
                           }`}
                           onClick={() => setScheduleMode('now')}
                         >
@@ -1510,7 +1510,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                           className={`px-3.5 py-2 rounded-lg text-xs font-medium border transition-all ${
                             scheduleMode === 'schedule'
                               ? 'bg-primary/15 border-primary/40 text-primary'
-                              : 'bg-white/[0.03] border-white/[0.08] text-muted-foreground hover:text-foreground hover:border-white/[0.15]'
+                              : 'bg-black/[0.03] border-gray-200 text-muted-foreground hover:text-foreground hover:border-gray-300'
                           }`}
                           onClick={() => setScheduleMode('schedule')}
                         >
@@ -1529,13 +1529,13 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                             min={minDateStr}
                             value={scheduleDate}
                             onChange={e => setScheduleDate(e.target.value)}
-                            className="h-8 w-[150px] text-xs bg-white/[0.03] border-white/[0.08] focus:border-primary/30"
+                            className="h-8 w-[150px] text-xs bg-black/[0.03] border-gray-200 focus:border-primary/30"
                           />
                           <Input
                             type="time"
                             value={scheduleTime}
                             onChange={e => setScheduleTime(e.target.value)}
-                            className="h-8 w-[100px] text-xs bg-white/[0.03] border-white/[0.08] focus:border-primary/30"
+                            className="h-8 w-[100px] text-xs bg-black/[0.03] border-gray-200 focus:border-primary/30"
                           />
                           {scheduleDate && (
                             <span className="text-[10px] text-muted-foreground">
@@ -1552,7 +1552,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-10 px-5 border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:border-red-500/50 transition-all"
+                    className="h-10 px-5 border-red-500/30 text-red-600 hover:text-red-300 hover:bg-red-50 hover:border-red-500/50 transition-all"
                     onClick={handleReject}
                   >
                     <X className="w-4 h-4 mr-2" />
@@ -1586,16 +1586,16 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
             <GlassPanel className="flex items-center gap-3 px-5 py-3 shadow-2xl shadow-black/40" style={{ borderColor: 'rgba(212, 175, 55, 0.3)' }}>
               <span className="text-sm font-semibold text-primary">{selectedIds.size} selected</span>
               <div className="w-px h-6 bg-border" />
-              <Button size="sm" className="h-8 text-xs gap-1.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border-0" onClick={() => handleBulkAction('approve')} disabled={bulkLoading}>
+              <Button size="sm" className="h-8 text-xs gap-1.5 bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 border-0" onClick={() => handleBulkAction('approve')} disabled={bulkLoading}>
                 <Check className="w-3.5 h-3.5" /> Approve
               </Button>
-              <Button size="sm" className="h-8 text-xs gap-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 border-0" onClick={() => handleBulkAction('reject')} disabled={bulkLoading}>
+              <Button size="sm" className="h-8 text-xs gap-1.5 bg-red-500/20 text-red-600 hover:bg-red-500/30 border-0" onClick={() => handleBulkAction('reject')} disabled={bulkLoading}>
                 <X className="w-3.5 h-3.5" /> Reject
               </Button>
-              <Button size="sm" className="h-8 text-xs gap-1.5 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border-0" onClick={() => handleBulkAction('regenerate')} disabled={bulkLoading}>
+              <Button size="sm" className="h-8 text-xs gap-1.5 bg-amber-500/20 text-amber-600 hover:bg-amber-500/30 border-0" onClick={() => handleBulkAction('regenerate')} disabled={bulkLoading}>
                 <RefreshCw className="w-3.5 h-3.5" /> Regenerate
               </Button>
-              <Button size="sm" className="h-8 text-xs gap-1.5 bg-white/10 text-muted-foreground hover:bg-white/15 border-0" onClick={() => handleBulkAction('delete')} disabled={bulkLoading}>
+              <Button size="sm" className="h-8 text-xs gap-1.5 bg-black/[0.04] text-muted-foreground hover:bg-gray-200 border-0" onClick={() => handleBulkAction('delete')} disabled={bulkLoading}>
                 <Trash2 className="w-3.5 h-3.5" /> Delete
               </Button>
               <div className="w-px h-6 bg-border" />
@@ -1612,7 +1612,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-base flex items-center gap-2">
-              <GitBranch className="w-4 h-4 text-emerald-400" />
+              <GitBranch className="w-4 h-4 text-emerald-600" />
               Create A/B Test
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
@@ -1654,7 +1654,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                 </Select>
               </div>
             </div>
-            <div className="p-3 rounded-lg bg-white/[0.03] border border-border/50 text-xs text-muted-foreground">
+            <div className="p-3 rounded-lg bg-black/[0.03] border border-border/50 text-xs text-muted-foreground">
               AI will generate 3 subject line variants (curiosity-driven, value-driven, control) and assign them randomly across the {selectedIds.size} contacts.
             </div>
             <div className="flex justify-end gap-2 pt-2">

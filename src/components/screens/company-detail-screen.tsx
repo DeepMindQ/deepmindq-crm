@@ -74,32 +74,32 @@ const NOTE_TEMPLATES: Record<string, { title: string; body: string }> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  prospect: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  researching: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  active: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  engaged: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  prospect: 'bg-blue-500/20 text-blue-600 border-blue-500/30',
+  researching: 'bg-amber-500/20 text-amber-600 border-amber-500/30',
+  active: 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30',
+  engaged: 'bg-purple-500/20 text-purple-600 border-purple-500/30',
   paused: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
   closed_won: 'bg-green-500/20 text-green-400 border-green-500/30',
-  closed_lost: 'bg-red-500/20 text-red-400 border-red-500/30',
+  closed_lost: 'bg-red-500/20 text-red-600 border-red-500/30',
 };
 
 const SEVERITY_COLORS: Record<string, string> = {
-  critical: 'bg-red-500/20 text-red-400 border-red-500/30',
-  high: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  critical: 'bg-red-500/20 text-red-600 border-red-500/30',
+  high: 'bg-orange-500/20 text-orange-600 border-orange-500/30',
+  medium: 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30',
   low: 'bg-green-500/20 text-green-400 border-green-500/30',
 };
 
 const TIMELINE_ICONS: Record<string, React.ReactNode> = {
-  email_sent: <Send size={14} className="text-blue-400" />,
-  email_opened: <MailOpen size={14} className="text-emerald-400" />,
-  email_replied: <MessageSquare size={14} className="text-purple-400" />,
-  email_bounced: <RotateCcw size={14} className="text-red-400" />,
+  email_sent: <Send size={14} className="text-blue-600" />,
+  email_opened: <MailOpen size={14} className="text-emerald-600" />,
+  email_replied: <MessageSquare size={14} className="text-purple-600" />,
+  email_bounced: <RotateCcw size={14} className="text-red-600" />,
   note_added: <FileText size={14} style={{ color: '#D4AF37' }} />,
   enrichment: <Sparkles size={14} style={{ color: '#D4AF37' }} />,
-  status_change: <Activity size={14} className="text-amber-400" />,
-  signal: <Bell size={14} className="text-orange-400" />,
-  contact_added: <UserCircle size={14} className="text-cyan-400" />,
+  status_change: <Activity size={14} className="text-amber-600" />,
+  signal: <Bell size={14} className="text-orange-600" />,
+  contact_added: <UserCircle size={14} className="text-cyan-600" />,
   research_saved: <BookOpen size={14} style={{ color: '#D4AF37' }} />,
 };
 
@@ -116,7 +116,7 @@ function ScoreBar({ label, value, max = 100, color = GOLD }: { label: string; va
         <span className="text-xs text-muted-foreground">{label}</span>
         <span className="text-xs font-semibold" style={{ color }}>{pct}%</span>
       </div>
-      <div className="h-2 rounded-full overflow-hidden bg-white/[0.06]">
+      <div className="h-2 rounded-full overflow-hidden bg-black/[0.06]">
         <motion.div
           className="h-full rounded-full"
           style={{ background: `linear-gradient(90deg, ${color}, ${color}CC)` }}
@@ -136,7 +136,7 @@ function NoteTemplateItem({ template, onSelect }: { template: { key: string; lab
   return (
     <button
       onClick={() => onSelect(template.key)}
-      className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-colors flex items-center gap-3 group"
+      className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-black/[0.04] transition-colors flex items-center gap-3 group"
     >
       <FileText size={14} className="text-muted-foreground group-hover:text-[#D4AF37] transition-colors" />
       <span className="text-foreground/80 group-hover:text-foreground transition-colors">{template.label}</span>
@@ -391,7 +391,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
      ═══════════════════════════════════════════════════ */
   if (loading) {
     return (
-      <div className="p-6 space-y-6" style={{ background: '#06090F', minHeight: '100vh' }}>
+      <div className="p-6 space-y-6" style={{ background: '#FAFAFA', minHeight: '100vh' }}>
         <div className="flex items-center gap-4">
           <Skeleton className="w-8 h-8 rounded-lg" />
           <Skeleton className="h-8 w-64" />
@@ -408,16 +408,16 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
      Render
      ═══════════════════════════════════════════════════ */
   return (
-    <PageTransition className="min-h-screen" style={{ background: '#06090F' }}>
+    <PageTransition className="min-h-screen" style={{ background: '#FAFAFA' }}>
       {/* ── Header ── */}
-      <div className="sticky top-0 z-30 px-6 py-4 border-b border-white/[0.06]" style={{ background: 'rgba(6,9,15,0.85)', backdropFilter: 'blur(20px)' }}>
+      <div className="sticky top-0 z-30 px-6 py-4 border-b border-gray-200" style={{ background: 'rgba(6,9,15,0.85)', backdropFilter: 'blur(20px)' }}>
         <div className="flex items-center justify-between max-w-[1400px] mx-auto">
           <div className="flex items-center gap-4">
             <motion.button
               whileHover={{ x: -2 }}
               whileTap={{ scale: 0.95 }}
               onClick={onBack}
-              className="w-9 h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] flex items-center justify-center hover:border-[#D4AF37]/30 transition-colors"
+              className="w-9 h-9 rounded-lg border border-gray-200 bg-black/[0.03] flex items-center justify-center hover:border-[#D4AF37]/30 transition-colors"
             >
               <ArrowLeft size={16} className="text-muted-foreground" />
             </motion.button>
@@ -446,7 +446,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
               size="sm"
               onClick={handleEnrich}
               disabled={enriching}
-              className="gap-2 text-xs border-white/[0.08] hover:border-[#D4AF37]/30 hover:bg-[#D4AF37]/5"
+              className="gap-2 text-xs border-gray-200 hover:border-[#D4AF37]/30 hover:bg-[#D4AF37]/5"
             >
               {enriching ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} style={{ color: GOLD }} />}
               {enriching ? 'Enriching...' : 'AI Enrich'}
@@ -455,14 +455,14 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
               variant="outline"
               size="sm"
               onClick={() => setIsEditing(!isEditing)}
-              className="gap-2 text-xs border-white/[0.08] hover:border-[#D4AF37]/30 hover:bg-[#D4AF37]/5"
+              className="gap-2 text-xs border-gray-200 hover:border-[#D4AF37]/30 hover:bg-[#D4AF37]/5"
             >
               {isEditing ? <X size={13} /> : <Edit3 size={13} style={{ color: GOLD }} />}
               {isEditing ? 'Cancel' : 'Edit'}
             </Button>
             {isEditing && (
               <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
-                <Button size="sm" onClick={saveCompany} className="gap-2 text-xs" style={{ background: GOLD, color: '#06090F' }}>
+                <Button size="sm" onClick={saveCompany} className="gap-2 text-xs" style={{ background: GOLD, color: '#FAFAFA' }}>
                   <Save size={13} /> Save
                 </Button>
               </motion.div>
@@ -474,7 +474,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
       {/* ── Tabs ── */}
       <div className="max-w-[1400px] mx-auto px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-1 h-auto flex-wrap gap-1">
+          <TabsList className="bg-black/[0.03] border border-gray-200 rounded-xl p-1 h-auto flex-wrap gap-1">
             {[
               { key: 'overview', label: 'Overview', icon: Building2 },
               { key: 'mindmap', label: 'Mind Map', icon: Brain },
@@ -491,7 +491,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                 <tab.icon size={14} />
                 {tab.label}
                 {tab.count !== undefined && tab.count > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-muted-foreground data-[state=active]:bg-[#D4AF37]/15 data-[state=active]:text-[#D4AF37]">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/[0.06] text-muted-foreground data-[state=active]:bg-[#D4AF37]/15 data-[state=active]:text-[#D4AF37]">
                     {tab.count}
                   </span>
                 )}
@@ -516,31 +516,31 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                     <div className="space-y-3">
                       <div>
                         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Name</label>
-                        <Input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className="mt-1 h-8 text-xs bg-white/[0.03] border-white/[0.08]" />
+                        <Input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className="mt-1 h-8 text-xs bg-black/[0.03] border-gray-200" />
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Industry</label>
-                        <Input value={editForm.industry} onChange={e => setEditForm(p => ({ ...p, industry: e.target.value }))} className="mt-1 h-8 text-xs bg-white/[0.03] border-white/[0.08]" />
+                        <Input value={editForm.industry} onChange={e => setEditForm(p => ({ ...p, industry: e.target.value }))} className="mt-1 h-8 text-xs bg-black/[0.03] border-gray-200" />
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Size Range</label>
-                        <Input value={editForm.sizeRange} onChange={e => setEditForm(p => ({ ...p, sizeRange: e.target.value }))} className="mt-1 h-8 text-xs bg-white/[0.03] border-white/[0.08]" />
+                        <Input value={editForm.sizeRange} onChange={e => setEditForm(p => ({ ...p, sizeRange: e.target.value }))} className="mt-1 h-8 text-xs bg-black/[0.03] border-gray-200" />
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Location</label>
-                        <Input value={editForm.location} onChange={e => setEditForm(p => ({ ...p, location: e.target.value }))} className="mt-1 h-8 text-xs bg-white/[0.03] border-white/[0.08]" />
+                        <Input value={editForm.location} onChange={e => setEditForm(p => ({ ...p, location: e.target.value }))} className="mt-1 h-8 text-xs bg-black/[0.03] border-gray-200" />
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Country</label>
-                        <Input value={editForm.country} onChange={e => setEditForm(p => ({ ...p, country: e.target.value }))} className="mt-1 h-8 text-xs bg-white/[0.03] border-white/[0.08]" />
+                        <Input value={editForm.country} onChange={e => setEditForm(p => ({ ...p, country: e.target.value }))} className="mt-1 h-8 text-xs bg-black/[0.03] border-gray-200" />
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Website</label>
-                        <Input value={editForm.website} onChange={e => setEditForm(p => ({ ...p, website: e.target.value }))} className="mt-1 h-8 text-xs bg-white/[0.03] border-white/[0.08]" />
+                        <Input value={editForm.website} onChange={e => setEditForm(p => ({ ...p, website: e.target.value }))} className="mt-1 h-8 text-xs bg-black/[0.03] border-gray-200" />
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Assigned To</label>
-                        <Input value={editForm.assignedTo} onChange={e => setEditForm(p => ({ ...p, assignedTo: e.target.value }))} className="mt-1 h-8 text-xs bg-white/[0.03] border-white/[0.08]" />
+                        <Input value={editForm.assignedTo} onChange={e => setEditForm(p => ({ ...p, assignedTo: e.target.value }))} className="mt-1 h-8 text-xs bg-black/[0.03] border-gray-200" />
                       </div>
                     </div>
                   ) : (
@@ -577,7 +577,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                       <div className="flex items-center gap-2 text-xs">
                         <Activity size={13} className="text-muted-foreground" />
                         <span className="text-muted-foreground">Lifecycle:</span>
-                        <Badge className="text-[10px] px-1.5 py-0 bg-white/[0.05] border-white/[0.1] text-foreground">
+                        <Badge className="text-[10px] px-1.5 py-0 bg-black/[0.05] border-gray-200 text-foreground">
                           {(company?.lifecycleStage || 'discovery').replace(/_/g, ' ')}
                         </Badge>
                       </div>
@@ -595,7 +595,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                           <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Tags</p>
                           <div className="flex flex-wrap gap-1.5">
                             {tags.map((tag: string, i: number) => (
-                              <Badge key={i} variant="outline" className="text-[10px] px-2 py-0 border-white/[0.1] text-foreground/70">{tag}</Badge>
+                              <Badge key={i} variant="outline" className="text-[10px] px-2 py-0 border-gray-200 text-foreground/70">{tag}</Badge>
                             ))}
                           </div>
                         </div>
@@ -604,7 +604,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                   )}
 
                   {/* Scores */}
-                  <div className="space-y-3 pt-3 border-t border-white/[0.06]">
+                  <div className="space-y-3 pt-3 border-t border-gray-200">
                     <ScoreBar label="Intelligence Score" value={company?.intelligenceScore || 0} color="#D4AF37" />
                     <ScoreBar label="Engagement Score" value={company?.engagementScore || 0} color="#3b82f6" />
                   </div>
@@ -616,11 +616,11 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                       <Textarea
                         value={editForm.internalSummary}
                         onChange={e => setEditForm(p => ({ ...p, internalSummary: e.target.value }))}
-                        className="mt-1 text-xs min-h-[80px] bg-white/[0.03] border-white/[0.08] resize-none"
+                        className="mt-1 text-xs min-h-[80px] bg-black/[0.03] border-gray-200 resize-none"
                       />
                     </div>
                   ) : company?.internalSummary ? (
-                    <div className="pt-3 border-t border-white/[0.06]">
+                    <div className="pt-3 border-t border-gray-200">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5">Internal Summary</p>
                       <p className="text-xs text-foreground/70 leading-relaxed">{company.internalSummary}</p>
                     </div>
@@ -650,7 +650,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                       title="No Research Data"
                       description="Enrich this company to generate AI-powered research intelligence."
                       action={
-                        <Button size="sm" onClick={handleEnrich} disabled={enriching} className="gap-2 text-xs" style={{ background: GOLD, color: '#06090F' }}>
+                        <Button size="sm" onClick={handleEnrich} disabled={enriching} className="gap-2 text-xs" style={{ background: GOLD, color: '#FAFAFA' }}>
                           {enriching ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
                           Enrich Now
                         </Button>
@@ -663,7 +663,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                           <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                             <Building2 size={10} /> Business Overview
                           </p>
-                          <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-white/[0.04]">{researchCard.businessOverview}</p>
+                          <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-gray-200">{researchCard.businessOverview}</p>
                         </div>
                       )}
 
@@ -673,7 +673,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                               <Layers size={10} /> Tech Landscape
                             </p>
-                            <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-white/[0.04]">{researchCard.techLandscape}</p>
+                            <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-gray-200">{researchCard.techLandscape}</p>
                           </div>
                         )}
                         {researchCard.potentialChallenges && (
@@ -681,7 +681,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                               <AlertTriangle size={10} /> Challenges
                             </p>
-                            <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-white/[0.04]">{researchCard.potentialChallenges}</p>
+                            <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-gray-200">{researchCard.potentialChallenges}</p>
                           </div>
                         )}
                         {researchCard.possibleOpportunities && (
@@ -689,7 +689,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                               <Lightbulb size={10} /> Opportunities
                             </p>
-                            <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-white/[0.04]">{researchCard.possibleOpportunities}</p>
+                            <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-gray-200">{researchCard.possibleOpportunities}</p>
                           </div>
                         )}
                         {researchCard.relevantServices && (
@@ -697,7 +697,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                               <Target size={10} /> Relevant Services
                             </p>
-                            <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-white/[0.04]">{researchCard.relevantServices}</p>
+                            <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-gray-200">{researchCard.relevantServices}</p>
                           </div>
                         )}
                       </div>
@@ -707,7 +707,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                           <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                             <Award size={10} /> Key Decision Makers
                           </p>
-                          <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-white/[0.04]">{researchCard.keyDecisionMakers}</p>
+                          <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-gray-200">{researchCard.keyDecisionMakers}</p>
                         </div>
                       )}
 
@@ -719,7 +719,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                           { label: 'Funding', value: researchCard.fundingStage, icon: TrendingUp },
                           { label: 'Source', value: researchCard.enrichmentSource || 'N/A', icon: Search },
                         ].map((item, i) => (
-                          <div key={i} className="bg-white/[0.02] rounded-lg p-3 border border-white/[0.04]">
+                          <div key={i} className="bg-white/[0.02] rounded-lg p-3 border border-gray-200">
                             <div className="flex items-center gap-1.5 mb-1">
                               <item.icon size={10} className="text-muted-foreground" />
                               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{item.label}</span>
@@ -752,7 +752,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                           <div className="flex flex-wrap gap-2">
                             {Object.entries(socials).map(([platform, url]) => (
                               <a key={platform} href={url as string} target="_blank" rel="noopener noreferrer"
-                                className="text-xs px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:border-[#D4AF37]/30 transition-colors flex items-center gap-1.5 text-foreground/70 hover:text-foreground"
+                                className="text-xs px-2.5 py-1.5 rounded-lg bg-black/[0.03] border border-gray-200 hover:border-[#D4AF37]/30 transition-colors flex items-center gap-1.5 text-foreground/70 hover:text-foreground"
                               >
                                 <ExternalLink size={10} />
                                 <span className="capitalize">{platform}</span>
@@ -779,7 +779,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                   <h3 className="text-sm font-bold text-foreground">Company Intelligence Mind Map</h3>
                   <span className="text-[10px] text-muted-foreground ml-2">Click nodes to expand</span>
                 </div>
-                <div className="rounded-xl overflow-hidden border border-white/[0.06]" style={{ height: '600px' }}>
+                <div className="rounded-xl overflow-hidden border border-gray-200" style={{ height: '600px' }}>
                   <CompanyMindMap
                     company={company}
                     contacts={contacts}
@@ -815,7 +815,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-2 text-xs border-white/[0.08] hover:border-[#D4AF37]/30"
+                    className="gap-2 text-xs border-gray-200 hover:border-[#D4AF37]/30"
                     onClick={() => setTemplateMenuOpen(!templateMenuOpen)}
                   >
                     <FileText size={13} style={{ color: GOLD }} />
@@ -829,9 +829,9 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -4, scale: 0.97 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute right-0 top-full mt-1 w-56 rounded-xl border border-white/[0.08] bg-[#0d1117] shadow-xl z-50 overflow-hidden"
+                        className="absolute right-0 top-full mt-1 w-56 rounded-xl border border-gray-200 bg-white shadow-xl z-50 overflow-hidden"
                       >
-                        <div className="p-1.5 border-b border-white/[0.06]">
+                        <div className="p-1.5 border-b border-gray-200">
                           <p className="text-[10px] text-muted-foreground px-2 py-1 uppercase tracking-wider">Note Templates</p>
                         </div>
                         {Object.entries(NOTE_TEMPLATES).map(([key, tpl]) => (
@@ -858,7 +858,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                     setNoteDialogOpen(true);
                   }}
                   className="gap-2 text-xs"
-                  style={{ background: GOLD, color: '#06090F' }}
+                  style={{ background: GOLD, color: '#FAFAFA' }}
                 >
                   <Plus size={13} /> New Note
                 </Button>
@@ -879,7 +879,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                             <h4 className="text-sm font-semibold text-foreground truncate">
                               {note.title || 'Untitled Note'}
                             </h4>
-                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-white/[0.1] text-muted-foreground capitalize shrink-0">
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-gray-200 text-muted-foreground capitalize shrink-0">
                               {note.category}
                             </Badge>
                           </div>
@@ -890,7 +890,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                               className="text-xs text-foreground/70 leading-relaxed whitespace-pre-wrap mt-2"
                             >
                               {note.body}
-                              <div className="flex items-center gap-3 mt-4 pt-3 border-t border-white/[0.06]">
+                              <div className="flex items-center gap-3 mt-4 pt-3 border-t border-gray-200">
                                 <Button
                                   size="sm" variant="ghost" className="text-[11px] text-muted-foreground hover:text-[#D4AF37] h-7"
                                   onClick={(e) => { e.stopPropagation(); setEditingNote(note); setNoteForm({ title: note.title, body: note.body, category: note.category }); setNoteDialogOpen(true); }}
@@ -898,7 +898,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                                   <Edit3 size={12} className="mr-1" /> Edit
                                 </Button>
                                 <Button
-                                  size="sm" variant="ghost" className="text-[11px] text-red-400 hover:text-red-300 h-7"
+                                  size="sm" variant="ghost" className="text-[11px] text-red-600 hover:text-red-300 h-7"
                                   onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}
                                 >
                                   <Trash2 size={12} className="mr-1" /> Delete
@@ -948,7 +948,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                             </p>
                           )}
                           <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-white/[0.1] text-muted-foreground capitalize">
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-gray-200 text-muted-foreground capitalize">
                               {contact.status || 'unknown'}
                             </Badge>
                             {(contact.leadScore || contact.leadScore === 0) && (
@@ -991,7 +991,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
             ) : (
               <div className="relative pl-8 space-y-0">
                 {/* Timeline line */}
-                <div className="absolute left-3 top-2 bottom-2 w-px bg-white/[0.06]" />
+                <div className="absolute left-3 top-2 bottom-2 w-px bg-black/[0.06]" />
 
                 {timeline.map((event: any, idx: number) => {
                   const icon = TIMELINE_ICONS[event.eventType] || <Activity size={14} className="text-muted-foreground" />;
@@ -1004,11 +1004,11 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                       className="relative pb-6 last:pb-0"
                     >
                       {/* Timeline dot */}
-                      <div className="absolute -left-5 top-1 w-6 h-6 rounded-full bg-[#0a0f1a] border border-white/[0.1] flex items-center justify-center">
+                      <div className="absolute -left-5 top-1 w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center">
                         {icon}
                       </div>
 
-                      <GlassPanel className="p-4 hover:border-white/[0.12] transition-all">
+                      <GlassPanel className="p-4 hover:border-gray-300 transition-all">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <h4 className="text-sm font-medium text-foreground">{event.title}</h4>
@@ -1043,13 +1043,13 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
               <StaggerGrid className="grid grid-cols-1 gap-3">
                 {signals.map((signal: any) => (
                   <StaggerItem key={signal.id}>
-                    <GlassPanel className={`p-4 hover:border-white/[0.12] transition-all ${signal.isRead ? 'opacity-60' : ''}`}>
+                    <GlassPanel className={`p-4 hover:border-gray-300 transition-all ${signal.isRead ? 'opacity-60' : ''}`}>
                       <div className="flex items-start gap-4">
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{
                           background: SEVERITY_COLORS[signal.severity]?.replace('/20', '/15').replace('text-', 'bg-').split(' ')[0] || 'rgba(212,175,55,0.1)',
                           border: `1px solid ${SEVERITY_COLORS[signal.severity]?.match(/border-(\S+)/)?.[1]?.replace('/30', '/25') || 'rgba(212,175,55,0.2)'}`,
                         }}>
-                          <Bell size={18} className={signal.severity === 'critical' ? 'text-red-400' : signal.severity === 'high' ? 'text-orange-400' : signal.severity === 'medium' ? 'text-yellow-400' : 'text-green-400'} />
+                          <Bell size={18} className={signal.severity === 'critical' ? 'text-red-600' : signal.severity === 'high' ? 'text-orange-600' : signal.severity === 'medium' ? 'text-yellow-600' : 'text-green-400'} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
@@ -1057,7 +1057,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                             <Badge className={`text-[9px] px-1.5 py-0 capitalize ${SEVERITY_COLORS[signal.severity] || 'bg-gray-500/20 text-gray-400'}`}>
                               {signal.severity}
                             </Badge>
-                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-white/[0.1] text-muted-foreground capitalize">
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-gray-200 text-muted-foreground capitalize">
                               {signal.signalType?.replace(/_/g, ' ')}
                             </Badge>
                           </div>
@@ -1094,7 +1094,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
 
       {/* ── Note Dialog ── */}
       <Dialog open={noteDialogOpen} onOpenChange={(open) => { if (!open) { setNoteDialogOpen(false); setEditingNote(null); setNoteForm({ title: '', body: '', category: 'general' }); } }}>
-        <DialogContent className="bg-[#0d1117] border-white/[0.08] text-foreground max-w-xl">
+        <DialogContent className="bg-white border-gray-200 text-foreground max-w-xl">
           <DialogHeader>
             <DialogTitle className="text-sm font-bold flex items-center gap-2">
               <FileText size={16} style={{ color: GOLD }} />
@@ -1108,7 +1108,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                 value={noteForm.title}
                 onChange={e => setNoteForm(p => ({ ...p, title: e.target.value }))}
                 placeholder="Note title..."
-                className="mt-1 h-9 text-sm bg-white/[0.03] border-white/[0.08]"
+                className="mt-1 h-9 text-sm bg-black/[0.03] border-gray-200"
               />
             </div>
             <div>
@@ -1133,7 +1133,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                 value={noteForm.body}
                 onChange={e => setNoteForm(p => ({ ...p, body: e.target.value }))}
                 placeholder="Write your note..."
-                className="mt-1 text-sm min-h-[200px] bg-white/[0.03] border-white/[0.08] resize-none"
+                className="mt-1 text-sm min-h-[200px] bg-black/[0.03] border-gray-200 resize-none"
               />
             </div>
             <div className="flex justify-end gap-2 pt-2">
@@ -1150,7 +1150,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                 onClick={saveNote}
                 disabled={savingNote || !noteForm.body.trim()}
                 className="text-xs gap-2"
-                style={{ background: GOLD, color: '#06090F' }}
+                style={{ background: GOLD, color: '#FAFAFA' }}
               >
                 {savingNote ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                 {editingNote ? 'Update' : 'Create'} Note

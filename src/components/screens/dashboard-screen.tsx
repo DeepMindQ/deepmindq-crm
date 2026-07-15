@@ -6,8 +6,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Building2, Users, FileText, Send, Mail, TrendingUp, TrendingDown, ChevronRight, Zap, UserPlus, Eye, MessageSquare, AlertTriangle, Inbox, Sparkles } from 'lucide-react';
 
-const gold = '#D4AF37', goldLight = '#E8C860';
-const card = 'rgba(12,18,30,0.7)', border = 'rgba(255,255,255,0.06)';
+const gold = '#B8860B', goldLight = '#D4A843';
+const card = 'rgba(255, 255, 255, 0.85)', border = 'rgba(0, 0, 0, 0.08)';
 
 interface DashboardData {
   contactsByStatus: Record<string, number>;
@@ -93,7 +93,7 @@ function StatCard({ icon: Icon, label, value, suffix, trend, bc, delay }: {
         <div className="flex items-baseline gap-1.5">
           <span className="text-2xl font-bold tabular-nums text-foreground">{display}{suffix || ''}</span>
           {trend && (
-            <span className={`flex items-center gap-0.5 text-xs font-semibold ${trend.up ? 'text-emerald-400' : 'text-red-400'}`}>
+            <span className={`flex items-center gap-0.5 text-xs font-semibold ${trend.up ? 'text-emerald-600' : 'text-red-600'}`}>
               {trend.up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}{trend.value}%
             </span>
           )}
@@ -258,7 +258,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                 transition={{ duration: 0.5, delay: 0.2 + i * 0.08, ease: [0.22, 1, 0.36, 1] }}>
                 <span className="text-[11px] text-muted-foreground font-medium w-[70px] shrink-0 text-right">{s.label}</span>
                 <div className="flex-1 flex items-center gap-2">
-                  <div className="flex-1 h-8 rounded-md overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                  <div className="flex-1 h-8 rounded-md overflow-hidden" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
                     <motion.div className="h-full rounded-md flex items-center px-3"
                       style={{ background: `linear-gradient(90deg, rgba(212,175,55,${0.9 - i * 0.15}), rgba(232,200,96,${0.7 - i * 0.12}))` }}
                       initial={{ width: 0 }} animate={{ width: `${w}%` }}
@@ -286,7 +286,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
               <p className="text-[11px] text-muted-foreground mt-0.5">7-day opens, clicks & replies</p>
             </div>
             <div className="flex items-center gap-4 text-[10px] font-medium">
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-white/90" />Opens</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-white/95" />Opens</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: gold }} />Clicks</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: '#10B981' }} />Replies</span>
             </div>
@@ -302,7 +302,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                 <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#71717A', fontSize: 11 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#71717A', fontSize: 11 }} />
                 <Tooltip content={<ChartTip />} />
-                <Area type="monotone" dataKey="opens" stroke="rgba(255,255,255,0.8)" fill="url(#gO)" strokeWidth={2} />
+                <Area type="monotone" dataKey="opens" stroke="rgba(0, 0, 0, 0.25)" fill="url(#gO)" strokeWidth={2} />
                 <Area type="monotone" dataKey="clicks" stroke={gold} fill="url(#gC)" strokeWidth={2} />
                 <Area type="monotone" dataKey="replies" stroke="#10B981" fill="url(#gR)" strokeWidth={2} />
               </AreaChart>
@@ -324,24 +324,24 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           <div className="flex-1 px-5 pb-4 max-h-80 overflow-y-auto custom-scrollbar">
             {topCompanies.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="w-12 h-12 rounded-xl bg-white/[0.04] flex items-center justify-center mb-3"><Building2 className="w-6 h-6 text-muted-foreground/40" /></div>
+                <div className="w-12 h-12 rounded-xl bg-black/[0.04] flex items-center justify-center mb-3"><Building2 className="w-6 h-6 text-muted-foreground/40" /></div>
                 <p className="text-sm text-muted-foreground">Loading companies...</p>
               </div>
             ) : (
               <div className="space-y-1">
                 {topCompanies.map((co, i) => (
-                  <motion.button key={co.id} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/[0.04] transition-colors text-left group"
+                  <motion.button key={co.id} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-black/[0.04] transition-colors text-left group"
                     initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.4 + i * 0.05 }}
                     onClick={() => navigateTo?.('company-detail', co.id)}>
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold" style={{ background: 'rgba(212,175,55,0.1)', color: gold }}>
                       {i + 1}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-foreground truncate group-hover:text-white transition-colors">{co.name}</p>
+                      <p className="text-xs font-semibold text-foreground truncate group-hover:text-foreground transition-colors">{co.name}</p>
                       <p className="text-[10px] text-muted-foreground">{co.industry || 'Unknown'}{co.country ? ` · ${co.country}` : ''}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                      <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(0, 0, 0, 0.05)' }}>
                         <motion.div className="h-full rounded-full" style={{ background: `linear-gradient(90deg, ${gold}CC, ${goldLight})` }}
                           initial={{ width: 0 }} animate={{ width: `${(co.contactCount / maxContacts) * 100}%` }}
                           transition={{ duration: 0.8, delay: 0.5 + i * 0.05 }} />
@@ -368,13 +368,13 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           <div className="px-5 pb-5">
             {activity.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="w-12 h-12 rounded-xl bg-white/[0.04] flex items-center justify-center mb-3"><Inbox className="w-6 h-6 text-muted-foreground/40" /></div>
+                <div className="w-12 h-12 rounded-xl bg-black/[0.04] flex items-center justify-center mb-3"><Inbox className="w-6 h-6 text-muted-foreground/40" /></div>
                 <p className="text-sm text-muted-foreground">No activity yet</p>
                 <p className="text-xs text-muted-foreground/60 mt-1">Actions will appear here as they happen</p>
               </div>
             ) : (
               <div className="relative">
-                <div className="absolute left-[13px] top-3 bottom-3 w-px bg-white/[0.06]" />
+                <div className="absolute left-[13px] top-3 bottom-3 w-px bg-black/[0.06]" />
                 <div className="space-y-0.5">
                   {activity.map((e, i) => {
                     const cfg = getActCfg(e.action); const Icon = cfg.icon;
@@ -414,7 +414,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           <div className="px-5 pb-5 space-y-3 pt-2">
             {segments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="w-12 h-12 rounded-xl bg-white/[0.04] flex items-center justify-center mb-3"><Layers className="w-6 h-6 text-muted-foreground/40" /></div>
+                <div className="w-12 h-12 rounded-xl bg-black/[0.04] flex items-center justify-center mb-3"><Layers className="w-6 h-6 text-muted-foreground/40" /></div>
                 <p className="text-sm text-muted-foreground">Loading segments...</p>
               </div>
             ) : (
@@ -425,7 +425,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                     <span className="text-xs font-medium text-foreground">{seg.name}</span>
                     <span className="text-[11px] font-bold tabular-nums" style={{ color: gold }}>{(seg._count?.contacts || 0).toLocaleString()}</span>
                   </div>
-                  <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'rgba(0, 0, 0, 0.04)' }}>
                     <motion.div className="h-full rounded-full" style={{ background: 'linear-gradient(90deg, rgba(212,175,55,0.8), rgba(232,200,96,0.6))' }}
                       initial={{ width: 0 }} animate={{ width: `${((seg._count?.contacts || 0) / maxSegContacts) * 100}%` }}
                       transition={{ duration: 0.8, delay: 0.6 + i * 0.06, ease: [0.22, 1, 0.36, 1] }} />

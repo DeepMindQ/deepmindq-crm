@@ -257,7 +257,7 @@ class ScreenErrorBoundary extends Component<{ children: ReactNode; name: string 
             {this.props.name} encountered an error. Other screens still work fine.
           </p>
           <button
-            className="px-4 py-2 text-xs font-medium rounded-lg bg-white/5 border border-white/10 text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors"
+            className="px-4 py-2 text-xs font-medium rounded-lg bg-gray-100 border border-gray-200 text-muted-foreground hover:bg-gray-200 hover:text-foreground transition-colors"
             onClick={() => this.setState({ hasError: false, error: undefined })}
           >
             Retry
@@ -275,35 +275,35 @@ function ScreenLoader() {
       {/* Header skeleton */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-7 w-48 rounded-lg bg-white/[0.04] animate-pulse" />
-          <div className="h-7 w-24 rounded-lg bg-white/[0.04] animate-pulse" />
+          <div className="h-7 w-48 rounded-lg bg-gray-200 animate-pulse" />
+          <div className="h-7 w-24 rounded-lg bg-gray-200 animate-pulse" />
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-8 w-28 rounded-lg bg-white/[0.04] animate-pulse" />
-          <div className="h-8 w-8 rounded-lg bg-white/[0.04] animate-pulse" />
+          <div className="h-8 w-28 rounded-lg bg-gray-200 animate-pulse" />
+          <div className="h-8 w-8 rounded-lg bg-gray-200 animate-pulse" />
         </div>
       </div>
       {/* Stat cards skeleton */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-24 rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 space-y-3">
-            <div className="h-3 w-16 rounded bg-white/[0.04] animate-pulse" />
-            <div className="h-6 w-20 rounded bg-white/[0.06] animate-pulse" />
+          <div key={i} className="h-24 rounded-xl bg-white border border-gray-200 p-4 space-y-3">
+            <div className="h-3 w-16 rounded bg-gray-200 animate-pulse" />
+            <div className="h-6 w-20 rounded bg-gray-100 animate-pulse" />
           </div>
         ))}
       </div>
       {/* Table skeleton */}
-      <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] overflow-hidden">
-        <div className="flex items-center gap-4 px-4 py-3 border-b border-white/[0.06]">
+      <div className="rounded-xl bg-white border border-gray-200 overflow-hidden">
+        <div className="flex items-center gap-4 px-4 py-3 border-b border-gray-200">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-3 flex-1 rounded bg-white/[0.04] animate-pulse" />
+            <div key={i} className="h-3 flex-1 rounded bg-gray-200 animate-pulse" />
           ))}
         </div>
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-4 px-4 py-3 border-b border-white/[0.04]">
-            <div className="h-4 w-4 rounded bg-white/[0.04] animate-pulse" />
+          <div key={i} className="flex items-center gap-4 px-4 py-3 border-b border-gray-100">
+            <div className="h-4 w-4 rounded bg-gray-200 animate-pulse" />
             {Array.from({ length: 5 }).map((_, j) => (
-              <div key={j} className="h-3 flex-1 rounded bg-white/[0.03] animate-pulse" style={{ animationDelay: `${(i * 5 + j) * 50}ms` }} />
+              <div key={j} className="h-3 flex-1 rounded bg-gray-100 animate-pulse" style={{ animationDelay: `${(i * 5 + j) * 50}ms` }} />
             ))}
           </div>
         ))}
@@ -420,21 +420,21 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
       : [{ label: activeLabel }]),
   ];
 
-  /* ── Design tokens via CSS vars (no more inline gold/constants) ── */
+  /* ── Design tokens via CSS vars (light theme) ── */
   const styles = {
-    sidebarBg: 'var(--sidebar-glass, rgba(8, 10, 18, 0.92))',
-    headerBg: 'var(--header-glass, rgba(8, 10, 18, 0.75))',
-    border: 'var(--border-subtle, rgba(255,255,255,0.06))',
+    sidebarBg: 'var(--sidebar-glass, rgba(255, 255, 255, 0.85))',
+    headerBg: 'var(--header-glass, rgba(255, 255, 255, 0.8))',
+    border: 'var(--border-subtle, rgba(0,0,0,0.06))',
     gold: 'var(--color-gold)',
     goldLight: 'var(--color-gold-bright)',
     goldDim: 'var(--color-gold-dim)',
-    textDim: 'var(--text-dim, #4A5568)',
+    textDim: 'var(--text-dim, #9CA3AF)',
     textMuted: 'var(--color-muted-foreground)',
   };
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">
-      <Toaster theme="dark" position="top-right" />
+      <Toaster theme="light" position="top-right" />
 
       {/* Command Palette (⌘K) */}
       <CommandPalette />
@@ -454,7 +454,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
@@ -523,7 +523,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                               : { color: 'var(--color-muted-foreground)' }
                           }
                           onMouseEnter={(e) => {
-                            if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
+                            if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(0,0,0,0.04)';
                           }}
                           onMouseLeave={(e) => {
                             if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent';
@@ -543,7 +543,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                             <span
                               className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center tabular-nums"
                               style={{
-                                background: isActive ? 'color-mix(in oklch, var(--color-gold) 20%, transparent)' : 'rgba(255,255,255,0.05)',
+                                background: isActive ? 'color-mix(in oklch, var(--color-gold) 15%, transparent)' : 'rgba(0,0,0,0.04)',
                                 color: isActive ? 'var(--color-gold)' : 'var(--color-muted-foreground)',
                               }}
                             >
@@ -589,7 +589,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                     <div
                       className={`w-3 h-3 rounded-full transition-all duration-300 ${isActive ? 'ring-2 ring-offset-1' : ''}`}
                       style={{
-                        background: hasItems ? 'linear-gradient(135deg, var(--color-gold), var(--color-gold-bright))' : 'rgba(113,113,122,0.2)',
+                        background: hasItems ? 'linear-gradient(135deg, var(--color-gold), var(--color-gold-bright))' : 'rgba(0,0,0,0.08)',
                         boxShadow: hasItems ? '0 0 8px color-mix(in oklch, var(--color-gold) 30%, transparent)' : 'none',
                         ...(isActive ? { '--tw-ring-color': 'var(--color-gold)' } as React.CSSProperties : {}),
                       }}
@@ -604,7 +604,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                   {i < PIPELINE_STAGES.length - 1 && (
                     <div
                       className="w-full h-px mx-1 mb-3 shrink-0"
-                      style={{ background: 'linear-gradient(90deg, color-mix(in oklch, var(--color-gold) 12%, transparent), rgba(113,113,122,0.08))' }}
+                      style={{ background: 'linear-gradient(90deg, color-mix(in oklch, var(--color-gold) 12%, transparent), rgba(0,0,0,0.04))' }}
                     />
                   )}
                 </div>
@@ -682,7 +682,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
           <div className="flex items-center gap-1 shrink-0">
             {/* AI Chat FAB — visible on md+ screens */}
             <motion.button
-              className="hidden md:flex p-2 rounded-lg transition-colors duration-200 hover:bg-white/5"
+              className="hidden md:flex p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100"
               style={{ color: aiChatOpen ? 'var(--color-gold)' : styles.textDim }}
               whileHover={{ color: styles.textMuted }}
               whileTap={{ scale: 0.9 }}
@@ -694,7 +694,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
             {/* Notifications */}
             <div className="relative">
               <motion.button
-                className="p-2 rounded-lg transition-colors duration-200 hover:bg-white/5 relative"
+                className="p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100 relative"
                 style={{ color: notificationsOpen ? 'var(--color-gold)' : styles.textDim }}
                 whileHover={{ color: styles.textMuted }}
                 whileTap={{ scale: 0.9 }}
@@ -758,7 +758,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
               </AnimatePresence>
             </div>
             <motion.button
-              className="p-2 rounded-lg transition-colors duration-200 hover:bg-white/5"
+              className="p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100"
               style={{ color: styles.textDim }}
               whileHover={{ color: styles.textMuted }}
               whileTap={{ scale: 0.9 }}

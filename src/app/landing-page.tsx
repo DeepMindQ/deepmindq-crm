@@ -18,18 +18,18 @@ import {
    Color & Design Tokens
    ═══════════════════════════════════════════════════ */
 const C = {
-  bg: '#06090F',
-  bgAlt: '#080C14',
-  gold: '#D4AF37',
-  goldLight: '#E8C860',
-  goldDim: '#9A8340',
+  bg: '#FAFAFA',
+  bgAlt: '#F3F4F6',
+  gold: '#B8860B',
+  goldLight: '#D4A843',
+  goldDim: '#8B6914',
   goldFaint: '#D4AF3715',
-  text: '#E8ECF1',
-  textMuted: '#7A8699',
-  textDim: '#3A4555',
-  card: 'rgba(12, 18, 30, 0.6)',
-  border: 'rgba(255,255,255,0.06)',
-  borderGold: 'rgba(212, 175, 55, 0.25)',
+  text: '#111827',
+  textMuted: '#6B7280',
+  textDim: '#9CA3AF',
+  card: 'rgba(255, 255, 255, 0.85)',
+  border: 'rgba(0, 0, 0, 0.08)',
+  borderGold: 'rgba(184, 134, 11, 0.3)',
 };
 
 const FF = {
@@ -358,7 +358,7 @@ function StatCard({ icon: Icon, value, label, countTarget, delay = 0 }: {
       initial={{ opacity: 0, y: 30 }}
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.7, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="group relative p-5 rounded-xl border transition-all duration-300 hover:border-white/10"
+      className="group relative p-5 rounded-xl border transition-all duration-300 hover:border-gray-200"
       style={{ background: C.card, borderColor: C.border }}
     >
       <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 transition-colors duration-300"
@@ -616,16 +616,16 @@ export default function LandingPage({ onLogin }: { onLogin: () => void }) {
                           <Label htmlFor="email" className="text-xs tracking-[0.2em] uppercase font-medium" style={{ color: C.textMuted }}>Email</Label>
                           <Input id="email" type="email" placeholder="your@email.com"
                             value={email} onChange={e => { setEmail(e.target.value); setError(''); }}
-                            className="h-12 border-white/[0.08] text-white placeholder:text-zinc-700 focus:border-[#D4AF37] focus:ring-[#D4AF37]/20 rounded-lg text-sm"
-                            style={{ background: 'rgba(255,255,255,0.03)' }} />
+                            className="h-12 border-gray-200 text-white placeholder:text-zinc-700 focus:border-[#D4AF37] focus:ring-[#D4AF37]/20 rounded-lg text-sm"
+                            style={{ background: 'rgba(0, 0, 0, 0.03)' }} />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="password" className="text-xs tracking-[0.2em] uppercase font-medium" style={{ color: C.textMuted }}>Password</Label>
                           <div className="relative">
                             <Input id="password" type={showPassword ? 'text' : 'password'} placeholder="Enter password"
                               value={password} onChange={e => { setPassword(e.target.value); setError(''); }}
-                              className="h-12 border-white/[0.08] text-white placeholder:text-zinc-700 pr-12 focus:border-[#D4AF37] focus:ring-[#D4AF37]/20 rounded-lg text-sm"
-                              style={{ background: 'rgba(255,255,255,0.03)' }} />
+                              className="h-12 border-gray-200 text-white placeholder:text-zinc-700 pr-12 focus:border-[#D4AF37] focus:ring-[#D4AF37]/20 rounded-lg text-sm"
+                              style={{ background: 'rgba(0, 0, 0, 0.03)' }} />
                             <button type="button" onClick={() => setShowPassword(!showPassword)}
                               className="absolute right-4 top-1/2 -translate-y-1/2 transition-colors hover:text-white" style={{ color: C.textDim }}>
                               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -639,7 +639,7 @@ export default function LandingPage({ onLogin }: { onLogin: () => void }) {
                         </div>
                         {error && (
                           <motion.p initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
-                            className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">{error}</motion.p>
+                            className="text-xs text-red-600 bg-red-50 border border-red-500/20 rounded-lg px-4 py-3">{error}</motion.p>
                         )}
                         <MagneticButton className="w-full">
                           <button type="submit" disabled={loading}
@@ -903,7 +903,7 @@ export default function LandingPage({ onLogin }: { onLogin: () => void }) {
                       </div>
                     </MagneticButton>
                     <a href="mailto:contact@deepmindq.com"
-                      className="flex items-center gap-2 px-8 py-4 rounded-lg text-sm font-medium border transition-all duration-300 hover:bg-white/5"
+                      className="flex items-center gap-2 px-8 py-4 rounded-lg text-sm font-medium border transition-all duration-300 hover:bg-black/5"
                       style={{ borderColor: C.border, color: C.textMuted }}>
                       <Mail className="w-4 h-4" /> Get in Touch
                     </a>
@@ -971,7 +971,7 @@ function TimelineCard({ item, index }: { item: { icon: React.ElementType; step: 
 
       <div className={`flex-1 md:w-[calc(50%-48px)] ${isLeft ? 'md:pr-16 md:text-right' : 'md:pl-16'}`}>
         <TiltCard>
-          <div className={`p-7 rounded-xl border transition-all duration-300 hover:border-white/10 ${
+          <div className={`p-7 rounded-xl border transition-all duration-300 hover:border-gray-200 ${
             isLeft ? 'md:ml-auto' : 'md:mr-auto'}`} style={{ background: C.card, borderColor: C.border, maxWidth: '460px' }}>
             <div className={`flex items-center gap-3 mb-4 ${isLeft ? 'md:justify-end' : ''}`}>
               <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{ background: `${C.gold}12` }}>

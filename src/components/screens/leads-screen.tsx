@@ -128,22 +128,22 @@ function MultiSelectDropdown({ label, options, selected, onChange, totalCount }:
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs font-normal border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/[0.15] transition-all duration-200">
+        <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs font-normal border-white/[0.1] bg-black/[0.03] hover:bg-black/[0.06] hover:border-gray-300 transition-all duration-200">
           <span className="truncate max-w-[120px]">{label}</span>
           {selected.length > 0 && <Badge className="bg-primary/15 border-primary/25 text-primary text-[10px] h-4 min-w-4 px-1.5 rounded-full font-semibold">{selected.length}</Badge>}
           <span className="text-muted-foreground text-[10px]">({totalCount})</span>
           <ChevronDown className="w-3 h-3 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-0 border-white/[0.1] bg-black/60 backdrop-blur-2xl shadow-2xl shadow-black/40" align="start">
-        <div className="p-2.5 border-b border-white/[0.08]">
+      <PopoverContent className="w-64 p-0 border-white/[0.1] bg-black/20 backdrop-blur-2xl shadow-2xl shadow-black/40" align="start">
+        <div className="p-2.5 border-b border-gray-200">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input placeholder={`Search ${label.toLowerCase()}...`} value={localSearch} onChange={e => setLocalSearch(e.target.value)} className="h-7 pl-8 text-xs bg-white/[0.05] border-white/[0.1] text-foreground placeholder:text-muted-foreground/60 focus:border-primary/30" />
+            <Input placeholder={`Search ${label.toLowerCase()}...`} value={localSearch} onChange={e => setLocalSearch(e.target.value)} className="h-7 pl-8 text-xs bg-black/[0.05] border-white/[0.1] text-foreground placeholder:text-muted-foreground/60 focus:border-primary/30" />
           </div>
         </div>
         {selected.length > 0 && (
-          <div className="px-2.5 py-2 border-b border-white/[0.08] flex items-center justify-between">
+          <div className="px-2.5 py-2 border-b border-gray-200 flex items-center justify-between">
             <span className="text-[10px] text-muted-foreground">{selected.length} selected</span>
             <Button variant="ghost" size="sm" className="h-5 text-[10px] text-muted-foreground hover:text-foreground px-1.5" onClick={e => { e.stopPropagation(); onChange([]); }}>Clear</Button>
           </div>
@@ -152,7 +152,7 @@ function MultiSelectDropdown({ label, options, selected, onChange, totalCount }:
           {filtered.length === 0 ? (
             <div className="py-8 text-center text-xs text-muted-foreground">No results</div>
           ) : filtered.map(option => (
-            <label key={option.v} className="flex items-center gap-2.5 px-2.5 py-2 hover:bg-white/[0.04] cursor-pointer transition-colors">
+            <label key={option.v} className="flex items-center gap-2.5 px-2.5 py-2 hover:bg-black/[0.04] cursor-pointer transition-colors">
               <Checkbox checked={selected.includes(option.v)} onCheckedChange={() => toggle(option.v)} className="h-3.5 w-3.5" />
               <span className="text-xs text-foreground truncate flex-1">{option.v}</span>
               <span className="text-[10px] text-muted-foreground/60 shrink-0 tabular-nums">{option.c.toLocaleString()}</span>
@@ -753,7 +753,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" className="h-9 gap-2 text-xs border-white/[0.1] bg-white/[0.03]" onClick={() => setFiltersOpen(!filtersOpen)}>
+        <Button variant="outline" size="sm" className="h-9 gap-2 text-xs border-white/[0.1] bg-black/[0.03]" onClick={() => setFiltersOpen(!filtersOpen)}>
           <SlidersHorizontal className="w-3.5 h-3.5" />Filters
           {activeFilterCount > 0 && <Badge className="bg-primary/15 border-primary/25 text-primary text-[10px] h-4 min-w-4 px-1.5 rounded-full font-semibold">{activeFilterCount}</Badge>}
         </Button>
@@ -762,7 +762,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
         <div className="flex-1" />
 
         {/* L-10: Verify Emails */}
-        <Button variant="outline" size="sm" className="h-9 gap-2 text-xs border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10" onClick={handleVerifyAll} disabled={verifying}>
+        <Button variant="outline" size="sm" className="h-9 gap-2 text-xs border-emerald-500/20 text-emerald-600 hover:bg-emerald-50" onClick={handleVerifyAll} disabled={verifying}>
           {verifying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MailCheck className="w-3.5 h-3.5" />}
           {verifying ? 'Verifying...' : 'Verify Emails'}
         </Button>
@@ -773,18 +773,18 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
         </Button>
 
         {/* L-05: Export CSV */}
-        <Button variant="outline" size="sm" className="h-9 gap-2 text-xs border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06]" onClick={handleExportCSV} disabled={exporting}>
+        <Button variant="outline" size="sm" className="h-9 gap-2 text-xs border-white/[0.1] bg-black/[0.03] hover:bg-black/[0.06]" onClick={handleExportCSV} disabled={exporting}>
           {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
           {exporting ? 'Exporting...' : 'Export CSV'}
         </Button>
 
         {/* L-06: Find Duplicates */}
-        <Button variant="outline" size="sm" className="h-9 gap-2 text-xs border-amber-500/20 text-amber-400 hover:bg-amber-500/10" onClick={handleFindDuplicates}>
+        <Button variant="outline" size="sm" className="h-9 gap-2 text-xs border-amber-500/20 text-amber-600 hover:bg-amber-50" onClick={handleFindDuplicates}>
           <Copy className="w-3.5 h-3.5" />Find Duplicates
         </Button>
 
         {/* L-02: Recalculate Scores */}
-        <Button variant="outline" size="sm" className="h-9 gap-2 text-xs border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06]" onClick={handleRecalculateScores} disabled={recalculating}>
+        <Button variant="outline" size="sm" className="h-9 gap-2 text-xs border-white/[0.1] bg-black/[0.03] hover:bg-black/[0.06]" onClick={handleRecalculateScores} disabled={recalculating}>
           {recalculating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
           {recalculating ? 'Recalculating...' : 'Recalc Scores'}
         </Button>
@@ -796,11 +796,11 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
           <div className="p-5 space-y-4">
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input ref={searchInputRef} placeholder="Search by name, email, company, title, city, or country..." value={search} onChange={e => setSearch(e.target.value)} className="h-10 pl-10 pr-9 text-sm bg-white/[0.03] border-white/[0.08] text-foreground placeholder:text-muted-foreground/50 focus:border-primary/30" />
+              <Input ref={searchInputRef} placeholder="Search by name, email, company, title, city, or country..." value={search} onChange={e => setSearch(e.target.value)} className="h-10 pl-10 pr-9 text-sm bg-black/[0.03] border-gray-200 text-foreground placeholder:text-muted-foreground/50 focus:border-primary/30" />
               {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"><X className="w-4 h-4" /></button>}
             </div>
             {metaLoading ? (
-              <div className="flex flex-wrap gap-2">{Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-9 w-28 rounded-lg bg-white/[0.05]" />)}</div>
+              <div className="flex flex-wrap gap-2">{Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-9 w-28 rounded-lg bg-black/[0.05]" />)}</div>
             ) : (
               <div className="flex flex-wrap gap-2">
                 <MultiSelectDropdown label="Status" options={[{v:'imported',c:0},{v:'cleaned',c:0},{v:'drafted',c:0},{v:'sent',c:0},{v:'replied',c:0},{v:'bounced',c:0}]} selected={statuses} onChange={setStatuses} totalCount={6} />
@@ -841,7 +841,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="border-white/[0.06] hover:bg-transparent">
+              <TableRow className="border-gray-200 hover:bg-transparent">
                 <TableHead className="w-10"><Checkbox checked={leads.length > 0 && selectedIds.size === leads.length && leads.every(l => selectedIds.has(l.id))} onCheckedChange={checked => { if (checked) setSelectedIds(new Set(leads.map(l => l.id))); else setSelectedIds(new Set()); }} className="h-3.5 w-3.5" /></TableHead>
                 <TableHead className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider h-11 w-[180px]">Name</TableHead>
                 <TableHead className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider h-11 w-[200px]">Email</TableHead>
@@ -859,9 +859,9 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
             </TableHeader>
             <TableBody>
               {leadsLoading ? (
-                Array.from({ length: 15 }).map((_, i) => <TableRow key={`skel-${i}`} className="border-white/[0.04] hover:bg-transparent"><TableCell colSpan={13} className="py-0"><Skeleton className="h-10 w-full my-0.5 bg-white/[0.03]" /></TableCell></TableRow>)
+                Array.from({ length: 15 }).map((_, i) => <TableRow key={`skel-${i}`} className="border-gray-200 hover:bg-transparent"><TableCell colSpan={13} className="py-0"><Skeleton className="h-10 w-full my-0.5 bg-black/[0.03]" /></TableCell></TableRow>)
               ) : leads.length === 0 ? (
-                <TableRow className="border-white/[0.04] hover:bg-transparent"><TableCell colSpan={13} className="h-48"><EmptyState icon={Users} title="No leads found" description={activeFilterCount > 0 ? 'Try adjusting your filters.' : 'No contacts match your criteria.'} action={activeFilterCount > 0 ? <Button variant="outline" size="sm" className="text-xs border-primary/20 text-primary" onClick={clearAllFilters}><X className="w-3 h-3 mr-1" />Clear all</Button> : undefined} /></TableCell></TableRow>
+                <TableRow className="border-gray-200 hover:bg-transparent"><TableCell colSpan={13} className="h-48"><EmptyState icon={Users} title="No leads found" description={activeFilterCount > 0 ? 'Try adjusting your filters.' : 'No contacts match your criteria.'} action={activeFilterCount > 0 ? <Button variant="outline" size="sm" className="text-xs border-primary/20 text-primary" onClick={clearAllFilters}><X className="w-3 h-3 mr-1" />Clear all</Button> : undefined} /></TableCell></TableRow>
               ) : leads.map((lead, idx) => {
                 const dbf = lead._dbFields;
                 const health = dbf?.emailHealth || 'unknown';
@@ -872,7 +872,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
 
                 return (
                   <motion.tr key={lead.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25, delay: Math.min(idx * 0.015, 0.3) }}
-                    className="group border-white/[0.04] cursor-pointer transition-all duration-200 hover:bg-white/[0.04] relative"
+                    className="group border-gray-200 cursor-pointer transition-all duration-200 hover:bg-black/[0.04] relative"
                     style={{ borderLeft: selectedIds.has(lead.id) ? '3px solid #D4AF37' : '3px solid transparent' }}
                     onClick={() => openDetail(lead)}
                     onMouseEnter={e => { if (!selectedIds.has(lead.id)) (e.currentTarget as HTMLElement).style.borderLeftColor = '#D4AF3750'; }}
@@ -919,7 +919,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <span
-                              className={`text-xs font-bold tabular-nums cursor-help ${dbf?.leadScore != null ? (dbf.leadScore >= 70 ? 'text-emerald-400' : dbf.leadScore >= 40 ? 'text-amber-400' : 'text-red-400') : 'text-muted-foreground/50'}`}
+                              className={`text-xs font-bold tabular-nums cursor-help ${dbf?.leadScore != null ? (dbf.leadScore >= 70 ? 'text-emerald-600' : dbf.leadScore >= 40 ? 'text-amber-600' : 'text-red-600') : 'text-muted-foreground/50'}`}
                               onMouseEnter={() => dbf?.companyId && handleScoreHover(lead.id)}
                             >
                               {dbf?.leadScore != null ? dbf.leadScore : '—'}
@@ -939,14 +939,14 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                                 <div key={d.label} className="flex items-center justify-between gap-3 text-[10px] mb-1">
                                   <span className="text-muted-foreground">{d.label}</span>
                                   <div className="flex items-center gap-1.5">
-                                    <div className="w-16 h-1.5 rounded-full bg-white/[0.08] overflow-hidden">
+                                    <div className="w-16 h-1.5 rounded-full bg-black/[0.05] overflow-hidden">
                                       <div className="h-full rounded-full bg-primary" style={{ width: `${(d.value / d.max) * 100}%` }} />
                                     </div>
                                     <span className="text-foreground tabular-nums w-5 text-right">{d.value}</span>
                                   </div>
                                 </div>
                               ))}
-                              <div className="mt-2 pt-2 border-t border-white/[0.08] flex justify-between text-[10px] font-bold">
+                              <div className="mt-2 pt-2 border-t border-gray-200 flex justify-between text-[10px] font-bold">
                                 <span>Total</span>
                                 <span className="text-primary">{scoreBreakdowns[lead.id].total}/100</span>
                               </div>
@@ -962,7 +962,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                           <PopoverTrigger asChild>
                             <Badge
                               variant="outline"
-                              className={`text-[10px] h-5 px-1.5 rounded-full cursor-pointer hover:bg-white/[0.08] transition-colors ${
+                              className={`text-[10px] h-5 px-1.5 rounded-full cursor-pointer hover:bg-black/[0.05] transition-colors ${
                                 dbf.status === 'imported' ? 'bg-zinc-500/15 text-zinc-300 border-zinc-500/20' :
                                 dbf.status === 'sent' ? 'bg-blue-500/15 text-blue-300 border-blue-500/20' :
                                 dbf.status === 'replied' ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20' :
@@ -970,13 +970,13 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                                 dbf.status === 'suppressed' ? 'bg-red-500/20 text-red-300 border-red-500/30' :
                                 dbf.status === 'drafted' ? 'bg-purple-500/15 text-purple-300 border-purple-500/20' :
                                 dbf.status === 'queued' ? 'bg-amber-500/15 text-amber-300 border-amber-500/20' :
-                                'bg-white/[0.06] text-muted-foreground border-white/[0.08]'
+                                'bg-black/[0.06] text-muted-foreground border-gray-200'
                               }`}
                             >
                               {transitioningId === lead.id ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : dbf.status}
                             </Badge>
                           </PopoverTrigger>
-                          <PopoverContent className="w-44 p-1 border-white/[0.1] bg-black/80 backdrop-blur-2xl" align="start">
+                          <PopoverContent className="w-44 p-1 border-white/[0.1] bg-black/30 backdrop-blur-2xl" align="start">
                             <div className="px-2 py-1.5 text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Change Status</div>
                             {(() => {
                               const transitions = statusTransitions[lead.id] || [];
@@ -986,7 +986,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                               return transitions.map(t => (
                                 <button
                                   key={t}
-                                  className="w-full text-left text-xs text-foreground px-2 py-1.5 rounded-md hover:bg-white/[0.06] transition-colors capitalize"
+                                  className="w-full text-left text-xs text-foreground px-2 py-1.5 rounded-md hover:bg-black/[0.06] transition-colors capitalize"
                                   onClick={(e) => { e.stopPropagation(); handleTransitionStatus(lead.id, t); }}
                                 >{t.replace(/_/g, ' ')}</button>
                               ));
@@ -1004,7 +1004,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                     {/* L-15: Source badge */}
                     <td className="py-3 px-2 relative z-10">
                       {src ? (
-                        <Badge variant="outline" className="text-[10px] h-5 px-1.5 rounded-full border-white/[0.08] text-muted-foreground gap-1">
+                        <Badge variant="outline" className="text-[10px] h-5 px-1.5 rounded-full border-gray-200 text-muted-foreground gap-1">
                           {SrcIcon && <SrcIcon className="w-2.5 h-2.5" />}
                           {src}
                         </Badge>
@@ -1017,35 +1017,35 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                     <td className="py-3 px-2 relative z-10" onClick={e => e.stopPropagation()}>
                       <Popover>
                         <PopoverTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-white/[0.06] text-muted-foreground hover:text-foreground">
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-black/[0.06] text-muted-foreground hover:text-foreground">
                             <MoreHorizontal className="w-3.5 h-3.5" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-48 p-1 border-white/[0.1] bg-black/90 backdrop-blur-2xl shadow-xl shadow-black/40" align="end">
                           <button
-                            className="w-full text-left text-xs text-foreground px-3 py-2 rounded-md hover:bg-white/[0.06] transition-colors flex items-center gap-2.5"
+                            className="w-full text-left text-xs text-foreground px-3 py-2 rounded-md hover:bg-black/[0.06] transition-colors flex items-center gap-2.5"
                             onClick={(e) => handleQuickDraft(lead, e)}
                           >
                             <FileText className="w-3.5 h-3.5 text-primary/70" />Generate Draft
                           </button>
                           <button
-                            className="w-full text-left text-xs text-foreground px-3 py-2 rounded-md hover:bg-white/[0.06] transition-colors flex items-center gap-2.5"
+                            className="w-full text-left text-xs text-foreground px-3 py-2 rounded-md hover:bg-black/[0.06] transition-colors flex items-center gap-2.5"
                             onClick={(e) => openInlineNote(lead, e)}
                           >
-                            <MessageSquarePlus className="w-3.5 h-3.5 text-emerald-400/70" />Add Note
+                            <MessageSquarePlus className="w-3.5 h-3.5 text-emerald-600/70" />Add Note
                           </button>
                           <button
-                            className="w-full text-left text-xs text-foreground px-3 py-2 rounded-md hover:bg-white/[0.06] transition-colors flex items-center gap-2.5"
+                            className="w-full text-left text-xs text-foreground px-3 py-2 rounded-md hover:bg-black/[0.06] transition-colors flex items-center gap-2.5"
                             onClick={(e) => { e.stopPropagation(); openDetail(lead); }}
                           >
-                            <LayoutList className="w-3.5 h-3.5 text-amber-400/70" />View Timeline
+                            <LayoutList className="w-3.5 h-3.5 text-amber-600/70" />View Timeline
                           </button>
                           {navigateTo && (
                             <button
-                              className="w-full text-left text-xs text-foreground px-3 py-2 rounded-md hover:bg-white/[0.06] transition-colors flex items-center gap-2.5"
+                              className="w-full text-left text-xs text-foreground px-3 py-2 rounded-md hover:bg-black/[0.06] transition-colors flex items-center gap-2.5"
                               onClick={(e) => { e.stopPropagation(); navigateTo('companies'); }}
                             >
-                              <Building className="w-3.5 h-3.5 text-blue-400/70" />View Company
+                              <Building className="w-3.5 h-3.5 text-blue-600/70" />View Company
                             </button>
                           )}
                         </PopoverContent>
@@ -1060,26 +1060,26 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
 
         {/* Pagination */}
         {!leadsLoading && total > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-5 py-4 border-t border-white/[0.06]">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-5 py-4 border-t border-gray-200">
             <div className="text-xs text-muted-foreground">
               Showing <span className="text-foreground font-medium tabular-nums">{showingFrom.toLocaleString()}</span> - <span className="text-foreground font-medium tabular-nums">{showingTo.toLocaleString()}</span> of <span className="text-foreground font-medium tabular-nums">{total.toLocaleString()}</span> results
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Rows:</span>
-                <div className="flex gap-0.5 p-0.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
+                <div className="flex gap-0.5 p-0.5 rounded-lg bg-black/[0.04] border border-gray-200">
                   {PAGE_SIZE_OPTIONS.map(size => (
-                    <Button key={size} variant={limit === size ? 'default' : 'ghost'} size="sm" className={`h-7 px-3 text-xs rounded-md transition-all ${limit === size ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-white/[0.04]'}`} onClick={() => setLimit(size)}>{size}</Button>
+                    <Button key={size} variant={limit === size ? 'default' : 'ghost'} size="sm" className={`h-7 px-3 text-xs rounded-md transition-all ${limit === size ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-black/[0.04]'}`} onClick={() => setLimit(size)}>{size}</Button>
                   ))}
                 </div>
               </div>
-              <Separator orientation="vertical" className="h-5 bg-white/[0.08]" />
+              <Separator orientation="vertical" className="h-5 bg-black/[0.05]" />
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-white/[0.06] text-muted-foreground" disabled={page <= 1} onClick={() => setPage(1)}><ChevronsLeft className="w-3.5 h-3.5" /></Button>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-white/[0.06] text-muted-foreground" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft className="w-3.5 h-3.5" /></Button>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-black/[0.06] text-muted-foreground" disabled={page <= 1} onClick={() => setPage(1)}><ChevronsLeft className="w-3.5 h-3.5" /></Button>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-black/[0.06] text-muted-foreground" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft className="w-3.5 h-3.5" /></Button>
                 <span className="text-xs text-foreground px-3 min-w-[90px] text-center tabular-nums font-medium">Page {page} of {totalPages}</span>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-white/[0.06] text-muted-foreground" disabled={page >= totalPages} onClick={() => setPage(page + 1)}><ChevronRight className="w-3.5 h-3.5" /></Button>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-white/[0.06] text-muted-foreground" disabled={page >= totalPages} onClick={() => setPage(totalPages)}><ChevronsRight className="w-3.5 h-3.5" /></Button>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-black/[0.06] text-muted-foreground" disabled={page >= totalPages} onClick={() => setPage(page + 1)}><ChevronRight className="w-3.5 h-3.5" /></Button>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-black/[0.06] text-muted-foreground" disabled={page >= totalPages} onClick={() => setPage(totalPages)}><ChevronsRight className="w-3.5 h-3.5" /></Button>
               </div>
             </div>
           </div>
@@ -1096,7 +1096,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
               onClick={() => { setSlideOverOpen(false); setDetailOpen(false); }}
             />
             {/* Panel */}
@@ -1105,17 +1105,17 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="fixed right-0 top-0 h-full w-full sm:w-[420px] z-50 flex flex-col border-l border-white/[0.08] overflow-hidden"
+              className="fixed right-0 top-0 h-full w-full sm:w-[420px] z-50 flex flex-col border-l border-gray-200 overflow-hidden"
               style={{
                 background: 'rgba(15, 17, 25, 0.95)',
                 backdropFilter: 'blur(40px)',
-                boxShadow: '-20px 0 60px rgba(0, 0, 0, 0.5), inset 1px 0 0 rgba(255, 255, 255, 0.05)',
+                boxShadow: '-20px 0 60px rgba(0, 0, 0, 0.5), inset 1px 0 0 rgba(0, 0, 0, 0.04)',
               }}
             >
               {selectedLead && (
                 <>
                   {/* Header */}
-                  <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] shrink-0">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))', border: '1px solid rgba(212,175,55,0.2)' }}>
                         <span className="text-sm font-bold text-primary">{(selectedLead.rawName || '?').charAt(0).toUpperCase()}</span>
@@ -1135,7 +1135,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                         <p className="text-xs text-muted-foreground truncate">{selectedLead.title} {selectedLead.company ? `at ${selectedLead.company}` : ''}</p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-white/[0.06] shrink-0" onClick={() => { setSlideOverOpen(false); setDetailOpen(false); }}>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-black/[0.06] shrink-0" onClick={() => { setSlideOverOpen(false); setDetailOpen(false); }}>
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
@@ -1165,16 +1165,16 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                   <div>
                     <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-semibold mb-2">Contact Info</p>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                      <div className="p-3 rounded-lg bg-black/[0.03] border border-gray-200">
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Users className="w-3 h-3" />Name</div>
                         <p className="text-sm text-foreground font-medium mt-1">{selectedLead.rawName || '-'}</p>
                       </div>
-                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                      <div className="p-3 rounded-lg bg-black/[0.03] border border-gray-200">
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Briefcase className="w-3 h-3" />Title</div>
                         <p className="text-sm text-foreground font-medium mt-1">{selectedLead.title || '-'}</p>
                       </div>
                     </div>
-                    <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] mt-2">
+                    <div className="p-3 rounded-lg bg-black/[0.03] border border-gray-200 mt-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Mail className="w-3 h-3" />Email</div>
                         {selectedLead._dbFields?.emailHealth && (
@@ -1188,43 +1188,43 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                       ) : <p className="text-sm text-muted-foreground mt-1">-</p>}
                     </div>
                     {selectedLead._dbFields?.phone && (
-                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] mt-2">
+                      <div className="p-3 rounded-lg bg-black/[0.03] border border-gray-200 mt-2">
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Phone className="w-3 h-3" />Phone</div>
                         <p className="text-sm text-foreground font-medium mt-1">{selectedLead._dbFields.phone}</p>
                       </div>
                     )}
-                    <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] mt-2">
+                    <div className="p-3 rounded-lg bg-black/[0.03] border border-gray-200 mt-2">
                       <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><MapPin className="w-3 h-3" />Location</div>
                       <p className="text-sm text-foreground font-medium mt-1">{[selectedLead.city, selectedLead.state, selectedLead.country].filter(Boolean).join(', ') || '-'}</p>
                     </div>
                     {selectedLead.linkedin && (
-                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] mt-2">
+                      <div className="p-3 rounded-lg bg-black/[0.03] border border-gray-200 mt-2">
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Linkedin className="w-3 h-3" />LinkedIn</div>
                         <a href={selectedLead.linkedin.startsWith('http') ? selectedLead.linkedin : `https://${selectedLead.linkedin}`} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1.5 mt-1">View Profile<ExternalLink className="w-3 h-3" /></a>
                       </div>
                     )}
                   </div>
 
-                  <Separator className="bg-white/[0.06]" />
+                  <Separator className="bg-black/[0.06]" />
 
                   {/* Company Info Section */}
                   <div>
                     <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-semibold mb-2">Company Info</p>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                      <div className="p-3 rounded-lg bg-black/[0.03] border border-gray-200">
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Building2 className="w-3 h-3" />Company</div>
                         <p className="text-sm text-foreground font-medium mt-1">{selectedLead.company || '-'}</p>
                       </div>
-                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                      <div className="p-3 rounded-lg bg-black/[0.03] border border-gray-200">
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Globe className="w-3 h-3" />Industry</div>
                         <p className="text-sm text-foreground font-medium mt-1">{selectedLead.industry || '-'}</p>
                       </div>
-                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                      <div className="p-3 rounded-lg bg-black/[0.03] border border-gray-200">
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Users className="w-3 h-3" />Size</div>
                         <p className="text-sm text-foreground font-medium mt-1">{selectedLead.employeeCategory || selectedLead.employeeNumber || '-'}</p>
                       </div>
                       {selectedLead.website && (
-                        <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                        <div className="p-3 rounded-lg bg-black/[0.03] border border-gray-200">
                           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Globe className="w-3 h-3" />Domain</div>
                           <p className="text-sm text-primary font-medium mt-1 truncate">{selectedLead.website}</p>
                         </div>
@@ -1232,13 +1232,13 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                     </div>
                   </div>
 
-                  <Separator className="bg-white/[0.06]" />
+                  <Separator className="bg-black/[0.06]" />
 
                   {/* Metadata Section */}
                   <div>
                     <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-semibold mb-2">Metadata</p>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                      <div className="p-3 rounded-lg bg-black/[0.03] border border-gray-200">
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Activity className="w-3 h-3" />Status</div>
                         <Badge
                           variant="outline"
@@ -1247,36 +1247,36 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                             selectedLead._dbFields?.status === 'sent' ? 'bg-blue-500/15 text-blue-300 border-blue-500/20' :
                             selectedLead._dbFields?.status === 'replied' ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20' :
                             selectedLead._dbFields?.status === 'bounced' ? 'bg-red-500/15 text-red-300 border-red-500/20' :
-                            'bg-white/[0.06] text-muted-foreground border-white/[0.08]'
+                            'bg-black/[0.06] text-muted-foreground border-gray-200'
                           }`}
                         >
                           {selectedLead._dbFields?.status || '-'}
                         </Badge>
                       </div>
-                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                      <div className="p-3 rounded-lg bg-black/[0.03] border border-gray-200">
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><ShieldCheck className="w-3 h-3" />Consent</div>
                         <Badge variant="outline" className={`mt-1 text-[10px] h-5 px-1.5 rounded-full ${CONSENT_COLORS[selectedLead._dbFields?.consentStatus || 'unknown']}`}>
                           {selectedLead._dbFields?.consentStatus || 'unknown'}
                         </Badge>
                       </div>
-                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                      <div className="p-3 rounded-lg bg-black/[0.03] border border-gray-200">
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Tag className="w-3 h-3" />Source</div>
                         <p className="text-sm text-foreground font-medium mt-1">{selectedLead._dbFields?.source || '-'}</p>
                       </div>
-                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                      <div className="p-3 rounded-lg bg-black/[0.03] border border-gray-200">
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><UserPlus className="w-3 h-3" />Assigned To</div>
                         <p className="text-sm text-foreground font-medium mt-1">{selectedLead._dbFields?.assignedTo || 'Unassigned'}</p>
                       </div>
                     </div>
                     {selectedLead._dbFields?.createdAt && (
-                      <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] mt-2">
+                      <div className="p-3 rounded-lg bg-black/[0.03] border border-gray-200 mt-2">
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-medium"><Clock className="w-3 h-3" />Created</div>
                         <p className="text-sm text-foreground font-medium mt-1">{formatTime(selectedLead._dbFields.createdAt)}</p>
                       </div>
                     )}
                   </div>
 
-                  <Separator className="bg-white/[0.06]" />
+                  <Separator className="bg-black/[0.06]" />
 
                   {/* Generate Email */}
                   <Button className="w-full h-10 gap-2 text-sm font-medium" style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }} disabled={generatingEmail || !selectedLead.email} onClick={handleGenerateEmail}>
@@ -1286,12 +1286,12 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
 
                   {generatedDraft && (
                     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
-                      <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /><span className="text-xs font-medium text-emerald-400">Email Generated ({generatedDraft.confidenceScore}%)</span></div>
-                      <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06]"><p className="text-[10px] text-muted-foreground uppercase mb-1">Subject</p><p className="text-xs text-foreground">{generatedDraft.subject}</p></div>
-                      <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06]"><p className="text-[10px] text-muted-foreground uppercase mb-1">Body</p><p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap line-clamp-6">{generatedDraft.body}</p></div>
+                      <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /><span className="text-xs font-medium text-emerald-600">Email Generated ({generatedDraft.confidenceScore}%)</span></div>
+                      <div className="p-2.5 rounded-lg bg-black/[0.03] border border-gray-200"><p className="text-[10px] text-muted-foreground uppercase mb-1">Subject</p><p className="text-xs text-foreground">{generatedDraft.subject}</p></div>
+                      <div className="p-2.5 rounded-lg bg-black/[0.03] border border-gray-200"><p className="text-[10px] text-muted-foreground uppercase mb-1">Body</p><p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap line-clamp-6">{generatedDraft.body}</p></div>
                     </motion.div>
                   )}
-                  {emailGenError && <div className="p-2.5 rounded-lg border border-red-500/20 bg-red-500/5"><p className="text-xs text-red-400">{emailGenError}</p></div>}
+                  {emailGenError && <div className="p-2.5 rounded-lg border border-red-500/20 bg-red-500/5"><p className="text-xs text-red-600">{emailGenError}</p></div>}
                 </div>
               )}
 
@@ -1299,7 +1299,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               {detailTab === 'scores' && selectedLead._dbFields && (
                 <div className="space-y-4">
                   {/* Total Score */}
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-black/[0.03] border border-gray-200">
                     <div>
                       <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-semibold">Lead Score</p>
                       <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: getScoreColor(selectedLead._dbFields.leadScore) }}>
@@ -1341,7 +1341,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                               </div>
                               <span className="text-xs font-bold tabular-nums" style={{ color: barColor }}>{s.value}<span className="text-muted-foreground/40 font-normal">/{s.max}</span></span>
                             </div>
-                            <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                            <div className="h-1.5 rounded-full bg-black/[0.06] overflow-hidden">
                               <motion.div
                                 className="h-full rounded-full"
                                 style={{ background: `linear-gradient(90deg, ${barColor}, ${barColor}CC)` }}
@@ -1360,7 +1360,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full h-8 gap-2 text-xs border-white/[0.08] text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"
+                    className="w-full h-8 gap-2 text-xs border-gray-200 text-muted-foreground hover:text-foreground hover:bg-black/[0.04]"
                     onClick={() => handleScoreHover(selectedLead.id)}
                   >
                     <RefreshCw className="w-3 h-3" />Refresh Breakdown
@@ -1372,18 +1372,18 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               {detailTab === 'timeline' && (
                 <div className="space-y-0">
                   {timelineLoading ? (
-                    <div className="space-y-3 py-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 bg-white/[0.03] rounded-lg" />)}</div>
+                    <div className="space-y-3 py-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 bg-black/[0.03] rounded-lg" />)}</div>
                   ) : timeline.length === 0 ? (
                     <div className="py-12 text-center"><Activity className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" /><p className="text-sm text-muted-foreground">No activity recorded yet</p></div>
                   ) : (
                     <div className="relative">
-                      <div className="absolute left-[15px] top-2 bottom-2 w-px bg-white/[0.08]" />
+                      <div className="absolute left-[15px] top-2 bottom-2 w-px bg-black/[0.05]" />
                       <div className="space-y-0">
                         {timeline.map((event, i) => {
                           const IconComp = TIMELINE_ICONS[event.type] || Activity;
                           return (
                             <motion.div key={i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i * 0.03, 0.3) }} className="relative flex gap-4 py-3 group">
-                              <div className="relative z-10 w-[30px] h-[30px] rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shrink-0 group-hover:border-primary/30 transition-colors">
+                              <div className="relative z-10 w-[30px] h-[30px] rounded-full bg-black/[0.04] border border-gray-200 flex items-center justify-center shrink-0 group-hover:border-primary/30 transition-colors">
                                 <IconComp className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
                               </div>
                               <div className="flex-1 min-w-0 pt-0.5">
@@ -1404,22 +1404,22 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               {detailTab === 'notes' && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Textarea placeholder="Add a note about this lead..." value={newNote} onChange={e => setNewNote(e.target.value)} className="min-h-[80px] text-sm bg-white/[0.03] border-white/[0.08] text-foreground placeholder:text-muted-foreground/50 focus:border-primary/30 resize-none" />
+                    <Textarea placeholder="Add a note about this lead..." value={newNote} onChange={e => setNewNote(e.target.value)} className="min-h-[80px] text-sm bg-black/[0.03] border-gray-200 text-foreground placeholder:text-muted-foreground/50 focus:border-primary/30 resize-none" />
                     <Button size="sm" className="h-8 text-xs gap-1.5" style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }} disabled={!newNote.trim()} onClick={handleAddNote}>
                       <StickyNote className="w-3 h-3" />Add Note
                     </Button>
                   </div>
 
-                  <Separator className="bg-white/[0.06]" />
+                  <Separator className="bg-black/[0.06]" />
 
                   {notesLoading ? (
-                    <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 bg-white/[0.03] rounded-lg" />)}</div>
+                    <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 bg-black/[0.03] rounded-lg" />)}</div>
                   ) : notes.length === 0 ? (
                     <div className="py-8 text-center"><StickyNote className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" /><p className="text-sm text-muted-foreground">No notes yet</p></div>
                   ) : (
                     <div className="space-y-3">
                       {notes.map(note => (
-                        <motion.div key={note.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                        <motion.div key={note.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-3 rounded-lg bg-black/[0.03] border border-gray-200">
                           <p className="text-sm text-foreground/90 whitespace-pre-wrap">{note.body}</p>
                           <p className="text-[10px] text-muted-foreground/50 mt-2">{formatTime(note.createdAt)}</p>
                         </motion.div>
@@ -1440,12 +1440,12 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
 
       {/* Keep old Sheet hidden for compatibility — replaced by slide-over */}
       <Sheet open={false} onOpenChange={setDetailOpen}>
-        <SheetContent className="w-full sm:max-w-xl bg-card/95 backdrop-blur-2xl border-white/[0.08] text-foreground overflow-y-auto" />
+        <SheetContent className="w-full sm:max-w-xl bg-card/95 backdrop-blur-2xl border-gray-200 text-foreground overflow-y-auto" />
       </Sheet>
 
       {/* ═══ L-14: Assign Dialog ═══ */}
       <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
-        <DialogContent className="bg-card/95 backdrop-blur-xl border-white/[0.08] text-foreground max-w-md">
+        <DialogContent className="bg-card/95 backdrop-blur-xl border-gray-200 text-foreground max-w-md">
           <DialogHeader>
             <DialogTitle className="text-sm">Assign Leads</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
@@ -1456,8 +1456,8 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
             <div className="space-y-2">
               <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Method</label>
               <Select value={assignMethod} onValueChange={setAssignMethod}>
-                <SelectTrigger className="h-9 text-xs bg-white/[0.03] border-white/[0.08]"><SelectValue /></SelectTrigger>
-                <SelectContent className="border-white/[0.1] bg-black/60 backdrop-blur-2xl">
+                <SelectTrigger className="h-9 text-xs bg-black/[0.03] border-gray-200"><SelectValue /></SelectTrigger>
+                <SelectContent className="border-white/[0.1] bg-black/20 backdrop-blur-2xl">
                   <SelectItem value="manual" className="text-xs text-foreground">Manual — assign to specific person</SelectItem>
                   <SelectItem value="round_robin" className="text-xs text-foreground">Round Robin — distribute evenly</SelectItem>
                   <SelectItem value="territory" className="text-xs text-foreground">Territory — assign by geography</SelectItem>
@@ -1469,8 +1469,8 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               <div className="space-y-2">
                 <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Assign To</label>
                 <Select value={assignTo} onValueChange={setAssignTo}>
-                  <SelectTrigger className="h-9 text-xs bg-white/[0.03] border-white/[0.08]"><SelectValue /></SelectTrigger>
-                  <SelectContent className="border-white/[0.1] bg-black/60 backdrop-blur-2xl">
+                  <SelectTrigger className="h-9 text-xs bg-black/[0.03] border-gray-200"><SelectValue /></SelectTrigger>
+                  <SelectContent className="border-white/[0.1] bg-black/20 backdrop-blur-2xl">
                     <SelectItem value="Ravi Shanker" className="text-xs text-foreground">Ravi Shanker</SelectItem>
                     <SelectItem value="Sarah Chen" className="text-xs text-foreground">Sarah Chen</SelectItem>
                     <SelectItem value="Marcus Johnson" className="text-xs text-foreground">Marcus Johnson</SelectItem>
@@ -1488,12 +1488,12 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
 
       {/* ═══ L-06: Dedup Dialog ═══ */}
       <Dialog open={dedupOpen} onOpenChange={setDedupOpen}>
-        <DialogContent className="bg-card/95 backdrop-blur-xl border-white/[0.08] text-foreground max-w-3xl max-h-[85vh] overflow-hidden">
+        <DialogContent className="bg-card/95 backdrop-blur-xl border-gray-200 text-foreground max-w-3xl max-h-[85vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-base flex items-center gap-2">
-              <GitMerge className="w-4 h-4 text-amber-400" />
+              <GitMerge className="w-4 h-4 text-amber-600" />
               Duplicate Detection
-              <Badge variant="outline" className="bg-amber-500/10 text-amber-300 border-amber-500/20 text-[10px] ml-2">
+              <Badge variant="outline" className="bg-amber-50 text-amber-300 border-amber-500/20 text-[10px] ml-2">
                 {dedupGroups.length} groups
               </Badge>
             </DialogTitle>
@@ -1504,7 +1504,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
             ) : dedupGroups.length === 0 ? (
               <div className="py-12 text-center">
-                <CheckCircle2 className="w-8 h-8 text-emerald-400/50 mx-auto mb-3" />
+                <CheckCircle2 className="w-8 h-8 text-emerald-600/50 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">No duplicates found</p>
               </div>
             ) : (
@@ -1513,7 +1513,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                   const primary = group.contacts[0];
                   const secondaries = group.contacts.slice(1);
                   return (
-                    <div key={gi} className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-3">
+                    <div key={gi} className="p-4 rounded-xl bg-black/[0.03] border border-gray-200 space-y-3">
                       <div className="flex items-center justify-between">
                         <Badge variant="outline" className={`${group.matchType === 'exact' ? 'bg-red-500/15 text-red-300 border-red-500/20' : group.matchType === 'likely' ? 'bg-amber-500/15 text-amber-300 border-amber-500/20' : 'bg-zinc-500/15 text-zinc-300 border-zinc-500/20'} text-[10px]`}>
                           {group.matchType} match
@@ -1529,7 +1529,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                       </div>
                       <div className="space-y-2">
                         {group.contacts.map((c: any) => (
-                          <div key={c.id} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                          <div key={c.id} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-white/[0.02] border border-gray-200">
                             <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                               <span className="text-[10px] font-bold text-primary">{(c.rawName || '?').charAt(0).toUpperCase()}</span>
                             </div>
@@ -1567,18 +1567,18 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               backdropFilter: 'blur(40px)',
             }}
           >
-            <span className="text-xs font-medium text-foreground tabular-nums pr-2 border-r border-white/[0.08]">
+            <span className="text-xs font-medium text-foreground tabular-nums pr-2 border-r border-gray-200">
               {selectedIds.size} selected
             </span>
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-white/[0.06] px-3"
+              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-black/[0.06] px-3"
               onClick={() => { setSelectedIds(new Set()); }}
             >
               <X className="w-3 h-3" />Clear
             </Button>
-            <Separator orientation="vertical" className="h-5 bg-white/[0.08]" />
+            <Separator orientation="vertical" className="h-5 bg-black/[0.05]" />
             <Button
               variant="ghost"
               size="sm"
@@ -1590,7 +1590,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 gap-1.5 text-xs text-emerald-400 hover:bg-emerald-500/10 px-3"
+              className="h-8 gap-1.5 text-xs text-emerald-600 hover:bg-emerald-50 px-3"
               onClick={() => setAssignDialogOpen(true)}
             >
               <UserPlus className="w-3 h-3" />Add to Segment
@@ -1598,7 +1598,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 gap-1.5 text-xs text-amber-400 hover:bg-amber-500/10 px-3"
+              className="h-8 gap-1.5 text-xs text-amber-600 hover:bg-amber-50 px-3"
               onClick={handleBulkExportSelected}
             >
               <Download className="w-3 h-3" />Export
@@ -1606,7 +1606,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-white/[0.06] px-3"
+              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-black/[0.06] px-3"
               onClick={() => setBulkStatusOpen(true)}
             >
               <Activity className="w-3 h-3" />Update Status
@@ -1617,7 +1617,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
 
       {/* ═══ Task 2: Inline Note Dialog ═══ */}
       <Dialog open={inlineNoteOpen} onOpenChange={setInlineNoteOpen}>
-        <DialogContent className="bg-card/95 backdrop-blur-xl border-white/[0.08] text-foreground max-w-sm">
+        <DialogContent className="bg-card/95 backdrop-blur-xl border-gray-200 text-foreground max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-sm">Add Note</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">Add a note to this lead</DialogDescription>
@@ -1627,7 +1627,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               placeholder="Write your note here..."
               value={inlineNoteText}
               onChange={e => setInlineNoteText(e.target.value)}
-              className="min-h-[100px] text-sm bg-white/[0.03] border-white/[0.08] text-foreground placeholder:text-muted-foreground/50 focus:border-primary/30 resize-none"
+              className="min-h-[100px] text-sm bg-black/[0.03] border-gray-200 text-foreground placeholder:text-muted-foreground/50 focus:border-primary/30 resize-none"
               autoFocus
             />
             <div className="flex justify-end gap-2">
@@ -1649,7 +1649,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
 
       {/* ═══ Task 2: Bulk Status Update Dialog ═══ */}
       <Dialog open={bulkStatusOpen} onOpenChange={setBulkStatusOpen}>
-        <DialogContent className="bg-card/95 backdrop-blur-xl border-white/[0.08] text-foreground max-w-sm">
+        <DialogContent className="bg-card/95 backdrop-blur-xl border-gray-200 text-foreground max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-sm">Update Status</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
@@ -1660,8 +1660,8 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
             <div className="space-y-2">
               <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium">New Status</label>
               <Select value={bulkNewStatus} onValueChange={setBulkNewStatus}>
-                <SelectTrigger className="h-9 text-xs bg-white/[0.03] border-white/[0.08]"><SelectValue placeholder="Select status..." /></SelectTrigger>
-                <SelectContent className="border-white/[0.1] bg-black/60 backdrop-blur-2xl">
+                <SelectTrigger className="h-9 text-xs bg-black/[0.03] border-gray-200"><SelectValue placeholder="Select status..." /></SelectTrigger>
+                <SelectContent className="border-white/[0.1] bg-black/20 backdrop-blur-2xl">
                   <SelectItem value="imported" className="text-xs text-foreground">Imported</SelectItem>
                   <SelectItem value="cleaned" className="text-xs text-foreground">Cleaned</SelectItem>
                   <SelectItem value="drafted" className="text-xs text-foreground">Drafted</SelectItem>

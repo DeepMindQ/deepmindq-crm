@@ -63,38 +63,38 @@ const STAGE_PALETTE = {
     accentBg: 'bg-zinc-500/15',
   },
   verified: {
-    barBg: 'bg-blue-500/10',
+    barBg: 'bg-blue-50',
     barFill: 'bg-blue-500',
-    dotColor: 'bg-blue-400',
-    iconColor: 'text-blue-400',
+    dotColor: 'bg-blue-500',
+    iconColor: 'text-blue-600',
     accentBg: 'bg-blue-500/15',
   },
   drafted: {
-    barBg: 'bg-amber-500/10',
+    barBg: 'bg-amber-50',
     barFill: 'bg-amber-500',
     dotColor: 'bg-amber-400',
-    iconColor: 'text-amber-400',
+    iconColor: 'text-amber-600',
     accentBg: 'bg-amber-500/15',
   },
   approved: {
-    barBg: 'bg-purple-500/10',
+    barBg: 'bg-purple-50',
     barFill: 'bg-purple-500',
     dotColor: 'bg-purple-400',
-    iconColor: 'text-purple-400',
+    iconColor: 'text-purple-600',
     accentBg: 'bg-purple-500/15',
   },
   queued: {
     barBg: 'bg-indigo-500/10',
     barFill: 'bg-indigo-500',
     dotColor: 'bg-indigo-400',
-    iconColor: 'text-indigo-400',
+    iconColor: 'text-indigo-600',
     accentBg: 'bg-indigo-500/15',
   },
   sent: {
-    barBg: 'bg-emerald-500/10',
+    barBg: 'bg-emerald-50',
     barFill: 'bg-emerald-500',
-    dotColor: 'bg-emerald-400',
-    iconColor: 'text-emerald-400',
+    dotColor: 'bg-emerald-500',
+    iconColor: 'text-emerald-600',
     accentBg: 'bg-emerald-500/15',
   },
   replied: {
@@ -105,10 +105,10 @@ const STAGE_PALETTE = {
     accentBg: 'bg-green-500/15',
   },
   bounced: {
-    barBg: 'bg-red-500/10',
+    barBg: 'bg-red-50',
     barFill: 'bg-red-500',
-    dotColor: 'bg-red-400',
-    iconColor: 'text-red-400',
+    dotColor: 'bg-red-500',
+    iconColor: 'text-red-600',
     accentBg: 'bg-red-500/15',
   },
   suppressed: {
@@ -241,7 +241,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
       count: draftedCount,
       ...STAGE_PALETTE.drafted,
       badge: `${draftsPendingReview} pending`,
-      badgeColor: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+      badgeColor: 'bg-amber-500/15 text-amber-600 border-amber-500/30',
       sublabel: 'AI-generated drafts',
       navHint: 'Go to Drafts',
     },
@@ -270,7 +270,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
       count: sentCount,
       ...STAGE_PALETTE.sent,
       badge: `${deliveryRate} delivery`,
-      badgeColor: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+      badgeColor: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30',
       sublabel: 'Emails delivered',
       navHint: 'Go to Queue',
     },
@@ -292,7 +292,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
       count: bouncedCount,
       ...STAGE_PALETTE.bounced,
       badge: `${bounceRate} bounce rate`,
-      badgeColor: 'bg-red-500/15 text-red-400 border-red-500/30',
+      badgeColor: 'bg-red-500/15 text-red-600 border-red-500/30',
       sublabel: 'Failed deliveries',
       navHint: 'Go to Bounces',
     },
@@ -374,7 +374,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
               )}
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" style={{ boxShadow: '0 0 8px rgba(52, 211, 153, 0.5)' }} />
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" style={{ boxShadow: '0 0 8px rgba(52, 211, 153, 0.5)' }} />
                   {sentCount.toLocaleString()} sent
                 </span>
                 <span className="flex items-center gap-1.5">
@@ -539,7 +539,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
                       <div
                         className="rounded-lg border border-border/60 p-3 cursor-pointer group transition-all duration-300 relative"
                         style={{
-                          background: 'rgba(255, 255, 255, 0.02)',
+                          background: 'rgba(0, 0, 0, 0.02)',
                         }}
                         onMouseEnter={(e) => {
                           const el = e.currentTarget as HTMLDivElement;
@@ -551,7 +551,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
                           const el = e.currentTarget as HTMLDivElement;
                           el.style.borderColor = '';
                           el.style.boxShadow = '';
-                          el.style.background = 'rgba(255, 255, 255, 0.02)';
+                          el.style.background = 'rgba(0, 0, 0, 0.02)';
                         }}
                       >
                         <div className="flex items-start justify-between mb-2">
@@ -614,9 +614,9 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
         <GlassPanel className="px-5 py-5">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
             {[
-              { key: 'valid', label: 'Valid', color: '#34D399', textColor: 'text-emerald-400', icon: MailCheck },
-              { key: 'risky', label: 'Risky', color: '#FBBF24', textColor: 'text-amber-400', icon: AlertTriangle },
-              { key: 'invalid', label: 'Invalid', color: '#F87171', textColor: 'text-red-400', icon: Ban },
+              { key: 'valid', label: 'Valid', color: '#34D399', textColor: 'text-emerald-600', icon: MailCheck },
+              { key: 'risky', label: 'Risky', color: '#FBBF24', textColor: 'text-amber-600', icon: AlertTriangle },
+              { key: 'invalid', label: 'Invalid', color: '#F87171', textColor: 'text-red-600', icon: Ban },
               { key: 'unknown', label: 'Unknown', color: '#A1A1AA', textColor: 'text-zinc-400', icon: ShieldCheck },
             ].map((item, idx) => {
               const count = (eh as Record<string, number>)?.[item.key] || 0;
@@ -644,7 +644,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
                       <AnimatedCounter value={count} />
                     </span>
                   </div>
-                  <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                  <div className="h-2 bg-black/[0.06] rounded-full overflow-hidden">
                     <motion.div
                       className="h-full rounded-full"
                       style={{
@@ -675,7 +675,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
             <Button
               variant="outline"
               size="sm"
-              className="h-10 text-xs font-medium border-zinc-500/30 text-foreground hover:text-white transition-all duration-300 px-5"
+              className="h-10 text-xs font-medium border-zinc-500/30 text-foreground hover:text-foreground transition-all duration-300 px-5"
               style={{
                 background: 'linear-gradient(135deg, rgba(161, 161, 170, 0.1), rgba(161, 161, 170, 0.03))',
               }}
@@ -698,7 +698,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
             <Button
               variant="outline"
               size="sm"
-              className="h-10 text-xs font-medium border-blue-500/30 text-foreground hover:text-white transition-all duration-300 px-5"
+              className="h-10 text-xs font-medium border-blue-500/30 text-foreground hover:text-foreground transition-all duration-300 px-5"
               style={{
                 background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.03))',
               }}
@@ -721,7 +721,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
             <Button
               variant="outline"
               size="sm"
-              className="h-10 text-xs font-medium border-amber-500/30 text-foreground hover:text-white transition-all duration-300 px-5"
+              className="h-10 text-xs font-medium border-amber-500/30 text-foreground hover:text-foreground transition-all duration-300 px-5"
               style={{
                 background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.03))',
               }}
@@ -741,7 +741,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
               <FileCheck className="w-3.5 h-3.5 mr-2" />
               Review Pending Drafts
               {draftsPendingReview > 0 && (
-                <Badge variant="outline" className="ml-2 bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px] px-1.5 py-0">
+                <Badge variant="outline" className="ml-2 bg-amber-500/15 text-amber-600 border-amber-500/30 text-[10px] px-1.5 py-0">
                   {draftsPendingReview}
                 </Badge>
               )}

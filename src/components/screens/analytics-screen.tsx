@@ -177,9 +177,9 @@ const COLORS = {
   amber: '#f59e0b',
   blue: '#3b82f6',
   purple: '#a855f7',
-  mutedText: '#7A8699',
-  gridLine: 'rgba(255,255,255,0.06)',
-  gridLineLight: 'rgba(255,255,255,0.04)',
+  mutedText: '#6B7280',
+  gridLine: 'rgba(0, 0, 0, 0.05)',
+  gridLineLight: 'rgba(0, 0, 0, 0.04)',
 };
 
 // ---------------------------------------------------------------------------
@@ -190,7 +190,7 @@ function DarkTooltip({ active, payload, label }: { active?: boolean; payload?: A
   if (!active || !payload?.length) return null;
   return (
     <div
-      className="rounded-lg border border-white/10 px-3 py-2.5 shadow-2xl backdrop-blur-xl"
+      className="rounded-lg border border-gray-200 px-3 py-2.5 shadow-2xl backdrop-blur-xl"
       style={{
         background: 'rgba(10, 12, 20, 0.92)',
         boxShadow: '0 0 20px rgba(212, 175, 55, 0.08)',
@@ -405,7 +405,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
           </div>
           <div className="flex items-center gap-3">
             <Select value={timeRange} onValueChange={setTimeRange}>
-              <SelectTrigger className="w-[150px] h-9 text-xs border-white/10 bg-white/[0.03]">
+              <SelectTrigger className="w-[150px] h-9 text-xs border-gray-200 bg-black/[0.03]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -415,7 +415,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
                 <SelectItem value="90d">Last 90 days</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="h-9 text-xs gap-2 border-white/10 bg-white/[0.03] hover:bg-white/[0.06]">
+            <Button variant="outline" size="sm" className="h-9 text-xs gap-2 border-gray-200 bg-black/[0.03] hover:bg-black/[0.06]">
               <FileSpreadsheet className="w-3.5 h-3.5" />
               Export
             </Button>
@@ -497,7 +497,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
                 <XAxis
                   type="number"
                   tick={{ fill: COLORS.mutedText, fontSize: 11 }}
-                  axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+                  axisLine={{ stroke: 'rgba(0, 0, 0, 0.06)' }}
                   tickLine={false}
                 />
                 <YAxis
@@ -587,7 +587,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
                 <XAxis
                   dataKey="day"
                   tick={{ fill: COLORS.mutedText, fontSize: 11 }}
-                  axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+                  axisLine={{ stroke: 'rgba(0, 0, 0, 0.06)' }}
                   tickLine={false}
                 />
                 <YAxis
@@ -743,7 +743,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
                   <XAxis
                     dataKey="name"
                     tick={{ fill: COLORS.mutedText, fontSize: 12 }}
-                    axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+                    axisLine={{ stroke: 'rgba(0, 0, 0, 0.06)' }}
                     tickLine={false}
                   />
                   <YAxis
@@ -803,7 +803,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
                 <XAxis
                   type="number"
                   tick={{ fill: COLORS.mutedText, fontSize: 11 }}
-                  axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+                  axisLine={{ stroke: 'rgba(0, 0, 0, 0.06)' }}
                   tickLine={false}
                 />
                 <YAxis
@@ -855,7 +855,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
                     topContent.map((item, i) => (
                       <TableRow
                         key={i}
-                        className="border-border transition-colors duration-200 hover:bg-white/[0.04] hover:shadow-[inset_0_0_0_1px_rgba(212,175,55,0.08)]"
+                        className="border-border transition-colors duration-200 hover:bg-black/[0.04] hover:shadow-[inset_0_0_0_1px_rgba(212,175,55,0.08)]"
                       >
                         <TableCell className="text-foreground text-sm font-medium max-w-[220px] truncate">
                           {item.subject}
@@ -874,11 +874,11 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
                         </TableCell>
                         <TableCell className="text-sm text-right pr-4">
                           {item.replied ? (
-                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-semibold text-[11px]">
+                            <Badge className="bg-emerald-50 text-emerald-600 border-emerald-500/30 font-semibold text-[11px]">
                               Replied
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="bg-white/[0.03] text-muted-foreground border-border text-[11px]">
+                            <Badge variant="outline" className="bg-black/[0.03] text-muted-foreground border-border text-[11px]">
                               Sent
                             </Badge>
                           )}

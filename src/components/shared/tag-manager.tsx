@@ -26,7 +26,7 @@ interface TagManagerProps {
 }
 
 const TAG_COLORS = [
-  { name: 'gray', bg: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200', dot: 'bg-gray-400' },
+  { name: 'gray', bg: 'bg-gray-100 text-gray-800 dark:bg-gray-50 dark:text-gray-200', dot: 'bg-gray-400' },
   { name: 'red', bg: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300', dot: 'bg-red-500' },
   { name: 'amber', bg: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300', dot: 'bg-amber-500' },
   { name: 'green', bg: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300', dot: 'bg-green-500' },

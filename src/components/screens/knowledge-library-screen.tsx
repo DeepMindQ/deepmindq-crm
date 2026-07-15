@@ -100,11 +100,11 @@ const GRAPH_CATEGORY_COLORS: Record<string, string> = {
 };
 
 const CATEGORY_CONFIG: Record<string, { icon: typeof Layers; color: string; badge: string }> = {
-  service_line: { icon: Layers, color: '#3B82F6', badge: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
-  case_study: { icon: BookOpen, color: '#10B981', badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
-  proof_point: { icon: Trophy, color: '#8B5CF6', badge: 'bg-purple-500/15 text-purple-400 border-purple-500/30' },
-  objection_response: { icon: MessageSquare, color: '#EF4444', badge: 'bg-red-500/15 text-red-400 border-red-500/30' },
-  cta: { icon: Target, color: '#F59E0B', badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
+  service_line: { icon: Layers, color: '#3B82F6', badge: 'bg-blue-500/15 text-blue-600 border-blue-500/30' },
+  case_study: { icon: BookOpen, color: '#10B981', badge: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' },
+  proof_point: { icon: Trophy, color: '#8B5CF6', badge: 'bg-purple-500/15 text-purple-600 border-purple-500/30' },
+  objection_response: { icon: MessageSquare, color: '#EF4444', badge: 'bg-red-500/15 text-red-600 border-red-500/30' },
+  cta: { icon: Target, color: '#F59E0B', badge: 'bg-amber-500/15 text-amber-600 border-amber-500/30' },
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -490,8 +490,8 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
     return acc;
   }, {});
 
-  const gold = '#D4AF37';
-  const goldLight = '#E8C860';
+  const gold = '#B8860B';
+  const goldLight = '#D4A843';
 
   return (
     <PageTransition>
@@ -657,13 +657,13 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           <div className="flex items-center gap-1 shrink-0">
                             <button
                               onClick={() => setViewAsset(asset)}
-                              className="p-1 rounded-md hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors"
+                              className="p-1 rounded-md hover:bg-black/5 text-muted-foreground hover:text-foreground transition-colors"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => handleDelete(asset.id)}
-                              className="p-1 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-colors"
+                              className="p-1 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -778,7 +778,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           data={buildTreemapData(graphData.nodes)}
                           dataKey="size"
                           aspectRatio={4 / 3}
-                          stroke="rgba(255,255,255,0.06)"
+                          stroke="rgba(0, 0, 0, 0.05)"
                           content={<CustomTreemapContent />}
                         />
                       </ResponsiveContainer>
@@ -819,7 +819,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             <Tooltip
                               contentStyle={{
                                 background: 'rgba(10,12,20,0.95)',
-                                border: '1px solid rgba(255,255,255,0.1)',
+                                border: '1px solid rgba(0, 0, 0, 0.06)',
                                 borderRadius: '8px',
                                 fontSize: '12px',
                                 color: '#e2e8f0',
@@ -846,14 +846,14 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           >
                             <XAxis
                               type="number"
-                              tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
-                              axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+                              tick={{ fill: 'rgba(0, 0, 0, 0.1)', fontSize: 11 }}
+                              axisLine={{ stroke: 'rgba(0, 0, 0, 0.06)' }}
                               tickLine={false}
                             />
                             <YAxis
                               type="category"
                               dataKey="name"
-                              tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }}
+                              tick={{ fill: 'rgba(0, 0, 0, 0.12)', fontSize: 11 }}
                               axisLine={false}
                               tickLine={false}
                               width={140}
@@ -861,7 +861,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             <Tooltip
                               contentStyle={{
                                 background: 'rgba(10,12,20,0.95)',
-                                border: '1px solid rgba(255,255,255,0.1)',
+                                border: '1px solid rgba(0, 0, 0, 0.06)',
                                 borderRadius: '8px',
                                 fontSize: '12px',
                                 color: '#e2e8f0',
@@ -915,25 +915,25 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           </div>
                           <button
                             onClick={() => setSelectedGraphNode(null)}
-                            className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors"
+                            className="p-1.5 rounded-md hover:bg-black/5 text-muted-foreground hover:text-foreground transition-colors"
                           >
                             <X className="w-4 h-4" />
                           </button>
                         </div>
                         <div className="grid grid-cols-4 gap-4 mt-3">
-                          <div className="text-center p-3 rounded-lg bg-black/20 border border-white/[0.06]">
+                          <div className="text-center p-3 rounded-lg bg-black/20 border border-gray-200">
                             <p className="text-lg font-bold tabular-nums" style={{ color: gold }}>{selectedGraphNode.score}</p>
                             <p className="text-[10px] text-muted-foreground">Score</p>
                           </div>
-                          <div className="text-center p-3 rounded-lg bg-black/20 border border-white/[0.06]">
-                            <p className="text-lg font-bold tabular-nums text-emerald-400">{selectedGraphNode.upvotes}</p>
+                          <div className="text-center p-3 rounded-lg bg-black/20 border border-gray-200">
+                            <p className="text-lg font-bold tabular-nums text-emerald-600">{selectedGraphNode.upvotes}</p>
                             <p className="text-[10px] text-muted-foreground">Upvotes</p>
                           </div>
-                          <div className="text-center p-3 rounded-lg bg-black/20 border border-white/[0.06]">
-                            <p className="text-lg font-bold tabular-nums text-blue-400">{selectedGraphNode.usedInEmails}</p>
+                          <div className="text-center p-3 rounded-lg bg-black/20 border border-gray-200">
+                            <p className="text-lg font-bold tabular-nums text-blue-600">{selectedGraphNode.usedInEmails}</p>
                             <p className="text-[10px] text-muted-foreground">Used in Emails</p>
                           </div>
-                          <div className="text-center p-3 rounded-lg bg-black/20 border border-white/[0.06]">
+                          <div className="text-center p-3 rounded-lg bg-black/20 border border-gray-200">
                             <p className="text-lg font-bold tabular-nums text-muted-foreground">v{selectedGraphNode.version}</p>
                             <p className="text-[10px] text-muted-foreground">Version</p>
                           </div>
@@ -974,7 +974,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                     Hybrid search (keyword + semantic TF-overlap) with multi-field weighted scoring, industry/role boosting, and category-aware ranking
                   </p>
                 </div>
-                <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/5 shrink-0">
+                <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-600 bg-emerald-500/5 shrink-0">
                   <CheckCircle2 className="w-3 h-3 mr-1" />
                   Active
                 </Badge>
@@ -1223,7 +1223,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             {/* Rank badge */}
                             <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
                               style={{
-                                background: idx === 0 ? 'linear-gradient(135deg, #D4AF37, #E8C860)' : 'rgba(255,255,255,0.05)',
+                                background: idx === 0 ? 'linear-gradient(135deg, #D4AF37, #E8C860)' : 'rgba(0, 0, 0, 0.04)',
                                 color: idx === 0 ? '#000' : 'text-muted-foreground',
                               }}
                             >
@@ -1317,14 +1317,14 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                     {/* Dimension breakdown */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       {Object.entries(healthData.dimensions || {}).map(([key, dim]: [string, any]) => (
-                        <div key={key} className="p-3 rounded-lg bg-black/20 border border-white/[0.06]">
+                        <div key={key} className="p-3 rounded-lg bg-black/20 border border-gray-200">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{dim.label}</span>
                             <span className="text-xs font-bold tabular-nums" style={{
                               color: dim.score >= 70 ? '#10B981' : dim.score >= 40 ? '#FBBF24' : '#EF4444'
                             }}>{dim.score}%</span>
                           </div>
-                          <div className="w-full h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                          <div className="w-full h-2 bg-black/[0.06] rounded-full overflow-hidden">
                             <motion.div
                               className="h-full rounded-full"
                               style={{ background: dim.score >= 70 ? '#10B981' : dim.score >= 40 ? '#FBBF24' : '#EF4444' }}
@@ -1342,8 +1342,8 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                     {healthData.gaps && healthData.gaps.totalGaps > 0 && (
                       <div className="mt-4 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5">
                         <div className="flex items-center gap-2 mb-2">
-                          <AlertTriangle className="w-4 h-4 text-amber-400" />
-                          <span className="text-xs font-semibold text-amber-400">{healthData.gaps.totalGaps} Coverage Gaps Detected</span>
+                          <AlertTriangle className="w-4 h-4 text-amber-600" />
+                          <span className="text-xs font-semibold text-amber-600">{healthData.gaps.totalGaps} Coverage Gaps Detected</span>
                         </div>
                         {healthData.gaps.industries.length > 0 && (
                           <div className="mb-1">
@@ -1412,7 +1412,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                     <GradientCard gradient="blue">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-500/15">
-                          <Layers className="w-5 h-5 text-blue-400" />
+                          <Layers className="w-5 h-5 text-blue-600" />
                         </div>
                         <div>
                           <StatValue value={coverage.serviceLines.length} />
@@ -1425,7 +1425,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                     <GradientCard gradient="green">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-emerald-500/15">
-                          <Globe className="w-5 h-5 text-emerald-400" />
+                          <Globe className="w-5 h-5 text-emerald-600" />
                         </div>
                         <div>
                           <StatValue value={`${coverage.industries.filter(i => i.coverage >= 50).length}/${coverage.industries.length}`} />
@@ -1438,7 +1438,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                     <GradientCard gradient="purple">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-purple-500/15">
-                          <Users className="w-5 h-5 text-purple-400" />
+                          <Users className="w-5 h-5 text-purple-600" />
                         </div>
                         <div>
                           <StatValue value={`${coverage.roles.filter(r => r.coverage >= 50).length}/${coverage.roles.length}`} />
@@ -1468,9 +1468,9 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           <span className="text-xs tabular-nums text-foreground w-8 text-right">{ind.count}</span>
                           {ind.gaps.length > 0 && (
                             <div className="relative group">
-                              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 cursor-help" />
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 cursor-help" />
                               <div className="absolute right-0 bottom-full mb-2 w-56 p-2 rounded-lg bg-card border border-border shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                <p className="text-[10px] font-medium text-amber-400 mb-1">Gaps for {ind.name}:</p>
+                                <p className="text-[10px] font-medium text-amber-600 mb-1">Gaps for {ind.name}:</p>
                                 {ind.gaps.map((g, gi) => (
                                   <p key={gi} className="text-[10px] text-muted-foreground">- {g}</p>
                                 ))}
@@ -1493,10 +1493,10 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-medium text-foreground">{sl.name}</span>
                             <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400">
+                              <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-600">
                                 {sl.caseStudies} case studies
                               </Badge>
-                              <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-400">
+                              <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-600">
                                 {sl.proofPoints} proof points
                               </Badge>
                             <span className="text-xs text-muted-foreground">{sl.count} total</span>
@@ -1569,7 +1569,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             <Tooltip
                               contentStyle={{
                                 background: 'rgba(10,12,20,0.95)',
-                                border: '1px solid rgba(255,255,255,0.1)',
+                                border: '1px solid rgba(0, 0, 0, 0.06)',
                                 borderRadius: '8px',
                                 fontSize: '12px',
                                 color: '#e2e8f0',
@@ -1578,7 +1578,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             <Legend
                               iconType="circle"
                               iconSize={8}
-                              wrapperStyle={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}
+                              wrapperStyle={{ fontSize: '11px', color: 'rgba(0, 0, 0, 0.15)' }}
                             />
                           </PieChart>
                         </ResponsiveContainer>
@@ -1602,15 +1602,15 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                         >
                           <XAxis
                             type="number"
-                            tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
-                            axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+                            tick={{ fill: 'rgba(0, 0, 0, 0.1)', fontSize: 11 }}
+                            axisLine={{ stroke: 'rgba(0, 0, 0, 0.06)' }}
                             tickLine={false}
-                            gridLine={{ stroke: 'rgba(255,255,255,0.04)' }}
+                            gridLine={{ stroke: 'rgba(0, 0, 0, 0.04)' }}
                           />
                           <YAxis
                             type="category"
                             dataKey="name"
-                            tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }}
+                            tick={{ fill: 'rgba(0, 0, 0, 0.12)', fontSize: 11 }}
                             axisLine={false}
                             tickLine={false}
                             width={120}
@@ -1618,7 +1618,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           <Tooltip
                             contentStyle={{
                               background: 'rgba(10,12,20,0.95)',
-                              border: '1px solid rgba(255,255,255,0.1)',
+                              border: '1px solid rgba(0, 0, 0, 0.06)',
                               borderRadius: '8px',
                               fontSize: '12px',
                               color: '#e2e8f0',
@@ -1703,11 +1703,11 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                       ].map((step, i) => (
                         <div key={i} className="flex items-center gap-2.5">
                           {step.done ? (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                           ) : (
                             <div className="w-3.5 h-3.5 rounded-full border border-muted-foreground/30 shrink-0" />
                           )}
-                          <span className={`text-xs ${step.done ? 'text-emerald-400' : 'text-muted-foreground'}`}>{step.label}</span>
+                          <span className={`text-xs ${step.done ? 'text-emerald-600' : 'text-muted-foreground'}`}>{step.label}</span>
                         </div>
                       ))}
                     </div>
@@ -1717,9 +1717,9 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                 {/* Error state */}
                 {uploadStep === 'error' && (
                   <div className="mt-4 p-4 rounded-xl border border-red-500/20 bg-red-500/5 flex items-start gap-3">
-                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm text-red-400 font-medium">Upload failed</p>
+                      <p className="text-sm text-red-600 font-medium">Upload failed</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{uploadError}</p>
                     </div>
                   </div>
@@ -1772,7 +1772,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                         </div>
                         <div className="flex items-center gap-2">
                           <Button size="sm" className="h-8 text-xs gap-1.5" style={{ background: `linear-gradient(135deg, ${gold}, ${goldLight})`, color: '#000' }} onClick={handleUpload}><Sparkles className="w-3.5 h-3.5" />Upload & Generate</Button>
-                          <button onClick={() => { setUploadFile(null); setUploadStep('idle'); setUploadResult(null); setUploadError(''); }} className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => { setUploadFile(null); setUploadStep('idle'); setUploadResult(null); setUploadError(''); }} className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors"><X className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
                     )}
@@ -1780,7 +1780,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                       <div className="p-3 rounded-lg border border-border bg-card/50">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-xs font-medium text-foreground">{uploadFiles.length} files selected</span>
-                          <button onClick={() => { setUploadFiles([]); setUploadStep('idle'); setUploadResult(null); setUploadError(''); }} className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => { setUploadFiles([]); setUploadStep('idle'); setUploadResult(null); setUploadError(''); }} className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors"><X className="w-3.5 h-3.5" /></button>
                         </div>
                         <div className="max-h-32 overflow-y-auto space-y-1 mb-3">
                           {uploadFiles.map((f, i) => (
@@ -1812,7 +1812,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: uploadResult.aiExtractionUsed ? 'rgba(16,185,129,0.15)' : 'rgba(212,175,55,0.1)' }}>
                         {uploadResult.aiExtractionUsed ? (
-                          <Sparkles className="w-4.5 h-4.5 text-emerald-400" />
+                          <Sparkles className="w-4.5 h-4.5 text-emerald-600" />
                         ) : (
                           <FileText className="w-4.5 h-4.5" style={{ color: gold }} />
                         )}
@@ -1834,7 +1834,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             {uploadResult.wordCount.toLocaleString()} words
                           </Badge>
                           {uploadResult.aiExtractionUsed && (
-                            <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400">
+                            <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-600">
                               <Sparkles className="w-2.5 h-2.5 mr-1" />
                               AI-Powered
                             </Badge>
@@ -1843,7 +1843,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                       </div>
                       <button
                         onClick={() => { setUploadResult(null); setUploadStep('idle'); }}
-                        className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                        className="p-1.5 rounded-md hover:bg-black/5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -1876,7 +1876,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
                                 <p className="text-xs font-medium text-foreground truncate">{String(asset.title || 'Untitled')}</p>
-                                <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
                               </div>
                               <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{String(asset.summary || '')}</p>
                               <div className="flex items-center gap-1.5 flex-wrap mt-2">
@@ -1909,8 +1909,8 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                     <div className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <AlertTriangle className="w-4 h-4 text-amber-400" />
-                          <p className="text-xs text-amber-400 font-medium">No knowledge assets were auto-generated</p>
+                          <AlertTriangle className="w-4 h-4 text-amber-600" />
+                          <p className="text-xs text-amber-600 font-medium">No knowledge assets were auto-generated</p>
                         </div>
                         <Button
                           size="sm"
@@ -2099,7 +2099,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                                 <div
                                   className="absolute left-[-17px] top-1.5 w-3.5 h-3.5 rounded-full border-2"
                                   style={{
-                                    borderColor: isCurrent ? gold : 'rgba(255,255,255,0.15)',
+                                    borderColor: isCurrent ? gold : 'rgba(0, 0, 0, 0.06)',
                                     background: isCurrent ? `${gold}40` : 'transparent',
                                     boxShadow: isCurrent ? `0 0 8px ${gold}60` : 'none',
                                   }}
@@ -2323,15 +2323,15 @@ function CustomTreemapContent(props: any) {
           y={y}
           width={width}
           height={height}
-          fill="rgba(255,255,255,0.02)"
-          stroke="rgba(255,255,255,0.06)"
+          fill="rgba(0, 0, 0, 0.02)"
+          stroke="rgba(0, 0, 0, 0.05)"
           rx={6}
         />
         {width > 80 && (
           <text
             x={x + 8}
             y={y + 18}
-            fill="rgba(255,255,255,0.5)"
+            fill="rgba(0, 0, 0, 0.12)"
             fontSize={10}
             fontWeight={600}
           >
@@ -2368,7 +2368,7 @@ function CustomTreemapContent(props: any) {
         <text
           x={x + 6}
           y={y + height / 2 + 1}
-          fill="rgba(255,255,255,0.85)"
+          fill="rgba(0, 0, 0, 0.3)"
           fontSize={10}
           fontWeight={500}
         >

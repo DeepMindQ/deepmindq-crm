@@ -886,7 +886,7 @@ export default function ContactsScreen() {
                           <ShieldCheck
                             className={cn(
                               'size-3.5',
-                              isValidating ? 'text-emerald-400 animate-pulse' : 'text-emerald-500',
+                              isValidating ? 'text-emerald-600 animate-pulse' : 'text-emerald-500',
                             )}
                           />
                         </button>
@@ -1017,7 +1017,7 @@ export default function ContactsScreen() {
       {/* ═══ Floating Bulk Operations Toolbar ═══ */}
       {selected.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
-          <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 bg-gray-900 text-white rounded-2xl shadow-2xl max-w-[calc(100vw-3rem)]">
+          <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 bg-white text-white rounded-2xl shadow-2xl max-w-[calc(100vw-3rem)]">
             <span className="text-sm font-medium whitespace-nowrap">
               {selected.size} {selected.size === 1 ? 'contact' : 'contacts'} selected
             </span>
@@ -1026,7 +1026,7 @@ export default function ContactsScreen() {
             {/* Select All / Deselect All */}
             <button
               onClick={toggleAll}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-gray-800 transition-colors text-xs whitespace-nowrap"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-gray-50 transition-colors text-xs whitespace-nowrap"
             >
               {selected.size === contacts.length ? <Square className="size-3.5" /> : <CheckSquare className="size-3.5" />}
               {selected.size === contacts.length ? 'Deselect All' : 'Select All'}
@@ -1040,7 +1040,7 @@ export default function ContactsScreen() {
               size="sm"
               onClick={() => bulkValidateMutation.mutate(Array.from(selected))}
               disabled={bulkValidateMutation.isPending}
-              className="h-7 text-xs text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg"
+              className="h-7 text-xs text-gray-500 hover:text-foreground hover:bg-gray-100 rounded-lg"
             >
               {bulkValidateMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <ShieldCheck className="size-3.5 mr-1.5" />}
               Validate
@@ -1049,7 +1049,7 @@ export default function ContactsScreen() {
             {/* Change Status */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 text-xs text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg">
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-gray-500 hover:text-foreground hover:bg-gray-100 rounded-lg">
                   <Archive className="size-3.5 mr-1.5" /> Status
                 </Button>
               </DropdownMenuTrigger>
@@ -1070,7 +1070,7 @@ export default function ContactsScreen() {
             </DropdownMenu>
 
             {/* Export */}
-            <Button variant="ghost" size="sm" onClick={handleExportSelected} className="h-7 text-xs text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg">
+            <Button variant="ghost" size="sm" onClick={handleExportSelected} className="h-7 text-xs text-gray-500 hover:text-foreground hover:bg-gray-100 rounded-lg">
               <Download className="size-3.5 mr-1.5" /> Export
             </Button>
 
@@ -1080,7 +1080,7 @@ export default function ContactsScreen() {
               size="sm"
               onClick={() => bulkArchiveMutation.mutate(Array.from(selected))}
               disabled={bulkArchiveMutation.isPending}
-              className="h-7 text-xs text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg"
+              className="h-7 text-xs text-gray-500 hover:text-foreground hover:bg-gray-100 rounded-lg"
             >
               {bulkArchiveMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Archive className="size-3.5 mr-1.5" />}
               Archive
@@ -1091,7 +1091,7 @@ export default function ContactsScreen() {
               variant="ghost"
               size="sm"
               onClick={() => setBulkDeleteOpen(true)}
-              className="h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded-lg"
+              className="h-7 text-xs text-red-600 hover:text-red-300 hover:bg-red-900/30 rounded-lg"
             >
               <Trash2 className="size-3.5 mr-1.5" /> Delete
             </Button>

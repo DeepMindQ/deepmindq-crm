@@ -281,10 +281,10 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
                         {seq.description && <p className="text-xs text-muted-foreground ml-6">{seq.description}</p>}
                       </div>
                       <div className="flex gap-1 shrink-0 ml-2">
-                        <button onClick={() => openEnroll(seq)} className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors" title="Enroll contacts">
+                        <button onClick={() => openEnroll(seq)} className="p-1.5 rounded-md hover:bg-black/5 text-muted-foreground hover:text-foreground transition-colors" title="Enroll contacts">
                           <Users className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => handleDelete(seq.id)} className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-colors" title="Archive">
+                        <button onClick={() => handleDelete(seq.id)} className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors" title="Archive">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -429,17 +429,17 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
                         </div>
                         <div className="flex gap-1 shrink-0">
                           {index > 0 && (
-                            <button onClick={() => moveStep(index, index - 1)} className="p-1 rounded hover:bg-white/5 text-muted-foreground hover:text-foreground">
+                            <button onClick={() => moveStep(index, index - 1)} className="p-1 rounded hover:bg-black/5 text-muted-foreground hover:text-foreground">
                               <ChevronRight className="w-3 h-3 rotate-180" />
                             </button>
                           )}
                           {index < formSteps.length - 1 && (
-                            <button onClick={() => moveStep(index, index + 1)} className="p-1 rounded hover:bg-white/5 text-muted-foreground hover:text-foreground">
+                            <button onClick={() => moveStep(index, index + 1)} className="p-1 rounded hover:bg-black/5 text-muted-foreground hover:text-foreground">
                               <ChevronRight className="w-3 h-3" />
                             </button>
                           )}
                           {formSteps.length > 1 && (
-                            <button onClick={() => removeStep(index)} className="p-1 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-400">
+                            <button onClick={() => removeStep(index)} className="p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600">
                               <XCircle className="w-3 h-3" />
                             </button>
                           )}

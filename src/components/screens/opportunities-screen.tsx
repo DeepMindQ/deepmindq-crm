@@ -315,7 +315,7 @@ export function OpportunitiesScreen() {
               onClick={() => setViewMode('kanban')}
               className={cn(
                 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
-                viewMode === 'kanban' ? 'bg-gray-900 text-white shadow-xs' : 'text-gray-500 hover:text-gray-700',
+                viewMode === 'kanban' ? 'bg-white text-white shadow-xs' : 'text-gray-500 hover:text-gray-700',
               )}
             >
               <LayoutGrid className="size-3.5" /> Kanban
@@ -324,7 +324,7 @@ export function OpportunitiesScreen() {
               onClick={() => setViewMode('list')}
               className={cn(
                 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
-                viewMode === 'list' ? 'bg-gray-900 text-white shadow-xs' : 'text-gray-500 hover:text-gray-700',
+                viewMode === 'list' ? 'bg-white text-white shadow-xs' : 'text-gray-500 hover:text-gray-700',
               )}
             >
               <List className="size-3.5" /> List

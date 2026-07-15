@@ -428,7 +428,7 @@ export function ReportsScreen() {
   return (
     <div className="min-h-screen bg-gray-50/50">
       {/* ── Header ────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-200">
+      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b border-gray-200">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-50">
@@ -823,7 +823,7 @@ export function ReportsScreen() {
                     </div>
                   ) : (
                     <div className="text-center py-12 text-gray-400">
-                      <ShieldCheck className="size-8 mx-auto mb-2 text-emerald-400" />
+                      <ShieldCheck className="size-8 mx-auto mb-2 text-emerald-600" />
                       <p className="text-sm">Your data looks great! No recommendations.</p>
                     </div>
                   )}

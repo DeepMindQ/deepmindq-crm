@@ -205,7 +205,7 @@ describe('StatusDot', () => {
 
   it('renders for old status', () => {
     const { container } = render(<StatusDot status="old" />)
-    expect(container.querySelector('.bg-red-400')).toBeInTheDocument()
+    expect(container.querySelector('.bg-red-500')).toBeInTheDocument()
   })
 
   it('renders for unknown status', () => {

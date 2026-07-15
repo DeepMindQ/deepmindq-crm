@@ -45,7 +45,7 @@ interface Insights {
 }
 interface AuditItem { id: string; action: string; entity: string; entityId?: string; details?: string; createdAt: string }
 
-const C = { bg: '#06090F', card: 'rgba(12,18,30,0.7)', border: 'rgba(255,255,255,0.06)', gold: '#D4AF37', goldLight: '#E8C860', goldDim: '#9A8340', text: '#E8ECF1', textMuted: '#7A8699', textDim: '#3A4555', green: '#10B981', red: '#EF4444', blue: '#3B82F6', amber: '#F59E0B' };
+const C = { bg: '#FAFAFA', card: 'rgba(255, 255, 255, 0.85)', border: 'rgba(0, 0, 0, 0.08)', gold: '#B8860B', goldLight: '#D4A843', goldDim: '#8B6914', text: '#111827', textMuted: '#6B7280', textDim: '#9CA3AF', green: '#059669', red: '#DC2626', blue: '#2563EB', amber: '#D97706' };
 const ENGINES = { company: { label: 'Company Engine', icon: Building2, color: '#A855F7' }, email: { label: 'Email Engine', icon: Mail, color: '#3B82F6' }, capability: { label: 'Capability Engine', icon: Archive, color: '#10B981' } } as const;
 const PRIORITY = { high: { color: C.red, bg: 'rgba(239,68,68,0.12)', label: 'Critical', icon: Shield }, medium: { color: C.amber, bg: 'rgba(245,158,11,0.12)', label: 'Warning', icon: AlertTriangle }, low: { color: C.blue, bg: 'rgba(59,130,246,0.12)', label: 'Info', icon: Eye } };
 const PIE_COLORS = [C.gold, '#A855F7', C.blue, C.green, C.amber, C.red, C.textMuted];
@@ -117,7 +117,7 @@ function HealthGauge({ score, insights }: { score: number; insights: Insights })
     <div className="rounded-2xl border p-6 flex flex-col items-center" style={{ background: C.card, borderColor: C.border }}>
       <div className="relative flex items-center justify-center mb-4">
         <svg width="160" height="160" viewBox="0 0 160 160">
-          <circle cx="80" cy="80" r={r} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="8" />
+          <circle cx="80" cy="80" r={r} fill="none" stroke="rgba(0, 0, 0, 0.04)" strokeWidth="8" />
           <circle cx="80" cy="80" r={r} fill="none" stroke="url(#gG)" strokeWidth="8" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" transform="rotate(-90 80 80)" style={{ transition: 'stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1)' }} />
           <defs><linearGradient id="gG" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor={C.goldDim} /><stop offset="100%" stopColor={C.goldLight} /></linearGradient></defs>
         </svg>
@@ -129,7 +129,7 @@ function HealthGauge({ score, insights }: { score: number; insights: Insights })
       <div className="grid grid-cols-2 gap-2 w-full">
         {pills.map((p, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.08 }}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl border" style={{ background: 'rgba(255,255,255,0.02)', borderColor: C.border }}>
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border" style={{ background: 'rgba(0, 0, 0, 0.02)', borderColor: C.border }}>
             <p.icon className="w-3.5 h-3.5 shrink-0" style={{ color: C.goldDim }} />
             <div className="min-w-0"><div className="text-xs font-bold tabular-nums" style={{ color: C.text }}>{p.value}</div>
               <div className="text-[8px] uppercase tracking-wider truncate" style={{ color: C.textDim }}>{p.label}</div></div>
@@ -175,13 +175,13 @@ function EngineCard({ key_: k, insights }: { key_: 'company' | 'email' | 'capabi
         </div>
         <div className="grid grid-cols-2 gap-3 mb-4">
           {metrics.map((m, i) => (
-            <div key={i} className="rounded-xl p-3 border" style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.04)' }}>
+            <div key={i} className="rounded-xl p-3 border" style={{ background: 'rgba(0, 0, 0, 0.02)', borderColor: 'rgba(0, 0, 0, 0.04)' }}>
               <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: C.textDim }}>{m.l}</div>
               <div className="text-lg font-bold tabular-nums" style={{ color: C.text }}>{typeof m.v === 'number' ? m.v.toLocaleString() : m.v}</div>
             </div>
           ))}
         </div>
-        <div className="rounded-xl p-2 border" style={{ background: 'rgba(255,255,255,0.015)', borderColor: 'rgba(255,255,255,0.03)' }}>
+        <div className="rounded-xl p-2 border" style={{ background: 'rgba(0,0,0,0.015)', borderColor: 'rgba(0, 0, 0, 0.06)' }}>
           <div className="text-[8px] uppercase tracking-widest mb-1 px-1" style={{ color: C.textDim }}>7-DAY TREND</div>
           <Sparkline data={SPARK[k]} color={cfg.color} h={50} />
         </div>
@@ -200,7 +200,7 @@ function ActivityFeed({ items }: { items: AuditItem[] }) {
         <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: C.green }} />
         <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: C.text }}>Live Activity Feed</h3>
       </div>
-      <div className="flex-1 overflow-y-auto px-3 pb-3" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.08) transparent' }}>
+      <div className="flex-1 overflow-y-auto px-3 pb-3" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(0, 0, 0, 0.06) transparent' }}>
         {items.length === 0 ? <div className="flex items-center justify-center py-8"><span className="text-[11px]" style={{ color: C.textDim }}>No recent activity</span></div> : (
           <div className="space-y-0.5">
             {items.slice(0, 15).map((item, i) => {
@@ -208,7 +208,7 @@ function ActivityFeed({ items }: { items: AuditItem[] }) {
               return (
                 <motion.div key={item.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
                   className="flex items-start gap-3 px-3 py-2.5 rounded-xl transition-colors hover:bg-white/[0.02]">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: 'rgba(255,255,255,0.04)' }}><Icon className="w-3.5 h-3.5" style={{ color: C.textMuted }} /></div>
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: 'rgba(0, 0, 0, 0.04)' }}><Icon className="w-3.5 h-3.5" style={{ color: C.textMuted }} /></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] leading-snug" style={{ color: C.text }}>{fmtTitle(item.action)}</p>
                     <p className="text-[9px] capitalize mt-0.5" style={{ color: C.textDim }}>{item.entity.replace(/_/g, ' ')}</p>
@@ -274,7 +274,7 @@ function OverviewTab({ insights }: { insights: Insights }) {
                 <linearGradient id="gld" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.gold} stopOpacity={0.25} /><stop offset="100%" stopColor={C.gold} stopOpacity={0} /></linearGradient>
                 <linearGradient id="gln" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.green} stopOpacity={0.2} /><stop offset="100%" stopColor={C.green} stopOpacity={0} /></linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0, 0, 0, 0.03)" vertical={false} />
               <XAxis dataKey="day" tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} width={30} />
               <Tooltip content={<ChartTooltip />} />
@@ -291,7 +291,7 @@ function OverviewTab({ insights }: { insights: Insights }) {
           <p className="text-[10px] mb-4" style={{ color: C.textDim }}>Contacts by current status</p>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={pipelineData} layout="vertical" margin={{ top: 0, right: 30, bottom: 0, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" horizontal={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0, 0, 0, 0.03)" horizontal={false} />
               <XAxis type="number" tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis type="category" dataKey="name" tick={{ fill: C.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} width={65} />
               <Tooltip content={<ChartTooltip />} />
@@ -364,7 +364,7 @@ function EnginesTab({ insights }: { insights: Insights }) {
             <h4 className="text-[10px] uppercase tracking-widest font-medium mb-3" style={{ color: C.textDim }}>RECENT SIGNALS</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
               {ce.latestSignals.slice(0, 6).map(s => (
-                <div key={s.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl border" style={{ background: s.severity === 'critical' ? 'rgba(239,68,68,0.05)' : 'rgba(255,255,255,0.015)', borderColor: s.severity === 'critical' ? 'rgba(239,68,68,0.15)' : C.border }}>
+                <div key={s.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl border" style={{ background: s.severity === 'critical' ? 'rgba(239,68,68,0.05)' : 'rgba(0,0,0,0.015)', borderColor: s.severity === 'critical' ? 'rgba(239,68,68,0.15)' : C.border }}>
                   <span className="text-sm">{SIGNAL_ICONS[s.type] || '📡'}</span>
                   <div className="flex-1 min-w-0"><p className="text-[11px] truncate" style={{ color: C.text }}>{s.title}</p><p className="text-[9px] capitalize" style={{ color: C.textDim }}>{s.severity}</p></div>
                   <span className="text-[9px]" style={{ color: C.textDim }}>{timeAgo(s.createdAt)}</span>
@@ -400,7 +400,7 @@ function EnginesTab({ insights }: { insights: Insights }) {
           <div>
             <h4 className="text-[10px] uppercase tracking-widest font-medium mb-3" style={{ color: C.textDim }}>HIGH-VALUE LEADS</h4>
             <div className="space-y-2">{ee.highValueLeads.slice(0, 5).map((l, i) => (
-              <div key={l.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl border" style={{ background: 'rgba(255,255,255,0.015)', borderColor: C.border }}>
+              <div key={l.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl border" style={{ background: 'rgba(0,0,0,0.015)', borderColor: C.border }}>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0" style={{ background: l.score >= 80 ? C.green : l.score >= 60 ? C.gold : C.blue }}>{l.score}</div>
                 <div className="flex-1 min-w-0"><p className="text-[11px] truncate" style={{ color: C.text }}>{l.name}</p><p className="text-[9px] truncate" style={{ color: C.textDim }}>{l.email}</p></div>
                 <span className="text-[9px] uppercase" style={{ color: C.textDim }}>{l.status}</span>
@@ -430,7 +430,7 @@ function EnginesTab({ insights }: { insights: Insights }) {
           <div>
             <h4 className="text-[10px] uppercase tracking-widest font-medium mb-3" style={{ color: C.textDim }}>MOST USED CAPABILITIES</h4>
             <div className="space-y-2">{capE.topCapabilities.slice(0, 5).map((c, i) => (
-              <div key={c.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border" style={{ background: 'rgba(255,255,255,0.015)', borderColor: C.border }}>
+              <div key={c.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border" style={{ background: 'rgba(0,0,0,0.015)', borderColor: C.border }}>
                 <span className="text-xs font-bold w-5 text-center" style={{ color: i === 0 ? C.gold : C.textDim }}>#{i + 1}</span>
                 <div className="flex-1 min-w-0"><p className="text-[11px] truncate" style={{ color: C.text }}>{c.title}</p><p className="text-[9px] capitalize" style={{ color: C.textDim }}>{c.category?.replace(/_/g, ' ')} {c.serviceLine ? `• ${c.serviceLine}` : ''}</p></div>
                 <div className="flex items-center gap-3 text-[9px] shrink-0" style={{ color: C.textMuted }}>
@@ -465,7 +465,7 @@ function AIQueryTab({ onQuery, loading, result }: { onQuery: (q: string) => void
             <div><h3 className="text-base font-bold" style={{ color: C.text }}>Ask Einstein AI</h3><p className="text-[11px]" style={{ color: C.textMuted }}>Natural language queries across all three engines</p></div>
           </div>
           <form onSubmit={handleSubmit}>
-            <div className="flex items-center gap-3 px-5 py-4 rounded-2xl border transition-colors" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }} onFocus={() => setAnimBorder(true)} onBlur={() => setAnimBorder(false)}>
+            <div className="flex items-center gap-3 px-5 py-4 rounded-2xl border transition-colors" style={{ background: 'rgba(0, 0, 0, 0.03)', borderColor: 'rgba(0, 0, 0, 0.06)' }} onFocus={() => setAnimBorder(true)} onBlur={() => setAnimBorder(false)}>
               <Sparkles className="w-5 h-5 shrink-0" style={{ color: C.gold }} />
               <input value={query} onChange={e => setQuery(e.target.value)} placeholder="e.g. What are the top-performing sequences this week?" className="flex-1 bg-transparent text-sm outline-none" style={{ color: C.text }} />
               {loading ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: C.gold }} /> :
@@ -476,9 +476,9 @@ function AIQueryTab({ onQuery, loading, result }: { onQuery: (q: string) => void
           </form>
           <div className="flex flex-wrap gap-2 mt-4">{examples.map((eq, i) => (
             <button key={i} onClick={() => onQuery(eq)} className="px-3.5 py-1.5 rounded-full text-[11px] border transition-all duration-200"
-              style={{ borderColor: 'rgba(255,255,255,0.08)', color: C.textMuted, background: 'rgba(255,255,255,0.02)' }}
+              style={{ borderColor: 'rgba(0, 0, 0, 0.06)', color: C.textMuted, background: 'rgba(0, 0, 0, 0.02)' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = `${C.gold}40`; e.currentTarget.style.color = C.gold; e.currentTarget.style.background = `${C.gold}08`; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = C.textMuted; e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}>
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.06)'; e.currentTarget.style.color = C.textMuted; e.currentTarget.style.background = 'rgba(0, 0, 0, 0.02)'; }}>
               {eq}
             </button>
           ))}</div>
@@ -498,7 +498,7 @@ function AIQueryTab({ onQuery, loading, result }: { onQuery: (q: string) => void
           {Array.isArray(result.data) && result.data.length > 0 && (
             <div className="max-h-48 overflow-y-auto rounded-xl border" style={{ borderColor: C.border }}>
               {result.data.slice(0, 8).map((item: any, i: number) => (
-                <div key={item.id || i} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-b-0" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+                <div key={item.id || i} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-b-0" style={{ borderColor: 'rgba(0, 0, 0, 0.04)' }}>
                   {item.name && <span className="text-xs flex-1 truncate" style={{ color: C.text }}>{item.name}</span>}
                   {item.title && <span className="text-xs flex-1 truncate" style={{ color: C.text }}>{item.title}</span>}
                   {item.score !== undefined && <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: `${C.gold}15`, color: C.gold }}>{item.score}</span>}
@@ -511,7 +511,7 @@ function AIQueryTab({ onQuery, loading, result }: { onQuery: (q: string) => void
       )}
       {!loading && !result && (
         <div className="text-center py-16 rounded-2xl border" style={{ background: C.card, borderColor: C.border }}>
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(255,255,255,0.03)' }}><Brain className="w-8 h-8" style={{ color: C.textDim }} /></div>
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(0, 0, 0, 0.03)' }}><Brain className="w-8 h-8" style={{ color: C.textDim }} /></div>
           <p className="text-sm font-medium mb-1" style={{ color: C.textMuted }}>No queries yet</p>
           <p className="text-[11px]" style={{ color: C.textDim }}>Try one of the suggested queries above to get started</p>
         </div>
@@ -575,15 +575,15 @@ export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) 
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl flex items-center justify-center relative" style={{ background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` }}>
               <Brain className="w-5 h-5 text-white" />
-              <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2" style={{ borderColor: C.bg }}>
-                <div className="w-full h-full rounded-full bg-emerald-400 animate-ping opacity-50" />
+              <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2" style={{ borderColor: C.bg }}>
+                <div className="w-full h-full rounded-full bg-emerald-500 animate-ping opacity-50" />
               </div>
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tight flex items-center gap-2.5" style={{ color: C.text }}>
                 AI Command Center
                 <span className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: 'rgba(16,185,129,0.1)', color: C.green }}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />Live
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />Live
                 </span>
               </h1>
               <p className="text-[11px] mt-0.5" style={{ color: C.textMuted }}>
@@ -594,7 +594,7 @@ export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) 
           <div className="flex items-center gap-3">
             <span className="text-[10px] tabular-nums" style={{ color: C.textDim }}><Clock className="w-3 h-3 inline mr-1 -mt-0.5" />Updated {timeAgo(lastRefresh.toISOString())}</span>
             <button onClick={fetchData} disabled={refreshing} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium border transition-all duration-200"
-              style={{ borderColor: C.border, color: C.textMuted, background: 'rgba(255,255,255,0.02)' }}
+              style={{ borderColor: C.border, color: C.textMuted, background: 'rgba(0, 0, 0, 0.02)' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = `${C.gold}30`; e.currentTarget.style.color = C.gold; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textMuted; }}>
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />Refresh
@@ -614,7 +614,7 @@ export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) 
         </div>
 
         {/* TABS */}
-        <div className="flex gap-1 p-1.5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.border}` }}>
+        <div className="flex gap-1 p-1.5 rounded-2xl" style={{ background: 'rgba(0, 0, 0, 0.03)', border: `1px solid ${C.border}` }}>
           {tabs.map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium transition-all duration-200"

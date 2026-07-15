@@ -316,7 +316,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-white/[0.06] hover:bg-transparent">
+                    <TableRow className="border-gray-200 hover:bg-transparent">
                       <TableHead className="text-muted-foreground text-xs font-medium uppercase tracking-wider w-8" />
                       <TableHead className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Contact</TableHead>
                       <TableHead className="text-muted-foreground text-xs font-medium uppercase tracking-wider hidden sm:table-cell">Company</TableHead>
@@ -337,7 +337,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
                           <StaggerItem key={reply.id}>
                             <>
                               <TableRow
-                                className="border-white/[0.04] transition-all duration-200 hover:bg-white/[0.03] group cursor-pointer"
+                                className="border-gray-200 transition-all duration-200 hover:bg-black/[0.03] group cursor-pointer"
                                 style={{
                                   borderLeft: `3px solid ${isExpanded ? borderColor : 'transparent'}`,
                                 }}
@@ -432,7 +432,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
                                           <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-7 w-7 p-0 text-emerald-400/70 hover:text-emerald-400 hover:bg-emerald-500/10"
+                                            className="h-7 w-7 p-0 text-emerald-600/70 hover:text-emerald-600 hover:bg-emerald-50"
                                             onClick={(e) => { e.stopPropagation(); setMarkDialog({ reply, category: 'positive' }); }}
                                           >
                                             <ThumbsUp className="w-3.5 h-3.5" />
@@ -449,7 +449,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
                                           <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-7 w-7 p-0 text-red-400/70 hover:text-red-400 hover:bg-red-500/10"
+                                            className="h-7 w-7 p-0 text-red-600/70 hover:text-red-600 hover:bg-red-50"
                                             onClick={(e) => { e.stopPropagation(); setMarkDialog({ reply, category: 'negative' }); }}
                                           >
                                             <ThumbsDown className="w-3.5 h-3.5" />
@@ -502,8 +502,8 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
                                         className="overflow-hidden"
                                       >
                                         <div
-                                          className="mx-4 mb-4 mt-1 rounded-lg border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm p-4 text-sm text-muted-foreground leading-relaxed"
-                                          style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)' }}
+                                          className="mx-4 mb-4 mt-1 rounded-lg border border-gray-200 bg-white/[0.02] backdrop-blur-sm p-4 text-sm text-muted-foreground leading-relaxed"
+                                          style={{ boxShadow: 'inset 0 1px 0 rgba(0, 0, 0, 0.03)' }}
                                         >
                                           <p className="text-xs text-muted-foreground/60 uppercase tracking-wider font-medium mb-2">Reply Body</p>
                                           <div className="whitespace-pre-wrap break-words max-h-48 overflow-y-auto custom-scrollbar">
@@ -530,14 +530,14 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
           <style>{`
             .custom-scrollbar::-webkit-scrollbar { width: 4px; }
             .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-            .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-            .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+            .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.06); border-radius: 2px; }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.08); }
           `}</style>
         </div>
 
         {/* ── Reply Detail Modal ── */}
         <Dialog open={!!detailReply} onOpenChange={(open) => { if (!open) setDetailReply(null); }}>
-          <DialogContent className="sm:max-w-lg border-white/[0.08] bg-[#12141E] backdrop-blur-xl">
+          <DialogContent className="sm:max-w-lg border-gray-200 bg-[#12141E] backdrop-blur-xl">
             {detailReply && (
               <>
                 <DialogHeader>
@@ -548,7 +548,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
                 </DialogHeader>
                 <div className="space-y-4 mt-2">
                   {/* Contact Info */}
-                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 space-y-2">
+                  <div className="rounded-lg border border-gray-200 bg-white/[0.02] p-3 space-y-2">
                     <div className="flex items-center gap-2 text-sm">
                       <User className="w-3.5 h-3.5 text-muted-foreground" />
                       <span className="text-muted-foreground">Name:</span>
@@ -591,7 +591,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
                   {/* Body */}
                   <div>
                     <p className="text-xs text-muted-foreground/60 uppercase tracking-wider font-medium mb-1.5">Body</p>
-                    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap break-words max-h-64 overflow-y-auto custom-scrollbar">
+                    <div className="rounded-lg border border-gray-200 bg-white/[0.02] p-3 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap break-words max-h-64 overflow-y-auto custom-scrollbar">
                       {detailReply.body || detailReply.snippet || 'No body content available.'}
                     </div>
                   </div>
@@ -624,7 +624,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
 
         {/* ── Follow-Up Confirmation Dialog ── */}
         <AlertDialog open={!!followUpReply} onOpenChange={(open) => { if (!open) setFollowUpReply(null); }}>
-          <AlertDialogContent className="border-white/[0.08] bg-[#12141E] backdrop-blur-xl">
+          <AlertDialogContent className="border-gray-200 bg-[#12141E] backdrop-blur-xl">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-foreground">Create Follow-Up Draft</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
@@ -653,7 +653,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
 
         {/* ── Mark Category Confirmation Dialog ── */}
         <AlertDialog open={!!markDialog} onOpenChange={(open) => { if (!open) setMarkDialog(null); }}>
-          <AlertDialogContent className="border-white/[0.08] bg-[#12141E] backdrop-blur-xl">
+          <AlertDialogContent className="border-gray-200 bg-[#12141E] backdrop-blur-xl">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-foreground">
                 Mark as {markDialog?.category.replace(/_/g, ' ') || ''}
@@ -689,7 +689,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
 
         {/* ── Suppress Confirmation Dialog ── */}
         <AlertDialog open={!!suppressReply} onOpenChange={(open) => { if (!open) setSuppressReply(null); }}>
-          <AlertDialogContent className="border-white/[0.08] bg-[#12141E] backdrop-blur-xl">
+          <AlertDialogContent className="border-gray-200 bg-[#12141E] backdrop-blur-xl">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-foreground">Add to Suppression List</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">

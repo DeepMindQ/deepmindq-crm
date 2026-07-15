@@ -226,11 +226,11 @@ interface StatusDotProps {
 }
 
 export function StatusDot({ status, pulse, className }: StatusDotProps) {
-  const c = { fresh: 'bg-emerald-500', stale: 'bg-amber-400', old: 'bg-red-400', unknown: 'bg-gray-300' }
+  const c = { fresh: 'bg-emerald-500', stale: 'bg-amber-400', old: 'bg-red-500', unknown: 'bg-gray-300' }
   return (
     <span className={cn('relative flex size-2.5', className)}>
       {pulse && status === 'fresh' && (
-        <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-40" />
+        <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-40" />
       )}
       <span className={cn('relative inline-flex size-2.5 rounded-full', c[status])} />
     </span>

@@ -202,9 +202,9 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
 
   const toneColor = (tone: string) => {
     switch (tone) {
-      case 'professional': return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
-      case 'casual': return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
-      case 'executive': return 'text-purple-400 bg-purple-400/10 border-purple-400/20';
+      case 'professional': return 'text-amber-600 bg-amber-400/10 border-amber-400/20';
+      case 'casual': return 'text-emerald-600 bg-emerald-50 border-emerald-400/20';
+      case 'executive': return 'text-purple-600 bg-purple-400/10 border-purple-400/20';
       default: return 'text-zinc-400 bg-zinc-400/10 border-zinc-400/20';
     }
   };
@@ -299,13 +299,13 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
                           <p className="text-xs text-muted-foreground truncate">{t.subject}</p>
                         </div>
                         <div className="flex gap-1 shrink-0 ml-2">
-                          <button onClick={() => openPreview(t)} className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors">
+                          <button onClick={() => openPreview(t)} className="p-1.5 rounded-md hover:bg-black/5 text-muted-foreground hover:text-foreground transition-colors">
                             <Eye className="w-3.5 h-3.5" />
                           </button>
-                          <button onClick={() => openEdit(t)} className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors">
+                          <button onClick={() => openEdit(t)} className="p-1.5 rounded-md hover:bg-black/5 text-muted-foreground hover:text-foreground transition-colors">
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
-                          <button onClick={() => handleDelete(t.id)} className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-colors">
+                          <button onClick={() => handleDelete(t.id)} className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -348,9 +348,9 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{t.subject}</p>
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    <button onClick={() => openPreview(t)} className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors"><Eye className="w-4 h-4" /></button>
-                    <button onClick={() => openEdit(t)} className="p-1.5 rounded-md hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors"><Pencil className="w-4 h-4" /></button>
-                    <button onClick={() => handleDelete(t.id)} className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => openPreview(t)} className="p-1.5 rounded-md hover:bg-black/5 text-muted-foreground hover:text-foreground transition-colors"><Eye className="w-4 h-4" /></button>
+                    <button onClick={() => openEdit(t)} className="p-1.5 rounded-md hover:bg-black/5 text-muted-foreground hover:text-foreground transition-colors"><Pencil className="w-4 h-4" /></button>
+                    <button onClick={() => handleDelete(t.id)} className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </motion.div>
               ))}
@@ -461,7 +461,7 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
           </DialogHeader>
           {previewTemplate && (
             <div className="space-y-4 pt-2">
-              <div className="p-4 rounded-lg bg-white/[0.03] border border-border/50 space-y-3">
+              <div className="p-4 rounded-lg bg-black/[0.03] border border-border/50 space-y-3">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className={`text-[10px] ${toneColor(previewTemplate.tone)}`}>{previewTemplate.tone}</Badge>
                   {previewTemplate.serviceLine && <Badge variant="outline" className="text-[10px] text-primary/80 bg-primary/5">{previewTemplate.serviceLine}</Badge>}

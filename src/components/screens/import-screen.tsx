@@ -424,7 +424,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
             <motion.div
               className="absolute inset-0 rounded-2xl"
               style={{
-                background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.06) 50%, transparent 60%)',
+                background: 'linear-gradient(105deg, transparent 40%, rgba(0, 0, 0, 0.05) 50%, transparent 60%)',
                 backgroundSize: '200% 100%',
               }}
               animate={{ backgroundPosition: ['200% 0', '-200% 0'] }}
@@ -438,12 +438,12 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Consent Source (L-12)</Label>
                     <Select value={consentSource} onValueChange={setConsentSource}>
-                      <SelectTrigger className="h-9 text-xs bg-white/[0.03] border-white/[0.08] text-foreground focus:border-primary/30">
+                      <SelectTrigger className="h-9 text-xs bg-black/[0.03] border-gray-200 text-foreground focus:border-primary/30">
                         <SelectValue placeholder="Select consent source" />
                       </SelectTrigger>
-                      <SelectContent className="border-white/[0.1] bg-black/60 backdrop-blur-2xl">
+                      <SelectContent className="border-white/[0.1] bg-black/20 backdrop-blur-2xl">
                         {CONSENT_SOURCES.map(s => (
-                          <SelectItem key={s.value} value={s.value} className="text-xs text-foreground focus:bg-white/[0.06]">{s.label}</SelectItem>
+                          <SelectItem key={s.value} value={s.value} className="text-xs text-foreground focus:bg-black/[0.06]">{s.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -451,12 +451,12 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Lead Source (L-15)</Label>
                     <Select value={leadSource} onValueChange={setLeadSource}>
-                      <SelectTrigger className="h-9 text-xs bg-white/[0.03] border-white/[0.08] text-foreground focus:border-primary/30">
+                      <SelectTrigger className="h-9 text-xs bg-black/[0.03] border-gray-200 text-foreground focus:border-primary/30">
                         <SelectValue placeholder="Select lead source" />
                       </SelectTrigger>
-                      <SelectContent className="border-white/[0.1] bg-black/60 backdrop-blur-2xl">
+                      <SelectContent className="border-white/[0.1] bg-black/20 backdrop-blur-2xl">
                         {LEAD_SOURCES.map(s => (
-                          <SelectItem key={s.value} value={s.value} className="text-xs text-foreground focus:bg-white/[0.06]">{s.label}</SelectItem>
+                          <SelectItem key={s.value} value={s.value} className="text-xs text-foreground focus:bg-black/[0.06]">{s.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -557,7 +557,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      className="h-8 text-xs text-red-600 hover:text-red-300 hover:bg-red-50"
                       onClick={() => activeBatchId && cancelBatch(activeBatchId)}
                     >
                       <StopCircle className="w-3.5 h-3.5 mr-1.5" />
@@ -569,15 +569,15 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                 <div className="grid grid-cols-4 gap-4">
                   <div className="text-center">
                     <p className="text-lg font-bold text-foreground tabular-nums">{progress.acceptedRows}</p>
-                    <p className="text-[10px] text-emerald-400 uppercase tracking-wider">Accepted</p>
+                    <p className="text-[10px] text-emerald-600 uppercase tracking-wider">Accepted</p>
                   </div>
                   <div className="text-center">
                     <p className="text-lg font-bold text-foreground tabular-nums">{progress.duplicateRows}</p>
-                    <p className="text-[10px] text-amber-400 uppercase tracking-wider">Duplicates</p>
+                    <p className="text-[10px] text-amber-600 uppercase tracking-wider">Duplicates</p>
                   </div>
                   <div className="text-center">
                     <p className="text-lg font-bold text-foreground tabular-nums">{progress.invalidRows}</p>
-                    <p className="text-[10px] text-red-400 uppercase tracking-wider">Invalid</p>
+                    <p className="text-[10px] text-red-600 uppercase tracking-wider">Invalid</p>
                   </div>
                   <div className="text-center">
                     <p className="text-lg font-bold text-foreground tabular-nums">{formatEta(progress.eta)}</p>
@@ -624,7 +624,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                         className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0"
                         style={{ boxShadow: '0 0 16px rgba(16,185,129,0.2)' }}
                       >
-                        <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                       </motion.div>
                     ) : (
                       <motion.div
@@ -634,7 +634,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                         className="w-10 h-10 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0"
                         style={{ boxShadow: '0 0 16px rgba(239,68,68,0.2)' }}
                       >
-                        <AlertCircle className="w-5 h-5 text-red-400" />
+                        <AlertCircle className="w-5 h-5 text-red-600" />
                       </motion.div>
                     )}
                     <div className="flex-1 min-w-0">
@@ -645,9 +645,9 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                       {uploadResult.details && (
                         <div className="flex gap-6 mt-3">
                           <span className="text-sm text-muted-foreground">Total: <span className="text-foreground font-semibold tabular-nums">{uploadResult.details.total}</span></span>
-                          <span className="text-sm text-muted-foreground">Accepted: <span className="text-emerald-400 font-semibold tabular-nums">{uploadResult.details.accepted}</span></span>
-                          <span className="text-sm text-muted-foreground">Duplicates: <span className="text-amber-400 font-semibold tabular-nums">{uploadResult.details.duplicates}</span></span>
-                          <span className="text-sm text-muted-foreground">Invalid: <span className="text-red-400 font-semibold tabular-nums">{uploadResult.details.invalid}</span></span>
+                          <span className="text-sm text-muted-foreground">Accepted: <span className="text-emerald-600 font-semibold tabular-nums">{uploadResult.details.accepted}</span></span>
+                          <span className="text-sm text-muted-foreground">Duplicates: <span className="text-amber-600 font-semibold tabular-nums">{uploadResult.details.duplicates}</span></span>
+                          <span className="text-sm text-muted-foreground">Invalid: <span className="text-red-600 font-semibold tabular-nums">{uploadResult.details.invalid}</span></span>
                         </div>
                       )}
                       {uploadResult.success && navigateTo && (
@@ -680,7 +680,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-white/[0.06] hover:bg-transparent">
+                  <TableRow className="border-gray-200 hover:bg-transparent">
                     <TableHead className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">Filename</TableHead>
                     <TableHead className="text-muted-foreground text-xs font-semibold uppercase tracking-wider text-right">Total</TableHead>
                     <TableHead className="text-muted-foreground text-xs font-semibold uppercase tracking-wider text-right">Accepted</TableHead>
@@ -698,12 +698,12 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                       initial={{ opacity: 0, x: -8 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: i * 0.04, ease: [0.22, 1, 0.36, 1] }}
-                      className="border-white/[0.04] group transition-colors duration-200 hover:bg-white/[0.03]"
+                      className="border-gray-200 group transition-colors duration-200 hover:bg-black/[0.03]"
                     >
                       <TableCell className="text-foreground text-sm font-medium max-w-[180px] truncate">
                         <div className="flex items-center gap-2">
                           {b.status === 'processing' ? (
-                            <Loader2 className="w-4 h-4 text-amber-400 animate-spin shrink-0" />
+                            <Loader2 className="w-4 h-4 text-amber-600 animate-spin shrink-0" />
                           ) : (
                             <FileSpreadsheet className="w-4 h-4 text-muted-foreground/60 shrink-0" />
                           )}
@@ -712,8 +712,8 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm text-right tabular-nums group-hover:text-foreground/80 transition-colors">{b.totalRows}</TableCell>
                       <TableCell className="text-foreground text-sm text-right tabular-nums font-medium">{b.acceptedRows}</TableCell>
-                      <TableCell className="text-amber-400 text-sm text-right tabular-nums">{b.duplicateRows}</TableCell>
-                      <TableCell className="text-red-400 text-sm text-right tabular-nums">{b.invalidRows}</TableCell>
+                      <TableCell className="text-amber-600 text-sm text-right tabular-nums">{b.duplicateRows}</TableCell>
+                      <TableCell className="text-red-600 text-sm text-right tabular-nums">{b.invalidRows}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={STATUS_COLORS[b.status] || STATUS_COLORS.draft}>
                           {b.status}
@@ -756,7 +756,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
 
         {/* Batch Detail Dialog */}
         <Dialog open={!!selectedBatch} onOpenChange={() => setSelectedBatch(null)}>
-          <DialogContent className="bg-card/95 backdrop-blur-xl border border-white/[0.08] text-foreground max-w-md">
+          <DialogContent className="bg-card/95 backdrop-blur-xl border border-gray-200 text-foreground max-w-md">
             <DialogHeader>
               <DialogTitle className="text-sm flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -785,18 +785,18 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs uppercase tracking-wider font-medium mb-1">Accepted</p>
-                    <p className="text-emerald-400 font-medium tabular-nums text-lg">{selectedBatch.acceptedRows}</p>
+                    <p className="text-emerald-600 font-medium tabular-nums text-lg">{selectedBatch.acceptedRows}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs uppercase tracking-wider font-medium mb-1">Duplicates</p>
-                    <p className="text-amber-400 font-medium tabular-nums text-lg">{selectedBatch.duplicateRows}</p>
+                    <p className="text-amber-600 font-medium tabular-nums text-lg">{selectedBatch.duplicateRows}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs uppercase tracking-wider font-medium mb-1">Invalid</p>
-                    <p className="text-red-400 font-medium tabular-nums text-lg">{selectedBatch.invalidRows}</p>
+                    <p className="text-red-600 font-medium tabular-nums text-lg">{selectedBatch.invalidRows}</p>
                   </div>
                 </div>
-                <div className="pt-2 border-t border-white/[0.06]">
+                <div className="pt-2 border-t border-gray-200">
                   <p className="text-xs text-muted-foreground">Imported: {selectedBatch.createdAt}</p>
                 </div>
               </div>
@@ -806,7 +806,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
 
         {/* ═══ L-08: Preview & Map Dialog ═══ */}
         <Dialog open={previewOpen} onOpenChange={(open) => { if (!open) setPreviewOpen(false); }}>
-          <DialogContent className="bg-card/95 backdrop-blur-xl border-white/[0.08] text-foreground max-w-4xl max-h-[90vh] overflow-hidden">
+          <DialogContent className="bg-card/95 backdrop-blur-xl border-gray-200 text-foreground max-w-4xl max-h-[90vh] overflow-hidden">
             <DialogHeader>
               <DialogTitle className="text-base flex items-center gap-2">
                 <FileSpreadsheet className="w-4 h-4 text-primary" />
@@ -827,7 +827,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
               <>
               <div className="flex flex-col lg:flex-row gap-4 min-h-0">
                 {/* Left: Column Mapping */}
-                <div className="lg:w-1/2 space-y-3 border-r border-white/[0.06] pr-4">
+                <div className="lg:w-1/2 space-y-3 border-r border-gray-200 pr-4">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Column Mapping</p>
                     <Button
@@ -853,7 +853,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                           <select
                             value={customMapping[header] || '— skip —'}
                             onChange={(e) => setCustomMapping(prev => ({ ...prev, [header]: e.target.value }))}
-                            className="h-7 text-[11px] bg-white/[0.05] border border-white/[0.1] text-foreground rounded-md px-2 flex-1 max-w-[140px] focus:outline-none focus:ring-1 focus:ring-primary/30"
+                            className="h-7 text-[11px] bg-black/[0.05] border border-white/[0.1] text-foreground rounded-md px-2 flex-1 max-w-[140px] focus:outline-none focus:ring-1 focus:ring-primary/30"
                           >
                             {previewData.availableFields.map(field => (
                               <option key={field} value={field}>{field === '— skip —' ? '— skip —' : field}</option>
@@ -872,7 +872,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                   <ScrollArea className="max-h-[55vh]">
                     <Table>
                       <TableHeader>
-                        <TableRow className="border-white/[0.06] hover:bg-transparent">
+                        <TableRow className="border-gray-200 hover:bg-transparent">
                           {previewData.headers.map(h => (
                             <TableHead key={h} className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-wider h-8 whitespace-nowrap">
                               <span className="truncate max-w-[100px] block">{h}</span>
@@ -882,7 +882,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                       </TableHeader>
                       <TableBody>
                         {previewData.previewRows.map((row, ri) => (
-                          <TableRow key={ri} className="border-white/[0.04] hover:bg-transparent">
+                          <TableRow key={ri} className="border-gray-200 hover:bg-transparent">
                             {previewData.headers.map(h => (
                               <TableCell key={h} className="text-[10px] text-muted-foreground py-2 whitespace-nowrap">
                                 <span className="truncate max-w-[100px] block">{String(row[h] || '')}</span>
@@ -896,7 +896,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                 </div>
               </div>
               {/* Import Button */}
-              <div className="mt-4 pt-4 border-t border-white/[0.06] flex items-center justify-between">
+              <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
                 <Button
                   variant="ghost" size="sm" className="h-9 text-xs text-muted-foreground hover:text-foreground gap-1.5"
                   onClick={() => setPreviewOpen(false)}

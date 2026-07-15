@@ -1,6 +1,6 @@
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-[#06090F] flex items-center justify-center">
+    <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <div
           className="w-10 h-10 rounded-lg flex items-center justify-center"
@@ -11,7 +11,7 @@ export default function Loading() {
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
         </div>
-        <p className="text-xs tracking-[0.2em] uppercase" style={{ color: '#3A4555' }}>
+        <p className="text-xs tracking-[0.2em] uppercase" style={{ color: '#9CA3AF' }}>
           Loading DeepMindQ...
         </p>
       </div>

@@ -694,7 +694,7 @@ export default function ContactDetailScreen() {
                         {ok ? (
                           <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
                         ) : (
-                          <XCircle className="size-4 text-red-400 shrink-0" />
+                          <XCircle className="size-4 text-red-600 shrink-0" />
                         )}
                         <span className="text-xs font-medium text-gray-700">{label}</span>
                       </div>

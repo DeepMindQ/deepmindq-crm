@@ -905,7 +905,7 @@ export default function CompanyProfileScreen() {
                 {opportunities.slice(0, 3).map((o) => (
                   <div key={o.id} className="flex items-center gap-4 px-6 py-3">
                     <div className={`w-0.5 h-8 rounded-full shrink-0 ${
-                      o.status === 'won' ? 'bg-emerald-400' : o.status === 'lost' ? 'bg-red-300' : 'bg-amber-400'
+                      o.status === 'won' ? 'bg-emerald-500' : o.status === 'lost' ? 'bg-red-300' : 'bg-amber-400'
                     }`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{o.title}</p>
@@ -1143,7 +1143,7 @@ export default function CompanyProfileScreen() {
                     {o.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{o.description}</p>}
                     {o.nextAction && (
                       <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                        <ChevronRight className="size-3 text-amber-400" />
+                        <ChevronRight className="size-3 text-amber-600" />
                         {o.nextAction}
                       </p>
                     )}

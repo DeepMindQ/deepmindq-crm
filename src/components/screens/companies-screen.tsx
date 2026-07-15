@@ -18,9 +18,9 @@ import {
    Design Tokens
    ═══════════════════════════════════════════════════════════════ */
 const gold = '#D4AF37';
-const card = 'rgba(12, 18, 30, 0.7)';
-const border = 'rgba(255,255,255,0.06)';
-const textMuted = '#7A8699';
+const card = 'rgba(255, 255, 255, 0.85)';
+const border = 'rgba(0, 0, 0, 0.05)';
+const textMuted = '#6B7280';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   prospect:     { bg: 'rgba(59,130,246,0.12)', text: '#60a5fa' },
@@ -77,7 +77,7 @@ function ScoreBar({ score }: { score: number | null }) {
   const col = scoreColor(score);
   return (
     <div className="flex items-center gap-2 min-w-[100px]">
-      <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
+      <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(0, 0, 0, 0.05)' }}>
         <motion.div
           className="h-full rounded-full"
           style={{ background: col }}
@@ -115,9 +115,9 @@ function ActionMenu({ companyId, navigateTo }: { companyId: string; navigateTo?:
     <div ref={menuRef} className="relative">
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        className="p-1 rounded-md hover:bg-white/5 transition-colors"
+        className="p-1 rounded-md hover:bg-black/5 transition-colors"
       >
-        <MoreHorizontal size={16} className="text-[#7A8699]" />
+        <MoreHorizontal size={16} className="text-[#6B7280]" />
       </button>
       <AnimatePresence>
         {open && (
@@ -133,7 +133,7 @@ function ActionMenu({ companyId, navigateTo }: { companyId: string; navigateTo?:
               <button
                 key={item.label}
                 onClick={(e) => { e.stopPropagation(); setOpen(false); item.action(); }}
-                className="w-full text-left px-3 py-1.5 text-xs hover:bg-white/5 transition-colors"
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-black/5 transition-colors"
                 style={{ color: '#cbd5e1' }}
               >
                 {item.label}
@@ -153,7 +153,7 @@ function TableSkeleton() {
   return (
     <div className="space-y-3">
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 px-4 py-3 rounded-lg" style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
+        <div key={i} className="flex items-center gap-4 px-4 py-3 rounded-lg" style={{ background: i % 2 === 0 ? 'rgba(0,0,0,0.01)' : 'transparent' }}>
           <Skeleton className="h-4 w-36" />
           <Skeleton className="h-4 w-28" />
           <Skeleton className="h-4 w-12" />
@@ -264,7 +264,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
     background: card,
     borderColor: border,
     color: '#cbd5e1',
-    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237A8699' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
     backgroundRepeat: 'no-repeat',
     backgroundPosition: 'right 8px center',
   };
@@ -294,10 +294,10 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
               placeholder="Search companies..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-8 pl-8 pr-8 text-xs rounded-lg border focus:outline-none focus:ring-1 transition-all placeholder:text-[#7A8699]/60"
+              className="w-full h-8 pl-8 pr-8 text-xs rounded-lg border focus:outline-none focus:ring-1 transition-all placeholder:text-[#6B7280]/60"
               style={{
-                background: 'rgba(255,255,255,0.03)',
-                borderColor: 'rgba(255,255,255,0.08)',
+                background: 'rgba(0, 0, 0, 0.03)',
+                borderColor: 'rgba(0, 0, 0, 0.06)',
                 color: '#e2e8f0',
                 backdropFilter: 'blur(12px)',
               }}
@@ -347,7 +347,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
               toast.success(`Exported ${companies.length} companies`);
             }}
             className="h-8 px-3 text-xs font-medium rounded-lg shrink-0"
-            style={{ borderColor: 'rgba(255,255,255,0.08)', color: '#cbd5e1' }}
+            style={{ borderColor: 'rgba(0, 0, 0, 0.06)', color: '#cbd5e1' }}
           >
             <Download size={14} className="mr-1.5" />
             Export
@@ -459,7 +459,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                     onClick={() => navigateTo?.('company-detail', company.id)}
                     className="group flex items-center gap-4 px-4 py-2.5 cursor-pointer border-l-2 border-l-transparent hover:border-l-[3px] transition-all duration-200"
                     style={{
-                      background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
+                      background: i % 2 === 0 ? 'rgba(0,0,0,0.01)' : 'transparent',
                       hoverBorderLeftColor: gold,
                     }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderLeftColor = gold; }}
@@ -558,7 +558,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
               <button
                 disabled={page <= 1}
                 onClick={() => setPage(page - 1)}
-                className="p-1.5 rounded-md transition-colors disabled:opacity-30 hover:bg-white/5"
+                className="p-1.5 rounded-md transition-colors disabled:opacity-30 hover:bg-black/5"
               >
                 <ChevronLeft size={14} style={{ color: textMuted }} />
               </button>
@@ -590,7 +590,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
               <button
                 disabled={page >= totalPages}
                 onClick={() => setPage(page + 1)}
-                className="p-1.5 rounded-md transition-colors disabled:opacity-30 hover:bg-white/5"
+                className="p-1.5 rounded-md transition-colors disabled:opacity-30 hover:bg-black/5"
               >
                 <ChevronRight size={14} style={{ color: textMuted }} />
               </button>

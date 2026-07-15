@@ -69,10 +69,10 @@ interface SearchResult {
 }
 
 const TYPE_CONFIG: Record<string, { label: string; icon: typeof Layers; color: string; bg: string; border: string }> = {
-  case_study:  { label: 'Case Study',  icon: FileText,         color: 'text-purple-400', bg: 'bg-purple-500/15', border: 'border-purple-500/30' },
-  service:     { label: 'Service',     icon: Layers,           color: 'text-blue-400',   bg: 'bg-blue-500/15',   border: 'border-blue-500/30' },
-  capability:  { label: 'Capability',  icon: Zap,              color: 'text-emerald-400',bg: 'bg-emerald-500/15', border: 'border-emerald-500/30' },
-  outcome:     { label: 'Outcome',     icon: Award,            color: 'text-amber-400',  bg: 'bg-amber-500/15',  border: 'border-amber-500/30' },
+  case_study:  { label: 'Case Study',  icon: FileText,         color: 'text-purple-600', bg: 'bg-purple-500/15', border: 'border-purple-500/30' },
+  service:     { label: 'Service',     icon: Layers,           color: 'text-blue-600',   bg: 'bg-blue-500/15',   border: 'border-blue-500/30' },
+  capability:  { label: 'Capability',  icon: Zap,              color: 'text-emerald-600',bg: 'bg-emerald-500/15', border: 'border-emerald-500/30' },
+  outcome:     { label: 'Outcome',     icon: Award,            color: 'text-amber-600',  bg: 'bg-amber-500/15',  border: 'border-amber-500/30' },
 }
 
 const FILTER_TABS = [
@@ -271,7 +271,7 @@ export default function CapabilityLibraryScreen() {
                   variant="outline"
                   className={cn(
                     'border-zinc-700 text-zinc-300 text-xs gap-1.5',
-                    showEngine && 'bg-amber-500/10 border-amber-500/40 text-amber-300'
+                    showEngine && 'bg-amber-50 border-amber-500/40 text-amber-300'
                   )}
                   onClick={() => setShowEngine(!showEngine)}
                 >
@@ -446,7 +446,7 @@ export default function CapabilityLibraryScreen() {
                                     </div>
                                   </div>
                                   <div className="flex flex-col items-end gap-1 shrink-0">
-                                    <Badge className={cn('text-[10px] font-mono h-5', r.score >= 30 ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : r.score >= 15 ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' : 'bg-zinc-700 text-zinc-400 border-zinc-600')} variant="outline">
+                                    <Badge className={cn('text-[10px] font-mono h-5', r.score >= 30 ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' : r.score >= 15 ? 'bg-amber-500/15 text-amber-600 border-amber-500/30' : 'bg-zinc-700 text-zinc-400 border-zinc-600')} variant="outline">
                                       {r.score}pts
                                     </Badge>
                                     <span className={cn('text-[10px]', cfg.color)}>{TYPE_CONFIG[r.type]?.label}</span>
@@ -559,7 +559,7 @@ export default function CapabilityLibraryScreen() {
                         className="w-full flex items-center justify-between p-4 hover:bg-zinc-800/30 transition-colors text-left"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                          <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
                             <FileText className="size-4 text-amber-500" />
                           </div>
                           <div className="min-w-0">
@@ -671,7 +671,7 @@ export default function CapabilityLibraryScreen() {
                                 </Badge>
                               </div>
                               {snip.score !== undefined && (
-                                <Badge className="text-[10px] font-mono h-5 bg-emerald-500/15 text-emerald-400 border-emerald-500/30" variant="outline">
+                                <Badge className="text-[10px] font-mono h-5 bg-emerald-500/15 text-emerald-600 border-emerald-500/30" variant="outline">
                                   {snip.score}pts
                                 </Badge>
                               )}
@@ -717,7 +717,7 @@ export default function CapabilityLibraryScreen() {
                     </span>
                   )})()}
                   {selectedSnippet.score !== undefined && (
-                    <Badge className="text-[10px] font-mono h-5 bg-emerald-500/15 text-emerald-400 border-emerald-500/30" variant="outline">
+                    <Badge className="text-[10px] font-mono h-5 bg-emerald-500/15 text-emerald-600 border-emerald-500/30" variant="outline">
                       Relevance: {selectedSnippet.score}pts
                     </Badge>
                   )}
@@ -755,7 +755,7 @@ export default function CapabilityLibraryScreen() {
                       <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Expected Outcomes</h4>
                       <div className="flex flex-wrap gap-1.5">
                         {selectedSnippet.outcomes.map(out => (
-                          <Badge key={out} variant="outline" className="text-[11px] text-amber-400 border-amber-500/30">{out}</Badge>
+                          <Badge key={out} variant="outline" className="text-[11px] text-amber-600 border-amber-500/30">{out}</Badge>
                         ))}
                       </div>
                     </div>
@@ -846,7 +846,7 @@ export default function CapabilityLibraryScreen() {
             </div>
             <div className="rounded-lg border border-blue-500/20 bg-blue-500/[0.03] p-3">
               <div className="flex items-start gap-2">
-                <Info className="size-3.5 text-blue-400 shrink-0 mt-0.5" />
+                <Info className="size-3.5 text-blue-600 shrink-0 mt-0.5" />
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
                   The system auto-extracts snippets by splitting your document into sections and classifying them as
                   Case Studies, Services, Capabilities, or Outcomes based on content analysis.

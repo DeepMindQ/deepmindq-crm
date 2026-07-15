@@ -302,9 +302,9 @@ function NodeDetailPanel({
         </div>
         <button
           onClick={onClose}
-          className="p-1 rounded hover:bg-white/10 transition-colors"
+          className="p-1 rounded hover:bg-black/[0.04] transition-colors"
         >
-          <X className="w-3.5 h-3.5" style={{ color: '#7A8699' }} />
+          <X className="w-3.5 h-3.5" style={{ color: '#6B7280' }} />
         </button>
       </div>
 
@@ -317,19 +317,19 @@ function NodeDetailPanel({
             <div className="grid grid-cols-2 gap-2">
               {d.industry && (
                 <div className="text-[10px]">
-                  <span style={{ color: '#3A4555' }}>Industry: </span>
+                  <span style={{ color: '#9CA3AF' }}>Industry: </span>
                   <span className="text-foreground">{String(d.industry)}</span>
                 </div>
               )}
               {d.location && (
                 <div className="text-[10px]">
-                  <span style={{ color: '#3A4555' }}>Location: </span>
+                  <span style={{ color: '#9CA3AF' }}>Location: </span>
                   <span className="text-foreground">{String(d.location)}</span>
                 </div>
               )}
               {d.size && (
                 <div className="text-[10px]">
-                  <span style={{ color: '#3A4555' }}>Size: </span>
+                  <span style={{ color: '#9CA3AF' }}>Size: </span>
                   <span className="text-foreground">{String(d.size)}</span>
                 </div>
               )}
@@ -342,7 +342,7 @@ function NodeDetailPanel({
                 <div className="text-sm font-bold" style={{ color: GOLD }}>
                   {Number(d.score) || 0}
                 </div>
-                <div className="text-[8px]" style={{ color: '#3A4555' }}>
+                <div className="text-[8px]" style={{ color: '#9CA3AF' }}>
                   IQ Score
                 </div>
               </div>
@@ -353,18 +353,18 @@ function NodeDetailPanel({
                 <div className="text-sm font-bold" style={{ color: style.color }}>
                   {Number(d.engagementScore) || 0}
                 </div>
-                <div className="text-[8px]" style={{ color: '#3A4555' }}>
+                <div className="text-[8px]" style={{ color: '#9CA3AF' }}>
                   Engagement
                 </div>
               </div>
               <div
                 className="flex-1 text-center px-2 py-2 rounded-lg"
-                style={{ background: 'rgba(255,255,255,0.03)' }}
+                style={{ background: 'rgba(0, 0, 0, 0.03)' }}
               >
                 <div className="text-[9px] font-medium text-foreground capitalize">
                   {String(d.status || '—')}
                 </div>
-                <div className="text-[8px]" style={{ color: '#3A4555' }}>
+                <div className="text-[8px]" style={{ color: '#9CA3AF' }}>
                   Status
                 </div>
               </div>
@@ -414,13 +414,13 @@ function NodeDetailPanel({
             <div className="space-y-1">
               {d.email && (
                 <div className="text-[10px]">
-                  <span style={{ color: '#3A4555' }}>Email: </span>
+                  <span style={{ color: '#9CA3AF' }}>Email: </span>
                   <span className="text-foreground">{String(d.email)}</span>
                 </div>
               )}
               {d.title && (
                 <div className="text-[10px]">
-                  <span style={{ color: '#3A4555' }}>Title: </span>
+                  <span style={{ color: '#9CA3AF' }}>Title: </span>
                   <span className="text-foreground">{String(d.title)}</span>
                 </div>
               )}
@@ -433,18 +433,18 @@ function NodeDetailPanel({
                 <div className="text-sm font-bold" style={{ color: GOLD }}>
                   {Number(d.score) || 0}
                 </div>
-                <div className="text-[8px]" style={{ color: '#3A4555' }}>
+                <div className="text-[8px]" style={{ color: '#9CA3AF' }}>
                   Lead Score
                 </div>
               </div>
               <div
                 className="flex-1 text-center px-2 py-2 rounded-lg"
-                style={{ background: 'rgba(255,255,255,0.03)' }}
+                style={{ background: 'rgba(0, 0, 0, 0.03)' }}
               >
                 <div className="text-[9px] font-medium text-foreground capitalize">
                   {String(d.status || '—')}
                 </div>
-                <div className="text-[8px]" style={{ color: '#3A4555' }}>
+                <div className="text-[8px]" style={{ color: '#9CA3AF' }}>
                   Status
                 </div>
               </div>
@@ -467,13 +467,13 @@ function NodeDetailPanel({
               </Badge>
               <span
                 className="text-[10px] capitalize"
-                style={{ color: '#7A8699' }}
+                style={{ color: '#6B7280' }}
               >
                 {String(d.type || '').replace(/_/g, ' ')}
               </span>
             </div>
             {d.source && (
-              <p className="text-[10px]" style={{ color: '#3A4555' }}>
+              <p className="text-[10px]" style={{ color: '#9CA3AF' }}>
                 Source: {String(d.source)}
               </p>
             )}
@@ -654,7 +654,7 @@ export default function CompanyMindMapScreen({ navigateTo }: MindMapProps) {
       ctx.lineTo(tgt.x, tgt.y);
       ctx.strokeStyle = isHighlight
         ? 'rgba(212,175,55,0.5)'
-        : 'rgba(255,255,255,0.08)';
+        : 'rgba(0, 0, 0, 0.06)';
       ctx.lineWidth = isHighlight ? 2 : 1;
       ctx.stroke();
     });
@@ -687,11 +687,11 @@ export default function CompanyMindMapScreen({ navigateTo }: MindMapProps) {
       ctx.beginPath();
       ctx.arc(n.x, n.y, n.radius * (isHovered ? 1.15 : 1), 0, Math.PI * 2);
       ctx.fillStyle = dimmed
-        ? 'rgba(255,255,255,0.05)'
+        ? 'rgba(0, 0, 0, 0.04)'
         : `${n.color}20`;
       ctx.fill();
       ctx.strokeStyle = dimmed
-        ? 'rgba(255,255,255,0.05)'
+        ? 'rgba(0, 0, 0, 0.04)'
         : isHovered
           ? n.color
           : `${n.color}80`;
@@ -702,7 +702,7 @@ export default function CompanyMindMapScreen({ navigateTo }: MindMapProps) {
       if (n.type !== 'company') {
         ctx.beginPath();
         ctx.arc(n.x, n.y, 3, 0, Math.PI * 2);
-        ctx.fillStyle = dimmed ? 'rgba(255,255,255,0.1)' : n.color;
+        ctx.fillStyle = dimmed ? 'rgba(0, 0, 0, 0.06)' : n.color;
         ctx.fill();
       }
 
@@ -714,7 +714,7 @@ export default function CompanyMindMapScreen({ navigateTo }: MindMapProps) {
             : '10px Inter, system-ui';
         ctx.textAlign = 'center';
         ctx.fillStyle =
-          n.type === 'company' ? '#E8ECF1' : '#7A8699';
+          n.type === 'company' ? '#111827' : '#6B7280';
         const maxLen = n.type === 'company' ? 20 : 15;
         const label =
           n.label.length > maxLen
@@ -853,7 +853,7 @@ export default function CompanyMindMapScreen({ navigateTo }: MindMapProps) {
               <h1 className="text-lg font-bold text-foreground">
                 {focusedCompanyId ? 'Company Tree' : 'Company Mind Map'}
               </h1>
-              <p className="text-[11px]" style={{ color: '#7A8699' }}>
+              <p className="text-[11px]" style={{ color: '#6B7280' }}>
                 {data.stats.companies} companies, {data.stats.contacts}{' '}
                 contacts, {data.stats.signals} signals, {data.stats.notes}{' '}
                 notes
@@ -867,26 +867,26 @@ export default function CompanyMindMapScreen({ navigateTo }: MindMapProps) {
           <div
             className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors"
             style={{
-              background: 'rgba(255,255,255,0.03)',
+              background: 'rgba(0, 0, 0, 0.03)',
               borderColor: searchInput
                 ? `${GOLD}40`
-                : 'rgba(255,255,255,0.08)',
+                : 'rgba(0, 0, 0, 0.06)',
             }}
           >
-            <Search className="w-4 h-4 flex-shrink-0" style={{ color: '#7A8699' }} />
+            <Search className="w-4 h-4 flex-shrink-0" style={{ color: '#6B7280' }} />
             <input
               type="text"
               placeholder="Search companies by name, domain, or industry…"
               value={searchInput}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-[#3A4555] outline-none"
+              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-[#9CA3AF] outline-none"
             />
             {searchInput && (
               <button
                 onClick={() => handleSearchChange('')}
-                className="p-0.5 rounded hover:bg-white/10 transition-colors"
+                className="p-0.5 rounded hover:bg-black/[0.04] transition-colors"
               >
-                <X className="w-3.5 h-3.5" style={{ color: '#7A8699' }} />
+                <X className="w-3.5 h-3.5" style={{ color: '#6B7280' }} />
               </button>
             )}
           </div>
@@ -920,11 +920,11 @@ export default function CompanyMindMapScreen({ navigateTo }: MindMapProps) {
           <div
             className="flex items-center gap-1 p-1 rounded-lg"
             style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.06)',
+              background: 'rgba(0, 0, 0, 0.03)',
+              border: '1px solid rgba(0, 0, 0, 0.05)',
             }}
           >
-            <Filter className="w-3 h-3 mx-1.5" style={{ color: '#3A4555' }} />
+            <Filter className="w-3 h-3 mx-1.5" style={{ color: '#9CA3AF' }} />
             {Object.entries(NODE_STYLES).map(([type, style]) => (
               <button
                 key={type}
@@ -934,7 +934,7 @@ export default function CompanyMindMapScreen({ navigateTo }: MindMapProps) {
                   background: filter.has(type)
                     ? `${style.color}15`
                     : 'transparent',
-                  color: filter.has(type) ? style.color : '#3A4555',
+                  color: filter.has(type) ? style.color : '#9CA3AF',
                   border: `1px solid ${
                     filter.has(type) ? `${style.color}30` : 'transparent'
                   }`,
@@ -943,7 +943,7 @@ export default function CompanyMindMapScreen({ navigateTo }: MindMapProps) {
                 <div
                   className="w-2 h-2 rounded-full"
                   style={{
-                    background: filter.has(type) ? style.color : '#3A4555',
+                    background: filter.has(type) ? style.color : '#9CA3AF',
                   }}
                 />
                 {style.label}
@@ -957,15 +957,15 @@ export default function CompanyMindMapScreen({ navigateTo }: MindMapProps) {
               onClick={() => setZoom((z) => Math.min(3, z + 0.2))}
               className="p-1.5 rounded-lg border transition-colors"
               style={{
-                borderColor: 'rgba(255,255,255,0.06)',
-                color: '#7A8699',
+                borderColor: 'rgba(0, 0, 0, 0.05)',
+                color: '#6B7280',
               }}
             >
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
             <span
               className="text-[10px] tabular-nums w-10 text-center"
-              style={{ color: '#3A4555' }}
+              style={{ color: '#9CA3AF' }}
             >
               {Math.round(zoom * 100)}%
             </span>
@@ -973,8 +973,8 @@ export default function CompanyMindMapScreen({ navigateTo }: MindMapProps) {
               onClick={() => setZoom((z) => Math.max(0.3, z - 0.2))}
               className="p-1.5 rounded-lg border transition-colors"
               style={{
-                borderColor: 'rgba(255,255,255,0.06)',
-                color: '#7A8699',
+                borderColor: 'rgba(0, 0, 0, 0.05)',
+                color: '#6B7280',
               }}
             >
               <ZoomOut className="w-3.5 h-3.5" />
@@ -986,8 +986,8 @@ export default function CompanyMindMapScreen({ navigateTo }: MindMapProps) {
               }}
               className="p-1.5 rounded-lg border transition-colors"
               style={{
-                borderColor: 'rgba(255,255,255,0.06)',
-                color: '#7A8699',
+                borderColor: 'rgba(0, 0, 0, 0.05)',
+                color: '#6B7280',
               }}
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -1002,7 +1002,7 @@ export default function CompanyMindMapScreen({ navigateTo }: MindMapProps) {
           style={{
             height: '560px',
             background: 'rgba(6,9,15,0.8)',
-            borderColor: 'rgba(255,255,255,0.06)',
+            borderColor: 'rgba(0, 0, 0, 0.05)',
           }}
         >
           <canvas
@@ -1020,7 +1020,7 @@ export default function CompanyMindMapScreen({ navigateTo }: MindMapProps) {
             className="absolute bottom-3 left-3 flex items-center gap-3 px-3 py-2 rounded-lg"
             style={{
               background: 'rgba(6,9,15,0.9)',
-              border: '1px solid rgba(255,255,255,0.06)',
+              border: '1px solid rgba(0, 0, 0, 0.05)',
             }}
           >
             {Object.entries(NODE_STYLES).map(([type, style]) => (
@@ -1029,21 +1029,21 @@ export default function CompanyMindMapScreen({ navigateTo }: MindMapProps) {
                   className="w-2.5 h-2.5 rounded-full"
                   style={{ background: style.color }}
                 />
-                <span className="text-[9px]" style={{ color: '#3A4555' }}>
+                <span className="text-[9px]" style={{ color: '#9CA3AF' }}>
                   {style.label}
                 </span>
               </div>
             ))}
             <div
               className="w-px h-3"
-              style={{ background: 'rgba(255,255,255,0.1)' }}
+              style={{ background: 'rgba(0, 0, 0, 0.06)' }}
             />
             <div className="flex items-center gap-1">
               <div
                 className="w-4 h-px"
-                style={{ background: 'rgba(255,255,255,0.3)' }}
+                style={{ background: 'rgba(0, 0, 0, 0.1)' }}
               />
-              <span className="text-[9px]" style={{ color: '#3A4555' }}>
+              <span className="text-[9px]" style={{ color: '#9CA3AF' }}>
                 Link
               </span>
             </div>

@@ -24,9 +24,9 @@ import { cn } from '@/lib/utils'
    Helpers
    ═══════════════════════════════════════════════════════════════ */
 function scoreColor(score: number) {
-  if (score >= 90) return 'text-emerald-400'
-  if (score >= 70) return 'text-amber-400'
-  return 'text-red-400'
+  if (score >= 90) return 'text-emerald-600'
+  if (score >= 70) return 'text-amber-600'
+  return 'text-red-600'
 }
 
 function scoreBgColor(score: number) {
@@ -108,14 +108,14 @@ function RecordCard({
               <>
                 <span className={cn(
                   'truncate',
-                  isExisting ? 'text-amber-400 line-through' : 'text-amber-400',
+                  isExisting ? 'text-amber-600 line-through' : 'text-amber-600',
                 )}>
                   {isExisting ? field.existingValue : field.newValue}
                 </span>
                 <ArrowLeftRight className="size-3 text-muted-foreground shrink-0" />
                 <span className={cn(
                   'truncate font-medium',
-                  isExisting ? 'text-emerald-400' : 'text-emerald-400 line-through',
+                  isExisting ? 'text-emerald-600' : 'text-emerald-600 line-through',
                 )}>
                   {isExisting ? field.newValue : field.existingValue}
                 </span>
@@ -161,9 +161,9 @@ function DuplicateCard({
           </Badge>
           <Badge variant="outline" className={cn(
             'text-[10px] px-2 py-0.5 rounded-md border',
-            candidate.status === 'pending' ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-              : candidate.status === 'merged' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-              : 'bg-red-500/15 text-red-400 border-red-500/30',
+            candidate.status === 'pending' ? 'bg-amber-500/15 text-amber-600 border-amber-500/30'
+              : candidate.status === 'merged' ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30'
+              : 'bg-red-500/15 text-red-600 border-red-500/30',
           )}>
             {candidate.status}
           </Badge>
@@ -195,7 +195,7 @@ function DuplicateCard({
                       <span className="w-20 shrink-0 text-xs text-muted-foreground font-medium">{field.label}</span>
                       <span className="text-xs text-foreground font-medium">{mergedPreview[field.key] || '—'}</span>
                       {field.differs && (
-                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 rounded bg-amber-500/10 text-amber-400 border-amber-500/20 ml-auto">
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 rounded bg-amber-50 text-amber-600 border-amber-500/20 ml-auto">
                           merged
                         </Badge>
                       )}
@@ -233,7 +233,7 @@ function DuplicateCard({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 border-border"
+              className="h-7 text-xs text-red-600 hover:text-red-300 hover:bg-red-50 border-border"
               onClick={() => onReject(candidate.id)}
             >
               <X className="size-3 mr-1" />
@@ -318,7 +318,7 @@ export function DuplicatesScreen() {
             Duplicate Review
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            <span className="text-amber-400 font-semibold">{pendingCount} pending</span> — review and resolve before importing
+            <span className="text-amber-600 font-semibold">{pendingCount} pending</span> — review and resolve before importing
           </p>
         </div>
 
@@ -365,7 +365,7 @@ export function DuplicatesScreen() {
       {/* ═══ Candidates ═══ */}
       {filtered.length === 0 ? (
         <div className="rounded-xl bg-card border border-border p-12 text-center">
-          <Check className="size-8 text-emerald-400 mx-auto mb-3" />
+          <Check className="size-8 text-emerald-600 mx-auto mb-3" />
           <p className="text-sm text-foreground font-medium">No duplicates to review</p>
           <p className="text-xs text-muted-foreground mt-1">All clear! New imports will be checked automatically.</p>
         </div>

@@ -128,7 +128,7 @@ function AiStatusBanner({ onGoToSettings }: { onGoToSettings: () => void }) {
     return (
       <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200/80">
         <span className="relative flex size-2.5 shrink-0">
-          <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-40" />
+          <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-40" />
           <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
         </span>
         <div className="flex items-center gap-1.5 text-sm text-emerald-800">
@@ -641,7 +641,7 @@ export default function EmailGenerationScreen() {
             </div>
           ) : contactsError ? (
             <div className="px-4 py-6 text-center">
-              <AlertTriangle className="size-6 text-red-400 mx-auto mb-2" />
+              <AlertTriangle className="size-6 text-red-600 mx-auto mb-2" />
               <p className="text-xs text-red-500">Failed to load contacts</p>
             </div>
           ) : contacts.length === 0 ? (
@@ -708,9 +708,9 @@ export default function EmailGenerationScreen() {
         ) : preselectedError ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center space-y-3">
-              <AlertTriangle className="size-8 text-red-400 mx-auto" />
+              <AlertTriangle className="size-8 text-red-600 mx-auto" />
               <p className="text-sm text-red-600 font-medium">Failed to load contact</p>
-              <p className="text-xs text-red-400">{preselectedError.message}</p>
+              <p className="text-xs text-red-600">{preselectedError.message}</p>
             </div>
           </div>
         ) : preselectedLoading ? (
@@ -857,7 +857,7 @@ export default function EmailGenerationScreen() {
                     {knowledgeAvailable === 0 && lastDraftId && (
                       <p className="text-[11px] text-amber-500 flex items-center gap-1">
                         <AlertTriangle className="size-3" />
-                        No knowledge base - <button onClick={() => { const store = useAppStore.getState(); store.setActiveView('capability-library') }} className="underline hover:text-amber-400">upload documents</button>
+                        No knowledge base - <button onClick={() => { const store = useAppStore.getState(); store.setActiveView('capability-library') }} className="underline hover:text-amber-600">upload documents</button>
                       </p>
                     )}
                   </div>

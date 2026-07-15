@@ -62,9 +62,9 @@ const MAX_RETRIES = 3;
 // E-04: Retry count visual indicators
 function retryIndicator(retryCount: number, status: string): { color: string; label: string } {
   if (status !== 'failed' || retryCount === 0) return { color: '', label: '' };
-  if (retryCount >= MAX_RETRIES) return { color: 'text-red-400', label: `Retry ${retryCount}/${MAX_RETRIES}` };
-  if (retryCount === 1) return { color: 'text-yellow-400', label: `Retry ${retryCount}/${MAX_RETRIES}` };
-  return { color: 'text-red-400', label: `Retry ${retryCount}/${MAX_RETRIES}` };
+  if (retryCount >= MAX_RETRIES) return { color: 'text-red-600', label: `Retry ${retryCount}/${MAX_RETRIES}` };
+  if (retryCount === 1) return { color: 'text-yellow-600', label: `Retry ${retryCount}/${MAX_RETRIES}` };
+  return { color: 'text-red-600', label: `Retry ${retryCount}/${MAX_RETRIES}` };
 }
 
 function failureBorderColor(retryCount: number): string {
@@ -304,7 +304,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                 backgroundSize: '300% 300%',
               }}
             />
-            <div className="relative border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl rounded-xl px-6 py-5">
+            <div className="relative border border-gray-200 bg-black/[0.03] backdrop-blur-xl rounded-xl px-6 py-5">
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center">
@@ -314,7 +314,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                     <h1 className="text-xl font-bold text-foreground tracking-tight">Send Queue</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">
                       <span className="text-primary font-medium tabular-nums">{items.length}</span> items &middot;
-                      <span className="text-emerald-400 font-medium tabular-nums ml-1">{pendingCount + scheduledCount}</span> ready to send
+                      <span className="text-emerald-600 font-medium tabular-nums ml-1">{pendingCount + scheduledCount}</span> ready to send
                     </p>
                   </div>
                 </div>
@@ -336,7 +336,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs border-amber-500/30 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 gap-1.5"
+                    className="h-8 text-xs border-amber-500/30 text-amber-600 hover:text-amber-300 hover:bg-amber-50 gap-1.5"
                     onClick={handlePauseAll}
                     disabled={pendingCount + scheduledCount === 0}
                   >
@@ -345,7 +345,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs border-emerald-500/30 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 gap-1.5"
+                    className="h-8 text-xs border-emerald-500/30 text-emerald-600 hover:text-emerald-300 hover:bg-emerald-50 gap-1.5"
                     onClick={handleResumeAll}
                     disabled={pausedCount === 0}
                   >
@@ -363,16 +363,16 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                     exit={{ opacity: 0, y: -8, height: 0 }}
                     className="mt-4 overflow-hidden"
                   >
-                    <div className="flex items-center justify-between rounded-lg bg-white/[0.04] border border-white/[0.08] px-4 py-3">
+                    <div className="flex items-center justify-between rounded-lg bg-black/[0.04] border border-gray-200 px-4 py-3">
                       <div className="flex items-center gap-4 text-xs">
                         <span className="text-muted-foreground">
                           Worker completed: <span className="text-foreground font-medium">{workerResult.processed}</span> processed
                         </span>
-                        <span className="text-emerald-400">
+                        <span className="text-emerald-600">
                           <CheckCircle2 className="w-3 h-3 inline mr-1" />{workerResult.sent} sent
                         </span>
                         {workerResult.failed > 0 && (
-                          <span className="text-red-400">
+                          <span className="text-red-600">
                             <XCircle className="w-3 h-3 inline mr-1" />{workerResult.failed} failed
                           </span>
                         )}
@@ -463,7 +463,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                           <Checkbox
                             checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
                             onCheckedChange={toggleSelectAll}
-                            className="border-white/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=indeterminate]:bg-primary data-[state=indeterminate]:border-primary"
+                            className="border-gray-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=indeterminate]:bg-primary data-[state=indeterminate]:border-primary"
                           />
                         </TableHead>
                         <TableHead className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Contact</TableHead>
@@ -484,7 +484,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                         return (
                           <TableRow
                             key={item.id}
-                            className={`border-border group transition-all duration-200 hover:bg-white/[0.03] ${isSelected ? 'bg-primary/[0.04]' : ''}`}
+                            className={`border-border group transition-all duration-200 hover:bg-black/[0.03] ${isSelected ? 'bg-primary/[0.04]' : ''}`}
                             style={{ borderLeft: `3px solid ${borderLeftColor}` }}
                             onMouseEnter={(e) => {
                               if (item.status !== 'failed') {
@@ -502,13 +502,13 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                               <Checkbox
                                 checked={isSelected}
                                 onCheckedChange={() => toggleSelectOne(item.id)}
-                                className="border-white/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                                className="border-gray-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                               />
                             </TableCell>
                             <TableCell className="text-foreground text-sm font-medium">
                               <div className="flex items-center gap-2">
                                 {item.status === 'sent' && item.openCount > 0 && (
-                                  <Mail className="w-3.5 h-3.5 text-emerald-400" />
+                                  <Mail className="w-3.5 h-3.5 text-emerald-600" />
                                 )}
                                 {item.contactName}
                               </div>
@@ -541,7 +541,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                               {item.status === 'sent' && (item.openCount > 0 || item.clickCount > 0) && (
                                 <div className="flex items-center gap-2 mt-0.5">
                                   {item.openCount > 0 && (
-                                    <span className="text-[9px] text-emerald-400">{item.openCount} opens</span>
+                                    <span className="text-[9px] text-emerald-600">{item.openCount} opens</span>
                                   )}
                                   {item.clickCount > 0 && (
                                     <span className="text-[9px] text-primary">{item.clickCount} clicks</span>
@@ -557,7 +557,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                                     <Tooltip>
                                       <TooltipTrigger asChild>
                                         <span className="flex items-center gap-1">
-                                          <Calendar className="w-3 h-3 text-violet-400" />
+                                          <Calendar className="w-3 h-3 text-violet-600" />
                                           {new Date(item.scheduledAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                       </TooltipTrigger>
@@ -576,7 +576,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                                     : item.status === 'paused'
                                       ? (
                                         <span className="flex items-center gap-1">
-                                          <Pause className="w-3 h-3 text-amber-400" />
+                                          <Pause className="w-3 h-3 text-amber-600" />
                                           Paused
                                         </span>
                                       )
@@ -585,7 +585,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                               {item.status === 'failed' && item.failureReason && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <span className="flex items-center gap-1 text-red-400/70 text-[10px] mt-0.5 cursor-help">
+                                    <span className="flex items-center gap-1 text-red-600/70 text-[10px] mt-0.5 cursor-help">
                                       <AlertTriangle className="w-3 h-3 flex-shrink-0" />
                                       <span className="max-w-[160px] truncate">{item.failureReason}</span>
                                     </span>
@@ -621,7 +621,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-7 w-7 p-0 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                                        className="h-7 w-7 p-0 text-amber-600 hover:text-amber-300 hover:bg-amber-50"
                                         onClick={() => handlePauseOne(item.id)}
                                       >
                                         <Pause className="w-3.5 h-3.5" />
@@ -637,7 +637,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-7 w-7 p-0 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                                        className="h-7 w-7 p-0 text-emerald-600 hover:text-emerald-300 hover:bg-emerald-50"
                                         onClick={() => handleResumeOne(item.id)}
                                       >
                                         <Play className="w-3.5 h-3.5" />
@@ -653,7 +653,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-7 w-7 p-0 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                                        className="h-7 w-7 p-0 text-amber-600 hover:text-amber-300 hover:bg-amber-50"
                                         onClick={() => handlePauseOne(item.id)}
                                       >
                                         <Pause className="w-3.5 h-3.5" />
@@ -669,7 +669,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-7 w-7 p-0 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10"
+                                        className="h-7 w-7 p-0 text-yellow-600 hover:text-yellow-300 hover:bg-yellow-500/10"
                                         onClick={() => handleRetryOne(item.id)}
                                       >
                                         <RotateCcw className="w-3.5 h-3.5" />
@@ -684,7 +684,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                                     <TooltipTrigger asChild>
                                       <Badge
                                         variant="outline"
-                                        className="text-[9px] bg-red-500/10 text-red-400/80 border-red-500/20 gap-0.5"
+                                        className="text-[9px] bg-red-50 text-red-600/80 border-red-500/20 gap-0.5"
                                       >
                                         <AlertTriangle className="w-2.5 h-2.5" />
                                         Permanent
@@ -702,7 +702,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-7 w-7 p-0 text-red-400/60 hover:text-red-400 hover:bg-red-500/10"
+                                        className="h-7 w-7 p-0 text-red-600/60 hover:text-red-600 hover:bg-red-50"
                                         onClick={() => handleCancelOne(item.id)}
                                       >
                                         <Ban className="w-3.5 h-3.5" />
@@ -742,7 +742,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                       <span className="text-muted-foreground text-xs">selected</span>
                     </div>
 
-                    <div className="w-px h-6 bg-white/[0.08]" />
+                    <div className="w-px h-6 bg-black/[0.05]" />
 
                     {/* Bulk action buttons */}
                     <div className="flex items-center gap-1.5">
@@ -750,7 +750,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 text-[11px] border-amber-500/30 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 gap-1"
+                          className="h-7 text-[11px] border-amber-500/30 text-amber-600 hover:text-amber-300 hover:bg-amber-50 gap-1"
                           onClick={() => openBulkAction('pause', 'Pause Selected', selectedPending.map(i => i.id))}
                         >
                           <Pause className="w-3 h-3" />
@@ -762,7 +762,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 text-[11px] border-emerald-500/30 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 gap-1"
+                          className="h-7 text-[11px] border-emerald-500/30 text-emerald-600 hover:text-emerald-300 hover:bg-emerald-50 gap-1"
                           onClick={() => openBulkAction('resume', 'Resume Selected', selectedPaused.map(i => i.id))}
                         >
                           <Play className="w-3 h-3" />
@@ -774,7 +774,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 text-[11px] border-yellow-500/30 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 gap-1"
+                          className="h-7 text-[11px] border-yellow-500/30 text-yellow-600 hover:text-yellow-300 hover:bg-yellow-500/10 gap-1"
                           onClick={() => openBulkAction('retry', 'Retry All Failed', [])}
                         >
                           <RotateCcw className="w-3 h-3" />
@@ -786,7 +786,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 text-[11px] border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1"
+                          className="h-7 text-[11px] border-red-500/30 text-red-600 hover:text-red-300 hover:bg-red-50 gap-1"
                           onClick={() => openBulkAction('cancel', 'Cancel Selected', selectedCancelable.map(i => i.id))}
                         >
                           <Ban className="w-3 h-3" />
@@ -795,7 +795,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                       )}
                     </div>
 
-                    <div className="w-px h-6 bg-white/[0.08]" />
+                    <div className="w-px h-6 bg-black/[0.05]" />
 
                     {/* Clear selection */}
                     <Button
@@ -819,16 +819,16 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                 <div className="text-xs text-muted-foreground">
                   <span className="text-foreground font-medium">Bulk Actions</span>
                   {' '}&middot;{' '}
-                  {failedCount > 0 && <span className="text-red-400">{failedCount} failed</span>}
+                  {failedCount > 0 && <span className="text-red-600">{failedCount} failed</span>}
                   {failedCount > 0 && pausedCount > 0 && <span>, </span>}
-                  {pausedCount > 0 && <span className="text-amber-400">{pausedCount} paused</span>}
+                  {pausedCount > 0 && <span className="text-amber-600">{pausedCount} paused</span>}
                 </div>
                 <div className="flex items-center gap-2">
                   {failedCount > 0 && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 text-xs border-yellow-500/30 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 gap-1.5"
+                      className="h-8 text-xs border-yellow-500/30 text-yellow-600 hover:text-yellow-300 hover:bg-yellow-500/10 gap-1.5"
                       onClick={handleRetryAll}
                     >
                       <RotateCcw className="w-3.5 h-3.5" />Retry All Failed
@@ -838,7 +838,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 text-xs border-emerald-500/30 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 gap-1.5"
+                      className="h-8 text-xs border-emerald-500/30 text-emerald-600 hover:text-emerald-300 hover:bg-emerald-50 gap-1.5"
                       onClick={handleResumeAll}
                     >
                       <Play className="w-3.5 h-3.5" />Resume All Paused
@@ -848,7 +848,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 text-xs border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1.5"
+                      className="h-8 text-xs border-red-500/30 text-red-600 hover:text-red-300 hover:bg-red-50 gap-1.5"
                       onClick={handleCancelAll}
                     >
                       <Ban className="w-3.5 h-3.5" />Cancel All Pending
@@ -900,7 +900,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
 
         {/* ── Bulk Action Confirmation Dialog ── */}
         <AlertDialog open={!!bulkAction} onOpenChange={(open) => { if (!open) { setBulkAction(null); setBulkActionLoading(false); } }}>
-          <AlertDialogContent className="border-white/[0.08] bg-[#12141E] backdrop-blur-xl">
+          <AlertDialogContent className="border-gray-200 bg-[#12141E] backdrop-blur-xl">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-foreground">
                 {bulkAction?.label || 'Confirm Action'}

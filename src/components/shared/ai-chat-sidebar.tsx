@@ -188,7 +188,7 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
             className="fixed right-0 top-0 bottom-0 w-[400px] max-w-[calc(100vw-1rem)] z-50 flex flex-col border-l"
             style={{
-              background: 'rgba(10, 14, 24, 0.95)',
+              background: 'rgba(255, 255, 255, 0.97)',
               backdropFilter: 'blur(24px) saturate(1.5)',
               borderColor: 'var(--border-subtle)',
             }}
@@ -206,7 +206,7 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+                className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                 aria-label="Close AI Assistant"
               >
                 <X className="size-4" style={{ color: 'var(--color-muted-foreground)' }} />
@@ -224,7 +224,7 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
                 </span>
                 <button
                   onClick={clearContext}
-                  className="ml-auto p-0.5 rounded hover:bg-white/5 transition-colors shrink-0"
+                  className="ml-auto p-0.5 rounded hover:bg-gray-100 transition-colors shrink-0"
                   aria-label="Clear context"
                 >
                   <RotateCcw className="size-3" style={{ color: 'var(--color-gold-dim)' }} />
@@ -290,7 +290,7 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
                     style={
                       msg.role === 'user'
                         ? { background: 'linear-gradient(135deg, var(--color-gold), var(--color-gold-dim))' }
-                        : { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)', color: 'var(--color-foreground)' }
+                        : { background: '#F9FAFB', border: '1px solid #E5E7EB', color: 'var(--color-foreground)' }
                     }
                   >
                     {/* Render simple markdown-like formatting */}
@@ -317,7 +317,7 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
               {/* Loading indicator */}
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="rounded-2xl rounded-bl-md px-4 py-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)' }}>
+                  <div className="rounded-2xl rounded-bl-md px-4 py-3" style={{ background: '#F9FAFB', border: '1px solid #E5E7EB' }}>
                     <div className="flex items-center gap-1.5">
                       <span className="size-2 rounded-full animate-bounce [animation-delay:0ms]" style={{ background: 'var(--color-gold)' }} />
                       <span className="size-2 rounded-full animate-bounce [animation-delay:150ms]" style={{ background: 'var(--color-gold)' }} />
@@ -335,7 +335,7 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
               <div
                 className="flex items-end gap-2 rounded-2xl px-3 py-2 transition-all"
                 style={{
-                  background: 'rgba(255,255,255,0.03)',
+                  background: '#F3F4F6',
                   border: '1px solid var(--border-subtle)',
                 }}
               >
@@ -361,7 +361,7 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
                   style={
                     input.trim() && !isLoading
                       ? { background: 'linear-gradient(135deg, var(--color-gold), var(--color-gold-dim))' }
-                      : { background: 'rgba(255,255,255,0.06)', color: 'var(--text-dim)' }
+                      : { background: 'rgba(0,0,0,0.06)', color: 'var(--text-dim)' }
                   }
                   aria-label="Send message"
                 >

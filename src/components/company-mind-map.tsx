@@ -15,7 +15,7 @@ interface CompanyMindMapProps {
 const GOLD = '#D4AF37';
 const GOLD_DIM = 'rgba(212,175,55,0.25)';
 const GOLD_LINE = 'rgba(212,175,55,0.35)';
-const BG_DARK = '#06090F';
+const BG_DARK = '#FAFAFA';
 const NODE_BG = 'rgba(15,20,30,0.85)';
 const NODE_BORDER = 'rgba(212,175,55,0.3)';
 const CHILD_BG = 'rgba(15,20,30,0.7)';

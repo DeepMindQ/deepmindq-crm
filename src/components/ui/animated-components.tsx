@@ -213,7 +213,7 @@ export function AnimatedBar({ value, max, color = '#D4AF37', className = '', del
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
 
   return (
-    <div ref={ref} className={`h-2.5 rounded-full overflow-hidden bg-white/[0.06] ${className}`}>
+    <div ref={ref} className={`h-2.5 rounded-full overflow-hidden bg-gray-200 ${className}`}>
       <motion.div
         className="h-full rounded-full relative"
         style={{ background: `linear-gradient(90deg, ${color}, ${color}DD)` }}
@@ -263,7 +263,7 @@ export function TabBar({ tabs, active, onChange }: {
   onChange: (key: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-1 p-1.5 rounded-xl bg-white/[0.03] border border-border/60 backdrop-blur-sm overflow-x-auto scrollbar-hide">
+    <div className="flex items-center gap-1 p-1.5 rounded-xl bg-gray-100 border border-gray-200 backdrop-blur-sm overflow-x-auto scrollbar-hide">
       {tabs.map(tab => {
         const isActive = tab.key === active;
         return (
@@ -290,7 +290,7 @@ export function TabBar({ tabs, active, onChange }: {
             <span className="relative z-10">{tab.label}</span>
             {tab.count !== undefined && (
               <span className={`relative z-10 text-xs px-1.5 py-0.5 rounded-full ${
-                isActive ? 'bg-primary/20 text-primary font-semibold' : 'bg-white/5 text-muted-foreground'
+                isActive ? 'bg-primary/20 text-primary font-semibold' : 'bg-gray-200 text-muted-foreground'
               }`}>
                 {tab.count}
               </span>
@@ -352,8 +352,8 @@ export function ShimmerText({ children, className = '' }: { children: ReactNode;
 export function GlassPanel({ children, className = '', style }: { children: ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
     <div
-      className={`rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl ${className}`}
-      style={{ boxShadow: '0 4px 30px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05)', ...style }}
+      className={`rounded-xl border border-gray-200 bg-white backdrop-blur-xl ${className}`}
+      style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)', ...style }}
     >
       {children}
     </div>

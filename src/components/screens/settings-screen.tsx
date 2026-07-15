@@ -189,7 +189,7 @@ interface TeamMember {
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; dataKey: string; color: string }>; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-white/10 bg-[#1a1c2e] px-3 py-2 text-xs shadow-xl backdrop-blur-sm">
+    <div className="rounded-lg border border-gray-200 bg-[#1a1c2e] px-3 py-2 text-xs shadow-xl backdrop-blur-sm">
       <p className="font-semibold text-foreground mb-1">{label}</p>
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
@@ -352,7 +352,7 @@ function TeamPerformanceSection() {
             ) : (
               <>
                 {/* ── Performance Table ─────────────────────── */}
-                <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+                <div className="rounded-xl border border-gray-200 overflow-hidden">
                   <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
                     <table className="w-full text-sm">
                       <thead className="sticky top-0 z-10">
@@ -418,8 +418,8 @@ function TeamPerformanceSection() {
                               </td>
                               <td className="px-4 py-3 text-right tabular-nums text-foreground">{m.totalAssigned}</td>
                               <td className="px-4 py-3 text-right tabular-nums text-foreground">{sentCount}</td>
-                              <td className="px-4 py-3 text-right tabular-nums text-emerald-400 font-medium">{repliedCount}</td>
-                              <td className="px-4 py-3 text-right tabular-nums text-red-400">{bouncedCount}</td>
+                              <td className="px-4 py-3 text-right tabular-nums text-emerald-600 font-medium">{repliedCount}</td>
+                              <td className="px-4 py-3 text-right tabular-nums text-red-600">{bouncedCount}</td>
                               <td className="px-4 py-3 text-right">
                                 <span className="font-bold tabular-nums" style={{ color: replyColor }}>
                                   {m.replyRate}%
@@ -428,7 +428,7 @@ function TeamPerformanceSection() {
                               <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{m.avgScore}</td>
                               {/* Stacked bar */}
                               <td className="px-4 py-3">
-                                <div className="h-2.5 rounded-full overflow-hidden bg-white/[0.06] flex">
+                                <div className="h-2.5 rounded-full overflow-hidden bg-black/[0.06] flex">
                                   {barData.map(d => {
                                     const pct = barTotal > 0 ? (d.value / barTotal) * 100 : 0;
                                     return (
@@ -498,7 +498,7 @@ function TeamPerformanceSection() {
                                   tickLine={false}
                                 />
                                 <YAxis hide />
-                                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+                                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(0, 0, 0, 0.03)' }} />
                                 <Bar dataKey="value" radius={[3, 3, 0, 0]} maxBarSize={24}>
                                   {chartData.map((entry, i) => (
                                     <Cell key={i} fill={entry.color} />
@@ -612,7 +612,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
               className="w-9 h-9 rounded-lg flex items-center justify-center"
               style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(212, 175, 55, 0.08))' }}
             >
-              <ShieldAlert className="size-4.5 text-red-400" />
+              <ShieldAlert className="size-4.5 text-red-600" />
             </div>
             <div>
               <h3 className="text-base font-bold text-foreground tracking-tight">
@@ -662,15 +662,15 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Opted in</span>
-                          <span className="font-semibold text-emerald-400 tabular-nums">{data.summary.consented}</span>
+                          <span className="font-semibold text-emerald-600 tabular-nums">{data.summary.consented}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Unknown status</span>
-                          <span className="font-semibold text-amber-400 tabular-nums">{data.summary.unknown}</span>
+                          <span className="font-semibold text-amber-600 tabular-nums">{data.summary.unknown}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Suppressed</span>
-                          <span className="font-semibold text-red-400 tabular-nums">{data.summary.suppressed}</span>
+                          <span className="font-semibold text-red-600 tabular-nums">{data.summary.suppressed}</span>
                         </div>
                         <Separator className="bg-border/40 !my-2" />
                         <div className="flex items-center justify-between">
@@ -710,7 +710,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                               <Tooltip
                                 contentStyle={{
                                   background: 'rgba(10, 12, 20, 0.95)',
-                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  border: '1px solid rgba(0, 0, 0, 0.06)',
                                   borderRadius: '8px',
                                   fontSize: '12px',
                                   color: '#e4e4e7',
@@ -739,7 +739,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                   <div className="lg:col-span-1">
                     <GlassPanel className="p-6">
                       <div className="flex items-center gap-2 mb-4">
-                        <AlertTriangle className="w-4 h-4 text-amber-400" />
+                        <AlertTriangle className="w-4 h-4 text-amber-600" />
                         <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">Risk Flags</p>
                         {data.riskFlags.length > 0 && (
                           <Badge className="bg-red-500/15 text-red-300 border-red-500/30 text-[10px] ml-auto">{data.riskFlags.length}</Badge>
@@ -748,14 +748,14 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
 
                       {data.riskFlags.length === 0 ? (
                         <div className="text-center py-6">
-                          <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                          <p className="text-xs text-emerald-400 font-medium">No risk flags</p>
+                          <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
+                          <p className="text-xs text-emerald-600 font-medium">No risk flags</p>
                           <p className="text-[10px] text-muted-foreground mt-0.5">All compliance checks passed</p>
                         </div>
                       ) : (
                         <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
                           {data.riskFlags.map(flag => (
-                            <div key={flag.type} className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                            <div key={flag.type} className="p-3 rounded-lg bg-black/[0.03] border border-gray-200">
                               <div className="flex items-start justify-between gap-2 mb-1">
                                 <p className="text-xs font-medium text-foreground leading-snug">{flag.message}</p>
                                 <Badge className="bg-red-500/15 text-red-300 border-red-500/30 text-[10px] shrink-0 tabular-nums">{flag.count}</Badge>
@@ -764,7 +764,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-7 text-[10px] text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 mt-1"
+                                  className="h-7 text-[10px] text-amber-600 hover:text-amber-300 hover:bg-amber-50 mt-1"
                                   disabled={actionLoading === flag.fixAction}
                                   onClick={() => runAction('fix', flag.fixAction)}
                                 >
@@ -808,7 +808,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                       <Button
                         variant="outline"
-                        className="h-9 text-xs gap-1.5 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50"
+                        className="h-9 text-xs gap-1.5 border-red-500/30 text-red-600 hover:bg-red-50 hover:border-red-500/50"
                         disabled={actionLoading === 'clean_stale_suppressions'}
                         onClick={() => runAction('clean', 'clean_stale_suppressions')}
                       >
@@ -1192,7 +1192,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                     className="w-9 h-9 rounded-lg flex items-center justify-center"
                     style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.06))' }}
                   >
-                    <Clock className="size-4.5 text-blue-400" />
+                    <Clock className="size-4.5 text-blue-600" />
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-foreground tracking-tight">
@@ -1351,7 +1351,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                     className="w-9 h-9 rounded-lg flex items-center justify-center"
                     style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.06))' }}
                   >
-                    <ShieldCheck className="size-4.5 text-emerald-400" />
+                    <ShieldCheck className="size-4.5 text-emerald-600" />
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-foreground tracking-tight">
@@ -1582,7 +1582,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                     className="w-9 h-9 rounded-lg flex items-center justify-center"
                     style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.06))' }}
                   >
-                    <Ban className="size-4.5 text-red-400" />
+                    <Ban className="size-4.5 text-red-600" />
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-foreground tracking-tight">

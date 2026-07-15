@@ -87,7 +87,7 @@ function NavButton({
         ${
           active
             ? 'bg-primary/15 text-primary'
-            : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground'
+            : 'text-muted-foreground hover:bg-black/[0.04] hover:text-foreground'
         }
         focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-[oklch(0.11_0.01_260)]
       `}
@@ -220,7 +220,7 @@ function Sidebar() {
               onClick={toggleSidebar}
               className={`
                 flex items-center w-full gap-3 rounded-lg text-sm font-medium
-                text-muted-foreground hover:bg-white/[0.04] hover:text-foreground
+                text-muted-foreground hover:bg-black/[0.04] hover:text-foreground
                 transition-all duration-200 outline-none
                 focus-visible:ring-2 focus-visible:ring-ring
                 ${sidebarCollapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'}
@@ -273,7 +273,7 @@ function Header() {
       {/* Mobile sidebar toggle */}
       <button
         onClick={() => setSidebarCollapsed(false)}
-        className="lg:hidden flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors"
+        className="lg:hidden flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/[0.04] transition-colors"
         aria-label="Open sidebar"
       >
         <PanelLeft className="w-5 h-5" />
@@ -286,9 +286,9 @@ function Header() {
           <Input
             type="search"
             placeholder="Search leads, companies..."
-            className="h-9 pl-9 bg-white/[0.04] border-[oklch(0.27_0.005_260)] text-foreground placeholder:text-muted-foreground/50 focus-visible:border-primary/40 focus-visible:ring-primary/20"
+            className="h-9 pl-9 bg-black/[0.04] border-[oklch(0.27_0.005_260)] text-foreground placeholder:text-muted-foreground/50 focus-visible:border-primary/40 focus-visible:ring-primary/20"
           />
-          <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground/50 bg-white/[0.04] border border-[oklch(0.27_0.005_260)] rounded">
+          <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground/50 bg-black/[0.04] border border-[oklch(0.27_0.005_260)] rounded">
             <span className="text-[10px]">⌘</span>K
           </kbd>
         </div>
@@ -298,7 +298,7 @@ function Header() {
       <div className="flex items-center gap-2">
         {/* Notifications */}
         <button
-          className="relative flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="relative flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/[0.04] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Notifications"
         >
           <Bell className="w-[18px] h-[18px]" strokeWidth={1.8} />

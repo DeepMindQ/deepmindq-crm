@@ -163,7 +163,7 @@ function TagInput({ tags, onChange, allTags }: { tags: string[]; onChange: (tags
   return (
     <div className="space-y-1.5" ref={containerRef}>
       <Label className="text-sm">Tags</Label>
-      <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg bg-white/[0.03] border border-white/[0.06] focus-within:border-primary/40 min-h-[40px]">
+      <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg bg-black/[0.03] border border-gray-200 focus-within:border-primary/40 min-h-[40px]">
         {tags.map(tag => (
           <Badge key={tag} variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary bg-primary/5 px-2 py-0.5">
             {tag}
@@ -185,7 +185,7 @@ function TagInput({ tags, onChange, allTags }: { tags: string[]; onChange: (tags
           />
           {/* Autocomplete suggestions */}
           {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute top-full left-0 mt-1 w-full min-w-[180px] rounded-lg border border-white/[0.08] bg-card shadow-xl z-50 max-h-40 overflow-y-auto">
+            <div className="absolute top-full left-0 mt-1 w-full min-w-[180px] rounded-lg border border-gray-200 bg-card shadow-xl z-50 max-h-40 overflow-y-auto">
               {suggestions.map(s => (
                 <button
                   key={s}
@@ -225,7 +225,7 @@ function GlassDialog({ children, onClose, title, subtitle, actions }: {
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/25 backdrop-blur-sm"
         onClick={onClose}
       />
       {/* Panel */}
@@ -234,7 +234,7 @@ function GlassDialog({ children, onClose, title, subtitle, actions }: {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 12, scale: 0.98 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-white/[0.1] bg-white/[0.04] backdrop-blur-2xl shadow-2xl shadow-black/40"
+        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-white/[0.1] bg-black/[0.04] backdrop-blur-2xl shadow-2xl shadow-black/40"
         onClick={e => e.stopPropagation()}
       >
         {/* Top glow line */}
@@ -251,13 +251,13 @@ function GlassDialog({ children, onClose, title, subtitle, actions }: {
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/[0.06] transition-colors"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-black/[0.06] transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
           {children}
-          {actions && <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-white/[0.06]">{actions}</div>}
+          {actions && <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-200">{actions}</div>}
         </div>
       </motion.div>
     </motion.div>
@@ -353,7 +353,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
             <div>
               <div className="flex items-center gap-2">
                 <p className="text-base font-bold text-foreground">Knowledge Engine</p>
-                <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400 bg-emerald-500/5 gap-1 px-1.5">
+                <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-600 bg-emerald-500/5 gap-1 px-1.5">
                   <PulseDot color="#10B981" />
                   Active
                 </Badge>
@@ -384,7 +384,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
             { icon: Trophy, label: 'Proof Points', value: ppCount, color: '#8B5CF6' },
             { icon: Cpu, label: 'Search Modes', value: 3, color: '#F59E0B', isText: true, text: 'K / S / H' },
           ].map((s, idx) => (
-            <div key={idx} className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+            <div key={idx} className="p-3 rounded-lg bg-white/[0.02] border border-gray-200">
               <div className="flex items-center gap-1.5 mb-1">
                 <s.icon className="w-3 h-3" style={{ color: s.color }} />
                 <span className="text-[10px] text-muted-foreground">{s.label}</span>
@@ -418,20 +418,20 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                     value={ragQuery}
                     onChange={e => setRagQuery(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && runRagSearch()}
-                    className="h-10 text-sm pl-10 bg-white/[0.03] border-white/[0.06] focus:border-primary/40"
+                    className="h-10 text-sm pl-10 bg-black/[0.03] border-gray-200 focus:border-primary/40"
                   />
                 </div>
                 <Input
                   placeholder="Industry (e.g. Healthcare)"
                   value={ragIndustry}
                   onChange={e => setRagIndustry(e.target.value)}
-                  className="h-10 text-sm bg-white/[0.03] border-white/[0.06]"
+                  className="h-10 text-sm bg-black/[0.03] border-gray-200"
                 />
                 <Input
                   placeholder="Role (e.g. CTO)"
                   value={ragRole}
                   onChange={e => setRagRole(e.target.value)}
-                  className="h-10 text-sm bg-white/[0.03] border-white/[0.06]"
+                  className="h-10 text-sm bg-black/[0.03] border-gray-200"
                 />
               </div>
 
@@ -445,7 +445,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                       className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all duration-200 ${
                         ragMode === mode
                           ? 'text-foreground border border-primary/30 shadow-sm'
-                          : 'text-muted-foreground border border-transparent hover:text-foreground hover:bg-white/[0.03]'
+                          : 'text-muted-foreground border border-transparent hover:text-foreground hover:bg-black/[0.03]'
                       }`}
                       style={ragMode === mode ? { background: 'rgba(212,175,55,0.1)' } : {}}
                     >
@@ -469,7 +469,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
                   {/* Insight bar */}
                   {ragInsight && (
-                    <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-gray-200">
                       <span className="text-[10px] text-muted-foreground">
                         {ragResults.length} results in {ragInsight.resultCategories?.length || 0} categories
                       </span>
@@ -522,7 +522,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                               {r.matchedFields && r.matchedFields.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-1.5">
                                   {r.matchedFields.map((f: string) => (
-                                    <span key={f} className="text-[9px] px-1.5 py-0.5 rounded bg-white/[0.04] text-muted-foreground">{f}</span>
+                                    <span key={f} className="text-[9px] px-1.5 py-0.5 rounded bg-black/[0.04] text-muted-foreground">{f}</span>
                                   ))}
                                 </div>
                               )}
@@ -556,7 +556,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
               ) : coverage ? (
                 <>
                   {/* Overall score */}
-                  <div className="flex items-center gap-4 p-4 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                  <div className="flex items-center gap-4 p-4 rounded-lg bg-white/[0.02] border border-gray-200">
                     <div className="text-center">
                       <p className="text-3xl font-bold tabular-nums" style={{ color: coverage.overallScore >= 70 ? '#10B981' : coverage.overallScore >= 40 ? '#F59E0B' : '#EF4444' }}>
                         {coverage.overallScore}%
@@ -589,8 +589,8 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                             className="text-[9px] px-2 py-0.5 rounded-full border"
                             style={{
                               background: data[item.key as keyof typeof data] ? `${item.c}15` : 'transparent',
-                              borderColor: data[item.key as keyof typeof data] ? `${item.c}40` : 'rgba(255,255,255,0.06)',
-                              color: data[item.key as keyof typeof data] ? item.c : 'rgba(255,255,255,0.2)',
+                              borderColor: data[item.key as keyof typeof data] ? `${item.c}40` : 'rgba(0, 0, 0, 0.05)',
+                              color: data[item.key as keyof typeof data] ? item.c : 'rgba(0, 0, 0, 0.08)',
                             }}
                           >
                             {data[item.key as keyof typeof data] ? '' : 'No '}{item.label}
@@ -605,12 +605,12 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                   {(coverage.recommendations || []).length > 0 && (
                     <div className="space-y-2 pt-2">
                       <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                        <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
+                        <Lightbulb className="w-3.5 h-3.5 text-amber-600" />
                         Recommendations
                       </p>
                       {coverage.recommendations.map((rec: string, idx: number) => (
                         <div key={idx} className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/[0.04] border border-amber-500/10">
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-400/70 shrink-0 mt-0.5" />
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600/70 shrink-0 mt-0.5" />
                           <p className="text-[11px] text-muted-foreground leading-relaxed">{rec}</p>
                         </div>
                       ))}
@@ -665,8 +665,8 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
 
                 {/* Live connection indicator */}
                 <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04]">
-                  <Workflow className="w-4 h-4 text-emerald-400" />
-                  <span className="text-xs text-emerald-400 font-medium">RAG Pipeline Active</span>
+                  <Workflow className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs text-emerald-600 font-medium">RAG Pipeline Active</span>
                   <span className="text-[10px] text-muted-foreground ml-1">
                     - Every draft uses this pipeline. The knowledge you add here directly determines email quality.
                   </span>
@@ -678,7 +678,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
       </div>
 
       {/* Category distribution bar at bottom */}
-      <div className="px-6 py-3 border-t border-white/[0.04] bg-white/[0.01]">
+      <div className="px-6 py-3 border-t border-gray-200 bg-white/[0.01]">
         <div className="flex items-center gap-4">
           {Object.entries({
             service_line: { label: 'Services', color: '#3B82F6' },
@@ -738,11 +738,11 @@ function TagCloudDialog({ items, onSelectTag, onClose }: { items: Capability[]; 
               <button
                 key={tag}
                 onClick={() => { onSelectTag(tag); onClose(); }}
-                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] hover:border-primary/30 hover:bg-primary/5 transition-all duration-200"
+                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white/[0.02] hover:border-primary/30 hover:bg-primary/5 transition-all duration-200"
               >
                 <Hash className="w-3 h-3 text-primary/50 group-hover:text-primary transition-colors" />
                 <span className="text-xs font-medium" style={{ color: `rgba(212, 175, 55, ${intensity})` }}>{tag}</span>
-                <span className="text-[9px] tabular-nums text-muted-foreground bg-white/[0.04] rounded-full px-1.5 py-0.5">{count}</span>
+                <span className="text-[9px] tabular-nums text-muted-foreground bg-black/[0.04] rounded-full px-1.5 py-0.5">{count}</span>
               </button>
             );
           })}
@@ -1231,7 +1231,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
               placeholder="Search capabilities by title or summary..."
               value={search}
               onChange={e => { setSearch(e.target.value); setFilterTag(null); }}
-              className="h-10 text-sm pl-10 bg-white/[0.03] border-white/[0.06] focus:border-primary/40"
+              className="h-10 text-sm pl-10 bg-black/[0.03] border-gray-200 focus:border-primary/40"
             />
             {search && (
               <button
@@ -1281,7 +1281,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
               <button
                 key={tag}
                 onClick={() => setFilterTag(tag)}
-                className="text-[10px] px-2 py-0.5 rounded-full border border-white/[0.06] bg-white/[0.02] text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all duration-200"
+                className="text-[10px] px-2 py-0.5 rounded-full border border-gray-200 bg-white/[0.02] text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all duration-200"
               >
                 {tag}
               </button>
@@ -1327,12 +1327,12 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
             </div>
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => handleBulkAction('activate')} disabled={bulkLoading}>
-                <Check className="w-3 h-3 text-emerald-400" />Activate
+                <Check className="w-3 h-3 text-emerald-600" />Activate
               </Button>
               <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => handleBulkAction('deactivate')} disabled={bulkLoading}>
-                <Ban className="w-3 h-3 text-amber-400" />Deactivate
+                <Ban className="w-3 h-3 text-amber-600" />Deactivate
               </Button>
-              <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 text-red-400 border-red-500/30 hover:bg-red-500/10" onClick={() => handleBulkAction('delete')} disabled={bulkLoading}>
+              <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 text-red-600 border-red-500/30 hover:bg-red-50" onClick={() => handleBulkAction('delete')} disabled={bulkLoading}>
                 <Trash2 className="w-3 h-3" />Delete
               </Button>
               {bulkLoading && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
@@ -1373,7 +1373,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                             className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all duration-200 ${
                               selectedIds.has(cap.id)
                                 ? 'border-primary bg-primary text-primary-foreground'
-                                : 'border-white/20 hover:border-primary/50'
+                                : 'border-gray-300 hover:border-primary/50'
                             }`}
                           >
                             {selectedIds.has(cap.id) && <Check className="w-2.5 h-2.5" />}
@@ -1413,7 +1413,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                       <span
                         className={`w-2.5 h-2.5 rounded-full mt-2 shrink-0 transition-shadow duration-300 ${
                           cap.isActive
-                            ? 'bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+                            ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
                             : 'bg-zinc-600'
                         }`}
                         title={cap.isActive ? 'Active' : 'Inactive'}
@@ -1430,7 +1430,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                           <button
                             key={tag}
                             onClick={() => setFilterTag(tag)}
-                            className="text-[9px] px-1.5 py-0.5 rounded border border-white/[0.06] bg-white/[0.02] text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all duration-200"
+                            className="text-[9px] px-1.5 py-0.5 rounded border border-gray-200 bg-white/[0.02] text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all duration-200"
                           >
                             {tag}
                           </button>
@@ -1444,12 +1444,12 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                     {/* Meta fields */}
                     {cap.serviceLine && (
                       <p className="text-[11px] text-muted-foreground mt-3 flex items-center gap-1.5">
-                        <Layers className="w-3 h-3 text-blue-400/70" />{cap.serviceLine}
+                        <Layers className="w-3 h-3 text-blue-600/70" />{cap.serviceLine}
                       </p>
                     )}
                     {cap.targetIndustries && (
                       <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1.5">
-                        <Tag className="w-3 h-3 text-purple-400/70" />{cap.targetIndustries}
+                        <Tag className="w-3 h-3 text-purple-600/70" />{cap.targetIndustries}
                       </p>
                     )}
 
@@ -1459,11 +1459,11 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                         onClick={() => setSelected(cap)}>
                         <Eye className="w-3.5 h-3.5 mr-1" />View
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-white/[0.04] px-2.5 rounded-lg"
+                      <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-black/[0.04] px-2.5 rounded-lg"
                         onClick={() => openEdit(cap)}>
                         <Pencil className="w-3.5 h-3.5 mr-1" />Edit
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-red-400 hover:bg-red-500/10 px-2.5 rounded-lg ml-auto"
+                      <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-50 px-2.5 rounded-lg ml-auto"
                         onClick={() => setDeleteId(cap.id)}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
@@ -1512,7 +1512,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
               <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { openEdit(selected); setSelected(null); }}>
                 <Pencil className="w-3.5 h-3.5" />Edit
               </Button>
-              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => { setDeleteId(selected.id); setSelected(null); }}>
+              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-red-600 hover:text-red-300 hover:bg-red-50" onClick={() => { setDeleteId(selected.id); setSelected(null); }}>
                 <Trash2 className="w-3.5 h-3.5" />Delete
               </Button>
             </div>
@@ -1524,7 +1524,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
               <Badge variant="outline" className={`text-[10px] ${CAT_BADGE[selected.category] || ''}`}>
                 {CAT_LABEL[selected.category] || selected.category}
               </Badge>
-              <span className={`w-2 h-2 rounded-full ${selected.isActive ? 'bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.5)]' : 'bg-zinc-600'}`} />
+              <span className={`w-2 h-2 rounded-full ${selected.isActive ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]' : 'bg-zinc-600'}`} />
               <span className="text-[11px] text-muted-foreground">{selected.isActive ? 'Active' : 'Inactive'}</span>
               {/* C-07: Version badge in view */}
               {(selected.version || 0) > 1 && (
@@ -1537,7 +1537,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
             {/* C-08: Parent info in view */}
             {selected.parentAssetId && (
               <div className="flex items-center gap-2">
-                <Link2 className="w-3.5 h-3.5 text-purple-400" />
+                <Link2 className="w-3.5 h-3.5 text-purple-600" />
                 <span className="text-[11px] text-muted-foreground">Parent: {items.find(i => i.id === selected.parentAssetId)?.title || selected.parentAssetId}</span>
               </div>
             )}
@@ -1611,10 +1611,10 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
             {/* C-09: Feedback stats in view dialog */}
             <div className="flex items-center gap-4 pt-2">
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <span className="text-emerald-400">▲</span> {selected.upvotes || 0} upvotes
+                <span className="text-emerald-600">▲</span> {selected.upvotes || 0} upvotes
               </div>
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <span className="text-red-400">▼</span> {selected.downvotes || 0} downvotes
+                <span className="text-red-600">▼</span> {selected.downvotes || 0} downvotes
               </div>
               {(selected.usedInEmails || 0) > 0 && (
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -1649,22 +1649,22 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
           <div className="space-y-5">
             {/* Title */}
             <div className="space-y-1.5">
-              <Label htmlFor="cap-title" className="text-sm">Title <span className="text-red-400">*</span></Label>
+              <Label htmlFor="cap-title" className="text-sm">Title <span className="text-red-600">*</span></Label>
               <Input
                 id="cap-title"
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                 placeholder="Capability title"
-                className="h-10 text-sm bg-white/[0.03] border-white/[0.06] focus:border-primary/40"
+                className="h-10 text-sm bg-black/[0.03] border-gray-200 focus:border-primary/40"
               />
             </div>
 
             {/* Category + Active */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-sm">Category <span className="text-red-400">*</span></Label>
+                <Label className="text-sm">Category <span className="text-red-600">*</span></Label>
                 <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
-                  <SelectTrigger className="h-10 text-sm bg-white/[0.03] border-white/[0.06]">
+                  <SelectTrigger className="h-10 text-sm bg-black/[0.03] border-gray-200">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1693,7 +1693,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 value={form.serviceLine}
                 onChange={e => setForm(f => ({ ...f, serviceLine: e.target.value }))}
                 placeholder="e.g., AI & Data, Cloud & Infrastructure"
-                className="h-10 text-sm bg-white/[0.03] border-white/[0.06] focus:border-primary/40"
+                className="h-10 text-sm bg-black/[0.03] border-gray-200 focus:border-primary/40"
               />
             </div>
 
@@ -1702,7 +1702,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
               <div className="space-y-1.5">
                 <Label className="text-sm">Parent Asset <span className="text-muted-foreground font-normal">(optional)</span></Label>
                 <Select value={form.parentAssetId} onValueChange={v => setForm(f => ({ ...f, parentAssetId: v }))}>
-                  <SelectTrigger className="h-10 text-sm bg-white/[0.03] border-white/[0.06]">
+                  <SelectTrigger className="h-10 text-sm bg-black/[0.03] border-gray-200">
                     <SelectValue placeholder="Select a parent service line..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -1729,7 +1729,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 value={form.targetCompanySizes}
                 onChange={e => setForm(f => ({ ...f, targetCompanySizes: e.target.value }))}
                 placeholder="Comma-separated: Startup, Mid-Market, Enterprise"
-                className="h-10 text-sm bg-white/[0.03] border-white/[0.06] focus:border-primary/40"
+                className="h-10 text-sm bg-black/[0.03] border-gray-200 focus:border-primary/40"
               />
             </div>
 
@@ -1742,7 +1742,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                   value={form.targetIndustries}
                   onChange={e => setForm(f => ({ ...f, targetIndustries: e.target.value }))}
                   placeholder="Comma-separated"
-                  className="h-10 text-sm bg-white/[0.03] border-white/[0.06] focus:border-primary/40"
+                  className="h-10 text-sm bg-black/[0.03] border-gray-200 focus:border-primary/40"
                 />
               </div>
               <div className="space-y-1.5">
@@ -1752,7 +1752,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                   value={form.targetRoles}
                   onChange={e => setForm(f => ({ ...f, targetRoles: e.target.value }))}
                   placeholder="Comma-separated"
-                  className="h-10 text-sm bg-white/[0.03] border-white/[0.06] focus:border-primary/40"
+                  className="h-10 text-sm bg-black/[0.03] border-gray-200 focus:border-primary/40"
                 />
               </div>
             </div>
@@ -1765,7 +1765,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 value={form.problems}
                 onChange={e => setForm(f => ({ ...f, problems: e.target.value }))}
                 placeholder="Key problems this capability solves"
-                className="text-sm min-h-[60px] bg-white/[0.03] border-white/[0.06] focus:border-primary/40"
+                className="text-sm min-h-[60px] bg-black/[0.03] border-gray-200 focus:border-primary/40"
                 rows={2}
               />
             </div>
@@ -1778,20 +1778,20 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 value={form.evidence}
                 onChange={e => setForm(f => ({ ...f, evidence: e.target.value }))}
                 placeholder="Supporting evidence, metrics, or proof points"
-                className="text-sm min-h-[60px] bg-white/[0.03] border-white/[0.06] focus:border-primary/40"
+                className="text-sm min-h-[60px] bg-black/[0.03] border-gray-200 focus:border-primary/40"
                 rows={2}
               />
             </div>
 
             {/* Summary */}
             <div className="space-y-1.5">
-              <Label htmlFor="cap-summary" className="text-sm">Summary <span className="text-red-400">*</span></Label>
+              <Label htmlFor="cap-summary" className="text-sm">Summary <span className="text-red-600">*</span></Label>
               <Textarea
                 id="cap-summary"
                 value={form.summary}
                 onChange={e => setForm(f => ({ ...f, summary: e.target.value }))}
                 placeholder="Brief summary of the capability"
-                className="text-sm min-h-[80px] bg-white/[0.03] border-white/[0.06] focus:border-primary/40"
+                className="text-sm min-h-[80px] bg-black/[0.03] border-gray-200 focus:border-primary/40"
                 rows={3}
               />
             </div>
@@ -1804,7 +1804,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 value={form.content}
                 onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
                 placeholder="Detailed content (optional)"
-                className="text-sm min-h-[100px] bg-white/[0.03] border-white/[0.06] focus:border-primary/40"
+                className="text-sm min-h-[100px] bg-black/[0.03] border-gray-200 focus:border-primary/40"
                 rows={4}
               />
             </div>
@@ -1821,7 +1821,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
         >
           {/* Drop zone */}
           <div
-            className="border-2 border-dashed border-white/[0.08] rounded-2xl p-10 text-center hover:border-primary/40 transition-all duration-300 cursor-pointer group/drop bg-white/[0.01] hover:bg-white/[0.03]"
+            className="border-2 border-dashed border-gray-200 rounded-2xl p-10 text-center hover:border-primary/40 transition-all duration-300 cursor-pointer group/drop bg-white/[0.01] hover:bg-black/[0.03]"
             onClick={() => fileInputRef.current?.click()}
             onDragOver={e => e.preventDefault()}
             onDrop={handleDrop}
@@ -1864,9 +1864,9 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 Results ({uploadResults.length} file{uploadResults.length !== 1 ? 's' : ''})
               </p>
               {uploadResults.map((r, idx) => (
-                <div key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                <div key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-gray-200">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: r.error ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)' }}>
-                    {r.error ? <X className="w-4 h-4 text-red-400" /> : <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                    {r.error ? <X className="w-4 h-4 text-red-600" /> : <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{r.fileName}</p>
@@ -1909,7 +1909,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 value={enrichUrl}
                 onChange={e => setEnrichUrl(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleEnrich()}
-                className="h-10 text-sm bg-white/[0.03] border-white/[0.06] focus:border-primary/40 flex-1"
+                className="h-10 text-sm bg-black/[0.03] border-gray-200 focus:border-primary/40 flex-1"
               />
               <Button size="sm" onClick={handleEnrich} disabled={enrichLoading || !enrichUrl.trim()} className="h-10 text-xs gap-1.5">
                 {enrichLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
@@ -1920,7 +1920,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
             {enrichResult?.success && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2.5 p-3 rounded-lg bg-emerald-500/[0.06] border border-emerald-500/15">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <div>
                     <p className="text-sm font-medium text-foreground">{enrichResult.pageTitle}</p>
                     <p className="text-[11px] text-muted-foreground">{enrichResult.overallSummary?.slice(0, 120)}</p>
@@ -1931,7 +1931,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                   {enrichResult.assets?.map((asset: any, idx: number) => {
                     const CatIcon = CAT_ICON[asset.category] || FileText;
                     return (
-                      <div key={idx} className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                      <div key={idx} className="p-3 rounded-lg bg-white/[0.02] border border-gray-200">
                         <div className="flex items-center gap-2 mb-1.5">
                           <CatIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                           <p className="text-sm font-medium text-foreground truncate">{asset.title}</p>
@@ -1959,7 +1959,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
         >
           <div className="space-y-4">
             <div
-              className="border-2 border-dashed border-white/[0.08] rounded-2xl p-8 text-center hover:border-primary/40 transition-all duration-300 cursor-pointer"
+              className="border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center hover:border-primary/40 transition-all duration-300 cursor-pointer"
               onClick={() => document.getElementById('import-file-input')?.click()}
             >
               <input
@@ -1975,18 +1975,18 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
             </div>
 
             {importResult && (
-              <div className="space-y-3 p-4 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+              <div className="space-y-3 p-4 rounded-lg bg-white/[0.02] border border-gray-200">
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div>
-                    <p className="text-lg font-bold text-emerald-400">{importResult.created}</p>
+                    <p className="text-lg font-bold text-emerald-600">{importResult.created}</p>
                     <p className="text-[10px] text-muted-foreground">Created</p>
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-amber-400">{importResult.skipped}</p>
+                    <p className="text-lg font-bold text-amber-600">{importResult.skipped}</p>
                     <p className="text-[10px] text-muted-foreground">Skipped</p>
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-red-400">{importResult.errors}</p>
+                    <p className="text-lg font-bold text-red-600">{importResult.errors}</p>
                     <p className="text-[10px] text-muted-foreground">Errors</p>
                   </div>
                 </div>
@@ -2017,8 +2017,8 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
         <AlertDialogContent>
           <AlertDialogHeader>
             <div className="flex items-center gap-3 mb-1">
-              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-red-400" />
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
               <AlertDialogTitle>Delete Capability</AlertDialogTitle>
             </div>

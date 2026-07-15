@@ -57,3 +57,7 @@ agent-ctx/
 *.txt
 .zscripts/
 next-service-dist/
+scripts/seed-data/
+*.db
+*.db-shm
+*.db-wal

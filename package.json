@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 -H 0.0.0.0 --webpack 2>&1 | tee dev.log",
-    "build": "next build",
+    "build": "next build && node -e \"const s=require('child_process'),p=require('path');s.spawnSync('cp',['-r',p.join('.next','static'),p.join('.next','standalone','.next','static')]);s.spawnSync('cp',['-r','public',p.join('.next','standalone','public')]);console.log('✓ Static assets copied to standalone')\"",
     "start": "next start -p 8080",
     "lint": "eslint .",
     "db:push": "prisma db push",

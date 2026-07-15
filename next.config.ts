@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  // output: 'standalone' removed — was stripping static JS chunks from served output
+  output: 'standalone',
 };
 
 export default nextConfig

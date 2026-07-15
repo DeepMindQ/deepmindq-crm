@@ -5,7 +5,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import {
   Mail, Sparkles, Copy, RefreshCw, User, CheckCircle2, Loader2, Search,
   ExternalLink, Zap, AlertTriangle, Building2, Eye, Save, ChevronRight,
-  Database, ChevronDown, Brain,
+  Database, ChevronDown, Brain, X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,6 +33,14 @@ interface ContactRow {
   emailHealth: string
   emailHealthScore: number | null
   companyId: string | null
+}
+
+interface CompanyRow {
+  id: string
+  rawName: string
+  industry: string | null
+  country: string | null
+  _count: { contacts: number }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -210,6 +218,40 @@ export default function EmailGenerationScreen() {
     }
   }, [])
 
+  // ── Company selector state ──
+  const [selectedCompany, setSelectedCompany] = useState<CompanyRow | null>(null)
+  const [companySearch, setCompanySearch] = useState('')
+  const [debouncedCompanySearch, setDebouncedCompanySearch] = useState('')
+  const companyTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  const handleCompanySearchChange = (val: string) => {
+    setCompanySearch(val)
+    if (companyTimerRef.current) clearTimeout(companyTimerRef.current)
+    companyTimerRef.current = setTimeout(() => setDebouncedCompanySearch(val), 300)
+  }
+
+  const clearCompany = () => {
+    setSelectedCompany(null)
+    setCompanySearch('')
+    setDebouncedCompanySearch('')
+  }
+
+  // ── Company search query ──
+  const { data: companiesData, isLoading: companiesLoading } = useQuery({
+    queryKey: ['companies', 'email-gen-selector', debouncedCompanySearch],
+    queryFn: () => {
+      const p = new URLSearchParams({ limit: '20', sortBy: 'contacts' })
+      if (debouncedCompanySearch) p.set('search', debouncedCompanySearch)
+      return fetch(`/api/companies?${p}`).then(r => {
+        if (!r.ok) throw new Error('Failed to load companies')
+        return r.json()
+      })
+    },
+    enabled: !selectedCompany,
+  })
+
+  const companies = (companiesData?.companies ?? []) as CompanyRow[]
+
   // ── Search debounce ──
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const [contactSearch, setContactSearch] = useState('')
@@ -218,6 +260,7 @@ export default function EmailGenerationScreen() {
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
+      if (companyTimerRef.current) clearTimeout(companyTimerRef.current)
     }
   }, [])
 
@@ -263,10 +306,14 @@ export default function EmailGenerationScreen() {
 
   // ── Contacts ──
   const { data: contactsData, isLoading: contactsLoading, error: contactsError } = useQuery({
-    queryKey: ['contacts', 'email-gen-sidebar', debouncedSearch],
+    queryKey: ['contacts', 'email-gen-sidebar', debouncedSearch, selectedCompany?.id],
     queryFn: () => {
       const p = new URLSearchParams({ pageSize: '50' })
-      if (debouncedSearch) p.set('search', debouncedSearch)
+      if (selectedCompany) {
+        p.set('companyId', selectedCompany.id)
+      } else if (debouncedSearch) {
+        p.set('search', debouncedSearch)
+      }
       return fetch(`/api/contacts?${p}`).then(r => {
         if (!r.ok) throw new Error('Failed to load contacts')
         return r.json()
@@ -432,6 +479,105 @@ export default function EmailGenerationScreen() {
         {/* AI Status Banner */}
         <div className="p-4 border-b border-gray-200/60 bg-white">
           <AiStatusBanner onGoToSettings={goToSettings} />
+        </div>
+
+        {/* Company Selector */}
+        <div className="p-4 border-b border-gray-200/60 bg-white space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+              <Building2 className="size-3" />
+              Company Filter
+            </h3>
+            {selectedCompany && (
+              <button
+                onClick={clearCompany}
+                className="text-[11px] text-gray-400 hover:text-gray-600 flex items-center gap-0.5 transition-colors"
+              >
+                <X className="size-3" />
+                Clear
+              </button>
+            )}
+          </div>
+
+          {selectedCompany ? (
+            /* Selected company card */
+            <div className="rounded-lg border border-amber-300/80 bg-amber-50/60 p-3 space-y-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <button
+                    onClick={() => goToCompanyProfile(selectedCompany.id)}
+                    className="text-sm font-semibold text-gray-900 hover:text-amber-700 transition-colors truncate block"
+                  >
+                    {selectedCompany.rawName}
+                  </button>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    {selectedCompany.industry && (
+                      <Badge variant="outline" className="text-[10px] font-medium px-1.5 py-0 border-gray-300 text-gray-600 bg-white">
+                        {selectedCompany.industry}
+                      </Badge>
+                    )}
+                    <span className="text-[11px] text-gray-500 flex items-center gap-1">
+                      <User className="size-2.5" />
+                      {selectedCompany._count.contacts} contact{selectedCompany._count.contacts !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={clearCompany}
+                  className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-200/60 transition-colors shrink-0"
+                  title="Clear company filter"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Company search input */
+            <>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-gray-400" />
+                <Input
+                  placeholder="Search companies..."
+                  value={companySearch}
+                  onChange={e => handleCompanySearchChange(e.target.value)}
+                  className="pl-8 h-8 bg-gray-100 border-gray-200 rounded-lg text-xs focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
+                />
+              </div>
+
+              {companiesLoading && companySearch ? (
+                <div className="space-y-1.5">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="h-12 rounded-lg bg-gray-100 animate-pulse" />
+                  ))}
+                </div>
+              ) : companies.length > 0 && companySearch ? (
+                <div className="max-h-60 overflow-y-auto rounded-lg border border-gray-200/80 bg-white shadow-sm">
+                  {companies.map((comp) => (
+                    <button
+                      key={comp.id}
+                      onClick={() => { setSelectedCompany(comp); setCompanySearch(''); setDebouncedCompanySearch('') }}
+                      className="w-full px-3 py-2.5 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 flex items-center gap-2.5"
+                    >
+                      <div className="size-7 rounded-md bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
+                        <Building2 className="size-3.5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-gray-900 truncate">{comp.rawName}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {comp.industry && (
+                            <span className="text-[10px] text-gray-400 truncate">{comp.industry}</span>
+                          )}
+                          <span className="text-[10px] text-gray-400 shrink-0">
+                            {comp._count.contacts} contact{comp._count.contacts !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
 
         {/* Selected Contact Card */}

@@ -1,167 +1,397 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
 /* ═══════════════════════════════════════════════════
-   Company Mind Map API
-   Returns companies + contacts + signals + notes
-   as a graph structure for interactive visualization
+   Company Mind Map API — Clean Tree Hierarchy
+   
+   Query params:
+     ?companyId=xxx  → Radial tree for one company (all contacts, signals, notes)
+     ?search=term    → Search companies (max 20), each with top 3 contacts
+     (default)       → Top 30 companies by intelligenceScore, each with top 3 contacts
+   
+   NO industry hubs. NO cross-company edges.
+   Pure parent-child tree: company → contact / signal / note
    ═══════════════════════════════════════════════════ */
 
-export async function GET() {
-  try {
-    // Fetch top companies by intelligence score, plus a spread across industries
-    const [topCompanies, contacts, signals, notes] = await Promise.all([
-      db.company.findMany({
-        take: 200,
-        orderBy: { intelligenceScore: 'desc' },
-        select: {
-          id: true, rawName: true, normalizedName: true, industry: true,
-          intelligenceScore: true, engagementScore: true, status: true,
-          lifecycleStage: true, location: true, sizeRange: true, domain: true, country: true,
-          _count: { select: { contacts: true } },
-        },
-      }),
-      db.contact.findMany({
-        take: 500,
-        orderBy: { leadScore: 'desc' },
-        select: { id: true, rawName: true, normalizedName: true, email: true, title: true, role: true, leadScore: true, status: true, companyId: true },
-      }),
-      db.companySignal.findMany({ take: 80, orderBy: { createdAt: 'desc' }, select: { id: true, companyId: true, signalType: true, title: true, severity: true, source: true, createdAt: true } }),
-      db.companyNote.findMany({ take: 60, orderBy: { createdAt: 'desc' }, select: { id: true, companyId: true, title: true, category: true, pinned: true, createdAt: true } }),
-    ]);
+interface GraphNode {
+  id: string;
+  type: 'company' | 'contact' | 'signal' | 'note';
+  label: string;
+  data: Record<string, unknown>;
+}
 
-    const safe = <T>(arr: T | undefined): T[] => Array.isArray(arr) ? arr : [];
+interface GraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  type: string;
+}
 
-    // Build graph nodes
-    const nodes: Array<{ id: string; type: 'company' | 'contact' | 'signal' | 'note' | 'industry'; label: string; data: any }> = [];
-    const edges: Array<{ id: string; source: string; target: string; label: string; type: string }> = [];
+interface MindMapResponse {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  stats: {
+    totalNodes: number;
+    totalEdges: number;
+    companies: number;
+    contacts: number;
+    signals: number;
+    notes: number;
+  };
+  mode: 'focused' | 'search' | 'overview';
+  focusedCompanyId?: string;
+}
 
-    // Company nodes
-    safe(topCompanies).forEach((c: any) => {
-      nodes.push({
-        id: `company-${c.id}`,
-        type: 'company',
-        label: c.rawName || c.normalizedName,
-        data: {
-          id: c.id,
-          name: c.rawName || c.normalizedName,
-          industry: c.industry,
-          score: c.intelligenceScore || 0,
-          status: c.status,
-          lifecycleStage: c.lifecycleStage,
-          engagementScore: c.engagementScore || 0,
-          location: c.location,
-          size: c.sizeRange,
-          country: c.country,
-          contactCount: c._count?.contacts || 0,
-          domain: c.domain,
-        },
-      });
-    });
+/* ── Shared: build graph nodes/edges for a list of companies ── */
+function buildCompanyNodes(
+  companies: Array<Record<string, unknown>>,
+  contactsMap: Map<string, unknown[]>,
+  signalsMap: Map<string, unknown[]>,
+  notesMap: Map<string, unknown[]>,
+): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  const nodes: GraphNode[] = [];
+  const edges: GraphEdge[] = [];
 
-    const companyIds = new Set(safe(topCompanies).map((c: any) => c.id));
+  for (const c of companies) {
+    const cid = c.id as string;
+    const name = (c.rawName as string) || (c.normalizedName as string) || 'Unknown';
 
-    // Contact nodes + edges to companies (limit per company to 3 for performance)
-    const contactPerCompany = new Map<string, number>();
-    safe(contacts).forEach((c: any) => {
-      if (!companyIds.has(c.companyId)) return;
-      const perCo = contactPerCompany.get(c.companyId) || 0;
-      if (perCo >= 3) return;
-      contactPerCompany.set(c.companyId, perCo + 1);
-
-      const name = c.rawName || c.normalizedName || c.email;
-      nodes.push({
-        id: `contact-${c.id}`,
-        type: 'contact',
-        label: name,
-        data: { id: c.id, name, email: c.email, title: c.title, role: c.role, score: c.leadScore || 0, status: c.status },
-      });
-      edges.push({
-        id: `edge-${c.companyId}-${c.id}`,
-        source: `company-${c.companyId}`,
-        target: `contact-${c.id}`,
-        label: 'contact_at',
-        type: 'company-contact',
-      });
-    });
-
-    // Signal nodes + edges
-    safe(signals).forEach((s: any) => {
-      if (!companyIds.has(s.companyId)) return;
-      const sigId = `signal-${s.id}`;
-      nodes.push({
-        id: sigId, type: 'signal', label: s.title,
-        data: { id: s.id, type: s.signalType, title: s.title, severity: s.severity, source: s.source, createdAt: s.createdAt },
-      });
-      edges.push({ id: `edge-${s.companyId}-${s.id}`, source: `company-${s.companyId}`, target: sigId, label: s.signalType, type: 'company-signal' });
-    });
-
-    // Note nodes + edges
-    safe(notes).forEach((n: any) => {
-      if (!companyIds.has(n.companyId)) return;
-      const noteId = `note-${n.id}`;
-      nodes.push({
-        id: noteId, type: 'note', label: n.title || n.category,
-        data: { id: n.id, title: n.title, category: n.category, pinned: n.pinned, createdAt: n.createdAt },
-      });
-      edges.push({ id: `edge-${n.companyId}-${n.id}`, source: `company-${n.companyId}`, target: noteId, label: n.category, type: 'company-note' });
-    });
-
-    // Industry hub nodes — group companies by industry and create hub nodes
-    const byIndustry: Record<string, string[]> = {};
-    safe(topCompanies).forEach((c: any) => {
-      if (c.industry) {
-        if (!byIndustry[c.industry]) byIndustry[c.industry] = [];
-        byIndustry[c.industry].push(c.id);
-      }
-    });
-
-    Object.entries(byIndustry).forEach(([industry, ids]) => {
-      // Only create hub node for industries with 3+ companies
-      if (ids.length < 3) return;
-      const hubId = `industry-${industry.replace(/[^a-zA-Z0-9]/g, '_')}`;
-      nodes.push({
-        id: hubId, type: 'industry', label: industry,
-        data: { industry, companyCount: ids.length },
-      });
-      // Connect first 10 companies to hub
-      ids.slice(0, 10).forEach(cid => {
-        edges.push({ id: `edge-${hubId}-${cid}`, source: hubId, target: `company-${cid}`, label: 'in_industry', type: 'industry-company' });
-      });
-    });
-
-    // Cross-company edges (same industry, top 5 per industry)
-    let edgeIdx = 0;
-    Object.entries(byIndustry).forEach(([industry, ids]) => {
-      for (let i = 0; i < Math.min(ids.length, 5); i++) {
-        for (let j = i + 1; j < Math.min(ids.length, 5); j++) {
-          edges.push({
-            id: `cross-${edgeIdx++}`,
-            source: `company-${ids[i]}`,
-            target: `company-${ids[j]}`,
-            label: `same_industry: ${industry}`,
-            type: 'cross-company',
-          });
-        }
-      }
-    });
-
-    return NextResponse.json({
-      nodes,
-      edges,
-      stats: {
-        totalNodes: nodes.length,
-        totalEdges: edges.length,
-        companies: safe(topCompanies).length,
-        contacts: nodes.filter(n => n.type === 'contact').length,
-        signals: nodes.filter(n => n.type === 'signal').length,
-        notes: nodes.filter(n => n.type === 'note').length,
-        industryHubs: nodes.filter(n => n.type === 'industry').length,
-        crossCompanyEdges: edges.filter(e => e.type === 'cross-company').length,
+    // Company node
+    nodes.push({
+      id: `company-${cid}`,
+      type: 'company',
+      label: name,
+      data: {
+        id: cid,
+        name,
+        industry: c.industry ?? null,
+        score: (c.intelligenceScore as number) || 0,
+        status: c.status ?? null,
+        lifecycleStage: c.lifecycleStage ?? null,
+        engagementScore: (c.engagementScore as number) || 0,
+        location: c.location ?? null,
+        size: c.sizeRange ?? null,
+        country: c.country ?? null,
+        contactCount: c._count ? (c._count as Record<string, number>).contacts || 0 : 0,
+        domain: c.domain ?? null,
       },
     });
+
+    // Contact nodes
+    const contacts = contactsMap.get(cid) || [];
+    for (const ct of contacts) {
+      const ctId = ct.id as string;
+      const ctName = (ct.rawName as string) || (ct.normalizedName as string) || (ct.email as string) || 'Unknown';
+      nodes.push({
+        id: `contact-${ctId}`,
+        type: 'contact',
+        label: ctName,
+        data: {
+          id: ctId,
+          name: ctName,
+          email: ct.email ?? null,
+          title: ct.title ?? null,
+          role: ct.role ?? null,
+          score: (ct.leadScore as number) || 0,
+          status: ct.status ?? null,
+        },
+      });
+      edges.push({
+        id: `edge-${cid}-${ctId}`,
+        source: `company-${cid}`,
+        target: `contact-${ctId}`,
+        type: 'company-contact',
+      });
+    }
+
+    // Signal nodes
+    const signals = signalsMap.get(cid) || [];
+    for (const s of signals) {
+      const sId = s.id as string;
+      nodes.push({
+        id: `signal-${sId}`,
+        type: 'signal',
+        label: (s.title as string) || 'Signal',
+        data: {
+          id: sId,
+          type: s.signalType ?? null,
+          title: s.title ?? null,
+          severity: s.severity ?? 'medium',
+          source: s.source ?? null,
+          createdAt: s.createdAt ?? null,
+        },
+      });
+      edges.push({
+        id: `edge-${cid}-${sId}`,
+        source: `company-${cid}`,
+        target: `signal-${sId}`,
+        type: 'company-signal',
+      });
+    }
+
+    // Note nodes
+    const notes = notesMap.get(cid) || [];
+    for (const n of notes) {
+      const nId = n.id as string;
+      nodes.push({
+        id: `note-${nId}`,
+        type: 'note',
+        label: (n.title as string) || (n.category as string) || 'Note',
+        data: {
+          id: nId,
+          title: n.title ?? null,
+          category: n.category ?? 'general',
+          pinned: (n.pinned as boolean) || false,
+          createdAt: n.createdAt ?? null,
+        },
+      });
+      edges.push({
+        id: `edge-${cid}-${nId}`,
+        source: `company-${cid}`,
+        target: `note-${nId}`,
+        type: 'company-note',
+      });
+    }
+  }
+
+  return { nodes, edges };
+}
+
+/* ═══════════════════════════════════════════════════
+   GET handler
+   ═══════════════════════════════════════════════════ */
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const companyId = searchParams.get('companyId');
+    const search = searchParams.get('search');
+
+    let response: MindMapResponse;
+
+    if (companyId) {
+      response = await buildFocusedView(companyId);
+    } else if (search && search.trim().length > 0) {
+      response = await buildSearchView(search.trim());
+    } else {
+      response = await buildOverviewView();
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('[Mind Map API]', error);
     return NextResponse.json({ error: 'Failed to build mind map' }, { status: 500 });
   }
+}
+
+/* ── Focused view: single company + ALL its children ── */
+async function buildFocusedView(companyId: string): Promise<MindMapResponse> {
+  const company = await db.company.findUnique({
+    where: { id: companyId },
+    select: {
+      id: true, rawName: true, normalizedName: true, industry: true,
+      intelligenceScore: true, engagementScore: true, status: true,
+      lifecycleStage: true, location: true, sizeRange: true, domain: true, country: true,
+      _count: { select: { contacts: true } },
+    },
+  });
+
+  if (!company) {
+    return { nodes: [], edges: [], stats: { totalNodes: 0, totalEdges: 0, companies: 0, contacts: 0, signals: 0, notes: 0 }, mode: 'focused', focusedCompanyId: companyId };
+  }
+
+  const [contacts, signals, notes] = await Promise.all([
+    db.contact.findMany({
+      where: { companyId },
+      orderBy: { leadScore: 'desc' },
+      select: { id: true, rawName: true, normalizedName: true, email: true, title: true, role: true, leadScore: true, status: true },
+    }),
+    db.companySignal.findMany({
+      where: { companyId },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, companyId: true, signalType: true, title: true, severity: true, source: true, createdAt: true },
+    }),
+    db.companyNote.findMany({
+      where: { companyId },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, companyId: true, title: true, category: true, pinned: true, createdAt: true },
+    }),
+  ]);
+
+  const contactsMap = new Map<string, unknown[]>();
+  const signalsMap = new Map<string, unknown[]>();
+  const notesMap = new Map<string, unknown[]>();
+  contactsMap.set(companyId, contacts as unknown[]);
+  signalsMap.set(companyId, signals as unknown[]);
+  notesMap.set(companyId, notes as unknown[]);
+
+  const { nodes, edges } = buildCompanyNodes([company as unknown as Record<string, unknown>], contactsMap, signalsMap, notesMap);
+
+  return {
+    nodes,
+    edges,
+    stats: {
+      totalNodes: nodes.length,
+      totalEdges: edges.length,
+      companies: 1,
+      contacts: contacts.length,
+      signals: signals.length,
+      notes: notes.length,
+    },
+    mode: 'focused',
+    focusedCompanyId: companyId,
+  };
+}
+
+/* ── Search view: matching companies (max 20) + top 3 contacts each ── */
+async function buildSearchView(term: string): Promise<MindMapResponse> {
+  const companies = await db.company.findMany({
+    where: {
+      OR: [
+        { rawName: { contains: term, mode: 'insensitive' } },
+        { normalizedName: { contains: term, mode: 'insensitive' } },
+        { domain: { contains: term, mode: 'insensitive' } },
+        { industry: { contains: term, mode: 'insensitive' } },
+      ],
+    },
+    take: 20,
+    orderBy: { intelligenceScore: 'desc' },
+    select: {
+      id: true, rawName: true, normalizedName: true, industry: true,
+      intelligenceScore: true, engagementScore: true, status: true,
+      lifecycleStage: true, location: true, sizeRange: true, domain: true, country: true,
+      _count: { select: { contacts: true } },
+    },
+  });
+
+  const companyIds = companies.map(c => c.id);
+
+  // Fetch top 3 contacts per company
+  const contacts = await db.contact.findMany({
+    where: { companyId: { in: companyIds } },
+    orderBy: { leadScore: 'desc' },
+    select: { id: true, rawName: true, normalizedName: true, email: true, title: true, role: true, leadScore: true, status: true, companyId: true },
+  });
+
+  const contactsMap = new Map<string, unknown[]>();
+  const perCompany = new Map<string, number>();
+  for (const ct of contacts) {
+    const cid = ct.companyId;
+    const count = perCompany.get(cid) || 0;
+    if (count >= 3) continue;
+    perCompany.set(cid, count + 1);
+    if (!contactsMap.has(cid)) contactsMap.set(cid, []);
+    contactsMap.get(cid)!.push(ct);
+  }
+
+  const { nodes, edges } = buildCompanyNodes(
+    companies as unknown as Record<string, unknown>[],
+    contactsMap,
+    new Map(), // no signals in search view for cleanliness
+    new Map(), // no notes in search view for cleanliness
+  );
+
+  return {
+    nodes,
+    edges,
+    stats: {
+      totalNodes: nodes.length,
+      totalEdges: edges.length,
+      companies: companies.length,
+      contacts: contacts.length,
+      signals: 0,
+      notes: 0,
+    },
+    mode: 'search',
+  };
+}
+
+/* ── Overview: top 30 companies by IQ score + top 3 contacts each ── */
+async function buildOverviewView(): Promise<MindMapResponse> {
+  const companies = await db.company.findMany({
+    take: 30,
+    orderBy: { intelligenceScore: 'desc' },
+    select: {
+      id: true, rawName: true, normalizedName: true, industry: true,
+      intelligenceScore: true, engagementScore: true, status: true,
+      lifecycleStage: true, location: true, sizeRange: true, domain: true, country: true,
+      _count: { select: { contacts: true } },
+    },
+  });
+
+  const companyIds = companies.map(c => c.id);
+
+  // Fetch top 3 contacts per company
+  const contacts = await db.contact.findMany({
+    where: { companyId: { in: companyIds } },
+    orderBy: { leadScore: 'desc' },
+    select: { id: true, rawName: true, normalizedName: true, email: true, title: true, role: true, leadScore: true, status: true, companyId: true },
+  });
+
+  // Fetch latest signal per company (max 1 each)
+  const signals = await db.companySignal.findMany({
+    where: { companyId: { in: companyIds } },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, companyId: true, signalType: true, title: true, severity: true, source: true, createdAt: true },
+  });
+
+  // Fetch latest note per company (max 1 each)
+  const notes = await db.companyNote.findMany({
+    where: { companyId: { in: companyIds } },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, companyId: true, title: true, category: true, pinned: true, createdAt: true },
+  });
+
+  const contactsMap = new Map<string, unknown[]>();
+  const signalsMap = new Map<string, unknown[]>();
+  const notesMap = new Map<string, unknown[]>();
+
+  // Top 3 contacts per company
+  const perCompany = new Map<string, number>();
+  for (const ct of contacts) {
+    const cid = ct.companyId;
+    const count = perCompany.get(cid) || 0;
+    if (count >= 3) continue;
+    perCompany.set(cid, count + 1);
+    if (!contactsMap.has(cid)) contactsMap.set(cid, []);
+    contactsMap.get(cid)!.push(ct);
+  }
+
+  // 1 signal per company (latest)
+  const sigSeen = new Set<string>();
+  for (const s of signals) {
+    if (sigSeen.has(s.companyId)) continue;
+    sigSeen.add(s.companyId);
+    if (!signalsMap.has(s.companyId)) signalsMap.set(s.companyId, []);
+    signalsMap.get(s.companyId)!.push(s);
+  }
+
+  // 1 note per company (latest)
+  const noteSeen = new Set<string>();
+  for (const n of notes) {
+    if (noteSeen.has(n.companyId)) continue;
+    noteSeen.add(n.companyId);
+    if (!notesMap.has(n.companyId)) notesMap.set(n.companyId, []);
+    notesMap.get(n.companyId)!.push(n);
+  }
+
+  const { nodes, edges } = buildCompanyNodes(
+    companies as unknown as Record<string, unknown>[],
+    contactsMap,
+    signalsMap,
+    notesMap,
+  );
+
+  return {
+    nodes,
+    edges,
+    stats: {
+      totalNodes: nodes.length,
+      totalEdges: edges.length,
+      companies: companies.length,
+      contacts: contacts.length,
+      signals: sigSeen.size,
+      notes: noteSeen.size,
+    },
+    mode: 'overview',
+  };
 }

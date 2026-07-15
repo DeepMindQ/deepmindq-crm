@@ -1,22 +1,28 @@
 ---
 Task ID: 1
-Agent: main
-Task: Fix all screens showing zero data - diagnose and fix API/data issues
+Agent: Main Agent
+Task: P0 enhancements - Unified navigation, expose hidden screens, design tokens, new logo
 
 Work Log:
-- Diagnosed root cause: contacts API used `archivedAt: null` filter but column didn't exist in Prisma schema, causing all queries to silently fail
-- Also found `Record<string, unknown>` type for Prisma `where` clause caused runtime failures in production builds
-- Fixed contacts API: changed to `Prisma.ContactWhereInput` type, removed `archivedAt` filter, fixed field names (`rawName`/`title` instead of `name`/`jobTitle`)
-- Fixed mind-map API: increased from 50 to 200 companies, added industry hub nodes, added country data, limited contacts per company to 3 for performance
-- Fixed dashboard screen: removed all hardcoded data, now fetches real top companies from API, real segments, computes funnel from actual DB counts
-- Fixed command center: added `companiesByCountry` to insights API, replaced hardcoded COUNTRIES with real geo distribution from DB
-- Fixed contacts screen: added `rawName` → `name` mapping in query response for compatibility
-- Added missing `archivedAt` column to SQLite (though not needed after code fix)
-- Clean rebuild and restart verified all APIs returning real data
+- Audited entire codebase: 31 screen components, 98 API routes, dual navigation systems
+- Identified 11 dormant screens (9,531 lines) wired to dead useAppStore navigation
+- Rewrote src/app/page.tsx: unified navigation with 7 sections, 28 screen keys
+- Added URL hash routing (#contacts, #leads, etc.) for bookmarkability
+- Created bridge wrappers for dormant screens (ContactsBridge, TasksBridge, etc.)
+- Expanded Zustand store ViewId to include all screen types
+- Added CSS design tokens: --color-gold vars, .glass-panel, .text-gold utilities
+- Made sidebar sections collapsible (Insights & System default collapsed)
+- Pipeline counts now auto-refresh every 30s
+- Refresh button in header now functional
+- Replaced inline gold constants with CSS custom properties
+- Updated logo in sidebar, landing page header, footer, and hero
+- Fixed email-generation-screen.tsx JSX nesting error (prevented build)
+- Login state persisted to sessionStorage
+- Page title updates per active screen
 
 Stage Summary:
-- Contacts API: 40,982 contacts (was 0)
-- Dashboard: 10,684 companies, 40,982 contacts, real funnel/segments
-- Mind Map: 232 nodes, 266 edges (was 53/29)
-- Command Center: 10,684 companies, 8 countries, real industry distribution
-- All data now flows from the 40K+ imported dataset
+- Build: Clean (all 98 API routes, no errors)
+- Pushed: commit 2e26c08 to DeepMindQ/deepmindq-crm main
+- 5 files changed: page.tsx, globals.css, landing-page.tsx, email-generation-screen.tsx, store.ts
+- 11 screens now accessible: Contacts, Contact Detail, Tasks, Opportunities, Reports, Email Generator, Prompt Templates, Duplicates, + 3 more
+- Navigation: 7 sections with 28 items, collapsible, hash-based routing

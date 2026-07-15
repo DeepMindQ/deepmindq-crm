@@ -35,7 +35,7 @@ export function getEnv(): EnvConfig {
       console.error(`  - ${issue.path.join('.')}: ${issue.message}`)
     }
     // In development, use defaults where possible
-    _env = envSchema.parse({ ...process.env, DATABASE_URL: process.env.DATABASE_URL || 'file:./db/custom.db' })
+    _env = envSchema.parse(process.env)
     return _env
   }
 

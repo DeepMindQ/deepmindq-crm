@@ -3,8 +3,21 @@
                 query XTransformPort=8080
         }
 
+        @transform_port_3789 {
+                query XTransformPort=3789
+        }
+
         handle @transform_port_query {
                 reverse_proxy localhost:8080 {
+                        header_up Host {host}
+                        header_up X-Forwarded-For {remote_host}
+                        header_up X-Forwarded-Proto {scheme}
+                        header_up X-Real-IP {remote_host}
+                }
+        }
+
+        handle @transform_port_3789 {
+                reverse_proxy localhost:3789 {
                         header_up Host {host}
                         header_up X-Forwarded-For {remote_host}
                         header_up X-Forwarded-Proto {scheme}

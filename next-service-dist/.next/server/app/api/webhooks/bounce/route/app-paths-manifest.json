@@ -1,0 +1,3 @@
+{
+  "/api/webhooks/bounce/route": "app/api/webhooks/bounce/route.js"
+}

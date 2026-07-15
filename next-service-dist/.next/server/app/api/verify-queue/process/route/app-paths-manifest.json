@@ -1,0 +1,3 @@
+{
+  "/api/verify-queue/process/route": "app/api/verify-queue/process/route.js"
+}

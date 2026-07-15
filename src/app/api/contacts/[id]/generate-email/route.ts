@@ -3,81 +3,21 @@ import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 
 // ---------------------------------------------------------------------------
-// LLM provider helpers
+// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
 // ---------------------------------------------------------------------------
 
 type LLMResult = { subject: string; body: string } | null
 
-async function callOpenAI(systemPrompt: string, apiKey: string, model: string): Promise<LLMResult> {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: 'Generate the email now.' },
-      ],
-      temperature: 0.7,
-      max_tokens: 1024,
-    }),
+async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
+  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
+  const completion = await ZAI.chat.completions.create({
+    messages: [
+      { role: 'assistant', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    thinking: { type: 'disabled' },
   })
-  if (!res.ok) {
-    throw new Error(`OpenAI API error ${res.status}`)
-  }
-  const data = await res.json()
-  const text: string = data.choices?.[0]?.message?.content ?? ''
-  return parseLlmJson(text)
-}
-
-async function callGemini(systemPrompt: string, apiKey: string, model: string): Promise<LLMResult> {
-  // C11: Use x-goog-api-key header instead of query param to avoid API key in URL
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent'
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey,
-    },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: systemPrompt + '\n\nGenerate the email now.' }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
-    }),
-  })
-  if (!res.ok) {
-    throw new Error(`Gemini API error ${res.status}`)
-  }
-  const data = await res.json()
-  const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-  return parseLlmJson(text)
-}
-
-async function callGroq(systemPrompt: string, apiKey: string, model: string): Promise<LLMResult> {
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: 'Generate the email now.' },
-      ],
-      temperature: 0.7,
-      max_tokens: 1024,
-    }),
-  })
-  if (!res.ok) {
-    throw new Error(`Groq API error ${res.status}`)
-  }
-  const data = await res.json()
-  const text: string = data.choices?.[0]?.message?.content ?? ''
-  return parseLlmJson(text)
+  return completion.choices?.[0]?.message?.content ?? ''
 }
 
 // ---------------------------------------------------------------------------
@@ -202,10 +142,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const openerStyle = prefs?.openerStyle || 'Hi [First Name]'
     const signOff = prefs?.signOff || 'Regards, Ravi'
     const avoidPhrases = prefs?.avoidPhrases || ''
-    const aiProvider = prefs?.aiProvider || 'openai'
-    const aiModel = prefs?.aiModel || 'gpt-4o-mini'
-    const aiApiKey = prefs?.aiApiKey
-
     const companyName = contact.company?.name || 'your company'
     const firstName = contact.name?.split(' ')[0] || 'there'
     const jobTitle = contact.jobTitle || 'your role'
@@ -282,7 +218,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     let emailBody = ''
     let usedLlm = false
 
-    if (aiApiKey) {
+    {
       const systemPrompt = `You are an expert B2B sales email writer. Generate a personalized outreach email with these parameters:
 - Contact: ${contact.name}, ${jobTitle} at ${companyName} (${industry})
 - Tone: ${tone}
@@ -295,17 +231,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 ${researchContext ? `${researchContext}\n` : ''}${knowledgeContext ? `${knowledgeContext}\n` : ''}Respond in JSON format: { "subject": "...", "body": "..." }`
 
       try {
-        let result: LLMResult = null
-        const provider = aiProvider.toLowerCase()
-
-        if (provider === 'openai') {
-          result = await callOpenAI(systemPrompt, aiApiKey, aiModel)
-        } else if (provider === 'gemini') {
-          result = await callGemini(systemPrompt, aiApiKey, aiModel)
-        } else if (provider === 'groq') {
-          result = await callGroq(systemPrompt, aiApiKey, aiModel)
-        }
-
+        const text = await callAI(systemPrompt, 'Generate the email now.')
+        const result = parseLlmJson(text)
         if (result) {
           subject = result.subject
           emailBody = result.body
@@ -313,7 +240,7 @@ ${researchContext ? `${researchContext}\n` : ''}${knowledgeContext ? `${knowledg
         }
       } catch (llmErr: unknown) {
         const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-        console.error(`[generate-email] LLM call failed (${aiProvider}): ${msg}`)
+        console.error('[generate-email] LLM call failed:', msg)
         // H8: Fall through to template — don't leak raw error messages
       }
     }

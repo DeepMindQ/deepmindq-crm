@@ -14,7 +14,7 @@ const summarizeSchema = z.object({
 })
 
 // ---------------------------------------------------------------------------
-// LLM helpers (mirrors pattern from /api/research)
+// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
 // ---------------------------------------------------------------------------
 
 interface SummaryResult {
@@ -22,60 +22,19 @@ interface SummaryResult {
   keyPoints: string[]
 }
 
-async function callLlm(systemPrompt: string, apiKey: string, provider: string, model: string): Promise<SummaryResult | null> {
-  let text = ''
+async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
+  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
+  const completion = await ZAI.chat.completions.create({
+    messages: [
+      { role: 'assistant', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    thinking: { type: 'disabled' },
+  })
+  return completion.choices?.[0]?.message?.content ?? ''
+}
 
-  if (provider === 'openai') {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: 'Generate the summary now.' },
-        ],
-        temperature: 0.5,
-        max_tokens: 1024,
-      }),
-    })
-    if (!res.ok) throw new Error(`OpenAI API error ${res.status}`)
-    const data = await res.json()
-    text = data.choices?.[0]?.message?.content ?? ''
-  } else if (provider === 'gemini') {
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent'
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: systemPrompt + '\n\nGenerate the summary now.' }] }],
-        generationConfig: { temperature: 0.5, maxOutputTokens: 1024 },
-      }),
-    })
-    if (!res.ok) throw new Error(`Gemini API error ${res.status}`)
-    const data = await res.json()
-    text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-  } else if (provider === 'groq') {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: 'Generate the summary now.' },
-        ],
-        temperature: 0.5,
-        max_tokens: 1024,
-      }),
-    })
-    if (!res.ok) throw new Error(`Groq API error ${res.status}`)
-    const data = await res.json()
-    text = data.choices?.[0]?.message?.content ?? ''
-  } else {
-    return null
-  }
-
+function parseSummaryResponse(text: string): SummaryResult | null {
   if (!text) return null
 
   // Parse JSON response, tolerant of markdown fences
@@ -249,12 +208,6 @@ export async function POST(request: NextRequest) {
 
     const { entityType, entityId } = parsed
 
-    // Read AI preferences
-    const prefs = await db.userPreferences.findFirst()
-    const aiProvider = (prefs?.aiProvider || 'openai').toLowerCase()
-    const aiModel = prefs?.aiModel || 'gpt-4o-mini'
-    const aiApiKey = prefs?.aiApiKey
-
     let result: SummaryResult | null = null
     let usedLlm = false
 
@@ -288,7 +241,7 @@ export async function POST(request: NextRequest) {
         intelligenceScore: company.intelligenceScore,
       }
 
-      if (aiApiKey) {
+      {
         const systemPrompt = `You are a B2B sales intelligence assistant. Summarize the following company data for a sales rep. Include a concise summary (2-3 sentences) and 3-5 key bullet points.
 
 Company data:
@@ -310,11 +263,12 @@ Company data:
 Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
         try {
-          result = await callLlm(systemPrompt, aiApiKey, aiProvider, aiModel)
+          const text = await callAI(systemPrompt, 'Generate the summary now.')
+          result = parseSummaryResponse(text)
           if (result) usedLlm = true
         } catch (llmErr: unknown) {
           const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-          console.error(`[ai/summarize] LLM call failed (${aiProvider}): ${msg}`)
+          console.error('[ai/summarize] LLM call failed:', msg)
         }
       }
 
@@ -353,7 +307,7 @@ Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
         roleBucket: contact.roleBucket,
       }
 
-      if (aiApiKey) {
+      {
         const systemPrompt = `You are a B2B sales intelligence assistant. Summarize the following contact data for a sales rep. Include a concise summary (2-3 sentences) and 3-5 key bullet points.
 
 Contact data:
@@ -374,11 +328,12 @@ Contact data:
 Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
         try {
-          result = await callLlm(systemPrompt, aiApiKey, aiProvider, aiModel)
+          const text = await callAI(systemPrompt, 'Generate the summary now.')
+          result = parseSummaryResponse(text)
           if (result) usedLlm = true
         } catch (llmErr: unknown) {
           const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-          console.error(`[ai/summarize] LLM call failed (${aiProvider}): ${msg}`)
+          console.error('[ai/summarize] LLM call failed:', msg)
         }
       }
 
@@ -416,7 +371,7 @@ Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
         description: opportunity.description,
       }
 
-      if (aiApiKey) {
+      {
         const systemPrompt = `You are a B2B sales intelligence assistant. Summarize the following opportunity for a sales rep. Include a concise summary (2-3 sentences) and 3-5 key bullet points.
 
 Opportunity data:
@@ -432,11 +387,12 @@ Opportunity data:
 Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
         try {
-          result = await callLlm(systemPrompt, aiApiKey, aiProvider, aiModel)
+          const text = await callAI(systemPrompt, 'Generate the summary now.')
+          result = parseSummaryResponse(text)
           if (result) usedLlm = true
         } catch (llmErr: unknown) {
           const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-          console.error(`[ai/summarize] LLM call failed (${aiProvider}): ${msg}`)
+          console.error('[ai/summarize] LLM call failed:', msg)
         }
       }
 

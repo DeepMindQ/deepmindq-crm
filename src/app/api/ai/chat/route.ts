@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 
 // ---------------------------------------------------------------------------
-// LLM provider helpers (mirrors research/route.ts pattern)
+// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
 // ---------------------------------------------------------------------------
 
 interface ChatMessage {
@@ -11,77 +11,16 @@ interface ChatMessage {
   content: string
 }
 
-async function callOpenAI(
-  messages: ChatMessage[],
-  systemPrompt: string,
-  apiKey: string,
-  model: string,
-): Promise<string> {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: 'system', content: systemPrompt }, ...messages],
-      temperature: 0.7,
-      max_tokens: 2048,
-    }),
+async function callAI(systemPrompt: string, messages: ChatMessage[]): Promise<string> {
+  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
+  const completion = await ZAI.chat.completions.create({
+    messages: [
+      { role: 'assistant', content: systemPrompt },
+      ...messages,
+    ],
+    thinking: { type: 'disabled' },
   })
-  if (!res.ok) throw new Error(`OpenAI API error ${res.status}`)
-  const data = await res.json()
-  return data.choices?.[0]?.message?.content ?? ''
-}
-
-async function callGemini(
-  messages: ChatMessage[],
-  systemPrompt: string,
-  apiKey: string,
-  model: string,
-): Promise<string> {
-  const allText = messages.map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n\n')
-  const url =
-    'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent'
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey,
-    },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: `${systemPrompt}\n\n${allText}` }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
-    }),
-  })
-  if (!res.ok) throw new Error(`Gemini API error ${res.status}`)
-  const data = await res.json()
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-}
-
-async function callGroq(
-  messages: ChatMessage[],
-  systemPrompt: string,
-  apiKey: string,
-  model: string,
-): Promise<string> {
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: 'system', content: systemPrompt }, ...messages],
-      temperature: 0.7,
-      max_tokens: 2048,
-    }),
-  })
-  if (!res.ok) throw new Error(`Groq API error ${res.status}`)
-  const data = await res.json()
-  return data.choices?.[0]?.message?.content ?? ''
+  return completion.choices?.[0]?.message?.content ?? ''
 }
 
 // ---------------------------------------------------------------------------
@@ -253,13 +192,7 @@ export async function POST(request: NextRequest) {
       return apiError('Message is required', 400)
     }
 
-    // 1. Get UserPreferences for AI config
-    const prefs = await db.userPreferences.findFirst()
-    const aiProvider = (prefs?.aiProvider || 'openai').toLowerCase()
-    const aiModel = prefs?.aiModel || 'gpt-4o-mini'
-    const aiApiKey = prefs?.aiApiKey
-
-    // 2. Build context string if context IDs provided
+    // 1. Build context string if context IDs provided
     let contextStr = ''
     let sources: string[] = []
     if (context && (context.companyId || context.contactId || context.opportunityId)) {
@@ -268,7 +201,7 @@ export async function POST(request: NextRequest) {
       sources = ctx.sources
     }
 
-    // 3. Build system prompt
+    // 2. Build system prompt
     const systemPrompt = `You are DeepMindQ AI Assistant, an intelligent sales CRM assistant.
 
 You have access to the user's CRM data including companies, contacts, opportunities, and research.
@@ -283,32 +216,23 @@ ${
     : 'No specific CRM context is currently active. Answer based on the user\'s general question about their sales CRM data and workflows.'
 }`
 
-    // 4. Build messages array
+    // 3. Build messages array
     const messages: ChatMessage[] = [...(conversationHistory || []), { role: 'user', content: message }]
 
-    // 5. Try LLM call
-    if (aiApiKey) {
-      try {
-        let response = ''
-        if (aiProvider === 'openai') {
-          response = await callOpenAI(messages, systemPrompt, aiApiKey, aiModel)
-        } else if (aiProvider === 'gemini') {
-          response = await callGemini(messages, systemPrompt, aiApiKey, aiModel)
-        } else if (aiProvider === 'groq') {
-          response = await callGroq(messages, systemPrompt, aiApiKey, aiModel)
-        }
+    // 4. Try LLM call
+    try {
+      const response = await callAI(systemPrompt, messages)
 
-        if (response) {
-          return apiSuccess({ message: response, sources: sources.length > 0 ? sources : undefined })
-        }
-      } catch (llmErr: unknown) {
-        const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-        console.error(`[ai/chat] LLM call failed (${aiProvider}): ${msg}`)
-        // Fall through to template
+      if (response) {
+        return apiSuccess({ message: response, sources: sources.length > 0 ? sources : undefined })
       }
+    } catch (llmErr: unknown) {
+      const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
+      console.error('[ai/chat] LLM call failed:', msg)
+      // Fall through to template
     }
 
-    // 6. Fallback to template response
+    // 5. Fallback to template response
     const fallbackMessage = generateTemplateResponse(message)
     return apiSuccess({ message: fallbackMessage })
   } catch {

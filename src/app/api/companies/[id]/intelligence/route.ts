@@ -12,158 +12,64 @@ interface AiInsights {
   outreachAngle: string;
   techStack: string[];
   competitors: string[];
+  webFindings: Array<{ title: string; url: string; snippet: string }>;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   AI Provider helpers
+   Z-AI SDK helpers
    ═══════════════════════════════════════════════════════════════ */
 
-async function callGroq(prompt: string, systemPrompt: string): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error('GROQ_API_KEY not set');
+async function webSearch(query: string, num = 5) {
+  try {
+    const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
+    const results = await Z.functions.invoke('web_search', { query, num });
+    return (results || []).slice(0, num).map((r: any) => ({
+      title: r.name || '',
+      url: r.url || '',
+      snippet: r.snippet || '',
+    }));
+  } catch (e) {
+    console.error('[intelligence] Web search failed:', e);
+    return [];
+  }
+}
 
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.3,
-    }),
+async function aiChat(systemPrompt: string, userPrompt: string): Promise<string> {
+  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
+  const completion = await ZAI.chat.completions.create({
+    messages: [
+      { role: 'assistant', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    thinking: { type: 'disabled' },
   });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Groq API error ${res.status}: ${text}`);
-  }
-
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? '';
-}
-
-async function callOpenAI(prompt: string, systemPrompt: string): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error('OPENAI_API_KEY not set');
-
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.3,
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`OpenAI API error ${res.status}: ${text}`);
-  }
-
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? '';
-}
-
-async function callGemini(prompt: string, systemPrompt: string): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY not set');
-
-  const fullPrompt = `${systemPrompt}\n\n${prompt}`;
-
-  const res = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' +
-      apiKey,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: fullPrompt }] }],
-      }),
-    },
-  );
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Gemini API error ${res.status}: ${text}`);
-  }
-
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-}
-
-/**
- * Try AI providers in order: Groq → OpenAI → Gemini
- * Returns parsed AI insights or null on failure.
- */
-async function generateAiInsights(prompt: string, systemPrompt: string): Promise<AiInsights | null> {
-  const providers = [
-    { name: 'Groq', fn: callGroq, key: 'GROQ_API_KEY' },
-    { name: 'OpenAI', fn: callOpenAI, key: 'OPENAI_API_KEY' },
-    { name: 'Gemini', fn: callGemini, key: 'GEMINI_API_KEY' },
-  ];
-
-  for (const provider of providers) {
-    if (!process.env[provider.key]) continue;
-
-    try {
-      const raw = await provider.fn(prompt, systemPrompt);
-      return parseAiResponse(raw);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[intelligence] ${provider.name} call failed: ${msg}`);
-      // Try next provider
-    }
-  }
-
-  return null;
+  return completion.choices?.[0]?.message?.content ?? '';
 }
 
 /**
  * Parse the LLM text response into the AiInsights shape.
- * Handles JSON wrapped in markdown code fences or raw JSON.
  */
 function parseAiResponse(raw: string): AiInsights | null {
-  // Strip markdown code fences
   const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
 
   try {
     const parsed = JSON.parse(cleaned);
     return {
       businessOverview: String(parsed.businessOverview ?? ''),
-      keyDevelopments: Array.isArray(parsed.keyDevelopments)
-        ? parsed.keyDevelopments.map(String)
-        : [],
-      potentialChallenges: Array.isArray(parsed.potentialChallenges)
-        ? parsed.potentialChallenges.map(String)
-        : [],
+      keyDevelopments: Array.isArray(parsed.keyDevelopments) ? parsed.keyDevelopments.map(String) : [],
+      potentialChallenges: Array.isArray(parsed.potentialChallenges) ? parsed.potentialChallenges.map(String) : [],
       outreachAngle: String(parsed.outreachAngle ?? ''),
       techStack: Array.isArray(parsed.techStack) ? parsed.techStack.map(String) : [],
       competitors: Array.isArray(parsed.competitors) ? parsed.competitors.map(String) : [],
+      webFindings: Array.isArray(parsed.webFindings) ? parsed.webFindings : [],
     };
   } catch {
-    // Try regex-based extraction as a fallback
+    // Regex fallback
   }
 
-  // Fallback: regex extraction
   const insights: AiInsights = {
-    businessOverview: '',
-    keyDevelopments: [],
-    potentialChallenges: [],
-    outreachAngle: '',
-    techStack: [],
-    competitors: [],
+    businessOverview: '', keyDevelopments: [], potentialChallenges: [],
+    outreachAngle: '', techStack: [], competitors: [], webFindings: [],
   };
 
   const boMatch = cleaned.match(/"businessOverview"\s*:\s*"((?:[^"\\]|\\.)*)"/);
@@ -172,23 +78,116 @@ function parseAiResponse(raw: string): AiInsights | null {
   const oaMatch = cleaned.match(/"outreachAngle"\s*:\s*"((?:[^"\\]|\\.)*)"/);
   if (oaMatch) insights.outreachAngle = oaMatch[1].replace(/\\"/g, '"');
 
-  const extractArrayItems = (key: string, target: string[]) => {
+  const extractArr = (key: string, target: string[]) => {
     const re = new RegExp('"' + key + '"\\s*:\\s*\\[([^\\]]*)\\]', 'g');
-    let match: RegExpExecArray | null;
-    while ((match = re.exec(cleaned)) !== null) {
-      const items = match[1].match(/"((?:[^"\\]|\\.)*)"/g);
-      if (items) target.push(...items.map((s) => s.replace(/"/g, '').replace(/\\"/g, '"')));
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(cleaned)) !== null) {
+      const items = m[1].match(/"((?:[^"\\]|\\.)*)"/g);
+      if (items) target.push(...items.map(s => s.replace(/"/g, '').replace(/\\"/g, '"')));
     }
   };
 
-  extractArrayItems('keyDevelopments', insights.keyDevelopments);
-  extractArrayItems('potentialChallenges', insights.potentialChallenges);
-  extractArrayItems('techStack', insights.techStack);
-  extractArrayItems('competitors', insights.competitors);
+  extractArr('keyDevelopments', insights.keyDevelopments);
+  extractArr('potentialChallenges', insights.potentialChallenges);
+  extractArr('techStack', insights.techStack);
+  extractArr('competitors', insights.competitors);
 
-  // Only return if we got at least the businessOverview
-  if (insights.businessOverview) return insights;
-  return null;
+  return insights.businessOverview ? insights : null;
+}
+
+/**
+ * Full pipeline: web search → AI analysis with live context
+ */
+async function generateIntelligence(
+  companyName: string,
+  industry: string | null,
+  domain: string | null,
+  location: string | null,
+  country: string | null,
+  sizeRange: string | null,
+  existingResearch: string,
+  signalSummaries: string,
+  contactSummaries: string,
+): Promise<AiInsights | null> {
+  try {
+    // Step 1: Search the web for real-time company data
+    const searchQueries = [
+      `${companyName} ${industry || ''} company overview recent news`,
+      `${companyName || ''} ${domain || ''} technology stack`,
+      `${companyName || ''} competitors ${industry || ''}`,
+    ];
+
+    const searchResults = await Promise.all(
+      searchQueries.map(q => webSearch(q, 5)),
+    );
+
+    // Flatten and deduplicate
+    const allResults = searchResults.flat();
+    const seen = new Set<string>();
+    const uniqueResults = allResults.filter(r => {
+      if (seen.has(r.url)) return false;
+      seen.add(r.url);
+      return true;
+    });
+
+    // Step 2: Build context from web results
+    const webContext = uniqueResults
+      .slice(0, 10)
+      .map((r, i) => `${i + 1}. ${r.title}\n   ${r.snippet}\n   URL: ${r.url}`)
+      .join('\n\n');
+
+    // Step 3: AI analysis using web data + DB data
+    const userPrompt = `Analyze this company using BOTH the web search results and the CRM data below.
+
+── CRM DATA ──
+Company Name: ${companyName}
+Industry: ${industry || 'Unknown'}
+Domain: ${domain || 'Unknown'}
+Location: ${location || 'Unknown'}, ${country || 'Unknown'}
+Size: ${sizeRange || 'Unknown'}
+
+Existing Research:
+${existingResearch}
+
+Recent Signals:
+${signalSummaries || 'No recent signals.'}
+
+Top Contacts:
+${contactSummaries || 'No contacts.'}
+
+── LIVE WEB RESULTS ──
+${webContext || 'No web results found.'}
+
+── TASK ──
+Generate actionable B2B sales intelligence. Use the web results for REAL, CURRENT information about this company's developments, tech, and competitive landscape. If web results mention specific news, funding, product launches, or leadership changes, include them in keyDevelopments.
+
+Respond ONLY with valid JSON:
+{
+  "businessOverview": "2-3 sentence overview based on web + CRM data",
+  "keyDevelopments": ["recent development 1 from web", "development 2", "development 3", "development 4", "development 5"],
+  "potentialChallenges": ["challenge 1", "challenge 2", "challenge 3"],
+  "outreachAngle": "Best B2B outreach angle based on their current situation (1-2 sentences)",
+  "techStack": ["technology 1", "technology 2", "technology 3", "technology 4"],
+  "competitors": ["competitor 1", "competitor 2", "competitor 3", "competitor 4", "competitor 5"]
+}
+
+Be specific. Reference real information from web results when available.`;
+
+    const systemPrompt =
+      'You are a B2B sales intelligence analyst. Analyze company data combined with live web search results. Generate actionable, specific, data-driven insights. Always respond with valid JSON only.';
+
+    const raw = await aiChat(systemPrompt, userPrompt);
+    const insights = parseAiResponse(raw);
+
+    if (insights) {
+      insights.webFindings = uniqueResults.slice(0, 10);
+    }
+
+    return insights;
+  } catch (e) {
+    console.error('[intelligence] AI generation failed:', e);
+    return null;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -211,7 +210,7 @@ export async function GET(
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    // 2-7. Fetch related data in parallel
+    // 2. Fetch related data in parallel
     const [researchCard, contacts, signals, notes, timeline] = await Promise.all([
       db.companyResearchCard.findUnique({ where: { companyId } }),
       db.contact.findMany({
@@ -236,69 +235,38 @@ export async function GET(
       }),
     ]);
 
-    // 8. AI Enhancement
-    let aiInsights: AiInsights | null = null;
+    // 3. AI Intelligence via z-ai-web-dev-sdk (web search + LLM)
+    const signalSummaries = signals
+      .map((s) => `[${s.signalType}] ${s.title}${s.description ? ': ' + s.description : ''}`)
+      .join('\n');
 
-    const hasAiKey =
-      !!process.env.GROQ_API_KEY || !!process.env.OPENAI_API_KEY || !!process.env.GEMINI_API_KEY;
+    const existingResearch = researchCard
+      ? [
+          researchCard.businessOverview && `Business Overview: ${researchCard.businessOverview}`,
+          researchCard.techLandscape && `Tech Landscape: ${researchCard.techLandscape}`,
+          researchCard.potentialChallenges && `Challenges: ${researchCard.potentialChallenges}`,
+          researchCard.techStack && `Known Tech: ${researchCard.techStack}`,
+        ]
+          .filter(Boolean)
+          .join('\n')
+      : 'No existing research card.';
 
-    if (hasAiKey) {
-      // Build the context prompt
-      const signalSummaries = signals
-        .map((s) => `[${s.signalType}] ${s.title}${s.description ? ': ' + s.description : ''}`)
-        .join('\n');
+    const contactSummaries = contacts
+      .map((c) => `${c.rawName} — ${c.title || c.role || 'Unknown role'} (score: ${c.leadScore})`)
+      .join('\n');
 
-      const existingResearch = researchCard
-        ? [
-            researchCard.businessOverview && `Business Overview: ${researchCard.businessOverview}`,
-            researchCard.techLandscape && `Tech Landscape: ${researchCard.techLandscape}`,
-            researchCard.potentialChallenges && `Potential Challenges: ${researchCard.potentialChallenges}`,
-            researchCard.techStack && `Known Tech Stack: ${researchCard.techStack}`,
-          ]
-            .filter(Boolean)
-            .join('\n')
-        : 'No existing research card.';
+    const aiInsights = await generateIntelligence(
+      company.rawName,
+      company.industry,
+      company.domain,
+      company.location,
+      company.country,
+      company.sizeRange,
+      existingResearch,
+      signalSummaries,
+      contactSummaries,
+    );
 
-      const userPrompt = `Analyze the following company and generate intelligence insights.
-
-Company Name: ${company.rawName}
-Industry: ${company.industry || 'Unknown'}
-Domain: ${company.domain || 'Unknown'}
-Location: ${company.location || 'Unknown'}
-Country: ${company.country || 'Unknown'}
-Size Range: ${company.sizeRange || 'Unknown'}
-Status: ${company.status}
-Intelligence Score: ${company.intelligenceScore}/100
-Engagement Score: ${company.engagementScore}/100
-
-Existing Research Card:
-${existingResearch}
-
-Recent Signals (${signals.length}):
-${signalSummaries || 'No recent signals.'}
-
-Top Contacts (${contacts.length}):
-${contacts.map((c) => `${c.rawName} — ${c.title || c.role || 'Unknown role'} (lead score: ${c.leadScore})`).join('\n') || 'No contacts.'}
-
-Respond ONLY with valid JSON (no markdown, no code fences) in this exact format:
-{
-  "businessOverview": "2-3 sentence overview of what this company likely does",
-  "keyDevelopments": ["development 1", "development 2", "development 3"],
-  "potentialChallenges": ["challenge 1", "challenge 2"],
-  "outreachAngle": "Suggested B2B outreach angle (1-2 sentences)",
-  "techStack": ["technology 1", "technology 2", "technology 3"],
-  "competitors": ["competitor 1", "competitor 2", "competitor 3"]
-}
-
-Provide 3-5 key developments, 2-3 potential challenges, and 3-5 likely competitors.`;
-
-      const systemPrompt =
-        'You are a B2B sales intelligence analyst. Your job is to analyze company data and generate actionable insights for sales outreach. Be specific, concise, and data-driven. Always respond with valid JSON only.';
-
-      aiInsights = await generateAiInsights(userPrompt, systemPrompt);
-    }
-
-    // 10. Return the combined response
     return NextResponse.json({
       company: {
         id: company.id,
@@ -321,7 +289,7 @@ Provide 3-5 key developments, 2-3 potential challenges, and 3-5 likely competito
       aiInsights,
     });
   } catch (error) {
-    console.error('[intelligence] Error generating company intelligence:', error);
+    console.error('[intelligence] Error:', error);
     return NextResponse.json(
       { error: 'Failed to generate company intelligence' },
       { status: 500 },

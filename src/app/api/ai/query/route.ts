@@ -4,60 +4,19 @@ import { apiError, apiSuccess } from '@/lib/apiHelpers'
 // Prisma types removed — db proxy handles queries
 
 // ---------------------------------------------------------------------------
-// LLM provider helpers
+// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
 // ---------------------------------------------------------------------------
 
-async function callOpenAI(systemPrompt: string, userPrompt: string, apiKey: string, model: string): Promise<string> {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.2,
-      max_tokens: 1024,
-    }),
+async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
+  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
+  const completion = await ZAI.chat.completions.create({
+    messages: [
+      { role: 'assistant', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    thinking: { type: 'disabled' },
   })
-  if (!res.ok) throw new Error(`OpenAI API error ${res.status}`)
-  const data = await res.json()
-  return data.choices?.[0]?.message?.content ?? ''
-}
-
-async function callGemini(systemPrompt: string, userPrompt: string, apiKey: string, model: string): Promise<string> {
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent'
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
-    }),
-  })
-  if (!res.ok) throw new Error(`Gemini API error ${res.status}`)
-  const data = await res.json()
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-}
-
-async function callGroq(systemPrompt: string, userPrompt: string, apiKey: string, model: string): Promise<string> {
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.2,
-      max_tokens: 1024,
-    }),
-  })
-  if (!res.ok) throw new Error(`Groq API error ${res.status}`)
-  const data = await res.json()
-  return data.choices?.[0]?.message?.content ?? ''
+  return completion.choices?.[0]?.message?.content ?? ''
 }
 
 // ---------------------------------------------------------------------------
@@ -183,48 +142,32 @@ export async function POST(request: NextRequest) {
       return apiError('Query is required', 400)
     }
 
-    // 1. Get UserPreferences for AI config
-    const prefs = await db.userPreferences.findFirst()
-    const aiProvider = (prefs?.aiProvider || 'openai').toLowerCase()
-    const aiModel = prefs?.aiModel || 'gpt-4o-mini'
-    const aiApiKey = prefs?.aiApiKey
+    // 1. Try AI-powered query parsing
+    try {
+      const rawResponse = await callAI(QUERY_SYSTEM_PROMPT, query)
 
-    // 2. Try AI-powered query parsing
-    if (aiApiKey) {
-      try {
-        let rawResponse = ''
-        if (aiProvider === 'openai') {
-          rawResponse = await callOpenAI(QUERY_SYSTEM_PROMPT, query, aiApiKey, aiModel)
-        } else if (aiProvider === 'gemini') {
-          rawResponse = await callGemini(QUERY_SYSTEM_PROMPT, query, aiApiKey, aiModel)
-        } else if (aiProvider === 'groq') {
-          rawResponse = await callGroq(QUERY_SYSTEM_PROMPT, query, aiApiKey, aiModel)
-        }
-
-        const parsed = extractJson(rawResponse)
-        if (parsed && typeof parsed === 'object' && 'entityType' in parsed) {
-          const result = await executeQuery(parsed as Record<string, unknown>, query)
-          return apiSuccess(result)
-        }
-
-        // AI returned non-JSON — return as interpretation with empty results
-        return apiSuccess({
-          data: [],
-          queryInterpretation: rawResponse || 'Could not parse query into a structured search.',
-          totalResults: 0,
-        })
-      } catch (llmErr: unknown) {
-        const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-        console.error(`[ai/query] LLM call failed (${aiProvider}): ${msg}`)
-        // Fall through to empty result
+      const parsed = extractJson(rawResponse)
+      if (parsed && typeof parsed === 'object' && 'entityType' in parsed) {
+        const result = await executeQuery(parsed as Record<string, unknown>, query)
+        return apiSuccess(result)
       }
+
+      // AI returned non-JSON — return as interpretation with empty results
+      return apiSuccess({
+        data: [],
+        queryInterpretation: rawResponse || 'Could not parse query into a structured search.',
+        totalResults: 0,
+      })
+    } catch (llmErr: unknown) {
+      const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
+      console.error('[ai/query] LLM call failed:', msg)
+      // Fall through to empty result
     }
 
-    // 3. No AI key or failure — return helpful message
+    // 2. Fallback on error
     return apiSuccess({
       data: [],
-      queryInterpretation:
-        'Natural language query requires an AI provider to be configured. Please set up your AI provider and API key in Settings to use this feature.',
+      queryInterpretation: 'Could not process query. Please try rephrasing.',
       totalResults: 0,
     })
   } catch {

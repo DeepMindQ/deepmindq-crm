@@ -36,7 +36,7 @@ const CONTACT_FIELDS = [
 ] as const
 
 // ---------------------------------------------------------------------------
-// LLM helper for enrichment suggestions
+// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
 // ---------------------------------------------------------------------------
 
 interface EnrichmentSuggestion {
@@ -45,77 +45,19 @@ interface EnrichmentSuggestion {
   confidence: number
 }
 
-async function callLlmForEnrichment(
-  context: string,
-  missingFields: string[],
-  apiKey: string,
-  provider: string,
-  model: string,
-): Promise<EnrichmentSuggestion[]> {
-  let text = ''
+async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
+  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
+  const completion = await ZAI.chat.completions.create({
+    messages: [
+      { role: 'assistant', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    thinking: { type: 'disabled' },
+  })
+  return completion.choices?.[0]?.message?.content ?? ''
+}
 
-  const systemPrompt = `You are a B2B data enrichment assistant. Given the following context about an entity, suggest plausible values for the missing fields.
-
-Context:
-${context}
-
-Missing fields to suggest: ${missingFields.join(', ')}
-
-For each field, provide a suggested value and confidence (0-1). Only suggest values you are reasonably confident about.
-
-Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence": 0.0-1.0 }]`
-
-  if (provider === 'openai') {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: 'Suggest values for the missing fields.' },
-        ],
-        temperature: 0.3,
-        max_tokens: 512,
-      }),
-    })
-    if (!res.ok) throw new Error(`OpenAI API error ${res.status}`)
-    const data = await res.json()
-    text = data.choices?.[0]?.message?.content ?? ''
-  } else if (provider === 'gemini') {
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent'
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: systemPrompt + '\n\nSuggest values for the missing fields.' }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 512 },
-      }),
-    })
-    if (!res.ok) throw new Error(`Gemini API error ${res.status}`)
-    const data = await res.json()
-    text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-  } else if (provider === 'groq') {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: 'Suggest values for the missing fields.' },
-        ],
-        temperature: 0.3,
-        max_tokens: 512,
-      }),
-    })
-    if (!res.ok) throw new Error(`Groq API error ${res.status}`)
-    const data = await res.json()
-    text = data.choices?.[0]?.message?.content ?? ''
-  } else {
-    return []
-  }
-
+function parseEnrichmentResponse(text: string): EnrichmentSuggestion[] {
   if (!text) return []
 
   // Parse response
@@ -158,9 +100,6 @@ Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence":
 async function enrichCompany(
   entityId: string,
   autoFill: boolean,
-  aiApiKey: string | null,
-  aiProvider: string,
-  aiModel: string,
 ) {
   const company = await db.company.findUnique({
     where: { id: entityId },
@@ -188,7 +127,7 @@ async function enrichCompany(
   // Generate suggestions via AI
   let suggestions: EnrichmentSuggestion[] = []
 
-  if (aiApiKey && missingFields.length > 0) {
+  if (missingFields.length > 0) {
     const context = `Company Name: ${company.name}
 Domain: ${company.domain || 'Unknown'}
 Website: ${company.website || 'Unknown'}
@@ -199,13 +138,25 @@ Location: ${company.location || 'Unknown'}
 LinkedIn: ${company.linkedinUrl || 'Unknown'}
 Contacts: ${company.contacts.map((c) => `${c.email ?? 'no email'} - ${c.location ?? 'no location'}`).join('; ') || 'None'}`
 
+    const systemPrompt = `You are a B2B data enrichment assistant. Given the following context about an entity, suggest plausible values for the missing fields.
+
+Context:
+${context}
+
+Missing fields to suggest: ${missingFields.join(', ')}
+
+For each field, provide a suggested value and confidence (0-1). Only suggest values you are reasonably confident about.
+
+Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence": 0.0-1.0 }]`
+
     try {
-      suggestions = await callLlmForEnrichment(context, missingFields, aiApiKey, aiProvider, aiModel)
+      const text = await callAI(systemPrompt, 'Suggest values for the missing fields.')
+      suggestions = parseEnrichmentResponse(text)
       // Filter to only suggest for actually missing fields
       suggestions = suggestions.filter((s) => missingFields.includes(s.field))
     } catch (llmErr: unknown) {
       const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-      console.error(`[ai/enrich] LLM call failed (${aiProvider}): ${msg}`)
+      console.error('[ai/enrich] LLM call failed:', msg)
     }
   }
 
@@ -242,9 +193,6 @@ Contacts: ${company.contacts.map((c) => `${c.email ?? 'no email'} - ${c.location
 async function enrichContact(
   entityId: string,
   autoFill: boolean,
-  aiApiKey: string | null,
-  aiProvider: string,
-  aiModel: string,
 ) {
   const contact = await db.contact.findFirst({
     where: { id: entityId, archivedAt: null },
@@ -277,7 +225,7 @@ async function enrichContact(
   // Generate suggestions via AI
   let suggestions: EnrichmentSuggestion[] = []
 
-  if (aiApiKey && missingFields.length > 0) {
+  if (missingFields.length > 0) {
     const context = `Contact Name: ${contact.name}
 Email: ${contact.email || 'Unknown'}
 Job Title: ${contact.jobTitle || 'Unknown'}
@@ -291,13 +239,25 @@ Company Industry: ${contact.company.industry || 'Unknown'}
 Company Location: ${contact.company.location || 'Unknown'}
 Company Country: ${contact.company.country || 'Unknown'}`
 
+    const systemPrompt = `You are a B2B data enrichment assistant. Given the following context about an entity, suggest plausible values for the missing fields.
+
+Context:
+${context}
+
+Missing fields to suggest: ${missingFields.join(', ')}
+
+For each field, provide a suggested value and confidence (0-1). Only suggest values you are reasonably confident about.
+
+Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence": 0.0-1.0 }]`
+
     try {
-      suggestions = await callLlmForEnrichment(context, missingFields, aiApiKey, aiProvider, aiModel)
+      const text = await callAI(systemPrompt, 'Suggest values for the missing fields.')
+      suggestions = parseEnrichmentResponse(text)
       // Filter to only suggest for actually missing fields
       suggestions = suggestions.filter((s) => missingFields.includes(s.field))
     } catch (llmErr: unknown) {
       const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-      console.error(`[ai/enrich] LLM call failed (${aiProvider}): ${msg}`)
+      console.error('[ai/enrich] LLM call failed:', msg)
     }
   }
 
@@ -339,17 +299,11 @@ export async function POST(request: NextRequest) {
 
     const { entityType, entityId, autoFill = false } = parsed
 
-    // Read AI preferences
-    const prefs = await db.userPreferences.findFirst()
-    const aiProvider = (prefs?.aiProvider || 'openai').toLowerCase()
-    const aiModel = prefs?.aiModel || 'gpt-4o-mini'
-    const aiApiKey = prefs?.aiApiKey
-
     if (entityType === 'company') {
-      return enrichCompany(entityId, autoFill, aiApiKey ?? null, aiProvider, aiModel)
+      return enrichCompany(entityId, autoFill)
     }
 
-    return enrichContact(entityId, autoFill, aiApiKey ?? null, aiProvider, aiModel)
+    return enrichContact(entityId, autoFill)
   } catch {
     return apiError('Failed to enrich entity')
   }

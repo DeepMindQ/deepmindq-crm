@@ -885,7 +885,6 @@ export default function EmailGenerationScreen() {
                       </p>
                     </div>
                   )}
-                  </div>
 
                   {/* Subject */}
                   <div>

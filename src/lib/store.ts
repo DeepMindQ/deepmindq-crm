@@ -11,7 +11,24 @@ export type ViewId =
   | 'replies'
   | 'duplicates'
   | 'audit'
-  | 'settings';
+  | 'settings'
+  | 'contacts'
+  | 'contact-profile'
+  | 'company-profile'
+  | 'tasks'
+  | 'opportunities'
+  | 'email-generation'
+  | 'reports'
+  | 'prompt-templates'
+  | 'knowledge-library'
+  | 'sequences'
+  | 'templates'
+  | 'analytics'
+  | 'pipeline'
+  | 'segments'
+  | 'bounces'
+  | 'mind-map'
+  | 'command-center';
 
 interface AppState {
   activeView: ViewId;

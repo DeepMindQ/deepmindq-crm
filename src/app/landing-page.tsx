@@ -474,13 +474,8 @@ export default function LandingPage({ onLogin }: { onLogin: () => void }) {
           >
             <div className="max-w-7xl mx-auto flex items-center justify-between px-6 md:px-10 h-16">
               <motion.div className="flex items-center gap-3" whileHover={{ scale: 1.02 }}>
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center"
-                  style={{ background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` }}>
-                  <Brain className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-lg font-bold tracking-tight">
-                  DeepMind<span style={{ color: C.gold }}>Q</span>
-                </span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="DeepMindQ" className="h-8 w-auto object-contain" />
               </motion.div>
 
               <div className="hidden lg:flex items-center gap-8">
@@ -922,11 +917,8 @@ export default function LandingPage({ onLogin }: { onLogin: () => void }) {
           <footer className="py-12 px-6 md:px-10 border-t" style={{ borderColor: C.border, background: C.bg }}>
             <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                  style={{ background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` }}>
-                  <Brain className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-sm font-bold" style={{ fontFamily: FF.sans }}>DeepMind<span style={{ color: C.gold }}>Q</span></span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="DeepMindQ" className="h-7 w-auto object-contain" />
               </div>
 
               <div className="flex items-center gap-8">
@@ -1041,12 +1033,13 @@ function FrameworkVisual() {
       </svg>
 
       <motion.div
-        className="relative z-10 w-28 h-28 md:w-32 md:h-32 rounded-full flex items-center justify-center"
-        style={{ background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})`, boxShadow: `0 0 80px ${C.gold}30` }}
+        className="relative z-10 w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center overflow-hidden"
+        style={{ boxShadow: `0 0 80px ${C.gold}30` }}
         whileHover={{ scale: 1.1 }}
         animate={{ boxShadow: [`0 0 60px ${C.gold}25`, `0 0 100px ${C.gold}40`, `0 0 60px ${C.gold}25`] }}
         transition={{ boxShadow: { duration: 3, repeat: Infinity } }}>
-        <Brain className="w-14 h-14 md:w-16 md:h-16 text-white" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="DeepMindQ" className="w-full h-full object-contain p-2" />
       </motion.div>
 
       {nodes.map((node, i) => {

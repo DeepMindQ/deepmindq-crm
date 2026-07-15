@@ -447,3 +447,56 @@
 .dark :focus-visible {
   outline-color: oklch(0.78 0.14 75);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   DeepMindQ Glassmorphism Design Tokens
+   These CSS custom properties are the single source of truth
+   for the sidebar, header, and glassmorphism effects.
+   ═══════════════════════════════════════════════════════════════ */
+
+.dark {
+  --sidebar-glass: rgba(8, 10, 18, 0.92);
+  --header-glass: rgba(8, 10, 18, 0.75);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(255, 255, 255, 0.1);
+  --text-dim: #4A5568;
+  --surface-glass: rgba(12, 18, 30, 0.7);
+  --surface-glass-heavy: rgba(8, 10, 18, 0.88);
+  --gold-glow: rgba(212, 175, 55, 0.15);
+  --gold-glow-strong: rgba(212, 175, 55, 0.3);
+}
+
+/* ── Backdrop blur utility for glass panels ── */
+.glass-panel {
+  background: var(--surface-glass, rgba(12, 18, 30, 0.7));
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  border-radius: 12px;
+}
+
+.glass-panel-heavy {
+  background: var(--surface-glass-heavy, rgba(8, 10, 18, 0.88));
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+/* ── Gold accent utilities ── */
+.text-gold { color: var(--color-gold); }
+.text-gold-dim { color: var(--color-gold-dim); }
+.text-gold-bright { color: var(--color-gold-bright); }
+.bg-gold { background-color: var(--color-gold); }
+.bg-gold-subtle { background: color-mix(in oklch, var(--color-gold) 10%, transparent); }
+.border-gold { border-color: var(--color-gold); }
+.ring-gold { --tw-ring-color: var(--color-gold); }
+
+/* ── Gold text shimmer ── */
+.text-gold-shimmer {
+  background: linear-gradient(90deg, var(--color-gold-dim), var(--color-gold-bright), var(--color-gold-dim));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s linear infinite;
+}

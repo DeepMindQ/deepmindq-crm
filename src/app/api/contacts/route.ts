@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { apiError, apiSuccess, validateBody, sanitizeFields, safeInt } from "@/lib/apiHelpers";
 import { createContactSchema } from "@/lib/validations";
 
@@ -15,15 +16,14 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, safeInt(searchParams.get("page"), 1));
     const pageSize = Math.min(100, Math.max(1, safeInt(searchParams.get("pageSize"), 20)));
 
-    const where: Record<string, unknown> = {
-      archivedAt: null,
-    };
+    const where: Prisma.ContactWhereInput = {};
 
     if (search) {
       where.OR = [
-        { name: { contains: search } },
+        { rawName: { contains: search } },
         { email: { contains: search } },
-        { jobTitle: { contains: search } },
+        { title: { contains: search } },
+        { normalizedName: { contains: search.toLowerCase() } },
       ];
     }
     if (status) {
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
         take: pageSize,
         orderBy: { createdAt: "desc" },
         include: {
-          company: { select: { id: true, name: true } },
+          company: { select: { id: true, rawName: true, industry: true } },
         },
       }),
       db.contact.count({ where }),
@@ -92,23 +92,14 @@ export async function POST(request: NextRequest) {
 
     const contact = await db.contact.create({
       data: {
-        name: sanitized.name || data.name,
+        rawName: sanitized.name || data.name,
+        normalizedName: (sanitized.name || data.name || '').toLowerCase(),
         email: sanitized.email || null,
-        jobTitle: sanitized.jobTitle || null,
-        roleBucket: data.roleBucket || null,
+        title: sanitized.jobTitle || null,
         linkedinUrl: sanitized.linkedinUrl || null,
         phone: sanitized.phone || null,
         location: sanitized.location || null,
         companyId: data.companyId,
-      },
-    });
-
-    await db.timelineEntry.create({
-      data: {
-        companyId: data.companyId,
-        contactId: contact.id,
-        action: "contact_created",
-        details: `Contact "${contact.name}" was added to "${company.name}"`,
       },
     });
 

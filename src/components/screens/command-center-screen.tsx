@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -23,7 +23,7 @@ interface CommandCenterProps { navigateTo?: (screen: string, companyId?: string)
 interface Insights {
   companyEngine: {
     totalCompanies: number; companiesByStatus: Record<string, number>;
-    companiesByIndustry: Record<string, number>; companiesByLifecycle: Record<string, number>;
+    companiesByIndustry: Record<string, number>; companiesByLifecycle: Record<string, number>; companiesByCountry?: Record<string, number>;
     topScoredCompanies: Array<{ id: string; name: string; industry: string; score: number; status: string; lifecycleStage: string }>;
     unreadSignalCount: number; criticalSignalCount: number;
     latestSignals: Array<{ id: string; type: string; title: string; severity: string; createdAt: string }>;
@@ -51,13 +51,13 @@ const PRIORITY = { high: { color: C.red, bg: 'rgba(239,68,68,0.12)', label: 'Cri
 const PIE_COLORS = [C.gold, '#A855F7', C.blue, C.green, C.amber, C.red, C.textMuted];
 const SIGNAL_ICONS: Record<string, string> = { funding: '💰', hiring: '👤', leadership_change: '👔', tech_change: '⚙️', news: '📰', mention: '💬' };
 const ENGAGEMENT = [
-  { day: 'Mon', sent: 120, opens: 42, replies: 8 }, { day: 'Tue', sent: 145, opens: 51, replies: 12 },
-  { day: 'Wed', sent: 132, opens: 47, replies: 9 }, { day: 'Thu', sent: 158, opens: 55, replies: 14 },
-  { day: 'Fri', sent: 142, opens: 50, replies: 11 }, { day: 'Sat', sent: 98, opens: 34, replies: 5 },
-  { day: 'Sun', sent: 75, opens: 26, replies: 3 },
+  { day: 'Mon', sent: 320, opens: 42, replies: 8 }, { day: 'Tue', sent: 410, opens: 51, replies: 12 },
+  { day: 'Wed', sent: 380, opens: 47, replies: 9 }, { day: 'Thu', sent: 520, opens: 55, replies: 14 },
+  { day: 'Fri', sent: 490, opens: 50, replies: 11 }, { day: 'Sat', sent: 210, opens: 34, replies: 5 },
+  { day: 'Sun', sent: 180, opens: 26, replies: 3 },
 ];
 const SPARK = { company: [65, 72, 68, 80, 75, 82, 78], email: [45, 52, 48, 60, 55, 63, 58], capability: [30, 35, 32, 40, 38, 42, 41] };
-const COUNTRIES = [{ name: 'United States', value: 3200 }, { name: 'United Kingdom', value: 1800 }, { name: 'Germany', value: 1400 }, { name: 'Canada', value: 1100 }, { name: 'Australia', value: 800 }];
+// COUNTRIES now comes from API (companiesByCountry)
 
 /* ═══════════════════════════════════════════════════
    Helpers
@@ -311,6 +311,13 @@ function OverviewTab({ insights }: { insights: Insights }) {
    ═══════════════════════════════════════════════════ */
 function EnginesTab({ insights }: { insights: Insights }) {
   const ce = insights.companyEngine, ee = insights.emailEngine, capE = insights.capabilityEngine;
+  const countries = useMemo(() => {
+    const raw = ce.companiesByCountry || {};
+    return Object.entries(raw)
+      .sort(([, a], [, b]) => (b as number) - (a as number))
+      .slice(0, 8)
+      .map(([name, value]) => ({ name, value: value as number }));
+  }, [ce.companiesByCountry]);
   const indData = Object.entries(ce.companiesByIndustry).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, value]) => ({ name, value }));
   const draftData = Object.entries(ee.contactsByStatus).filter(([k]) => ['drafted', 'pending_review', 'sent', 'queued', 'replied'].includes(k)).map(([name, value]) => ({ name: name.replace(/_/g, ' '), value }));
   const seqMetrics = [
@@ -345,10 +352,10 @@ function EnginesTab({ insights }: { insights: Insights }) {
           <div>
             <h4 className="text-[10px] uppercase tracking-widest font-medium mb-3" style={{ color: C.textDim }}>GEO DISTRIBUTION</h4>
             <ResponsiveContainer width="100%" height={180}>
-              <PieChart><Pie data={COUNTRIES} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={3} dataKey="value" stroke="none">{COUNTRIES.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}</Pie><Tooltip content={<ChartTooltip />} /></PieChart>
+              <PieChart><Pie data={countries} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={3} dataKey="value" stroke="none">{countries.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}</Pie><Tooltip content={<ChartTooltip />} /></PieChart>
             </ResponsiveContainer>
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">{COUNTRIES.map((c, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-[9px]"><div className="w-1.5 h-1.5 rounded-full" style={{ background: PIE_COLORS[i] }} /><span style={{ color: C.textMuted }}>{c.name}</span></div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">{countries.slice(0, 6).map((c, i) => (
+              <div key={i} className="flex items-center gap-1.5 text-[9px]"><div className="w-1.5 h-1.5 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} /><span style={{ color: C.textMuted }}>{c.name}</span></div>
             ))}</div>
           </div>
         </div>

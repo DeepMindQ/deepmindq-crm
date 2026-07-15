@@ -21,6 +21,7 @@ export async function GET() {
       companiesByLifecycleRaw,
       capsByCategoryRaw,
       capsByServiceLineRaw,
+      companiesByCountryRaw,
     ] = await Promise.all([
       db.company.count(),
       db.contact.count(),
@@ -38,6 +39,7 @@ export async function GET() {
       db.company.groupBy({ by: ['lifecycleStage'], _count: true }),
       db.capabilityAsset.groupBy({ by: ['category'], where: { isActive: true }, _count: true }),
       db.capabilityAsset.groupBy({ by: ['serviceLine'], where: { isActive: true, serviceLine: { not: null } }, _count: true }),
+      db.company.groupBy({ by: ['country'], where: { country: { not: null } }, _count: true, orderBy: { _count: { country: 'desc' } }, take: 8 }),
     ]);
 
     const safe = (arr: any[] | undefined) => Array.isArray(arr) ? arr : [];
@@ -51,6 +53,9 @@ export async function GET() {
 
     const companiesByLifecycle: Record<string, number> = {};
     companiesByLifecycleRaw.forEach((r: any) => { companiesByLifecycle[r.lifecycleStage] = r._count; });
+
+    const companiesByCountry: Record<string, number> = {};
+    companiesByCountryRaw.forEach((r: any) => { companiesByCountry[r.country] = r._count; });
 
     const topScoredCompanies = safe(companies).slice(0, 5).map((c: any) => ({
       id: c.id, name: c.rawName || c.normalizedName, industry: c.industry,
@@ -123,7 +128,7 @@ export async function GET() {
     ));
 
     return NextResponse.json({
-      companyEngine: { totalCompanies, companiesByStatus, companiesByIndustry, companiesByLifecycle, topScoredCompanies, unreadSignalCount: unreadSignals.length, criticalSignalCount: criticalSignals.length, latestSignals: unreadSignals.slice(0, 5).map((s: any) => ({ id: s.id, companyId: s.companyId, type: s.signalType, title: s.title, severity: s.severity, createdAt: s.createdAt })) },
+      companyEngine: { totalCompanies, companiesByStatus, companiesByIndustry, companiesByLifecycle, companiesByCountry, topScoredCompanies, unreadSignalCount: unreadSignals.length, criticalSignalCount: criticalSignals.length, latestSignals: unreadSignals.slice(0, 5).map((s: any) => ({ id: s.id, companyId: s.companyId, type: s.signalType, title: s.title, severity: s.severity, createdAt: s.createdAt })) },
       emailEngine: { totalContacts, contactsByStatus, pendingDrafts, pendingQueue, totalReplies, positiveReplies, replyRate, avgLeadScore, highValueLeads, activeSequences },
       capabilityEngine: { totalCapabilities, capabilitiesByCategory, capabilitiesByServiceLine, topCapabilities },
       recommendations: recommendations.sort((a, b) => ({ high: 0, medium: 1, low: 2 } as any)[a.priority] - ({ high: 0, medium: 1, low: 2 } as any)[b.priority]),

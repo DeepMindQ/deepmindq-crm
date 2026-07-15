@@ -278,7 +278,15 @@ export default function ContactsScreen() {
       if (activeCompanyId) p.set('companyId', activeCompanyId)
       return fetch(`/api/contacts?${p}`).then(r => {
         if (!r.ok) throw new Error('Failed to load contacts')
-        return r.json()
+        return r.json().then((d: any) => ({
+          ...d,
+          contacts: (d.contacts || []).map((c: any) => ({
+            ...c,
+            name: c.rawName || c.name || '',
+            jobTitle: c.title || c.jobTitle || null,
+            company: c.company ? { ...c.company, name: c.company.rawName || c.company.name || '' } : null,
+          })),
+        }))
       })
     },
   })
@@ -288,7 +296,7 @@ export default function ContactsScreen() {
     queryFn: () =>
       fetch('/api/companies?pageSize=200')
         .then(r => { if (!r.ok) throw new Error('Failed to load companies'); return r.json() })
-        .then(d => d.companies ?? []),
+        .then(d => (d.companies || []).map((c: any) => ({ ...c, name: c.rawName || c.name || '' }))),
   })
 
   // ── Filtered company list for the company filter dropdown ──

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PageTransition } from '@/components/ui/animated-components';
 import { AiChatSidebar } from '@/components/shared/ai-chat-sidebar';
 import { AiChatButton } from '@/components/shared/ai-chat-button';
+import { CommandPalette } from '@/components/shared/command-palette';
 import { ErrorBoundary } from '@/components/error-boundary';
 
 import {
@@ -434,6 +435,9 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="min-h-screen bg-background text-foreground flex">
       <Toaster theme="dark" position="top-right" />
+
+      {/* Command Palette (⌘K) */}
+      <CommandPalette />
 
       {/* AI Chat Sidebar */}
       <AiChatSidebar isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} />

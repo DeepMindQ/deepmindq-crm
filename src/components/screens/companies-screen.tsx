@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { PageTransition, AnimatedCounter } from '@/components/ui/animated-components';
 import {
-  Building2, Globe, MapPin, Users, Search, Brain,
+  Building2, Globe, MapPin, Users, Search, Brain, Download,
   ChevronLeft, ChevronRight, MoreHorizontal, Sparkles,
   TrendingUp, BarChart3, Signal, X,
 } from 'lucide-react';
@@ -330,6 +330,28 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
             <option value="">All Countries</option>
             {countries.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
+
+          {/* Export CSV */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const rows = [['Name','Domain','Industry','Country','Contacts','Intelligence Score','Status']];
+              companies.forEach(c => rows.push([c.rawName, c.domain || '', c.industry || '', c.country || '', String(c.contactCount || c._count?.contacts || 0), String(c.intelligenceScore ?? ''), c.status]));
+              const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+              const blob = new Blob([csv], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url; a.download = 'companies.csv'; a.click();
+              URL.revokeObjectURL(url);
+              toast.success(`Exported ${companies.length} companies`);
+            }}
+            className="h-8 px-3 text-xs font-medium rounded-lg shrink-0"
+            style={{ borderColor: 'rgba(255,255,255,0.08)', color: '#cbd5e1' }}
+          >
+            <Download size={14} className="mr-1.5" />
+            Export
+          </Button>
 
           {/* Add Company */}
           <Button

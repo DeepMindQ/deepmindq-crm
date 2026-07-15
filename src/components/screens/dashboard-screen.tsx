@@ -230,11 +230,11 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
     <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-5 pr-1">
       {/* 1. STATS ROW */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <StatCard icon={Building2} label="Total Companies" value={data.totalCompanies || 0} bc="#D4AF37" trend={{ value: 12.3, up: true }} delay={0} />
-        <StatCard icon={Users} label="Active Contacts" value={totalLeads} bc="#3B82F6" trend={{ value: 8.1, up: true }} delay={0.06} />
-        <StatCard icon={FileText} label="Pending Drafts" value={drafts} bc="#F59E0B" trend={{ value: 3.2, up: false }} delay={0.12} />
-        <StatCard icon={Send} label="In Queue" value={queued} bc="#10B981" trend={{ value: 24.5, up: true }} delay={0.18} />
-        <StatCard icon={Mail} label="Reply Rate" value={replyRate} suffix="%" bc="#A855F7" trend={{ value: 1.8, up: true }} delay={0.24} />
+        <StatCard icon={Building2} label="Total Companies" value={data.totalCompanies || 0} bc="#D4AF37" delay={0} />
+        <StatCard icon={Users} label="Active Contacts" value={totalLeads} bc="#3B82F6" delay={0.06} />
+        <StatCard icon={FileText} label="Pending Drafts" value={drafts} bc="#F59E0B" delay={0.12} />
+        <StatCard icon={Send} label="In Queue" value={queued} bc="#10B981" delay={0.18} />
+        <StatCard icon={Mail} label="Reply Rate" value={replyRate} suffix="%" bc="#A855F7" delay={0.24} />
       </div>
 
       {/* 2. PIPELINE FUNNEL */}

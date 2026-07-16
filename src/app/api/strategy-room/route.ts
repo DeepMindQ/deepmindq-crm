@@ -1,15 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+function safeJsonParse(str: string | null | undefined, fallback: any) {
+  if (!str) return fallback;
+  try { return JSON.parse(str); } catch { return fallback; }
+}
+
 // GET /api/strategy-room — list strategies
 export async function GET() {
   try {
-    const strategies = await db.accountStrategy.findMany({
-      orderBy: { updatedAt: 'desc' },
-    });
+    let strategies: any[];
+    try {
+      strategies = await db.accountStrategy.findMany({
+        orderBy: { updatedAt: 'desc' },
+      });
+    } catch {
+      return NextResponse.json([]);
+    }
 
     // Enrich with company names where companyId exists
-    const enriched = await Promise.all(strategies.map(async (s) => {
+    const enriched = await Promise.all((strategies || []).map(async (s: any) => {
       let companyName: string | undefined;
       if (s.companyId) {
         try {
@@ -20,19 +30,16 @@ export async function GET() {
       return {
         ...s,
         companyName,
-        swotAnalysis: s.swotAnalysis ? JSON.parse(s.swotAnalysis) : null,
-        keyInitiatives: s.keyInitiatives ? JSON.parse(s.keyInitiatives) : null,
-        stakeholderMap: s.stakeholderMap ? JSON.parse(s.stakeholderMap) : null,
+        swotAnalysis: safeJsonParse(s.swotAnalysis, null),
+        keyInitiatives: safeJsonParse(s.keyInitiatives, null),
+        stakeholderMap: safeJsonParse(s.stakeholderMap, null),
         competitivePosition: s.competitivePosition,
       };
     }));
 
     return NextResponse.json(enriched);
-  } catch (error: any) {
-    if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
-      return NextResponse.json([]);
-    }
-    return NextResponse.json([], { status: 200 });
+  } catch {
+    return NextResponse.json([]);
   }
 }
 

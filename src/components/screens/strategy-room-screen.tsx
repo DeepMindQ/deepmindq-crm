@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Compass, Plus, Search, Building2, Users, Target, TrendingUp,
-  ChevronRight, X, Loader2, Sparkles, Edit3, Save, Trash2,
+  ChevronRight, X, Loader2, Sparkles, Edit3, Trash2,
   ArrowRight, Shield, Swords, Lightbulb, AlertTriangle,
   CheckCircle2, Clock, MoreHorizontal, Eye, Zap, Brain,
-  BookmarkPlus, BarChart3, UserCheck, UserX, Crown, CircleDot
+  BarChart3, UserCheck, UserX, Crown, CircleDot, Archive
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════
@@ -84,15 +84,20 @@ export default function StrategyRoomScreen() {
   const fetchStrategies = useCallback(async () => {
     try {
       const res = await fetch('/api/strategy-room');
-      if (res.ok) setStrategies(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setStrategies(Array.isArray(data) ? data : []);
+      }
     } catch { /* empty */ } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchStrategies(); }, [fetchStrategies]);
 
-  const filtered = strategies
-    .filter(s => !searchQuery || s.title.toLowerCase().includes(searchQuery.toLowerCase()) || (s.companyName || '').toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  const safeStrategies = Array.isArray(strategies) ? strategies : [];
+  const filtered = safeStrategies
+    .filter((s: any) => s && s.title)
+    .filter((s: any) => !searchQuery || (s.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || (s.companyName || '').toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a: any, b: any) => { try { return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(); } catch { return 0; } });
 
   const handleCreate = async () => {
     if (!newTitle.trim()) return;
@@ -555,14 +560,5 @@ export default function StrategyRoomScreen() {
         )}
       </AnimatePresence>
     </div>
-  );
-}
-
-// Archive icon for the status config
-function Archive(props: React.SVGProps<SVGSVGElement> & { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect width="20" height="5" x="2" y="3" rx="1" /><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" /><path d="M10 12h4" />
-    </svg>
   );
 }

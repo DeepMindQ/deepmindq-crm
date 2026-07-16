@@ -75,7 +75,7 @@ export default function PlaybooksScreen() {
       const res = await fetch('/api/playbooks');
       if (res.ok) {
         const data = await res.json();
-        setPlaybooks(data);
+        setPlaybooks(Array.isArray(data) ? data : []);
       }
     } catch {
       // Silently handle — use empty state
@@ -94,10 +94,11 @@ export default function PlaybooksScreen() {
     return () => document.removeEventListener('click', handler);
   }, [menuOpen]);
 
-  const filtered = playbooks
-    .filter(p => p.isActive)
-    .filter(p => !activeCategory || p.category === activeCategory)
-    .filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()) || (p.description || '').toLowerCase().includes(searchQuery.toLowerCase()));
+  const safePlaybooks = Array.isArray(playbooks) ? playbooks : [];
+  const filtered = safePlaybooks
+    .filter((p: any) => p && p.isActive !== false)
+    .filter((p: any) => !activeCategory || p.category === activeCategory)
+    .filter((p: any) => !searchQuery || (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (p.description || '').toLowerCase().includes(searchQuery.toLowerCase()));
 
   const handleCreatePlaybook = async () => {
     if (!newName.trim()) return;
@@ -195,7 +196,7 @@ export default function PlaybooksScreen() {
     }
   };
 
-  const categories = [...new Set(playbooks.map(p => p.category))];
+  const categories = [...new Set(safePlaybooks.map((p: any) => p.category).filter(Boolean))];
 
   /* ── Skeleton Loader ── */
   if (loading) {

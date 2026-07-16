@@ -1,23 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+function safeJsonParse(str: string | null | undefined, fallback: any) {
+  if (!str) return fallback;
+  try { return JSON.parse(str); } catch { return fallback; }
+}
+
 // GET /api/playbooks — list all playbooks
 export async function GET() {
   try {
-    const playbooks = await db.playbook.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
-    return NextResponse.json(playbooks.map(p => ({
-      ...p,
-      steps: JSON.parse(p.steps || '[]'),
-      aiTips: p.aiTips || null,
-    })));
-  } catch (error: any) {
-    // Table might not exist yet
-    if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
+    let playbooks: any[];
+    try {
+      playbooks = await db.playbook.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch {
       return NextResponse.json([]);
     }
-    return NextResponse.json([], { status: 200 });
+    return NextResponse.json((playbooks || []).map((p: any) => ({
+      ...p,
+      steps: safeJsonParse(p.steps, []),
+      aiTips: p.aiTips || null,
+    })));
+  } catch {
+    return NextResponse.json([]);
   }
 }
 

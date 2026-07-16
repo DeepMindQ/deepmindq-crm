@@ -1,20 +1,19 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, useScroll, useTransform, useInView, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { motion, useScroll, useTransform, useInView, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
 import {
   ArrowRight, ArrowUpRight, Lock, ExternalLink,
   Building2, BarChart3, Brain, MessageSquare, Users, Target,
   Search, Lightbulb, Rocket, TrendingUp, Zap, Shield,
   Layers, Network, Sparkles, ChevronRight, Eye, Database,
-  Linkedin, Mail, BookOpen,
+  Linkedin, Mail, BookOpen, Menu, X,
 } from 'lucide-react';
 import LoginPage from '@/components/login-page';
 
-/* ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    DESIGN TOKENS
-   Dark navy + warm gold — distinctive, not generic blue
-   ═══════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 const C = {
   bg:           '#0A0E1A',
   bgAlt:        '#0D1220',
@@ -35,40 +34,42 @@ const C = {
   gridLine:     'rgba(255,255,255,0.03)',
 };
 
-/* Easing */
 const ease = [0.16, 1, 0.3, 1] as const;
+const SECTION_IDS = ['philosophy', 'framework', 'platform', 'about'];
 
-/* ═══════════════════════════════════════════════════════════
-   HERO INTELLIGENCE ENGINE — Canvas radial network
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   #1 + #13 — HERO INTELLIGENCE ENGINE — Premium canvas with
+   glowing nodes, gradient connections, "Intelligence Engine" label,
+   and smooth fade-in (no flash)
+   ═══════════════════════════════════════════════════════════════ */
 const HUB_NODES = [
-  { label: 'Companies',    icon: 'building',    angle: -90 },
-  { label: 'Signals',      icon: 'chart',       angle: -30 },
-  { label: 'Solutions',    icon: 'puzzle',      angle: 30  },
-  { label: 'People',       icon: 'users',       angle: 90  },
-  { label: 'Opportunities', icon: 'target',      angle: 150 },
-  { label: 'Conversations', icon: 'message',    angle: 210 },
+  { label: 'Companies',     angle: -90 },
+  { label: 'Signals',       angle: -30 },
+  { label: 'Solutions',     angle: 30  },
+  { label: 'People',        angle: 90  },
+  { label: 'Opportunities', angle: 150 },
+  { label: 'Conversations', angle: 210 },
 ];
 
 function useHeroCanvas(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   const rafRef = useRef(0);
   const particlesRef = useRef<Array<{x:number;y:number;vx:number;vy:number;r:number;a:number}>>([]);
+  const readyRef = useRef(false);
 
   const init = useCallback((w: number, h: number) => {
     const cx = w / 2, cy = h / 2;
     const orbitR = Math.min(w, h) * 0.3;
-    // Initialize orbit particles
     const particles: typeof particlesRef.current = [];
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 60; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const dist = orbitR * (0.3 + Math.random() * 0.9);
+      const dist = orbitR * (0.2 + Math.random() * 1.0);
       particles.push({
         x: cx + Math.cos(angle) * dist,
         y: cy + Math.sin(angle) * dist,
-        vx: (Math.random() - 0.5) * 0.2,
-        vy: (Math.random() - 0.5) * 0.2,
-        r: 0.8 + Math.random() * 1.2,
-        a: 0.1 + Math.random() * 0.2,
+        vx: (Math.random() - 0.5) * 0.15,
+        vy: (Math.random() - 0.5) * 0.15,
+        r: 0.6 + Math.random() * 1.4,
+        a: 0.05 + Math.random() * 0.15,
       });
     }
     particlesRef.current = particles;
@@ -93,17 +94,31 @@ function useHeroCanvas(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     resize();
     window.addEventListener('resize', resize);
 
+    // #13 — fade in canvas smoothly
+    let opacity = 0;
+    canvas.style.opacity = '0';
+    canvas.style.transition = 'opacity 1s ease';
+
     let time = 0;
     const draw = () => {
       const w = canvas.width / dpr, h = canvas.height / dpr;
       ctx.clearRect(0, 0, w, h);
       time += 0.003;
 
+      // Fade in
+      if (opacity < 1) {
+        opacity = Math.min(1, opacity + 0.015);
+        canvas.style.opacity = String(opacity);
+        if (opacity >= 0.3 && !readyRef.current) {
+          readyRef.current = true;
+        }
+      }
+
       const cx = w / 2, cy = h / 2;
       const orbitR = Math.min(w, h) * 0.3;
-      const nodeR = Math.min(w, h) * 0.045;
+      const nodeR = Math.min(w, h) * 0.048;
 
-      // Draw grid
+      // Grid
       ctx.strokeStyle = C.gridLine;
       ctx.lineWidth = 0.5;
       const gridSize = 40;
@@ -114,33 +129,39 @@ function useHeroCanvas(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
       }
 
-      // Center glow
-      const cGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, orbitR * 1.2);
-      cGlow.addColorStop(0, 'rgba(201,168,76,0.06)');
-      cGlow.addColorStop(0.5, 'rgba(201,168,76,0.02)');
+      // Large center radial glow
+      const cGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, orbitR * 1.4);
+      cGlow.addColorStop(0, 'rgba(201,168,76,0.07)');
+      cGlow.addColorStop(0.4, 'rgba(201,168,76,0.03)');
       cGlow.addColorStop(1, 'transparent');
       ctx.fillStyle = cGlow;
       ctx.fillRect(0, 0, w, h);
 
-      // Orbit ring
+      // Orbit rings
+      ctx.setLineDash([3, 5]);
+      // Outer
       ctx.beginPath();
       ctx.arc(cx, cy, orbitR, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(201,168,76,0.08)';
+      ctx.strokeStyle = 'rgba(201,168,76,0.1)';
       ctx.lineWidth = 1;
-      ctx.setLineDash([4, 6]);
+      ctx.stroke();
+      // Inner
+      ctx.beginPath();
+      ctx.arc(cx, cy, orbitR * 0.55, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(201,168,76,0.05)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      // Outermost faint
+      ctx.beginPath();
+      ctx.arc(cx, cy, orbitR * 1.15, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(201,168,76,0.03)';
+      ctx.lineWidth = 0.5;
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Inner orbit ring
-      ctx.beginPath();
-      ctx.arc(cx, cy, orbitR * 0.55, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(201,168,76,0.04)';
-      ctx.lineWidth = 0.5;
-      ctx.stroke();
-
-      // Compute node positions
+      // Node positions with gentle orbit
       const nodePositions = HUB_NODES.map((n, i) => {
-        const a = (n.angle * Math.PI) / 180 + Math.sin(time + i) * 0.03;
+        const a = (n.angle * Math.PI) / 180 + Math.sin(time * 0.8 + i) * 0.025;
         return {
           x: cx + Math.cos(a) * orbitR,
           y: cy + Math.sin(a) * orbitR,
@@ -148,29 +169,45 @@ function useHeroCanvas(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
         };
       });
 
-      // Draw connections to center
+      // #1 — Glowing gradient connections to center
       nodePositions.forEach((pos, i) => {
         const grad = ctx.createLinearGradient(cx, cy, pos.x, pos.y);
-        grad.addColorStop(0, 'rgba(201,168,76,0.2)');
-        grad.addColorStop(1, 'rgba(201,168,76,0.05)');
+        grad.addColorStop(0, 'rgba(201,168,76,0.3)');
+        grad.addColorStop(0.6, 'rgba(201,168,76,0.08)');
+        grad.addColorStop(1, 'rgba(201,168,76,0.02)');
         ctx.beginPath();
         ctx.moveTo(cx, cy);
-        ctx.lineTo(pos.x, pos.y);
+        // Slight curve
+        const mx = (cx + pos.x) / 2 + Math.sin(time + i * 2) * 8;
+        const my = (cy + pos.y) / 2 + Math.cos(time * 0.7 + i * 2) * 8;
+        ctx.quadraticCurveTo(mx, my, pos.x, pos.y);
         ctx.strokeStyle = grad;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1.2;
         ctx.stroke();
 
-        // Animated pulse along connection
-        const pulseT = ((time * 0.5 + i * 0.17) % 1);
-        const px = cx + (pos.x - cx) * pulseT;
-        const py = cy + (pos.y - cy) * pulseT;
-        ctx.beginPath();
-        ctx.arc(px, py, 1.5, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(201,168,76,${0.6 * (1 - pulseT)})`;
-        ctx.fill();
+        // Animated data pulse along each connection
+        const pulseCount = 2;
+        for (let p = 0; p < pulseCount; p++) {
+          const pulseT = ((time * 0.4 + i * 0.17 + p * 0.5) % 1);
+          const pt = pulseT * pulseT * (3 - 2 * pulseT); // smoothstep
+          const px = cx + (pos.x - cx) * pt;
+          const py = cy + (pos.y - cy) * pt;
+          const pulseR = 2 - pulseT;
+          const pulseGlow = ctx.createRadialGradient(px, py, 0, px, py, pulseR * 4);
+          pulseGlow.addColorStop(0, `rgba(226,197,101,${0.7 * (1 - pulseT)})`);
+          pulseGlow.addColorStop(1, 'transparent');
+          ctx.beginPath();
+          ctx.arc(px, py, pulseR * 4, 0, Math.PI * 2);
+          ctx.fillStyle = pulseGlow;
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(px, py, pulseR, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(226,197,101,${0.8 * (1 - pulseT)})`;
+          ctx.fill();
+        }
       });
 
-      // Draw inter-node connections
+      // Inter-node connections (faint mesh)
       for (let i = 0; i < nodePositions.length; i++) {
         const next = nodePositions[(i + 1) % nodePositions.length];
         const cur = nodePositions[i];
@@ -180,93 +217,102 @@ function useHeroCanvas(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
         ctx.strokeStyle = 'rgba(201,168,76,0.04)';
         ctx.lineWidth = 0.5;
         ctx.stroke();
+        // Cross-connections for mesh feel
+        if (i + 2 < nodePositions.length) {
+          const cross = nodePositions[i + 2];
+          ctx.beginPath(); ctx.moveTo(cur.x, cur.y); ctx.lineTo(cross.x, cross.y);
+          ctx.strokeStyle = 'rgba(201,168,76,0.02)';
+          ctx.stroke();
+        }
       }
 
       // Floating particles
       particlesRef.current.forEach(p => {
         p.x += p.vx;
         p.y += p.vy;
-        // Gentle attraction to center
         const dx = cx - p.x, dy = cy - p.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > orbitR * 1.1) {
-          p.vx += dx * 0.0001;
-          p.vy += dy * 0.0001;
-        }
-        p.vx *= 0.999;
-        p.vy *= 0.999;
-
+        if (dist > orbitR * 1.2) { p.vx += dx * 0.00008; p.vy += dy * 0.00008; }
+        p.vx *= 0.9995; p.vy *= 0.9995;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(201,168,76,${p.a * 0.5})`;
+        ctx.fillStyle = `rgba(201,168,76,${p.a * 0.6})`;
         ctx.fill();
       });
 
-      // Center hub
-      const hubGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, nodeR * 2.5);
-      hubGlow.addColorStop(0, 'rgba(201,168,76,0.15)');
-      hubGlow.addColorStop(1, 'transparent');
-      ctx.beginPath();
-      ctx.arc(cx, cy, nodeR * 2.5, 0, Math.PI * 2);
-      ctx.fillStyle = hubGlow;
-      ctx.fill();
+      // Center hub — large glowing orb
+      const hubOuterGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, nodeR * 3);
+      hubOuterGlow.addColorStop(0, 'rgba(201,168,76,0.12)');
+      hubOuterGlow.addColorStop(0.5, 'rgba(201,168,76,0.04)');
+      hubOuterGlow.addColorStop(1, 'transparent');
+      ctx.beginPath(); ctx.arc(cx, cy, nodeR * 3, 0, Math.PI * 2);
+      ctx.fillStyle = hubOuterGlow; ctx.fill();
 
-      // Center icon (sparkle/brain)
-      ctx.beginPath();
-      ctx.arc(cx, cy, nodeR * 0.9, 0, Math.PI * 2);
-      const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, nodeR * 0.9);
-      coreGrad.addColorStop(0, C.goldBright);
+      // Hub ring
+      ctx.beginPath(); ctx.arc(cx, cy, nodeR, 0, Math.PI * 2);
+      const hubRingGrad = ctx.createRadialGradient(cx, cy, nodeR * 0.7, cx, cy, nodeR);
+      hubRingGrad.addColorStop(0, 'rgba(201,168,76,0.3)');
+      hubRingGrad.addColorStop(1, 'rgba(201,168,76,0.08)');
+      ctx.strokeStyle = hubRingGrad;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Hub core gradient
+      const coreGrad = ctx.createRadialGradient(cx - nodeR * 0.2, cy - nodeR * 0.2, 0, cx, cy, nodeR * 0.8);
+      coreGrad.addColorStop(0, '#f0d878');
+      coreGrad.addColorStop(0.5, C.goldBright);
       coreGrad.addColorStop(1, C.gold);
-      ctx.fillStyle = coreGrad;
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(cx, cy, nodeR * 0.75, 0, Math.PI * 2);
+      ctx.fillStyle = coreGrad; ctx.fill();
 
-      // Pulse ring
-      const pulse = (Math.sin(time * 2.5) + 1) * 0.5;
-      ctx.beginPath();
-      ctx.arc(cx, cy, nodeR * (1.1 + pulse * 0.4), 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(201,168,76,${0.15 - pulse * 0.1})`;
+      // Hub pulse rings
+      const pulse = (Math.sin(time * 2) + 1) * 0.5;
+      ctx.beginPath(); ctx.arc(cx, cy, nodeR * (1.15 + pulse * 0.5), 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(201,168,76,${0.2 - pulse * 0.15})`;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+
+      const pulse2 = (Math.sin(time * 1.5 + 1) + 1) * 0.5;
+      ctx.beginPath(); ctx.arc(cx, cy, nodeR * (1.3 + pulse2 * 0.6), 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(201,168,76,${0.1 - pulse2 * 0.08})`;
       ctx.lineWidth = 0.5;
       ctx.stroke();
 
-      // Outer nodes
+      // Outer nodes — premium style with glow borders
       nodePositions.forEach((pos, i) => {
-        // Node glow
-        const nGlow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, nodeR * 1.8);
-        nGlow.addColorStop(0, 'rgba(201,168,76,0.08)');
+        // Outer glow
+        const nGlow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, nodeR * 2.2);
+        nGlow.addColorStop(0, 'rgba(201,168,76,0.1)');
         nGlow.addColorStop(1, 'transparent');
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, nodeR * 1.8, 0, Math.PI * 2);
-        ctx.fillStyle = nGlow;
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(pos.x, pos.y, nodeR * 2.2, 0, Math.PI * 2);
+        ctx.fillStyle = nGlow; ctx.fill();
 
-        // Node circle
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, nodeR * 0.65, 0, Math.PI * 2);
-        ctx.fillStyle = C.bgCard;
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(201,168,76,0.3)';
+        // Node circle with gradient fill
+        ctx.beginPath(); ctx.arc(pos.x, pos.y, nodeR * 0.65, 0, Math.PI * 2);
+        const nodeGrad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, nodeR * 0.65);
+        nodeGrad.addColorStop(0, 'rgba(201,168,76,0.15)');
+        nodeGrad.addColorStop(1, 'rgba(201,168,76,0.04)');
+        ctx.fillStyle = nodeGrad; ctx.fill();
+
+        // Glowing border
+        ctx.beginPath(); ctx.arc(pos.x, pos.y, nodeR * 0.65, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(201,168,76,${0.35 + Math.sin(time * 1.5 + i) * 0.1})`;
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // Inner dot
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
-        ctx.fillStyle = C.gold;
-        ctx.fill();
-
-        // Label
-        ctx.font = '500 10px Inter, system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = C.textSub;
-        ctx.fillText(pos.label, pos.x, pos.y + nodeR * 0.65 + 16);
+        // Inner bright dot
+        const dotGlow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 5);
+        dotGlow.addColorStop(0, C.goldBright);
+        dotGlow.addColorStop(1, 'rgba(201,168,76,0.3)');
+        ctx.beginPath(); ctx.arc(pos.x, pos.y, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = dotGlow; ctx.fill();
       });
 
-      // "Intelligence Engine" label at center bottom
-      ctx.font = '600 10px Inter, system-ui, sans-serif';
+      // #1 — "INTELLIGENCE ENGINE" label at center bottom
+      ctx.font = '600 9px Inter, system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(201,168,76,0.5)';
-      ctx.letterSpacing = '1px';
-      ctx.fillText('INTELLIGENCE ENGINE', cx, cy + nodeR * 2.5);
+      ctx.fillStyle = 'rgba(201,168,76,0.4)';
+      ctx.fillText('D E E P M I N D Q   I N T E L L I G E N C E   E N G I N E', cx, cy + nodeR * 2.8);
 
       rafRef.current = requestAnimationFrame(draw);
     };
@@ -279,12 +325,68 @@ function useHeroCanvas(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   }, [init]);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   HEADER / NAV
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   #10 — Active section tracker (IntersectionObserver)
+   ═══════════════════════════════════════════════════════════════ */
+function useActiveSection() {
+  const [active, setActive] = useState('');
+
+  useEffect(() => {
+    const observers: IntersectionObserver[] = [];
+    SECTION_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const obs = new IntersectionObserver(
+        ([entry]) => { if (entry.isIntersecting) setActive(id); },
+        { rootMargin: '-30% 0px -60% 0px' }
+      );
+      obs.observe(el);
+      observers.push(obs);
+    });
+    return () => observers.forEach(o => o.disconnect());
+  }, []);
+
+  return active;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   #5 — Animated counter hook
+   ═══════════════════════════════════════════════════════════════ */
+function useAnimatedCounter(target: string, inView: boolean, duration = 1500) {
+  const [display, setDisplay] = useState('0');
+
+  useEffect(() => {
+    if (!inView) return;
+    const numeric = parseFloat(target.replace(/[^0-9.]/g, ''));
+    if (isNaN(numeric)) { setDisplay(target); return; }
+    const prefix = target.match(/^[^0-9]*/)?.[0] || '';
+    const suffix = target.match(/[^0-9.]*$/)?.[0] || '';
+    const hasDecimal = target.includes('.');
+    const decimalPlaces = hasDecimal ? (target.split('.')[1]?.replace(/[^0-9]/g, '').length || 0) : 0;
+
+    let start: number | null = null;
+    const step = (timestamp: number) => {
+      if (!start) start = timestamp;
+      const progress = Math.min((timestamp - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+      const current = numeric * eased;
+      setDisplay(prefix + (hasDecimal ? current.toFixed(decimalPlaces) : Math.round(current)) + suffix);
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [inView, target, duration]);
+
+  return display;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   #10, #12, #14 — HEADER with active nav, animated hamburger,
+   pulsing workspace button
+   ═══════════════════════════════════════════════════════════════ */
 function Header({ onLogin }: { onLogin: () => void }) {
   const [scrolled, setScrolled] = useState(false);
-  const [mobileMenu, setMobileMenu] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const activeSection = useActiveSection();
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 40);
@@ -294,7 +396,7 @@ function Header({ onLogin }: { onLogin: () => void }) {
 
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
-    setMobileMenu(false);
+    setMobileOpen(false);
   };
 
   const links = [
@@ -307,8 +409,8 @@ function Header({ onLogin }: { onLogin: () => void }) {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
       style={{
-        background: scrolled ? 'rgba(10,14,26,0.85)' : 'transparent',
-        backdropFilter: scrolled ? 'blur(16px)' : 'none',
+        background: scrolled ? 'rgba(10,14,26,0.88)' : 'transparent',
+        backdropFilter: scrolled ? 'blur(20px) saturate(1.4)' : 'none',
         borderBottom: scrolled ? `1px solid ${C.border}` : '1px solid transparent',
       }}>
       <div className="mx-auto max-w-[1360px] flex items-center justify-between px-6 lg:px-10 h-16">
@@ -323,35 +425,60 @@ function Header({ onLogin }: { onLogin: () => void }) {
           </span>
         </div>
 
-        {/* Desktop Nav */}
+        {/* Desktop Nav — #10 active state */}
         <nav className="hidden md:flex items-center gap-1">
-          {links.map(link => (
-            <button key={link.id} onClick={() => scrollTo(link.id)}
-              className="px-3.5 py-2 text-[13px] font-medium rounded-lg transition-colors duration-200"
-              style={{ color: C.textSub }}
-              onMouseEnter={e => { e.currentTarget.style.color = C.white; e.currentTarget.style.background = C.bgCard; }}
-              onMouseLeave={e => { e.currentTarget.style.color = C.textSub; e.currentTarget.style.background = 'transparent'; }}>
-              {link.label}
-            </button>
-          ))}
+          {links.map(link => {
+            const isActive = activeSection === link.id;
+            return (
+              <button key={link.id} onClick={() => scrollTo(link.id)}
+                className="relative px-3.5 py-2 text-[13px] font-medium rounded-lg transition-colors duration-200"
+                style={{ color: isActive ? C.gold : C.textSub }}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = C.white; }}
+                onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = C.textSub; }}>
+                {link.label}
+                {isActive && (
+                  <motion.div layoutId="nav-indicator" className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full"
+                    style={{ background: C.gold }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }} />
+                )}
+              </button>
+            );
+          })}
         </nav>
 
-        {/* CTA */}
+        {/* #14 — Pulsing workspace CTA */}
         <div className="flex items-center gap-3">
-          <button onClick={onLogin}
+          <motion.button onClick={onLogin}
             className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all duration-200"
             style={{ background: C.gold, color: '#0A0E1A' }}
-            onMouseEnter={e => { e.currentTarget.style.background = C.goldBright; e.currentTarget.style.boxShadow = '0 0 20px rgba(201,168,76,0.2)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.boxShadow = 'none'; }}>
+            whileHover={{ scale: 1.03, boxShadow: '0 0 24px rgba(201,168,76,0.25)' }}
+            whileTap={{ scale: 0.98 }}>
             <Lock className="w-3.5 h-3.5" />
             Private Workspace
-          </button>
-          {/* Mobile burger */}
-          <button className="md:hidden p-2 rounded-lg" style={{ color: C.textSub }}
-            onClick={() => setMobileMenu(!mobileMenu)}>
-            <div className="space-y-1.5">
-              <div className="w-5 h-px rounded" style={{ background: C.textSub }} />
-              <div className="w-5 h-px rounded" style={{ background: C.textSub }} />
+            {/* Subtle pulse ring */}
+            <motion.span className="absolute inset-0 rounded-lg pointer-events-none"
+              animate={{ boxShadow: ['0 0 0 0 rgba(201,168,76,0.15)', '0 0 0 6px rgba(201,168,76,0)', '0 0 0 0 rgba(201,168,76,0)'] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+              style={{ position: 'absolute', inset: -1, borderRadius: 'inherit' }} />
+          </motion.button>
+
+          {/* #12 — Animated hamburger */}
+          <button className="md:hidden p-2 rounded-lg relative w-9 h-9 flex items-center justify-center"
+            style={{ color: C.textSub }}
+            onClick={() => setMobileOpen(!mobileOpen)}>
+            <div className="flex flex-col gap-[5px]">
+              <motion.span className="block w-5 h-[1.5px] rounded-full origin-center"
+                style={{ background: C.textSub }}
+                animate={mobileOpen ? { rotate: 45, y: 6.5 } : { rotate: 0, y: 0 }}
+                transition={{ duration: 0.25 }} />
+              <motion.span className="block w-5 h-[1.5px] rounded-full origin-center"
+                style={{ background: C.textSub }}
+                animate={mobileOpen ? { opacity: 0, scaleX: 0 } : { opacity: 1, scaleX: 1 }}
+                transition={{ duration: 0.2 }} />
+              <motion.span className="block w-5 h-[1.5px] rounded-full origin-center"
+                style={{ background: C.textSub }}
+                animate={mobileOpen ? { rotate: -45, y: -6.5 } : { rotate: 0, y: 0 }}
+                transition={{ duration: 0.25 }} />
             </div>
           </button>
         </div>
@@ -359,23 +486,23 @@ function Header({ onLogin }: { onLogin: () => void }) {
 
       {/* Mobile menu */}
       <AnimatePresence>
-        {mobileMenu && (
+        {mobileOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25, ease }}
             className="md:hidden overflow-hidden"
-            style={{ background: 'rgba(10,14,26,0.95)', backdropFilter: 'blur(16px)' }}>
+            style={{ background: 'rgba(10,14,26,0.96)', backdropFilter: 'blur(20px)' }}>
             <div className="px-6 py-4 space-y-1">
               {links.map(link => (
                 <button key={link.id} onClick={() => scrollTo(link.id)}
-                  className="block w-full text-left px-3 py-2.5 text-[14px] font-medium rounded-lg"
-                  style={{ color: C.textSub }}
-                  onClickCapture={() => setMobileMenu(false)}>
+                  className="block w-full text-left px-3 py-2.5 text-[14px] font-medium rounded-lg transition-colors"
+                  style={{ color: activeSection === link.id ? C.gold : C.textSub }}>
                   {link.label}
                 </button>
               ))}
-              <button onClick={() => { setMobileMenu(false); onLogin(); }}
+              <button onClick={() => { setMobileOpen(false); onLogin(); }}
                 className="block w-full text-left px-3 py-2.5 text-[14px] font-semibold sm:hidden"
                 style={{ color: C.gold }}>
                 Private Workspace
@@ -388,30 +515,26 @@ function Header({ onLogin }: { onLogin: () => void }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════
-   HERO — Two-column layout
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   HERO — Two-column
+   ═══════════════════════════════════════════════════════════════ */
 function HeroSection({ onLogin }: { onLogin: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   const inView = useInView(heroRef, { once: true });
   useHeroCanvas(canvasRef);
 
-  const scrollToFramework = () => {
-    document.getElementById('framework')?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const scrollToFramework = () => document.getElementById('framework')?.scrollIntoView({ behavior: 'smooth' });
 
   return (
     <section ref={heroRef} className="relative min-h-screen flex items-center overflow-hidden pt-16">
-      {/* Subtle radial bg */}
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(ellipse 70% 50% at 60% 50%, rgba(201,168,76,0.03) 0%, transparent 70%)' }} />
 
       <div className="relative z-10 mx-auto max-w-[1360px] w-full px-6 lg:px-10 py-12 lg:py-0">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
-          {/* Left — Text */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
+          {/* Left */}
+          <motion.div initial={{ opacity: 0, y: 30 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.9, ease }}>
             <h1 className="text-[clamp(2.4rem,5vw,3.5rem)] font-bold leading-[1.15] tracking-[-0.03em]"
@@ -424,32 +547,33 @@ function HeroSection({ onLogin }: { onLogin: () => void }) {
               companies, detect signals, map stakeholders, align solutions, and create
               meaningful executive conversations.
             </p>
+            {/* #4 — Polished CTAs */}
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <button onClick={scrollToFramework}
+              <motion.button onClick={scrollToFramework}
                 className="group inline-flex items-center gap-2 px-5 py-3 rounded-lg text-[14px] font-semibold transition-all duration-200"
                 style={{ background: C.gold, color: '#0A0E1A' }}
-                onMouseEnter={e => { e.currentTarget.style.background = C.goldBright; e.currentTarget.style.boxShadow = '0 0 24px rgba(201,168,76,0.2)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}>
+                whileHover={{ scale: 1.03, boxShadow: '0 0 28px rgba(201,168,76,0.25)' }}
+                whileTap={{ scale: 0.98 }}>
                 Explore DeepMindQ
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-              </button>
-              <button onClick={scrollToFramework}
+              </motion.button>
+              <motion.button onClick={scrollToFramework}
                 className="inline-flex items-center gap-2 px-5 py-3 rounded-lg text-[14px] font-medium transition-all duration-200"
-                style={{ color: C.gold, border: `1px solid ${C.goldBorder}` }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.background = C.goldDim; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = C.goldBorder; e.currentTarget.style.background = 'transparent'; }}>
+                style={{ color: C.gold, border: `1px solid ${C.goldBorder}`, background: 'transparent' }}
+                whileHover={{ background: C.goldDim, borderColor: C.gold, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}>
                 <Eye className="w-4 h-4" />
                 See How It Works
-              </button>
+              </motion.button>
             </div>
           </motion.div>
 
-          {/* Right — Intelligence Engine Canvas */}
+          {/* Right — Canvas */}
           <motion.div
             className="relative w-full aspect-square max-w-[520px] mx-auto lg:mx-0 lg:ml-auto"
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.92 }}
             animate={inView ? { opacity: 1, scale: 1 } : {}}
-            transition={{ duration: 1, delay: 0.2, ease }}>
+            transition={{ duration: 1.1, delay: 0.2, ease }}>
             <canvas ref={canvasRef} className="w-full h-full" />
           </motion.div>
         </div>
@@ -458,9 +582,20 @@ function HeroSection({ onLogin }: { onLogin: () => void }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════
-   PHILOSOPHY / BRAND STORY — "About Ravi" (no headshot)
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   #3 — Section divider with gold gradient line
+   ═══════════════════════════════════════════════════════════════ */
+function SectionDivider() {
+  return (
+    <div className="flex items-center justify-center py-1">
+      <div className="w-24 h-px" style={{ background: `linear-gradient(90deg, transparent, ${C.goldBorder}, transparent)` }} />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   #7 — PHILOSOPHY with visual weight on "Understand." pillars
+   ═══════════════════════════════════════════════════════════════ */
 function PhilosophySection() {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: '-80px' });
@@ -470,9 +605,8 @@ function PhilosophySection() {
       style={{ background: C.bgAlt, borderTop: `1px solid ${C.border}` }}>
       <div className="mx-auto max-w-[1360px] px-6 lg:px-10">
         <div className="grid lg:grid-cols-2 gap-16 items-start">
-          {/* Left — Brand Story */}
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
+          {/* Brand story */}
+          <motion.div initial={{ opacity: 0, y: 24 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8, ease }}>
             <p className="text-[11px] font-semibold tracking-[0.25em] uppercase mb-4"
@@ -506,48 +640,63 @@ function PhilosophySection() {
             </div>
           </motion.div>
 
-          {/* Right — Three "Understand" pillars */}
-          <div className="space-y-10 lg:pt-12">
-            {[
-              {
-                icon: Search,
-                title: 'Understand.',
-                sub: 'Before you approach.',
-                desc: 'Deep research into company ecosystems, technology landscapes, funding events, and strategic priorities — automated and continuous.',
-              },
-              {
-                icon: Target,
-                title: 'Understand.',
-                sub: 'Before you propose.',
-                desc: 'Stakeholder mapping, power dynamics analysis, and capability-to-pain alignment ensure your solution speaks directly to their reality.',
-              },
-              {
-                icon: MessageSquare,
-                title: 'Understand.',
-                sub: 'Before you sell.',
-                desc: 'Every outreach informed by intelligence. Every conversation builds on context. Relationship memory that compounds over time.',
-              },
-            ].map((item, i) => (
-              <motion.div key={i}
-                className="flex gap-5"
-                initial={{ opacity: 0, y: 20 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.6, delay: 0.2 + i * 0.12, ease }}>
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: C.goldDim, border: `1px solid ${C.goldBorder}` }}>
-                  <item.icon className="w-[18px] h-[18px]" style={{ color: C.gold }} />
-                </div>
-                <div>
-                  <p className="text-[17px] font-semibold" style={{ color: C.white }}>
-                    {item.title}{' '}
-                    <span className="font-normal" style={{ color: C.textSub }}>{item.sub}</span>
-                  </p>
-                  <p className="mt-1.5 text-[14px] leading-[1.7]" style={{ color: C.textDim }}>
-                    {item.desc}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
+          {/* #7 — "Understand" pillars with dramatic typography + vertical gold line */}
+          <div className="relative lg:pt-4">
+            {/* Vertical gold connector line */}
+            <motion.div className="absolute left-[19px] top-8 bottom-8 hidden lg:block"
+              style={{ width: '1px', background: `linear-gradient(to bottom, transparent, ${C.goldBorder} 15%, ${C.goldBorder} 85%, transparent)` }}
+              initial={{ scaleY: 0 }} animate={inView ? { scaleY: 1 } : {}}
+              transition={{ duration: 1, delay: 0.3, ease }} />
+
+            <div className="space-y-10">
+              {[
+                {
+                  icon: Search,
+                  num: '01',
+                  title: 'Understand.',
+                  sub: 'Before you approach.',
+                  desc: 'Deep research into company ecosystems, technology landscapes, funding events, and strategic priorities — automated and continuous.',
+                },
+                {
+                  icon: Target,
+                  num: '02',
+                  title: 'Understand.',
+                  sub: 'Before you propose.',
+                  desc: 'Stakeholder mapping, power dynamics analysis, and capability-to-pain alignment ensure your solution speaks directly to their reality.',
+                },
+                {
+                  icon: MessageSquare,
+                  num: '03',
+                  title: 'Understand.',
+                  sub: 'Before you sell.',
+                  desc: 'Every outreach informed by intelligence. Every conversation builds on context. Relationship memory that compounds over time.',
+                },
+              ].map((item, i) => (
+                <motion.div key={i} className="flex gap-5 relative"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={inView ? { opacity: 1, x: 0 } : {}}
+                  transition={{ duration: 0.6, delay: 0.2 + i * 0.12, ease }}>
+                  {/* Number circle on the line */}
+                  <div className="relative z-10 w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                    style={{ background: C.bgAlt, border: `1.5px solid ${C.gold}` }}>
+                    <span className="text-[11px] font-bold" style={{ color: C.gold }}>{item.num}</span>
+                  </div>
+                  <div className="pt-0.5">
+                    <p className="text-[22px] sm:text-[26px] font-bold leading-tight tracking-[-0.02em]"
+                      style={{ color: C.white }}>
+                      {item.title}
+                    </p>
+                    <p className="text-[16px] font-normal mt-0.5 mb-2"
+                      style={{ color: C.gold }}>
+                      {item.sub}
+                    </p>
+                    <p className="text-[14px] leading-[1.75]" style={{ color: C.textDim }}>
+                      {item.desc}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -555,40 +704,15 @@ function PhilosophySection() {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════
-   INTELLIGENCE FRAMEWORK — 5 capability cards (3+2 grid)
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   #6, #8 — INTELLIGENCE FRAMEWORK with hover depth + staggered
+   ═══════════════════════════════════════════════════════════════ */
 const FRAMEWORK = [
-  {
-    icon: BarChart3,
-    title: 'Market Signal Intelligence',
-    sub: 'Detect business changes before engagement begins.',
-    bullets: ['Funding rounds & M&A activity', 'Technology stack changes', 'Leadership movements', 'Competitor positioning shifts'],
-  },
-  {
-    icon: Building2,
-    title: 'Account Intelligence',
-    sub: 'Map the full company ecosystem.',
-    bullets: ['Company profiles & ecosystems', 'Technology landscape analysis', 'Strategic relationships', 'Growth trajectory scoring'],
-  },
-  {
-    icon: Users,
-    title: 'Stakeholder Intelligence',
-    sub: 'Know who matters and why.',
-    bullets: ['Decision-maker identification', 'Influence mapping', 'Champion detection', 'Org chart intelligence'],
-  },
-  {
-    icon: Layers,
-    title: 'Solution Intelligence',
-    sub: 'Align capabilities to real pain points.',
-    bullets: ['Capability-to-need matching', 'Evidence-based positioning', 'Competitive differentiation', 'Value articulation'],
-  },
-  {
-    icon: MessageSquare,
-    title: 'Conversation Intelligence',
-    sub: 'Every outreach is research-informed.',
-    bullets: ['AI-generated personalization', 'Relationship memory', 'Conversation planning', 'Engagement timing'],
-  },
+  { icon: BarChart3, title: 'Market Signal Intelligence', sub: 'Detect business changes before engagement begins.', bullets: ['Funding rounds & M&A activity', 'Technology stack changes', 'Leadership movements', 'Competitor positioning shifts'] },
+  { icon: Building2, title: 'Account Intelligence', sub: 'Map the full company ecosystem.', bullets: ['Company profiles & ecosystems', 'Technology landscape analysis', 'Strategic relationships', 'Growth trajectory scoring'] },
+  { icon: Users, title: 'Stakeholder Intelligence', sub: 'Know who matters and why.', bullets: ['Decision-maker identification', 'Influence mapping', 'Champion detection', 'Org chart intelligence'] },
+  { icon: Layers, title: 'Solution Intelligence', sub: 'Align capabilities to real pain points.', bullets: ['Capability-to-need matching', 'Evidence-based positioning', 'Competitive differentiation', 'Value articulation'] },
+  { icon: MessageSquare, title: 'Conversation Intelligence', sub: 'Every outreach is research-informed.', bullets: ['AI-generated personalization', 'Relationship memory', 'Conversation planning', 'Engagement timing'] },
 ];
 
 function FrameworkSection() {
@@ -613,7 +737,7 @@ function FrameworkSection() {
           </p>
         </motion.div>
 
-        {/* 3 + 2 grid */}
+        {/* #8 — Staggered entrance, #6 — hover depth */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
           {FRAMEWORK.slice(0, 3).map((f, i) => (
             <FrameworkCard key={f.title} {...f} index={i} inView={inView} />
@@ -634,23 +758,31 @@ function FrameworkCard({ icon: Icon, title, sub, bullets, index, inView }: {
   bullets: string[]; index: number; inView: boolean;
 }) {
   return (
-    <motion.div
-      className="group rounded-xl p-6 sm:p-7 transition-all duration-300"
+    <motion.div className="group rounded-xl p-6 sm:p-7 transition-all duration-300 cursor-default"
       style={{ background: C.bgCard, border: `1px solid ${C.border}` }}
-      initial={{ opacity: 0, y: 20 }}
+      // #8 — staggered bottom-to-top reveal
+      initial={{ opacity: 0, y: 30 }}
       animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.5, delay: index * 0.07, ease }}
-      whileHover={{ borderColor: C.borderLight, background: C.bgCardHover }}>
-      <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4"
+      transition={{ duration: 0.55, delay: index * 0.09, ease }}
+      // #6 — hover: gold glow + lift + brighter border
+      whileHover={{
+        y: -3,
+        borderColor: 'rgba(201,168,76,0.3)',
+        background: C.bgCardHover,
+        boxShadow: '0 8px 30px rgba(201,168,76,0.08), 0 0 0 1px rgba(201,168,76,0.15)',
+        transition: { duration: 0.25 },
+      }}>
+      <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4 transition-colors duration-300 group-hover:scale-110"
         style={{ background: C.goldDim }}>
-        <Icon className="w-[18px] h-[18px]" style={{ color: C.gold }} />
+        <Icon className="w-[18px] h-[18px] transition-colors duration-300" style={{ color: C.gold }} />
       </div>
-      <h3 className="text-[15px] font-semibold mb-1 tracking-[-0.01em]" style={{ color: C.white }}>{title}</h3>
+      <h3 className="text-[15px] font-semibold mb-1 tracking-[-0.01em] transition-colors duration-300"
+        style={{ color: C.white }}>{title}</h3>
       <p className="text-[13px] mb-4" style={{ color: C.textDim }}>{sub}</p>
       <ul className="space-y-2">
         {bullets.map((b, i) => (
           <li key={i} className="flex items-start gap-2.5 text-[13px]" style={{ color: C.textSub }}>
-            <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: C.gold }} />
+            <span className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: C.gold }} />
             {b}
           </li>
         ))}
@@ -659,73 +791,58 @@ function FrameworkCard({ icon: Icon, title, sub, bullets, index, inView }: {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════
-   INSIDE DEEPMINDQ — 4 product modules with UI mockups
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   #2 — INSIDE DEEPMINDQ with detailed UI mockups
+   ═══════════════════════════════════════════════════════════════ */
 const MODULES = [
-  {
-    icon: Sparkles,
-    title: 'AI Command Center',
-    desc: 'Unified view of accounts, signals, opportunities, and priorities — your operational nerve center.',
-    mockup: 'command-center',
-  },
-  {
-    icon: Network,
-    title: 'Stakeholder Mind Map',
-    desc: 'Visualize decision-makers, influencers, and power dynamics within target accounts.',
-    mockup: 'mindmap',
-  },
-  {
-    icon: Database,
-    title: 'Knowledge Engine',
-    desc: 'Your solution intelligence library — capabilities, use cases, and competitive positioning.',
-    mockup: 'knowledge',
-  },
-  {
-    icon: Zap,
-    title: 'Conversation Studio',
-    desc: 'AI-generated, research-informed outreach that speaks directly to each stakeholder.',
-    mockup: 'studio',
-  },
+  { icon: Sparkles, title: 'AI Command Center', desc: 'Unified view of accounts, signals, opportunities, and priorities — your operational nerve center.', mockup: 'command-center' },
+  { icon: Network, title: 'Stakeholder Mind Map', desc: 'Visualize decision-makers, influencers, and power dynamics within target accounts.', mockup: 'mindmap' },
+  { icon: Database, title: 'Knowledge Engine', desc: 'Your solution intelligence library — capabilities, use cases, and competitive positioning.', mockup: 'knowledge' },
+  { icon: Zap, title: 'Conversation Studio', desc: 'AI-generated, research-informed outreach that speaks directly to each stakeholder.', mockup: 'studio' },
 ];
 
-/* Mini UI mockups — pure CSS, no images needed */
+/* #2 — Richer, more realistic UI mockups */
 function MiniMockup({ type }: { type: string }) {
-  const bars = [65, 45, 80, 55, 70, 40, 90, 60, 75, 50, 85, 65];
-
   if (type === 'command-center') {
     return (
-      <div className="w-full h-full rounded-lg p-3 space-y-2"
-        style={{ background: '#080c16', border: `1px solid ${C.border}` }}>
-        {/* Header */}
-        <div className="flex items-center justify-between mb-1">
+      <div className="w-full h-full rounded-lg overflow-hidden flex flex-col"
+        style={{ background: '#070b14', border: `1px solid ${C.border}` }}>
+        {/* Title bar */}
+        <div className="flex items-center justify-between px-3 py-2 shrink-0" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: `1px solid ${C.border}` }}>
           <div className="flex gap-1.5">
             <div className="w-2 h-2 rounded-full" style={{ background: '#ef4444' }} />
             <div className="w-2 h-2 rounded-full" style={{ background: '#eab308' }} />
             <div className="w-2 h-2 rounded-full" style={{ background: '#22c55e' }} />
           </div>
-          <div className="h-2 w-16 rounded" style={{ background: 'rgba(255,255,255,0.06)' }} />
+          <span className="text-[8px] font-medium" style={{ color: C.textDim }}>Command Center</span>
+          <div className="flex gap-1">
+            <div className="w-3 h-3 rounded" style={{ background: 'rgba(255,255,255,0.04)' }} />
+          </div>
         </div>
-        {/* Stat cards */}
-        <div className="grid grid-cols-3 gap-1.5">
-          {[
-            { v: '156', l: 'Accounts' },
-            { v: '48', l: 'Signals' },
-            { v: '23', l: 'Pipeline' },
-          ].map((s, i) => (
-            <div key={i} className="rounded p-2 text-center"
-              style={{ background: 'rgba(255,255,255,0.03)' }}>
-              <div className="text-[14px] font-bold" style={{ color: C.gold }}>{s.v}</div>
-              <div className="text-[8px]" style={{ color: C.textDim }}>{s.l}</div>
+        {/* Content */}
+        <div className="flex-1 p-2.5 space-y-2">
+          {/* Stats row */}
+          <div className="grid grid-cols-4 gap-1.5">
+            {[{ v: '156', l: 'Accounts', c: C.gold }, { v: '48', l: 'Signals', c: '#22c55e' }, { v: '23', l: 'Pipeline', c: '#60a5fa' }, { v: '12', l: 'Hot', c: '#ef4444' }].map((s, i) => (
+              <div key={i} className="rounded p-1.5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                <div className="text-[11px] font-bold" style={{ color: s.c }}>{s.v}</div>
+                <div className="text-[7px]" style={{ color: C.textDim }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+          {/* Chart area */}
+          <div className="rounded p-2 flex-1" style={{ background: 'rgba(255,255,255,0.015)' }}>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[7px] font-medium" style={{ color: C.textDim }}>Pipeline Trend</span>
+              <span className="text-[7px]" style={{ color: '#22c55e' }}>+24%</span>
             </div>
-          ))}
-        </div>
-        {/* Chart bars */}
-        <div className="flex items-end gap-1 h-12 pt-1">
-          {bars.slice(0, 8).map((h, i) => (
-            <div key={i} className="flex-1 rounded-t-sm transition-all"
-              style={{ height: `${h}%`, background: `rgba(201,168,76,${0.2 + (h/100)*0.4})`, minHeight: 4 }} />
-          ))}
+            <div className="flex items-end gap-[3px] h-14">
+              {[40,55,45,65,50,75,60,80,70,85,78,90].map((h, i) => (
+                <div key={i} className="flex-1 rounded-t-sm" style={{ height: `${h}%`, minHeight: 3,
+                  background: `linear-gradient(to top, rgba(201,168,76,0.4), rgba(201,168,76,${0.15 + (h/100)*0.5}))` }} />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -733,67 +850,134 @@ function MiniMockup({ type }: { type: string }) {
 
   if (type === 'mindmap') {
     return (
-      <div className="w-full h-full rounded-lg p-3 flex items-center justify-center"
-        style={{ background: '#080c16', border: `1px solid ${C.border}` }}>
-        <svg viewBox="0 0 200 140" className="w-full h-full">
-          {/* Center */}
-          <circle cx="100" cy="70" r="12" fill="rgba(201,168,76,0.3)" stroke="rgba(201,168,76,0.5)" strokeWidth="1" />
-          <circle cx="100" cy="70" r="4" fill={C.gold} />
-          {/* Orbiting nodes */}
-          {[
-            { x: 40, y: 35 }, { x: 160, y: 30 }, { x: 50, y: 110 },
-            { x: 155, y: 105 }, { x: 100, y: 15 },
-          ].map((n, i) => (
-            <g key={i}>
-              <line x1="100" y1="70" x2={n.x} y2={n.y}
-                stroke="rgba(201,168,76,0.15)" strokeWidth="0.8" />
-              <circle cx={n.x} cy={n.y} r="8" fill="rgba(255,255,255,0.04)"
-                stroke="rgba(255,255,255,0.1)" strokeWidth="0.8" />
-              <circle cx={n.x} cy={n.y} r="2.5" fill="rgba(201,168,76,0.6)" />
-            </g>
-          ))}
-        </svg>
+      <div className="w-full h-full rounded-lg overflow-hidden flex flex-col"
+        style={{ background: '#070b14', border: `1px solid ${C.border}` }}>
+        <div className="flex items-center justify-between px-3 py-2 shrink-0" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: `1px solid ${C.border}` }}>
+          <div className="flex gap-1.5">
+            <div className="w-2 h-2 rounded-full" style={{ background: '#ef4444' }} />
+            <div className="w-2 h-2 rounded-full" style={{ background: '#eab308' }} />
+            <div className="w-2 h-2 rounded-full" style={{ background: '#22c55e' }} />
+          </div>
+          <span className="text-[8px] font-medium" style={{ color: C.textDim }}>Stakeholder Map</span>
+          <div />
+        </div>
+        <div className="flex-1 flex items-center justify-center p-2">
+          <svg viewBox="0 0 220 150" className="w-full h-full">
+            {/* Center node */}
+            <circle cx="110" cy="75" r="16" fill="rgba(201,168,76,0.15)" stroke="rgba(201,168,76,0.4)" strokeWidth="1" />
+            <circle cx="110" cy="75" r="6" fill={C.gold} />
+            <text x="110" y="75" textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="6" fontWeight="600">CEO</text>
+            {/* Surrounding nodes */}
+            {[
+              { x: 40, y: 30, label: 'VP Eng', r: 11 },
+              { x: 180, y: 28, label: 'CTO', r: 11 },
+              { x: 35, y: 120, label: 'CFO', r: 10 },
+              { x: 185, y: 118, label: 'VP Sales', r: 10 },
+              { x: 110, y: 12, label: 'Board', r: 9 },
+              { x: 65, y: 75, label: 'VP Prod', r: 9 },
+              { x: 155, y: 72, label: 'CISO', r: 9 },
+            ].map((n, i) => (
+              <g key={i}>
+                <line x1="110" y1="75" x2={n.x} y2={n.y} stroke="rgba(201,168,76,0.12)" strokeWidth="0.6" strokeDasharray="2,2" />
+                <circle cx={n.x} cy={n.y} r={n.r} fill="rgba(255,255,255,0.03)" stroke="rgba(201,168,76,0.2)" strokeWidth="0.6" />
+                <text x={n.x} y={n.y} textAnchor="middle" dominantBaseline="middle" fill={C.textSub} fontSize="5">{n.label}</text>
+              </g>
+            ))}
+          </svg>
+        </div>
       </div>
     );
   }
 
   if (type === 'knowledge') {
+    const items = [
+      { name: 'AI Automation', count: 12, active: true },
+      { name: 'Cloud Migration', count: 10, active: false },
+      { name: 'Data Analytics', count: 8, active: false },
+      { name: 'Security & Compliance', count: 7, active: false },
+      { name: 'API Integration', count: 6, active: false },
+      { name: 'DevOps', count: 5, active: false },
+    ];
     return (
-      <div className="w-full h-full rounded-lg p-3 space-y-1.5"
-        style={{ background: '#080c16', border: `1px solid ${C.border}` }}>
-        <div className="flex items-center gap-2 mb-1">
-          <div className="h-2.5 w-20 rounded" style={{ background: 'rgba(255,255,255,0.08)' }} />
-          <div className="h-2.5 w-12 rounded ml-auto" style={{ background: C.goldDim }} />
-        </div>
-        {['AI Automation', 'Cloud Migration', 'Data Analytics', 'Security', 'Integration'].map((item, i) => (
-          <div key={i} className="flex items-center gap-2 rounded px-2 py-1.5"
-            style={{ background: 'rgba(255,255,255,0.02)' }}>
-            <div className="w-3 h-3 rounded-sm shrink-0" style={{ background: C.goldDim, border: `0.5px solid ${C.goldBorder}` }} />
-            <span className="text-[9px]" style={{ color: C.textSub }}>{item}</span>
-            <span className="ml-auto text-[8px]" style={{ color: C.textDim }}>{12 - i * 2}</span>
+      <div className="w-full h-full rounded-lg overflow-hidden flex flex-col"
+        style={{ background: '#070b14', border: `1px solid ${C.border}` }}>
+        <div className="flex items-center justify-between px-3 py-2 shrink-0" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: `1px solid ${C.border}` }}>
+          <div className="flex gap-1.5">
+            <div className="w-2 h-2 rounded-full" style={{ background: '#ef4444' }} />
+            <div className="w-2 h-2 rounded-full" style={{ background: '#eab308' }} />
+            <div className="w-2 h-2 rounded-full" style={{ background: '#22c55e' }} />
           </div>
-        ))}
+          <span className="text-[8px] font-medium" style={{ color: C.textDim }}>Knowledge Engine</span>
+          <div />
+        </div>
+        <div className="flex-1 flex flex-col p-2.5 gap-0">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="h-2 flex-1 rounded" style={{ background: 'rgba(255,255,255,0.04)' }} />
+            <div className="h-5 w-10 rounded text-center leading-5 text-[7px] font-medium" style={{ background: C.goldDim, color: C.gold }}>
+              {items.reduce((a, b) => a + b.count, 0)}
+            </div>
+          </div>
+          {items.map((item, i) => (
+            <div key={i} className="flex items-center gap-2 rounded px-2 py-1.5 transition-colors"
+              style={{ background: item.active ? C.goldDim : 'rgba(255,255,255,0.015)', borderLeft: item.active ? `2px solid ${C.gold}` : '2px solid transparent' }}>
+              <span className="text-[8px] flex-1 truncate" style={{ color: item.active ? C.white : C.textSub, fontWeight: item.active ? 600 : 400 }}>
+                {item.name}
+              </span>
+              <span className="text-[7px] font-mono" style={{ color: C.textDim }}>{item.count}</span>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
   // studio
   return (
-    <div className="w-full h-full rounded-lg p-3 space-y-2"
-      style={{ background: '#080c16', border: `1px solid ${C.border}` }}>
-      <div className="flex items-center gap-2 mb-1">
-        <div className="w-3 h-3 rounded-sm" style={{ background: C.goldDim }} />
-        <div className="h-2 w-24 rounded" style={{ background: 'rgba(255,255,255,0.08)' }} />
+    <div className="w-full h-full rounded-lg overflow-hidden flex flex-col"
+      style={{ background: '#070b14', border: `1px solid ${C.border}` }}>
+      <div className="flex items-center justify-between px-3 py-2 shrink-0" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: `1px solid ${C.border}` }}>
+        <div className="flex gap-1.5">
+          <div className="w-2 h-2 rounded-full" style={{ background: '#ef4444' }} />
+          <div className="w-2 h-2 rounded-full" style={{ background: '#eab308' }} />
+          <div className="w-2 h-2 rounded-full" style={{ background: '#22c55e' }} />
+        </div>
+        <span className="text-[8px] font-medium" style={{ color: C.textDim }}>Conversation Studio</span>
+        <div />
       </div>
-      <div className="space-y-1.5">
-        <div className="h-2 rounded" style={{ background: 'rgba(255,255,255,0.06)', width: '100%' }} />
-        <div className="h-2 rounded" style={{ background: 'rgba(255,255,255,0.04)', width: '85%' }} />
-        <div className="h-2 rounded" style={{ background: 'rgba(255,255,255,0.04)', width: '92%' }} />
-        <div className="h-2 rounded" style={{ background: 'rgba(255,255,255,0.03)', width: '60%' }} />
-      </div>
-      <div className="flex gap-2 pt-1">
-        <div className="h-5 w-14 rounded" style={{ background: C.goldDim }} />
-        <div className="h-5 w-10 rounded" style={{ background: 'rgba(255,255,255,0.04)' }} />
+      <div className="flex-1 flex flex-col p-2.5 gap-2">
+        {/* To field */}
+        <div className="flex items-center gap-2 rounded px-2 py-1.5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <span className="text-[7px]" style={{ color: C.textDim }}>To:</span>
+          <div className="h-2 w-20 rounded" style={{ background: 'rgba(255,255,255,0.06)' }} />
+        </div>
+        {/* Subject */}
+        <div className="flex items-center gap-2 rounded px-2 py-1.5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <span className="text-[7px]" style={{ color: C.textDim }}>Subject:</span>
+          <div className="h-2 w-32 rounded" style={{ background: 'rgba(255,255,255,0.06)' }} />
+        </div>
+        {/* Body lines */}
+        <div className="flex-1 rounded p-2 space-y-1.5" style={{ background: 'rgba(255,255,255,0.01)' }}>
+          <div className="h-1.5 rounded" style={{ background: 'rgba(255,255,255,0.06)', width: '100%' }} />
+          <div className="h-1.5 rounded" style={{ background: 'rgba(255,255,255,0.04)', width: '92%' }} />
+          <div className="h-1.5 rounded" style={{ background: 'rgba(255,255,255,0.04)', width: '96%' }} />
+          <div className="h-1.5 rounded" style={{ background: 'rgba(255,255,255,0.04)', width: '80%' }} />
+          <div className="h-1.5 rounded" style={{ background: 'rgba(255,255,255,0.03)', width: '88%' }} />
+          <div className="h-1.5 rounded" style={{ background: 'rgba(255,255,255,0.03)', width: '70%' }} />
+          {/* AI sparkle indicator */}
+          <div className="flex items-center gap-1 pt-1">
+            <div className="w-2.5 h-2.5 rounded" style={{ background: C.goldDim }}>
+              <div className="w-full h-full flex items-center justify-center">
+                <Sparkles className="w-1.5 h-1.5" style={{ color: C.gold }} />
+              </div>
+            </div>
+            <span className="text-[6px]" style={{ color: C.gold }}>AI-personalized</span>
+          </div>
+        </div>
+        {/* Action buttons */}
+        <div className="flex gap-1.5">
+          <div className="h-5 flex-1 rounded flex items-center justify-center text-[7px] font-medium" style={{ background: C.goldDim, color: C.gold }}>Send</div>
+          <div className="h-5 w-12 rounded flex items-center justify-center text-[7px]" style={{ background: 'rgba(255,255,255,0.04)', color: C.textDim }}>Save</div>
+        </div>
       </div>
     </div>
   );
@@ -822,21 +1006,25 @@ function PlatformSection() {
           </p>
         </motion.div>
 
+        {/* #8 — Staggered entrance for module cards */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {MODULES.map((m, i) => (
             <motion.div key={m.title}
               className="group rounded-xl overflow-hidden transition-all duration-300"
               style={{ background: C.bgCard, border: `1px solid ${C.border}` }}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 25 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: i * 0.08, ease }}
-              whileHover={{ borderColor: C.borderLight }}>
-              {/* Mockup area */}
-              <div className="h-40 p-3">
+              transition={{ duration: 0.5, delay: i * 0.1, ease }}
+              whileHover={{
+                y: -4,
+                borderColor: 'rgba(201,168,76,0.2)',
+                boxShadow: '0 12px 40px rgba(0,0,0,0.3), 0 0 0 1px rgba(201,168,76,0.1)',
+                transition: { duration: 0.25 },
+              }}>
+              <div className="h-44 p-2.5">
                 <MiniMockup type={m.mockup} />
               </div>
-              {/* Text */}
-              <div className="p-5 pt-3" style={{ borderTop: `1px solid ${C.border}` }}>
+              <div className="p-5 pt-3.5" style={{ borderTop: `1px solid ${C.border}` }}>
                 <div className="flex items-center gap-2.5 mb-2">
                   <m.icon className="w-4 h-4" style={{ color: C.gold }} />
                   <h3 className="text-[14px] font-semibold" style={{ color: C.white }}>{m.title}</h3>
@@ -851,12 +1039,21 @@ function PlatformSection() {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════
-   VALUE PROPOSITION — "From Data to Understanding"
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   #5 — VALUE PROPOSITION with animated counters
+   ═══════════════════════════════════════════════════════════════ */
 function ValueSection({ onLogin }: { onLogin: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: '-60px' });
+
+  const stats = [
+    { value: '10x', label: 'Faster Account Research' },
+    { value: '73%', label: 'Higher Email Engagement' },
+    { value: '3.2x', label: 'Pipeline Velocity' },
+    { value: '<2 min', label: 'Signal to Action' },
+  ];
+
+  const statDisplays = stats.map(s => useAnimatedCounter(s.value, inView));
 
   const steps = [
     { icon: Database, label: 'Data & Signals' },
@@ -870,9 +1067,8 @@ function ValueSection({ onLogin }: { onLogin: () => void }) {
     <section id="about" ref={ref} className="py-24 sm:py-32">
       <div className="mx-auto max-w-[1360px] px-6 lg:px-10">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
-          {/* Left — Statement */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
+          {/* Left */}
+          <motion.div initial={{ opacity: 0, y: 20 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.7, ease }}>
             <p className="text-[11px] font-semibold tracking-[0.25em] uppercase mb-4"
@@ -887,7 +1083,6 @@ function ValueSection({ onLogin }: { onLogin: () => void }) {
               that changes how you sell, who you talk to, and what you say when you get there.
             </p>
 
-            {/* Process flow */}
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               {steps.map((step, i) => (
                 <div key={i} className="flex items-center gap-2 sm:gap-3">
@@ -906,35 +1101,31 @@ function ValueSection({ onLogin }: { onLogin: () => void }) {
             </div>
           </motion.div>
 
-          {/* Right — CTA + Stats */}
-          <motion.div
-            className="text-center lg:text-left"
+          {/* Right — #5 animated stats */}
+          <motion.div className="text-center lg:text-left"
             initial={{ opacity: 0, y: 20 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.7, delay: 0.15, ease }}>
             <div className="grid grid-cols-2 gap-6 mb-10">
-              {[
-                { value: '10x', label: 'Faster Account Research' },
-                { value: '73%', label: 'Higher Email Engagement' },
-                { value: '3.2x', label: 'Pipeline Velocity' },
-                { value: '<2 min', label: 'Signal to Action' },
-              ].map((s, i) => (
+              {stats.map((s, i) => (
                 <div key={i}>
                   <div className="text-[clamp(1.6rem,3vw,2.2rem)] font-bold tracking-[-0.03em] leading-none mb-1"
-                    style={{ color: C.gold }}>{s.value}</div>
+                    style={{ color: C.gold }}>
+                    {statDisplays[i]}
+                  </div>
                   <div className="text-[12px] font-medium" style={{ color: C.textDim }}>{s.label}</div>
                 </div>
               ))}
             </div>
-            <button onClick={onLogin}
+            <motion.button onClick={onLogin}
               className="group inline-flex items-center gap-2.5 px-7 py-3.5 rounded-lg text-[15px] font-semibold transition-all duration-200"
               style={{ background: C.gold, color: '#0A0E1A' }}
-              onMouseEnter={e => { e.currentTarget.style.background = C.goldBright; e.currentTarget.style.boxShadow = '0 0 30px rgba(201,168,76,0.2)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}>
+              whileHover={{ scale: 1.03, boxShadow: '0 0 30px rgba(201,168,76,0.25)' }}
+              whileTap={{ scale: 0.98 }}>
               <Lock className="w-4 h-4" />
               Enter Private Workspace
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-            </button>
+            </motion.button>
           </motion.div>
         </div>
       </div>
@@ -942,9 +1133,9 @@ function ValueSection({ onLogin }: { onLogin: () => void }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════
-   FOOTER
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   #9 — FOOTER with social icons
+   ═══════════════════════════════════════════════════════════════ */
 function Footer({ onLogin }: { onLogin: () => void }) {
   return (
     <footer className="py-10 px-6" style={{ background: C.bgAlt, borderTop: `1px solid ${C.border}` }}>
@@ -958,21 +1149,33 @@ function Footer({ onLogin }: { onLogin: () => void }) {
         <p className="text-[12px] text-center" style={{ color: C.textDim }}>
           Built by Ravi Shanker &middot; Enterprise Growth Leader &middot; Technology Strategist &middot; AI Enthusiast
         </p>
-        <div className="flex items-center gap-4">
-          <button onClick={onLogin} className="text-[12px] font-medium transition-colors hover:text-white"
+        {/* #9 — Social icons */}
+        <div className="flex items-center gap-3">
+          <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer"
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200"
+            style={{ color: C.textDim, border: `1px solid ${C.border}` }}
+            onMouseEnter={e => { e.currentTarget.style.color = C.gold; e.currentTarget.style.borderColor = C.goldBorder; e.currentTarget.style.background = C.goldDim; }}
+            onMouseLeave={e => { e.currentTarget.style.color = C.textDim; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = 'transparent'; }}>
+            <Linkedin className="w-3.5 h-3.5" />
+          </a>
+          <a href="mailto:shanker001@gmail.com"
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200"
+            style={{ color: C.textDim, border: `1px solid ${C.border}` }}
+            onMouseEnter={e => { e.currentTarget.style.color = C.gold; e.currentTarget.style.borderColor = C.goldBorder; e.currentTarget.style.background = C.goldDim; }}
+            onMouseLeave={e => { e.currentTarget.style.color = C.textDim; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = 'transparent'; }}>
+            <Mail className="w-3.5 h-3.5" />
+          </a>
+          <button onClick={onLogin} className="text-[12px] font-medium transition-colors hover:text-white px-2"
             style={{ color: C.textDim }}>Workspace</button>
-          <span className="text-[11px]" style={{ color: C.textDim }}>
-            &copy; {new Date().getFullYear()} DeepMindQ
-          </span>
         </div>
       </div>
     </footer>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    MAIN
-   ═══════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 interface LandingPageProps { onLogin: () => void; }
 
 export default function LandingPage({ onLogin }: LandingPageProps) {
@@ -985,8 +1188,11 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
       <Header onLogin={() => setShowLogin(true)} />
       <HeroSection onLogin={() => setShowLogin(true)} />
       <PhilosophySection />
+      <SectionDivider />
       <FrameworkSection />
+      <SectionDivider />
       <PlatformSection />
+      <SectionDivider />
       <ValueSection onLogin={() => setShowLogin(true)} />
       <Footer onLogin={() => setShowLogin(true)} />
     </div>

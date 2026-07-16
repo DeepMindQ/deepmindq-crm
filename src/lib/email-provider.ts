@@ -1,11 +1,12 @@
 /* ═══════════════════════════════════════════════════
    Email Provider Abstraction Layer (E-01)
 
-   Supports: Resend, SendGrid, SES, Postmark
-   Config via env vars or /api/settings:
-     EMAIL_PROVIDER  - "resend" | "sendgrid" | "ses" | "postmark"
-     EMAIL_API_KEY   - Provider API key
+   Supports: Resend, SendGrid, SES, Postmark, Gmail SMTP
+   Config via env vars:
+     EMAIL_PROVIDER  - "resend" | "sendgrid" | "ses" | "postmark" | "gmail"
+     EMAIL_API_KEY   - Provider API key (or Gmail App Password for gmail)
      EMAIL_FROM      - Default from address
+     EMAIL_USER      - Gmail address (only for gmail provider)
    ═══════════════════════════════════════════════════ */
 
 export interface SendEmailParams {
@@ -25,7 +26,7 @@ export interface SendEmailResult {
   provider: string;
 }
 
-type ProviderType = 'resend' | 'sendgrid' | 'ses' | 'postmark';
+type ProviderType = 'resend' | 'sendgrid' | 'ses' | 'postmark' | 'gmail';
 
 function getProviderConfig(): {
   provider: ProviderType;
@@ -192,6 +193,43 @@ async function sendViaPostmark(
   }
 }
 
+/* ── Gmail SMTP Implementation (uses nodemailer) ── */
+async function sendViaGmail(
+  params: SendEmailParams,
+  appPassword: string,
+  from: string,
+): Promise<SendEmailResult> {
+  try {
+    const nodemailer = await import('nodemailer');
+    const userEmail = process.env.EMAIL_USER || from;
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: userEmail, pass: appPassword },
+    });
+
+    const info = await transporter.sendMail({
+      from: `"DeepMindQ" <${userEmail}>`,
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+      replyTo: params.replyTo || undefined,
+    });
+
+    return {
+      success: true,
+      providerId: info.messageId || undefined,
+      provider: 'gmail',
+    };
+  } catch (err) {
+    return {
+      success: false,
+      provider: 'gmail',
+      error: err instanceof Error ? err.message : 'Unknown Gmail error',
+    };
+  }
+}
+
 /* ── SES Implementation (stub — requires AWS SDK in production) ── */
 async function sendViaSES(
   params: SendEmailParams,
@@ -230,6 +268,8 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
       return sendViaSendGrid(params, config.apiKey, config.from);
     case 'postmark':
       return sendViaPostmark(params, config.apiKey, config.from);
+    case 'gmail':
+      return sendViaGmail(params, config.apiKey, config.from);
     case 'ses':
       return sendViaSES(params, config.apiKey, config.from);
     default:

@@ -63,8 +63,8 @@ async function staleContacts(): Promise<Recommendation[]> {
     priority: 'high' as const,
     entityType: 'contact' as const,
     entityId: c.id,
-    entityName: c.normalizedName,
-    action: `Follow up with ${c.normalizedName} at ${c.company.normalizedName}`,
+    entityName: c.normalizedName || c.rawName || 'Unknown',
+    action: `Follow up with ${c.normalizedName || c.rawName || 'Unknown'} at ${c.company?.normalizedName || 'Unknown'}`,
     reasoning: c.lastContactedAt
       ? `Last contacted ${formatDistanceToNow(new Date(c.lastContactedAt), { addSuffix: true })}, active contact needs re-engagement`
       : 'Never contacted — active contact with no outreach recorded',
@@ -78,7 +78,6 @@ async function unvalidatedEmails(): Promise<Recommendation[]> {
   const contacts = await db.contact.findMany({
     where: {
       emailHealth: 'unknown',
-      email: { not: null },
     },
     include: { company: { select: { normalizedName: true } } },
     take: 5,

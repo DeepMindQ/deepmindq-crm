@@ -19,7 +19,6 @@ export async function POST(request: Request) {
     if (verifyAll) {
       contacts = await db.contact.findMany({
         where: {
-          email: { not: null },
           emailHealth: 'unknown',
         },
         select: { id: true, email: true },
@@ -29,7 +28,6 @@ export async function POST(request: Request) {
       contacts = await db.contact.findMany({
         where: {
           id: { in: contactIds },
-          email: { not: null },
         },
         select: { id: true, email: true },
       });
@@ -59,7 +57,7 @@ export async function GET() {
   try {
     const [pending, completed, failed, inProgress] = await Promise.all([
       db.contact.count({
-        where: { email: { not: null }, emailHealth: 'unknown' },
+        where: { emailHealth: 'unknown' },
       }),
       db.contact.count({
         where: { emailHealth: { in: ['valid', 'risky', 'invalid'] } },
@@ -68,7 +66,7 @@ export async function GET() {
         where: { emailHealth: 'invalid' },
       }),
       db.contact.count({
-        where: { email: { not: null }, emailHealth: 'unknown', lastCheckedAt: { not: null } },
+        where: { emailHealth: 'unknown', lastCheckedAt: { not: null } },
       }),
     ]);
 

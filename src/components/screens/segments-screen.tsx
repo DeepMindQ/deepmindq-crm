@@ -201,7 +201,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                             <p className="text-[11px] text-muted-foreground mt-1 truncate">{filterSummary}</p>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <Badge variant="outline" className={`${seg.isStatic ? 'bg-emerald-50 text-emerald-300 border-emerald-500/20' : 'bg-purple-50 text-purple-300 border-purple-500/20'} text-[10px]`}>
+                            <Badge variant="outline" className={`${seg.isStatic ? 'bg-emerald-50 text-emerald-700 border-emerald-500/20' : 'bg-purple-50 text-purple-700 border-purple-500/20'} text-[10px]`}>
                               {seg.isStatic ? 'Static' : 'Dynamic'}
                             </Badge>
                           </div>
@@ -330,7 +330,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                       <span className={`text-[10px] font-bold tabular-nums w-6 text-right ${c.leadScore >= 70 ? 'text-emerald-600' : c.leadScore >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
                         {c.leadScore}
                       </span>
-                      <Badge variant="outline" className="text-[9px] h-4 px-1.5 bg-zinc-500/10 text-zinc-300 border-zinc-500/20 shrink-0">{c.status}</Badge>
+                      <Badge variant="outline" className="text-[9px] h-4 px-1.5 bg-zinc-500/10 text-zinc-600 border-zinc-500/20 shrink-0">{c.status}</Badge>
                     </div>
                   ))}
                 </div>

@@ -23,13 +23,13 @@ const border = 'rgba(0, 0, 0, 0.05)';
 const textMuted = '#6B7280';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  prospect:     { bg: 'rgba(59,130,246,0.12)', text: '#60a5fa' },
-  researching:  { bg: 'rgba(245,158,11,0.12)', text: '#fbbf24' },
-  active:       { bg: 'rgba(16,185,129,0.12)', text: '#34d399' },
-  engaged:      { bg: 'rgba(139,92,246,0.12)', text: '#a78bfa' },
-  paused:       { bg: 'rgba(161,161,170,0.12)', text: '#a1a1aa' },
-  closed_won:   { bg: 'rgba(34,197,94,0.12)', text: '#4ade80' },
-  closed_lost:  { bg: 'rgba(239,68,68,0.12)', text: '#f87171' },
+  prospect:     { bg: 'rgba(59,130,246,0.12)', text: '#2563EB' },
+  researching:  { bg: 'rgba(245,158,11,0.12)', text: '#D97706' },
+  active:       { bg: 'rgba(16,185,129,0.12)', text: '#059669' },
+  engaged:      { bg: 'rgba(139,92,246,0.12)', text: '#7C3AED' },
+  paused:       { bg: 'rgba(161,161,170,0.12)', text: '#52525B' },
+  closed_won:   { bg: 'rgba(34,197,94,0.12)', text: '#16A34A' },
+  closed_lost:  { bg: 'rgba(239,68,68,0.12)', text: '#DC2626' },
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -60,9 +60,9 @@ const DEMO_COUNTRIES  = ['US','IN','GB','CA','DE','KR','NG'];
 
 function scoreColor(s: number | null): string {
   if (!s) return '#475569';
-  if (s >= 80) return '#4ade80';
-  if (s >= 60) return '#fbbf24';
-  return '#f87171';
+  if (s >= 80) return '#16A34A';
+  if (s >= 60) return '#D97706';
+  return '#DC2626';
 }
 
 function statusLabel(s: string) {
@@ -127,14 +127,14 @@ function ActionMenu({ companyId, navigateTo }: { companyId: string; navigateTo?:
             exit={{ opacity: 0, scale: 0.95, y: -4 }}
             transition={{ duration: 0.15 }}
             className="absolute right-0 top-full mt-1 z-50 py-1 rounded-lg border min-w-[140px]"
-            style={{ background: 'rgba(15,23,42,0.95)', borderColor: border, backdropFilter: 'blur(12px)' }}
+            style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', borderColor: border, backdropFilter: 'blur(12px)' }}
           >
             {items.map((item) => (
               <button
                 key={item.label}
                 onClick={(e) => { e.stopPropagation(); setOpen(false); item.action(); }}
                 className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 transition-colors"
-                style={{ color: '#cbd5e1' }}
+                style={{ color: '#6B7280' }}
               >
                 {item.label}
               </button>
@@ -263,7 +263,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
   const selectStyle: React.CSSProperties = {
     background: card,
     borderColor: border,
-    color: '#cbd5e1',
+    color: '#6B7280',
     backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
     backgroundRepeat: 'no-repeat',
     backgroundPosition: 'right 8px center',
@@ -298,7 +298,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
               style={{
                 background: 'rgba(0, 0, 0, 0.03)',
                 borderColor: 'rgba(0, 0, 0, 0.06)',
-                color: '#e2e8f0',
+                color: '#374151',
                 backdropFilter: 'blur(12px)',
               }}
             />
@@ -347,7 +347,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
               toast.success(`Exported ${companies.length} companies`);
             }}
             className="h-8 px-3 text-xs font-medium rounded-lg shrink-0"
-            style={{ borderColor: 'rgba(0, 0, 0, 0.06)', color: '#cbd5e1' }}
+            style={{ borderColor: 'rgba(0, 0, 0, 0.06)', color: '#6B7280' }}
           >
             <Download size={14} className="mr-1.5" />
             Export
@@ -374,10 +374,10 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
         transition={{ duration: 0.4, delay: 0.1 }}
       >
         {[
-          { icon: Building2, value: total, label: 'Total Companies', color: '#e2e8f0' },
-          { icon: Users, value: stats.withContacts, label: 'With Contacts', color: '#60a5fa' },
-          { icon: Signal, value: stats.withSignals, label: 'With Signals', color: '#fbbf24' },
-          { icon: BarChart3, value: stats.avgScore, label: 'Avg Intelligence Score', color: '#34d399' },
+          { icon: Building2, value: total, label: 'Total Companies', color: '#374151' },
+          { icon: Users, value: stats.withContacts, label: 'With Contacts', color: '#2563EB' },
+          { icon: Signal, value: stats.withSignals, label: 'With Signals', color: '#D97706' },
+          { icon: BarChart3, value: stats.avgScore, label: 'Avg Intelligence Score', color: '#059669' },
         ].map((s) => (
           <div
             key={s.label}
@@ -428,7 +428,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
               <div className="p-4 rounded-2xl" style={{ background: 'rgba(212,175,55,0.08)' }}>
                 <Building2 size={40} style={{ color: gold, opacity: 0.6 }} />
               </div>
-              <p className="text-sm font-medium" style={{ color: '#94a3b8' }}>No companies found</p>
+              <p className="text-sm font-medium" style={{ color: '#6B7280' }}>No companies found</p>
               <p className="text-xs" style={{ color: textMuted }}>
                 {activeFilters > 0 ? 'Try adjusting your filters' : 'Add your first company to get started'}
               </p>
@@ -447,7 +447,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
           ) : (
             <AnimatePresence mode="popLayout">
               {companies.map((company, i) => {
-                const sc = STATUS_COLORS[company.status] || { bg: 'rgba(100,100,100,0.12)', text: '#a1a1aa' };
+                const sc = STATUS_COLORS[company.status] || { bg: 'rgba(100,100,100,0.12)', text: '#52525B' };
                 const cc = company.contactCount ?? company._count?.contacts ?? 0;
                 return (
                   <motion.div
@@ -490,7 +490,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                     {/* Country */}
                     <div className="w-[60px] shrink-0 hidden md:block">
                       {company.country ? (
-                        <span className="text-xs font-medium" style={{ color: '#cbd5e1' }}>{company.country}</span>
+                        <span className="text-xs font-medium" style={{ color: '#6B7280' }}>{company.country}</span>
                       ) : (
                         <span className="text-xs" style={{ color: 'rgba(122,134,153,0.4)' }}>—</span>
                       )}
@@ -510,7 +510,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                       {cc > 0 ? (
                         <span
                           className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                          style={{ background: 'rgba(96,165,250,0.12)', color: '#60a5fa' }}
+                          style={{ background: 'rgba(96,165,250,0.12)', color: '#2563EB' }}
                         >
                           {cc}
                         </span>

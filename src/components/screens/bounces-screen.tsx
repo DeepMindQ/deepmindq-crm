@@ -37,8 +37,8 @@ interface SuppressionEntry {
 }
 
 const BOUNCE_TYPE_COLORS: Record<string, string> = {
-  hard: 'bg-red-500/20 text-red-300 border-red-500/30',
-  soft: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+  hard: 'bg-red-500/20 text-red-600 border-red-500/30',
+  soft: 'bg-amber-500/20 text-amber-700 border-amber-500/30',
 };
 
 export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: string) => void }) {
@@ -174,7 +174,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
                   <h3 className="text-sm font-semibold text-foreground">Bounce Log</h3>
                   <p className="text-xs text-muted-foreground">All recorded email bounces across campaigns</p>
                 </div>
-                <Badge variant="outline" className="bg-red-50 text-red-300 border-red-500/20 text-xs px-3 py-1">
+                <Badge variant="outline" className="bg-red-50 text-red-600 border-red-500/20 text-xs px-3 py-1">
                   {bounces.length} entries
                 </Badge>
               </div>
@@ -252,7 +252,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
                   <h3 className="text-sm font-semibold text-foreground">Suppression List</h3>
                   <p className="text-xs text-muted-foreground">Contacts excluded from future email sends</p>
                 </div>
-                <Badge variant="outline" className="bg-purple-50 text-purple-300 border-purple-500/20 text-xs px-3 py-1">
+                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-500/20 text-xs px-3 py-1">
                   {suppressions.length} contacts
                 </Badge>
               </div>
@@ -302,7 +302,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 text-xs text-red-600 hover:text-red-300 hover:bg-red-50 gap-1.5"
+                            className="h-8 text-xs text-red-600 hover:text-red-600 hover:bg-red-50 gap-1.5"
                             onClick={() => handleRemoveSuppression(s.id)}
                           >
                             <Trash2 className="w-3.5 h-3.5" />

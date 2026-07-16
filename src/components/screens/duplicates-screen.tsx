@@ -233,7 +233,7 @@ function DuplicateCard({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs text-red-600 hover:text-red-300 hover:bg-red-50 border-border"
+              className="h-7 text-xs text-red-600 hover:text-red-600 hover:bg-red-50 border-border"
               onClick={() => onReject(candidate.id)}
             >
               <X className="size-3 mr-1" />

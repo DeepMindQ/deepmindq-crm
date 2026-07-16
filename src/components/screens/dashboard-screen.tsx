@@ -106,7 +106,7 @@ function StatCard({ icon: Icon, label, value, suffix, trend, bc, delay }: {
 function ChartTip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border px-3 py-2 text-xs space-y-1" style={{ background: 'rgba(12,18,30,0.95)', borderColor: border }}>
+    <div className="rounded-lg border px-3 py-2 text-xs space-y-1" style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', borderColor: border }}>
       <p className="font-semibold text-foreground">{label}</p>
       {payload.map((p: any) => (
         <p key={p.dataKey} className="flex items-center gap-2">
@@ -286,7 +286,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
               <p className="text-[11px] text-muted-foreground mt-0.5">7-day opens, clicks & replies</p>
             </div>
             <div className="flex items-center gap-4 text-[10px] font-medium">
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-white/95" />Opens</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gray-800" />Opens</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: gold }} />Clicks</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: '#10B981' }} />Replies</span>
             </div>
@@ -295,7 +295,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={engagementData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="gO" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(255,255,255,0.25)" /><stop offset="100%" stopColor="rgba(255,255,255,0)" /></linearGradient>
+                  <linearGradient id="gO" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(0,0,0,0.06)" /><stop offset="100%" stopColor="rgba(255,255,255,0)" /></linearGradient>
                   <linearGradient id="gC" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(212,175,55,0.35)" /><stop offset="100%" stopColor="rgba(212,175,55,0)" /></linearGradient>
                   <linearGradient id="gR" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(16,185,129,0.35)" /><stop offset="100%" stopColor="rgba(16,185,129,0)" /></linearGradient>
                 </defs>

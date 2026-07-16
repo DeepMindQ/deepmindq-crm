@@ -189,7 +189,7 @@ interface TeamMember {
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; dataKey: string; color: string }>; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-gray-200 bg-[#1a1c2e] px-3 py-2 text-xs shadow-xl backdrop-blur-sm">
+    <div className="rounded-lg border border-gray-200 bg-white border border-gray-200 shadow-lg px-3 py-2 text-xs shadow-xl backdrop-blur-sm">
       <p className="font-semibold text-foreground mb-1">{label}</p>
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
@@ -358,7 +358,7 @@ function TeamPerformanceSection() {
                       <thead className="sticky top-0 z-10">
                         <tr
                           className="text-left text-xs font-medium uppercase tracking-wider text-muted-foreground"
-                          style={{ background: 'rgba(10, 12, 20, 0.95)', backdropFilter: 'blur(8px)' }}
+                          style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', backdropFilter: 'blur(8px)' }}
                         >
                           <th className="px-4 py-3 whitespace-nowrap">Member</th>
                           <th className="px-4 py-3 text-right whitespace-nowrap">Assigned</th>
@@ -709,7 +709,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                               </Pie>
                               <Tooltip
                                 contentStyle={{
-                                  background: 'rgba(10, 12, 20, 0.95)',
+                                  background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
                                   border: '1px solid rgba(0, 0, 0, 0.06)',
                                   borderRadius: '8px',
                                   fontSize: '12px',
@@ -742,7 +742,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                         <AlertTriangle className="w-4 h-4 text-amber-600" />
                         <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">Risk Flags</p>
                         {data.riskFlags.length > 0 && (
-                          <Badge className="bg-red-500/15 text-red-300 border-red-500/30 text-[10px] ml-auto">{data.riskFlags.length}</Badge>
+                          <Badge className="bg-red-500/15 text-red-600 border-red-500/30 text-[10px] ml-auto">{data.riskFlags.length}</Badge>
                         )}
                       </div>
 
@@ -758,13 +758,13 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                             <div key={flag.type} className="p-3 rounded-lg bg-gray-50 border border-gray-200">
                               <div className="flex items-start justify-between gap-2 mb-1">
                                 <p className="text-xs font-medium text-foreground leading-snug">{flag.message}</p>
-                                <Badge className="bg-red-500/15 text-red-300 border-red-500/30 text-[10px] shrink-0 tabular-nums">{flag.count}</Badge>
+                                <Badge className="bg-red-500/15 text-red-600 border-red-500/30 text-[10px] shrink-0 tabular-nums">{flag.count}</Badge>
                               </div>
                               {flag.fixable && (
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-7 text-[10px] text-amber-600 hover:text-amber-300 hover:bg-amber-50 mt-1"
+                                  className="h-7 text-[10px] text-amber-600 hover:text-amber-700 hover:bg-amber-50 mt-1"
                                   disabled={actionLoading === flag.fixAction}
                                   onClick={() => runAction('fix', flag.fixAction)}
                                 >
@@ -975,7 +975,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
               className="fixed top-6 right-6 z-50"
             >
               <div
-                className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 px-5 py-3 text-sm text-emerald-300 backdrop-blur-xl"
+                className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 px-5 py-3 text-sm text-emerald-700 backdrop-blur-xl"
                 style={{
                   background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.04))',
                   boxShadow: '0 4px 30px rgba(0, 0, 0, 0.3), 0 0 20px rgba(16, 185, 129, 0.08)',
@@ -1078,13 +1078,13 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                       <span className="text-sm text-muted-foreground">Microsoft Graph API:</span>
                       {graphConnected ? (
                         <Badge
-                          className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30 font-medium"
+                          className="bg-emerald-500/15 text-emerald-700 border-emerald-500/30 font-medium"
                         >
                           <CheckCircle2 className="size-3 mr-1.5" />
                           Connected
                         </Badge>
                       ) : (
-                        <Badge className="bg-red-500/15 text-red-300 border-red-500/30 font-medium">
+                        <Badge className="bg-red-500/15 text-red-600 border-red-500/30 font-medium">
                           <XCircle className="size-3 mr-1.5" />
                           Not Connected
                         </Badge>

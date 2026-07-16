@@ -956,7 +956,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                                 className="text-[9px] px-1.5 py-0"
                                 style={{
                                   background: contact.leadScore >= 80 ? 'rgba(16,185,129,0.15)' : contact.leadScore >= 50 ? 'rgba(234,179,8,0.15)' : 'rgba(239,68,68,0.15)',
-                                  color: contact.leadScore >= 80 ? '#34d399' : contact.leadScore >= 50 ? '#facc15' : '#f87171',
+                                  color: contact.leadScore >= 80 ? '#059669' : contact.leadScore >= 50 ? '#facc15' : '#DC2626',
                                   border: `1px solid ${contact.leadScore >= 80 ? 'rgba(16,185,129,0.3)' : contact.leadScore >= 50 ? 'rgba(234,179,8,0.3)' : 'rgba(239,68,68,0.3)'}`,
                                 }}
                               >

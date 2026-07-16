@@ -818,11 +818,11 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             </Pie>
                             <Tooltip
                               contentStyle={{
-                                background: 'rgba(10,12,20,0.95)',
+                                background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
                                 border: '1px solid rgba(0, 0, 0, 0.06)',
                                 borderRadius: '8px',
                                 fontSize: '12px',
-                                color: '#e2e8f0',
+                                color: '#374151',
                               }}
                             />
                           </PieChart>
@@ -860,11 +860,11 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             />
                             <Tooltip
                               contentStyle={{
-                                background: 'rgba(10,12,20,0.95)',
+                                background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
                                 border: '1px solid rgba(0, 0, 0, 0.06)',
                                 borderRadius: '8px',
                                 fontSize: '12px',
-                                color: '#e2e8f0',
+                                color: '#374151',
                               }}
                             />
                             <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={24}>
@@ -1348,13 +1348,13 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                         {healthData.gaps.industries.length > 0 && (
                           <div className="mb-1">
                             <span className="text-[10px] text-muted-foreground">No industry coverage: </span>
-                            <span className="text-[10px] text-amber-300">{healthData.gaps.industries.join(', ')}</span>
+                            <span className="text-[10px] text-amber-700">{healthData.gaps.industries.join(', ')}</span>
                           </div>
                         )}
                         {healthData.gaps.roles.length > 0 && (
                           <div>
                             <span className="text-[10px] text-muted-foreground">No role coverage: </span>
-                            <span className="text-[10px] text-amber-300">{healthData.gaps.roles.join(', ')}</span>
+                            <span className="text-[10px] text-amber-700">{healthData.gaps.roles.join(', ')}</span>
                           </div>
                         )}
                       </div>
@@ -1568,11 +1568,11 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             </Pie>
                             <Tooltip
                               contentStyle={{
-                                background: 'rgba(10,12,20,0.95)',
+                                background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
                                 border: '1px solid rgba(0, 0, 0, 0.06)',
                                 borderRadius: '8px',
                                 fontSize: '12px',
-                                color: '#e2e8f0',
+                                color: '#374151',
                               }}
                             />
                             <Legend
@@ -1617,11 +1617,11 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           />
                           <Tooltip
                             contentStyle={{
-                              background: 'rgba(10,12,20,0.95)',
+                              background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
                               border: '1px solid rgba(0, 0, 0, 0.06)',
                               borderRadius: '8px',
                               fontSize: '12px',
-                              color: '#e2e8f0',
+                              color: '#374151',
                             }}
                             formatter={(value: number, name: string) => [`${value} assets`, name]}
                           />

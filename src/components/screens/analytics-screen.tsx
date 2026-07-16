@@ -192,7 +192,7 @@ function DarkTooltip({ active, payload, label }: { active?: boolean; payload?: A
     <div
       className="rounded-lg border border-gray-200 px-3 py-2.5 shadow-2xl backdrop-blur-xl"
       style={{
-        background: 'rgba(10, 12, 20, 0.92)',
+        background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
         boxShadow: '0 0 20px rgba(212, 175, 55, 0.08)',
       }}
     >
@@ -604,7 +604,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
                   fill="url(#sentGrad)"
                   strokeWidth={2}
                   dot={{ r: 3, fill: COLORS.blue, strokeWidth: 0 }}
-                  activeDot={{ r: 5, fill: COLORS.blue, strokeWidth: 2, stroke: '#0A0C14' }}
+                  activeDot={{ r: 5, fill: COLORS.blue, strokeWidth: 2, stroke: '#FFFFFF' }}
                 />
                 <Area
                   type="monotone"
@@ -613,7 +613,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
                   fill="url(#openedGrad)"
                   strokeWidth={2}
                   dot={{ r: 3, fill: COLORS.green, strokeWidth: 0 }}
-                  activeDot={{ r: 5, fill: COLORS.green, strokeWidth: 2, stroke: '#0A0C14' }}
+                  activeDot={{ r: 5, fill: COLORS.green, strokeWidth: 2, stroke: '#FFFFFF' }}
                 />
                 <Area
                   type="monotone"
@@ -622,7 +622,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
                   fill="url(#clickedGrad)"
                   strokeWidth={2}
                   dot={{ r: 3, fill: COLORS.gold, strokeWidth: 0 }}
-                  activeDot={{ r: 5, fill: COLORS.gold, strokeWidth: 2, stroke: '#0A0C14' }}
+                  activeDot={{ r: 5, fill: COLORS.gold, strokeWidth: 2, stroke: '#FFFFFF' }}
                 />
               </AreaChart>
             </ResponsiveContainer>

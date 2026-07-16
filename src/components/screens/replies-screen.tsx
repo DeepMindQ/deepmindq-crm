@@ -55,11 +55,11 @@ const CATEGORY_TABS = [
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
-  positive: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-  negative: 'bg-red-500/20 text-red-300 border-red-500/30',
-  out_of_office: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+  positive: 'bg-emerald-500/20 text-emerald-700 border-emerald-500/30',
+  negative: 'bg-red-500/20 text-red-600 border-red-500/30',
+  out_of_office: 'bg-amber-500/20 text-amber-700 border-amber-500/30',
   unsubscribe: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
-  other: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+  other: 'bg-blue-500/20 text-blue-700 border-blue-500/30',
 };
 
 const CATEGORY_BORDER_COLORS: Record<string, string> = {
@@ -466,7 +466,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
                                           <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-7 w-7 p-0 text-zinc-400/70 hover:text-zinc-300 hover:bg-zinc-500/10"
+                                            className="h-7 w-7 p-0 text-zinc-400/70 hover:text-zinc-600 hover:bg-zinc-500/10"
                                             onClick={(e) => { e.stopPropagation(); setSuppressReply(reply); }}
                                           >
                                             <ShieldBan className="w-3.5 h-3.5" />
@@ -537,7 +537,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
 
         {/* ── Reply Detail Modal ── */}
         <Dialog open={!!detailReply} onOpenChange={(open) => { if (!open) setDetailReply(null); }}>
-          <DialogContent className="sm:max-w-lg border-gray-200 bg-[#12141E] backdrop-blur-xl">
+          <DialogContent className="sm:max-w-lg border-gray-200 bg-white border border-gray-200 shadow-lg backdrop-blur-xl">
             {detailReply && (
               <>
                 <DialogHeader>
@@ -624,7 +624,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
 
         {/* ── Follow-Up Confirmation Dialog ── */}
         <AlertDialog open={!!followUpReply} onOpenChange={(open) => { if (!open) setFollowUpReply(null); }}>
-          <AlertDialogContent className="border-gray-200 bg-[#12141E] backdrop-blur-xl">
+          <AlertDialogContent className="border-gray-200 bg-white border border-gray-200 shadow-lg backdrop-blur-xl">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-foreground">Create Follow-Up Draft</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
@@ -653,7 +653,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
 
         {/* ── Mark Category Confirmation Dialog ── */}
         <AlertDialog open={!!markDialog} onOpenChange={(open) => { if (!open) setMarkDialog(null); }}>
-          <AlertDialogContent className="border-gray-200 bg-[#12141E] backdrop-blur-xl">
+          <AlertDialogContent className="border-gray-200 bg-white border border-gray-200 shadow-lg backdrop-blur-xl">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-foreground">
                 Mark as {markDialog?.category.replace(/_/g, ' ') || ''}
@@ -689,7 +689,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
 
         {/* ── Suppress Confirmation Dialog ── */}
         <AlertDialog open={!!suppressReply} onOpenChange={(open) => { if (!open) setSuppressReply(null); }}>
-          <AlertDialogContent className="border-gray-200 bg-[#12141E] backdrop-blur-xl">
+          <AlertDialogContent className="border-gray-200 bg-white border border-gray-200 shadow-lg backdrop-blur-xl">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-foreground">Add to Suppression List</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">

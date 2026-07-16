@@ -91,15 +91,15 @@ interface ContactNote {
 }
 
 const CONSENT_COLORS: Record<string, string> = {
-  opted_in: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-  unknown: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-  opted_out: 'bg-red-500/20 text-red-300 border-red-500/30',
+  opted_in: 'bg-emerald-500/20 text-emerald-700 border-emerald-500/30',
+  unknown: 'bg-amber-500/20 text-amber-700 border-amber-500/30',
+  opted_out: 'bg-red-500/20 text-red-600 border-red-500/30',
 };
 
 const HEALTH_COLORS: Record<string, string> = {
-  valid: 'bg-emerald-500/20 text-emerald-300',
-  risky: 'bg-amber-500/20 text-amber-300',
-  invalid: 'bg-red-500/20 text-red-300',
+  valid: 'bg-emerald-500/20 text-emerald-700',
+  risky: 'bg-amber-500/20 text-amber-700',
+  invalid: 'bg-red-500/20 text-red-600',
   unknown: 'bg-zinc-500/20 text-zinc-400',
 };
 
@@ -963,13 +963,13 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                             <Badge
                               variant="outline"
                               className={`text-[10px] h-5 px-1.5 rounded-full cursor-pointer hover:bg-gray-100/50 transition-colors ${
-                                dbf.status === 'imported' ? 'bg-zinc-500/15 text-zinc-300 border-zinc-500/20' :
-                                dbf.status === 'sent' ? 'bg-blue-500/15 text-blue-300 border-blue-500/20' :
-                                dbf.status === 'replied' ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20' :
-                                dbf.status === 'bounced' ? 'bg-red-500/15 text-red-300 border-red-500/20' :
-                                dbf.status === 'suppressed' ? 'bg-red-500/20 text-red-300 border-red-500/30' :
-                                dbf.status === 'drafted' ? 'bg-purple-500/15 text-purple-300 border-purple-500/20' :
-                                dbf.status === 'queued' ? 'bg-amber-500/15 text-amber-300 border-amber-500/20' :
+                                dbf.status === 'imported' ? 'bg-zinc-500/15 text-zinc-600 border-zinc-500/20' :
+                                dbf.status === 'sent' ? 'bg-blue-500/15 text-blue-700 border-blue-500/20' :
+                                dbf.status === 'replied' ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/20' :
+                                dbf.status === 'bounced' ? 'bg-red-500/15 text-red-600 border-red-500/20' :
+                                dbf.status === 'suppressed' ? 'bg-red-500/20 text-red-600 border-red-500/30' :
+                                dbf.status === 'drafted' ? 'bg-purple-500/15 text-purple-700 border-purple-500/20' :
+                                dbf.status === 'queued' ? 'bg-amber-500/15 text-amber-700 border-amber-500/20' :
                                 'bg-gray-100 text-muted-foreground border-gray-200'
                               }`}
                             >
@@ -1107,7 +1107,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
               className="fixed right-0 top-0 h-full w-full sm:w-[420px] z-50 flex flex-col border-l border-gray-200 overflow-hidden"
               style={{
-                background: 'rgba(15, 17, 25, 0.95)',
+                background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
                 backdropFilter: 'blur(40px)',
                 boxShadow: '-20px 0 60px rgba(0, 0, 0, 0.5), inset 1px 0 0 rgba(0, 0, 0, 0.04)',
               }}
@@ -1243,10 +1243,10 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                         <Badge
                           variant="outline"
                           className={`mt-1 text-[10px] h-5 px-1.5 rounded-full ${
-                            selectedLead._dbFields?.status === 'imported' ? 'bg-zinc-500/15 text-zinc-300 border-zinc-500/20' :
-                            selectedLead._dbFields?.status === 'sent' ? 'bg-blue-500/15 text-blue-300 border-blue-500/20' :
-                            selectedLead._dbFields?.status === 'replied' ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20' :
-                            selectedLead._dbFields?.status === 'bounced' ? 'bg-red-500/15 text-red-300 border-red-500/20' :
+                            selectedLead._dbFields?.status === 'imported' ? 'bg-zinc-500/15 text-zinc-600 border-zinc-500/20' :
+                            selectedLead._dbFields?.status === 'sent' ? 'bg-blue-500/15 text-blue-700 border-blue-500/20' :
+                            selectedLead._dbFields?.status === 'replied' ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/20' :
+                            selectedLead._dbFields?.status === 'bounced' ? 'bg-red-500/15 text-red-600 border-red-500/20' :
                             'bg-gray-100 text-muted-foreground border-gray-200'
                           }`}
                         >
@@ -1493,7 +1493,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
             <DialogTitle className="text-base flex items-center gap-2">
               <GitMerge className="w-4 h-4 text-amber-600" />
               Duplicate Detection
-              <Badge variant="outline" className="bg-amber-50 text-amber-300 border-amber-500/20 text-[10px] ml-2">
+              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-500/20 text-[10px] ml-2">
                 {dedupGroups.length} groups
               </Badge>
             </DialogTitle>
@@ -1515,7 +1515,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                   return (
                     <div key={gi} className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-3">
                       <div className="flex items-center justify-between">
-                        <Badge variant="outline" className={`${group.matchType === 'exact' ? 'bg-red-500/15 text-red-300 border-red-500/20' : group.matchType === 'likely' ? 'bg-amber-500/15 text-amber-300 border-amber-500/20' : 'bg-zinc-500/15 text-zinc-300 border-zinc-500/20'} text-[10px]`}>
+                        <Badge variant="outline" className={`${group.matchType === 'exact' ? 'bg-red-500/15 text-red-600 border-red-500/20' : group.matchType === 'likely' ? 'bg-amber-500/15 text-amber-700 border-amber-500/20' : 'bg-zinc-500/15 text-zinc-600 border-zinc-500/20'} text-[10px]`}>
                           {group.matchType} match
                         </Badge>
                         <Button
@@ -1563,7 +1563,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-4 py-3 rounded-2xl border border-gray-200 shadow-2xl shadow-gray-400/40"
             style={{
-              background: 'rgba(15, 17, 25, 0.95)',
+              background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
               backdropFilter: 'blur(40px)',
             }}
           >

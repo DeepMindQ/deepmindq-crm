@@ -81,11 +81,11 @@ const CAT_ICON: Record<string, typeof Tag> = {
   objection_response: MessageSquare, cta: Target,
 };
 const CAT_BADGE: Record<string, string> = {
-  service_line: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-  case_study: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-  proof_point: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-  objection_response: 'bg-red-500/20 text-red-300 border-red-500/30',
-  cta: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+  service_line: 'bg-blue-500/20 text-blue-700 border-blue-500/30',
+  case_study: 'bg-emerald-500/20 text-emerald-700 border-emerald-500/30',
+  proof_point: 'bg-purple-500/20 text-purple-700 border-purple-500/30',
+  objection_response: 'bg-red-500/20 text-red-600 border-red-500/30',
+  cta: 'bg-amber-500/20 text-amber-700 border-amber-500/30',
 };
 const CAT_LABEL: Record<string, string> = {
   service_line: 'Service Line', case_study: 'Case Study', proof_point: 'Proof Point',
@@ -1398,13 +1398,13 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                           )}
                           {/* C-08: Parent indicator */}
                           {parentCap && (
-                            <Badge variant="outline" className="text-[9px] gap-0.5 border-purple-500/30 text-purple-300 bg-purple-500/5">
+                            <Badge variant="outline" className="text-[9px] gap-0.5 border-purple-500/30 text-purple-700 bg-purple-500/5">
                               <Link2 className="w-2.5 h-2.5" />{parentCap.title.slice(0, 20)}
                             </Badge>
                           )}
                           {/* C-08: Children indicator */}
                           {hasChildren && (
-                            <Badge variant="outline" className="text-[9px] gap-0.5 border-emerald-500/30 text-emerald-300 bg-emerald-500/5">
+                            <Badge variant="outline" className="text-[9px] gap-0.5 border-emerald-500/30 text-emerald-700 bg-emerald-500/5">
                               <GitBranch className="w-2.5 h-2.5" />children
                             </Badge>
                           )}

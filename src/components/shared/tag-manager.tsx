@@ -27,12 +27,12 @@ interface TagManagerProps {
 
 const TAG_COLORS = [
   { name: 'gray', bg: 'bg-gray-100 text-gray-800 dark:bg-gray-50 dark:text-gray-200', dot: 'bg-gray-400' },
-  { name: 'red', bg: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300', dot: 'bg-red-500' },
-  { name: 'amber', bg: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300', dot: 'bg-amber-500' },
+  { name: 'red', bg: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-600', dot: 'bg-red-500' },
+  { name: 'amber', bg: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-700', dot: 'bg-amber-500' },
   { name: 'green', bg: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300', dot: 'bg-green-500' },
-  { name: 'emerald', bg: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300', dot: 'bg-emerald-500' },
-  { name: 'violet', bg: 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300', dot: 'bg-violet-500' },
-  { name: 'pink', bg: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300', dot: 'bg-pink-500' },
+  { name: 'emerald', bg: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-700', dot: 'bg-emerald-500' },
+  { name: 'violet', bg: 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-700', dot: 'bg-violet-500' },
+  { name: 'pink', bg: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-700', dot: 'bg-pink-500' },
 ] as const
 
 function getColorClasses(color: string) {

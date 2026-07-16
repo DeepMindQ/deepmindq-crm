@@ -61,39 +61,39 @@ interface AuditEntry {
 // ── Action color map ───────────────────────────────────────────────────────
 
 const ACTION_COLORS: Record<string, string> = {
-  create:  'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-  update:  'bg-blue-500/15 text-blue-300 border-blue-500/30',
-  delete:  'bg-red-500/15 text-red-300 border-red-500/30',
+  create:  'bg-emerald-500/15 text-emerald-700 border-emerald-500/30',
+  update:  'bg-blue-500/15 text-blue-700 border-blue-500/30',
+  delete:  'bg-red-500/15 text-red-600 border-red-500/30',
   approve: 'bg-green-500/15 text-green-300 border-green-500/30',
-  reject:  'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  send:    'bg-purple-500/15 text-purple-300 border-purple-500/30',
-  import:  'bg-blue-500/15 text-blue-300 border-blue-500/30',
-  verify:  'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+  reject:  'bg-amber-500/15 text-amber-700 border-amber-500/30',
+  send:    'bg-purple-500/15 text-purple-700 border-purple-500/30',
+  import:  'bg-blue-500/15 text-blue-700 border-blue-500/30',
+  verify:  'bg-cyan-500/15 text-cyan-700 border-cyan-500/30',
 };
 
 // ── Action accent hex colors (for left border bar) ─────────────────────────
 
 const ACTION_ACCENT_HEX: Record<string, string> = {
-  create:  '#34d399',
-  update:  '#60a5fa',
-  delete:  '#f87171',
-  approve: '#4ade80',
-  reject:  '#fbbf24',
-  send:    '#c084fc',
-  import:  '#38bdf8',
+  create:  '#059669',
+  update:  '#2563EB',
+  delete:  '#DC2626',
+  approve: '#16A34A',
+  reject:  '#D97706',
+  send:    '#9333EA',
+  import:  '#0284C7',
   verify:  '#22d3ee',
 };
 
 // ── Action accent colors (for StatCard) ────────────────────────────────────
 
 const ACTION_ACCENT_COLORS: Record<string, string> = {
-  create:  '#34d399',
-  update:  '#60a5fa',
-  delete:  '#f87171',
-  approve: '#4ade80',
-  reject:  '#fbbf24',
-  send:    '#c084fc',
-  import:  '#38bdf8',
+  create:  '#059669',
+  update:  '#2563EB',
+  delete:  '#DC2626',
+  approve: '#16A34A',
+  reject:  '#D97706',
+  send:    '#9333EA',
+  import:  '#0284C7',
   verify:  '#22d3ee',
 };
 
@@ -403,8 +403,8 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
                   <TableBody>
                     {paged.map((entry, idx) => {
                       const isExpanded = expandedRow === entry.id;
-                      const actionColor = ACTION_COLORS[entry.action] || 'bg-zinc-500/15 text-zinc-300 border-zinc-500/30';
-                      const accentHex = ACTION_ACCENT_HEX[entry.action] || '#a1a1aa';
+                      const actionColor = ACTION_COLORS[entry.action] || 'bg-zinc-500/15 text-zinc-600 border-zinc-500/30';
+                      const accentHex = ACTION_ACCENT_HEX[entry.action] || '#52525B';
                       const entityIcon  = ENTITY_ICONS[entry.entityType] || '\u{1F4CB}';
                       const isLong      = entry.details.length > 80;
 

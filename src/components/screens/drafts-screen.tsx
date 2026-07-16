@@ -88,9 +88,9 @@ const TAB_OPTIONS = [
 ];
 
 const DRAFT_STATUS_COLORS: Record<string, string> = {
-  'pending_review': 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-  approved: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-  rejected: 'bg-red-500/20 text-red-300 border-red-500/30',
+  'pending_review': 'bg-amber-500/20 text-amber-700 border-amber-500/30',
+  approved: 'bg-emerald-500/20 text-emerald-700 border-emerald-500/30',
+  rejected: 'bg-red-500/20 text-red-600 border-red-500/30',
   draft: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
 };
 
@@ -967,7 +967,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 text-xs text-amber-600 hover:text-amber-300 hover:bg-amber-50 transition-all"
+                            className="h-8 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 transition-all"
                             onClick={(e) => { e.stopPropagation(); handleFollowUp(draft); }}
                             disabled={followUpLoading}
                           >
@@ -1175,7 +1175,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                                           <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-7 text-[10px] text-amber-600 hover:text-amber-300 hover:bg-amber-50"
+                                            className="h-7 text-[10px] text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                                             onClick={(e) => { e.stopPropagation(); handleFollowUp(draft); }}
                                             disabled={followUpLoading}
                                           >

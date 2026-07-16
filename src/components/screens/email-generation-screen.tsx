@@ -501,7 +501,7 @@ export default function EmailGenerationScreen() {
 
           {selectedCompany ? (
             /* Selected company card */
-            <div className="rounded-lg border border-amber-300/80 bg-amber-50/60 p-3 space-y-1.5">
+            <div className="rounded-lg border border-amber-700/80 bg-amber-50/60 p-3 space-y-1.5">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <button

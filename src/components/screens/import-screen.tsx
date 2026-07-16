@@ -47,11 +47,11 @@ interface PreviewData {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  completed: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-  processing: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-  failed: 'bg-red-500/20 text-red-300 border-red-500/30',
+  completed: 'bg-emerald-500/20 text-emerald-700 border-emerald-500/30',
+  processing: 'bg-amber-500/20 text-amber-700 border-amber-500/30',
+  failed: 'bg-red-500/20 text-red-600 border-red-500/30',
   pending: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
-  cancelled: 'bg-red-500/20 text-red-300 border-red-500/30',
+  cancelled: 'bg-red-500/20 text-red-600 border-red-500/30',
   draft: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
 };
 
@@ -557,7 +557,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 text-xs text-red-600 hover:text-red-300 hover:bg-red-50"
+                      className="h-8 text-xs text-red-600 hover:text-red-600 hover:bg-red-50"
                       onClick={() => activeBatchId && cancelBatch(activeBatchId)}
                     >
                       <StopCircle className="w-3.5 h-3.5 mr-1.5" />
@@ -638,7 +638,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                       </motion.div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold ${uploadResult.success ? 'text-emerald-300' : 'text-red-300'}`}>
+                      <p className={`text-sm font-semibold ${uploadResult.success ? 'text-emerald-700' : 'text-red-600'}`}>
                         {uploadResult.success ? 'Import Complete' : 'Import Failed'}
                       </p>
                       <p className="text-sm text-muted-foreground mt-1">{uploadResult.message}</p>

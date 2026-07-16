@@ -263,6 +263,80 @@
   }
 }
 
+/* ── Global Table Polish ── */
+@layer components {
+  /* Alternating rows for all data tables */
+  [data-slot="table-body"] > tr:nth-child(even),
+  tbody > tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.015);
+  }
+  /* Table header styling */
+  [data-slot="table-header"],
+  thead th {
+    background-color: #F9FAFB;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    color: #6B7280;
+    border-bottom: 1px solid #E5E7EB;
+  }
+  /* Table cell defaults */
+  [data-slot="table-cell"],
+  tbody td {
+    border-bottom: 1px solid #F3F4F6;
+    font-size: 0.8125rem;
+    color: #374151;
+  }
+  /* Remove border from last row */
+  tbody > tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+/* ── Section Container — gives pages visual structure ── */
+@layer components {
+  .section-container {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    overflow: hidden;
+  }
+  .section-container > .section-header,
+  .section-container > [class*="flex"][class*="items-center"][class*="justify-between"] {
+    padding: 16px 20px;
+    border-bottom: 1px solid #F3F4F6;
+  }
+}
+
+/* ── Stat Card — polished metric display ── */
+@layer components {
+  .stat-card {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .stat-card:hover {
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+    border-color: #D1D5DB;
+  }
+}
+
+/* ── Filter Bar — toolbar row above tables ── */
+@layer components {
+  .filter-bar {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 12px 16px;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  }
+}
+
 /* ── Focus Ring ── */
 @layer base {
   :focus-visible {

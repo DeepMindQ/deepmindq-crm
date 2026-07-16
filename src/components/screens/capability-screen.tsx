@@ -1512,7 +1512,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
               <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5" onClick={() => { openEdit(selected); setSelected(null); }}>
                 <Pencil className="w-3.5 h-3.5" />Edit
               </Button>
-              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-red-600 hover:text-red-300 hover:bg-red-50" onClick={() => { setDeleteId(selected.id); setSelected(null); }}>
+              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => { setDeleteId(selected.id); setSelected(null); }}>
                 <Trash2 className="w-3.5 h-3.5" />Delete
               </Button>
             </div>

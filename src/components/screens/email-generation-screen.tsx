@@ -464,7 +464,7 @@ export default function EmailGenerationScreen() {
             {contacts.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 <span className="font-medium">{c.name}</span>
-                {c.jobTitle && <span className="text-gray-400 ml-2">{c.jobTitle}</span>}
+                {c.jobTitle && <span className="text-gray-600 ml-2">{c.jobTitle}</span>}
               </SelectItem>
             ))}
           </SelectContent>
@@ -491,7 +491,7 @@ export default function EmailGenerationScreen() {
             {selectedCompany && (
               <button
                 onClick={clearCompany}
-                className="text-[11px] text-gray-400 hover:text-gray-600 flex items-center gap-0.5 transition-colors"
+                className="text-[11px] text-gray-600 hover:text-gray-600 flex items-center gap-0.5 transition-colors"
               >
                 <X className="size-3" />
                 Clear
@@ -524,7 +524,7 @@ export default function EmailGenerationScreen() {
                 </div>
                 <button
                   onClick={clearCompany}
-                  className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-200/60 transition-colors shrink-0"
+                  className="p-1 rounded-md text-gray-600 hover:text-gray-600 hover:bg-gray-200/60 transition-colors shrink-0"
                   title="Clear company filter"
                 >
                   <X className="size-3.5" />
@@ -535,7 +535,7 @@ export default function EmailGenerationScreen() {
             /* Company search input */
             <>
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-gray-400" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-gray-600" />
                 <Input
                   placeholder="Search companies..."
                   value={companySearch}
@@ -565,9 +565,9 @@ export default function EmailGenerationScreen() {
                         <p className="text-xs font-medium text-gray-900 truncate">{comp.rawName}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           {comp.industry && (
-                            <span className="text-[10px] text-gray-400 truncate">{comp.industry}</span>
+                            <span className="text-[10px] text-gray-600 truncate">{comp.industry}</span>
                           )}
-                          <span className="text-[10px] text-gray-400 shrink-0">
+                          <span className="text-[10px] text-gray-600 shrink-0">
                             {comp._count.contacts} contact{comp._count.contacts !== 1 ? 's' : ''}
                           </span>
                         </div>
@@ -604,7 +604,7 @@ export default function EmailGenerationScreen() {
                   </button>
                 )}
                 {activeContact.jobTitle && (
-                  <p className="text-xs text-gray-400 mt-0.5 truncate">{activeContact.jobTitle}</p>
+                  <p className="text-xs text-gray-600 mt-0.5 truncate">{activeContact.jobTitle}</p>
                 )}
                 {activeContact.emailHealth && (
                   <Badge className={cn('text-[10px] font-medium px-2 py-0.5 mt-2 border', emailHealthBadge(activeContact.emailHealth).cls)}>
@@ -623,7 +623,7 @@ export default function EmailGenerationScreen() {
           </div>
           <div className="px-3 pb-2">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-gray-400" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-gray-600" />
               <Input
                 placeholder="Search contacts..."
                 value={contactSearch}
@@ -646,8 +646,8 @@ export default function EmailGenerationScreen() {
             </div>
           ) : contacts.length === 0 ? (
             <div className="px-4 py-8 text-center">
-              <User className="size-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-xs text-gray-400">No contacts found</p>
+              <User className="size-8 text-gray-700 mx-auto mb-2" />
+              <p className="text-xs text-gray-600">No contacts found</p>
             </div>
           ) : (
             <div className="px-2 space-y-1 pb-4">
@@ -672,7 +672,7 @@ export default function EmailGenerationScreen() {
                       <p className="text-sm font-medium text-gray-900 truncate">{c.name}</p>
                       <p className="text-[11px] text-gray-500 truncate">{c.jobTitle || 'No title'}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <p className="text-[11px] text-gray-400 truncate">{c.company?.name || '—'}</p>
+                        <p className="text-[11px] text-gray-600 truncate">{c.company?.name || '—'}</p>
                         <Badge className={cn('text-[9px] font-medium px-1.5 py-0 border shrink-0', health.cls)}>
                           {health.label}
                         </Badge>
@@ -680,7 +680,7 @@ export default function EmailGenerationScreen() {
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); setSelectedContactId(c.id); setActiveView('contact-profile') }}
-                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-amber-600 transition-all duration-150 shrink-0 p-1 rounded-md hover:bg-amber-50"
+                      className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-amber-600 transition-all duration-150 shrink-0 p-1 rounded-md hover:bg-amber-50"
                       title="View contact profile"
                     >
                       <ChevronRight className="size-3.5" />
@@ -752,7 +752,7 @@ export default function EmailGenerationScreen() {
                       </button>
                       {activeContact?.company && (
                         <>
-                          <span className="text-gray-300">·</span>
+                          <span className="text-gray-700">·</span>
                           <button
                             onClick={() => goToCompanyProfile(activeContact.company?.id || activeContact.companyId || '')}
                             className="text-sm text-gray-500 hover:text-amber-700 transition-colors flex items-center gap-1 truncate"
@@ -763,7 +763,7 @@ export default function EmailGenerationScreen() {
                         </>
                       )}
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="text-xs text-gray-600 mt-0.5">
                       {activeContact?.email} {activeContact?.jobTitle ? `· ${activeContact.jobTitle}` : ''}
                     </p>
                   </div>
@@ -836,7 +836,7 @@ export default function EmailGenerationScreen() {
                         Confidence: {lastConfidence ? lastConfidence.charAt(0).toUpperCase() + lastConfidence.slice(1) : '—'}
                       </Badge>
                     </div>
-                    <p className="text-[11px] text-gray-400 font-medium">
+                    <p className="text-[11px] text-gray-600 font-medium">
                       {isAiGenerated
                         ? <span className="flex items-center gap-1"><Zap className="size-3 text-emerald-500" /> Generated by {aiProviderName}</span>
                         : <span className="flex items-center gap-1"><AlertTriangle className="size-3 text-amber-500" /> Template-based (<button onClick={goToSettings} className="text-amber-600 hover:underline">configure AI</button>)</span>
@@ -875,12 +875,12 @@ export default function EmailGenerationScreen() {
                             {k.type === 'case_study' ? 'Case Study' : k.type === 'service' ? 'Service' : k.type === 'capability' ? 'Capability' : 'Outcome'}
                           </Badge>
                           <div className="min-w-0">
-                            <p className="text-gray-700 font-medium truncate">{k.title}</p>
-                            <p className="text-gray-400">Relevance: {k.score}pts{k.industries.length > 0 ? ` | ${k.industries.join(', ')}` : ''}</p>
+                            <p className="text-gray-800 font-medium truncate">{k.title}</p>
+                            <p className="text-gray-600">Relevance: {k.score}pts{k.industries.length > 0 ? ` | ${k.industries.join(', ')}` : ''}</p>
                           </div>
                         </div>
                       ))}
-                      <p className="text-[10px] text-gray-400 pt-1">
+                      <p className="text-[10px] text-gray-600 pt-1">
                         {knowledgeAvailable} total snippets in knowledge base
                       </p>
                     </div>
@@ -919,7 +919,7 @@ export default function EmailGenerationScreen() {
                 {/* Body */}
                 <div className="bg-gray-50/60 border border-gray-200/80 rounded-xl p-5 md:p-6">
                   <label className="text-xs font-medium text-gray-500 block mb-2">Email Body</label>
-                  <pre className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed font-sans">
+                  <pre className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed font-sans">
                     {generatedBody}
                   </pre>
                 </div>

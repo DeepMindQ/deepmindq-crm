@@ -376,7 +376,7 @@ export function TasksScreen() {
             {s !== 'all' && (
               <span className={cn(
                 'text-[11px] tabular-nums',
-                statusFilter === s ? 'text-gray-300' : 'text-gray-400',
+                statusFilter === s ? 'text-gray-700' : 'text-gray-600',
               )}>
                 {tasks.filter(t => t.status === s).length}
               </span>
@@ -388,7 +388,7 @@ export function TasksScreen() {
       {/* ── Secondary Filters ── */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1 sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-600" />
           <Input
             placeholder="Search tasks..."
             value={search}
@@ -398,7 +398,7 @@ export function TasksScreen() {
         </div>
         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
           <SelectTrigger className="w-36 h-9 bg-white border-gray-200 rounded-lg text-sm">
-            <Filter className="size-3.5 mr-1.5 text-gray-400" />
+            <Filter className="size-3.5 mr-1.5 text-gray-600" />
             <SelectValue placeholder={PRIORITY_LABELS[priorityFilter]} />
           </SelectTrigger>
           <SelectContent>
@@ -472,7 +472,7 @@ export function TasksScreen() {
                         <div className="min-w-0 flex-1">
                           <p className={cn(
                             'text-sm font-semibold text-gray-900 leading-snug',
-                            task.status === 'completed' && 'line-through text-gray-400',
+                            task.status === 'completed' && 'line-through text-gray-600',
                           )}>
                             {task.title}
                           </p>
@@ -490,14 +490,14 @@ export function TasksScreen() {
                             className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
                             aria-label="Edit task"
                           >
-                            <Pencil className="size-3.5 text-gray-400" />
+                            <Pencil className="size-3.5 text-gray-600" />
                           </button>
                           <button
                             onClick={() => setDeleteId(task.id)}
                             className="p-1.5 rounded-md hover:bg-red-50 transition-colors"
                             aria-label="Delete task"
                           >
-                            <Trash2 className="size-3.5 text-gray-400 hover:text-red-500" />
+                            <Trash2 className="size-3.5 text-gray-600 hover:text-red-500" />
                           </button>
                         </div>
                       </div>
@@ -546,7 +546,7 @@ export function TasksScreen() {
                           </button>
                         )}
 
-                        <span className="text-[11px] text-gray-400 ml-auto">
+                        <span className="text-[11px] text-gray-600 ml-auto">
                           {formatDistanceToNow(new Date(task.createdAt), { addSuffix: true })}
                         </span>
                       </div>
@@ -573,7 +573,7 @@ export function TasksScreen() {
           <div className="grid gap-4 py-3">
             {/* Title */}
             <div className="grid gap-1.5">
-              <Label className="text-sm font-medium text-gray-700">Title</Label>
+              <Label className="text-sm font-medium text-gray-800">Title</Label>
               <Input
                 placeholder="What needs to be done?"
                 value={form.title}
@@ -585,7 +585,7 @@ export function TasksScreen() {
 
             {/* Description */}
             <div className="grid gap-1.5">
-              <Label className="text-sm font-medium text-gray-700">Description</Label>
+              <Label className="text-sm font-medium text-gray-800">Description</Label>
               <Textarea
                 placeholder="Add details..."
                 value={form.description}
@@ -598,7 +598,7 @@ export function TasksScreen() {
             {/* Status & Priority row */}
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label className="text-sm font-medium text-gray-700">Status</Label>
+                <Label className="text-sm font-medium text-gray-800">Status</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
                   <SelectTrigger className="border-gray-200 rounded-lg">
                     <SelectValue />
@@ -612,7 +612,7 @@ export function TasksScreen() {
                 </Select>
               </div>
               <div className="grid gap-1.5">
-                <Label className="text-sm font-medium text-gray-700">Priority</Label>
+                <Label className="text-sm font-medium text-gray-800">Priority</Label>
                 <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
                   <SelectTrigger className="border-gray-200 rounded-lg">
                     <SelectValue />
@@ -629,16 +629,16 @@ export function TasksScreen() {
 
             {/* Due Date */}
             <div className="grid gap-1.5">
-              <Label className="text-sm font-medium text-gray-700">Due Date</Label>
+              <Label className="text-sm font-medium text-gray-800">Due Date</Label>
               <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
                 <PopoverTrigger asChild>
                   <button
                     className={cn(
                       'flex items-center gap-2 h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-left hover:bg-gray-50 transition-colors',
-                      !form.dueDate && 'text-gray-400',
+                      !form.dueDate && 'text-gray-600',
                     )}
                   >
-                    <Calendar className="size-4 text-gray-400" />
+                    <Calendar className="size-4 text-gray-600" />
                     {form.dueDate ? format(new Date(form.dueDate), 'MMM d, yyyy') : 'Pick a date'}
                   </button>
                 </PopoverTrigger>
@@ -658,7 +658,7 @@ export function TasksScreen() {
 
             {/* Company */}
             <div className="grid gap-1.5">
-              <Label className="text-sm font-medium text-gray-700">Company (optional)</Label>
+              <Label className="text-sm font-medium text-gray-800">Company (optional)</Label>
               <Select
                 value={form.companyId}
                 onValueChange={v => setForm(f => ({ ...f, companyId: v, contactId: '' }))}
@@ -677,7 +677,7 @@ export function TasksScreen() {
             {/* Contact */}
             {form.companyId && (
               <div className="grid gap-1.5">
-                <Label className="text-sm font-medium text-gray-700">Contact (optional)</Label>
+                <Label className="text-sm font-medium text-gray-800">Contact (optional)</Label>
                 <Select
                   value={form.contactId}
                   onValueChange={v => setForm(f => ({ ...f, contactId: v }))}

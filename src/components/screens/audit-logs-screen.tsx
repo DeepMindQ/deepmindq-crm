@@ -297,7 +297,7 @@ export function AuditLogsScreen() {
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs text-gray-500 hover:text-gray-700 h-7"
+              className="text-xs text-gray-500 hover:text-gray-800 h-7"
               onClick={handleReset}
             >
               Clear filters
@@ -328,7 +328,7 @@ export function AuditLogsScreen() {
             /* ── Empty State ── */
             <div className="flex flex-col items-center justify-center py-20 px-4">
               <div className="size-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-                <ClipboardList className="size-6 text-gray-400" />
+                <ClipboardList className="size-6 text-gray-600" />
               </div>
               <h3 className="text-sm font-semibold text-gray-900 mb-1">No audit logs found</h3>
               <p className="text-xs text-gray-500 text-center max-w-sm">
@@ -380,7 +380,7 @@ export function AuditLogsScreen() {
                             <TooltipProvider delayDuration={200}>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="text-xs text-gray-700 cursor-default">
+                                  <span className="text-xs text-gray-800 cursor-default">
                                     {relativeDate(log.createdAt)}
                                   </span>
                                 </TooltipTrigger>
@@ -397,7 +397,7 @@ export function AuditLogsScreen() {
                               {log.user?.name ?? 'System'}
                             </div>
                             {log.user?.email && (
-                              <div className="text-[11px] text-gray-400 mt-0.5">{log.user.email}</div>
+                              <div className="text-[11px] text-gray-600 mt-0.5">{log.user.email}</div>
                             )}
                           </td>
 
@@ -416,7 +416,7 @@ export function AuditLogsScreen() {
 
                           {/* Entity */}
                           <td className="px-4 py-3">
-                            <span className="text-xs text-gray-700">{log.entity}</span>
+                            <span className="text-xs text-gray-800">{log.entity}</span>
                           </td>
 
                           {/* Entity ID */}
@@ -426,7 +426,7 @@ export function AuditLogsScreen() {
                                 {log.entityId.length > 12 ? log.entityId.slice(0, 12) + '...' : log.entityId}
                               </code>
                             ) : (
-                              <span className="text-xs text-gray-300">—</span>
+                              <span className="text-xs text-gray-700">—</span>
                             )}
                           </td>
 
@@ -452,7 +452,7 @@ export function AuditLogsScreen() {
                                 )}
                               </div>
                             ) : (
-                              <span className="text-xs text-gray-300">—</span>
+                              <span className="text-xs text-gray-700">—</span>
                             )}
                           </td>
 
@@ -461,7 +461,7 @@ export function AuditLogsScreen() {
                             {log.ipAddress ? (
                               <code className="text-[11px] font-mono text-gray-500">{log.ipAddress}</code>
                             ) : (
-                              <span className="text-xs text-gray-300">—</span>
+                              <span className="text-xs text-gray-700">—</span>
                             )}
                           </td>
                         </tr>
@@ -502,7 +502,7 @@ export function AuditLogsScreen() {
                     <div className="flex items-center gap-0.5 mx-1">
                       {generatePageNumbers(page, totalPages).map((p, i) =>
                         p === '...' ? (
-                          <span key={`dots-${i}`} className="text-xs text-gray-400 px-1">...</span>
+                          <span key={`dots-${i}`} className="text-xs text-gray-600 px-1">...</span>
                         ) : (
                           <button
                             key={p}

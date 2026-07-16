@@ -228,7 +228,7 @@ function SimpleTooltip({ active, payload, label }: { active?: boolean; payload?:
   if (!active || !payload?.length) return null
   return (
     <div className="bg-white rounded-lg shadow-lg border border-gray-100 px-3 py-2 text-sm">
-      {label && <p className="font-medium text-gray-700 mb-1">{label}</p>}
+      {label && <p className="font-medium text-gray-800 mb-1">{label}</p>}
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
           {p.color && <span className="inline-block size-2.5 rounded-full" style={{ backgroundColor: p.color }} />}
@@ -445,7 +445,7 @@ export function ReportsScreen() {
               <Button variant="outline" className="gap-2">
                 <CalendarDays className="size-4 text-gray-500" />
                 {DATE_PRESETS.find(p => p.value === datePreset)?.label ?? 'Last 30 days'}
-                <ChevronDown className="size-3.5 text-gray-400" />
+                <ChevronDown className="size-3.5 text-gray-600" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -476,7 +476,7 @@ export function ReportsScreen() {
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-gray-500 uppercase tracking-wide truncate">{kpi.label}</p>
                     <p className="text-2xl font-bold text-gray-900 tabular-nums">{kpi.value}</p>
-                    <p className="text-xs text-gray-400">{kpi.sub}</p>
+                    <p className="text-xs text-gray-600">{kpi.sub}</p>
                   </div>
                 </div>
               </CardContent>
@@ -575,7 +575,7 @@ export function ReportsScreen() {
                       if (!active || !payload?.length) return null
                       return (
                         <div className="bg-white rounded-lg shadow-lg border border-gray-100 px-3 py-2 text-sm">
-                          <p className="font-medium text-gray-700">{label}</p>
+                          <p className="font-medium text-gray-800">{label}</p>
                           <p className="text-gray-900 font-semibold tabular-nums">{payload[0].value} activities</p>
                         </div>
                       )
@@ -639,7 +639,7 @@ export function ReportsScreen() {
                     <div key={d.name} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="inline-block size-3 rounded-full" style={{ backgroundColor: d.color }} />
-                        <span className="text-sm text-gray-700">{d.name}</span>
+                        <span className="text-sm text-gray-800">{d.name}</span>
                       </div>
                       <span className="text-sm font-semibold text-gray-900 tabular-nums">{d.value}</span>
                     </div>
@@ -748,7 +748,7 @@ export function ReportsScreen() {
                       ))}
                       {sortedTeam.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center text-sm text-gray-400 py-8">
+                          <TableCell colSpan={8} className="text-center text-sm text-gray-600 py-8">
                             No team data available
                           </TableCell>
                         </TableRow>
@@ -776,7 +776,7 @@ export function ReportsScreen() {
                       {dq && Object.entries(dq.companies.completenessByField).map(([field, pct]) => (
                         <div key={field} className="space-y-1">
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-700">{field}</span>
+                            <span className="text-gray-800">{field}</span>
                             <span className={cn('tabular-nums font-medium', pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-red-600')}>
                               {pct}%
                             </span>
@@ -792,7 +792,7 @@ export function ReportsScreen() {
                       {dq && Object.entries(dq.contacts.completenessByField).map(([field, pct]) => (
                         <div key={field} className="space-y-1">
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-700">{field}</span>
+                            <span className="text-gray-800">{field}</span>
                             <span className={cn('tabular-nums font-medium', pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-red-600')}>
                               {pct}%
                             </span>
@@ -817,12 +817,12 @@ export function ReportsScreen() {
                       {dq.recommendations.map((rec, i) => (
                         <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-amber-50/60 border border-amber-100">
                           <Lightbulb className="size-4 text-amber-500 mt-0.5 shrink-0" />
-                          <p className="text-sm text-gray-700">{rec}</p>
+                          <p className="text-sm text-gray-800">{rec}</p>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-12 text-gray-400">
+                    <div className="text-center py-12 text-gray-600">
                       <ShieldCheck className="size-8 mx-auto mb-2 text-emerald-600" />
                       <p className="text-sm">Your data looks great! No recommendations.</p>
                     </div>
@@ -896,14 +896,14 @@ export function ReportsScreen() {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Progress value={deal.probability} className="h-2 w-20" />
-                              <span className="text-sm tabular-nums font-medium text-gray-700">{deal.probability}%</span>
+                              <span className="text-sm tabular-nums font-medium text-gray-800">{deal.probability}%</span>
                             </div>
                           </TableCell>
                         </TableRow>
                       ))}
                       {(!revenue?.topDeals || revenue.topDeals.length === 0) && (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center text-sm text-gray-400 py-8">
+                          <TableCell colSpan={4} className="text-center text-sm text-gray-600 py-8">
                             No deals in pipeline
                           </TableCell>
                         </TableRow>

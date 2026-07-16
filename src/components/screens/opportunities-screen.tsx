@@ -299,7 +299,7 @@ export function OpportunitiesScreen() {
           </div>
           <p className="text-sm text-gray-500 mt-0.5">
             {totalActiveValue > 0 && (
-              <span className="text-gray-700 font-medium">{formatValue(totalActiveValue)}</span>
+              <span className="text-gray-800 font-medium">{formatValue(totalActiveValue)}</span>
             )}
             {totalActiveValue > 0 && totalWonValue > 0 && ' active · '}
             {totalWonValue > 0 && (
@@ -315,7 +315,7 @@ export function OpportunitiesScreen() {
               onClick={() => setViewMode('kanban')}
               className={cn(
                 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
-                viewMode === 'kanban' ? 'bg-white text-white shadow-xs' : 'text-gray-500 hover:text-gray-700',
+                viewMode === 'kanban' ? 'bg-white text-white shadow-xs' : 'text-gray-500 hover:text-gray-800',
               )}
             >
               <LayoutGrid className="size-3.5" /> Kanban
@@ -324,7 +324,7 @@ export function OpportunitiesScreen() {
               onClick={() => setViewMode('list')}
               className={cn(
                 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
-                viewMode === 'list' ? 'bg-white text-white shadow-xs' : 'text-gray-500 hover:text-gray-700',
+                viewMode === 'list' ? 'bg-white text-white shadow-xs' : 'text-gray-500 hover:text-gray-800',
               )}
             >
               <List className="size-3.5" /> List
@@ -354,8 +354,8 @@ export function OpportunitiesScreen() {
               >
                 <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
                 <div>
-                  <p className="text-xs font-medium text-gray-700">{stage.label}</p>
-                  <p className="text-[11px] text-gray-400 tabular-nums">
+                  <p className="text-xs font-medium text-gray-800">{stage.label}</p>
+                  <p className="text-[11px] text-gray-600 tabular-nums">
                     {count} {count === 1 ? 'deal' : 'deals'}
                     {stageValue > 0 && ` · ${formatValue(stageValue)}`}
                   </p>
@@ -391,16 +391,16 @@ export function OpportunitiesScreen() {
                   <div className="flex items-center justify-between gap-2 mb-3 px-1">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
-                      <span className="text-xs font-semibold text-gray-700 truncate">{stage.label}</span>
+                      <span className="text-xs font-semibold text-gray-800 truncate">{stage.label}</span>
                     </div>
-                    <span className="text-[11px] font-semibold text-gray-400 tabular-nums shrink-0">{items.length}</span>
+                    <span className="text-[11px] font-semibold text-gray-600 tabular-nums shrink-0">{items.length}</span>
                   </div>
 
                   {/* Cards */}
                   <div className="flex-1 space-y-2 max-h-[calc(100vh-320px)] overflow-y-auto pr-0.5 custom-scrollbar">
                     {items.length === 0 ? (
                       <div className="rounded-xl border-2 border-dashed border-gray-200 p-6 flex items-center justify-center">
-                        <span className="text-xs text-gray-300">No deals</span>
+                        <span className="text-xs text-gray-700">No deals</span>
                       </div>
                     ) : (
                       items.map((opp) => {
@@ -437,14 +437,14 @@ export function OpportunitiesScreen() {
                                     className="p-1 rounded hover:bg-gray-100 transition-colors"
                                     aria-label="Edit opportunity"
                                   >
-                                    <Pencil className="size-3 text-gray-400" />
+                                    <Pencil className="size-3 text-gray-600" />
                                   </button>
                                   <button
                                     onClick={() => setDeleteId(opp.id)}
                                     className="p-1 rounded hover:bg-red-50 transition-colors"
                                     aria-label="Delete opportunity"
                                   >
-                                    <Trash2 className="size-3 text-gray-400 hover:text-red-500" />
+                                    <Trash2 className="size-3 text-gray-600 hover:text-red-500" />
                                   </button>
                                 </div>
                               </div>
@@ -463,7 +463,7 @@ export function OpportunitiesScreen() {
 
                               {/* Contact */}
                               {opp.contactName && (
-                                <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                                <div className="flex items-center gap-1.5 text-[11px] text-gray-600">
                                   <User className="size-3" />
                                   <span className="truncate">{opp.contactName}</span>
                                 </div>
@@ -477,7 +477,7 @@ export function OpportunitiesScreen() {
                               )}
 
                               {/* Days in stage */}
-                              <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                              <div className="flex items-center gap-1 text-[10px] text-gray-600">
                                 <Clock className="size-3" />
                                 <span>{daysInStage === 0 ? 'Updated today' : `${daysInStage}d in stage`}</span>
                               </div>
@@ -508,7 +508,7 @@ export function OpportunitiesScreen() {
 
                   {/* Column total */}
                   {stageValue > 0 && (
-                    <p className="mt-2 px-1 text-[11px] font-medium text-gray-400 tabular-nums">
+                    <p className="mt-2 px-1 text-[11px] font-medium text-gray-600 tabular-nums">
                       Total: {formatValue(stageValue)}
                     </p>
                   )}
@@ -554,14 +554,14 @@ export function OpportunitiesScreen() {
                             }}
                             className="flex items-center gap-2 text-sm font-medium text-gray-900 hover:text-amber-700 transition-colors"
                           >
-                            <Building2 className="size-3.5 text-gray-400 shrink-0" />
+                            <Building2 className="size-3.5 text-gray-600 shrink-0" />
                             <span className="truncate max-w-[160px]">{opp.companyName || '—'}</span>
                           </button>
                         </td>
                         <td className="px-4 py-2.5">
                           <p className="text-sm text-gray-900 font-medium truncate max-w-[200px]">{opp.title}</p>
                           {opp.nextAction && (
-                            <p className="text-[11px] text-gray-400 truncate max-w-[200px]">→ {opp.nextAction}</p>
+                            <p className="text-[11px] text-gray-600 truncate max-w-[200px]">→ {opp.nextAction}</p>
                           )}
                         </td>
                         <td className="px-4 py-2.5">
@@ -585,14 +585,14 @@ export function OpportunitiesScreen() {
                               className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
                               aria-label="Edit opportunity"
                             >
-                              <Pencil className="size-3.5 text-gray-400" />
+                              <Pencil className="size-3.5 text-gray-600" />
                             </button>
                             <button
                               onClick={() => setDeleteId(opp.id)}
                               className="p-1.5 rounded-md hover:bg-red-50 transition-colors"
                               aria-label="Delete opportunity"
                             >
-                              <Trash2 className="size-3.5 text-gray-400 hover:text-red-500" />
+                              <Trash2 className="size-3.5 text-gray-600 hover:text-red-500" />
                             </button>
                           </div>
                         </td>
@@ -628,7 +628,7 @@ export function OpportunitiesScreen() {
           <div className="grid gap-4 py-3">
             {/* Title */}
             <div className="grid gap-1.5">
-              <Label className="text-sm font-medium text-gray-700">Title</Label>
+              <Label className="text-sm font-medium text-gray-800">Title</Label>
               <Input
                 placeholder="Opportunity name"
                 value={form.title}
@@ -640,7 +640,7 @@ export function OpportunitiesScreen() {
 
             {/* Company */}
             <div className="grid gap-1.5">
-              <Label className="text-sm font-medium text-gray-700">Company *</Label>
+              <Label className="text-sm font-medium text-gray-800">Company *</Label>
               <Select
                 value={form.companyId}
                 onValueChange={v => setForm(f => ({ ...f, companyId: v, targetContactId: '' }))}
@@ -658,7 +658,7 @@ export function OpportunitiesScreen() {
 
             {/* Description */}
             <div className="grid gap-1.5">
-              <Label className="text-sm font-medium text-gray-700">Description</Label>
+              <Label className="text-sm font-medium text-gray-800">Description</Label>
               <Textarea
                 placeholder="Describe the opportunity..."
                 value={form.description}
@@ -671,7 +671,7 @@ export function OpportunitiesScreen() {
             {/* Contact & Status row */}
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label className="text-sm font-medium text-gray-700">Contact</Label>
+                <Label className="text-sm font-medium text-gray-800">Contact</Label>
                 <Select
                   value={form.targetContactId}
                   onValueChange={v => setForm(f => ({ ...f, targetContactId: v }))}
@@ -687,7 +687,7 @@ export function OpportunitiesScreen() {
                 </Select>
               </div>
               <div className="grid gap-1.5">
-                <Label className="text-sm font-medium text-gray-700">Status</Label>
+                <Label className="text-sm font-medium text-gray-800">Status</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
                   <SelectTrigger className="border-gray-200 rounded-lg">
                     <SelectValue />
@@ -703,7 +703,7 @@ export function OpportunitiesScreen() {
 
             {/* Next Action */}
             <div className="grid gap-1.5">
-              <Label className="text-sm font-medium text-gray-700">Next Action</Label>
+              <Label className="text-sm font-medium text-gray-800">Next Action</Label>
               <Input
                 placeholder="What's the next step?"
                 value={form.nextAction}

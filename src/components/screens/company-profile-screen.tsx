@@ -65,7 +65,7 @@ const handleLogoError = (e: React.SyntheticEvent<HTMLImageElement>, name: string
   if (parent) {
     parent.innerHTML = ''
     const span = document.createElement('span')
-    span.className = `flex items-center justify-center ${sizeClass} rounded-lg bg-gray-100 text-gray-400 font-semibold`
+    span.className = `flex items-center justify-center ${sizeClass} rounded-lg bg-gray-100 text-gray-600 font-semibold`
     span.textContent = (name || '?').charAt(0).toUpperCase()
     parent.appendChild(span)
   }
@@ -453,7 +453,7 @@ export default function CompanyProfileScreen() {
                 onError={e => handleLogoError(e, data.name, 'size-14 text-xl')}
               />
             ) : (
-              <span className="text-xl font-bold text-gray-400">{data.name?.charAt(0)}</span>
+              <span className="text-xl font-bold text-gray-600">{data.name?.charAt(0)}</span>
             )}
           </div>
 
@@ -468,7 +468,7 @@ export default function CompanyProfileScreen() {
                 <ArrowLeft className="size-4 group-hover:-translate-x-0.5 transition-transform" />
                 <span className="hidden sm:inline">Back</span>
               </button>
-              <span className="text-gray-300">/</span>
+              <span className="text-gray-700">/</span>
               <h2 className="text-xl font-bold text-gray-900 tracking-tight truncate">{data.name}</h2>
               {data.industry && (
                 <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-xs font-normal border-0 rounded-md">
@@ -490,7 +490,7 @@ export default function CompanyProfileScreen() {
             <div className="flex items-center gap-x-5 gap-y-1.5 mt-2.5 text-sm text-gray-500 flex-wrap">
               {data.domain && (
                 <span className="flex items-center gap-1.5">
-                  <Globe className="size-3.5 text-gray-400" />
+                  <Globe className="size-3.5 text-gray-600" />
                   <a
                     href={`https://${data.domain}`}
                     target="_blank"
@@ -504,19 +504,19 @@ export default function CompanyProfileScreen() {
               )}
               {data.location && (
                 <span className="flex items-center gap-1.5">
-                  <MapPin className="size-3.5 text-gray-400" />
+                  <MapPin className="size-3.5 text-gray-600" />
                   {data.location}
                 </span>
               )}
               {data.country && data.location !== data.country && (
                 <span className="flex items-center gap-1.5">
-                  <MapPin className="size-3.5 text-gray-400" />
+                  <MapPin className="size-3.5 text-gray-600" />
                   {data.country}
                 </span>
               )}
               {data.employeeSize && (
                 <span className="flex items-center gap-1.5">
-                  <Users className="size-3.5 text-gray-400" />
+                  <Users className="size-3.5 text-gray-600" />
                   {data.employeeSize} employees
                 </span>
               )}
@@ -672,7 +672,7 @@ export default function CompanyProfileScreen() {
           </div>
           <div className="flex items-center gap-3 rounded-lg bg-gray-50/80 p-3">
             <div className="flex size-9 rounded-lg bg-emerald-50 items-center justify-center shrink-0">
-              {researchCard ? <CheckCircle2 className="size-4 text-emerald-600" /> : <FileText className="size-4 text-gray-400" />}
+              {researchCard ? <CheckCircle2 className="size-4 text-emerald-600" /> : <FileText className="size-4 text-gray-600" />}
             </div>
             <div>
               <p className="text-lg font-semibold text-gray-900">
@@ -700,7 +700,7 @@ export default function CompanyProfileScreen() {
             <TabsTrigger
               key={tab.key}
               value={tab.key}
-              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5"
+              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-800 transition-colors px-3 py-1.5"
             >
               {tab.label}
               {tab.count !== undefined && tab.count > 0 && (
@@ -727,8 +727,8 @@ export default function CompanyProfileScreen() {
             ] as const).map(([label, val, Icon]) => (
               <div key={label} className="rounded-xl bg-white p-4 card-rest">
                 <div className="flex items-center gap-2 mb-1.5">
-                  <Icon className="size-3.5 text-gray-400" />
-                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{label}</p>
+                  <Icon className="size-3.5 text-gray-600" />
+                  <p className="text-[11px] font-medium text-gray-600 uppercase tracking-wider">{label}</p>
                 </div>
                 <p className="text-sm font-semibold text-gray-900 capitalize">{val || '—'}</p>
               </div>
@@ -739,9 +739,9 @@ export default function CompanyProfileScreen() {
           <div className="rounded-xl bg-white card-rest overflow-hidden slide-up" style={{ animationDelay: '50ms' }}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                <Users className="size-4 text-gray-400" />
+                <Users className="size-4 text-gray-600" />
                 Key Contacts
-                <span className="text-xs font-normal text-gray-400">{contacts.length} total</span>
+                <span className="text-xs font-normal text-gray-600">{contacts.length} total</span>
               </h3>
               <div className="flex items-center gap-2">
                 <Button
@@ -764,7 +764,7 @@ export default function CompanyProfileScreen() {
             </div>
             {contacts.length === 0 ? (
               <div className="px-6 py-8 text-center">
-                <Users className="size-8 text-gray-300 mx-auto mb-2" />
+                <Users className="size-8 text-gray-700 mx-auto mb-2" />
                 <p className="text-sm text-gray-500">No contacts yet</p>
                 <Button size="sm" variant="outline" className="mt-3 h-7 text-xs rounded-md border-gray-200 text-gray-600" onClick={() => setContactOpen(true)}>
                   <Plus className="size-3 mr-1" /> Add your first contact
@@ -784,13 +784,13 @@ export default function CompanyProfileScreen() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 group-hover:text-amber-700 transition-colors truncate">
                         {c.name}
-                        <ChevronRight className="size-3 inline ml-1 text-gray-300 group-hover:text-amber-500 transition-colors" />
+                        <ChevronRight className="size-3 inline ml-1 text-gray-700 group-hover:text-amber-500 transition-colors" />
                       </p>
                       <p className="text-xs text-gray-500 truncate">{c.jobTitle || 'No title'}</p>
                     </div>
                     <div className="hidden sm:flex items-center gap-3 shrink-0">
                       {c.email && (
-                        <span className="text-xs text-gray-400 font-mono truncate max-w-[180px]">{c.email}</span>
+                        <span className="text-xs text-gray-600 font-mono truncate max-w-[180px]">{c.email}</span>
                       )}
                       {c.emailHealth && (
                         <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium border ${getHealthVariant(c.emailHealth)}`}>
@@ -801,7 +801,7 @@ export default function CompanyProfileScreen() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-7 text-xs text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-7 text-xs text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded-md shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={(e) => { e.stopPropagation(); handleGenerateEmail(c.id) }}
                     >
                       <Mail className="size-3.5 mr-1" /> Email
@@ -828,7 +828,7 @@ export default function CompanyProfileScreen() {
                   <Sparkles className="size-4 text-amber-500" />
                   Research Summary
                   {researchCard.confidenceScore && (
-                    <span className="text-[11px] font-medium text-gray-400">
+                    <span className="text-[11px] font-medium text-gray-600">
                       {researchCard.confidenceScore}% confidence
                     </span>
                   )}
@@ -850,9 +850,9 @@ export default function CompanyProfileScreen() {
                       <div key={String(key)} className={`rounded-lg border p-4 ${researchColors[idx]} slide-up`} style={{ animationDelay: `${idx * 40}ms` }}>
                         <div className="flex items-center gap-2 mb-2">
                           <cfg.icon className="size-3.5 text-gray-500" />
-                          <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
+                          <p className="text-xs font-semibold text-gray-800 uppercase tracking-wider">{cfg.label}</p>
                         </div>
-                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap line-clamp-3">{String((researchCard as unknown as Record<string, unknown>)[key])}</p>
+                        <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap line-clamp-3">{String((researchCard as unknown as Record<string, unknown>)[key])}</p>
                       </div>
                     ) : null,
                   )}
@@ -888,7 +888,7 @@ export default function CompanyProfileScreen() {
             <div className="rounded-xl bg-white card-rest overflow-hidden slide-up" style={{ animationDelay: '150ms' }}>
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  <Target className="size-4 text-gray-400" />
+                  <Target className="size-4 text-gray-600" />
                   Active Opportunities
                 </h3>
                 <Button
@@ -909,7 +909,7 @@ export default function CompanyProfileScreen() {
                     }`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{o.title}</p>
-                      {o.nextAction && <p className="text-xs text-gray-400 mt-0.5">Next: {o.nextAction}</p>}
+                      {o.nextAction && <p className="text-xs text-gray-600 mt-0.5">Next: {o.nextAction}</p>}
                     </div>
                     <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium capitalize border ${getOppStatusVariant(o.status)}`}>
                       {o.status}
@@ -983,7 +983,7 @@ export default function CompanyProfileScreen() {
                           <div>
                             <span className="font-medium text-gray-900 text-sm group-hover:text-amber-700 transition-colors">{c.name}</span>
                             {c.roleBucket && (
-                              <p className="text-[11px] text-gray-400 mt-0.5">{c.roleBucket}</p>
+                              <p className="text-[11px] text-gray-600 mt-0.5">{c.roleBucket}</p>
                             )}
                           </div>
                         </div>
@@ -999,7 +999,7 @@ export default function CompanyProfileScreen() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-7 text-xs text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md"
+                          className="h-7 text-xs text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded-md"
                           onClick={(e) => { e.stopPropagation(); handleGenerateEmail(c.id) }}
                         >
                           <Mail className="size-3.5 mr-1" /> Generate Email
@@ -1068,7 +1068,7 @@ export default function CompanyProfileScreen() {
                       </div>
                       {researchCard.lastResearchedAt && (
                         <div className="text-right shrink-0">
-                          <p className="text-[11px] text-gray-400">Last researched</p>
+                          <p className="text-[11px] text-gray-600">Last researched</p>
                           <p className="text-xs font-medium text-gray-600">
                             {formatDistanceToNow(new Date(researchCard.lastResearchedAt), { addSuffix: true })}
                           </p>
@@ -1084,9 +1084,9 @@ export default function CompanyProfileScreen() {
                         <div key={String(key)} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 50}ms` }}>
                           <div className="flex items-center gap-2 mb-2">
                             <cfg.icon className="size-3.5 text-gray-500" />
-                            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{cfg.label}</p>
+                            <p className="text-xs font-semibold text-gray-800 uppercase tracking-wider">{cfg.label}</p>
                           </div>
-                          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{String((researchCard as unknown as Record<string, unknown>)[key])}</p>
+                          <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{String((researchCard as unknown as Record<string, unknown>)[key])}</p>
                         </div>
                       ) : null,
                     )}
@@ -1142,7 +1142,7 @@ export default function CompanyProfileScreen() {
                     <p className="text-sm font-semibold text-gray-900">{o.title}</p>
                     {o.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{o.description}</p>}
                     {o.nextAction && (
-                      <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                      <p className="text-xs text-gray-600 mt-2 flex items-center gap-1">
                         <ChevronRight className="size-3 text-amber-600" />
                         {o.nextAction}
                       </p>
@@ -1158,7 +1158,7 @@ export default function CompanyProfileScreen() {
                         <ChevronRight className="size-3" />
                       </button>
                     )}
-                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
                       <span className="flex items-center gap-1">
                         <Calendar className="size-3" />
                         {formatDistanceToNow(new Date(o.createdAt), { addSuffix: true })}
@@ -1178,7 +1178,7 @@ export default function CompanyProfileScreen() {
                     <button
                       onClick={(e) => { e.stopPropagation(); deleteOppMutation.mutate(o.id) }}
                       disabled={deleteOppMutation.isPending}
-                      className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-50"
+                      className="text-gray-700 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-50"
                       aria-label="Delete opportunity"
                       title="Delete opportunity"
                     >
@@ -1231,10 +1231,10 @@ export default function CompanyProfileScreen() {
                     {/* Note card */}
                     <div className="flex-1 rounded-xl bg-white p-5 card-rest min-w-0">
                       <div className="flex items-start justify-between gap-3">
-                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap flex-1">{n.body}</p>
+                        <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap flex-1">{n.body}</p>
                         <button
                           onClick={() => setDeleteNoteId(n.id)}
-                          className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
+                          className="shrink-0 text-gray-700 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
                           aria-label="Delete note"
                           title="Delete note"
                         >
@@ -1247,7 +1247,7 @@ export default function CompanyProfileScreen() {
                             {n.noteType}
                           </Badge>
                         )}
-                        <span className="text-[11px] text-gray-400">
+                        <span className="text-[11px] text-gray-600">
                           {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
                         </span>
                       </div>
@@ -1308,7 +1308,7 @@ export default function CompanyProfileScreen() {
                             <ChevronRight className="size-3" />
                           </button>
                         )}
-                        <p className="text-[11px] text-gray-400 mt-1.5">
+                        <p className="text-[11px] text-gray-600 mt-1.5">
                           {formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}
                         </p>
                       </div>
@@ -1409,16 +1409,16 @@ export default function CompanyProfileScreen() {
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-1.5">
-              <Label className="text-sm font-medium text-gray-700">Name</Label>
+              <Label className="text-sm font-medium text-gray-800">Name</Label>
               <Input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} placeholder="Company name" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label className="text-sm font-medium text-gray-700">Domain</Label>
+                <Label className="text-sm font-medium text-gray-800">Domain</Label>
                 <Input value={editForm.domain} onChange={e => setEditForm(f => ({ ...f, domain: e.target.value }))} placeholder="example.com" />
               </div>
               <div className="grid gap-1.5">
-                <Label className="text-sm font-medium text-gray-700">Industry</Label>
+                <Label className="text-sm font-medium text-gray-800">Industry</Label>
                 <Select value={editForm.industry} onValueChange={v => setEditForm(f => ({ ...f, industry: v }))}>
                   <SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
@@ -1429,17 +1429,17 @@ export default function CompanyProfileScreen() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label className="text-sm font-medium text-gray-700">Website</Label>
+                <Label className="text-sm font-medium text-gray-800">Website</Label>
                 <Input value={editForm.website} onChange={e => setEditForm(f => ({ ...f, website: e.target.value }))} placeholder="https://..." />
               </div>
               <div className="grid gap-1.5">
-                <Label className="text-sm font-medium text-gray-700">LinkedIn</Label>
+                <Label className="text-sm font-medium text-gray-800">LinkedIn</Label>
                 <Input value={editForm.linkedinUrl} onChange={e => setEditForm(f => ({ ...f, linkedinUrl: e.target.value }))} placeholder="https://linkedin.com/..." />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label className="text-sm font-medium text-gray-700">Employee Size</Label>
+                <Label className="text-sm font-medium text-gray-800">Employee Size</Label>
                 <Select value={editForm.employeeSize} onValueChange={v => setEditForm(f => ({ ...f, employeeSize: v }))}>
                   <SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
@@ -1448,12 +1448,12 @@ export default function CompanyProfileScreen() {
                 </Select>
               </div>
               <div className="grid gap-1.5">
-                <Label className="text-sm font-medium text-gray-700">Country</Label>
+                <Label className="text-sm font-medium text-gray-800">Country</Label>
                 <Input value={editForm.country} onChange={e => setEditForm(f => ({ ...f, country: e.target.value }))} placeholder="USA" />
               </div>
             </div>
             <div className="grid gap-1.5">
-              <Label className="text-sm font-medium text-gray-700">Location</Label>
+              <Label className="text-sm font-medium text-gray-800">Location</Label>
               <Input value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} placeholder="San Francisco, CA" />
             </div>
           </div>
@@ -1473,7 +1473,7 @@ export default function CompanyProfileScreen() {
           <DialogHeader>
             <DialogTitle className="text-gray-900">Add Contact</DialogTitle>
             <p className="text-xs text-gray-500 mt-1">
-              Adding to <span className="font-medium text-gray-700">{data.name}</span>
+              Adding to <span className="font-medium text-gray-800">{data.name}</span>
             </p>
           </DialogHeader>
           <div className="space-y-4 py-1">
@@ -1525,7 +1525,7 @@ export default function CompanyProfileScreen() {
           <DialogHeader>
             <DialogTitle className="text-gray-900">Create Opportunity</DialogTitle>
             <p className="text-xs text-gray-500 mt-1">
-              For <span className="font-medium text-gray-700">{data.name}</span>
+              For <span className="font-medium text-gray-800">{data.name}</span>
             </p>
           </DialogHeader>
           <div className="space-y-4 py-1">

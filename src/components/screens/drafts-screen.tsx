@@ -1552,7 +1552,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-10 px-5 border-red-500/30 text-red-600 hover:text-red-300 hover:bg-red-50 hover:border-red-500/50 transition-all"
+                    className="h-10 px-5 border-red-500/30 text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-500/50 transition-all"
                     onClick={handleReject}
                   >
                     <X className="w-4 h-4 mr-2" />

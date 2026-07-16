@@ -78,7 +78,7 @@ const STATUS_COLORS: Record<string, string> = {
   researching: 'bg-amber-500/20 text-amber-600 border-amber-500/30',
   active: 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30',
   engaged: 'bg-purple-500/20 text-purple-600 border-purple-500/30',
-  paused: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+  paused: 'bg-gray-500/20 text-gray-600 border-gray-500/30',
   closed_won: 'bg-green-500/20 text-green-400 border-green-500/30',
   closed_lost: 'bg-red-500/20 text-red-600 border-red-500/30',
 };
@@ -433,7 +433,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                       <Globe size={10} /> {company.domain}
                     </span>
                   )}
-                  <Badge className={`text-[10px] px-1.5 py-0 ${STATUS_COLORS[status] || 'bg-gray-500/20 text-gray-400'}`}>
+                  <Badge className={`text-[10px] px-1.5 py-0 ${STATUS_COLORS[status] || 'bg-gray-500/20 text-gray-600'}`}>
                     {status.replace(/_/g, ' ')}
                   </Badge>
                 </div>
@@ -898,7 +898,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                                   <Edit3 size={12} className="mr-1" /> Edit
                                 </Button>
                                 <Button
-                                  size="sm" variant="ghost" className="text-[11px] text-red-600 hover:text-red-300 h-7"
+                                  size="sm" variant="ghost" className="text-[11px] text-red-600 hover:text-red-700 h-7"
                                   onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}
                                 >
                                   <Trash2 size={12} className="mr-1" /> Delete
@@ -1054,7 +1054,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <h4 className="text-sm font-semibold text-foreground">{signal.title}</h4>
-                            <Badge className={`text-[9px] px-1.5 py-0 capitalize ${SEVERITY_COLORS[signal.severity] || 'bg-gray-500/20 text-gray-400'}`}>
+                            <Badge className={`text-[9px] px-1.5 py-0 capitalize ${SEVERITY_COLORS[signal.severity] || 'bg-gray-500/20 text-gray-600'}`}>
                               {signal.severity}
                             </Badge>
                             <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-gray-200 text-muted-foreground capitalize">

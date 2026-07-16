@@ -47,7 +47,7 @@ type CategoryFilter = 'all' | 'email' | 'research' | 'general'
 const CATEGORY_CONFIG: Record<string, { label: string; icon: typeof Mail; color: string; bg: string }> = {
   email: { label: 'Email', icon: Mail, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
   research: { label: 'Research', icon: Microscope, color: 'text-violet-700', bg: 'bg-violet-50 border-violet-200' },
-  general: { label: 'General', icon: Layers, color: 'text-gray-700', bg: 'bg-gray-50 border-gray-200' },
+  general: { label: 'General', icon: Layers, color: 'text-gray-800', bg: 'bg-gray-50 border-gray-200' },
 }
 
 const CATEGORIES: CategoryFilter[] = ['all', 'email', 'research', 'general']
@@ -246,7 +246,7 @@ export function PromptTemplatesScreen() {
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         <div className="relative flex-1 w-full sm:max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-600" />
           <Input
             placeholder="Search templates..."
             value={search}
@@ -286,7 +286,7 @@ export function PromptTemplatesScreen() {
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-6">
           <div className="flex size-14 items-center justify-center rounded-2xl bg-gray-100 mb-4">
-            <FileCode2 className="size-7 text-gray-400" />
+            <FileCode2 className="size-7 text-gray-600" />
           </div>
           <h3 className="text-base font-semibold text-gray-900 mb-1">No templates found</h3>
           <p className="text-sm text-gray-500 max-w-sm text-center mb-6 leading-relaxed">
@@ -358,7 +358,7 @@ export function PromptTemplatesScreen() {
 
                 {/* System prompt preview */}
                 <div className="bg-gray-50 rounded-lg p-2.5 mb-2">
-                  <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium mb-1">System Prompt</p>
+                  <p className="text-[10px] uppercase tracking-wider text-gray-600 font-medium mb-1">System Prompt</p>
                   <p className="text-xs text-gray-600 font-mono leading-relaxed line-clamp-2">
                     {template.systemPrompt}
                   </p>
@@ -366,7 +366,7 @@ export function PromptTemplatesScreen() {
 
                 {/* User template preview */}
                 <div className="bg-gray-50 rounded-lg p-2.5 mb-3">
-                  <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium mb-1">User Template</p>
+                  <p className="text-[10px] uppercase tracking-wider text-gray-600 font-medium mb-1">User Template</p>
                   <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
                     {template.userPromptTemplate}
                   </p>
@@ -379,7 +379,7 @@ export function PromptTemplatesScreen() {
                       <Eye className="size-3 inline mr-1" />
                       Preview with sample data
                     </p>
-                    <p className="text-xs text-gray-700 leading-relaxed">{preview}</p>
+                    <p className="text-xs text-gray-800 leading-relaxed">{preview}</p>
                   </div>
                 )}
 
@@ -499,7 +499,7 @@ export function PromptTemplatesScreen() {
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">
                 User Prompt Template *{' '}
-                <span className="text-gray-400 font-normal">— use {'{{variableName}}'} for placeholders</span>
+                <span className="text-gray-600 font-normal">— use {'{{variableName}}'} for placeholders</span>
               </Label>
               <Textarea
                 value={formUserTemplate}

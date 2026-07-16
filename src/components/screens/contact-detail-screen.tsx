@@ -51,7 +51,7 @@ interface GeneratedEmailResult {
 
 const matchScoreColor = (score: number | null) =>
   score == null
-    ? 'text-gray-400'
+    ? 'text-gray-600'
     : score >= 80
       ? 'text-emerald-600'
       : score >= 60
@@ -413,13 +413,13 @@ export default function ContactDetailScreen() {
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setActiveView('contacts')}
-                className="inline-flex items-center gap-1.5 text-gray-400 hover:text-amber-600 transition-colors duration-150"
+                className="inline-flex items-center gap-1.5 text-gray-600 hover:text-amber-600 transition-colors duration-150"
                 title="Back to contacts"
               >
                 <ArrowLeft className="size-3.5" />
                 <span className="text-xs font-medium hover:underline underline-offset-2">Contacts</span>
               </button>
-              <span className="text-gray-300 text-sm mx-1">/</span>
+              <span className="text-gray-700 text-sm mx-1">/</span>
               <h2 className="text-xl font-bold text-gray-900 tracking-tight truncate">{data.name}</h2>
               {data.jobTitle && (
                 <span className="text-sm text-gray-500 hidden sm:inline">· {data.jobTitle}</span>
@@ -472,7 +472,7 @@ export default function ContactDetailScreen() {
                   href={data.linkedinUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-blue-600 transition-colors"
+                  className="text-gray-600 hover:text-blue-600 transition-colors"
                 >
                   <Linkedin className="size-3.5" />
                 </a>
@@ -565,7 +565,7 @@ export default function ContactDetailScreen() {
             <TabsTrigger
               key={key}
               value={key}
-              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-700 transition-colors px-3 py-1.5"
+              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-800 transition-colors px-3 py-1.5"
             >
               {label}
               {count != null && count > 0 && (
@@ -591,8 +591,8 @@ export default function ContactDetailScreen() {
             ] as const).map(([label, val, Icon]) => (
               <div key={label} className="rounded-xl bg-white p-5 card-rest">
                 <div className="flex items-center gap-2 mb-1.5">
-                  <Icon className="size-3.5 text-gray-400" />
-                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{label}</p>
+                  <Icon className="size-3.5 text-gray-600" />
+                  <p className="text-[11px] font-medium text-gray-600 uppercase tracking-wider">{label}</p>
                 </div>
                 {label === 'LinkedIn' && val ? (
                   <a
@@ -621,13 +621,13 @@ export default function ContactDetailScreen() {
                   <Building2 className="size-5 text-amber-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Company</p>
+                  <p className="text-[11px] font-medium text-gray-600 uppercase tracking-wider">Company</p>
                   <p className="text-sm font-bold text-gray-900 truncate">{data.company.name}</p>
                   {data.company.domain && (
                     <p className="text-xs text-gray-500 mt-0.5">{data.company.domain}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-2 text-gray-400">
+                <div className="flex items-center gap-2 text-gray-600">
                   {data.company.industry && (
                     <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-md text-gray-600">
                       {data.company.industry}
@@ -643,7 +643,7 @@ export default function ContactDetailScreen() {
           <div className="rounded-xl bg-white p-6 card-rest slide-up">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                <ShieldCheck className="size-4 text-gray-400" />
+                <ShieldCheck className="size-4 text-gray-600" />
                 Email Health Score
               </h3>
               <Button
@@ -696,7 +696,7 @@ export default function ContactDetailScreen() {
                         ) : (
                           <XCircle className="size-4 text-red-600 shrink-0" />
                         )}
-                        <span className="text-xs font-medium text-gray-700">{label}</span>
+                        <span className="text-xs font-medium text-gray-800">{label}</span>
                       </div>
                     ))}
                   </div>
@@ -712,7 +712,7 @@ export default function ContactDetailScreen() {
             })() : (
               <div className="flex flex-col items-center py-8 text-center">
                 <div className="size-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                  <ShieldCheck className="size-6 text-gray-300" />
+                  <ShieldCheck className="size-6 text-gray-700" />
                 </div>
                 <p className="text-sm text-gray-500 mb-3">No email validation performed yet.</p>
                 <Button
@@ -847,8 +847,8 @@ export default function ContactDetailScreen() {
                               </Badge>
                             )}
                             {isExpanded
-                              ? <ChevronUp className="size-3.5 text-gray-400 shrink-0" />
-                              : <ChevronDown className="size-3.5 text-gray-400 shrink-0" />
+                              ? <ChevronUp className="size-3.5 text-gray-600 shrink-0" />
+                              : <ChevronDown className="size-3.5 text-gray-600 shrink-0" />
                             }
                           </div>
                           <p className={cn(
@@ -865,7 +865,7 @@ export default function ContactDetailScreen() {
                             </span>
                           )}
                           {d.confidenceScore != null && (
-                            <span className="text-xs font-medium text-gray-400">
+                            <span className="text-xs font-medium text-gray-600">
                               Conf {d.confidenceScore}%
                             </span>
                           )}
@@ -878,7 +878,7 @@ export default function ContactDetailScreen() {
                         </div>
                       </div>
                       {!isExpanded && (
-                        <span className="text-[11px] text-gray-400 mt-2 block">
+                        <span className="text-[11px] text-gray-600 mt-2 block">
                           {formatDistanceToNow(new Date(d.createdAt), { addSuffix: true })}
                         </span>
                       )}
@@ -930,7 +930,7 @@ export default function ContactDetailScreen() {
                             </Button>
                           </div>
                         )}
-                        <span className="text-[11px] text-gray-400 ml-auto">
+                        <span className="text-[11px] text-gray-600 ml-auto">
                           {formatDistanceToNow(new Date(d.createdAt), { addSuffix: true })}
                         </span>
                       </div>
@@ -966,10 +966,10 @@ export default function ContactDetailScreen() {
               {notes.map((n) => (
                 <div key={n.id} className="rounded-xl bg-white p-5 card-rest slide-up">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm text-gray-700 leading-relaxed flex-1">{n.body}</p>
+                    <p className="text-sm text-gray-800 leading-relaxed flex-1">{n.body}</p>
                     <button
                       onClick={() => setDeleteNoteId(n.id)}
-                      className="shrink-0 text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
+                      className="shrink-0 text-gray-700 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
                       aria-label="Delete note"
                       title="Delete note"
                     >
@@ -982,7 +982,7 @@ export default function ContactDetailScreen() {
                         {n.noteType}
                       </Badge>
                     )}
-                    <span className="text-[11px] text-gray-400">
+                    <span className="text-[11px] text-gray-600">
                       {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
                     </span>
                   </div>
@@ -1020,7 +1020,7 @@ export default function ContactDetailScreen() {
                         {t.details && (
                           <p className="text-sm text-gray-500 mt-0.5">{t.details}</p>
                         )}
-                        <p className="text-[11px] text-gray-400 mt-1">
+                        <p className="text-[11px] text-gray-600 mt-1">
                           {formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}
                         </p>
                       </div>

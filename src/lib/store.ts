@@ -28,7 +28,11 @@ export type ViewId =
   | 'segments'
   | 'bounces'
   | 'mind-map'
-  | 'command-center';
+  | 'command-center'
+  | 'signal-intelligence'
+  | 'research-agent'
+  | 'playbooks'
+  | 'strategy-room';
 
 interface AppState {
   activeView: ViewId;

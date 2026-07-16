@@ -16,6 +16,7 @@ import {
   LayoutTemplate, Layers, AlertTriangle, Loader2, Sparkles, Network,
   UserPlus, Target, FileBarChart, Code2, Copy, ClipboardList, Kanban, MailPlus,
   ChevronDown, ChevronRight, Radar, MessageSquare, Heart, Activity, Shield, Database,
+  BookOpen, Compass, Search, ExternalLink,
 } from 'lucide-react';
 
 import LandingPage from '@/app/landing-page';
@@ -64,6 +65,11 @@ const RelationshipMemoryScreen = lazy(() => import('@/components/screens/relatio
 const OpportunityRadarScreen = lazy(() => import('@/components/screens/opportunity-radar-screen'));
 const DataHealthScreen = lazy(() => import('@/components/screens/data-health-screen'));
 
+// — Phase 4 screens —
+const PlaybooksScreen = lazy(() => import('@/components/screens/playbooks-screen'));
+const ResearchAgentScreen = lazy(() => import('@/components/screens/research-agent-screen'));
+const StrategyRoomScreen = lazy(() => import('@/components/screens/strategy-room-screen'));
+
 /* ═══════════════════════════════════════════════════
    Navigation configuration
    ═══════════════════════════════════════════════════ */
@@ -87,6 +93,8 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: 'command-center', label: 'Command Center', icon: Sparkles },
       { key: 'signal-intelligence', label: 'Signal Intelligence', icon: Radar },
+      { key: 'research-agent', label: 'Research Agent', icon: Brain },
+      { key: 'playbooks', label: 'Sales Playbooks', icon: BookOpen },
     ],
   },
   {
@@ -104,6 +112,7 @@ const NAV_SECTIONS: NavSection[] = [
     defaultOpen: true,
     items: [
       { key: 'conversation-studio', label: 'Conversation Studio', icon: MessageSquare },
+      { key: 'strategy-room', label: 'Strategy Room', icon: Compass },
       { key: 'opportunity-radar', label: 'Opportunity Radar', icon: Target },
       { key: 'email-generation', label: 'Email Generator', icon: MailPlus },
       { key: 'drafts', label: 'Drafts', icon: FileText },
@@ -205,7 +214,10 @@ type ScreenComponent = React.LazyExoticComponent<React.ComponentType<any>> | Rea
 const SCREEN_MAP: Record<string, ScreenComponent> = {
   'command-center': CommandCenterScreen,
   'signal-intelligence': SignalIntelligenceScreen,
+  'research-agent': ResearchAgentScreen,
+  'playbooks': PlaybooksScreen,
   'conversation-studio': ConversationStudioScreen,
+  'strategy-room': StrategyRoomScreen,
   'relationship-memory': RelationshipMemoryScreen,
   'opportunity-radar': OpportunityRadarScreen,
   'data-health': DataHealthScreen,
@@ -332,6 +344,18 @@ function ScreenLoader() {
    App Shell
    ═══════════════════════════════════════════════════════════════ */
 
+function getTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'now';
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d`;
+  return `${Math.floor(days / 7)}w`;
+}
+
 function AppShell({ onLogout }: { onLogout: () => void }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeScreen, setActiveScreen] = useState('command-center');
@@ -341,6 +365,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Array<{id:string;title:string;message:string;type:string;icon:string;createdAt:string;link:string|null}>>([]);
 
   // URL hash sync for bookmarkability + browser back/forward
   useEffect(() => {
@@ -398,6 +423,19 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
     };
     fetchCounts();
     const interval = setInterval(fetchCounts, 30000); // refresh every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch notifications
+  useEffect(() => {
+    const fetchNotifications = () => {
+      fetch('/api/notifications')
+        .then(res => res.json())
+        .then((data) => { if (Array.isArray(data)) setNotifications(data.slice(0, 8)); })
+        .catch(() => {});
+    };
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -740,29 +778,40 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                       <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
                         <h3 className="text-xs font-semibold text-foreground">Notifications</h3>
                       </div>
-                      <div className="py-2">
-                        <div className="px-4 py-3 flex items-start gap-3 hover:bg-gray-50 transition-colors cursor-pointer">
-                          <div className="w-8 h-8 rounded-lg bg-gold-subtle flex items-center justify-center shrink-0 mt-0.5">
-                            <Send className="w-3.5 h-3.5 text-[var(--color-gold)]" />
+                      <div className="py-1 max-h-80 overflow-y-auto">
+                        {notifications.length > 0 ? notifications.map((notif, i) => {
+                          const iconColor = notif.type === 'signal' ? 'text-blue-500 bg-blue-50' :
+                            notif.type === 'reply' ? 'text-emerald-500 bg-emerald-50' :
+                            notif.type === 'feature' ? 'text-[var(--color-gold)]' : 'text-gray-500 bg-gray-50';
+                          const NotifIcon = notif.icon === 'Radar' ? Radar :
+                            notif.icon === 'Mail' ? Mail :
+                            notif.icon === 'Brain' ? Brain :
+                            notif.icon === 'BookOpen' ? BookOpen :
+                            notif.icon === 'Sparkles' ? Sparkles : Activity;
+                          const timeAgo = getTimeAgo(notif.createdAt);
+                          return (
+                            <div key={notif.id} className="px-4 py-2.5 flex items-start gap-3 hover:bg-gray-50 transition-colors cursor-pointer"
+                              onClick={() => { if (notif.link) { window.location.hash = notif.link.replace('#', ''); } setNotificationsOpen(false); }}>
+                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${iconColor}`}>
+                                <NotifIcon className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium text-foreground truncate">{notif.title}</p>
+                                <p className="text-[11px] mt-0.5 truncate" style={{ color: styles.textDim }}>{notif.message}</p>
+                              </div>
+                              <span className="text-[10px] shrink-0 mt-0.5" style={{ color: styles.textDim }}>{timeAgo}</span>
+                            </div>
+                          );
+                        }) : (
+                          <div className="px-4 py-6 text-center">
+                            <Bell className="w-6 h-6 mx-auto mb-2 text-gray-300" />
+                            <p className="text-xs text-muted-foreground">No notifications yet</p>
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium text-foreground">Emails sent successfully</p>
-                            <p className="text-[11px] mt-0.5" style={{ color: styles.textDim }}>Queue processed 5 emails</p>
-                          </div>
-                        </div>
-                        <div className="px-4 py-3 flex items-start gap-3 hover:bg-gray-50 transition-colors cursor-pointer">
-                          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                            <Users className="w-3.5 h-3.5 text-emerald-400" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium text-foreground">New contacts imported</p>
-                            <p className="text-[11px] mt-0.5" style={{ color: styles.textDim }}>Import batch completed with 234 contacts</p>
-                          </div>
-                        </div>
+                        )}
                       </div>
                       <div className="px-4 py-2.5 border-t text-center" style={{ borderColor: 'var(--border-subtle)' }}>
                         <button
-                          onClick={() => { setNotificationsOpen(false); handleNavClick('replies'); }}
+                          onClick={() => { setNotificationsOpen(false); handleNavClick('audit'); }}
                           className="text-[11px] font-medium text-[var(--color-gold)] hover:underline"
                         >
                           View all activity

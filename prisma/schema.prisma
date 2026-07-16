@@ -557,3 +557,47 @@ model ConversationPlan {
   @@index([companyName])
   @@index([createdAt])
 }
+
+// ── Phase 4: Playbooks ──
+
+model Playbook {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  category        String   @default("custom") // introduction, follow_up, discovery, proposal, negotiation, closing, objection_handling, custom
+  targetIndustry  String?
+  targetRole      String?
+  targetCompanySize String?
+  steps           String   // JSON array: [{title, description, tips, order}]
+  aiTips          String?  // AI-generated engagement tips
+  isActive        Boolean  @default(true)
+  usageCount      Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+// ── Phase 4: Account Strategy Room ──
+
+model AccountStrategy {
+  id               String   @id @default(cuid())
+  companyId        String?
+  title            String
+  objective        String?
+  currentSituation String?
+  swotAnalysis     String?  // JSON: {strengths, weaknesses, opportunities, threats}
+  keyInitiatives   String?  // JSON array: [{title, owner, status, dueDate}]
+  stakeholderMap   String?  // JSON: {champions, influencers, blockers, decisionMakers}
+  competitivePosition String? // JSON
+  nextSteps        String?
+  status           String   @default("draft") // draft, active, review, completed, archived
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([createdAt])
+}

@@ -22,7 +22,7 @@ import {
   Target, Brain, Activity, TrendingUp, Award, UserCircle, Eye,
   EyeOff, AlertTriangle, CheckCircle2, Clock, MessageSquare,
   Send, MailOpen, RotateCcw, DollarSign, Layers, BookOpen,
-  Lightbulb, Bell, Search, ChevronRight, Briefcase, Link2,
+  Lightbulb, Bell, Search, ChevronRight, Briefcase, Link2, Network,
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════
@@ -155,6 +155,14 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
   const [notes, setNotes] = useState<any[]>([]);
   const [signals, setSignals] = useState<any[]>([]);
   const [timeline, setTimeline] = useState<any[]>([]);
+  // Suggested contacts (AI)
+  const [suggestedContacts, setSuggestedContacts] = useState<any[]>([]);
+  const [loadingSuggested, setLoadingSuggested] = useState(false);
+
+  // Account brief (AI)
+  const [brief, setBrief] = useState<any>(null);
+  const [loadingBrief, setLoadingBrief] = useState(false);
+
   const [activeTab, setActiveTab] = useState('overview');
   const [noteFilter, setNoteFilter] = useState('all');
   const [signalFilter, setSignalFilter] = useState<string | null>(null);
@@ -482,6 +490,8 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
               { key: 'contacts', label: 'Contacts', icon: Users, count: company?._count?.contacts || contacts.length },
               { key: 'timeline', label: 'Timeline', icon: Clock },
               { key: 'signals', label: 'Signals', icon: Bell, count: signals.length },
+              { key: 'brief', label: 'Account Brief', icon: Sparkles },
+              { key: 'stakeholders', label: 'AI Stakeholders', icon: Network },
             ].map(tab => (
               <TabsTrigger
                 key={tab.key}
@@ -1087,6 +1097,199 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                   </StaggerItem>
                 ))}
               </StaggerGrid>
+            )}
+          </TabsContent>
+
+          {/* ═════════════════════════════════════════════
+              TAB: Account Brief (AI-Generated)
+              ═════════════════════════════════════════════ */}
+          <TabsContent value="brief" className="mt-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-foreground">AI-Generated Account Brief</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Powered by web intelligence and AI analysis</p>
+              </div>
+              {!brief && (
+                <Button size="sm" onClick={async () => {
+                  setLoadingBrief(true);
+                  try {
+                    const res = await fetch(`/api/ai/account-brief?companyId=${companyId}`);
+                    const data = await res.json();
+                    setBrief(data.brief);
+                    toast.success('Account brief generated');
+                  } catch { toast.error('Failed to generate brief'); }
+                  finally { setLoadingBrief(false); }
+                }} disabled={loadingBrief} className="bg-[#D4AF37] hover:bg-[#C4A030] text-white text-xs">
+                  {loadingBrief ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Sparkles size={14} className="mr-1.5" />}
+                  Generate Account Brief
+                </Button>
+              )}
+            </div>
+
+            {loadingBrief ? (
+              <div className="space-y-3">
+                <Skeleton className="h-40 w-full rounded-xl" />
+                <Skeleton className="h-32 w-full rounded-xl" />
+              </div>
+            ) : brief ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <AnimatedCard delay={0}>
+                  <div className="p-5 space-y-4">
+                    <h4 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider flex items-center gap-2"><Briefcase size={14} /> Business Overview</h4>
+                    <p className="text-sm text-gray-700 leading-relaxed">{brief.businessOverview}</p>
+                  </div>
+                </AnimatedCard>
+                <AnimatedCard delay={0.1}>
+                  <div className="p-5 space-y-4">
+                    <h4 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider flex items-center gap-2"><Activity size={14} /> Technology Context</h4>
+                    <p className="text-sm text-gray-700 leading-relaxed">{brief.technologyContext}</p>
+                  </div>
+                </AnimatedCard>
+                <AnimatedCard delay={0.2}>
+                  <div className="p-5 space-y-4">
+                    <h4 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider flex items-center gap-2"><AlertTriangle size={14} /> Industry Challenges & Pain Points</h4>
+                    <p className="text-sm text-gray-700 leading-relaxed">{brief.industryChallenges}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(brief.painPoints || []).map((p: string, i: number) => (
+                        <span key={i} className="text-[11px] px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-200">{p}</span>
+                      ))}
+                    </div>
+                  </div>
+                </AnimatedCard>
+                <AnimatedCard delay={0.3}>
+                  <div className="p-5 space-y-4">
+                    <h4 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider flex items-center gap-2"><Lightbulb size={14} /> Relevant Solutions & Approach</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {(brief.relevantSolutions || []).map((s: string, i: number) => (
+                        <span key={i} className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">{s}</span>
+                      ))}
+                    </div>
+                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-xs font-semibold text-gray-700 mb-1">Recommended Approach</p>
+                      <p className="text-xs text-gray-500">{brief.recommendedApproach}</p>
+                    </div>
+                  </div>
+                </AnimatedCard>
+                <AnimatedCard className="lg:col-span-2" delay={0.4}>
+                  <div className="p-5 space-y-4">
+                    <h4 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider flex items-center gap-2"><Users size={14} /> Target Executives & Conversation Starters</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-600 mb-2">Target Executives</p>
+                        {(brief.targetExecutives || []).map((e: any, i: number) => (
+                          <div key={i} className="flex items-start gap-2 mb-2">
+                            <div className="w-6 h-6 rounded-full bg-[#D4AF37]/10 flex items-center justify-center text-[10px] font-bold text-[#D4AF37] shrink-0 mt-0.5">{e.role?.charAt(0)}</div>
+                            <div>
+                              <p className="text-xs font-semibold text-gray-900">{e.role}</p>
+                              <p className="text-[11px] text-gray-500">{e.focus}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-600 mb-2">Conversation Starters</p>
+                        {(brief.conversationStarters || []).map((c: string, i: number) => (
+                          <div key={i} className="p-2 bg-gray-50 rounded-lg mb-1.5">
+                            <p className="text-[11px] text-gray-700 italic">"{c}"</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {brief.strategicPriority && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-xs text-muted-foreground">Strategic Priority:</span>
+                        <Badge variant="outline" className={brief.strategicPriority === 'High' ? 'border-red-300 text-red-700' : brief.strategicPriority === 'Medium' ? 'border-amber-300 text-amber-700' : 'border-gray-300 text-gray-600'}>{brief.strategicPriority}</Badge>
+                        {brief.confidence && <span className="text-[10px] text-muted-foreground">{brief.confidence}% confidence</span>}
+                      </div>
+                    )}
+                  </div>
+                </AnimatedCard>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="p-4 rounded-2xl bg-[#D4AF37]/5 mb-3"><Sparkles size={40} className="text-[#D4AF37]/40" /></div>
+                <p className="text-sm text-muted-foreground">Click "Generate Account Brief" to create an AI-powered intelligence summary</p>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ═════════════════════════════════════════════
+              TAB: AI Suggested Stakeholders
+              ═════════════════════════════════════════════ */}
+          <TabsContent value="stakeholders" className="mt-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-foreground">AI-Discovered Stakeholders</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">AI finds relevant executives from web intelligence</p>
+              </div>
+              {!suggestedContacts.length && (
+                <Button size="sm" onClick={async () => {
+                  setLoadingSuggested(true);
+                  try {
+                    const res = await fetch(`/api/ai/suggested-contacts?companyId=${companyId}`);
+                    const data = await res.json();
+                    setSuggestedContacts(data.contacts || []);
+                    toast.success(`Found ${data.contacts?.length || 0} suggested stakeholders`);
+                  } catch { toast.error('Failed to discover stakeholders'); }
+                  finally { setLoadingSuggested(false); }
+                }} disabled={loadingSuggested} className="bg-[#D4AF37] hover:bg-[#C4A030] text-white text-xs">
+                  {loadingSuggested ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Network size={14} className="mr-1.5" />}
+                  Discover Stakeholders
+                </Button>
+              )}
+            </div>
+
+            {loadingSuggested ? (
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
+              </div>
+            ) : suggestedContacts.length > 0 ? (
+              <StaggerGrid className="grid-cols-1 md:grid-cols-2 gap-3">
+                {suggestedContacts.map((contact: any, i: number) => {
+                  const influenceColors: Record<string, string> = {
+                    'Decision Maker': 'bg-red-50 text-red-700 border-red-200',
+                    'Technical Influencer': 'bg-blue-50 text-blue-700 border-blue-200',
+                    'Business Sponsor': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                    'Champion': 'bg-amber-50 text-amber-700 border-amber-200',
+                    'Blocker': 'bg-gray-100 text-gray-600 border-gray-200',
+                  };
+                  const stars = '★'.repeat(contact.priority || 0) + '☆'.repeat(5 - (contact.priority || 0));
+                  return (
+                    <StaggerItem key={i}>
+                      <AnimatedCard>
+                        <div className="p-4 space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-[#D4AF37]/10 flex items-center justify-center text-sm font-bold text-[#D4AF37]">
+                                {contact.name ? contact.name.split(' ').map((n: string) => n[0]).join('') : (contact.role || '?').charAt(0)}
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900">{contact.name || 'Unknown'}</p>
+                                <p className="text-xs text-muted-foreground">{contact.role}</p>
+                              </div>
+                            </div>
+                            {contact.influence && (
+                              <Badge variant="outline" className={`text-[10px] ${influenceColors[contact.influence] || 'border-gray-300 text-gray-600'}`}>{contact.influence}</Badge>
+                            )}
+                          </div>
+                          {contact.whyRelevant && <p className="text-xs text-gray-600 leading-relaxed">{contact.whyRelevant}</p>}
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] text-amber-600 tracking-wider">{stars}</span>
+                            {contact.recommendedAction && (
+                              <span className="text-[10px] text-muted-foreground flex items-center gap-1"><ArrowRight size={10} /> {contact.recommendedAction}</span>
+                            )}
+                          </div>
+                        </div>
+                      </AnimatedCard>
+                    </StaggerItem>
+                  );
+                })}
+              </StaggerGrid>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="p-4 rounded-2xl bg-[#D4AF37]/5 mb-3"><Network size={40} className="text-[#D4AF37]/40" /></div>
+                <p className="text-sm text-muted-foreground">Click "Discover Stakeholders" to find relevant executives</p>
+              </div>
             )}
           </TabsContent>
         </Tabs>

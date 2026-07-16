@@ -173,33 +173,7 @@ Be specific and actionable. Make stakeholder names realistic but mark them as [T
       nextSteps,
     });
   } catch (error: any) {
-    if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
-      // Table doesn't exist — return mock
-      const mock = {
-        id: `mock-${Date.now()}`,
-        companyId: null,
-        title: body.title,
-        objective: body.objective || null,
-        currentSituation: body.currentSituation || null,
-        swotAnalysis: body.aiGenerate ? {
-          strengths: ['Strong market position', 'Innovation focus'],
-          weaknesses: ['Limited awareness'],
-          opportunities: ['Digital transformation', 'Market growth'],
-          threats: ['Competition', 'Budget constraints'],
-        } : null,
-        keyInitiatives: body.aiGenerate ? [
-          { title: 'Discovery Call', owner: 'AE', status: 'not_started', dueDate: '2025-08-30' },
-        ] : null,
-        stakeholderMap: null,
-        competitivePosition: body.aiGenerate ? 'Well-positioned for engagement' : null,
-        nextSteps: body.aiGenerate ? '1. Schedule discovery call\n2. Prepare value props' : null,
-        status: body.aiGenerate ? 'active' : 'draft',
-        companyName: body.companyName || undefined,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      return NextResponse.json(mock);
-    }
+    console.error('Strategy create error:', error);
     return NextResponse.json({ error: 'Failed to create strategy' }, { status: 500 });
   }
 }

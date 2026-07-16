@@ -6,8 +6,22 @@ import {
   Search, Brain, Building2, User, Globe, TrendingUp, Users, DollarSign,
   Cpu, Newspaper, ChevronRight, Loader2, Sparkles, ExternalLink,
   Download, RotateCcw, Target, ArrowRight, Zap, FileText,
-  Briefcase, Clock, Shield, BarChart3
+  Briefcase, Clock, Shield, BarChart3, type LucideIcon
 } from 'lucide-react';
+
+/* ═══════════════════════════════════════
+   Icon lookup — maps string names from API to components
+   ═══════════════════════════════════════ */
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  Building2, DollarSign, Cpu, Users, Newspaper, TrendingUp,
+  User, Briefcase, Globe, BarChart3, Target, FileText, Shield,
+  Search, Brain, Zap,
+};
+
+function getIcon(name: string): LucideIcon {
+  return ICON_MAP[name] || FileText;
+}
 
 /* ═══════════════════════════════════════
    Types
@@ -15,7 +29,7 @@ import {
 
 interface ResearchSection {
   title: string;
-  icon: React.ElementType;
+  icon: string | React.ElementType;
   content: string;
   sources?: Array<{ title: string; url: string; domain: string }>;
 }
@@ -341,7 +355,7 @@ export default function ResearchAgentScreen() {
             <h3 className="text-sm font-semibold text-foreground">Detailed Analysis</h3>
             <div className="space-y-3">
               {result.sections.map((section, i) => {
-                const Icon = section.icon;
+                const Icon = typeof section.icon === 'string' ? getIcon(section.icon) : section.icon;
                 const isOpen = activeSection === section.title;
                 return (
                   <motion.div

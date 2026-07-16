@@ -112,28 +112,7 @@ Provide 4-6 detailed steps with actionable tips. Make the content specific and p
       steps: finalSteps,
     });
   } catch (error: any) {
-    if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
-      // Table doesn't exist — return mock
-      const mock = {
-        id: `mock-${Date.now()}`,
-        name: body.name,
-        description: body.description || null,
-        category: body.category || 'custom',
-        targetIndustry: body.targetIndustry || null,
-        targetRole: body.targetRole || null,
-        steps: body.aiGenerate ? [
-          { title: 'Preparation', description: 'Research the prospect and company', tips: ['Review LinkedIn', 'Check recent news'], order: 1 },
-          { title: 'Initial Outreach', description: 'Send personalized first contact', tips: ['Reference specific trigger events'], order: 2 },
-          { title: 'Value Delivery', description: 'Share relevant insights and content', tips: ['Use case studies'], order: 3 },
-        ] : [],
-        aiTips: body.aiGenerate ? 'Focus on building genuine rapport before pitching. Reference recent company news to show preparation and create immediate relevance.' : null,
-        isActive: true,
-        usageCount: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      return NextResponse.json(mock);
-    }
+    console.error('Playbook create error:', error);
     return NextResponse.json({ error: 'Failed to create playbook' }, { status: 500 });
   }
 }

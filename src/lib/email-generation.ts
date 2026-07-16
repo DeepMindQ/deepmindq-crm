@@ -19,32 +19,24 @@ async function retrieveKnowledge(params: {
   limit?: number;
 }) {
   try {
-    // Dynamically import the POST handler from the knowledge search route
-    // This avoids making an HTTP call to ourselves
-    const searchModule = await import('@/app/api/knowledge/search/route');
-    const postHandler = searchModule.POST;
-    if (!postHandler) throw new Error('Search handler not found');
-
-    const requestBody = {
-      query: params.query,
-      industry: params.industry,
-      role: params.role,
-      companySize: params.companySize,
-      serviceLine: params.serviceLine,
-      problems: params.problems,
-      searchMode: params.searchMode || 'hybrid',
-      minRelevanceScore: params.minRelevanceScore ?? 15,
-      includeContent: params.includeContent ?? true,
-      limit: params.limit || 8,
-    };
-
-    const mockRequest = new Request('http://internal/knowledge/search', {
+    // Call the knowledge search endpoint via internal fetch
+    const baseUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const response = await fetch(`${baseUrl}/api/knowledge/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        query: params.query,
+        industry: params.industry,
+        role: params.role,
+        companySize: params.companySize,
+        serviceLine: params.serviceLine,
+        problems: params.problems,
+        searchMode: params.searchMode || 'hybrid',
+        minRelevanceScore: params.minRelevanceScore ?? 15,
+        includeContent: params.includeContent ?? true,
+        limit: params.limit || 8,
+      }),
     });
-
-    const response = await postHandler(mockRequest);
     const data = await response.json();
     return data.results || [];
   } catch (err) {

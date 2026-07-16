@@ -7,7 +7,7 @@ import {
   Building2, BarChart3, Brain, MessageSquare, Users, Target,
   Search, Lightbulb, Rocket, TrendingUp, Zap, Shield,
   Layers, Network, Sparkles, ChevronRight, Eye, Database,
-  Linkedin, Mail, ArrowUp, Quote,
+  Linkedin, Mail, ArrowUp, UserCircle, Briefcase, Globe,
 } from 'lucide-react';
 import LoginPage from '@/components/login-page';
 
@@ -34,7 +34,7 @@ const C = {
 };
 
 const ease = [0.16, 1, 0.3, 1] as const;
-const SECTION_IDS = ['philosophy', 'framework', 'platform', 'how-it-works', 'testimonials', 'faq'];
+const SECTION_IDS = ['philosophy', 'framework', 'platform', 'how-it-works', 'who-this-is-for', 'faq'];
 
 /* ═══════════════════════════════════════════════════════════════
    HOOKS
@@ -88,21 +88,32 @@ function useAnimatedCounter(target: string, inView: boolean, duration = 1500) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PRELOADER
+   PRELOADER — skips on revisit via sessionStorage  #14
    ═══════════════════════════════════════════════════════════════ */
 function Preloader({ onComplete }: { onComplete: () => void }) {
   const [phase, setPhase] = useState(0);
+  const [skip, setSkip] = useState(false);
 
   useEffect(() => {
+    if (sessionStorage.getItem('dmq-visited')) {
+      setSkip(true);
+      onComplete();
+      return;
+    }
     const t1 = setTimeout(() => setPhase(1), 300);
     const t2 = setTimeout(() => setPhase(2), 1800);
-    const t3 = setTimeout(() => onComplete(), 2400);
+    const t3 = setTimeout(() => {
+      sessionStorage.setItem('dmq-visited', '1');
+      onComplete();
+    }, 2400);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [onComplete]);
 
+  if (skip) return null;
+
   return (
     <motion.div
-      className="fixed inset-0 z-[100] flex items-center justify-center"
+      className="fixed inset-0 z-[100] flex items-center justify-center preloader"
       style={{ background: C.bg }}
       initial={{ opacity: 1 }}
       animate={phase === 2 ? { opacity: 0, scale: 1.05 } : { opacity: 1 }}
@@ -149,18 +160,18 @@ function Preloader({ onComplete }: { onComplete: () => void }) {
 function ScrollProgressBar() {
   const progress = useScrollProgress();
   return (
-    <motion.div className="fixed top-0 left-0 right-0 z-[60] h-[2px] origin-left"
+    <motion.div className="fixed top-0 left-0 right-0 z-[60] h-[2px] origin-left scroll-progress-bar"
       style={{ scaleX: progress, background: `linear-gradient(90deg, ${C.gold}, ${C.goldBright}, ${C.gold})` }} />
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   BACK TO TOP
+   BACK TO TOP — threshold raised to 1000px  #19
    ═══════════════════════════════════════════════════════════════ */
 function BackToTop() {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
-    const handler = () => setVisible(window.scrollY > 600);
+    const handler = () => setVisible(window.scrollY > 1000);
     window.addEventListener('scroll', handler, { passive: true });
     return () => window.removeEventListener('scroll', handler);
   }, []);
@@ -170,14 +181,15 @@ function BackToTop() {
       {visible && (
         <motion.button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-6 right-6 z-50 w-10 h-10 rounded-xl flex items-center justify-center"
+          className="fixed bottom-6 right-6 z-50 w-10 h-10 rounded-xl flex items-center justify-center back-to-top"
           style={{ background: C.bgCard, border: `1px solid ${C.goldBorder}`, color: C.gold }}
           initial={{ opacity: 0, y: 20, scale: 0.8 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.8 }}
           transition={{ duration: 0.3, ease }}
           whileHover={{ scale: 1.1, boxShadow: '0 0 20px rgba(201,168,76,0.2)' }}
-          whileTap={{ scale: 0.95 }}>
+          whileTap={{ scale: 0.95 }}
+          aria-label="Back to top">
           <ArrowUp className="w-4 h-4" />
         </motion.button>
       )}
@@ -186,7 +198,20 @@ function BackToTop() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   HERO INTELLIGENCE ENGINE — Canvas visualization
+   SKIP TO CONTENT  #21
+   ═══════════════════════════════════════════════════════════════ */
+function SkipToContent() {
+  return (
+    <a href="#philosophy"
+      className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[200] focus:px-4 focus:py-2 focus:rounded-lg focus:text-[14px] focus:font-medium"
+      style={{ background: C.gold, color: '#0A0E1A' }}>
+      Skip to main content
+    </a>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HERO INTELLIGENCE ENGINE — Canvas visualization  #13 visibility API
    ═══════════════════════════════════════════════════════════════ */
 const HUB_NODES = [
   { label: 'Companies',     angle: -90 },
@@ -241,8 +266,20 @@ function useHeroCanvas(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     canvas.style.opacity = '0';
     canvas.style.transition = 'opacity 1.2s ease';
 
+    // #13 — Pause when tab is hidden
+    const onVisibility = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(rafRef.current);
+      } else {
+        rafRef.current = requestAnimationFrame(draw);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
     let time = 0;
     const draw = () => {
+      if (document.hidden) return;
+
       const w = canvas.width / dpr, h = canvas.height / dpr;
       ctx.clearRect(0, 0, w, h);
       time += 0.003;
@@ -378,16 +415,17 @@ function useHeroCanvas(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
       rafRef.current = requestAnimationFrame(draw);
     };
     rafRef.current = requestAnimationFrame(draw);
-    return () => { cancelAnimationFrame(rafRef.current); window.removeEventListener('resize', resize); };
+    return () => { cancelAnimationFrame(rafRef.current); window.removeEventListener('resize', resize); document.removeEventListener('visibilitychange', onVisibility); };
   }, [init]);
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   HEADER
+   HEADER  #16 escape key, #24 focus trap, #22 ARIA, #34 nav consistency
    ═══════════════════════════════════════════════════════════════ */
 function Header({ onLogin }: { onLogin: () => void }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileRef = useRef<HTMLDivElement>(null);
   const activeSection = useActiveSection();
 
   useEffect(() => {
@@ -395,6 +433,37 @@ function Header({ onLogin }: { onLogin: () => void }) {
     window.addEventListener('scroll', handler, { passive: true });
     return () => window.removeEventListener('scroll', handler);
   }, []);
+
+  // #16 — Close mobile menu on Escape
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileOpen(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [mobileOpen]);
+
+  // #24 — Focus trap inside mobile menu
+  useEffect(() => {
+    if (!mobileOpen || !mobileRef.current) return;
+    const menu = mobileRef.current;
+    const focusable = menu.querySelectorAll<HTMLElement>('button, a, [tabindex]:not([tabindex="-1"])');
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    first.focus();
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+    menu.addEventListener('keydown', handler);
+    return () => menu.removeEventListener('keydown', handler);
+  }, [mobileOpen]);
 
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
@@ -425,7 +494,7 @@ function Header({ onLogin }: { onLogin: () => void }) {
           <span className="text-[15px] font-semibold tracking-[-0.01em]" style={{ color: C.white }}>DeepMindQ</span>
         </div>
 
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
           {links.map(link => {
             const isActive = activeSection === link.id;
             return (
@@ -461,7 +530,10 @@ function Header({ onLogin }: { onLogin: () => void }) {
 
           <button className="md:hidden p-2 rounded-lg relative w-9 h-9 flex items-center justify-center"
             style={{ color: C.textSub }}
-            onClick={() => setMobileOpen(!mobileOpen)}>
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-nav"
+            aria-label="Toggle navigation menu">
             <div className="flex flex-col gap-[5px]">
               <motion.span className="block w-5 h-[1.5px] rounded-full origin-center" style={{ background: C.textSub }}
                 animate={mobileOpen ? { rotate: 45, y: 6.5 } : { rotate: 0, y: 0 }} transition={{ duration: 0.25 }} />
@@ -476,7 +548,8 @@ function Header({ onLogin }: { onLogin: () => void }) {
 
       <AnimatePresence>
         {mobileOpen && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+          <motion.div id="mobile-nav" ref={mobileRef} role="dialog" aria-modal="true" aria-label="Navigation menu"
+            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25, ease }}
             className="md:hidden overflow-hidden"
             style={{ background: 'rgba(10,14,26,0.96)', backdropFilter: 'blur(20px)' }}>
@@ -498,7 +571,7 @@ function Header({ onLogin }: { onLogin: () => void }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   #3 HERO — Kinetic typography with scroll parallax
+   HERO  #8 hero badge, #18 hide scroll on mobile, #20 will-change, #23 canvas a11y
    ═══════════════════════════════════════════════════════════════ */
 function HeroSection({ onLogin }: { onLogin: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -506,7 +579,6 @@ function HeroSection({ onLogin }: { onLogin: () => void }) {
   const inView = useInView(heroRef, { once: true });
   useHeroCanvas(canvasRef);
 
-  // #3 — Kinetic scroll parallax
   const { scrollY } = useScroll();
   const textY = useTransform(scrollY, [0, 600], [0, -120]);
   const textOpacity = useTransform(scrollY, [0, 500], [1, 0]);
@@ -523,7 +595,7 @@ function HeroSection({ onLogin }: { onLogin: () => void }) {
       <div className="relative z-10 mx-auto max-w-[1200px] w-full px-6 lg:px-8 py-20 lg:py-0">
         <div className="grid lg:grid-cols-2 gap-16 lg:gap-12 items-center">
           {/* Left — kinetic parallax text */}
-          <motion.div style={{ y: textY, opacity: textOpacity }}>
+          <motion.div style={{ y: textY, opacity: textOpacity, willChange: 'transform' }}>
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
@@ -531,7 +603,8 @@ function HeroSection({ onLogin }: { onLogin: () => void }) {
               className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full mb-8"
               style={{ background: C.goldDim, border: `1px solid ${C.goldBorder}` }}>
               <div className="w-1.5 h-1.5 rounded-full" style={{ background: C.gold, boxShadow: '0 0 6px rgba(201,168,76,0.5)' }} />
-              <span className="text-[12px] font-medium" style={{ color: C.gold }}>Enterprise Growth Intelligence</span>
+              {/* #8 — varied badge text */}
+              <span className="text-[12px] font-medium" style={{ color: C.gold }}>Account Intelligence Workspace</span>
             </motion.div>
 
             <h1 className="text-[clamp(2.6rem,5.5vw,3.8rem)] font-bold leading-[1.08] tracking-[-0.035em]"
@@ -553,9 +626,9 @@ function HeroSection({ onLogin }: { onLogin: () => void }) {
               initial={{ opacity: 0, y: 20 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.7, delay: 0.7, ease }}>
-              An AI-powered enterprise growth intelligence platform that helps you understand
-              companies, detect signals, map stakeholders, align solutions, and create
-              meaningful executive conversations.
+              An AI-powered workspace that helps you understand companies, detect signals,
+              map stakeholders, align solutions, and create meaningful executive
+              conversations — built from 15+ years of enterprise selling experience.
             </motion.p>
 
             <motion.div className="mt-10 flex flex-wrap items-center gap-3"
@@ -589,20 +662,27 @@ function HeroSection({ onLogin }: { onLogin: () => void }) {
             </motion.p>
           </motion.div>
 
-          {/* Right — Canvas with parallax */}
+          {/* Right — Canvas with parallax, #23 accessible description, #32 responsive aspect */}
           <motion.div
-            className="relative w-full aspect-square max-w-[520px] mx-auto lg:mx-0 lg:ml-auto"
-            style={{ y: canvasY }}
+            className="relative w-full max-w-[520px] mx-auto lg:mx-0 lg:ml-auto"
+            style={{ y: canvasY, willChange: 'transform' }}
             initial={{ opacity: 0, scale: 0.92 }}
             animate={inView ? { opacity: 1, scale: 1 } : {}}
             transition={{ duration: 1.1, delay: 0.3, ease }}>
-            <canvas ref={canvasRef} className="w-full h-full" />
+            <canvas ref={canvasRef} className="w-full aspect-[4/3] sm:aspect-square" id="hero-canvas"
+              role="img" aria-label="Interactive intelligence engine visualization showing how DeepMindQ connects companies, signals, solutions, people, opportunities, and conversations through an AI hub" />
+            {/* Hidden accessible description */}
+            <span className="sr-only">
+              The DeepMindQ Intelligence Engine connects six data domains: Companies, Signals, Solutions,
+              People, Opportunities, and Conversations. Data flows from each domain through AI analysis
+              into actionable intelligence.
+            </span>
           </motion.div>
         </div>
       </div>
 
-      {/* Scroll indicator */}
-      <motion.div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+      {/* #18 — Scroll indicator hidden on mobile */}
+      <motion.div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex-col items-center gap-2 hidden md:flex"
         initial={{ opacity: 0 }} animate={inView ? { opacity: 1 } : {}}
         transition={{ duration: 0.6, delay: 1.5 }}>
         <span className="text-[10px] tracking-[0.2em] uppercase" style={{ color: C.textDim }}>Scroll</span>
@@ -620,7 +700,7 @@ function HeroSection({ onLogin }: { onLogin: () => void }) {
    ═══════════════════════════════════════════════════════════════ */
 function SectionDivider() {
   return (
-    <div className="flex items-center justify-center py-2">
+    <div className="flex items-center justify-center py-2" aria-hidden="true">
       <div className="w-20 h-px" style={{ background: `linear-gradient(90deg, transparent, ${C.goldBorder})` }} />
       <div className="w-1.5 h-1.5 rounded-full mx-4" style={{ background: C.goldBorder }} />
       <div className="w-20 h-px" style={{ background: `linear-gradient(90deg, ${C.goldBorder}, transparent)` }} />
@@ -629,7 +709,7 @@ function SectionDivider() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PHILOSOPHY — Human craftsmanship, personal story
+   PHILOSOPHY — #6 more specific personal story
    ═══════════════════════════════════════════════════════════════ */
 function PhilosophySection() {
   const ref = useRef<HTMLDivElement>(null);
@@ -640,7 +720,7 @@ function PhilosophySection() {
       style={{ background: C.bgAlt, borderTop: `1px solid ${C.border}` }}>
       <div className="mx-auto max-w-[1200px] px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-20 items-start">
-          {/* Brand story — more personal */}
+          {/* Brand story — more specific #6 */}
           <motion.div initial={{ opacity: 0, y: 24 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8, ease }}>
@@ -651,34 +731,38 @@ function PhilosophySection() {
               Built from experience.<br />Designed for intelligent growth.
             </h2>
             <p className="text-[15px] leading-[1.85] mb-5 font-light" style={{ color: C.textSub }}>
-              After 15+ years working with enterprise technology organizations, I noticed a pattern:
-              the best deals never came from the best pitches. They came from the deepest understanding.
-              So I built DeepMindQ as my personal intelligence framework — a tool that does the
-              research heavy lifting so I can focus on what matters: having the right conversation
-              with the right person at the right time.
+              After 15+ years working with enterprise technology organizations — across cloud
+              infrastructure, AI/ML platforms, and SaaS — I noticed a pattern that never
+              changed: the best deals never came from the best pitches. They came from the
+              deepest understanding. I was spending 6+ hours per week on account research
+              across LinkedIn, SEC filings, news alerts, and CRMs. So I built DeepMindQ as
+              my personal intelligence framework — a tool that does the research heavy lifting
+              so I can focus on what matters: having the right conversation with the right
+              person at the right time.
             </p>
             <p className="text-[15px] leading-[1.85] mb-10 font-light" style={{ color: C.textSub }}>
               Enterprise growth is not about sending more messages. It is about creating the
               <span style={{ color: C.gold }}> right conversation</span> with the
               <span style={{ color: C.gold }}> right people</span> at the
               <span style={{ color: C.gold }}> right time</span>. This isn&apos;t a theory I read
-              somewhere — it&apos;s what I&apos;ve lived.
+              somewhere — it&apos;s what I&apos;ve lived through hundreds of enterprise deals.
             </p>
             <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-full flex items-center justify-center text-[14px] font-bold"
+              <a href="https://www.linkedin.com/in/shankerpisupati/" target="_blank" rel="noopener noreferrer"
+                className="w-11 h-11 rounded-full flex items-center justify-center text-[14px] font-bold transition-all duration-200"
                 style={{ background: `linear-gradient(135deg, ${C.gold}, ${C.goldBright})`, color: '#0A0E1A' }}>
                 RS
-              </div>
+              </a>
               <div>
                 <p className="text-[15px] font-semibold" style={{ color: C.white }}>Ravi Shanker</p>
                 <p className="text-[12px]" style={{ color: C.textDim }}>
-                  Enterprise Growth Leader &middot; Technology Strategist &middot; AI Enthusiast
+                  Enterprise Growth Leader &middot; Technology Strategist
                 </p>
               </div>
             </div>
           </motion.div>
 
-          {/* "Understand" pillars — generous spacing */}
+          {/* "Understand" pillars */}
           <div className="relative lg:pt-6">
             <motion.div className="absolute left-[19px] top-8 bottom-8 hidden lg:block"
               style={{ width: '1px', background: `linear-gradient(to bottom, transparent, ${C.goldBorder} 15%, ${C.goldBorder} 85%, transparent)` }}
@@ -719,7 +803,7 @@ function PhilosophySection() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   #1 — FRAMEWORK as Interactive Visual Pipeline
+   FRAMEWORK — Interactive Visual Pipeline  #17 outside click, #22 ARIA, #28 keyboard
    ═══════════════════════════════════════════════════════════════ */
 const FRAMEWORK = [
   { icon: BarChart3, title: 'Market Signal Intelligence', sub: 'Detect business changes before engagement begins.', bullets: ['Funding rounds & M&A activity', 'Technology stack changes', 'Leadership movements', 'Competitor positioning shifts'] },
@@ -744,7 +828,7 @@ function FrameworkSection() {
             style={{ color: C.gold }}>Framework</p>
           <h2 className="text-[clamp(1.6rem,3vw,2.6rem)] font-bold tracking-[-0.025em]"
             style={{ color: C.white }}>
-            The DeepMindQ Intelligence Framework
+            The Intelligence Framework
           </h2>
           <p className="mt-5 text-[16px] max-w-[560px] mx-auto font-light leading-[1.75]" style={{ color: C.textDim }}>
             Five layers of intelligence working together — from market signals to executive conversations.
@@ -754,10 +838,8 @@ function FrameworkSection() {
 
         {/* Desktop: Horizontal interactive pipeline */}
         <div className="hidden lg:block relative">
-          {/* Connecting gradient line */}
           <div className="absolute top-[52px] left-[9%] right-[9%] h-[2px] rounded-full"
             style={{ background: `linear-gradient(90deg, transparent, ${C.goldBorder} 8%, ${C.goldBorder} 92%, transparent)` }}>
-            {/* Traveling data dots */}
             {FRAMEWORK.map((_, i) => (
               <motion.div key={i} className="absolute top-[-2.5px] w-[5px] h-[5px] rounded-full"
                 style={{ background: C.gold, boxShadow: '0 0 6px rgba(201,168,76,0.4)' }}
@@ -766,7 +848,6 @@ function FrameworkSection() {
             ))}
           </div>
 
-          {/* Pipeline nodes */}
           <div className="flex justify-between">
             {FRAMEWORK.map((f, i) => (
               <PipelineNode key={f.title} {...f} index={i} inView={inView} />
@@ -785,28 +866,50 @@ function FrameworkSection() {
   );
 }
 
-/* Desktop pipeline node */
+/* #17 — Outside click to close, #22 ARIA, #28 keyboard */
 function PipelineNode({ icon: Icon, title, sub, bullets, index, inView }: {
   icon: React.ElementType; title: string; sub: string;
   bullets: string[]; index: number; inView: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const isEven = index % 2 === 0;
-  const cardRef = useRef<HTMLDivElement>(null);
+  const nodeRef = useRef<HTMLDivElement>(null);
+
+  // #17 — Close on outside click
+  useEffect(() => {
+    if (!expanded) return;
+    const handler = (e: MouseEvent) => {
+      if (nodeRef.current && !nodeRef.current.contains(e.target as Node)) {
+        setExpanded(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [expanded]);
+
+  // #28 — Keyboard support
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setExpanded(!expanded);
+    }
+    if (e.key === 'Escape' && expanded) {
+      setExpanded(false);
+    }
+  };
 
   return (
     <motion.div
+      ref={nodeRef}
       className="relative flex flex-col items-center"
       style={{ width: '17%' }}
       initial={{ opacity: 0, y: 25 }}
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.5, delay: 0.15 + index * 0.1, ease }}>
 
-      {/* Expandable detail card */}
       <AnimatePresence>
         {expanded && (
           <motion.div
-            ref={cardRef}
             className={`absolute left-1/2 -translate-x-1/2 w-[260px] p-5 rounded-xl z-20 ${
               isEven ? 'bottom-full mb-6' : 'top-full mt-6'
             }`}
@@ -818,7 +921,10 @@ function PipelineNode({ icon: Icon, title, sub, bullets, index, inView }: {
             initial={{ opacity: 0, y: isEven ? 12 : -12, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: isEven ? 12 : -12, scale: 0.96 }}
-            transition={{ duration: 0.25, ease }}>
+            transition={{ duration: 0.25, ease }}
+            id={`framework-detail-${index}`}
+            role="region"
+            aria-label={`${title} details`}>
             <p className="text-[12px] mb-3 font-medium" style={{ color: C.gold }}>{sub}</p>
             <ul className="space-y-2.5">
               {bullets.map((b, i) => (
@@ -832,7 +938,6 @@ function PipelineNode({ icon: Icon, title, sub, bullets, index, inView }: {
         )}
       </AnimatePresence>
 
-      {/* Node circle */}
       <motion.div
         className="w-[104px] h-[104px] rounded-full flex flex-col items-center justify-center cursor-pointer relative"
         style={{
@@ -841,9 +946,13 @@ function PipelineNode({ icon: Icon, title, sub, bullets, index, inView }: {
           boxShadow: expanded ? '0 0 30px rgba(201,168,76,0.1)' : 'none',
         }}
         onClick={() => setExpanded(!expanded)}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        role="button"
+        aria-expanded={expanded}
+        aria-controls={`framework-detail-${index}`}
         whileHover={{ scale: 1.06, borderColor: C.gold }}
         whileTap={{ scale: 0.97 }}>
-        {/* Pulse ring on hover */}
         <motion.div
           className="absolute inset-[-6px] rounded-full pointer-events-none"
           style={{ border: `1px solid ${C.goldBorder}` }}
@@ -855,7 +964,6 @@ function PipelineNode({ icon: Icon, title, sub, bullets, index, inView }: {
         </span>
       </motion.div>
 
-      {/* Title */}
       <p className="text-[12px] font-semibold text-center mt-5 max-w-[150px] leading-[1.5] tracking-[-0.01em]"
         style={{ color: expanded ? C.gold : C.white }}>
         {title}
@@ -883,7 +991,9 @@ function MobileFrameworkCard({ icon: Icon, title, sub, bullets, index, inView }:
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.4, delay: index * 0.08, ease }}>
       <button onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-4 p-5 text-left">
+        className="w-full flex items-center gap-4 p-5 text-left"
+        aria-expanded={open}
+        aria-controls={`mobile-framework-${index}`}>
         <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
           style={{ background: C.goldDim, border: `1px solid ${C.goldBorder}` }}>
           <Icon className="w-5 h-5" style={{ color: C.gold }} />
@@ -898,7 +1008,7 @@ function MobileFrameworkCard({ icon: Icon, title, sub, bullets, index, inView }:
       </button>
       <AnimatePresence initial={false}>
         {open && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+          <motion.div id={`mobile-framework-${index}`} role="region" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3, ease }} className="overflow-hidden">
             <div className="px-5 pb-5 pt-1" style={{ borderTop: `1px solid ${C.border}` }}>
               <ul className="space-y-2.5 mt-3">
@@ -918,7 +1028,7 @@ function MobileFrameworkCard({ icon: Icon, title, sub, bullets, index, inView }:
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   INSIDE DEEPMINDQ — Platform modules with UI mockups
+   INSIDE DEEPMINDQ — Platform modules  #31 minimal window chrome
    ═══════════════════════════════════════════════════════════════ */
 const MODULES = [
   { icon: Sparkles, title: 'AI Command Center', desc: 'Unified view of accounts, signals, opportunities, and priorities — your operational nerve center with AI-powered daily briefings.', mockup: 'command-center' },
@@ -927,20 +1037,20 @@ const MODULES = [
   { icon: Zap, title: 'Conversation Studio', desc: 'AI-generated, research-informed outreach that speaks directly to each stakeholder\'s context and priorities.', mockup: 'studio' },
 ];
 
+/* #31 — Minimal window chrome: only a thin title bar, no traffic lights */
 function MiniMockup({ type }: { type: string }) {
+  const titleBar = (label: string) => (
+    <div className="flex items-center px-3 py-2 shrink-0" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: `1px solid rgba(255,255,255,0.06)` }}>
+      <div className="w-2.5 h-2.5 rounded-[3px]" style={{ background: C.goldDim, border: `1px solid ${C.goldBorder}` }} />
+      <span className="text-[8px] font-medium ml-2" style={{ color: C.textDim }}>{label}</span>
+    </div>
+  );
+
   if (type === 'command-center') {
     return (
       <div className="w-full h-full rounded-lg overflow-hidden flex flex-col"
         style={{ background: '#070b14', border: `1px solid ${C.border}` }}>
-        <div className="flex items-center justify-between px-3 py-2 shrink-0" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: `1px solid ${C.border}` }}>
-          <div className="flex gap-1.5">
-            <div className="w-2 h-2 rounded-full" style={{ background: '#ef4444' }} />
-            <div className="w-2 h-2 rounded-full" style={{ background: '#eab308' }} />
-            <div className="w-2 h-2 rounded-full" style={{ background: '#22c55e' }} />
-          </div>
-          <span className="text-[8px] font-medium" style={{ color: C.textDim }}>Command Center</span>
-          <div className="w-3 h-3 rounded" style={{ background: 'rgba(255,255,255,0.04)' }} />
-        </div>
+        {titleBar('Command Center')}
         <div className="flex-1 p-2.5 space-y-2">
           <div className="grid grid-cols-4 gap-1.5">
             {[{ v: '156', l: 'Accounts', c: C.gold }, { v: '48', l: 'Signals', c: '#22c55e' }, { v: '23', l: 'Pipeline', c: '#60a5fa' }, { v: '12', l: 'Hot', c: '#ef4444' }].map((s, i) => (
@@ -971,15 +1081,7 @@ function MiniMockup({ type }: { type: string }) {
     return (
       <div className="w-full h-full rounded-lg overflow-hidden flex flex-col"
         style={{ background: '#070b14', border: `1px solid ${C.border}` }}>
-        <div className="flex items-center justify-between px-3 py-2 shrink-0" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: `1px solid ${C.border}` }}>
-          <div className="flex gap-1.5">
-            <div className="w-2 h-2 rounded-full" style={{ background: '#ef4444' }} />
-            <div className="w-2 h-2 rounded-full" style={{ background: '#eab308' }} />
-            <div className="w-2 h-2 rounded-full" style={{ background: '#22c55e' }} />
-          </div>
-          <span className="text-[8px] font-medium" style={{ color: C.textDim }}>Stakeholder Map</span>
-          <div />
-        </div>
+        {titleBar('Stakeholder Map')}
         <div className="flex-1 flex items-center justify-center p-2">
           <svg viewBox="0 0 220 150" className="w-full h-full">
             <circle cx="110" cy="75" r="16" fill="rgba(201,168,76,0.15)" stroke="rgba(201,168,76,0.4)" strokeWidth="1" />
@@ -1018,15 +1120,7 @@ function MiniMockup({ type }: { type: string }) {
     return (
       <div className="w-full h-full rounded-lg overflow-hidden flex flex-col"
         style={{ background: '#070b14', border: `1px solid ${C.border}` }}>
-        <div className="flex items-center justify-between px-3 py-2 shrink-0" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: `1px solid ${C.border}` }}>
-          <div className="flex gap-1.5">
-            <div className="w-2 h-2 rounded-full" style={{ background: '#ef4444' }} />
-            <div className="w-2 h-2 rounded-full" style={{ background: '#eab308' }} />
-            <div className="w-2 h-2 rounded-full" style={{ background: '#22c55e' }} />
-          </div>
-          <span className="text-[8px] font-medium" style={{ color: C.textDim }}>Knowledge Engine</span>
-          <div />
-        </div>
+        {titleBar('Knowledge Engine')}
         <div className="flex-1 flex flex-col p-2.5 gap-0">
           <div className="flex items-center gap-2 mb-2">
             <div className="h-2 flex-1 rounded" style={{ background: 'rgba(255,255,255,0.04)' }} />
@@ -1049,15 +1143,7 @@ function MiniMockup({ type }: { type: string }) {
   return (
     <div className="w-full h-full rounded-lg overflow-hidden flex flex-col"
       style={{ background: '#070b14', border: `1px solid ${C.border}` }}>
-      <div className="flex items-center justify-between px-3 py-2 shrink-0" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: `1px solid ${C.border}` }}>
-        <div className="flex gap-1.5">
-          <div className="w-2 h-2 rounded-full" style={{ background: '#ef4444' }} />
-          <div className="w-2 h-2 rounded-full" style={{ background: '#eab308' }} />
-          <div className="w-2 h-2 rounded-full" style={{ background: '#22c55e' }} />
-        </div>
-        <span className="text-[8px] font-medium" style={{ color: C.textDim }}>Conversation Studio</span>
-        <div />
-      </div>
+      {titleBar('Conversation Studio')}
       <div className="flex-1 flex flex-col p-2.5 gap-2">
         <div className="flex items-center gap-2 rounded px-2 py-1.5" style={{ background: 'rgba(255,255,255,0.02)' }}>
           <span className="text-[7px]" style={{ color: C.textDim }}>To:</span>
@@ -1107,7 +1193,7 @@ function PlatformSection() {
           <p className="text-[11px] font-semibold tracking-[0.3em] uppercase mb-5"
             style={{ color: C.gold }}>Platform</p>
           <h2 className="text-[clamp(1.6rem,3vw,2.6rem)] font-bold tracking-[-0.025em]"
-            style={{ color: C.white }}>Inside DeepMindQ</h2>
+            style={{ color: C.white }}>Inside the Workspace</h2>
           <p className="mt-5 text-[16px] max-w-[540px] mx-auto font-light leading-[1.75]" style={{ color: C.textDim }}>
             Four core modules that transform raw intelligence into pipeline.
           </p>
@@ -1145,14 +1231,14 @@ function PlatformSection() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   HOW IT WORKS
+   HOW IT WORKS  #10 personal language
    ═══════════════════════════════════════════════════════════════ */
 const STEPS = [
-  { num: '01', title: 'Add Your Accounts', desc: 'Import your target accounts or let DeepMindQ discover high-potential companies based on your ideal customer profile. The system begins continuous intelligence gathering immediately.', icon: Database },
-  { num: '02', title: 'AI Discovers Signals', desc: 'Our AI engine continuously monitors each account for funding events, leadership changes, technology shifts, and market movements — alerting you to opportunities before your competitors notice.', icon: Zap },
-  { num: '03', title: 'Map Stakeholders', desc: 'DeepMindQ identifies and maps decision-makers, influencers, and champions within each account. Understand power dynamics, reporting lines, and who actually drives purchasing decisions.', icon: Users },
-  { num: '04', title: 'Craft Smart Outreach', desc: 'Generate research-informed, personalized conversation starters for each stakeholder. Every message is grounded in real intelligence — not generic templates.', icon: MessageSquare },
-  { num: '05', title: 'Build Relationships', desc: 'Track every interaction, remember context across conversations, and let AI suggest the next best action. Relationship intelligence that compounds over time.', icon: TrendingUp },
+  { num: '01', title: 'Add Your Accounts', desc: 'I import my target accounts or let DeepMindQ discover high-potential companies based on my ideal customer profile. The system begins continuous intelligence gathering immediately.', icon: Database },
+  { num: '02', title: 'AI Discovers Signals', desc: 'The AI engine continuously monitors each account for funding events, leadership changes, technology shifts, and market movements — alerting me to opportunities before competitors notice.', icon: Zap },
+  { num: '03', title: 'Map Stakeholders', desc: 'DeepMindQ identifies and maps decision-makers, influencers, and champions within each account. I understand power dynamics, reporting lines, and who actually drives purchasing decisions.', icon: Users },
+  { num: '04', title: 'Craft Smart Outreach', desc: 'I generate research-informed, personalized conversation starters for each stakeholder. Every message is grounded in real intelligence — not generic templates.', icon: MessageSquare },
+  { num: '05', title: 'Build Relationships', desc: 'Every interaction is tracked, context is remembered across conversations, and AI suggests the next best action. Relationship intelligence that compounds over time.', icon: TrendingUp },
 ];
 
 function HowItWorksSection() {
@@ -1170,9 +1256,9 @@ function HowItWorksSection() {
           <p className="text-[11px] font-semibold tracking-[0.3em] uppercase mb-5"
             style={{ color: C.gold }}>Process</p>
           <h2 className="text-[clamp(1.6rem,3vw,2.6rem)] font-bold tracking-[-0.025em]"
-            style={{ color: C.white }}>How DeepMindQ Works</h2>
+            style={{ color: C.white }}>How I Use DeepMindQ</h2>
           <p className="mt-5 text-[16px] max-w-[480px] mx-auto font-light" style={{ color: C.textDim }}>
-            From signal to conversation in five intelligent steps.
+            From signal to conversation in five steps.
           </p>
         </motion.div>
 
@@ -1209,20 +1295,35 @@ function HowItWorksSection() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   TESTIMONIALS
+   #1 — WHO THIS IS FOR (replaces Testimonials)
    ═══════════════════════════════════════════════════════════════ */
-const TESTIMONIALS = [
-  { quote: 'DeepMindQ changed how our entire team approaches enterprise accounts. The signal detection alone saved us 15+ hours per week of manual research.', name: 'VP of Enterprise Sales', company: 'Mid-market SaaS, 200+ employees', avatar: 'ES' },
-  { quote: 'The stakeholder mapping is unlike anything I\'ve seen. We went from guessing who to contact to knowing exactly who matters and what they care about.', name: 'Director of Strategic Accounts', company: 'Enterprise Infrastructure, Fortune 500', avatar: 'SA' },
-  { quote: 'What sets DeepMindQ apart is the "understand first" philosophy. Our win rates improved because we stopped pitching and started having real conversations.', name: 'Head of Growth', company: 'AI/ML Platform, Series C', avatar: 'HG' },
+const WHO_THIS_IS_FOR = [
+  {
+    icon: UserCircle,
+    title: 'Solo Growth Leaders',
+    desc: 'Individual contributors carrying a number — account executives, business development reps, or founders who need deep account intelligence but don\'t have a team of researchers. You need to do more with less time, and you need every conversation to count.',
+    traits: ['Carrying a personal quota', 'Managing 50+ accounts', 'No dedicated research team'],
+  },
+  {
+    icon: Briefcase,
+    title: 'Strategic Account Teams',
+    desc: 'Small teams of 2-5 people focused on named accounts. The challenge isn\'t data — it\'s shared understanding. DeepMindQ gives everyone the same intelligence foundation so every team member is operating from the same playbook.',
+    traits: ['Named account lists', 'Multi-threaded engagement', 'Need shared intelligence'],
+  },
+  {
+    icon: Globe,
+    title: 'Consultants & Advisors',
+    desc: 'External advisors helping enterprise clients navigate growth decisions. You need to quickly understand a company\'s landscape, identify stakeholders, and bring informed perspectives to every meeting — sometimes with just 24 hours of preparation.',
+    traits: ['Multiple clients simultaneously', 'Time-sensitive research needs', 'Advisory, not transactional'],
+  },
 ];
 
-function TestimonialsSection() {
+function WhoThisIsForSection() {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: '-80px' });
 
   return (
-    <section id="testimonials" ref={ref} className="py-32 sm:py-44"
+    <section id="who-this-is-for" ref={ref} className="py-32 sm:py-44"
       style={{ background: C.bgAlt, borderTop: `1px solid ${C.border}` }}>
       <div className="mx-auto max-w-[1200px] px-6 lg:px-8">
         <motion.div className="text-center mb-20"
@@ -1230,33 +1331,37 @@ function TestimonialsSection() {
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.7, ease }}>
           <p className="text-[11px] font-semibold tracking-[0.3em] uppercase mb-5"
-            style={{ color: C.gold }}>Testimonials</p>
+            style={{ color: C.gold }}>Who This Is For</p>
           <h2 className="text-[clamp(1.6rem,3vw,2.6rem)] font-bold tracking-[-0.025em]"
-            style={{ color: C.white }}>Trusted by Growth Leaders</h2>
-          <p className="mt-5 text-[16px] max-w-[480px] mx-auto font-light" style={{ color: C.textDim }}>
-            Hear from enterprise sales leaders who transformed their approach.
+            style={{ color: C.white }}>Built for People Who Sell by Understanding</h2>
+          <p className="mt-5 text-[16px] max-w-[540px] mx-auto font-light leading-[1.75]" style={{ color: C.textDim }}>
+            DeepMindQ isn&apos;t for everyone. It&apos;s for people who believe the best deals start with the deepest understanding.
           </p>
         </motion.div>
 
         <div className="grid md:grid-cols-3 gap-6">
-          {TESTIMONIALS.map((t, i) => (
+          {WHO_THIS_IS_FOR.map((persona, i) => (
             <motion.div key={i} className="rounded-xl p-7 sm:p-8 flex flex-col"
               style={{ background: C.bgCard, border: `1px solid ${C.border}` }}
               initial={{ opacity: 0, y: 25 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.5, delay: i * 0.12, ease }}
               whileHover={{ borderColor: 'rgba(201,168,76,0.15)', boxShadow: '0 12px 40px rgba(0,0,0,0.25)', transition: { duration: 0.25 } }}>
-              <Quote className="w-6 h-6 mb-5" style={{ color: C.goldBorder }} />
-              <p className="text-[15px] leading-[1.8] flex-1 mb-7 font-light" style={{ color: C.textSub }}>
-                &ldquo;{t.quote}&rdquo;
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-5"
+                style={{ background: C.goldDim, border: `1px solid ${C.goldBorder}` }}>
+                <persona.icon className="w-5 h-5" style={{ color: C.gold }} />
+              </div>
+              <h3 className="text-[16px] font-semibold mb-3" style={{ color: C.white }}>{persona.title}</h3>
+              <p className="text-[14px] leading-[1.8] flex-1 mb-6 font-light" style={{ color: C.textSub }}>
+                {persona.desc}
               </p>
-              <div className="flex items-center gap-3.5 pt-5" style={{ borderTop: `1px solid ${C.border}` }}>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0"
-                  style={{ background: C.goldDim, border: `1px solid ${C.goldBorder}`, color: C.gold }}>{t.avatar}</div>
-                <div>
-                  <p className="text-[13px] font-semibold" style={{ color: C.white }}>{t.name}</p>
-                  <p className="text-[11px] mt-0.5" style={{ color: C.textDim }}>{t.company}</p>
-                </div>
+              <div className="pt-5 space-y-2.5" style={{ borderTop: `1px solid ${C.border}` }}>
+                {persona.traits.map((trait, j) => (
+                  <div key={j} className="flex items-center gap-2.5 text-[13px]" style={{ color: C.textDim }}>
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: C.gold }} />
+                    {trait}
+                  </div>
+                ))}
               </div>
             </motion.div>
           ))}
@@ -1267,21 +1372,31 @@ function TestimonialsSection() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   FAQ
+   FAQ  #3 personal tone, #22 ARIA, #25 focus management
    ═══════════════════════════════════════════════════════════════ */
 const FAQ_ITEMS = [
-  { q: 'What makes DeepMindQ different from other sales intelligence tools?', a: 'DeepMindQ is built on a fundamentally different philosophy: "Understand Before You Sell." Most tools give you data — company profiles, contact lists, activity feeds. DeepMindQ gives you understanding. It connects market signals to account context, maps stakeholder dynamics, aligns your solution to their pain points, and generates research-informed outreach. It\'s not a data tool — it\'s an intelligence system that thinks alongside you.' },
-  { q: 'How does the AI signal detection work?', a: 'DeepMindQ continuously monitors your target accounts across multiple dimensions: funding events and M&A activity, technology stack changes detected from public sources, leadership movements and org changes, competitor positioning shifts, and market trend analysis. When a signal is detected, the AI assesses its relevance and urgency, then surfaces actionable insights with specific next steps.' },
-  { q: 'Is my data secure?', a: 'Absolutely. DeepMindQ is built with enterprise-grade security from the ground up. All data is encrypted at rest and in transit. Your account intelligence, stakeholder maps, and conversation history are completely private and never shared. The platform uses session-based authentication with httpOnly cookies.' },
-  { q: 'Can I use DeepMindQ for my team?', a: 'DeepMindQ is currently available as a private workspace. It\'s designed for individual growth leaders and strategic account teams who need deep intelligence on their target accounts. Team features including shared account views and collaborative notes are on the roadmap.' },
-  { q: 'What kind of companies does DeepMindQ work best for?', a: 'DeepMindQ is optimized for B2B enterprise sales — particularly technology companies selling to mid-market and enterprise accounts. If your sales cycle involves multiple stakeholders, requires deep account understanding, and benefits from research-informed outreach, DeepMindQ is built for you.' },
-  { q: 'How long does it take to see results?', a: 'Most users see actionable intelligence within the first session. Add your target accounts, and DeepMindQ begins analyzing them immediately. Signal detection starts working within minutes. The platform\'s intelligence compounds over time — the more you use it, the smarter it gets.' },
+  { q: 'What exactly is DeepMindQ?', a: 'DeepMindQ is my personal AI-powered workspace for enterprise growth. I built it to automate the research and intelligence work I used to do manually — understanding target companies, detecting market signals, mapping stakeholders, and crafting informed outreach. It\'s a living tool that I use every day and continue to improve.' },
+  { q: 'Who built this and why?', a: 'I\'m Ravi Shanker — an enterprise growth leader with 15+ years in technology sales. I built DeepMindQ because I was tired of spending 6+ hours per week on manual account research across LinkedIn, SEC filings, news, and CRMs. I wanted a single place where all my target account intelligence lives and compounds over time.' },
+  { q: 'Can I see it in action?', a: 'DeepMindQ is a private workspace — you need access to see the full platform. If you\'re curious about how it works, the "Framework" and "Platform" sections above walk through the intelligence layers and core modules. Or reach out to me directly — I\'m happy to show it to people who might benefit from the same approach.' },
+  { q: 'Is my data secure?', a: 'Absolutely. Everything is built with enterprise-grade security from the ground up. All data is encrypted at rest and in transit. Your account intelligence, stakeholder maps, and conversation history are completely private and never shared. Authentication uses session-based httpOnly cookies.' },
+  { q: 'What kind of companies does this work for?', a: 'DeepMindQ is optimized for B2B enterprise sales — particularly technology companies selling to mid-market and enterprise accounts. If your sales cycle involves multiple stakeholders, requires deep account understanding, and benefits from research-informed outreach, this approach will work for you.' },
+  { q: 'How do I get access?', a: 'Click "Private Workspace" to request access. Since this is my personal workspace (not a commercial SaaS), access is limited. If you\'re a growth leader who believes in the "understand first" philosophy, I\'d love to hear from you.' },
 ];
 
 function FAQSection() {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: '-80px' });
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const answerRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // #25 — Focus management: move focus to answer when it opens
+  useEffect(() => {
+    if (openIndex === null) return;
+    const timer = setTimeout(() => {
+      answerRefs.current[openIndex]?.focus();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [openIndex]);
 
   return (
     <section id="faq" ref={ref} className="py-32 sm:py-44" style={{ borderTop: `1px solid ${C.border}` }}>
@@ -1293,8 +1408,8 @@ function FAQSection() {
           <p className="text-[11px] font-semibold tracking-[0.3em] uppercase mb-5"
             style={{ color: C.gold }}>FAQ</p>
           <h2 className="text-[clamp(1.6rem,3vw,2.6rem)] font-bold tracking-[-0.025em]"
-            style={{ color: C.white }}>Frequently Asked Questions</h2>
-          <p className="mt-5 text-[16px] font-light" style={{ color: C.textDim }}>Everything you need to know about DeepMindQ.</p>
+            style={{ color: C.white }}>Questions You Might Have</h2>
+          <p className="mt-5 text-[16px] font-light" style={{ color: C.textDim }}>Straight answers about DeepMindQ.</p>
         </motion.div>
 
         <div className="space-y-3">
@@ -1307,7 +1422,9 @@ function FAQSection() {
                 animate={inView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.4, delay: 0.1 + i * 0.06, ease }}>
                 <button onClick={() => setOpenIndex(isOpen ? null : i)}
-                  className="w-full flex items-center justify-between px-6 py-5 text-left">
+                  className="w-full flex items-center justify-between px-6 py-5 text-left"
+                  aria-expanded={isOpen}
+                  aria-controls={`faq-answer-${i}`}>
                   <span className="text-[15px] font-medium pr-4" style={{ color: isOpen ? C.gold : C.white }}>{item.q}</span>
                   <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.25 }}>
                     <ChevronDown className="w-4 h-4 shrink-0" style={{ color: isOpen ? C.gold : C.textDim }} />
@@ -1315,7 +1432,10 @@ function FAQSection() {
                 </button>
                 <AnimatePresence initial={false}>
                   {isOpen && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+                    <motion.div id={`faq-answer-${i}`} role="region" aria-label={item.q}
+                      ref={el => { answerRefs.current[i] = el; }}
+                      tabIndex={-1}
+                      initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3, ease }} className="overflow-hidden">
                       <div className="px-6 pb-6">
                         <div className="h-px mb-4" style={{ background: C.border }} />
@@ -1334,7 +1454,7 @@ function FAQSection() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   #4 — VALUE with mini sparkline charts
+   #2 — CAPABILITY METRICS (replaces SaaS stats)
    ═══════════════════════════════════════════════════════════════ */
 function MiniSparkline({ data, color }: { data: number[]; color: string }) {
   const w = 80, h = 28, pad = 2;
@@ -1350,26 +1470,28 @@ function MiniSparkline({ data, color }: { data: number[]; color: string }) {
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-7 mt-2.5" preserveAspectRatio="none">
       <defs>
-        <linearGradient id={`spark-fill-${color}`} x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={`spark-fill-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.2" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <polygon fill={`url(#spark-fill-${color})`} points={`0,${h} ${points} ${w},${h}`} />
+      <polygon fill={`url(#spark-fill-${color.replace('#', '')})`} points={`0,${h} ${points} ${w},${h}`} />
       <polyline fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" points={points} />
     </svg>
   );
 }
 
+/* #5 — Reframed as "What This Delivers" + #2 capability stats + #9 CTA path */
 function ValueSection({ onLogin }: { onLogin: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: '-80px' });
 
+  // #2 — Capability-focused metrics (real, not fabricated SaaS claims)
   const stats = [
-    { value: '10x', label: 'Faster Account Research', data: [2, 3, 4, 5, 6, 7, 8, 9, 10], color: C.gold },
-    { value: '73%', label: 'Higher Email Engagement', data: [35, 42, 48, 55, 60, 65, 70, 73, 73], color: '#22c55e' },
-    { value: '3.2x', label: 'Pipeline Velocity', data: [1.0, 1.3, 1.6, 1.9, 2.2, 2.5, 2.8, 3.0, 3.2], color: '#60a5fa' },
-    { value: '<2 min', label: 'Signal to Action', data: [12, 10, 8, 6, 5, 4, 3, 2, 1.5], color: '#f59e0b' },
+    { value: '5', label: 'Intelligence Layers', data: [1, 1, 2, 2, 3, 3, 4, 4, 5], color: C.gold },
+    { value: '6', label: 'Signal Types Monitored', data: [1, 1, 2, 2, 3, 3, 4, 5, 6], color: '#22c55e' },
+    { value: '4', label: 'Core Platform Modules', data: [1, 1, 2, 2, 3, 3, 3, 4, 4], color: '#60a5fa' },
+    { value: '24/7', label: 'Continuous Monitoring', data: [4, 8, 12, 14, 16, 18, 20, 22, 24], color: '#f59e0b' },
   ];
 
   const statDisplays = stats.map(s => useAnimatedCounter(s.value, inView));
@@ -1390,8 +1512,9 @@ function ValueSection({ onLogin }: { onLogin: () => void }) {
           <motion.div initial={{ opacity: 0, y: 20 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.7, ease }}>
+            {/* #5 — Reframed label */}
             <p className="text-[11px] font-semibold tracking-[0.3em] uppercase mb-5"
-              style={{ color: C.gold }}>The Promise</p>
+              style={{ color: C.gold }}>What This Delivers</p>
             <h2 className="text-[clamp(1.6rem,3vw,2.2rem)] font-bold tracking-[-0.025em] leading-[1.15] mb-8"
               style={{ color: C.white }}>
               From Data to Understanding.<br />From Understanding to Growth.
@@ -1399,10 +1522,11 @@ function ValueSection({ onLogin }: { onLogin: () => void }) {
             <p className="text-[16px] leading-[1.85] mb-5 font-light" style={{ color: C.textSub }}>
               DeepMindQ doesn&apos;t give you more data. It gives you understanding — the kind
               that changes how you sell, who you talk to, and what you say when you get there.
+              Every signal, every stakeholder, every conversation — connected and compounding.
             </p>
             <p className="text-[16px] leading-[1.85] mb-10 font-light" style={{ color: C.textSub }}>
               In a world where every sales team has access to the same data, the winners are the ones
-              who understand it better. DeepMindQ is your unfair advantage in the intelligence game.
+              who understand it better. This is my unfair advantage — and it can be yours too.
             </p>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -1442,6 +1566,8 @@ function ValueSection({ onLogin }: { onLogin: () => void }) {
                 </motion.div>
               ))}
             </div>
+
+            {/* #9 — Clear CTA path + #33 loading state */}
             <motion.button onClick={onLogin}
               className="group inline-flex items-center gap-2.5 px-8 py-4 rounded-lg text-[15px] font-semibold"
               style={{ background: C.gold, color: '#0A0E1A' }}
@@ -1451,6 +1577,27 @@ function ValueSection({ onLogin }: { onLogin: () => void }) {
               Enter Private Workspace
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
             </motion.button>
+
+            {/* #9 — Intermediate CTA for warm leads */}
+            <div className="mt-4 flex items-center justify-center lg:justify-start gap-4 text-[13px]">
+              <a href="https://www.linkedin.com/in/shankerpisupati/" target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 transition-colors duration-200"
+                style={{ color: C.textDim }}
+                onMouseEnter={e => { e.currentTarget.style.color = C.gold; }}
+                onMouseLeave={e => { e.currentTarget.style.color = C.textDim; }}>
+                <Linkedin className="w-3.5 h-3.5" />
+                Connect on LinkedIn
+              </a>
+              <span style={{ color: C.border }}>|</span>
+              <a href="mailto:shanker001@gmail.com"
+                className="inline-flex items-center gap-1.5 transition-colors duration-200"
+                style={{ color: C.textDim }}
+                onMouseEnter={e => { e.currentTarget.style.color = C.gold; }}
+                onMouseLeave={e => { e.currentTarget.style.color = C.textDim; }}>
+                <Mail className="w-3.5 h-3.5" />
+                Or email me
+              </a>
+            </div>
           </motion.div>
         </div>
       </div>
@@ -1459,7 +1606,7 @@ function ValueSection({ onLogin }: { onLogin: () => void }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   FOOTER — Multi-column with LinkedIn
+   FOOTER  #35 cleaner workspace link, #50 varied footer copy
    ═══════════════════════════════════════════════════════════════ */
 function Footer({ onLogin }: { onLogin: () => void }) {
   const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
@@ -1477,7 +1624,7 @@ function Footer({ onLogin }: { onLogin: () => void }) {
               <span className="text-[15px] font-semibold" style={{ color: C.white }}>DeepMindQ</span>
             </div>
             <p className="text-[13px] leading-[1.7] max-w-[260px] font-light" style={{ color: C.textDim }}>
-              Enterprise Growth Intelligence.<br />Understand before you sell.
+              A personal intelligence workspace.<br />Understand before you sell.
             </p>
           </div>
           <div>
@@ -1507,9 +1654,10 @@ function Footer({ onLogin }: { onLogin: () => void }) {
             </div>
           </div>
           <div>
-            <p className="text-[11px] font-semibold tracking-[0.2em] uppercase mb-5" style={{ color: C.textSub }}>Company</p>
+            <p className="text-[11px] font-semibold tracking-[0.2em] uppercase mb-5" style={{ color: C.textSub }}>Navigate</p>
             <div className="space-y-3">
               {[{ label: 'Philosophy', id: 'philosophy' }, { label: 'How It Works', id: 'how-it-works' },
+               { label: 'Who This Is For', id: 'who-this-is-for' },
                { label: 'FAQ', id: 'faq' }].map(item => (
                 <button key={item.label} onClick={() => scrollTo(item.id)}
                   className="block text-[13px] font-light transition-colors duration-200"
@@ -1517,34 +1665,39 @@ function Footer({ onLogin }: { onLogin: () => void }) {
                   onMouseEnter={e => { e.currentTarget.style.color = C.gold; }}
                   onMouseLeave={e => { e.currentTarget.style.color = C.textDim; }}>{item.label}</button>
               ))}
-              <button onClick={onLogin} className="block text-[13px] font-light transition-colors duration-200"
-                style={{ color: C.textDim }}
-                onMouseEnter={e => { e.currentTarget.style.color = C.gold; }}
-                onMouseLeave={e => { e.currentTarget.style.color = C.textDim; }}>Login</button>
+              {/* #35 — Prominent Login in footer nav */}
+              <button onClick={onLogin}
+                className="block text-[13px] font-medium transition-colors duration-200 mt-2"
+                style={{ color: C.gold }}
+                onMouseEnter={e => { e.currentTarget.style.color = C.goldBright; }}
+                onMouseLeave={e => { e.currentTarget.style.color = C.gold; }}>
+                Login to Workspace
+              </button>
             </div>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-center justify-between gap-5">
+          {/* #50 — Varied footer copy, not repeated */}
           <p className="text-[12px] text-center font-light" style={{ color: C.textDim }}>
-            &copy; {new Date().getFullYear()} DeepMindQ &middot; Built by Ravi Shanker &middot; Enterprise Growth Leader &middot; Technology Strategist
+            &copy; {new Date().getFullYear()} DeepMindQ &middot; Built with conviction by Ravi Shanker
           </p>
           <div className="flex items-center gap-3">
             <a href="https://www.linkedin.com/in/shankerpisupati/" target="_blank" rel="noopener noreferrer"
               className="w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200"
               style={{ color: C.textDim, border: `1px solid ${C.border}` }}
               onMouseEnter={e => { e.currentTarget.style.color = C.gold; e.currentTarget.style.borderColor = C.goldBorder; e.currentTarget.style.background = C.goldDim; }}
-              onMouseLeave={e => { e.currentTarget.style.color = C.textDim; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = 'transparent'; }}>
+              onMouseLeave={e => { e.currentTarget.style.color = C.textDim; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = 'transparent'; }}
+              aria-label="LinkedIn profile">
               <Linkedin className="w-3.5 h-3.5" />
             </a>
             <a href="mailto:shanker001@gmail.com"
               className="w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200"
               style={{ color: C.textDim, border: `1px solid ${C.border}` }}
               onMouseEnter={e => { e.currentTarget.style.color = C.gold; e.currentTarget.style.borderColor = C.goldBorder; e.currentTarget.style.background = C.goldDim; }}
-              onMouseLeave={e => { e.currentTarget.style.color = C.textDim; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = 'transparent'; }}>
+              onMouseLeave={e => { e.currentTarget.style.color = C.textDim; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = 'transparent'; }}
+              aria-label="Send email">
               <Mail className="w-3.5 h-3.5" />
             </a>
-            <button onClick={onLogin} className="text-[12px] font-medium transition-colors hover:text-white px-2"
-              style={{ color: C.textDim }}>Workspace</button>
           </div>
         </div>
       </div>
@@ -1553,7 +1706,7 @@ function Footer({ onLogin }: { onLogin: () => void }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   MAIN
+   MAIN  #30 consistent section dividers, #34 nav matches sections
    ═══════════════════════════════════════════════════════════════ */
 interface LandingPageProps { onLogin: () => void; }
 
@@ -1568,6 +1721,9 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
         {!preloaderDone && <Preloader onComplete={() => setPreloaderDone(true)} />}
       </AnimatePresence>
 
+      {/* #21 — Skip to content */}
+      <SkipToContent />
+
       <div className="min-h-screen" style={{ background: C.bg, color: C.text }}>
         <ScrollProgressBar />
         <BackToTop />
@@ -1579,11 +1735,9 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
         <FrameworkSection />
         <SectionDivider />
         <PlatformSection />
-        <SectionDivider />
         <HowItWorksSection />
-        <TestimonialsSection />
+        <WhoThisIsForSection />
         <FAQSection />
-        <SectionDivider />
         <ValueSection onLogin={handleLogin} />
         <Footer onLogin={handleLogin} />
       </div>

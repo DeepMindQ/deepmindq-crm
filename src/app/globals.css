@@ -344,6 +344,37 @@
     outline-offset: 2px;
     border-radius: 4px;
   }
+  /* Scroll offset for fixed header on landing page */
+  [id="philosophy"],
+  [id="framework"],
+  [id="platform"],
+  [id="how-it-works"],
+  [id="who-this-is-for"],
+  [id="faq"],
+  [id="about"] {
+    scroll-margin-top: 72px;
+  }
+}
+
+/* ── Landing page text selection ── */
+.dark ::selection,
+[data-landing] ::selection {
+  background: rgba(201, 168, 76, 0.25);
+  color: #F9FAFB;
+}
+::selection {
+  background: rgba(201, 168, 76, 0.25);
+  color: #F9FAFB;
+}
+
+/* ── Print Stylesheet ── */
+@media print {
+  html { scroll-behavior: auto; }
+  body { background: #fff !important; color: #111 !important; font-size: 12pt; }
+  [class*="fixed"], .scroll-progress-bar, .back-to-top, .preloader { display: none !important; }
+  section { break-inside: avoid; page-break-inside: avoid; padding-top: 2rem !important; padding-bottom: 2rem !important; }
+  * { color: #111 !important; border-color: #ddd !important; background: transparent !important; box-shadow: none !important; }
+  a { text-decoration: underline; }
 }
 
 /* ── Backdrop blur utility for glass panels ── */

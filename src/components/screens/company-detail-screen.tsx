@@ -116,7 +116,7 @@ function ScoreBar({ label, value, max = 100, color = GOLD }: { label: string; va
         <span className="text-xs text-muted-foreground">{label}</span>
         <span className="text-xs font-semibold" style={{ color }}>{pct}%</span>
       </div>
-      <div className="h-2 rounded-full overflow-hidden bg-black/[0.06]">
+      <div className="h-2 rounded-full overflow-hidden bg-gray-100">
         <motion.div
           className="h-full rounded-full"
           style={{ background: `linear-gradient(90deg, ${color}, ${color}CC)` }}
@@ -136,7 +136,7 @@ function NoteTemplateItem({ template, onSelect }: { template: { key: string; lab
   return (
     <button
       onClick={() => onSelect(template.key)}
-      className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-black/[0.04] transition-colors flex items-center gap-3 group"
+      className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-gray-100/50 transition-colors flex items-center gap-3 group"
     >
       <FileText size={14} className="text-muted-foreground group-hover:text-[#D4AF37] transition-colors" />
       <span className="text-foreground/80 group-hover:text-foreground transition-colors">{template.label}</span>
@@ -417,7 +417,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
               whileHover={{ x: -2 }}
               whileTap={{ scale: 0.95 }}
               onClick={onBack}
-              className="w-9 h-9 rounded-lg border border-gray-200 bg-black/[0.03] flex items-center justify-center hover:border-[#D4AF37]/30 transition-colors"
+              className="w-9 h-9 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center hover:border-[#D4AF37]/30 transition-colors"
             >
               <ArrowLeft size={16} className="text-muted-foreground" />
             </motion.button>
@@ -474,7 +474,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
       {/* ── Tabs ── */}
       <div className="max-w-[1400px] mx-auto px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-black/[0.03] border border-gray-200 rounded-xl p-1 h-auto flex-wrap gap-1">
+          <TabsList className="bg-gray-50 border border-gray-200 rounded-xl p-1 h-auto flex-wrap gap-1">
             {[
               { key: 'overview', label: 'Overview', icon: Building2 },
               { key: 'mindmap', label: 'Mind Map', icon: Brain },
@@ -491,7 +491,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                 <tab.icon size={14} />
                 {tab.label}
                 {tab.count !== undefined && tab.count > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/[0.06] text-muted-foreground data-[state=active]:bg-[#D4AF37]/15 data-[state=active]:text-[#D4AF37]">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-muted-foreground data-[state=active]:bg-[#D4AF37]/15 data-[state=active]:text-[#D4AF37]">
                     {tab.count}
                   </span>
                 )}
@@ -516,31 +516,31 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                     <div className="space-y-3">
                       <div>
                         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Name</label>
-                        <Input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className="mt-1 h-8 text-xs bg-black/[0.03] border-gray-200" />
+                        <Input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className="mt-1 h-8 text-xs bg-gray-50 border-gray-200" />
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Industry</label>
-                        <Input value={editForm.industry} onChange={e => setEditForm(p => ({ ...p, industry: e.target.value }))} className="mt-1 h-8 text-xs bg-black/[0.03] border-gray-200" />
+                        <Input value={editForm.industry} onChange={e => setEditForm(p => ({ ...p, industry: e.target.value }))} className="mt-1 h-8 text-xs bg-gray-50 border-gray-200" />
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Size Range</label>
-                        <Input value={editForm.sizeRange} onChange={e => setEditForm(p => ({ ...p, sizeRange: e.target.value }))} className="mt-1 h-8 text-xs bg-black/[0.03] border-gray-200" />
+                        <Input value={editForm.sizeRange} onChange={e => setEditForm(p => ({ ...p, sizeRange: e.target.value }))} className="mt-1 h-8 text-xs bg-gray-50 border-gray-200" />
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Location</label>
-                        <Input value={editForm.location} onChange={e => setEditForm(p => ({ ...p, location: e.target.value }))} className="mt-1 h-8 text-xs bg-black/[0.03] border-gray-200" />
+                        <Input value={editForm.location} onChange={e => setEditForm(p => ({ ...p, location: e.target.value }))} className="mt-1 h-8 text-xs bg-gray-50 border-gray-200" />
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Country</label>
-                        <Input value={editForm.country} onChange={e => setEditForm(p => ({ ...p, country: e.target.value }))} className="mt-1 h-8 text-xs bg-black/[0.03] border-gray-200" />
+                        <Input value={editForm.country} onChange={e => setEditForm(p => ({ ...p, country: e.target.value }))} className="mt-1 h-8 text-xs bg-gray-50 border-gray-200" />
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Website</label>
-                        <Input value={editForm.website} onChange={e => setEditForm(p => ({ ...p, website: e.target.value }))} className="mt-1 h-8 text-xs bg-black/[0.03] border-gray-200" />
+                        <Input value={editForm.website} onChange={e => setEditForm(p => ({ ...p, website: e.target.value }))} className="mt-1 h-8 text-xs bg-gray-50 border-gray-200" />
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Assigned To</label>
-                        <Input value={editForm.assignedTo} onChange={e => setEditForm(p => ({ ...p, assignedTo: e.target.value }))} className="mt-1 h-8 text-xs bg-black/[0.03] border-gray-200" />
+                        <Input value={editForm.assignedTo} onChange={e => setEditForm(p => ({ ...p, assignedTo: e.target.value }))} className="mt-1 h-8 text-xs bg-gray-50 border-gray-200" />
                       </div>
                     </div>
                   ) : (
@@ -577,7 +577,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                       <div className="flex items-center gap-2 text-xs">
                         <Activity size={13} className="text-muted-foreground" />
                         <span className="text-muted-foreground">Lifecycle:</span>
-                        <Badge className="text-[10px] px-1.5 py-0 bg-black/[0.05] border-gray-200 text-foreground">
+                        <Badge className="text-[10px] px-1.5 py-0 bg-gray-100/50 border-gray-200 text-foreground">
                           {(company?.lifecycleStage || 'discovery').replace(/_/g, ' ')}
                         </Badge>
                       </div>
@@ -616,7 +616,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                       <Textarea
                         value={editForm.internalSummary}
                         onChange={e => setEditForm(p => ({ ...p, internalSummary: e.target.value }))}
-                        className="mt-1 text-xs min-h-[80px] bg-black/[0.03] border-gray-200 resize-none"
+                        className="mt-1 text-xs min-h-[80px] bg-gray-50 border-gray-200 resize-none"
                       />
                     </div>
                   ) : company?.internalSummary ? (
@@ -663,7 +663,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                           <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                             <Building2 size={10} /> Business Overview
                           </p>
-                          <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-gray-200">{researchCard.businessOverview}</p>
+                          <p className="text-xs text-foreground/70 leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-200">{researchCard.businessOverview}</p>
                         </div>
                       )}
 
@@ -673,7 +673,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                               <Layers size={10} /> Tech Landscape
                             </p>
-                            <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-gray-200">{researchCard.techLandscape}</p>
+                            <p className="text-xs text-foreground/70 leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-200">{researchCard.techLandscape}</p>
                           </div>
                         )}
                         {researchCard.potentialChallenges && (
@@ -681,7 +681,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                               <AlertTriangle size={10} /> Challenges
                             </p>
-                            <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-gray-200">{researchCard.potentialChallenges}</p>
+                            <p className="text-xs text-foreground/70 leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-200">{researchCard.potentialChallenges}</p>
                           </div>
                         )}
                         {researchCard.possibleOpportunities && (
@@ -689,7 +689,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                               <Lightbulb size={10} /> Opportunities
                             </p>
-                            <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-gray-200">{researchCard.possibleOpportunities}</p>
+                            <p className="text-xs text-foreground/70 leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-200">{researchCard.possibleOpportunities}</p>
                           </div>
                         )}
                         {researchCard.relevantServices && (
@@ -697,7 +697,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                               <Target size={10} /> Relevant Services
                             </p>
-                            <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-gray-200">{researchCard.relevantServices}</p>
+                            <p className="text-xs text-foreground/70 leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-200">{researchCard.relevantServices}</p>
                           </div>
                         )}
                       </div>
@@ -707,7 +707,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                           <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                             <Award size={10} /> Key Decision Makers
                           </p>
-                          <p className="text-xs text-foreground/70 leading-relaxed bg-white/[0.02] rounded-lg p-3 border border-gray-200">{researchCard.keyDecisionMakers}</p>
+                          <p className="text-xs text-foreground/70 leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-200">{researchCard.keyDecisionMakers}</p>
                         </div>
                       )}
 
@@ -719,7 +719,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                           { label: 'Funding', value: researchCard.fundingStage, icon: TrendingUp },
                           { label: 'Source', value: researchCard.enrichmentSource || 'N/A', icon: Search },
                         ].map((item, i) => (
-                          <div key={i} className="bg-white/[0.02] rounded-lg p-3 border border-gray-200">
+                          <div key={i} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                             <div className="flex items-center gap-1.5 mb-1">
                               <item.icon size={10} className="text-muted-foreground" />
                               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{item.label}</span>
@@ -752,7 +752,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                           <div className="flex flex-wrap gap-2">
                             {Object.entries(socials).map(([platform, url]) => (
                               <a key={platform} href={url as string} target="_blank" rel="noopener noreferrer"
-                                className="text-xs px-2.5 py-1.5 rounded-lg bg-black/[0.03] border border-gray-200 hover:border-[#D4AF37]/30 transition-colors flex items-center gap-1.5 text-foreground/70 hover:text-foreground"
+                                className="text-xs px-2.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200 hover:border-[#D4AF37]/30 transition-colors flex items-center gap-1.5 text-foreground/70 hover:text-foreground"
                               >
                                 <ExternalLink size={10} />
                                 <span className="capitalize">{platform}</span>
@@ -991,7 +991,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
             ) : (
               <div className="relative pl-8 space-y-0">
                 {/* Timeline line */}
-                <div className="absolute left-3 top-2 bottom-2 w-px bg-black/[0.06]" />
+                <div className="absolute left-3 top-2 bottom-2 w-px bg-gray-100" />
 
                 {timeline.map((event: any, idx: number) => {
                   const icon = TIMELINE_ICONS[event.eventType] || <Activity size={14} className="text-muted-foreground" />;
@@ -1016,7 +1016,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{event.description}</p>
                             )}
                             {event.metadata && event.metadata !== '{}' && (
-                              <div className="mt-2 text-[10px] text-foreground/40 bg-white/[0.02] rounded p-2 font-mono max-h-20 overflow-hidden">
+                              <div className="mt-2 text-[10px] text-foreground/40 bg-gray-50 rounded p-2 font-mono max-h-20 overflow-hidden">
                                 {typeof event.metadata === 'string' ? event.metadata.substring(0, 150) : JSON.stringify(event.metadata).substring(0, 150)}
                               </div>
                             )}
@@ -1108,7 +1108,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                 value={noteForm.title}
                 onChange={e => setNoteForm(p => ({ ...p, title: e.target.value }))}
                 placeholder="Note title..."
-                className="mt-1 h-9 text-sm bg-black/[0.03] border-gray-200"
+                className="mt-1 h-9 text-sm bg-gray-50 border-gray-200"
               />
             </div>
             <div>
@@ -1133,7 +1133,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                 value={noteForm.body}
                 onChange={e => setNoteForm(p => ({ ...p, body: e.target.value }))}
                 placeholder="Write your note..."
-                className="mt-1 text-sm min-h-[200px] bg-black/[0.03] border-gray-200 resize-none"
+                className="mt-1 text-sm min-h-[200px] bg-gray-50 border-gray-200 resize-none"
               />
             </div>
             <div className="flex justify-end gap-2 pt-2">

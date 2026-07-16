@@ -707,7 +707,7 @@ export default function CapabilityLibraryScreen() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="fixed right-0 top-0 bottom-0 w-[520px] max-w-full bg-zinc-950 border-l border-zinc-800/80 z-40 flex flex-col shadow-2xl shadow-black/50"
+              className="fixed right-0 top-0 bottom-0 w-[520px] max-w-full bg-white border-l border-gray-200 z-40 flex flex-col shadow-2xl shadow-gray-400/40"
             >
               <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/60 flex-shrink-0">
                 <div className="flex items-center gap-2">

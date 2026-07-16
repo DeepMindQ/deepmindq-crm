@@ -299,10 +299,10 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
                           <p className="text-xs text-muted-foreground truncate">{t.subject}</p>
                         </div>
                         <div className="flex gap-1 shrink-0 ml-2">
-                          <button onClick={() => openPreview(t)} className="p-1.5 rounded-md hover:bg-black/5 text-muted-foreground hover:text-foreground transition-colors">
+                          <button onClick={() => openPreview(t)} className="p-1.5 rounded-md hover:bg-gray-100 text-muted-foreground hover:text-foreground transition-colors">
                             <Eye className="w-3.5 h-3.5" />
                           </button>
-                          <button onClick={() => openEdit(t)} className="p-1.5 rounded-md hover:bg-black/5 text-muted-foreground hover:text-foreground transition-colors">
+                          <button onClick={() => openEdit(t)} className="p-1.5 rounded-md hover:bg-gray-100 text-muted-foreground hover:text-foreground transition-colors">
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button onClick={() => handleDelete(t.id)} className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors">
@@ -338,7 +338,7 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.03 }}
-                  className="flex items-center gap-4 px-4 py-3 hover:bg-white/[0.02] transition-colors"
+                  className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -348,8 +348,8 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{t.subject}</p>
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    <button onClick={() => openPreview(t)} className="p-1.5 rounded-md hover:bg-black/5 text-muted-foreground hover:text-foreground transition-colors"><Eye className="w-4 h-4" /></button>
-                    <button onClick={() => openEdit(t)} className="p-1.5 rounded-md hover:bg-black/5 text-muted-foreground hover:text-foreground transition-colors"><Pencil className="w-4 h-4" /></button>
+                    <button onClick={() => openPreview(t)} className="p-1.5 rounded-md hover:bg-gray-100 text-muted-foreground hover:text-foreground transition-colors"><Eye className="w-4 h-4" /></button>
+                    <button onClick={() => openEdit(t)} className="p-1.5 rounded-md hover:bg-gray-100 text-muted-foreground hover:text-foreground transition-colors"><Pencil className="w-4 h-4" /></button>
                     <button onClick={() => handleDelete(t.id)} className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </motion.div>
@@ -461,7 +461,7 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
           </DialogHeader>
           {previewTemplate && (
             <div className="space-y-4 pt-2">
-              <div className="p-4 rounded-lg bg-black/[0.03] border border-border/50 space-y-3">
+              <div className="p-4 rounded-lg bg-gray-50 border border-border/50 space-y-3">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className={`text-[10px] ${toneColor(previewTemplate.tone)}`}>{previewTemplate.tone}</Badge>
                   {previewTemplate.serviceLine && <Badge variant="outline" className="text-[10px] text-primary/80 bg-primary/5">{previewTemplate.serviceLine}</Badge>}

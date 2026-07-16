@@ -115,7 +115,7 @@ function ActionMenu({ companyId, navigateTo }: { companyId: string; navigateTo?:
     <div ref={menuRef} className="relative">
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        className="p-1 rounded-md hover:bg-black/5 transition-colors"
+        className="p-1 rounded-md hover:bg-gray-100 transition-colors"
       >
         <MoreHorizontal size={16} className="text-[#6B7280]" />
       </button>
@@ -133,7 +133,7 @@ function ActionMenu({ companyId, navigateTo }: { companyId: string; navigateTo?:
               <button
                 key={item.label}
                 onClick={(e) => { e.stopPropagation(); setOpen(false); item.action(); }}
-                className="w-full text-left px-3 py-1.5 text-xs hover:bg-black/5 transition-colors"
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 transition-colors"
                 style={{ color: '#cbd5e1' }}
               >
                 {item.label}
@@ -153,7 +153,7 @@ function TableSkeleton() {
   return (
     <div className="space-y-3">
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 px-4 py-3 rounded-lg" style={{ background: i % 2 === 0 ? 'rgba(0,0,0,0.01)' : 'transparent' }}>
+        <div key={i} className="flex items-center gap-4 px-4 py-3 rounded-lg" style={{ background: i % 2 === 0 ? '#F9FAFB' : 'transparent' }}>
           <Skeleton className="h-4 w-36" />
           <Skeleton className="h-4 w-28" />
           <Skeleton className="h-4 w-12" />
@@ -275,7 +275,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         {/* Title + count */}
         <div className="flex items-center gap-2.5 shrink-0">
-          <h1 className="text-lg font-bold tracking-tight text-white">Companies</h1>
+          <h1 className="text-lg font-bold tracking-tight text-gray-900">Companies</h1>
           <span
             className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
             style={{ background: 'rgba(212,175,55,0.12)', color: gold }}
@@ -459,7 +459,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                     onClick={() => navigateTo?.('company-detail', company.id)}
                     className="group flex items-center gap-4 px-4 py-2.5 cursor-pointer border-l-2 border-l-transparent hover:border-l-[3px] transition-all duration-200"
                     style={{
-                      background: i % 2 === 0 ? 'rgba(0,0,0,0.01)' : 'transparent',
+                      background: i % 2 === 0 ? '#F9FAFB' : 'transparent',
                       hoverBorderLeftColor: gold,
                     }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderLeftColor = gold; }}
@@ -467,7 +467,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                   >
                     {/* Company Name + Industry */}
                     <div className="w-[220px] shrink-0 min-w-0">
-                      <div className="text-sm font-medium text-white truncate">{company.rawName}</div>
+                      <div className="text-sm font-medium text-gray-900 truncate">{company.rawName}</div>
                       {company.industry && (
                         <span
                           className="inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded"
@@ -558,7 +558,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
               <button
                 disabled={page <= 1}
                 onClick={() => setPage(page - 1)}
-                className="p-1.5 rounded-md transition-colors disabled:opacity-30 hover:bg-black/5"
+                className="p-1.5 rounded-md transition-colors disabled:opacity-30 hover:bg-gray-100"
               >
                 <ChevronLeft size={14} style={{ color: textMuted }} />
               </button>
@@ -590,7 +590,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
               <button
                 disabled={page >= totalPages}
                 onClick={() => setPage(page + 1)}
-                className="p-1.5 rounded-md transition-colors disabled:opacity-30 hover:bg-black/5"
+                className="p-1.5 rounded-md transition-colors disabled:opacity-30 hover:bg-gray-100"
               >
                 <ChevronRight size={14} style={{ color: textMuted }} />
               </button>

@@ -438,12 +438,12 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Consent Source (L-12)</Label>
                     <Select value={consentSource} onValueChange={setConsentSource}>
-                      <SelectTrigger className="h-9 text-xs bg-black/[0.03] border-gray-200 text-foreground focus:border-primary/30">
+                      <SelectTrigger className="h-9 text-xs bg-gray-50 border-gray-200 text-foreground focus:border-primary/30">
                         <SelectValue placeholder="Select consent source" />
                       </SelectTrigger>
-                      <SelectContent className="border-white/[0.1] bg-black/20 backdrop-blur-2xl">
+                      <SelectContent className="bg-white border border-gray-200 shadow-lg">
                         {CONSENT_SOURCES.map(s => (
-                          <SelectItem key={s.value} value={s.value} className="text-xs text-foreground focus:bg-black/[0.06]">{s.label}</SelectItem>
+                          <SelectItem key={s.value} value={s.value} className="text-xs text-foreground focus:bg-gray-100">{s.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -451,12 +451,12 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Lead Source (L-15)</Label>
                     <Select value={leadSource} onValueChange={setLeadSource}>
-                      <SelectTrigger className="h-9 text-xs bg-black/[0.03] border-gray-200 text-foreground focus:border-primary/30">
+                      <SelectTrigger className="h-9 text-xs bg-gray-50 border-gray-200 text-foreground focus:border-primary/30">
                         <SelectValue placeholder="Select lead source" />
                       </SelectTrigger>
-                      <SelectContent className="border-white/[0.1] bg-black/20 backdrop-blur-2xl">
+                      <SelectContent className="bg-white border border-gray-200 shadow-lg">
                         {LEAD_SOURCES.map(s => (
-                          <SelectItem key={s.value} value={s.value} className="text-xs text-foreground focus:bg-black/[0.06]">{s.label}</SelectItem>
+                          <SelectItem key={s.value} value={s.value} className="text-xs text-foreground focus:bg-gray-100">{s.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -467,7 +467,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                   className={`border-2 border-dashed rounded-xl p-12 flex flex-col items-center justify-center gap-4 transition-all duration-300 cursor-pointer ${
                     dragOver
                       ? 'border-primary/80 bg-primary/[0.06] scale-[1.01]'
-                      : 'border-white/[0.12] hover:border-primary/40 hover:bg-white/[0.02]'
+                      : 'border-gray-200 hover:border-primary/40 hover:bg-gray-50'
                   }`}
                   onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
@@ -698,7 +698,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                       initial={{ opacity: 0, x: -8 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: i * 0.04, ease: [0.22, 1, 0.36, 1] }}
-                      className="border-gray-200 group transition-colors duration-200 hover:bg-black/[0.03]"
+                      className="border-gray-200 group transition-colors duration-200 hover:bg-gray-50"
                     >
                       <TableCell className="text-foreground text-sm font-medium max-w-[180px] truncate">
                         <div className="flex items-center gap-2">
@@ -853,7 +853,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                           <select
                             value={customMapping[header] || '— skip —'}
                             onChange={(e) => setCustomMapping(prev => ({ ...prev, [header]: e.target.value }))}
-                            className="h-7 text-[11px] bg-black/[0.05] border border-white/[0.1] text-foreground rounded-md px-2 flex-1 max-w-[140px] focus:outline-none focus:ring-1 focus:ring-primary/30"
+                            className="h-7 text-[11px] bg-gray-100/50 border border-gray-200 text-foreground rounded-md px-2 flex-1 max-w-[140px] focus:outline-none focus:ring-1 focus:ring-primary/30"
                           >
                             {previewData.availableFields.map(field => (
                               <option key={field} value={field}>{field === '— skip —' ? '— skip —' : field}</option>

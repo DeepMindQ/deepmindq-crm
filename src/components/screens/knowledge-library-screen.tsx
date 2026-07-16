@@ -657,7 +657,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           <div className="flex items-center gap-1 shrink-0">
                             <button
                               onClick={() => setViewAsset(asset)}
-                              className="p-1 rounded-md hover:bg-black/5 text-muted-foreground hover:text-foreground transition-colors"
+                              className="p-1 rounded-md hover:bg-gray-100 text-muted-foreground hover:text-foreground transition-colors"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
@@ -915,25 +915,25 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           </div>
                           <button
                             onClick={() => setSelectedGraphNode(null)}
-                            className="p-1.5 rounded-md hover:bg-black/5 text-muted-foreground hover:text-foreground transition-colors"
+                            className="p-1.5 rounded-md hover:bg-gray-100 text-muted-foreground hover:text-foreground transition-colors"
                           >
                             <X className="w-4 h-4" />
                           </button>
                         </div>
                         <div className="grid grid-cols-4 gap-4 mt-3">
-                          <div className="text-center p-3 rounded-lg bg-black/20 border border-gray-200">
+                          <div className="text-center p-3 rounded-lg bg-white border border-gray-200 shadow-sm">
                             <p className="text-lg font-bold tabular-nums" style={{ color: gold }}>{selectedGraphNode.score}</p>
                             <p className="text-[10px] text-muted-foreground">Score</p>
                           </div>
-                          <div className="text-center p-3 rounded-lg bg-black/20 border border-gray-200">
+                          <div className="text-center p-3 rounded-lg bg-white border border-gray-200 shadow-sm">
                             <p className="text-lg font-bold tabular-nums text-emerald-600">{selectedGraphNode.upvotes}</p>
                             <p className="text-[10px] text-muted-foreground">Upvotes</p>
                           </div>
-                          <div className="text-center p-3 rounded-lg bg-black/20 border border-gray-200">
+                          <div className="text-center p-3 rounded-lg bg-white border border-gray-200 shadow-sm">
                             <p className="text-lg font-bold tabular-nums text-blue-600">{selectedGraphNode.usedInEmails}</p>
                             <p className="text-[10px] text-muted-foreground">Used in Emails</p>
                           </div>
-                          <div className="text-center p-3 rounded-lg bg-black/20 border border-gray-200">
+                          <div className="text-center p-3 rounded-lg bg-white border border-gray-200 shadow-sm">
                             <p className="text-lg font-bold tabular-nums text-muted-foreground">v{selectedGraphNode.version}</p>
                             <p className="text-[10px] text-muted-foreground">Version</p>
                           </div>
@@ -1317,14 +1317,14 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                     {/* Dimension breakdown */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       {Object.entries(healthData.dimensions || {}).map(([key, dim]: [string, any]) => (
-                        <div key={key} className="p-3 rounded-lg bg-black/20 border border-gray-200">
+                        <div key={key} className="p-3 rounded-lg bg-white border border-gray-200 shadow-sm">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{dim.label}</span>
                             <span className="text-xs font-bold tabular-nums" style={{
                               color: dim.score >= 70 ? '#10B981' : dim.score >= 40 ? '#FBBF24' : '#EF4444'
                             }}>{dim.score}%</span>
                           </div>
-                          <div className="w-full h-2 bg-black/[0.06] rounded-full overflow-hidden">
+                          <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                             <motion.div
                               className="h-full rounded-full"
                               style={{ background: dim.score >= 70 ? '#10B981' : dim.score >= 40 ? '#FBBF24' : '#EF4444' }}
@@ -1843,7 +1843,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                       </div>
                       <button
                         onClick={() => { setUploadResult(null); setUploadStep('idle'); }}
-                        className="p-1.5 rounded-md hover:bg-black/5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                        className="p-1.5 rounded-md hover:bg-gray-100 text-muted-foreground hover:text-foreground transition-colors shrink-0"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>

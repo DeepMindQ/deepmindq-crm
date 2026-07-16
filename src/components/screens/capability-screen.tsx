@@ -163,7 +163,7 @@ function TagInput({ tags, onChange, allTags }: { tags: string[]; onChange: (tags
   return (
     <div className="space-y-1.5" ref={containerRef}>
       <Label className="text-sm">Tags</Label>
-      <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg bg-black/[0.03] border border-gray-200 focus-within:border-primary/40 min-h-[40px]">
+      <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg bg-gray-50 border border-gray-200 focus-within:border-primary/40 min-h-[40px]">
         {tags.map(tag => (
           <Badge key={tag} variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary bg-primary/5 px-2 py-0.5">
             {tag}
@@ -225,7 +225,7 @@ function GlassDialog({ children, onClose, title, subtitle, actions }: {
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/25 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
         onClick={onClose}
       />
       {/* Panel */}
@@ -234,7 +234,7 @@ function GlassDialog({ children, onClose, title, subtitle, actions }: {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 12, scale: 0.98 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-white/[0.1] bg-black/[0.04] backdrop-blur-2xl shadow-2xl shadow-black/40"
+        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-gray-200 bg-gray-100/50 backdrop-blur-2xl shadow-2xl shadow-gray-400/30"
         onClick={e => e.stopPropagation()}
       >
         {/* Top glow line */}
@@ -251,7 +251,7 @@ function GlassDialog({ children, onClose, title, subtitle, actions }: {
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-black/[0.06] transition-colors"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-gray-100 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -384,7 +384,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
             { icon: Trophy, label: 'Proof Points', value: ppCount, color: '#8B5CF6' },
             { icon: Cpu, label: 'Search Modes', value: 3, color: '#F59E0B', isText: true, text: 'K / S / H' },
           ].map((s, idx) => (
-            <div key={idx} className="p-3 rounded-lg bg-white/[0.02] border border-gray-200">
+            <div key={idx} className="p-3 rounded-lg bg-gray-50 border border-gray-200">
               <div className="flex items-center gap-1.5 mb-1">
                 <s.icon className="w-3 h-3" style={{ color: s.color }} />
                 <span className="text-[10px] text-muted-foreground">{s.label}</span>
@@ -418,20 +418,20 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                     value={ragQuery}
                     onChange={e => setRagQuery(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && runRagSearch()}
-                    className="h-10 text-sm pl-10 bg-black/[0.03] border-gray-200 focus:border-primary/40"
+                    className="h-10 text-sm pl-10 bg-gray-50 border-gray-200 focus:border-primary/40"
                   />
                 </div>
                 <Input
                   placeholder="Industry (e.g. Healthcare)"
                   value={ragIndustry}
                   onChange={e => setRagIndustry(e.target.value)}
-                  className="h-10 text-sm bg-black/[0.03] border-gray-200"
+                  className="h-10 text-sm bg-gray-50 border-gray-200"
                 />
                 <Input
                   placeholder="Role (e.g. CTO)"
                   value={ragRole}
                   onChange={e => setRagRole(e.target.value)}
-                  className="h-10 text-sm bg-black/[0.03] border-gray-200"
+                  className="h-10 text-sm bg-gray-50 border-gray-200"
                 />
               </div>
 
@@ -445,7 +445,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                       className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all duration-200 ${
                         ragMode === mode
                           ? 'text-foreground border border-primary/30 shadow-sm'
-                          : 'text-muted-foreground border border-transparent hover:text-foreground hover:bg-black/[0.03]'
+                          : 'text-muted-foreground border border-transparent hover:text-foreground hover:bg-gray-50'
                       }`}
                       style={ragMode === mode ? { background: 'rgba(212,175,55,0.1)' } : {}}
                     >
@@ -469,7 +469,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
                   {/* Insight bar */}
                   {ragInsight && (
-                    <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-gray-200">
+                    <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-lg bg-gray-50 border border-gray-200">
                       <span className="text-[10px] text-muted-foreground">
                         {ragResults.length} results in {ragInsight.resultCategories?.length || 0} categories
                       </span>
@@ -505,7 +505,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                             initial={{ opacity: 0, x: -12 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: idx * 0.04 }}
-                            className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.05] hover:border-white/[0.1] transition-colors"
+                            className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100 hover:border-gray-200 transition-colors"
                           >
                             {/* Relevance score */}
                             <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold tabular-nums"
@@ -522,7 +522,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                               {r.matchedFields && r.matchedFields.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-1.5">
                                   {r.matchedFields.map((f: string) => (
-                                    <span key={f} className="text-[9px] px-1.5 py-0.5 rounded bg-black/[0.04] text-muted-foreground">{f}</span>
+                                    <span key={f} className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100/50 text-muted-foreground">{f}</span>
                                   ))}
                                 </div>
                               )}
@@ -556,7 +556,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
               ) : coverage ? (
                 <>
                   {/* Overall score */}
-                  <div className="flex items-center gap-4 p-4 rounded-lg bg-white/[0.02] border border-gray-200">
+                  <div className="flex items-center gap-4 p-4 rounded-lg bg-gray-50 border border-gray-200">
                     <div className="text-center">
                       <p className="text-3xl font-bold tabular-nums" style={{ color: coverage.overallScore >= 70 ? '#10B981' : coverage.overallScore >= 40 ? '#F59E0B' : '#EF4444' }}>
                         {coverage.overallScore}%
@@ -571,7 +571,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
 
                   {/* Service line completeness */}
                   {Object.entries(coverage.serviceLineCompleteness || {}).map(([sl, data]: [string, any]) => (
-                    <div key={sl} className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                    <div key={sl} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-sm font-medium text-foreground">{sl}</p>
                         <span className="text-xs font-bold tabular-nums" style={{ color: data.score >= 70 ? '#10B981' : data.score >= 40 ? '#F59E0B' : '#EF4444' }}>{data.score}%</span>
@@ -678,7 +678,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
       </div>
 
       {/* Category distribution bar at bottom */}
-      <div className="px-6 py-3 border-t border-gray-200 bg-white/[0.01]">
+      <div className="px-6 py-3 border-t border-gray-200 bg-gray-50/50">
         <div className="flex items-center gap-4">
           {Object.entries({
             service_line: { label: 'Services', color: '#3B82F6' },
@@ -738,11 +738,11 @@ function TagCloudDialog({ items, onSelectTag, onClose }: { items: Capability[]; 
               <button
                 key={tag}
                 onClick={() => { onSelectTag(tag); onClose(); }}
-                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white/[0.02] hover:border-primary/30 hover:bg-primary/5 transition-all duration-200"
+                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 hover:border-primary/30 hover:bg-primary/5 transition-all duration-200"
               >
                 <Hash className="w-3 h-3 text-primary/50 group-hover:text-primary transition-colors" />
                 <span className="text-xs font-medium" style={{ color: `rgba(212, 175, 55, ${intensity})` }}>{tag}</span>
-                <span className="text-[9px] tabular-nums text-muted-foreground bg-black/[0.04] rounded-full px-1.5 py-0.5">{count}</span>
+                <span className="text-[9px] tabular-nums text-muted-foreground bg-gray-100/50 rounded-full px-1.5 py-0.5">{count}</span>
               </button>
             );
           })}
@@ -1231,7 +1231,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
               placeholder="Search capabilities by title or summary..."
               value={search}
               onChange={e => { setSearch(e.target.value); setFilterTag(null); }}
-              className="h-10 text-sm pl-10 bg-black/[0.03] border-gray-200 focus:border-primary/40"
+              className="h-10 text-sm pl-10 bg-gray-50 border-gray-200 focus:border-primary/40"
             />
             {search && (
               <button
@@ -1281,7 +1281,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
               <button
                 key={tag}
                 onClick={() => setFilterTag(tag)}
-                className="text-[10px] px-2 py-0.5 rounded-full border border-gray-200 bg-white/[0.02] text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all duration-200"
+                className="text-[10px] px-2 py-0.5 rounded-full border border-gray-200 bg-gray-50 text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all duration-200"
               >
                 {tag}
               </button>
@@ -1430,7 +1430,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                           <button
                             key={tag}
                             onClick={() => setFilterTag(tag)}
-                            className="text-[9px] px-1.5 py-0.5 rounded border border-gray-200 bg-white/[0.02] text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all duration-200"
+                            className="text-[9px] px-1.5 py-0.5 rounded border border-gray-200 bg-gray-50 text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all duration-200"
                           >
                             {tag}
                           </button>
@@ -1459,7 +1459,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                         onClick={() => setSelected(cap)}>
                         <Eye className="w-3.5 h-3.5 mr-1" />View
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-black/[0.04] px-2.5 rounded-lg"
+                      <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-gray-100/50 px-2.5 rounded-lg"
                         onClick={() => openEdit(cap)}>
                         <Pencil className="w-3.5 h-3.5 mr-1" />Edit
                       </Button>
@@ -1602,7 +1602,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
             {selected.content && (
               <div>
                 <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-2">Full Content</p>
-                <div className="max-h-64 overflow-y-auto rounded-xl border border-border/50 bg-white/[0.02] p-4">
+                <div className="max-h-64 overflow-y-auto rounded-xl border border-border/50 bg-gray-50 p-4">
                   <p className="text-foreground leading-relaxed whitespace-pre-wrap text-sm">{selected.content}</p>
                 </div>
               </div>
@@ -1655,7 +1655,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                 placeholder="Capability title"
-                className="h-10 text-sm bg-black/[0.03] border-gray-200 focus:border-primary/40"
+                className="h-10 text-sm bg-gray-50 border-gray-200 focus:border-primary/40"
               />
             </div>
 
@@ -1664,7 +1664,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
               <div className="space-y-1.5">
                 <Label className="text-sm">Category <span className="text-red-600">*</span></Label>
                 <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
-                  <SelectTrigger className="h-10 text-sm bg-black/[0.03] border-gray-200">
+                  <SelectTrigger className="h-10 text-sm bg-gray-50 border-gray-200">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1693,7 +1693,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 value={form.serviceLine}
                 onChange={e => setForm(f => ({ ...f, serviceLine: e.target.value }))}
                 placeholder="e.g., AI & Data, Cloud & Infrastructure"
-                className="h-10 text-sm bg-black/[0.03] border-gray-200 focus:border-primary/40"
+                className="h-10 text-sm bg-gray-50 border-gray-200 focus:border-primary/40"
               />
             </div>
 
@@ -1702,7 +1702,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
               <div className="space-y-1.5">
                 <Label className="text-sm">Parent Asset <span className="text-muted-foreground font-normal">(optional)</span></Label>
                 <Select value={form.parentAssetId} onValueChange={v => setForm(f => ({ ...f, parentAssetId: v }))}>
-                  <SelectTrigger className="h-10 text-sm bg-black/[0.03] border-gray-200">
+                  <SelectTrigger className="h-10 text-sm bg-gray-50 border-gray-200">
                     <SelectValue placeholder="Select a parent service line..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -1729,7 +1729,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 value={form.targetCompanySizes}
                 onChange={e => setForm(f => ({ ...f, targetCompanySizes: e.target.value }))}
                 placeholder="Comma-separated: Startup, Mid-Market, Enterprise"
-                className="h-10 text-sm bg-black/[0.03] border-gray-200 focus:border-primary/40"
+                className="h-10 text-sm bg-gray-50 border-gray-200 focus:border-primary/40"
               />
             </div>
 
@@ -1742,7 +1742,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                   value={form.targetIndustries}
                   onChange={e => setForm(f => ({ ...f, targetIndustries: e.target.value }))}
                   placeholder="Comma-separated"
-                  className="h-10 text-sm bg-black/[0.03] border-gray-200 focus:border-primary/40"
+                  className="h-10 text-sm bg-gray-50 border-gray-200 focus:border-primary/40"
                 />
               </div>
               <div className="space-y-1.5">
@@ -1752,7 +1752,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                   value={form.targetRoles}
                   onChange={e => setForm(f => ({ ...f, targetRoles: e.target.value }))}
                   placeholder="Comma-separated"
-                  className="h-10 text-sm bg-black/[0.03] border-gray-200 focus:border-primary/40"
+                  className="h-10 text-sm bg-gray-50 border-gray-200 focus:border-primary/40"
                 />
               </div>
             </div>
@@ -1765,7 +1765,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 value={form.problems}
                 onChange={e => setForm(f => ({ ...f, problems: e.target.value }))}
                 placeholder="Key problems this capability solves"
-                className="text-sm min-h-[60px] bg-black/[0.03] border-gray-200 focus:border-primary/40"
+                className="text-sm min-h-[60px] bg-gray-50 border-gray-200 focus:border-primary/40"
                 rows={2}
               />
             </div>
@@ -1778,7 +1778,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 value={form.evidence}
                 onChange={e => setForm(f => ({ ...f, evidence: e.target.value }))}
                 placeholder="Supporting evidence, metrics, or proof points"
-                className="text-sm min-h-[60px] bg-black/[0.03] border-gray-200 focus:border-primary/40"
+                className="text-sm min-h-[60px] bg-gray-50 border-gray-200 focus:border-primary/40"
                 rows={2}
               />
             </div>
@@ -1791,7 +1791,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 value={form.summary}
                 onChange={e => setForm(f => ({ ...f, summary: e.target.value }))}
                 placeholder="Brief summary of the capability"
-                className="text-sm min-h-[80px] bg-black/[0.03] border-gray-200 focus:border-primary/40"
+                className="text-sm min-h-[80px] bg-gray-50 border-gray-200 focus:border-primary/40"
                 rows={3}
               />
             </div>
@@ -1804,7 +1804,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 value={form.content}
                 onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
                 placeholder="Detailed content (optional)"
-                className="text-sm min-h-[100px] bg-black/[0.03] border-gray-200 focus:border-primary/40"
+                className="text-sm min-h-[100px] bg-gray-50 border-gray-200 focus:border-primary/40"
                 rows={4}
               />
             </div>
@@ -1821,7 +1821,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
         >
           {/* Drop zone */}
           <div
-            className="border-2 border-dashed border-gray-200 rounded-2xl p-10 text-center hover:border-primary/40 transition-all duration-300 cursor-pointer group/drop bg-white/[0.01] hover:bg-black/[0.03]"
+            className="border-2 border-dashed border-gray-200 rounded-2xl p-10 text-center hover:border-primary/40 transition-all duration-300 cursor-pointer group/drop bg-gray-50/50 hover:bg-gray-50"
             onClick={() => fileInputRef.current?.click()}
             onDragOver={e => e.preventDefault()}
             onDrop={handleDrop}
@@ -1864,7 +1864,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 Results ({uploadResults.length} file{uploadResults.length !== 1 ? 's' : ''})
               </p>
               {uploadResults.map((r, idx) => (
-                <div key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-gray-200">
+                <div key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: r.error ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)' }}>
                     {r.error ? <X className="w-4 h-4 text-red-600" /> : <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
                   </div>
@@ -1909,7 +1909,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 value={enrichUrl}
                 onChange={e => setEnrichUrl(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleEnrich()}
-                className="h-10 text-sm bg-black/[0.03] border-gray-200 focus:border-primary/40 flex-1"
+                className="h-10 text-sm bg-gray-50 border-gray-200 focus:border-primary/40 flex-1"
               />
               <Button size="sm" onClick={handleEnrich} disabled={enrichLoading || !enrichUrl.trim()} className="h-10 text-xs gap-1.5">
                 {enrichLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
@@ -1931,7 +1931,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                   {enrichResult.assets?.map((asset: any, idx: number) => {
                     const CatIcon = CAT_ICON[asset.category] || FileText;
                     return (
-                      <div key={idx} className="p-3 rounded-lg bg-white/[0.02] border border-gray-200">
+                      <div key={idx} className="p-3 rounded-lg bg-gray-50 border border-gray-200">
                         <div className="flex items-center gap-2 mb-1.5">
                           <CatIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                           <p className="text-sm font-medium text-foreground truncate">{asset.title}</p>
@@ -1975,7 +1975,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
             </div>
 
             {importResult && (
-              <div className="space-y-3 p-4 rounded-lg bg-white/[0.02] border border-gray-200">
+              <div className="space-y-3 p-4 rounded-lg bg-gray-50 border border-gray-200">
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div>
                     <p className="text-lg font-bold text-emerald-600">{importResult.created}</p>

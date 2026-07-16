@@ -306,7 +306,7 @@ export function SortableHeader({ label, sortKey, currentSort, currentDir, onSort
         {active ? (
           currentDir === 'asc' ? <ArrowUp className="size-3 text-amber-600" /> : <ArrowDown className="size-3 text-amber-600" />
         ) : (
-          <ArrowUpDown className="size-3 text-gray-300 group-hover:text-gray-400 transition-colors" />
+          <ArrowUpDown className="size-3 text-gray-400 group-hover:text-gray-600 transition-colors" />
         )}
       </div>
     </th>

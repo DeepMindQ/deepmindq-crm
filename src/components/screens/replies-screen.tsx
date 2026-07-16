@@ -337,7 +337,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
                           <StaggerItem key={reply.id}>
                             <>
                               <TableRow
-                                className="border-gray-200 transition-all duration-200 hover:bg-black/[0.03] group cursor-pointer"
+                                className="border-gray-200 transition-all duration-200 hover:bg-gray-50 group cursor-pointer"
                                 style={{
                                   borderLeft: `3px solid ${isExpanded ? borderColor : 'transparent'}`,
                                 }}
@@ -502,7 +502,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
                                         className="overflow-hidden"
                                       >
                                         <div
-                                          className="mx-4 mb-4 mt-1 rounded-lg border border-gray-200 bg-white/[0.02] backdrop-blur-sm p-4 text-sm text-muted-foreground leading-relaxed"
+                                          className="mx-4 mb-4 mt-1 rounded-lg border border-gray-200 bg-gray-50 backdrop-blur-sm p-4 text-sm text-muted-foreground leading-relaxed"
                                           style={{ boxShadow: 'inset 0 1px 0 rgba(0, 0, 0, 0.03)' }}
                                         >
                                           <p className="text-xs text-muted-foreground/60 uppercase tracking-wider font-medium mb-2">Reply Body</p>
@@ -548,7 +548,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
                 </DialogHeader>
                 <div className="space-y-4 mt-2">
                   {/* Contact Info */}
-                  <div className="rounded-lg border border-gray-200 bg-white/[0.02] p-3 space-y-2">
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
                     <div className="flex items-center gap-2 text-sm">
                       <User className="w-3.5 h-3.5 text-muted-foreground" />
                       <span className="text-muted-foreground">Name:</span>
@@ -591,7 +591,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
                   {/* Body */}
                   <div>
                     <p className="text-xs text-muted-foreground/60 uppercase tracking-wider font-medium mb-1.5">Body</p>
-                    <div className="rounded-lg border border-gray-200 bg-white/[0.02] p-3 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap break-words max-h-64 overflow-y-auto custom-scrollbar">
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap break-words max-h-64 overflow-y-auto custom-scrollbar">
                       {detailReply.body || detailReply.snippet || 'No body content available.'}
                     </div>
                   </div>
@@ -634,7 +634,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="gap-2">
-              <AlertDialogCancel className="border-white/[0.1] text-muted-foreground hover:text-foreground">
+              <AlertDialogCancel className="border-gray-200 text-muted-foreground hover:text-foreground">
                 Cancel
               </AlertDialogCancel>
               <AlertDialogAction
@@ -667,7 +667,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="gap-2">
-              <AlertDialogCancel className="border-white/[0.1] text-muted-foreground hover:text-foreground" disabled={markLoading}>
+              <AlertDialogCancel className="border-gray-200 text-muted-foreground hover:text-foreground" disabled={markLoading}>
                 Cancel
               </AlertDialogCancel>
               <AlertDialogAction
@@ -699,7 +699,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="gap-2">
-              <AlertDialogCancel className="border-white/[0.1] text-muted-foreground hover:text-foreground" disabled={suppressLoading}>
+              <AlertDialogCancel className="border-gray-200 text-muted-foreground hover:text-foreground" disabled={suppressLoading}>
                 Cancel
               </AlertDialogCancel>
               <AlertDialogAction

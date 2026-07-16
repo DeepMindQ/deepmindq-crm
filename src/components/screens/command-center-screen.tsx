@@ -181,7 +181,7 @@ function EngineCard({ key_: k, insights }: { key_: 'company' | 'email' | 'capabi
             </div>
           ))}
         </div>
-        <div className="rounded-xl p-2 border" style={{ background: 'rgba(0,0,0,0.015)', borderColor: 'rgba(0, 0, 0, 0.06)' }}>
+        <div className="rounded-xl p-2 border" style={{ background: '#F9FAFB', borderColor: 'rgba(0, 0, 0, 0.06)' }}>
           <div className="text-[8px] uppercase tracking-widest mb-1 px-1" style={{ color: C.textDim }}>7-DAY TREND</div>
           <Sparkline data={SPARK[k]} color={cfg.color} h={50} />
         </div>
@@ -207,7 +207,7 @@ function ActivityFeed({ items }: { items: AuditItem[] }) {
               const Icon = actIcon(item.entity);
               return (
                 <motion.div key={item.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
-                  className="flex items-start gap-3 px-3 py-2.5 rounded-xl transition-colors hover:bg-white/[0.02]">
+                  className="flex items-start gap-3 px-3 py-2.5 rounded-xl transition-colors hover:bg-gray-50">
                   <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: 'rgba(0, 0, 0, 0.04)' }}><Icon className="w-3.5 h-3.5" style={{ color: C.textMuted }} /></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] leading-snug" style={{ color: C.text }}>{fmtTitle(item.action)}</p>
@@ -364,7 +364,7 @@ function EnginesTab({ insights }: { insights: Insights }) {
             <h4 className="text-[10px] uppercase tracking-widest font-medium mb-3" style={{ color: C.textDim }}>RECENT SIGNALS</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
               {ce.latestSignals.slice(0, 6).map(s => (
-                <div key={s.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl border" style={{ background: s.severity === 'critical' ? 'rgba(239,68,68,0.05)' : 'rgba(0,0,0,0.015)', borderColor: s.severity === 'critical' ? 'rgba(239,68,68,0.15)' : C.border }}>
+                <div key={s.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl border" style={{ background: s.severity === 'critical' ? 'rgba(239,68,68,0.05)' : '#F9FAFB', borderColor: s.severity === 'critical' ? 'rgba(239,68,68,0.15)' : C.border }}>
                   <span className="text-sm">{SIGNAL_ICONS[s.type] || '📡'}</span>
                   <div className="flex-1 min-w-0"><p className="text-[11px] truncate" style={{ color: C.text }}>{s.title}</p><p className="text-[9px] capitalize" style={{ color: C.textDim }}>{s.severity}</p></div>
                   <span className="text-[9px]" style={{ color: C.textDim }}>{timeAgo(s.createdAt)}</span>
@@ -400,7 +400,7 @@ function EnginesTab({ insights }: { insights: Insights }) {
           <div>
             <h4 className="text-[10px] uppercase tracking-widest font-medium mb-3" style={{ color: C.textDim }}>HIGH-VALUE LEADS</h4>
             <div className="space-y-2">{ee.highValueLeads.slice(0, 5).map((l, i) => (
-              <div key={l.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl border" style={{ background: 'rgba(0,0,0,0.015)', borderColor: C.border }}>
+              <div key={l.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl border" style={{ background: '#F9FAFB', borderColor: C.border }}>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0" style={{ background: l.score >= 80 ? C.green : l.score >= 60 ? C.gold : C.blue }}>{l.score}</div>
                 <div className="flex-1 min-w-0"><p className="text-[11px] truncate" style={{ color: C.text }}>{l.name}</p><p className="text-[9px] truncate" style={{ color: C.textDim }}>{l.email}</p></div>
                 <span className="text-[9px] uppercase" style={{ color: C.textDim }}>{l.status}</span>
@@ -430,7 +430,7 @@ function EnginesTab({ insights }: { insights: Insights }) {
           <div>
             <h4 className="text-[10px] uppercase tracking-widest font-medium mb-3" style={{ color: C.textDim }}>MOST USED CAPABILITIES</h4>
             <div className="space-y-2">{capE.topCapabilities.slice(0, 5).map((c, i) => (
-              <div key={c.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border" style={{ background: 'rgba(0,0,0,0.015)', borderColor: C.border }}>
+              <div key={c.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border" style={{ background: '#F9FAFB', borderColor: C.border }}>
                 <span className="text-xs font-bold w-5 text-center" style={{ color: i === 0 ? C.gold : C.textDim }}>#{i + 1}</span>
                 <div className="flex-1 min-w-0"><p className="text-[11px] truncate" style={{ color: C.text }}>{c.title}</p><p className="text-[9px] capitalize" style={{ color: C.textDim }}>{c.category?.replace(/_/g, ' ')} {c.serviceLine ? `• ${c.serviceLine}` : ''}</p></div>
                 <div className="flex items-center gap-3 text-[9px] shrink-0" style={{ color: C.textMuted }}>

@@ -1017,7 +1017,7 @@ export default function ContactsScreen() {
       {/* ═══ Floating Bulk Operations Toolbar ═══ */}
       {selected.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
-          <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 bg-gray-900 text-white rounded-2xl shadow-2xl max-w-[calc(100vw-3rem)]">
+          <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 bg-gray-900 text-white rounded-2xl shadow-xl border border-gray-700 max-w-[calc(100vw-3rem)]">
             <span className="text-sm font-medium whitespace-nowrap">
               {selected.size} {selected.size === 1 ? 'contact' : 'contacts'} selected
             </span>

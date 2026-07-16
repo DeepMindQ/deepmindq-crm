@@ -424,7 +424,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
   const styles = {
     sidebarBg: 'var(--sidebar-glass, rgba(255, 255, 255, 0.85))',
     headerBg: 'var(--header-glass, rgba(255, 255, 255, 0.8))',
-    border: 'var(--border-subtle, rgba(0,0,0,0.06))',
+    border: 'var(--border-subtle, #E5E7EB)',
     gold: 'var(--color-gold)',
     goldLight: 'var(--color-gold-bright)',
     goldDim: 'var(--color-gold-dim)',
@@ -523,7 +523,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                               : { color: 'var(--color-muted-foreground)' }
                           }
                           onMouseEnter={(e) => {
-                            if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(0,0,0,0.04)';
+                            if (!isActive) (e.currentTarget as HTMLElement).style.background = '#F3F4F6';
                           }}
                           onMouseLeave={(e) => {
                             if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent';
@@ -543,7 +543,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                             <span
                               className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center tabular-nums"
                               style={{
-                                background: isActive ? 'color-mix(in oklch, var(--color-gold) 15%, transparent)' : 'rgba(0,0,0,0.04)',
+                                background: isActive ? 'color-mix(in oklch, var(--color-gold) 15%, transparent)' : '#F3F4F6',
                                 color: isActive ? 'var(--color-gold)' : 'var(--color-muted-foreground)',
                               }}
                             >
@@ -604,7 +604,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                   {i < PIPELINE_STAGES.length - 1 && (
                     <div
                       className="w-full h-px mx-1 mb-3 shrink-0"
-                      style={{ background: 'linear-gradient(90deg, color-mix(in oklch, var(--color-gold) 12%, transparent), rgba(0,0,0,0.04))' }}
+                      style={{ background: 'linear-gradient(90deg, color-mix(in oklch, var(--color-gold) 12%, transparent), #F3F4F6)' }}
                     />
                   )}
                 </div>
@@ -615,7 +615,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
 
         {/* User Section */}
         <div className="p-3 border-t shrink-0" style={{ borderColor: styles.border }}>
-          <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors duration-200 hover:bg-white/[0.03]">
+          <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors duration-200 hover:bg-gray-50">
             <div
               className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
               style={{ background: 'linear-gradient(135deg, var(--color-gold), var(--color-gold-dim))', boxShadow: '0 0 12px color-mix(in oklch, var(--color-gold) 20%, transparent)' }}
@@ -725,7 +725,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                         <h3 className="text-xs font-semibold text-foreground">Notifications</h3>
                       </div>
                       <div className="py-2">
-                        <div className="px-4 py-3 flex items-start gap-3 hover:bg-white/[0.03] transition-colors cursor-pointer">
+                        <div className="px-4 py-3 flex items-start gap-3 hover:bg-gray-50 transition-colors cursor-pointer">
                           <div className="w-8 h-8 rounded-lg bg-gold-subtle flex items-center justify-center shrink-0 mt-0.5">
                             <Send className="w-3.5 h-3.5 text-[var(--color-gold)]" />
                           </div>
@@ -734,7 +734,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                             <p className="text-[11px] mt-0.5" style={{ color: styles.textDim }}>Queue processed 5 emails</p>
                           </div>
                         </div>
-                        <div className="px-4 py-3 flex items-start gap-3 hover:bg-white/[0.03] transition-colors cursor-pointer">
+                        <div className="px-4 py-3 flex items-start gap-3 hover:bg-gray-50 transition-colors cursor-pointer">
                           <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
                             <Users className="w-3.5 h-3.5 text-emerald-400" />
                           </div>

@@ -324,13 +324,13 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           <div className="flex-1 px-5 pb-4 max-h-80 overflow-y-auto custom-scrollbar">
             {topCompanies.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="w-12 h-12 rounded-xl bg-black/[0.04] flex items-center justify-center mb-3"><Building2 className="w-6 h-6 text-muted-foreground/40" /></div>
+                <div className="w-12 h-12 rounded-xl bg-gray-100/50 flex items-center justify-center mb-3"><Building2 className="w-6 h-6 text-muted-foreground/40" /></div>
                 <p className="text-sm text-muted-foreground">Loading companies...</p>
               </div>
             ) : (
               <div className="space-y-1">
                 {topCompanies.map((co, i) => (
-                  <motion.button key={co.id} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-black/[0.04] transition-colors text-left group"
+                  <motion.button key={co.id} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100/50 transition-colors text-left group"
                     initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.4 + i * 0.05 }}
                     onClick={() => navigateTo?.('company-detail', co.id)}>
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold" style={{ background: 'rgba(212,175,55,0.1)', color: gold }}>
@@ -368,18 +368,18 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           <div className="px-5 pb-5">
             {activity.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="w-12 h-12 rounded-xl bg-black/[0.04] flex items-center justify-center mb-3"><Inbox className="w-6 h-6 text-muted-foreground/40" /></div>
+                <div className="w-12 h-12 rounded-xl bg-gray-100/50 flex items-center justify-center mb-3"><Inbox className="w-6 h-6 text-muted-foreground/40" /></div>
                 <p className="text-sm text-muted-foreground">No activity yet</p>
                 <p className="text-xs text-muted-foreground/60 mt-1">Actions will appear here as they happen</p>
               </div>
             ) : (
               <div className="relative">
-                <div className="absolute left-[13px] top-3 bottom-3 w-px bg-black/[0.06]" />
+                <div className="absolute left-[13px] top-3 bottom-3 w-px bg-gray-100" />
                 <div className="space-y-0.5">
                   {activity.map((e, i) => {
                     const cfg = getActCfg(e.action); const Icon = cfg.icon;
                     return (
-                      <motion.div key={e.id} className="relative flex gap-3 px-1 py-2 rounded-lg hover:bg-white/[0.02] transition-colors"
+                      <motion.div key={e.id} className="relative flex gap-3 px-1 py-2 rounded-lg hover:bg-gray-50 transition-colors"
                         initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.5 + i * 0.05 }}>
                         <div className="relative z-10 w-[26px] h-[26px] rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: cfg.bg }}>
                           <Icon className="w-3 h-3" style={{ color: cfg.color }} />
@@ -414,7 +414,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           <div className="px-5 pb-5 space-y-3 pt-2">
             {segments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="w-12 h-12 rounded-xl bg-black/[0.04] flex items-center justify-center mb-3"><Layers className="w-6 h-6 text-muted-foreground/40" /></div>
+                <div className="w-12 h-12 rounded-xl bg-gray-100/50 flex items-center justify-center mb-3"><Layers className="w-6 h-6 text-muted-foreground/40" /></div>
                 <p className="text-sm text-muted-foreground">Loading segments...</p>
               </div>
             ) : (

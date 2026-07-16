@@ -243,19 +243,19 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
               <div className="space-y-5 pb-4">
                 <div className="space-y-1.5">
                   <label className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Segment Name</label>
-                  <Input value={segName} onChange={e => setSegName(e.target.value)} placeholder="e.g. SaaS Decision Makers" className="h-9 text-sm bg-black/[0.03] border-white/[0.1]" />
+                  <Input value={segName} onChange={e => setSegName(e.target.value)} placeholder="e.g. SaaS Decision Makers" className="h-9 text-sm bg-gray-50 border-gray-200" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Description (optional)</label>
-                  <Input value={segDesc} onChange={e => setSegDesc(e.target.value)} placeholder="What this segment is for..." className="h-9 text-sm bg-black/[0.03] border-white/[0.1]" />
+                  <Input value={segDesc} onChange={e => setSegDesc(e.target.value)} placeholder="What this segment is for..." className="h-9 text-sm bg-gray-50 border-gray-200" />
                 </div>
-                <Separator className="bg-black/[0.06]" />
+                <Separator className="bg-gray-100" />
                 <div>
                   <label className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium block mb-2">Industries</label>
                   <div className="flex flex-wrap gap-1.5">
                     {INDUSTRY_OPTIONS.map(ind => (
                       <button key={ind}
-                        className={`text-[10px] px-2.5 py-1.5 rounded-lg border transition-all duration-200 ${segIndustries.includes(ind) ? 'bg-primary/15 border-primary/25 text-primary' : 'bg-black/[0.03] border-gray-200 text-muted-foreground hover:bg-black/[0.06]'}`}
+                        className={`text-[10px] px-2.5 py-1.5 rounded-lg border transition-all duration-200 ${segIndustries.includes(ind) ? 'bg-primary/15 border-primary/25 text-primary' : 'bg-gray-50 border-gray-200 text-muted-foreground hover:bg-gray-100'}`}
                         onClick={() => toggleIndustry(ind)}
                       >{ind}</button>
                     ))}
@@ -266,7 +266,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                   <div className="flex flex-wrap gap-1.5">
                     {STATUS_OPTIONS.map(st => (
                       <button key={st}
-                        className={`text-[10px] px-2.5 py-1.5 rounded-lg border transition-all duration-200 capitalize ${segStatuses.includes(st) ? 'bg-primary/15 border-primary/25 text-primary' : 'bg-black/[0.03] border-gray-200 text-muted-foreground hover:bg-black/[0.06]'}`}
+                        className={`text-[10px] px-2.5 py-1.5 rounded-lg border transition-all duration-200 capitalize ${segStatuses.includes(st) ? 'bg-primary/15 border-primary/25 text-primary' : 'bg-gray-50 border-gray-200 text-muted-foreground hover:bg-gray-100'}`}
                         onClick={() => toggleStatus(st)}
                       >{st}</button>
                     ))}
@@ -275,9 +275,9 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <div>
                   <label className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium block mb-2">Lead Score Range</label>
                   <div className="flex items-center gap-3">
-                    <Input type="number" value={segScoreMin} onChange={e => setSegScoreMin(e.target.value)} className="h-8 w-20 text-xs bg-black/[0.03] border-white/[0.1]" min={0} max={100} />
+                    <Input type="number" value={segScoreMin} onChange={e => setSegScoreMin(e.target.value)} className="h-8 w-20 text-xs bg-gray-50 border-gray-200" min={0} max={100} />
                     <span className="text-xs text-muted-foreground">to</span>
-                    <Input type="number" value={segScoreMax} onChange={e => setSegScoreMax(e.target.value)} className="h-8 w-20 text-xs bg-black/[0.03] border-white/[0.1]" min={0} max={100} />
+                    <Input type="number" value={segScoreMax} onChange={e => setSegScoreMax(e.target.value)} className="h-8 w-20 text-xs bg-gray-50 border-gray-200" min={0} max={100} />
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -320,7 +320,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
               ) : (
                 <div className="space-y-1.5 pb-4">
                   {detailContacts.map(c => (
-                    <div key={c.id} className="flex items-center gap-4 py-2.5 px-3 rounded-lg hover:bg-black/[0.03] transition-colors">
+                    <div key={c.id} className="flex items-center gap-4 py-2.5 px-3 rounded-lg hover:bg-gray-50 transition-colors">
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-medium text-foreground truncate">{c.rawName}</p>
                         <p className="text-[10px] text-muted-foreground truncate">{c.email}</p>

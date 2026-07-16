@@ -209,7 +209,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
                     {bounces.map(b => (
                       <TableRow
                         key={b.id}
-                        className="border-border/30 hover:bg-white/[0.02] transition-colors duration-200 group"
+                        className="border-border/30 hover:bg-gray-50 transition-colors duration-200 group"
                       >
                         <TableCell className="pl-6 py-3.5">
                           <div className="flex items-center gap-3">
@@ -287,7 +287,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
                     {suppressions.map(s => (
                       <TableRow
                         key={s.id}
-                        className="border-border/30 hover:bg-white/[0.02] transition-colors duration-200 group"
+                        className="border-border/30 hover:bg-gray-50 transition-colors duration-200 group"
                       >
                         <TableCell className="pl-6 py-3.5">
                           <div className="flex items-center gap-3">

@@ -343,13 +343,13 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
                   placeholder="Search actions, entities, details..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="pl-10 h-10 bg-black/[0.04] border-gray-200 text-foreground placeholder:text-muted-foreground/60 focus:border-primary/40 focus:ring-primary/10 transition-all duration-200"
+                  className="pl-10 h-10 bg-gray-100/50 border-gray-200 text-foreground placeholder:text-muted-foreground/60 focus:border-primary/40 focus:ring-primary/10 transition-all duration-200"
                 />
               </div>
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
                 <Select value={entityFilter} onValueChange={setEntityFilter}>
-                  <SelectTrigger className="w-[180px] h-10 bg-black/[0.04] border-gray-200 text-foreground focus:border-primary/40 transition-all duration-200">
+                  <SelectTrigger className="w-[180px] h-10 bg-gray-100/50 border-gray-200 text-foreground focus:border-primary/40 transition-all duration-200">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -414,7 +414,7 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
                           initial={{ opacity: 0, x: -8 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ duration: 0.3, delay: idx * 0.04 }}
-                          className="group border-b border-gray-200 hover:bg-black/[0.03] cursor-pointer transition-colors duration-200"
+                          className="group border-b border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors duration-200"
                           style={{ borderLeftWidth: '3px', borderLeftStyle: 'solid', borderLeftColor: 'transparent' }}
                           whileHover={{ borderLeftColor: accentHex }}
                           onClick={() => isLong && toggleRow(entry.id)}
@@ -507,7 +507,7 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
                       className={`h-8 w-8 p-0 text-xs font-medium transition-all duration-200 ${
                         p === safePage
                           ? 'bg-gradient-to-br from-yellow-500/90 to-amber-600/90 text-black shadow-lg shadow-amber-500/20 hover:from-yellow-500 hover:to-amber-600 border-0'
-                          : 'border-gray-200 text-muted-foreground hover:text-foreground hover:border-gray-300 hover:bg-black/[0.04]'
+                          : 'border-gray-200 text-muted-foreground hover:text-foreground hover:border-gray-300 hover:bg-gray-100/50'
                       }`}
                       onClick={() => setPage(p)}
                     >

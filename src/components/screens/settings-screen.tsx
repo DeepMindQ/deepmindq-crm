@@ -392,7 +392,7 @@ function TeamPerformanceSection() {
                               initial={{ opacity: 0, x: -10 }}
                               animate={{ opacity: 1, x: 0 }}
                               transition={{ delay: idx * 0.05, duration: 0.3 }}
-                              className="hover:bg-white/[0.02] transition-colors"
+                              className="hover:bg-gray-50 transition-colors"
                             >
                               {/* Avatar + Name */}
                               <td className="px-4 py-3">
@@ -428,7 +428,7 @@ function TeamPerformanceSection() {
                               <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{m.avgScore}</td>
                               {/* Stacked bar */}
                               <td className="px-4 py-3">
-                                <div className="h-2.5 rounded-full overflow-hidden bg-black/[0.06] flex">
+                                <div className="h-2.5 rounded-full overflow-hidden bg-gray-100 flex">
                                   {barData.map(d => {
                                     const pct = barTotal > 0 ? (d.value / barTotal) * 100 : 0;
                                     return (
@@ -755,7 +755,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                       ) : (
                         <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
                           {data.riskFlags.map(flag => (
-                            <div key={flag.type} className="p-3 rounded-lg bg-black/[0.03] border border-gray-200">
+                            <div key={flag.type} className="p-3 rounded-lg bg-gray-50 border border-gray-200">
                               <div className="flex items-start justify-between gap-2 mb-1">
                                 <p className="text-xs font-medium text-foreground leading-snug">{flag.message}</p>
                                 <Badge className="bg-red-500/15 text-red-300 border-red-500/30 text-[10px] shrink-0 tabular-nums">{flag.count}</Badge>

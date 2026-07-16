@@ -302,7 +302,7 @@ function NodeDetailPanel({
         </div>
         <button
           onClick={onClose}
-          className="p-1 rounded hover:bg-black/[0.04] transition-colors"
+          className="p-1 rounded hover:bg-gray-100/50 transition-colors"
         >
           <X className="w-3.5 h-3.5" style={{ color: '#6B7280' }} />
         </button>
@@ -884,7 +884,7 @@ export default function CompanyMindMapScreen({ navigateTo }: MindMapProps) {
             {searchInput && (
               <button
                 onClick={() => handleSearchChange('')}
-                className="p-0.5 rounded hover:bg-black/[0.04] transition-colors"
+                className="p-0.5 rounded hover:bg-gray-100/50 transition-colors"
               >
                 <X className="w-3.5 h-3.5" style={{ color: '#6B7280' }} />
               </button>

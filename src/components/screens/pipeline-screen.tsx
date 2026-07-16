@@ -644,7 +644,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
                       <AnimatedCounter value={count} />
                     </span>
                   </div>
-                  <div className="h-2 bg-black/[0.06] rounded-full overflow-hidden">
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                     <motion.div
                       className="h-full rounded-full"
                       style={{

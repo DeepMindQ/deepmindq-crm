@@ -497,7 +497,7 @@ export function ReportsScreen() {
                 <BarChart data={funnelData} layout="vertical" margin={{ left: 10, right: 30, top: 5, bottom: 5 }}>
                   <XAxis type="number" tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                   <YAxis type="category" dataKey="stage" width={90} tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<PipelineTooltip />} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+                  <Tooltip content={<PipelineTooltip />} cursor={{ fill: '#F3F4F6' }} />
                   <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={28}>
                     {funnelData.map((entry, i) => (
                       <Cell key={i} fill={entry.fill} />

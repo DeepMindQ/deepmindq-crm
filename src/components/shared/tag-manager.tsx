@@ -176,7 +176,7 @@ export function TagManager({
                 e.stopPropagation()
                 removeTag(tag.id)
               }}
-              className="ml-0.5 hover:bg-black/10 rounded-full p-0.5 transition-colors"
+              className="ml-0.5 hover:bg-gray-100 rounded-full p-0.5 transition-colors"
               aria-label={`Remove tag ${tag.name}`}
             >
               <X className="h-3 w-3" />

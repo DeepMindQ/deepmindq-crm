@@ -361,7 +361,7 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
                   style={
                     input.trim() && !isLoading
                       ? { background: 'linear-gradient(135deg, var(--color-gold), var(--color-gold-dim))' }
-                      : { background: 'rgba(0,0,0,0.06)', color: 'var(--text-dim)' }
+                      : { background: '#E5E7EB', color: 'var(--text-dim)' }
                   }
                   aria-label="Send message"
                 >

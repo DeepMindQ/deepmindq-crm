@@ -405,7 +405,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
           </div>
           <div className="flex items-center gap-3">
             <Select value={timeRange} onValueChange={setTimeRange}>
-              <SelectTrigger className="w-[150px] h-9 text-xs border-gray-200 bg-black/[0.03]">
+              <SelectTrigger className="w-[150px] h-9 text-xs border-gray-200 bg-gray-50">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -415,7 +415,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
                 <SelectItem value="90d">Last 90 days</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="h-9 text-xs gap-2 border-gray-200 bg-black/[0.03] hover:bg-black/[0.06]">
+            <Button variant="outline" size="sm" className="h-9 text-xs gap-2 border-gray-200 bg-gray-50 hover:bg-gray-100">
               <FileSpreadsheet className="w-3.5 h-3.5" />
               Export
             </Button>
@@ -855,7 +855,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
                     topContent.map((item, i) => (
                       <TableRow
                         key={i}
-                        className="border-border transition-colors duration-200 hover:bg-black/[0.04] hover:shadow-[inset_0_0_0_1px_rgba(212,175,55,0.08)]"
+                        className="border-border transition-colors duration-200 hover:bg-gray-100/50 hover:shadow-[inset_0_0_0_1px_rgba(212,175,55,0.08)]"
                       >
                         <TableCell className="text-foreground text-sm font-medium max-w-[220px] truncate">
                           {item.subject}
@@ -878,7 +878,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
                               Replied
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="bg-black/[0.03] text-muted-foreground border-border text-[11px]">
+                            <Badge variant="outline" className="bg-gray-50 text-muted-foreground border-border text-[11px]">
                               Sent
                             </Badge>
                           )}

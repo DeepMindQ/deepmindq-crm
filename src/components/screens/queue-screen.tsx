@@ -304,7 +304,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                 backgroundSize: '300% 300%',
               }}
             />
-            <div className="relative border border-gray-200 bg-black/[0.03] backdrop-blur-xl rounded-xl px-6 py-5">
+            <div className="relative border border-gray-200 bg-gray-50 backdrop-blur-xl rounded-xl px-6 py-5">
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center">
@@ -363,7 +363,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                     exit={{ opacity: 0, y: -8, height: 0 }}
                     className="mt-4 overflow-hidden"
                   >
-                    <div className="flex items-center justify-between rounded-lg bg-black/[0.04] border border-gray-200 px-4 py-3">
+                    <div className="flex items-center justify-between rounded-lg bg-gray-100/50 border border-gray-200 px-4 py-3">
                       <div className="flex items-center gap-4 text-xs">
                         <span className="text-muted-foreground">
                           Worker completed: <span className="text-foreground font-medium">{workerResult.processed}</span> processed
@@ -484,7 +484,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                         return (
                           <TableRow
                             key={item.id}
-                            className={`border-border group transition-all duration-200 hover:bg-black/[0.03] ${isSelected ? 'bg-primary/[0.04]' : ''}`}
+                            className={`border-border group transition-all duration-200 hover:bg-gray-50 ${isSelected ? 'bg-primary/[0.04]' : ''}`}
                             style={{ borderLeft: `3px solid ${borderLeftColor}` }}
                             onMouseEnter={(e) => {
                               if (item.status !== 'failed') {
@@ -742,7 +742,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                       <span className="text-muted-foreground text-xs">selected</span>
                     </div>
 
-                    <div className="w-px h-6 bg-black/[0.05]" />
+                    <div className="w-px h-6 bg-gray-100/50" />
 
                     {/* Bulk action buttons */}
                     <div className="flex items-center gap-1.5">
@@ -795,7 +795,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                       )}
                     </div>
 
-                    <div className="w-px h-6 bg-black/[0.05]" />
+                    <div className="w-px h-6 bg-gray-100/50" />
 
                     {/* Clear selection */}
                     <Button
@@ -913,7 +913,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="gap-2">
-              <AlertDialogCancel className="border-white/[0.1] text-muted-foreground hover:text-foreground" disabled={bulkActionLoading}>
+              <AlertDialogCancel className="border-gray-200 text-muted-foreground hover:text-foreground" disabled={bulkActionLoading}>
                 Cancel
               </AlertDialogCancel>
               <AlertDialogAction

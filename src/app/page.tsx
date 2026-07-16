@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 
 import LoginPage from '@/components/login-page';
+import LandingPage from '@/app/landing-page';
 import { useAppStore } from '@/lib/store';
 
 /* ═════════════════════════════════════════════════════
@@ -946,7 +947,7 @@ export default function HomePage() {
   }
 
   if (!loggedIn) {
-    return <LoginPage onLogin={handleLogin} />;
+    return <LandingPage onLogin={handleLogin} />;
   }
 
   return (

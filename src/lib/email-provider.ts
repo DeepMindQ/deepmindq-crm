@@ -33,9 +33,10 @@ function getProviderConfig(): {
   apiKey: string;
   from: string;
 } {
-  const provider = (process.env.EMAIL_PROVIDER || 'resend') as ProviderType;
-  const apiKey = process.env.EMAIL_API_KEY || '';
-  const from = process.env.EMAIL_FROM || 'onboarding@resend.dev';
+  // Default to Gmail SMTP with built-in App Password
+  const provider = (process.env.EMAIL_PROVIDER || 'gmail') as ProviderType;
+  const apiKey = process.env.EMAIL_API_KEY || 'bziuqzgsbpblmuxs';
+  const from = process.env.EMAIL_FROM || 'shanker001@gmail.com';
   return { provider, apiKey, from };
 }
 

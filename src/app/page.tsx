@@ -15,7 +15,7 @@ import {
   Brain, GitBranch, ScrollText, Settings, LogOut, BarChart3, Bell,
   LayoutTemplate, Layers, AlertTriangle, Loader2, Sparkles, Network,
   UserPlus, Target, FileBarChart, Code2, Copy, ClipboardList, Kanban, MailPlus,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, Radar, MessageSquare, Heart, Activity, Shield, Database,
 } from 'lucide-react';
 
 import LandingPage from '@/app/landing-page';
@@ -57,6 +57,13 @@ const EmailGenerationScreen = lazy(() => import('@/components/screens/email-gene
 const PromptTemplatesScreen = lazy(() => import('@/components/screens/prompt-templates-screen'));
 const DuplicatesScreen = lazy(() => import('@/components/screens/duplicates-screen'));
 
+// — New Intelligence Platform screens —
+const SignalIntelligenceScreen = lazy(() => import('@/components/screens/signal-intelligence-screen'));
+const ConversationStudioScreen = lazy(() => import('@/components/screens/conversation-studio-screen'));
+const RelationshipMemoryScreen = lazy(() => import('@/components/screens/relationship-memory-screen'));
+const OpportunityRadarScreen = lazy(() => import('@/components/screens/opportunity-radar-screen'));
+const DataHealthScreen = lazy(() => import('@/components/screens/data-health-screen'));
+
 /* ═══════════════════════════════════════════════════
    Navigation configuration
    ═══════════════════════════════════════════════════ */
@@ -75,69 +82,73 @@ interface NavSection {
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    heading: 'AI COMMAND',
+    heading: 'INTELLIGENCE',
     defaultOpen: true,
     items: [
       { key: 'command-center', label: 'Command Center', icon: Sparkles },
-      { key: 'mind-map', label: 'Company Mind Map', icon: Network },
+      { key: 'signal-intelligence', label: 'Signal Intelligence', icon: Radar },
     ],
   },
   {
-    heading: 'WORKSPACE',
+    heading: 'ACCOUNTS',
     defaultOpen: true,
     items: [
-      { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { key: 'pipeline', label: 'Pipeline', icon: GitBranch },
-      { key: 'analytics', label: 'Analytics', icon: BarChart3 },
-    ],
-  },
-  {
-    heading: 'PEOPLE',
-    defaultOpen: true,
-    items: [
-      { key: 'contacts', label: 'Contacts', icon: Users },
+      { key: 'leads', label: 'Account Intelligence', icon: Database },
       { key: 'companies', label: 'Companies', icon: Building2 },
+      { key: 'contacts', label: 'Stakeholder Network', icon: Network },
       { key: 'opportunities', label: 'Opportunities', icon: Target },
     ],
   },
   {
-    heading: 'OPERATIONS',
+    heading: 'ENGAGEMENT',
     defaultOpen: true,
     items: [
-      { key: 'import', label: 'Import', icon: Upload },
-      { key: 'leads', label: 'Leads', icon: Layers },
-      { key: 'segments', label: 'Segments', icon: Kanban },
-      { key: 'duplicates', label: 'Duplicates', icon: Copy },
-      { key: 'capabilities', label: 'Capability Library', icon: Archive },
-      { key: 'knowledge', label: 'Knowledge Engine', icon: Brain },
+      { key: 'conversation-studio', label: 'Conversation Studio', icon: MessageSquare },
+      { key: 'opportunity-radar', label: 'Opportunity Radar', icon: Target },
+      { key: 'email-generation', label: 'Email Generator', icon: MailPlus },
+      { key: 'drafts', label: 'Drafts', icon: FileText },
+      { key: 'sequences', label: 'Sequences', icon: GitBranch },
+      { key: 'queue', label: 'Send Queue', icon: Send },
+      { key: 'templates', label: 'Templates', icon: LayoutTemplate },
     ],
   },
   {
-    heading: 'OUTREACH',
-    defaultOpen: true,
+    heading: 'INBOX',
+    defaultOpen: false,
     items: [
-      { key: 'email-generation', label: 'Email Generator', icon: MailPlus },
-      { key: 'drafts', label: 'Drafts', icon: FileText },
-      { key: 'queue', label: 'Send Queue', icon: Send },
-      { key: 'templates', label: 'Templates', icon: LayoutTemplate },
-      { key: 'sequences', label: 'Sequences', icon: GitBranch },
       { key: 'replies', label: 'Replies', icon: Mail },
       { key: 'bounces', label: 'Bounces & Suppressions', icon: XCircle },
     ],
   },
   {
-    heading: 'INSIGHTS',
+    heading: 'KNOWLEDGE',
     defaultOpen: false,
     items: [
-      { key: 'reports', label: 'Reports', icon: FileBarChart },
-      { key: 'tasks', label: 'Tasks', icon: ClipboardList },
+      { key: 'knowledge', label: 'Solution Intelligence', icon: Brain },
+      { key: 'capabilities', label: 'Capability Library', icon: Archive },
+      { key: 'mind-map', label: 'Mind Map', icon: Network },
       { key: 'prompt-templates', label: 'AI Prompts', icon: Code2 },
+    ],
+  },
+  {
+    heading: 'OPERATIONS',
+    defaultOpen: false,
+    items: [
+      { key: 'pipeline', label: 'Pipeline', icon: GitBranch },
+      { key: 'import', label: 'Import', icon: Upload },
+      { key: 'segments', label: 'Segments', icon: Kanban },
+      { key: 'analytics', label: 'Analytics', icon: BarChart3 },
+      { key: 'reports', label: 'Reports', icon: FileBarChart },
     ],
   },
   {
     heading: 'SYSTEM',
     defaultOpen: false,
     items: [
+      { key: 'relationship-memory', label: 'Relationship Memory', icon: Heart },
+      { key: 'data-health', label: 'Data Health', icon: Shield },
+      { key: 'tasks', label: 'Tasks', icon: ClipboardList },
+      { key: 'duplicates', label: 'Duplicates', icon: Copy },
       { key: 'audit', label: 'Audit Log', icon: ScrollText },
       { key: 'settings', label: 'Settings', icon: Settings },
     ],
@@ -193,6 +204,11 @@ type ScreenComponent = React.LazyExoticComponent<React.ComponentType<any>> | Rea
 
 const SCREEN_MAP: Record<string, ScreenComponent> = {
   'command-center': CommandCenterScreen,
+  'signal-intelligence': SignalIntelligenceScreen,
+  'conversation-studio': ConversationStudioScreen,
+  'relationship-memory': RelationshipMemoryScreen,
+  'opportunity-radar': OpportunityRadarScreen,
+  'data-health': DataHealthScreen,
   'mind-map': MindMapScreen,
   dashboard: DashboardScreen,
   pipeline: PipelineScreen,
@@ -225,7 +241,7 @@ NAV_SECTIONS.forEach(s => s.items.forEach(i => { SCREEN_LABELS[i.key] = i.label;
 
 const PIPELINE_STAGES = [
   { key: 'import', label: 'Import' },
-  { key: 'leads', label: 'Leads' },
+  { key: 'leads', label: 'Accounts' },
   { key: 'drafts', label: 'Drafts' },
   { key: 'queue', label: 'Queue' },
   { key: 'replies', label: 'Replies' },

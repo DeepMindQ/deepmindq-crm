@@ -59,10 +59,22 @@ const DEMO_INDUSTRIES = ['Technology','Financial Services','Healthcare','IT Serv
 const DEMO_COUNTRIES  = ['US','IN','GB','CA','DE','KR','NG'];
 
 function scoreColor(s: number | null): string {
-  if (!s) return '#475569';
-  if (s >= 80) return '#16A34A';
+  if (!s || s < 40) return '#9CA3AF';
+  if (s >= 80) return '#059669';
   if (s >= 60) return '#D97706';
-  return '#DC2626';
+  return '#2563EB';
+}
+
+function scoreGradient(s: number | null): string {
+  if (!s || s < 40) return 'linear-gradient(90deg, #9CA3AF, #D1D5DB)';
+  if (s >= 80) return 'linear-gradient(90deg, #059669, #34D399)';
+  if (s >= 60) return 'linear-gradient(90deg, #D97706, #FBBF24)';
+  return 'linear-gradient(90deg, #2563EB, #60A5FA)';
+}
+
+function scoreGlow(s: number | null): string | undefined {
+  if (s != null && s >= 80) return '0 0 8px rgba(5,150,105,0.5)';
+  return undefined;
 }
 
 function statusLabel(s: string) {
@@ -75,18 +87,62 @@ function statusLabel(s: string) {
 function ScoreBar({ score }: { score: number | null }) {
   const v = score ?? 0;
   const col = scoreColor(score);
+  const grad = scoreGradient(score);
+  const glow = scoreGlow(score);
+  const isHot = score != null && score >= 80;
+  const isAi = score != null && score >= 60;
+  const label = score != null && score >= 80 ? 'Hot'
+    : score != null && score >= 60 ? 'Active'
+    : score != null && score >= 40 ? 'Developing'
+    : 'Cold';
+  const labelColor = col;
+
   return (
-    <div className="flex items-center gap-2 min-w-[100px]">
-      <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(0, 0, 0, 0.05)' }}>
-        <motion.div
-          className="h-full rounded-full"
-          style={{ background: col }}
-          initial={{ width: 0 }}
-          animate={{ width: `${v}%` }}
-          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-        />
+    <div className="flex flex-col gap-0.5 min-w-[100px]">
+      <div className="flex items-center gap-1.5">
+        <div className="relative flex-1 h-2 rounded-full" style={{ background: 'rgba(0, 0, 0, 0.05)' }}>
+          <motion.div
+            className="h-full rounded-full"
+            style={{
+              background: grad,
+              boxShadow: glow,
+            }}
+            initial={{ width: 0 }}
+            animate={{ width: `${v}%` }}
+            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          />
+          {isHot && v > 0 && (
+            <motion.span
+              className="absolute top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
+              style={{ background: '#34D399', boxShadow: '0 0 6px rgba(52,211,153,0.8)' }}
+              animate={{ opacity: [1, 0.4, 1], scale: [1, 1.3, 1] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          )}
+        </div>
+        <div className="flex items-center gap-0.5 w-10 shrink-0 justify-end">
+          {isAi && (
+            <span
+              className="text-[8px] font-bold leading-none px-1 py-px rounded-sm"
+              style={{ color: '#D4AF37', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.25)' }}
+            >
+              AI
+            </span>
+          )}
+          <span
+            className="text-[11px] font-bold tabular-nums"
+            style={{
+              color: col,
+              textShadow: isHot ? '0 0 8px rgba(5,150,105,0.5)' : undefined,
+            }}
+          >
+            {v}
+          </span>
+        </div>
       </div>
-      <span className="text-xs font-semibold tabular-nums w-6 text-right" style={{ color: col }}>{v}</span>
+      <span className="text-[9px] font-medium leading-none" style={{ color: labelColor, opacity: 0.75 }}>
+        {label}
+      </span>
     </div>
   );
 }

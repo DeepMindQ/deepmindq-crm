@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Radar, AlertTriangle, Eye, TrendingUp, RefreshCw,
   Crown, DollarSign, Cpu, Globe, Clock,
-  Lightbulb, Zap, ChevronRight,
-  Briefcase, Building2, Target, Activity, BarChart3, Database,
+  Lightbulb, Zap, ChevronRight, ExternalLink, Newspaper,
+  Briefcase, Building2, Target, Activity, BarChart3, Database, Brain, ChevronDown,
 } from 'lucide-react';
 import { PageTransition, AnimatedCounter, EmptyState } from '@/components/ui/animated-components';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -38,6 +38,17 @@ interface MergedSignal {
   severity?: string;
 }
 
+interface NewsSourceItem {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+interface NewsSourceGroup {
+  company: string;
+  results: NewsSourceItem[];
+}
+
 interface ExternalResponse {
   signals: {
     id: string; companyId: string; companyName: string; type: ExternalType;
@@ -47,6 +58,7 @@ interface ExternalResponse {
   }[];
   scannedCompanies: number;
   totalSignalsFound: number;
+  sources?: NewsSourceGroup[];
 }
 
 interface InternalResponse {
@@ -111,6 +123,183 @@ function formatTimeAgo(iso: string): string {
 }
 
 /* ═══════════════════════════════════════════════════
+   AI Scanning Animation
+   ═══════════════════════════════════════════════════ */
+
+const SCANNING_PHRASES = [
+  'Initializing AI Signal Engine...',
+  null, // dynamic: scanning N of 15 companies...
+  'Analyzing web intelligence...',
+  'Extracting buying signals...',
+];
+
+const TOTAL_COMPANIES = 15;
+
+function AIScanningAnimation() {
+  const [phase, setPhase] = useState(0);
+  const [companyCount, setCompanyCount] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    let frame = 0;
+    intervalRef.current = setInterval(() => {
+      frame++;
+      const p = Math.min(frame / 90, 1); // ~3s at 30fps
+      setProgress(p * 100);
+
+      // Animate company count
+      const targetCount = Math.min(Math.floor(p * TOTAL_COMPANIES), TOTAL_COMPANIES);
+      setCompanyCount(targetCount);
+
+      // Phase transitions
+      if (frame < 18) setPhase(0);
+      else if (frame < 50) setPhase(1);
+      else if (frame < 72) setPhase(2);
+      else setPhase(3);
+    }, 33);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
+
+  return (
+    <motion.div
+      key="ai-scanning"
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className="relative bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden"
+    >
+      {/* Grid background */}
+      <div
+        className="absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(212,175,55,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(212,175,55,0.5) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+        }}
+      />
+
+      {/* Floating particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-1 h-1 rounded-full"
+            style={{
+              background: '#D4AF37',
+              left: `${8 + (i * 7.5) % 85}%`,
+              top: `${15 + (i * 13) % 70}%`,
+            }}
+            animate={{
+              opacity: [0, 0.6, 0],
+              y: [0, -20, 0],
+              scale: [0.5, 1.2, 0.5],
+            }}
+            transition={{
+              duration: 2.5 + i * 0.3,
+              repeat: Infinity,
+              delay: i * 0.2,
+              ease: 'easeInOut',
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="relative z-10 flex flex-col items-center justify-center py-16 sm:py-20 px-6">
+        {/* Pulsing brain/radar icon with glow */}
+        <div className="relative mb-8">
+          {/* Outer glow rings */}
+          <motion.div
+            className="absolute -inset-8 rounded-full"
+            style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.15) 0%, transparent 70%)' }}
+            animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.8, 0.5] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <motion.div
+            className="absolute -inset-5 rounded-full"
+            style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.1) 0%, transparent 70%)' }}
+            animate={{ scale: [1, 1.2, 1], opacity: [0.6, 1, 0.6] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
+          />
+
+          {/* Radar sweep ring */}
+          <motion.div
+            className="absolute -inset-10 rounded-full border border-dashed"
+            style={{ borderColor: 'rgba(212,175,55,0.15)' }}
+            animate={{ rotate: 360 }}
+            transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+          />
+
+          {/* Icon container */}
+          <motion.div
+            className="relative w-20 h-20 rounded-2xl flex items-center justify-center"
+            style={{
+              background: 'linear-gradient(135deg, rgba(212,175,55,0.12), rgba(212,175,55,0.04))',
+              border: '1px solid rgba(212,175,55,0.2)',
+              boxShadow: '0 0 40px rgba(212,175,55,0.15), 0 0 80px rgba(212,175,55,0.05)',
+            }}
+            animate={{
+              boxShadow: [
+                '0 0 40px rgba(212,175,55,0.15), 0 0 80px rgba(212,175,55,0.05)',
+                '0 0 60px rgba(212,175,55,0.25), 0 0 100px rgba(212,175,55,0.1)',
+                '0 0 40px rgba(212,175,55,0.15), 0 0 80px rgba(212,175,55,0.05)',
+              ],
+            }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Brain className="w-9 h-9" style={{ color: '#D4AF37' }} />
+          </motion.div>
+        </div>
+
+        {/* Phase text */}
+        <motion.div className="text-center mb-8" key={phase}>
+          <motion.p
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-sm font-medium text-foreground"
+          >
+            {SCANNING_PHRASES[phase] ?? `Scanning ${companyCount} of ${TOTAL_COMPANIES} companies...`}
+          </motion.p>
+        </motion.div>
+
+        {/* Progress bar */}
+        <div className="w-full max-w-xs sm:max-w-sm space-y-2">
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(212,175,55,0.08)' }}>
+            <motion.div
+              className="h-full rounded-full"
+              style={{
+                background: 'linear-gradient(90deg, #D4AF37, #E8C860, #D4AF37)',
+                backgroundSize: '200% 100%',
+              }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.15, ease: 'linear' }}
+            >
+              <motion.div
+                className="w-full h-full rounded-full"
+                style={{
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)',
+                  backgroundSize: '200% 100%',
+                }}
+                animate={{ backgroundPosition: ['200% 0', '-200% 0'] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+              />
+            </motion.div>
+          </div>
+          <div className="flex justify-between text-[11px] text-muted-foreground">
+            <span>{companyCount} of {TOTAL_COMPANIES} companies</span>
+            <span>{Math.round(progress)}%</span>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
    Component
    ═══════════════════════════════════════════════════ */
 export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: (screen: string, id?: string) => void }) {
@@ -119,6 +308,8 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
   const [scanning, setScanning] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState({ scannedCompanies: 0, totalSignalsFound: 0, highPriority: 0, internalCount: 0 });
+  const [newsSources, setNewsSources] = useState<NewsSourceGroup[]>([]);
+  const [newsPanelOpen, setNewsPanelOpen] = useState(true);
 
   const fetchSignals = useCallback(async (bypassCache = false) => {
     setScanning(true);
@@ -148,6 +339,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
       );
 
       setSignals(merged);
+      setNewsSources(extRes.sources ?? []);
       setMeta({
         scannedCompanies: extRes.scannedCompanies ?? 0,
         totalSignalsFound: extRes.totalSignalsFound ?? merged.length,
@@ -250,6 +442,89 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
           ))}
         </div>
 
+        {/* ─── Live News Sources Panel ─── */}
+        <AnimatePresence>
+          {!scanning && newsSources.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden"
+            >
+              <button
+                onClick={() => setNewsPanelOpen(v => !v)}
+                className="w-full flex items-center justify-between px-5 py-4 cursor-pointer group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.1)' }}>
+                    <Newspaper className="w-4.5 h-4.5" style={{ color: '#D4AF37' }} />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-sm font-bold text-foreground">Live News Sources</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {newsSources.reduce((acc, g) => acc + g.results.length, 0)} articles from {newsSources.length} compan{newsSources.length === 1 ? 'y' : 'ies'}
+                    </p>
+                  </div>
+                </div>
+                <motion.div
+                  animate={{ rotate: newsPanelOpen ? 180 : 0 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                </motion.div>
+              </button>
+
+              <AnimatePresence>
+                {newsPanelOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-5 pb-5 max-h-80 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {newsSources.flatMap(g =>
+                          g.results.slice(0, 6).map((item, idx) => {
+                            let domain = '';
+                            try { domain = new URL(item.url).hostname.replace('www.', ''); } catch { domain = item.url; }
+                            return (
+                              <motion.a
+                                key={`${g.company}-${idx}`}
+                                href={item.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                transition={{ duration: 0.35, delay: idx * 0.04 }}
+                                whileHover={{ y: -2, transition: { duration: 0.15 } }}
+                                className="block p-3.5 rounded-lg border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-gray-200 hover:shadow-sm transition-colors group/item"
+                              >
+                                <p className="text-[13px] font-semibold text-foreground leading-snug line-clamp-2 mb-2 group-hover/item:text-[#D4AF37] transition-colors">
+                                  {item.title}
+                                </p>
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
+                                    <Globe className="w-3 h-3 shrink-0" />
+                                    {domain}
+                                  </span>
+                                  <ExternalLink className="w-3 h-3 text-muted-foreground opacity-0 group-hover/item:opacity-100 transition-opacity shrink-0" />
+                                </div>
+                              </motion.a>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* ─── Filters + Signal Feed ─── */}
         <div className="space-y-5">
           <motion.div
@@ -310,46 +585,21 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
             </div>
           </motion.div>
 
-          {/* ─── Loading Skeleton ─── */}
+          {/* ─── AI Scanning Animation ─── */}
           <AnimatePresence mode="wait">
             {scanning ? (
-              <motion.div
-                key="loading"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="space-y-4"
-              >
-                <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
-                  >
-                    <Radar className="w-5 h-5 text-[#D4AF37]" />
-                  </motion.div>
-                  Scanning for signals…
-                </div>
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="bg-white border border-gray-200 rounded-xl p-5 sm:p-6 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-6 w-20 rounded-md" />
-                      <Skeleton className="h-5 w-32 rounded" />
-                      <Skeleton className="h-5 w-20 rounded-full ml-auto" />
-                    </div>
-                    <Skeleton className="h-5 w-3/4 rounded" />
-                    <Skeleton className="h-4 w-full rounded" />
-                    <Skeleton className="h-4 w-2/3 rounded" />
-                    <Skeleton className="h-16 w-full rounded-lg" />
-                  </div>
-                ))}
-              </motion.div>
-
-            ) : error ? (
-              <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <AIScanningAnimation />
+            ) : null}
+          </AnimatePresence>
+          <AnimatePresence mode="wait">
+            {!scanning && error ? (
+              <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <EmptyState icon={AlertTriangle} title={error} description="Please check your connection and try again." />
               </motion.div>
-
-            ) : signals.length === 0 ? (
+            ) : null}
+          </AnimatePresence>
+          <AnimatePresence mode="wait">
+            {!scanning && !error && signals.length === 0 ? (
               <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <EmptyState
                   icon={Radar}
@@ -358,17 +608,22 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
                 />
               </motion.div>
 
-            ) : filteredSignals.length === 0 ? (
-              <motion.div key="filter-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            ) : null}
+          </AnimatePresence>
+          <AnimatePresence mode="wait">
+            {!scanning && !error && signals.length > 0 && filteredSignals.length === 0 ? (
+              <motion.div key="filter-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <EmptyState
                   icon={Radar}
                   title="No signals found"
                   description={`No ${activeFilter} signals detected in the current time range.`}
                 />
               </motion.div>
-
-            ) : (
-              <motion.div key="signals" className="space-y-4">
+            ) : null}
+          </AnimatePresence>
+          <AnimatePresence mode="wait">
+            {!scanning && !error && signals.length > 0 && filteredSignals.length > 0 ? (
+              <motion.div key="signals" className="space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 {filteredSignals.map((signal, index) => {
                   const tCfg = getTypeConfig(signal.type);
                   const pCfg = priorityConfig[signal.priority];
@@ -522,7 +777,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
                   );
                 })}
               </motion.div>
-            )}
+            ) : null}
           </AnimatePresence>
         </div>
       </div>

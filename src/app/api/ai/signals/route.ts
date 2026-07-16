@@ -39,6 +39,7 @@ interface SignalsResponse {
   signals: ParsedSignal[]
   scannedCompanies: number
   totalSignalsFound: number
+  sources?: { company: string; results: { title: string; url: string; snippet: string }[] }[]
 }
 
 interface CacheEntry {
@@ -232,7 +233,12 @@ interface CompanyRow {
   normalizedName: string
 }
 
-async function scanCompany(zai: Awaited<ReturnType<typeof getZAI>>, company: CompanyRow): Promise<ParsedSignal[]> {
+interface ScanCompanyResult {
+  signals: ParsedSignal[]
+  rawResults: RawSearchResult[]
+}
+
+async function scanCompany(zai: Awaited<ReturnType<typeof getZAI>>, company: CompanyRow): Promise<ScanCompanyResult> {
   const queries = buildSearchQueries(company.normalizedName)
 
   // Run all 3 searches in parallel, tolerate individual failures
@@ -254,7 +260,7 @@ async function scanCompany(zai: Awaited<ReturnType<typeof getZAI>>, company: Com
     }
   }
 
-  if (allResults.length === 0) return []
+  if (allResults.length === 0) return { signals: [], rawResults: [] }
 
   // Ask LLM to analyze
   try {
@@ -262,12 +268,15 @@ async function scanCompany(zai: Awaited<ReturnType<typeof getZAI>>, company: Com
     const llmResponse = await callLLM(zai, SIGNAL_SYSTEM_PROMPT, userPrompt)
     const rawSignals = parseLLMSignals(llmResponse)
 
-    return rawSignals
-      .map((s) => normalizeSignal(s, company.id, company.normalizedName))
-      .filter((s): s is ParsedSignal => s !== null)
+    return {
+      signals: rawSignals
+        .map((s) => normalizeSignal(s, company.id, company.normalizedName))
+        .filter((s): s is ParsedSignal => s !== null),
+      rawResults: allResults,
+    }
   } catch (err) {
     console.error(`[ai/signals] LLM analysis failed for ${company.normalizedName}:`, err instanceof Error ? err.message : err)
-    return []
+    return { signals: [], rawResults: allResults }
   }
 }
 
@@ -317,9 +326,22 @@ export async function GET(request: NextRequest) {
     )
 
     const allSignals: ParsedSignal[] = []
-    for (const result of scanSettled) {
+    const allSources: SignalsResponse['sources'] = []
+
+    for (let i = 0; i < scanSettled.length; i++) {
+      const result = scanSettled[i]
       if (result.status === 'fulfilled') {
-        allSignals.push(...result.value)
+        allSignals.push(...result.value.signals)
+        if (result.value.rawResults.length > 0) {
+          allSources.push({
+            company: companies[i].normalizedName,
+            results: result.value.rawResults.map(r => ({
+              title: r.name,
+              url: r.url,
+              snippet: r.snippet,
+            })),
+          })
+        }
       } else {
         console.error('[ai/signals] Company scan failed:', result.reason instanceof Error ? result.reason.message : result.reason)
       }
@@ -329,6 +351,7 @@ export async function GET(request: NextRequest) {
       signals: allSignals.sort((a, b) => b.confidence - a.confidence),
       scannedCompanies: companies.length,
       totalSignalsFound: allSignals.length,
+      sources: allSources,
     }
 
     // Cache the result

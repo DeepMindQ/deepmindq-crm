@@ -70,6 +70,20 @@ interface DataHealthResponse {
     completeness: number;
     totalRecords: number;
   }>;
+  aiDiagnosis?: string;
+  aiEnrichmentStrategy?: Array<{
+    priority: string;
+    action: string;
+    reasoning: string;
+    estimatedImpact: string;
+  }>;
+  aiPrediction?: string;
+  aiEnrichmentPlan?: {
+    summary: string;
+    batches: Array<{ label: string; entityIds: string[] }>;
+    estimatedTimeToComplete: string;
+    projectedScoreAfter: number;
+  };
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -474,6 +488,39 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
           </div>
         </GlassPanel>
 
+        {/* ── 2b. AI Diagnosis ──────────────────────────────────────────── */}
+        {data.aiDiagnosis && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <div
+              className="rounded-xl p-5 border"
+              style={{
+                background: 'linear-gradient(135deg, rgba(184,134,11,0.06) 0%, rgba(212,175,55,0.03) 100%)',
+                borderColor: 'rgba(184,134,11,0.25)',
+              }}
+            >
+              <div className="flex items-center gap-2.5 mb-3">
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                  style={{ background: 'rgba(184,134,11,0.15)', color: '#B8860B' }}
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Live AI
+                </div>
+                <span className="text-sm font-semibold" style={{ color: '#8B6914' }}>
+                  AI Health Diagnosis
+                </span>
+              </div>
+              <p className="text-sm leading-relaxed" style={{ color: '#374151' }}>
+                {data.aiDiagnosis}
+              </p>
+            </div>
+          </motion.div>
+        )}
+
         {/* ── 3. Data Quality Categories ─────────────────────────────────── */}
         <div>
           <SectionHeader title="Data Quality Categories" subtitle="Areas requiring attention" />
@@ -527,9 +574,88 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
           </StaggerGrid>
         </div>
 
+        {/* ── 3b. AI Enrichment Strategy ────────────────────────────────── */}
+        {data.aiEnrichmentStrategy && data.aiEnrichmentStrategy.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <SectionHeader title="AI Enrichment Strategy" subtitle="AI-ranked actions to improve data quality" />
+            </div>
+            <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" stagger={0.06}>
+              {data.aiEnrichmentStrategy.map((item, idx) => (
+                <StaggerItem key={idx}>
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, delay: 0.05 * idx }}
+                    whileHover={{ y: -2, boxShadow: '0 4px 12px rgba(184,134,11,0.10)' }}
+                    className="bg-white border rounded-xl shadow-sm p-5 h-full flex flex-col"
+                    style={{ borderColor: 'rgba(184,134,11,0.20)' }}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-8 h-8 rounded-lg flex items-center justify-center"
+                          style={{ background: 'rgba(184,134,11,0.10)' }}
+                        >
+                          <Sparkles className="w-4 h-4" style={{ color: '#B8860B' }} />
+                        </div>
+                        <span
+                          className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                          style={{
+                            background: item.priority.toLowerCase() === 'high'
+                              ? 'rgba(239,68,68,0.08)'
+                              : item.priority.toLowerCase() === 'medium'
+                                ? 'rgba(245,158,11,0.08)'
+                                : 'rgba(59,130,246,0.08)',
+                            color: item.priority.toLowerCase() === 'high'
+                              ? '#dc2626'
+                              : item.priority.toLowerCase() === 'medium'
+                                ? '#d97706'
+                                : '#2563eb',
+                          }}
+                        >
+                          {item.priority}
+                        </span>
+                      </div>
+                      <span className="text-lg font-bold tabular-nums" style={{ color: '#D4AF37' }}>
+                        #{idx + 1}
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground mb-1.5 leading-snug">
+                      {item.action}
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-relaxed mb-3 flex-1">
+                      {item.reasoning}
+                    </p>
+                    <div
+                      className="text-[11px] font-medium px-2.5 py-1.5 rounded-lg"
+                      style={{ background: 'rgba(212,175,55,0.08)', color: '#8B6914' }}
+                    >
+                      Estimated impact: {item.estimatedImpact}
+                    </div>
+                  </motion.div>
+                </StaggerItem>
+              ))}
+            </StaggerGrid>
+          </div>
+        )}
+
         {/* ── 4. Enrichment Queue ───────────────────────────────────────── */}
         <div>
-          <SectionHeader title="Enrichment Queue" subtitle="Records needing data enrichment" />
+          <div className="flex items-center gap-3">
+            <SectionHeader title="Enrichment Queue" subtitle="Records needing data enrichment" />
+            {data.aiEnrichmentPlan && (
+              <motion.span
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0"
+                style={{ background: 'rgba(184,134,11,0.12)', color: '#B8860B', border: '1px solid rgba(184,134,11,0.25)' }}
+              >
+                <Sparkles className="w-3 h-3" />
+                AI Plan Ready
+              </motion.span>
+            )}
+          </div>
           <GlassPanel className="overflow-hidden">
             <div className="divide-y divide-gray-100">
               {data.enrichmentQueue.map((item, idx) => (
@@ -575,14 +701,22 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                   </Badge>
 
                   {/* Enrich button */}
-                  <Button
-                    size="sm"
-                    className="h-8 px-3 text-xs font-medium bg-gradient-to-r from-yellow-500/90 to-amber-600/90 text-black hover:from-yellow-500 hover:to-amber-600 border-0 shadow-sm shadow-amber-500/10 transition-all duration-200 opacity-0 group-hover:opacity-100 shrink-0"
-                    onClick={() => navigateTo?.(item.type === 'company' ? 'company-detail' : 'contact-detail', item.id)}
-                  >
-                    <Sparkles className="h-3 w-3 mr-1" />
-                    Enrich
-                  </Button>
+                  <div className="flex items-center gap-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    {data.aiEnrichmentPlan && (
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ background: '#D4AF37', boxShadow: '0 0 6px rgba(212,175,55,0.5)' }}
+                      />
+                    )}
+                    <Button
+                      size="sm"
+                      className="h-8 px-3 text-xs font-medium bg-gradient-to-r from-yellow-500/90 to-amber-600/90 text-black hover:from-yellow-500 hover:to-amber-600 border-0 shadow-sm shadow-amber-500/10 transition-all duration-200"
+                      onClick={() => navigateTo?.(item.type === 'company' ? 'company-detail' : 'contact-detail', item.id)}
+                    >
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      Enrich
+                    </Button>
+                  </div>
                 </motion.div>
               ))}
             </div>
@@ -646,6 +780,47 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
             </div>
           </GlassPanel>
         </div>
+
+        {/* ── 5b. AI Prediction ──────────────────────────────────────────── */}
+        {data.aiPrediction && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+          >
+            <div
+              className="rounded-xl p-5 border shadow-sm"
+              style={{
+                background: 'rgba(255,255,255,0.85)',
+                borderColor: 'rgba(0,0,0,0.08)',
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                  style={{ background: 'rgba(184,134,11,0.10)' }}
+                >
+                  <TrendingUp className="w-4.5 h-4.5" style={{ color: '#B8860B' }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <p className="text-sm font-semibold text-foreground">AI Quality Trajectory</p>
+                    <span
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                      style={{ background: 'rgba(184,134,11,0.10)', color: '#B8860B' }}
+                    >
+                      <Sparkles className="w-2.5 h-2.5" />
+                      Prediction
+                    </span>
+                  </div>
+                  <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>
+                    {data.aiPrediction}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
       </div>
     </PageTransition>

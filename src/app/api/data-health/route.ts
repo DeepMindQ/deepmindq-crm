@@ -40,6 +40,26 @@ interface DataHealthResponse {
     completeness: number
     totalRecords: number
   }>
+  // ── AI-powered fields (may be undefined if AI is unavailable) ──
+  aiDiagnosis?: string
+  aiEnrichmentStrategy?: Array<{
+    priority: string
+    action: string
+    reasoning: string
+    estimatedImpact: string
+  }>
+  aiPrediction?: string
+  aiEnrichmentPlan?: {
+    summary: string
+    batches: Array<{
+      label: string
+      entityType: 'company' | 'contact'
+      ids: string[]
+      rationale: string
+    }>
+    estimatedTimeToComplete: string
+    projectedScoreAfter: number
+  }
 }
 
 const NOT_ARCHIVED = { not: 'archived' }
@@ -48,6 +68,42 @@ const NOT_ARCHIVED = { not: 'archived' }
 function pct(numerator: number, denominator: number): number {
   if (denominator === 0) return 0
   return Math.round((numerator / denominator) * 100)
+}
+
+/* ── AI helper using z-ai-web-dev-sdk ── */
+async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
+  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
+  const completion = await ZAI.chat.completions.create({
+    messages: [
+      { role: 'assistant', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    thinking: { type: 'disabled' },
+  })
+  return completion.choices?.[0]?.message?.content ?? ''
+}
+
+/* ── Parse a JSON array from LLM output, with fallback ── */
+function parseJSONArray<T>(text: string): T[] {
+  const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+  try {
+    const parsed = JSON.parse(cleaned)
+    if (Array.isArray(parsed)) return parsed
+  } catch {
+    // Try regex-based extraction of objects
+    const results: T[] = []
+    const objRegex = /\{[^{}]*\}/g
+    let match
+    while ((match = objRegex.exec(cleaned)) !== null) {
+      try {
+        results.push(JSON.parse(match[0]) as T)
+      } catch {
+        // skip malformed objects
+      }
+    }
+    return results
+  }
+  return []
 }
 
 /* ── GET handler ── */
@@ -172,8 +228,8 @@ export async function GET() {
             { sizeRange: null },
           ],
         },
-        select: { id: true, normalizedName: true, industry: true, domain: true, sizeRange: true },
-        take: 20,
+        select: { id: true, normalizedName: true, industry: true, domain: true, sizeRange: true, lifecycleStage: true },
+        take: 30,
         orderBy: { updatedAt: 'desc' },
       }),
 
@@ -184,7 +240,7 @@ export async function GET() {
           OR: [{ email: '' }, { title: null }, { phone: null }],
         },
         select: { id: true, normalizedName: true, email: true, title: true, phone: true },
-        take: 20,
+        take: 30,
         orderBy: { updatedAt: 'desc' },
       }),
 
@@ -263,11 +319,11 @@ export async function GET() {
     }
 
     // ────────────────────────────────────────────────
-    // 5. Enrichment queue (top 10)
+    // 5. Enrichment queue (top 10 for display)
     // ────────────────────────────────────────────────
     type QueueItem = DataHealthResponse['enrichmentQueue'][number]
 
-    const companyQueueItems: QueueItem[] = companiesNeedingEnrichment.map((c) => {
+    const companyQueueItems: (QueueItem & { _missingCount: number; _lifecycleStage?: string | null })[] = companiesNeedingEnrichment.map((c) => {
       const missing: string[] = []
       if (!c.industry) missing.push('industry')
       if (!c.domain) missing.push('domain')
@@ -281,10 +337,11 @@ export async function GET() {
         missing: missing.join(', '),
         priority,
         _missingCount: missing.length,
+        _lifecycleStage: c.lifecycleStage,
       }
     })
 
-    const contactQueueItems: QueueItem[] = contactsNeedingEnrichment.map((c) => {
+    const contactQueueItems: (QueueItem & { _missingCount: number })[] = contactsNeedingEnrichment.map((c) => {
       const missing: string[] = []
       if (!c.email) missing.push('email')
       if (!c.title) missing.push('title')
@@ -301,9 +358,10 @@ export async function GET() {
       }
     })
 
-    // Merge, sort by most missing fields first, take top 10
-    const enrichmentQueue = [...companyQueueItems, ...contactQueueItems]
-      .sort((a, b) => (b as any)._missingCount - (a as any)._missingCount)
+    // Merge, sort by most missing fields first, take top 10 for display
+    const allQueueItems = [...companyQueueItems, ...contactQueueItems]
+    const enrichmentQueue = allQueueItems
+      .sort((a, b) => b._missingCount - a._missingCount)
       .slice(0, 10)
       .map(({ id, name, type, missing, priority }) => ({
         id,
@@ -332,9 +390,9 @@ export async function GET() {
     }))
 
     // ────────────────────────────────────────────────
-    // 7. Build final response
+    // 7. Build base response (without AI — fallback-safe)
     // ────────────────────────────────────────────────
-    const result: DataHealthResponse = {
+    const baseResult: DataHealthResponse = {
       overallScore,
       totalRecords,
       healthyRecords,
@@ -349,6 +407,222 @@ export async function GET() {
       qualityCategories,
       enrichmentQueue,
       dataFreshness,
+    }
+
+    // ────────────────────────────────────────────────
+    // 8. AI-Powered Analysis (fire-and-forget style —
+    //    if AI fails, we still return base metrics)
+    // ────────────────────────────────────────────────
+    let aiDiagnosis: string | undefined
+    let aiEnrichmentStrategy: DataHealthResponse['aiEnrichmentStrategy']
+    let aiPrediction: string | undefined
+    let aiEnrichmentPlan: DataHealthResponse['aiEnrichmentPlan'] | undefined
+
+    try {
+      // Build a compact metrics snapshot for the AI prompts
+      const metricsSnapshot = {
+        overallScore,
+        totalRecords,
+        totalCompanies,
+        totalContacts,
+        healthyRecords,
+        criticalRecords,
+        needsAttention,
+        healthBreakdown: { dataCompleteness, contactEnrichment, signalCoverage, relationshipMapping },
+        qualityCategories: {
+          missingEmails: contactsMissingEmail,
+          missingCompanyData: companiesMissingCompanyData,
+          staleSignals,
+          incompleteStakeholders,
+          missingIndustry: companiesMissingIndustry,
+          potentialDuplicates: potentialDuplicateContacts,
+        },
+        dataFreshness: freshnessRows.map(r => ({
+          stage: r.lifecycleStage,
+          records: r.totalRecords,
+          completeness: r.completeness,
+        })),
+        enrichmentQueueSummary: {
+          companiesNeedingEnrichment: companiesNeedingEnrichment.length,
+          contactsNeedingEnrichment: contactsNeedingEnrichment.length,
+          highPriorityCompanies: companyQueueItems.filter(q => q.priority === 'high').length,
+          highPriorityContacts: contactQueueItems.filter(q => q.priority === 'high').length,
+        },
+        topCompanyItems: companyQueueItems.slice(0, 10).map(q => ({
+          name: q.name,
+          missing: q.missing,
+          priority: q.priority,
+          stage: q._lifecycleStage ?? 'unknown',
+          id: q.id,
+        })),
+        topContactItems: contactQueueItems.slice(0, 10).map(q => ({
+          name: q.name,
+          missing: q.missing,
+          priority: q.priority,
+          id: q.id,
+        })),
+      }
+
+      // Run the three AI analyses in parallel
+      const [diagnosisResult, strategyResult, predictionResult] = await Promise.allSettled([
+        // ── 8a. AI Health Diagnosis ──
+        callAI(
+          `You are a senior sales operations analyst writing a data health report for a sales ops manager. Your tone is direct, practical, and action-oriented. You reference specific numbers from the data. You explain the BUSINESS IMPACT of each issue, not just the raw count. You prioritize issues by revenue/pipeline impact.
+
+Rules:
+- Reference specific numbers from the metrics
+- Explain what each gap prevents the sales team from doing
+- Write 2-4 paragraphs, starting with the most critical issue
+- Do NOT use markdown headers or bullets — write flowing prose
+- Address the reader as "your" (e.g. "your pipeline", "your outreach")
+- Be honest but constructive — lead with what matters most`,
+          `Analyze this CRM data health snapshot and write a plain-English diagnosis for the sales ops manager:
+
+${JSON.stringify(metricsSnapshot, null, 2)}`
+        ),
+
+        // ── 8b. AI Enrichment Strategy ──
+        callAI(
+          `You are a data enrichment strategist for a B2B sales CRM. Given data health metrics, produce an actionable enrichment strategy as a JSON array.
+
+Each item must have exactly these fields:
+- "priority": one of "Critical", "High", "Medium", "Low"
+- "action": a specific, actionable step (e.g. "Enrich the 12 high-priority companies missing industry and domain")
+- "reasoning": why this action matters for pipeline revenue and operations
+- "estimatedImpact": a concrete estimate of the improvement (e.g. "Could improve data completeness score by ~15 points")
+
+Rules:
+- Max 5 actions, ordered by priority
+- Reference specific counts and percentages from the metrics
+- Focus on actions that have the highest ROI for sales operations
+- Consider lifecycle stage — later-stage records are more valuable
+- Respond ONLY with a valid JSON array, no other text`,
+          `Here is the CRM data health snapshot. Design the optimal enrichment strategy:
+
+${JSON.stringify(metricsSnapshot, null, 2)}`
+        ),
+
+        // ── 8c. AI Data Quality Prediction ──
+        callAI(
+          `You are a data quality analyst. Based on the current CRM data health metrics, predict what will happen to data quality over the next 30-90 days if no action is taken.
+
+Rules:
+- Reference specific numbers from the metrics
+- Predict which issues will worsen and why
+- Estimate the business cost of inaction (missed outreach, bad segmentation, pipeline blind spots)
+- Write 2-3 concise paragraphs
+- Be specific and alarming enough to motivate action, but realistic
+- Do NOT use markdown formatting — write flowing prose`,
+          `Here is the current CRM data health snapshot. Predict the data quality trajectory over the next 30-90 days if no action is taken:
+
+${JSON.stringify(metricsSnapshot, null, 2)}`
+        ),
+      ])
+
+      // Extract diagnosis
+      if (diagnosisResult.status === 'fulfilled' && diagnosisResult.value.trim()) {
+        aiDiagnosis = diagnosisResult.value.trim()
+      }
+
+      // Extract enrichment strategy
+      if (strategyResult.status === 'fulfilled' && strategyResult.value.trim()) {
+        const parsed = parseJSONArray<{
+          priority: string
+          action: string
+          reasoning: string
+          estimatedImpact: string
+        }>(strategyResult.value)
+        if (parsed.length > 0) {
+          aiEnrichmentStrategy = parsed.slice(0, 5)
+        }
+      }
+
+      // Extract prediction
+      if (predictionResult.status === 'fulfilled' && predictionResult.value.trim()) {
+        aiPrediction = predictionResult.value.trim()
+      }
+
+      // ── 8d. Build the AI Enrichment Plan (structured, frontend-consumable) ──
+      if (aiEnrichmentStrategy && aiEnrichmentStrategy.length > 0) {
+        // Group the high-priority company and contact IDs into actionable batches
+        const highPriorityCompanyIds = companyQueueItems
+          .filter(q => q._missingCount >= 2)
+          .slice(0, 15)
+          .map(q => q.id)
+
+        const highPriorityContactIds = contactQueueItems
+          .filter(q => q._missingCount >= 2)
+          .slice(0, 15)
+          .map(q => q.id)
+
+        const mediumPriorityCompanyIds = companyQueueItems
+          .filter(q => q._missingCount === 1)
+          .slice(0, 10)
+          .map(q => q.id)
+
+        type EnrichmentBatch = NonNullable<DataHealthResponse['aiEnrichmentPlan']>
+        const batches: EnrichmentBatch['batches'] = []
+
+        if (highPriorityCompanyIds.length > 0) {
+          batches.push({
+            label: `Enrich ${highPriorityCompanyIds.length} high-priority companies`,
+            entityType: 'company',
+            ids: highPriorityCompanyIds,
+            rationale: 'These companies are missing multiple critical fields (industry, domain, size). Completing them will have the highest impact on data completeness and segmentation.',
+          })
+        }
+
+        if (highPriorityContactIds.length > 0) {
+          batches.push({
+            label: `Enrich ${highPriorityContactIds.length} high-priority contacts`,
+            entityType: 'contact',
+            ids: highPriorityContactIds,
+            rationale: 'These contacts lack email, title, or phone — blocking outreach sequences and personalization.',
+          })
+        }
+
+        if (mediumPriorityCompanyIds.length > 0) {
+          batches.push({
+            label: `Enrich ${mediumPriorityCompanyIds.length} medium-priority companies`,
+            entityType: 'company',
+            ids: mediumPriorityCompanyIds,
+            rationale: 'These companies are missing a single field. Quick wins to push the completeness score higher.',
+          })
+        }
+
+        const totalEnrichable = highPriorityCompanyIds.length + highPriorityContactIds.length + mediumPriorityCompanyIds.length
+        const projectedNewComplete = completeCompanies + highPriorityCompanyIds.length + mediumPriorityCompanyIds.length
+        const projectedCompleteness = pct(projectedNewComplete, totalCompanies)
+        const projectedNewEnriched = enrichedContacts + highPriorityContactIds.length
+        const projectedContactScore = pct(projectedNewEnriched, totalContacts)
+        const projectedOverall = Math.round(
+          projectedCompleteness * 0.25 +
+          projectedContactScore * 0.25 +
+          signalCoverage * 0.25 +
+          relationshipMapping * 0.25,
+        )
+
+        aiEnrichmentPlan = {
+          summary: aiEnrichmentStrategy[0]?.action ?? 'Enrich missing data across companies and contacts to improve overall data health.',
+          batches,
+          estimatedTimeToComplete: `~${Math.ceil(totalEnrichable * 0.5)} minutes with AI-assisted enrichment`,
+          projectedScoreAfter: projectedOverall,
+        }
+      }
+    } catch (aiError) {
+      // AI analysis failed — log and continue with base metrics only
+      console.error('[data-health] AI analysis failed, returning base metrics:', aiError)
+    }
+
+    // ────────────────────────────────────────────────
+    // 9. Assemble final response
+    // ────────────────────────────────────────────────
+    const result: DataHealthResponse = {
+      ...baseResult,
+      ...(aiDiagnosis ? { aiDiagnosis } : {}),
+      ...(aiEnrichmentStrategy ? { aiEnrichmentStrategy } : {}),
+      ...(aiPrediction ? { aiPrediction } : {}),
+      ...(aiEnrichmentPlan ? { aiEnrichmentPlan } : {}),
     }
 
     // Cache the result

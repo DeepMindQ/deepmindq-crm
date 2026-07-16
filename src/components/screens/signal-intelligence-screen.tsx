@@ -438,9 +438,12 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
 
                           {/* Confidence (external only) */}
                           {isExternal && signal.confidence != null && (
-                            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <span className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">
                               <TrendingUp className="w-3 h-3" />
-                              {signal.confidence}% confidence
+                              <span className="font-medium">{signal.confidence}%</span>
+                              <span className="w-16 h-1.5 rounded-full bg-gray-100 inline-block overflow-hidden">
+                                <span className="block h-full rounded-full" style={{ width: `${signal.confidence}%`, background: signal.confidence >= 80 ? '#059669' : signal.confidence >= 60 ? '#D4AF37' : '#DC2626', transition: 'width 0.8s ease' }} />
+                              </span>
                             </span>
                           )}
 

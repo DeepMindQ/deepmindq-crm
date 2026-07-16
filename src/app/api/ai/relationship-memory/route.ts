@@ -17,6 +17,8 @@ interface RelationshipMemoryResponse {
     id: string
     name: string
     health: number
+    aiNarrative: string | null
+    aiHealthReasoning: string | null
     contacts: Array<{ name: string; initials: string; color: string }>
     interactions: Array<{
       date: string
@@ -39,6 +41,8 @@ interface RelationshipMemoryResponse {
     calls: number
     notesAdded: number
   }
+  aiRelationshipSummary: string | null
+  aiTrendAnalysis: string | null
 }
 
 type InteractionType = 'Email Sent' | 'Meeting' | 'Call' | 'Research' | 'Note'
@@ -48,6 +52,15 @@ interface MergedInteraction {
   type: InteractionType
   description: string
   nextAction?: string
+}
+
+interface RecommendedAction {
+  company: string
+  companyId: string
+  person: string
+  action: string
+  reason: string
+  priority: 'high' | 'medium'
 }
 
 // ---------------------------------------------------------------------------
@@ -205,7 +218,7 @@ async function fetchCompanyTimelines() {
       merged.sort((a, b) => b.date.getTime() - a.date.getTime())
       const topInteractions = merged.slice(0, 5)
 
-      // Compute health score
+      // Compute health score (used as fallback if AI fails)
       let health = Math.min(company.engagementScore, 100) * 0.5
       const hasRecentInteraction = company.lastActivityAt && company.lastActivityAt >= sevenDaysAgo
       if (hasRecentInteraction) health += 25
@@ -242,17 +255,8 @@ async function fetchCompanyTimelines() {
 }
 
 // ---------------------------------------------------------------------------
-// 3. Recommended Actions
+// 3. Recommended Actions — Rule-Based (kept as fallback)
 // ---------------------------------------------------------------------------
-
-interface RecommendedAction {
-  company: string
-  companyId: string
-  person: string
-  action: string
-  reason: string
-  priority: 'high' | 'medium'
-}
 
 async function fetchRuleBasedActions(): Promise<RecommendedAction[]> {
   const fourteenDaysAgo = new Date()
@@ -362,8 +366,9 @@ async function fetchRuleBasedActions(): Promise<RecommendedAction[]> {
   return actions
 }
 
+// Stale-company re-engagement AI (original — kept as additional fallback layer)
 async function fetchAIActions(
-  staleContext: { companyName: string; lastInteraction: string | null; contactName: string }[],
+  staleContext: { companyName: string; companyId: string; lastInteraction: string | null; contactName: string }[],
 ): Promise<RecommendedAction[]> {
   if (staleContext.length === 0) return []
 
@@ -383,7 +388,7 @@ Do NOT include any text outside the JSON array.`
     const userPrompt = `Here are companies that need attention:\n\n${staleContext
       .map(
         (c) =>
-          `- Company: "${c.companyName}", Contact: "${c.contactName}", Last interaction: ${c.lastInteraction ?? 'never'}`,
+          `- Company: "${c.companyName}" (ID: ${c.companyId}), Contact: "${c.contactName}", Last interaction: ${c.lastInteraction ?? 'never'}`,
       )
       .join('\n')}\n\nSuggest 3-5 specific next-best-actions for re-engagement.`
 
@@ -505,6 +510,323 @@ async function fetchWeeklyActivity() {
 }
 
 // ---------------------------------------------------------------------------
+// 5. Previous Week Activity (for AI trend comparison)
+// ---------------------------------------------------------------------------
+
+async function fetchPreviousWeekActivity() {
+  const now = new Date()
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+  const [emailsSent, meetings, calls, companyNotes, contactNotes] = await Promise.all([
+    db.draft.count({
+      where: { status: 'sent', createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
+    }),
+    db.companyTimelineEvent.count({
+      where: { eventType: 'meeting_scheduled', createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
+    }),
+    db.companyTimelineEvent.count({
+      where: { eventType: 'call', createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
+    }),
+    db.companyNote.count({
+      where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
+    }),
+    db.contactNote.count({
+      where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
+    }),
+  ])
+
+  return {
+    emailsSent,
+    meetings,
+    calls,
+    notesAdded: companyNotes + contactNotes,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 6. Enriched Company Context (for AI analysis beyond what timelines carry)
+// ---------------------------------------------------------------------------
+
+async function fetchCompanyContextForAI() {
+  return db.company.findMany({
+    where: { status: { not: 'archived' } },
+    orderBy: { engagementScore: 'desc' },
+    take: 8,
+    select: {
+      id: true,
+      rawName: true,
+      engagementScore: true,
+      lifecycleStage: true,
+      status: true,
+      lastActivityAt: true,
+      industry: true,
+      contacts: {
+        select: { rawName: true, leadScore: true, status: true },
+        orderBy: { leadScore: 'desc' },
+        take: 3,
+      },
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// AI PILLAR 1: Relationship Health Analysis + Timeline Narratives
+// ---------------------------------------------------------------------------
+
+interface AICompanyAnalysisResult {
+  companyId: string
+  companyName: string
+  healthScore: number
+  healthReasoning: string
+  narrative: string
+}
+
+async function fetchAICompanyAnalysis(
+  companyContext: Awaited<ReturnType<typeof fetchCompanyContextForAI>>,
+  timelines: Awaited<ReturnType<typeof fetchCompanyTimelines>>,
+): Promise<AICompanyAnalysisResult[]> {
+  if (companyContext.length === 0) return []
+
+  try {
+    const companiesData = companyContext.map((c) => {
+      const timeline = timelines.find((t) => t.id === c.id)
+      return {
+        companyId: c.id,
+        companyName: c.rawName,
+        engagementScore: c.engagementScore,
+        lifecycleStage: c.lifecycleStage,
+        status: c.status,
+        industry: c.industry,
+        lastActivity: c.lastActivityAt ? format(new Date(c.lastActivityAt), 'MMM d, yyyy') : 'never',
+        contacts: c.contacts.map((ct) => ({
+          name: ct.rawName,
+          leadScore: ct.leadScore,
+          contactStatus: ct.status,
+        })),
+        recentInteractions: timeline?.interactions.map((int) => ({
+          date: int.date,
+          type: int.type,
+          description: int.description,
+        })) ?? [],
+      }
+    })
+
+    const systemPrompt = `You are a senior relationship intelligence analyst for a B2B sales team. For each company, you must provide a nuanced health assessment and a brief relationship trajectory narrative.
+
+SCORING GUIDELINES:
+- Weigh recency heavily: a company engaged this week should score 70+, even with moderate engagement score
+- Weigh interaction quality: meetings > calls > emails > research > notes
+- Consider lifecycle alignment: a "negotiation" company going cold is worse than a "prospect" going cold
+- Consider contact diversity: multiple engaged contacts is a strength signal
+- Penalize gaps: >14 days with no activity drops score significantly unless lifecycle is dormant
+
+For EACH company, return:
+1. "companyId": the exact company ID string
+2. "companyName": the exact company name string
+3. "healthScore": number 0-100 — your nuanced assessment, NOT just the raw engagement score
+4. "healthReasoning": 1-2 concise sentences explaining the score. Mention specific signals (max 180 chars)
+5. "narrative": 2-3 sentence relationship trajectory. Mention momentum shifts, patterns, and what the data suggests about the relationship direction. Be specific about dates and event types (max 300 chars)
+
+Respond with ONLY a JSON array of objects. No text before or after the array.`
+
+    const userPrompt = `Analyze these company relationships:\n\n${JSON.stringify(companiesData, null, 1)}`
+
+    const raw = await callAI(systemPrompt, userPrompt)
+
+    let parsed: AICompanyAnalysisResult[]
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      const match = raw.match(/\[[\s\S]*\]/)
+      parsed = match ? JSON.parse(match[0]) : []
+    }
+
+    return parsed
+      .filter(
+        (a) =>
+          typeof a.companyId === 'string' &&
+          typeof a.companyName === 'string' &&
+          typeof a.healthScore === 'number' &&
+          typeof a.healthReasoning === 'string' &&
+          typeof a.narrative === 'string',
+      )
+      .map((a) => ({
+        companyId: a.companyId,
+        companyName: a.companyName,
+        healthScore: Math.min(100, Math.max(0, Math.round(a.healthScore))),
+        healthReasoning: a.healthReasoning.slice(0, 180),
+        narrative: a.narrative.slice(0, 300),
+      }))
+  } catch {
+    return []
+  }
+}
+
+// ---------------------------------------------------------------------------
+// AI PILLAR 2: Strategic Recommendations (cross-sell, sequencing, timing, risk)
+// ---------------------------------------------------------------------------
+
+async function fetchAIStrategicRecommendations(
+  companyContext: Awaited<ReturnType<typeof fetchCompanyContextForAI>>,
+): Promise<RecommendedAction[]> {
+  if (companyContext.length === 0) return []
+
+  try {
+    const portfolioData = companyContext.map((c) => ({
+      id: c.id,
+      name: c.rawName,
+      lifecycleStage: c.lifecycleStage,
+      engagementScore: c.engagementScore,
+      status: c.status,
+      lastActivity: c.lastActivityAt ? format(new Date(c.lastActivityAt), 'MMM d, yyyy') : 'never',
+      contacts: c.contacts.map((ct) => ({
+        name: ct.rawName,
+        leadScore: ct.leadScore,
+        contactStatus: ct.status,
+      })),
+    }))
+
+    const systemPrompt = `You are a strategic B2B sales advisor analyzing a full relationship portfolio. Generate 5-8 high-impact recommendations across these four categories:
+
+1. CROSS-SELL / UPSELL OPPORTUNITIES: Companies showing buying signals (high engagement, recent activity, multiple contacts) that are ready for expanded conversations.
+
+2. OPTIMAL CONTACT SEQUENCING: When a company has multiple contacts, recommend which person to engage next and why (e.g., "Talk to the VP after the champion's positive response").
+
+3. TIMING RECOMMENDATIONS: Based on lifecycle stage and recent activity patterns, recommend when to reach out (e.g., "Follow up on the proposal within 3 days while momentum is high").
+
+4. RISK ALERTS: Companies showing danger signs — declining engagement, stale relationships in critical stages, single-threaded contacts going cold.
+
+Vary your recommendations across all four categories. For each recommendation:
+- "company": exact company name
+- "companyId": exact company ID
+- "person": specific contact name, or "Team" if no specific person
+- "action": specific, actionable step (max 70 chars)
+- "reason": strategic reasoning with category context (max 120 chars)
+- "priority": "high" or "medium"
+
+Respond with ONLY a JSON array. No text outside the array.`
+
+    const userPrompt = `Portfolio overview:\n\n${JSON.stringify(portfolioData, null, 1)}\n\nGenerate 5-8 strategic recommendations covering cross-sell, contact sequencing, timing, and risk alert categories.`
+
+    const raw = await callAI(systemPrompt, userPrompt)
+
+    let parsed: RecommendedAction[]
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      const match = raw.match(/\[[\s\S]*\]/)
+      parsed = match ? JSON.parse(match[0]) : []
+    }
+
+    return parsed
+      .filter(
+        (a): a is RecommendedAction =>
+          typeof a.company === 'string' &&
+          typeof a.companyId === 'string' &&
+          typeof a.person === 'string' &&
+          typeof a.action === 'string' &&
+          typeof a.reason === 'string' &&
+          (a.priority === 'high' || a.priority === 'medium'),
+      )
+      .map((a) => ({
+        company: a.company.slice(0, 100),
+        companyId: a.companyId,
+        person: a.person.slice(0, 100),
+        action: a.action.slice(0, 70),
+        reason: a.reason.slice(0, 120),
+        priority: a.priority,
+      }))
+  } catch {
+    return []
+  }
+}
+
+// ---------------------------------------------------------------------------
+// AI PILLAR 3: Weekly Pattern Analysis
+// ---------------------------------------------------------------------------
+
+async function fetchAIWeeklyPatternAnalysis(
+  thisWeek: Awaited<ReturnType<typeof fetchWeeklyActivity>>,
+  lastWeek: Awaited<ReturnType<typeof fetchPreviousWeekActivity>>,
+): Promise<string | null> {
+  try {
+    const systemPrompt = `You are a sales activity analytics advisor. Compare this week's outreach activity to last week and provide a concise, actionable trend analysis.
+
+Focus on:
+- Significant volume changes (e.g., "email volume dropped 40%")
+- Activity mix imbalances (e.g., "heavy on emails but zero meetings — consider converting email conversations to calls")
+- Actionable next steps for the coming week
+- Be specific with numbers and percentages
+
+Respond with ONLY a JSON object with a single field:
+- "trendAnalysis": string, 2-4 sentences, max 350 chars
+
+No text outside the JSON object.`
+
+    const userPrompt = `This week's activity: ${JSON.stringify(thisWeek)}\nLast week's activity: ${JSON.stringify(lastWeek)}`
+
+    const raw = await callAI(systemPrompt, userPrompt)
+
+    let parsed: { trendAnalysis: string }
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      const match = raw.match(/\{[\s\S]*\}/)
+      parsed = match ? JSON.parse(match[0]) : { trendAnalysis: '' }
+    }
+
+    return parsed.trendAnalysis?.length ? parsed.trendAnalysis.slice(0, 350) : null
+  } catch {
+    return null
+  }
+}
+
+// ---------------------------------------------------------------------------
+// AI PILLAR 4: Relationship Portfolio Summary
+// ---------------------------------------------------------------------------
+
+async function fetchAIRelationshipSummary(
+  stats: Awaited<ReturnType<typeof fetchStats>>,
+  companyContext: Awaited<ReturnType<typeof fetchCompanyContextForAI>>,
+): Promise<string | null> {
+  try {
+    const companyLines = companyContext.map((c) => {
+      const contactSummary = c.contacts.map((ct) => `${ct.rawName} (lead:${ct.leadScore})`).join(', ')
+      return `"${c.rawName}": engagement=${c.engagementScore}, stage=${c.lifecycleStage ?? 'unknown'}, status=${c.status}, contacts=[${contactSummary || 'none'}]`
+    })
+
+    const systemPrompt = `You are a relationship portfolio advisor providing a high-level executive summary. Analyze the full portfolio and provide insights.
+
+Cover:
+- Overall portfolio health and balance (are too many relationships going cold? is engagement concentrated in a few companies?)
+- Notable strengths (strong multi-threaded relationships, hot opportunities)
+- Key concern or strategic focus for the coming week
+
+Respond with ONLY a JSON object with a single field:
+- "summary": string, 3-4 sentences, max 450 chars
+
+No text outside the JSON object.`
+
+    const userPrompt = `Portfolio stats: ${JSON.stringify(stats)}\n\nTop companies:\n${companyLines.join('\n')}`
+
+    const raw = await callAI(systemPrompt, userPrompt)
+
+    let parsed: { summary: string }
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      const match = raw.match(/\{[\s\S]*\}/)
+      parsed = match ? JSON.parse(match[0]) : { summary: '' }
+    }
+
+    return parsed.summary?.length ? parsed.summary.slice(0, 450) : null
+  } catch {
+    return null
+  }
+}
+
+// ---------------------------------------------------------------------------
 // GET /api/ai/relationship-memory
 // ---------------------------------------------------------------------------
 
@@ -515,18 +837,64 @@ export async function GET() {
       return apiSuccess(cachedResult.data)
     }
 
-    const [stats, companyTimelines, recommendedActions, weeklyActivity] = await Promise.all([
-      fetchStats(),
-      fetchCompanyTimelines(),
-      fetchRecommendedActions(),
-      fetchWeeklyActivity(),
+    // -----------------------------------------------------------------------
+    // Phase 1: Fetch all raw data from DB in parallel
+    // -----------------------------------------------------------------------
+    const [stats, companyTimelines, ruleBasedActions, weeklyActivity, companyContext, previousWeekActivity] =
+      await Promise.all([
+        fetchStats(),
+        fetchCompanyTimelines(),
+        fetchRecommendedActions(), // rule-based + stale-company AI (original fallback layer)
+        fetchWeeklyActivity(),
+        fetchCompanyContextForAI(),
+        fetchPreviousWeekActivity(),
+      ])
+
+    // -----------------------------------------------------------------------
+    // Phase 2: Run all four AI analysis pillars in parallel
+    // Each pillar independently catches errors — one failure won't block others
+    // -----------------------------------------------------------------------
+    const [aiCompanyAnalysis, aiStrategicRecs, aiTrendAnalysis, aiRelationshipSummary] = await Promise.all([
+      fetchAICompanyAnalysis(companyContext, companyTimelines),
+      fetchAIStrategicRecommendations(companyContext),
+      fetchAIWeeklyPatternAnalysis(weeklyActivity, previousWeekActivity),
+      fetchAIRelationshipSummary(stats, companyContext),
     ])
+
+    // -----------------------------------------------------------------------
+    // Phase 3: Merge AI results into response
+    // -----------------------------------------------------------------------
+
+    // 3a. Enrich company timelines with AI health scores, reasoning, and narratives
+    const enrichedTimelines = companyTimelines.map((timeline) => {
+      const aiResult = aiCompanyAnalysis.find((a) => a.companyId === timeline.id)
+      return {
+        ...timeline,
+        // Use AI health score if available, otherwise keep the math-based fallback
+        health: aiResult ? aiResult.healthScore : timeline.health,
+        aiNarrative: aiResult?.narrative ?? null,
+        aiHealthReasoning: aiResult?.healthReasoning ?? null,
+      }
+    })
+
+    // 3b. Merge AI strategic recommendations with existing rule-based + stale-company actions
+    // Rule-based actions serve as the guaranteed fallback; AI recs are additive
+    const allActions = [...ruleBasedActions, ...aiStrategicRecs]
+    allActions.sort((a, b) =>
+      a.priority === 'high' && b.priority !== 'high'
+        ? -1
+        : a.priority !== 'high' && b.priority === 'high'
+          ? 1
+          : 0,
+    )
 
     const data: RelationshipMemoryResponse = {
       stats,
-      companyTimelines,
-      recommendedActions,
+      companyTimelines: enrichedTimelines,
+      recommendedActions: allActions.slice(0, 12),
       weeklyActivity,
+      aiRelationshipSummary,
+      aiTrendAnalysis,
     }
 
     cachedResult = { data, ts: Date.now() }

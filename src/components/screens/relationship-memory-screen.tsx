@@ -34,6 +34,8 @@ interface CompanyTimeline {
   healthColor: 'green' | 'amber' | 'red';
   contacts: Contact[];
   interactions: TimelineEntry[];
+  aiNarrative?: string;
+  aiHealthReasoning?: string;
 }
 
 interface RecommendedAction {
@@ -70,6 +72,8 @@ interface ApiCompanyTimeline {
     description: string;
     nextAction?: string;
   }>;
+  aiNarrative?: string;
+  aiHealthReasoning?: string;
 }
 
 interface ApiRecommendedAction {
@@ -86,6 +90,8 @@ interface ApiData {
   companyTimelines: ApiCompanyTimeline[];
   recommendedActions: ApiRecommendedAction[];
   weeklyActivity: ApiWeeklyActivity;
+  aiRelationshipSummary?: string;
+  aiTrendAnalysis?: string;
 }
 
 /* ── Static Maps ───────────────────────────────────── */
@@ -309,6 +315,37 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
         ))}
       </StaggerGrid>
 
+      {/* ── 2b. AI Relationship Summary ──────────── */}
+      {data.aiRelationshipSummary && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.35 }}
+        >
+          <div
+            className="rounded-xl border p-5 shadow-sm"
+            style={{
+              background: 'linear-gradient(135deg, #FFFDF5 0%, #FFFBEB 100%)',
+              borderColor: 'rgba(184, 134, 11, 0.25)',
+            }}
+          >
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(184, 134, 11, 0.12)' }}>
+                <Sparkles className="w-4 h-4" style={{ color: '#B8860B' }} />
+              </div>
+              <h3 className="text-sm font-semibold" style={{ color: '#8B6914' }}>AI Relationship Summary</h3>
+              <span
+                className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(184, 134, 11, 0.12)', color: '#B8860B' }}
+              >
+                Live AI
+              </span>
+            </div>
+            <p className="text-sm leading-relaxed" style={{ color: '#374151' }}>{data.aiRelationshipSummary}</p>
+          </div>
+        </motion.div>
+      )}
+
       {/* ── 3 + 4. Main Content Grid ───────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Left: Account Timelines (2/3) */}
@@ -334,7 +371,15 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                   </div>
 
                   {/* Health bar */}
-                  <HealthBar pct={company.health} color={healthBarColor(company.healthColor)} />
+                  <div className="space-y-1">
+                    <HealthBar pct={company.health} color={healthBarColor(company.healthColor)} />
+                    {company.aiHealthReasoning && (
+                      <p className="text-[11px] leading-relaxed" style={{ color: '#9CA3AF' }}>
+                        <Sparkles className="w-3 h-3 inline-block mr-1 -mt-0.5" style={{ color: '#D4AF37' }} />
+                        {company.aiHealthReasoning}
+                      </p>
+                    )}
+                  </div>
 
                   {/* Key contacts */}
                   <div className="flex items-center gap-2 flex-wrap">
@@ -350,6 +395,22 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                       </div>
                     ))}
                   </div>
+
+                  {/* AI Narrative */}
+                  {company.aiNarrative && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.3, duration: 0.5 }}
+                      className="relative rounded-lg px-4 py-3"
+                      style={{ background: 'rgba(184, 134, 11, 0.05)', borderLeft: '3px solid #D4AF37' }}
+                    >
+                      <p className="text-sm leading-relaxed italic" style={{ color: '#6B7280' }}>
+                        <Sparkles className="w-3 h-3 inline-block mr-1 -mt-0.5" style={{ color: '#D4AF37' }} />
+                        {company.aiNarrative}
+                      </p>
+                    </motion.div>
+                  )}
 
                   {/* Interaction timeline */}
                   <div className="relative pl-5 border-l-2 border-gray-100 space-y-4 mt-2">
@@ -454,6 +515,26 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
               </motion.div>
             ))}
           </GlassPanel>
+
+          {/* AI Trend Analysis */}
+          {data.aiTrendAnalysis && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.5 }}
+            >
+              <GlassPanel
+                className="p-4 space-y-2"
+                style={{ borderColor: 'rgba(184, 134, 11, 0.2)' }}
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5" style={{ color: '#D4AF37' }} />
+                  <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8B6914' }}>AI Trend Insight</p>
+                </div>
+                <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>{data.aiTrendAnalysis}</p>
+              </GlassPanel>
+            </motion.div>
+          )}
 
           {/* Quick stats mini-card */}
           {weeklyActivity && (

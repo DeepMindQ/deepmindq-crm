@@ -17,6 +17,7 @@ interface Recommendation {
   entityName: string
   action: string
   reasoning: string
+  aiEnhanced?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -34,7 +35,7 @@ function sortRecommendations(recs: Recommendation[]): Recommendation[] {
 }
 
 // ---------------------------------------------------------------------------
-// Rule-based recommendation generators
+// Rule-based recommendation generators (unchanged — collect raw data)
 // ---------------------------------------------------------------------------
 
 /**
@@ -230,11 +231,149 @@ async function wonRecently(): Promise<Recommendation[]> {
 }
 
 // ---------------------------------------------------------------------------
+// AI Enhancement via z-ai-web-dev-sdk
+// ---------------------------------------------------------------------------
+
+const RECOMMENDATION_SYSTEM_PROMPT = `You are a senior B2B sales strategist and revenue operations analyst. You receive a batch of rule-generated recommendations from a CRM system. Your job is to enhance each one with deep strategic intelligence.
+
+For each recommendation, you must:
+
+1. **Re-assess priority** — consider revenue impact, timing urgency, and relationship warmth. A negotiation-stage deal is almost always higher priority than a research task. A recently-won deal has a narrow cross-sell window. A stale contact at a high-value account is more urgent than one at a small prospect.
+
+2. **Rewrite reasoning** — replace the generic rule explanation with specific, actionable strategic reasoning. Explain WHY this action matters RIGHT NOW. Reference the business context implied by the data (e.g., "negotiation stage means budget is allocated — delay risks losing the deal to a competitor").
+
+3. **Suggest best timing/approach** — embed timing and approach guidance directly into the reasoning (e.g., "Best approached Tuesday-Thursday morning with a value-add email referencing their Q3 initiative").
+
+4. **Identify cross-sell/upsell** — if a recommendation involves a company where you can infer adjacent opportunities (e.g., a won deal suggests expansion to other departments, a negotiation signals related service lines), surface those in the reasoning.
+
+5. **Spot patterns the rules miss** — if multiple recommendations relate to the same company, flag the connection. If a contact is both stale AND has a draft pending, elevate urgency.
+
+Return ONLY a valid JSON array. Each element must have these exact fields:
+- "entityId": string (MUST match the input exactly — this is the database ID)
+- "priority": "high" | "medium" | "low"
+- "action": string (improved, specific action — max 120 chars)
+- "reasoning": string (2-3 sentences of specific strategic reasoning — max 300 chars)
+
+Do NOT change entityType, entityName, or type. Do NOT add or remove recommendations.
+Respond ONLY with valid JSON, no markdown fences, no explanation.`
+
+interface RawAIRecommendation {
+  entityId?: string
+  priority?: string
+  action?: string
+  reasoning?: string
+}
+
+const VALID_PRIORITIES: Priority[] = ['high', 'medium', 'low']
+
+function buildAIUserPrompt(recs: Recommendation[]): string {
+  const items = recs.map((r, i) => {
+    return `[${i}] {
+  "type": "${r.type}",
+  "priority": "${r.priority}",
+  "entityType": "${r.entityType}",
+  "entityId": "${r.entityId}",
+  "entityName": "${r.entityName}",
+  "action": "${r.action.replace(/"/g, '\\"')}",
+  "reasoning": "${r.reasoning.replace(/"/g, '\\"')}"
+}`
+  }).join(',\n')
+
+  return `Analyze and enhance these ${recs.length} CRM recommendations. Re-prioritize, improve reasoning, add timing/approach guidance, and identify cross-sell opportunities.\n\n[\n${items}\n]`
+}
+
+function parseAIResponse(raw: string, originals: Recommendation[]): Recommendation[] {
+  const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+
+  let aiRecs: RawAIRecommendation[] = []
+
+  // Try direct JSON parse first
+  try {
+    const parsed = JSON.parse(cleaned)
+    if (Array.isArray(parsed)) {
+      aiRecs = parsed
+    }
+  } catch {
+    // Regex fallback: extract individual objects by entityId
+    const objRegex = /\{\s*"entityId"\s*:\s*"[^"]+"/g
+    let match = objRegex.exec(cleaned)
+    while (match) {
+      try {
+        let depth = 0
+        let start = match.index
+        let end = start
+        for (let i = start; i < cleaned.length; i++) {
+          if (cleaned[i] === '{') depth++
+          else if (cleaned[i] === '}') depth--
+          if (depth === 0) { end = i + 1; break }
+        }
+        aiRecs.push(JSON.parse(cleaned.slice(start, end)))
+      } catch {
+        // skip malformed
+      }
+      match = objRegex.exec(cleaned)
+    }
+  }
+
+  // Build a lookup from entityId → AI enhancement
+  const aiMap = new Map<string, RawAIRecommendation>()
+  for (const ai of aiRecs) {
+    if (ai.entityId) {
+      aiMap.set(ai.entityId, ai)
+    }
+  }
+
+  // Merge AI enhancements into the original recommendations
+  const enhanced: Recommendation[] = originals.map((orig) => {
+    const ai = aiMap.get(orig.entityId)
+    if (!ai) return { ...orig, aiEnhanced: true }
+
+    const priority = VALID_PRIORITIES.includes(ai.priority as Priority)
+      ? (ai.priority as Priority)
+      : orig.priority
+
+    return {
+      ...orig,
+      priority,
+      action: ai.action && ai.action.length > 5 ? ai.action.slice(0, 120) : orig.action,
+      reasoning: ai.reasoning && ai.reasoning.length > 10 ? ai.reasoning.slice(0, 300) : orig.reasoning,
+      aiEnhanced: true,
+    }
+  })
+
+  return enhanced
+}
+
+async function enhanceWithAI(recs: Recommendation[]): Promise<Recommendation[]> {
+  if (recs.length === 0) return recs
+
+  const ZAI = await import('z-ai-web-dev-sdk').then((m) => m.default).then((Z) => Z.create())
+
+  const completion = await ZAI.chat.completions.create({
+    messages: [
+      { role: 'assistant', content: RECOMMENDATION_SYSTEM_PROMPT },
+      { role: 'user', content: buildAIUserPrompt(recs) },
+    ],
+    thinking: { type: 'disabled' },
+  })
+
+  const raw = completion.choices?.[0]?.message?.content ?? ''
+
+  if (!raw || raw.length < 10) {
+    console.warn('[ai/recommendations] AI returned empty or too-short response, using rule-based fallback')
+    return recs
+  }
+
+  return parseAIResponse(raw, recs)
+}
+
+// ---------------------------------------------------------------------------
 // GET /api/ai/recommendations
 // ---------------------------------------------------------------------------
 
 export async function GET() {
   try {
+    // Phase 1: Run all rule-based generators in parallel
     const [
       stale,
       unvalidated,
@@ -263,7 +402,26 @@ export async function GET() {
       ...wonRecent,
     ]
 
-    const sorted = sortRecommendations(all).slice(0, 20)
+    if (all.length === 0) {
+      return apiSuccess({ recommendations: [] })
+    }
+
+    // Phase 2: Enhance with AI — graceful fallback on any failure
+    let enhanced: Recommendation[]
+    try {
+      enhanced = await enhanceWithAI(all)
+      // Sort by AI-reassessed priority
+      enhanced = sortRecommendations(enhanced)
+    } catch (err) {
+      console.warn(
+        '[ai/recommendations] AI enhancement failed, returning rule-based recommendations:',
+        err instanceof Error ? err.message : err,
+      )
+      enhanced = sortRecommendations(all).map((r) => ({ ...r, aiEnhanced: false }))
+    }
+
+    // Limit to top 20
+    const sorted = enhanced.slice(0, 20)
 
     return apiSuccess({ recommendations: sorted })
   } catch {

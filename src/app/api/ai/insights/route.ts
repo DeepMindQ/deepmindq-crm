@@ -2,7 +2,7 @@ import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 
 /* ── In-memory cache (5 minutes) ── */
-let cachedResult: { data: ReturnType<typeof buildInsights>; ts: number } | null = null
+let cachedResult: { data: InsightsResponse; ts: number } | null = null
 const CACHE_TTL = 5 * 60 * 1000
 
 /* ── Types ── */
@@ -27,8 +27,8 @@ interface InsightsResponse {
   predictions: PredictionItem[]
 }
 
-/* ── Rule-based insight builder ── */
-function buildInsights(stats: {
+/* ── Stats shape gathered from DB ── */
+interface PipelineStats {
   totalCompanies: number
   totalContacts: number
   healthyEmails: number
@@ -43,7 +43,192 @@ function buildInsights(stats: {
   lastWeekContacts: number
   lastWeekHealthy: number
   pipelineActive: number
-}): InsightsResponse {
+  topIndustries: { industry: string; count: number }[]
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   AI-POWERED INSIGHTS (Primary Path)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+async function createZAI() {
+  return import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
+}
+
+/**
+ * Fetch live industry trend context via web search.
+ * Runs in parallel with the LLM where possible, but we need results first
+ * to inject into the prompt.
+ */
+async function fetchIndustryTrends(topIndustries: { industry: string; count: number }[]): Promise<string> {
+  if (topIndustries.length === 0) return ''
+
+  try {
+    const ZAI = await createZAI()
+    const topThree = topIndustries.slice(0, 3).map(i => i.industry)
+    const query = `B2B sales and outreach trends 2025 for ${topThree.join(', ')} industries`
+    const results = await ZAI.functions.invoke('web_search', { query, num: 5 })
+
+    // results may be an array of items or an object with a results array
+    const items: Array<{ title?: string; snippet?: string; url?: string }> = Array.isArray(results)
+      ? results
+      : Array.isArray((results as Record<string, unknown>)?.results)
+        ? (results as Record<string, unknown>).results as typeof items
+        : []
+
+    const snippets = items
+      .slice(0, 5)
+      .map(r => r.snippet ? '[' + (r.title ?? 'Article') + '] ' + r.snippet : null)
+      .filter(Boolean)
+      .join('\n')
+
+    return snippets
+      ? 'Live market intelligence for user\'s top industries:\n' + snippets
+      : ''
+  } catch {
+    return '' // Non-critical — AI still works without it
+  }
+}
+
+/**
+ * Call the LLM with the gathered stats + optional web context and parse
+ * a structured InsightsResponse out of the JSON it returns.
+ */
+async function buildAIInsights(stats: PipelineStats, trendContext: string): Promise<InsightsResponse> {
+  const ZAI = await createZAI()
+
+  const healthRate = stats.totalContacts > 0
+    ? Math.round((stats.healthyEmails / stats.totalContacts) * 100)
+    : 0
+
+  const weekOverWeekGrowth = stats.lastWeekCompanies > 0
+    ? Math.round(((stats.newThisWeek - stats.lastWeekCompanies) / stats.lastWeekCompanies) * 100)
+    : null
+
+  const topIndustriesStr = stats.topIndustries.length > 0
+    ? stats.topIndustries.map(i => i.industry + ' (' + i.count + ')').join(', ')
+    : 'None detected'
+
+  const wowLabel = weekOverWeekGrowth !== null
+    ? ' (WoW ' + (weekOverWeekGrowth >= 0 ? '+' : '') + weekOverWeekGrowth + '%)'
+    : ''
+
+  const trendSection = trendContext
+    ? '\n## Live Market Intelligence\n' + trendContext + '\n'
+    : ''
+
+  const instructionsBlock = [
+    'Return ONLY valid JSON (no markdown fences, no extra text) matching this exact schema:',
+    '{',
+    '  "summary": "2-4 sentence CEO-level strategic summary. Be specific with numbers. Name the single most important action the CEO should take today.",',
+    '  "keyInsights": [',
+    '    {',
+    '      "type": "positive" or "negative" or "neutral" or "action",',
+    '      "icon": "one of: TrendingUp, TrendingDown, ShieldCheck, ShieldAlert, AlertTriangle, Clock, Sparkles, FileSearch, Mail, Building2, Target, Users, Zap, DollarSign, BarChart3, ArrowRight, Lightbulb",',
+    '      "title": "Short 3-5 word title",',
+    '      "description": "1-2 sentences with strategic reasoning, not just restating the number. Explain WHY this matters."',
+    '    }',
+    '  ],',
+    '  "predictions": [',
+    '    {',
+    '      "metric": "name of the metric",',
+    '      "current": <current number>,',
+    '      "predicted": <predicted number ~4 weeks out>,',
+    '      "trend": "up" or "down" or "stable",',
+    '      "confidence": <1-100>',
+    '    }',
+    '  ]',
+    '}',
+    '',
+    'Rules:',
+    '- Generate 4-6 key insights. Prioritize: (1) stalled negotiations, (2) email health issues, (3) growth signals, (4) action items.',
+    '- Generate 3-4 predictions. Include "Total Companies", "Valid Emails", and at least one derived metric.',
+    '- Each insight description must contain strategic analysis, not just data restatement.',
+    '- Predictions should account for momentum, seasonality cues, and the live market intelligence above.',
+    '- If the pipeline is very small (< 10 companies), be encouraging but honest about needing more data.',
+    '- Keep the summary under 80 words.',
+  ].join('\n')
+
+  const userPrompt = [
+    'You are a senior sales intelligence analyst writing a CEO morning briefing. Analyze the following real pipeline data and produce actionable insights.',
+    '',
+    '## Raw Data',
+    '- Total companies in pipeline: ' + stats.totalCompanies,
+    '- Total contacts: ' + stats.totalContacts,
+    '- Emails valid: ' + stats.healthyEmails + ' (' + healthRate + '%)',
+    '- Emails risky: ' + stats.riskyEmails,
+    '- Emails invalid: ' + stats.invalidEmails,
+    '- New companies added THIS week: ' + stats.newThisWeek,
+    '- New companies added LAST week: ' + stats.lastWeekCompanies + wowLabel,
+    '- New contacts added last week: ' + stats.lastWeekContacts,
+    '- AI email drafts generated (last 90 days): ' + stats.draftsGenerated,
+    '- Drafts pending review: ' + stats.pendingDrafts,
+    '- Stalled negotiations: ' + stats.stalledNegotiations,
+    '- Companies without research cards: ' + stats.companiesWithoutResearch,
+    '- Active pipeline deals (not won/lost/archived): ' + stats.pipelineActive,
+    '- Top industries: ' + topIndustriesStr,
+    trendSection,
+    '## Instructions',
+    instructionsBlock,
+  ].join('\n')
+
+  const completion = await ZAI.chat.completions.create({
+    messages: [
+      {
+        role: 'assistant',
+        content:
+          'You are a sales intelligence analyst. You respond ONLY with valid JSON matching the requested schema. No markdown, no commentary.',
+      },
+      { role: 'user', content: userPrompt },
+    ],
+    thinking: { type: 'disabled' },
+  })
+
+  const raw = completion.choices?.[0]?.message?.content ?? ''
+
+  // Extract JSON — handle potential markdown fences or leading/trailing whitespace
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) {
+    throw new Error('AI returned non-JSON response')
+  }
+
+  const parsed = JSON.parse(jsonMatch[0])
+
+  // Validate and sanitize the shape
+  const insights: InsightItem[] = (Array.isArray(parsed.keyInsights) ? parsed.keyInsights : [])
+    .slice(0, 6)
+    .map((item: Record<string, unknown>) => ({
+      type: ['positive', 'negative', 'neutral', 'action'].includes(item.type as string)
+        ? (item.type as InsightItem['type'])
+        : 'neutral',
+      icon: typeof item.icon === 'string' && item.icon.length > 0 ? item.icon : 'Lightbulb',
+      title: String(item.title ?? '').slice(0, 60) || 'Insight',
+      description: String(item.description ?? '').slice(0, 300) || '',
+    }))
+
+  const predictions: PredictionItem[] = (Array.isArray(parsed.predictions) ? parsed.predictions : [])
+    .slice(0, 4)
+    .map((item: Record<string, unknown>) => ({
+      metric: String(item.metric ?? 'Metric').slice(0, 50),
+      current: Number(item.current) || 0,
+      predicted: Math.max(Number(item.predicted) || 0, Number(item.current) || 0),
+      trend: ['up', 'down', 'stable'].includes(item.trend as string)
+        ? (item.trend as PredictionItem['trend'])
+        : 'stable',
+      confidence: Math.min(99, Math.max(1, Math.round(Number(item.confidence) || 50))),
+    }))
+
+  return {
+    summary: String(parsed.summary ?? '').slice(0, 500) || 'AI insights unavailable.',
+    keyInsights: insights,
+    predictions,
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RULE-BASED FALLBACK (kept verbatim from original)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function buildRuleBasedInsights(stats: PipelineStats): InsightsResponse {
   const insights: InsightItem[] = []
   const predictions: PredictionItem[] = []
 
@@ -224,7 +409,93 @@ function buildInsights(stats: {
   return { summary, keyInsights: insights.slice(0, 6), predictions }
 }
 
-/* ── GET handler ── */
+/* ══════════════════════════════════════════════════════════════════════════
+   DB QUERY LAYER — gathers all stats in parallel
+   ══════════════════════════════════════════════════════════════════════════ */
+
+async function gatherStats(): Promise<PipelineStats> {
+  const now = new Date()
+  const sevenDaysAgo = new Date(now)
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+  const fourteenDaysAgo = new Date(now)
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14)
+
+  const [
+    totalCompanies,
+    totalContacts,
+    healthyEmails,
+    riskyEmails,
+    invalidEmails,
+    newThisWeek,
+    draftsGenerated,
+    pendingDrafts,
+    stalledNegotiations,
+    companiesWithoutResearch,
+    lastWeekCompanies,
+    lastWeekContacts,
+    lastWeekHealthy,
+    pipelineActive,
+    topIndustriesRaw,
+  ] = await Promise.all([
+    db.company.count({ where: { status: { not: 'archived' } } }),
+    db.contact.count({ where: { archivedAt: null } }),
+    db.contact.count({ where: { emailHealth: 'valid', archivedAt: null } }),
+    db.contact.count({ where: { emailHealth: 'risky', archivedAt: null } }),
+    db.contact.count({ where: { emailHealth: 'invalid', archivedAt: null } }),
+    db.company.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+    db.draft.count({ where: { createdAt: { gte: new Date(now.getTime() - 90 * 86400000) } } }),
+    db.draft.count({ where: { status: 'draft' } }),
+    db.opportunity.count({ where: { status: 'negotiation' } }),
+    db.company.count({
+      where: {
+        status: { not: 'archived' },
+        researchCard: { is: null },
+      },
+    }),
+    db.company.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
+    db.contact.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo }, archivedAt: null } }),
+    db.emailHealthCheck.count({ where: { checkedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo }, status: 'valid' } }),
+    db.opportunity.count({ where: { status: { notIn: ['won', 'lost', 'archived'] } } }),
+    // Group companies by industry, take top 5
+    db.company.groupBy({
+      by: ['industry'],
+      where: {
+        status: { not: 'archived' },
+        industry: { not: null },
+      },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 5,
+    }),
+  ])
+
+  const topIndustries = topIndustriesRaw
+    .filter(r => r.industry)
+    .map(r => ({ industry: r.industry!, count: r._count.id }))
+
+  return {
+    totalCompanies,
+    totalContacts,
+    healthyEmails,
+    riskyEmails,
+    invalidEmails,
+    newThisWeek,
+    draftsGenerated,
+    pendingDrafts,
+    stalledNegotiations,
+    companiesWithoutResearch,
+    lastWeekCompanies,
+    lastWeekContacts,
+    lastWeekHealthy,
+    pipelineActive,
+    topIndustries,
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   GET HANDLER
+   ══════════════════════════════════════════════════════════════════════════ */
+
 export async function GET() {
   try {
     // Return cached if fresh
@@ -232,65 +503,22 @@ export async function GET() {
       return apiSuccess(cachedResult.data)
     }
 
-    const now = new Date()
-    const sevenDaysAgo = new Date(now)
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    const fourteenDaysAgo = new Date(now)
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14)
+    const stats = await gatherStats()
 
-    const [
-      totalCompanies,
-      totalContacts,
-      healthyEmails,
-      riskyEmails,
-      invalidEmails,
-      newThisWeek,
-      draftsGenerated,
-      pendingDrafts,
-      stalledNegotiations,
-      companiesWithoutResearch,
-      lastWeekCompanies,
-      lastWeekContacts,
-      lastWeekHealthy,
-      pipelineActive,
-    ] = await Promise.all([
-      db.company.count({ where: { status: { not: 'archived' } } }),
-      db.contact.count({ where: { archivedAt: null } }),
-      db.contact.count({ where: { emailHealth: 'valid', archivedAt: null } }),
-      db.contact.count({ where: { emailHealth: 'risky', archivedAt: null } }),
-      db.contact.count({ where: { emailHealth: 'invalid', archivedAt: null } }),
-      db.company.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
-      db.draft.count({ where: { createdAt: { gte: new Date(now.getTime() - 90 * 86400000) } } }),
-      db.draft.count({ where: { status: 'draft' } }),
-      db.opportunity.count({ where: { status: 'negotiation' } }),
-      db.company.count({
-        where: {
-          status: { not: 'archived' },
-          researchCard: { is: null },
-        },
-      }),
-      db.company.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
-      db.contact.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo }, archivedAt: null } }),
-      db.emailHealthCheck.count({ where: { checkedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo }, status: 'valid' } }),
-      db.opportunity.count({ where: { status: { notIn: ['won', 'lost', 'archived'] } } }),
-    ])
-
-    const data = buildInsights({
-      totalCompanies,
-      totalContacts,
-      healthyEmails,
-      riskyEmails,
-      invalidEmails,
-      newThisWeek,
-      draftsGenerated,
-      pendingDrafts,
-      stalledNegotiations,
-      companiesWithoutResearch,
-      lastWeekCompanies,
-      lastWeekContacts,
-      lastWeekHealthy,
-      pipelineActive,
-    })
+    // --- AI path (primary) ---
+    let data: InsightsResponse
+    try {
+      const [trendContext] = await Promise.all([
+        fetchIndustryTrends(stats.topIndustries),
+        // We could parallelize the LLM call too, but it depends on trendContext
+        // so we run it sequentially inside buildAIInsights
+      ])
+      data = await buildAIInsights(stats, trendContext)
+    } catch (aiError) {
+      // Fallback to rule-based if AI fails for any reason
+      console.warn('[AI Insights] AI generation failed, falling back to rules:', aiError)
+      data = buildRuleBasedInsights(stats)
+    }
 
     cachedResult = { data, ts: Date.now() }
     return apiSuccess(data)

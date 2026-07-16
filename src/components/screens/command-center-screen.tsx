@@ -42,6 +42,10 @@ interface Insights {
   };
   recommendations: Array<{ type: string; priority: 'high' | 'medium' | 'low'; engine: string; title: string; description: string; actionScreen?: string }>;
   healthScore: number;
+  // AI-powered fields (from upgraded backend)
+  aiSummary?: string;
+  aiStrategicInsights?: Array<{ insight: string; impact: 'high' | 'medium' | 'low'; action: string }>;
+  aiHealthAnalysis?: string;
 }
 interface AuditItem { id: string; action: string; entity: string; entityId?: string; details?: string; createdAt: string }
 
@@ -126,6 +130,9 @@ function HealthGauge({ score, insights }: { score: number; insights: Insights })
           <span className="text-[10px] uppercase tracking-[0.2em] mt-1" style={{ color: C.textMuted }}>System Health</span>
         </div>
       </div>
+      {insights.aiHealthAnalysis && (
+        <p className="text-[10px] leading-relaxed mb-3 px-1 text-center" style={{ color: C.textMuted }}>{insights.aiHealthAnalysis}</p>
+      )}
       <div className="grid grid-cols-2 gap-2 w-full">
         {pills.map((p, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.08 }}
@@ -491,22 +498,43 @@ function AIQueryTab({ onQuery, loading, result }: { onQuery: (q: string) => void
         </div>
       )}
       {result && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border p-6" style={{ background: C.card, borderColor: `${C.gold}25` }}>
-          <div className="flex items-center gap-2 mb-2"><Brain className="w-4 h-4" style={{ color: C.gold }} /><span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: C.gold }}>AI Analysis</span></div>
-          <p className="text-sm mb-3" style={{ color: C.text }}>{result.summary || 'Query processed successfully.'}</p>
-          {result.interpretation && <p className="text-[11px] italic mb-3" style={{ color: C.textMuted }}>"{result.interpretation}"</p>}
-          {Array.isArray(result.data) && result.data.length > 0 && (
-            <div className="max-h-48 overflow-y-auto rounded-xl border" style={{ borderColor: C.border }}>
-              {result.data.slice(0, 8).map((item: any, i: number) => (
-                <div key={item.id || i} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-b-0" style={{ borderColor: 'rgba(0, 0, 0, 0.04)' }}>
-                  {item.name && <span className="text-xs flex-1 truncate" style={{ color: C.text }}>{item.name}</span>}
-                  {item.title && <span className="text-xs flex-1 truncate" style={{ color: C.text }}>{item.title}</span>}
-                  {item.score !== undefined && <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: `${C.gold}15`, color: C.gold }}>{item.score}</span>}
-                  {item.count !== undefined && <span className="text-[10px] font-medium" style={{ color: C.gold }}>{item.count}</span>}
-                </div>
-              ))}
-            </div>
-          )}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+          <div className="rounded-2xl border p-6" style={{ background: C.card, borderColor: `${C.gold}25` }}>
+            <div className="flex items-center gap-2 mb-2"><Brain className="w-4 h-4" style={{ color: C.gold }} /><span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: C.gold }}>AI Analysis{result.aiProcessed ? ' (Live)' : ''}</span></div>
+            <p className="text-sm mb-3" style={{ color: C.text }}>{result.summary || 'Query processed successfully.'}</p>
+            {result.interpretation && <p className="text-[11px] italic mb-3" style={{ color: C.textMuted }}>"{result.interpretation}"</p>}
+            {Array.isArray(result.aiInsights) && result.aiInsights.length > 0 && (
+              <div className="mt-3 p-3 rounded-xl border space-y-2" style={{ background: `linear-gradient(135deg, ${C.gold}06, ${C.gold}02)`, borderColor: `${C.gold}20` }}>
+                <div className="flex items-center gap-1.5 mb-1"><Lightbulb className="w-3.5 h-3.5" style={{ color: C.gold }} /><span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: C.gold }}>AI Insights</span></div>
+                {result.aiInsights.map((ins: string, i: number) => (
+                  <p key={i} className="text-[11px] leading-relaxed" style={{ color: C.textMuted }}>{ins}</p>
+                ))}
+              </div>
+            )}
+            {Array.isArray(result.suggestedFollowUp) && result.suggestedFollowUp.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {result.suggestedFollowUp.slice(0, 4).map((q: string, i: number) => (
+                  <button key={i} onClick={() => onQuery(q)} className="px-3 py-1.5 rounded-full text-[10px] border transition-all duration-200"
+                    style={{ borderColor: `${C.gold}25`, color: C.gold, background: `${C.gold}06` }}
+                    onMouseEnter={e => { e.currentTarget.style.background = `${C.gold}12`; }} onMouseLeave={e => { e.currentTarget.style.background = `${C.gold}06`; }}>
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
+            {Array.isArray(result.data) && result.data.length > 0 && (
+              <div className="max-h-48 overflow-y-auto rounded-xl border mt-3" style={{ borderColor: C.border }}>
+                {result.data.slice(0, 8).map((item: any, i: number) => (
+                  <div key={item.id || i} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-b-0" style={{ borderColor: 'rgba(0, 0, 0, 0.04)' }}>
+                    {item.name && <span className="text-xs flex-1 truncate" style={{ color: C.text }}>{item.name}</span>}
+                    {item.title && <span className="text-xs flex-1 truncate" style={{ color: C.text }}>{item.title}</span>}
+                    {item.score !== undefined && <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: `${C.gold}15`, color: C.gold }}>{item.score}</span>}
+                    {item.count !== undefined && <span className="text-[10px] font-medium" style={{ color: C.gold }}>{item.count}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </motion.div>
       )}
       {!loading && !result && (
@@ -528,7 +556,7 @@ export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) 
   const [activities, setActivities] = useState<AuditItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [aiInsights, setAiInsights] = useState<{ summary: string; keyInsights: Array<{ type: string; icon: string; title: string; description: string }>; predictions: Array<{ metric: string; current: number; predicted: number; trend: string; confidence: number }> } | null>(null);
-  const [aiRecommendations, setAiRecommendations] = useState<Array<{ type: string; priority: string; entityType: string; entityId: string; entityName: string; action: string; reasoning: string }>>([]);
+  const [aiRecommendations, setAiRecommendations] = useState<Array<{ type: string; priority: string; entityType: string; entityId: string; entityName: string; action: string; reasoning: string; aiEnhanced?: boolean }>>([]);
   const [queryResult, setQueryResult] = useState<any>(null);
   const [queryLoading, setQueryLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'engines' | 'query'>('overview');
@@ -609,6 +637,39 @@ export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) 
           </div>
         </div>
 
+        {/* AI DAILY BRIEFING */}
+        {insights.aiSummary && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+            className="rounded-2xl border p-5 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${C.gold}08, ${C.gold}02)`, borderColor: `${C.gold}25` }}>
+            <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 20% 50%, rgba(212,175,55,0.15), transparent 60%)' }} />
+            <div className="relative z-10">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${C.gold}20, ${C.goldLight}10)` }}><Sparkles className="w-4 h-4" style={{ color: C.gold }} /></div>
+                <div>
+                  <h2 className="text-sm font-bold flex items-center gap-2" style={{ color: C.text }}>AI Daily Briefing
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border" style={{ background: `${C.gold}10`, color: C.gold, borderColor: `${C.gold}25` }}>Live AI</span>
+                  </h2>
+                  <p className="text-[10px]" style={{ color: C.textDim }}>Real-time AI analysis of your sales intelligence platform</p>
+                </div>
+              </div>
+              <p className="text-[13px] leading-relaxed" style={{ color: C.text }}>{insights.aiSummary}</p>
+              {insights.aiStrategicInsights && insights.aiStrategicInsights.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+                  {insights.aiStrategicInsights.slice(0, 6).map((si, i) => (
+                    <div key={i} className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl border" style={{ background: 'rgba(255,255,255,0.6)', borderColor: 'rgba(0,0,0,0.05)' }}>
+                      <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0`} style={{ background: si.impact === 'high' ? C.red : si.impact === 'medium' ? C.amber : C.blue }} />
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-medium leading-relaxed" style={{ color: C.text }}>{si.insight}</p>
+                        {si.action && <p className="text-[10px] mt-1" style={{ color: C.gold }}>{si.action}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
         {/* TOP ROW: Health + Activity | Engine Cards */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <div className="lg:col-span-1 space-y-4">
@@ -679,6 +740,7 @@ export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) 
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-semibold" style={{ color: C.text }}>{rec.action}</span>
                         <span className="text-[8px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-md" style={{ background: ps.bg, color: ps.color }}>{ps.label}</span>
+                        {rec.aiEnhanced && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: `${C.gold}12`, color: C.gold }}>AI Enhanced</span>}
                       </div>
                       <p className="text-[10px] leading-relaxed" style={{ color: C.textMuted }}>{rec.reasoning}</p>
                       <p className="text-[9px] mt-1" style={{ color: C.textDim }}>{rec.entityName}</p>

@@ -1241,6 +1241,79 @@ const STEPS = [
   { num: '05', title: 'Build Relationships', desc: 'Every interaction is tracked, context is remembered across conversations, and AI suggests the next best action. Relationship intelligence that compounds over time.', icon: TrendingUp },
 ];
 
+/* ═══════════════════════════════════════════════════════════════
+   #7 — PROOF OF WORK (replaces vague testimonials)
+   ═══════════════════════════════════════════════════════════════ */
+const PROOF_ITEMS = [
+  {
+    tag: 'Research Workflow',
+    title: 'From 6 Hours/Week to Minutes',
+    desc: 'Before DeepMindQ, I was spending 6+ hours weekly across LinkedIn Sales Navigator, SEC EDGAR filings, Google Alerts, news aggregators, and CRM notes just to stay current on 40 target accounts. Now the intelligence pipeline runs continuously — I review AI-synthesized briefings in minutes, not hours, and spend that recovered time actually having conversations.',
+    detail: '6 intelligence layers working 24/7',
+  },
+  {
+    tag: 'Signal Detection',
+    title: 'Catching Signals Before Competitors',
+    desc: 'Last quarter, the system flagged a Series B funding event at a target account 4 hours after the public announcement. By the time I reached out, most competitors were still reading about it in their morning newsletter. That timing advantage led to a discovery call and an active opportunity within 2 weeks.',
+    detail: 'Continuous monitoring, not periodic checks',
+  },
+  {
+    tag: 'Stakeholder Mapping',
+    title: 'Knowing Who Matters Before the First Call',
+    desc: 'For a $500K+ opportunity, I used the stakeholder intelligence to map the full buying committee — CEO, CTO, VP Engineering, and an internal champion — before the first discovery call. I knew each person\'s background, priorities, and likely concerns. The first call felt like our third.',
+    detail: 'Org chart intelligence + influence mapping',
+  },
+];
+
+function ProofOfWorkSection() {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: '-80px' });
+
+  return (
+    <section ref={ref} className="py-32 sm:py-44">
+      <div className="mx-auto max-w-[1200px] px-6 lg:px-8">
+        <motion.div className="text-center mb-20"
+          initial={{ opacity: 0, y: 20 }}
+          animate={inView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.7, ease }}>
+          <p className="text-[11px] font-semibold tracking-[0.3em] uppercase mb-5"
+            style={{ color: C.gold }}>Proof of Work</p>
+          <h2 className="text-[clamp(1.6rem,3vw,2.6rem)] font-bold tracking-[-0.025em]"
+            style={{ color: C.white }}>What This Approach Actually Delivers</h2>
+          <p className="mt-5 text-[16px] max-w-[560px] mx-auto font-light leading-[1.75]" style={{ color: C.textDim }}>
+            Real outcomes from using DeepMindQ daily — not fabricated metrics, just lived experience.
+          </p>
+        </motion.div>
+
+        <div className="space-y-6">
+          {PROOF_ITEMS.map((item, i) => (
+            <motion.div key={i} className="rounded-xl p-7 sm:p-8"
+              style={{ background: C.bgCard, border: `1px solid ${C.border}` }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={inView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.5, delay: 0.1 + i * 0.12, ease }}
+              whileHover={{ borderColor: 'rgba(201,168,76,0.15)', boxShadow: '0 12px 40px rgba(0,0,0,0.2)', transition: { duration: 0.25 } }}>
+              <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-6">
+                <div className="shrink-0">
+                  <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide"
+                    style={{ background: C.goldDim, color: C.gold, border: `1px solid ${C.goldBorder}` }}>
+                    {item.tag}
+                  </span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-[18px] sm:text-[20px] font-semibold mb-3 tracking-[-0.01em]" style={{ color: C.white }}>{item.title}</h3>
+                  <p className="text-[14px] leading-[1.85] font-light mb-3" style={{ color: C.textSub }}>{item.desc}</p>
+                  <p className="text-[12px] font-medium" style={{ color: C.gold }}>{item.detail}</p>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function HowItWorksSection() {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: '-80px' });
@@ -1567,15 +1640,21 @@ function ValueSection({ onLogin }: { onLogin: () => void }) {
               ))}
             </div>
 
-            {/* #9 — Clear CTA path + #33 loading state */}
+            {/* #9 — Clear CTA path + #32 loading state */}
             <motion.button onClick={onLogin}
-              className="group inline-flex items-center gap-2.5 px-8 py-4 rounded-lg text-[15px] font-semibold"
+              className="group relative inline-flex items-center gap-2.5 px-8 py-4 rounded-lg text-[15px] font-semibold overflow-hidden"
               style={{ background: C.gold, color: '#0A0E1A' }}
               whileHover={{ scale: 1.03, boxShadow: '0 0 30px rgba(201,168,76,0.25)' }}
               whileTap={{ scale: 0.98 }}>
-              <Lock className="w-4 h-4" />
-              Enter Private Workspace
-              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+              {/* #32 — Subtle shimmer loading hint */}
+              <motion.span
+                className="absolute inset-0 pointer-events-none"
+                style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', backgroundSize: '200% 100%' }}
+                animate={{ backgroundPosition: ['-200% 0', '200% 0'] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} />
+              <Lock className="w-4 h-4 relative z-10" />
+              <span className="relative z-10">Enter Private Workspace</span>
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 relative z-10" />
             </motion.button>
 
             {/* #9 — Intermediate CTA for warm leads */}
@@ -1735,9 +1814,15 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
         <FrameworkSection />
         <SectionDivider />
         <PlatformSection />
+        <SectionDivider />
         <HowItWorksSection />
+        <SectionDivider />
+        <ProofOfWorkSection />
+        <SectionDivider />
         <WhoThisIsForSection />
+        <SectionDivider />
         <FAQSection />
+        <SectionDivider />
         <ValueSection onLogin={handleLogin} />
         <Footer onLogin={handleLogin} />
       </div>

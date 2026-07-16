@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import {
   Users, Heart, AlertTriangle, Activity, Plus, ArrowRight, Sparkles,
   Mail, Phone, MessageSquare, BookOpen, StickyNote, Clock, RefreshCw,
-  Loader2, Inbox, AlertCircle,
+  Loader2, Inbox, AlertCircle, Brain,
 } from 'lucide-react';
 import { PageTransition, StatCard, StaggerGrid, StaggerItem, SectionHeader, GlassPanel } from '@/components/ui/animated-components';
 import { Badge } from '@/components/ui/badge';
@@ -258,17 +258,42 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
     return (
       <PageTransition className="p-6 max-w-7xl mx-auto">
         <div className="flex flex-col items-center justify-center py-24 space-y-4">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center bg-gray-100">
-            <Inbox className="w-8 h-8 text-gray-400" />
-          </div>
-          <h2 className="text-lg font-semibold text-foreground">No Relationships Yet</h2>
+          <motion.div
+            animate={{ scale: [1, 1.08, 1] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+            className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+            style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
+          >
+            <Brain className="w-7 h-7" style={{ color: '#D4AF37' }} />
+          </motion.div>
+          <h2 className="text-lg font-semibold text-foreground">No Relationship Intelligence Yet</h2>
           <p className="text-sm text-muted-foreground max-w-md text-center">
-            Start adding interactions to build your relationship memory. The AI will surface insights and recommendations as your data grows.
+            Start logging interactions to unlock AI-powered relationship insights. The engine will automatically identify patterns, sentiment shifts, and engagement opportunities.
           </p>
+          <div className="space-y-2 mt-2">
+            {[
+              'Track email replies, meetings, and touchpoints',
+              'AI detects relationship strength and risk signals',
+              'Get proactive engagement recommendations',
+            ].map((text, i) => (
+              <motion.p
+                key={i}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 + i * 0.15, duration: 0.4 }}
+                className="flex items-center gap-2 text-xs text-muted-foreground"
+              >
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#D4AF37' }} />
+                {text}
+              </motion.p>
+            ))}
+          </div>
           <Button
             onClick={() => navigateTo?.('interactions', 'new')}
-            className="gap-2 mt-2 font-medium shadow-sm"
+            className="gap-2 mt-3 font-medium shadow-sm"
             style={{ background: '#D4AF37', color: '#fff' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#C5A030'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#D4AF37'; }}
           >
             <Plus className="w-4 h-4" /> Add Your First Interaction
           </Button>

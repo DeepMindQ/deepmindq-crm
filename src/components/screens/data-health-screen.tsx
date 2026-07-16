@@ -32,6 +32,7 @@ import {
   TrendingUp,
   RefreshCw,
   AlertCircle,
+  Brain,
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════════
@@ -402,11 +403,29 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
   if (!data) {
     return (
       <PageTransition>
-        <EmptyState
-          title="No data health information"
-          description="Start adding companies and contacts to see data health metrics."
-          icon={HeartPulse}
-        />
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <motion.div
+            animate={{ scale: [1, 1.08, 1] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+            className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+            style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
+          >
+            <Brain className="w-7 h-7" style={{ color: '#D4AF37' }} />
+          </motion.div>
+          <p className="text-sm font-semibold text-foreground">No Health Data Available</p>
+          <p className="text-xs text-muted-foreground max-w-sm mt-1">
+            Add companies and contacts to activate AI-powered data health monitoring. The engine will identify gaps, duplicates, and enrichment opportunities automatically.
+          </p>
+          <button
+            onClick={() => navigateTo?.('companies')}
+            className="mt-4 px-4 py-2 rounded-lg text-xs font-semibold text-white shadow-sm transition-colors"
+            style={{ background: '#D4AF37' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#C5A030'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#D4AF37'; }}
+          >
+            Go to Companies
+          </button>
+        </div>
       </PageTransition>
     );
   }

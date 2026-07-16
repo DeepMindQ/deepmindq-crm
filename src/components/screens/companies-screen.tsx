@@ -496,19 +496,50 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
           {loading ? (
             <TableSkeleton />
           ) : showEmpty ? (
-            /* ── Empty State ── */
+            /* ── AI-Powered Empty State ── */
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center py-16 gap-3"
+              className="flex flex-col items-center justify-center py-16 gap-3 relative"
             >
-              <div className="p-4 rounded-2xl" style={{ background: 'rgba(212,175,55,0.08)' }}>
-                <Building2 size={40} style={{ color: gold, opacity: 0.6 }} />
-              </div>
-              <p className="text-sm font-medium" style={{ color: '#6B7280' }}>No companies found</p>
-              <p className="text-xs" style={{ color: textMuted }}>
-                {activeFilters > 0 ? 'Try adjusting your filters' : 'Add your first company to get started'}
+              {/* AI-Ready badge */}
+              <span
+                className="absolute top-0 right-8 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full"
+                style={{ background: 'rgba(212,175,55,0.1)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.2)' }}
+              >
+                AI-Ready
+              </span>
+
+              <motion.div
+                animate={{ scale: [1, 1.08, 1] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
+              >
+                <Brain className="w-7 h-7" style={{ color: '#D4AF37' }} />
+              </motion.div>
+
+              <p className="text-sm font-semibold text-foreground">
+                {activeFilters > 0 ? 'No companies match your criteria' : 'Your intelligence database is empty'}
               </p>
+              <p className="text-xs text-center max-w-sm" style={{ color: textMuted }}>
+                Import companies to activate AI-powered signal detection, scoring, and opportunity identification across your target accounts.
+              </p>
+              <p className="text-[11px] text-center max-w-md mt-1" style={{ color: '#9CA3AF' }}>
+                DeepMindQ will automatically scan for buying signals, leadership changes, and growth triggers once you add companies.
+              </p>
+
+              <Button
+                size="sm"
+                className="mt-3 text-xs font-semibold shadow-sm"
+                style={{ background: '#D4AF37', color: '#fff', border: 'none' }}
+                onClick={() => toast.info('Use the Import screen to add companies')}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#C5A030'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#D4AF37'; }}
+              >
+                Import Companies
+              </Button>
+
               {activeFilters > 0 && (
                 <Button
                   variant="ghost"

@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/select';
 import {
   Sparkles, Brain, Mail, Plus, Target, Shield, ArrowRight, Lightbulb,
-  MessageSquare, Loader2, ExternalLink, X, ChevronRight, Zap, Users,
+  MessageSquare, Loader2, ExternalLink, X, ChevronRight, Zap, Users, Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -67,6 +67,26 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
     'Crafting engagement strategy...',
     'Finalizing approach recommendation...',
   ];
+
+  // Fetch saved plans on mount
+  useEffect(() => {
+    fetch('/api/conversation-plans')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setPlans(data.map((p: any) => ({
+            id: p.id,
+            companyName: p.companyName,
+            executiveRole: p.executiveRole,
+            executiveName: p.executiveName || '',
+            industry: p.industry || '',
+            plan: p.plan,
+            generatedAt: p.generatedAt || p.createdAt,
+          })));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (loading) {
@@ -125,6 +145,26 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
       setShowForm(false);
       setForm({ companyName: '', executiveRole: '', executiveName: '', industry: '', context: '', yourCapabilities: '' });
       toast.success('Conversation plan generated!');
+
+      // Persist to DB and update ID
+      fetch('/api/conversation-plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyName: form.companyName,
+          executiveRole: form.executiveRole,
+          executiveName: form.executiveName || undefined,
+          industry: form.industry || undefined,
+          context: form.context || undefined,
+          capabilities: form.yourCapabilities || undefined,
+          plan: data.data.plan,
+        }),
+      }).then(r => r.json()).then(saved => {
+        if (saved?.id) {
+          setPlans(prev => prev.map(p => p.id === newPlan.id ? { ...p, id: saved.id } : p));
+          if (selectedId === newPlan.id) setSelectedId(saved.id);
+        }
+      }).catch(() => {});
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to generate plan');
     } finally {
@@ -139,6 +179,15 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
   };
 
   const approachColor = (method: string) => APPROACH_COLORS[method] || { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' };
+
+  const handleDeletePlan = async (planId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPlans(prev => prev.filter(p => p.id !== planId));
+    if (selectedId === planId) setSelectedId(null);
+    try {
+      await fetch(`/api/conversation-plans/${planId}`, { method: 'DELETE' });
+    } catch { /* already removed from local state */ }
+  };
 
   return (
     <PageTransition className="h-full flex flex-col">
@@ -265,16 +314,33 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
 
           {/* ── Content ── */}
           {plans.length === 0 && !showForm ? (
-            <EmptyState
-              icon={MessageSquare}
-              title="Generate your first conversation plan"
-              description="Enter executive and company details to get an AI-powered engagement strategy with opening lines, key topics, and approach recommendations."
-              action={
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4 }}
+              className="flex flex-col items-center justify-center py-16 text-center"
+            >
+              <motion.div
+                animate={{ scale: [1, 1.08, 1] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
+              >
+                <Brain className="w-7 h-7" style={{ color: '#D4AF37' }} />
+              </motion.div>
+              <p className="text-sm font-medium text-foreground mb-1">Generate your first conversation plan</p>
+              <p className="text-xs text-muted-foreground max-w-sm">
+                Enter executive and company details to get an AI-powered engagement strategy. The engine researches the executive's background, communication style, and likely priorities to craft personalized outreach plans.
+              </p>
+              <p className="text-[11px] text-muted-foreground/70 max-w-sm mt-1.5">
+                Plans include opening lines, key topics, approach recommendations, and conversation starters.
+              </p>
+              <div className="mt-4">
                 <Button onClick={() => setShowForm(true)} className="gap-2 text-sm font-semibold shadow-sm" style={{ background: '#D4AF37', color: '#fff', border: 'none' }}>
                   <Plus className="w-4 h-4" /> Create Plan
                 </Button>
-              }
-            />
+              </div>
+            </motion.div>
           ) : (
             <div className="flex gap-6 items-start">
               {/* Plan Cards */}
@@ -317,6 +383,13 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                               <span className="text-[11px] font-semibold tabular-nums" style={{ color: p.plan.approachRecommendation.confidence >= 80 ? '#10b981' : '#D4AF37' }}>
                                 {p.plan.approachRecommendation.confidence}%
                               </span>
+                              <button
+                                onClick={(e) => handleDeletePlan(p.id, e)}
+                                className="p-1 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors"
+                                title="Delete plan"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5">

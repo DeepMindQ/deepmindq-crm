@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Building2, Users, FileText, Send, Mail, TrendingUp, TrendingDown, ChevronRight, Zap, UserPlus, Eye, MessageSquare, AlertTriangle, Inbox, Sparkles } from 'lucide-react';
+import { Building2, Users, FileText, Send, Mail, TrendingUp, TrendingDown, ChevronRight, Zap, UserPlus, Eye, MessageSquare, AlertTriangle, Inbox, Sparkles, Brain, RefreshCw } from 'lucide-react';
 
 const gold = '#B8860B', goldLight = '#D4A843';
 const card = 'rgba(255, 255, 255, 0.85)', border = 'rgba(0, 0, 0, 0.08)';
@@ -127,6 +127,9 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
   const [topCompanies, setTopCompanies] = useState<TopCompany[]>([]);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [aiBriefing, setAiBriefing] = useState<any>(null);
+  const [briefingLoading, setBriefingLoading] = useState(true);
+  const [briefingError, setBriefingError] = useState(false);
 
   const fetchDash = useCallback(async () => {
     try {
@@ -172,14 +175,27 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
     } catch { /* */ }
   }, []);
 
+  const fetchBriefing = useCallback(async () => {
+    try {
+      setBriefingError(false);
+      const r = await fetch('/api/ai/insights');
+      if (r.ok) {
+        const d = await r.json();
+        const b = d?.data || d;
+        if (b?.summary) setAiBriefing(b);
+      } else { setBriefingError(true); }
+    } catch { setBriefingError(true); }
+    finally { setBriefingLoading(false); }
+  }, []);
+
   useEffect(() => {
     let off = false;
     (async () => {
-      await Promise.all([fetchDash(), fetchAct(), fetchTopCompanies(), fetchSegments()]);
+      await Promise.all([fetchDash(), fetchAct(), fetchTopCompanies(), fetchSegments(), fetchBriefing()]);
       if (!off) setLoading(false);
     })();
     return () => { off = true; };
-  }, [fetchDash, fetchAct, fetchTopCompanies, fetchSegments]);
+  }, [fetchDash, fetchAct, fetchTopCompanies, fetchSegments, fetchBriefing]);
 
   if (loading) return (
     <div className="space-y-5">
@@ -228,6 +244,87 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
 
   return (
     <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-5 pr-1">
+      {/* 0. DAILY AI BRIEFING */}
+      {briefingLoading ? (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl overflow-hidden" style={{ ...glassPanel, border: '1px solid rgba(212,175,55,0.3)' }}>
+          <div className="flex items-center gap-3 px-5 py-3.5">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.12)' }}>
+              <Brain className="w-4 h-4 animate-pulse" style={{ color: '#D4AF37' }} />
+            </div>
+            <span className="text-sm text-muted-foreground">Analyzing your pipeline intelligence<span className="inline-flex gap-0.5 ml-1"><span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span><span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span><span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span></span></span>
+          </div>
+        </motion.div>
+      ) : briefingError ? (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl overflow-hidden" style={glassPanel}>
+          <div className="flex items-center gap-3 px-5 py-3.5">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-gray-100">
+              <Brain className="w-4 h-4 text-muted-foreground/40" />
+            </div>
+            <span className="text-sm text-muted-foreground">AI briefing unavailable</span>
+            <button onClick={fetchBriefing} className="ml-auto flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: gold }}>
+              <RefreshCw className="w-3 h-3" /> Retry
+            </button>
+          </div>
+        </motion.div>
+      ) : aiBriefing ? (
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="relative rounded-xl overflow-hidden" style={{ ...glassPanel, borderLeft: '3px solid #D4AF37', boxShadow: '0 0 24px rgba(212,175,55,0.06), 0 1px 3px rgba(0,0,0,0.04)' }}>
+          <div className="p-5 space-y-3">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.12)' }}>
+                  <Brain className="w-4 h-4" style={{ color: '#D4AF37' }} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-foreground tracking-tight">Daily AI Briefing</h2>
+                  <p className="text-[11px] text-muted-foreground">Today, {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide" style={{ background: 'rgba(212,175,55,0.1)', color: gold }}>
+                <Brain className="w-2.5 h-2.5" /> AI
+              </div>
+            </div>
+            <p className="text-[13px] text-foreground/85 leading-relaxed">{aiBriefing.summary}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-0.5">
+              {aiBriefing.keyInsights?.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Key Insights</p>
+                  {aiBriefing.keyInsights.slice(0, 3).map((ins: any, i: number) => (
+                    <div key={i} className="flex items-start gap-1.5">
+                      <ChevronRight className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: '#D4AF37' }} />
+                      <div className="min-w-0">
+                        <span className="text-xs font-semibold text-foreground">{ins.title}</span>
+                        <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{ins.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {aiBriefing.predictions?.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Predictions</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {aiBriefing.predictions.slice(0, 3).map((p: any, i: number) => {
+                      const arrow = p.trend === 'up' ? '↑' : p.trend === 'down' ? '↓' : '→';
+                      const tc = p.trend === 'up' ? '#10B981' : p.trend === 'down' ? '#EF4444' : '#71717A';
+                      return (
+                        <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                          <span style={{ color: tc, fontWeight: 700, fontSize: 12 }}>{arrow}</span>
+                          <span className="text-[11px] font-medium text-foreground">{p.metric}</span>
+                          <span className="text-[11px] text-muted-foreground tabular-nums">{p.current}→{p.predicted}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      ) : null}
+
       {/* 1. STATS ROW */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard icon={Building2} label="Total Companies" value={data.totalCompanies || 0} bc="#D4AF37" delay={0} />
@@ -324,8 +421,16 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           <div className="flex-1 px-5 pb-4 max-h-80 overflow-y-auto custom-scrollbar">
             {topCompanies.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="w-12 h-12 rounded-xl bg-gray-100/50 flex items-center justify-center mb-3"><Building2 className="w-6 h-6 text-muted-foreground/40" /></div>
-                <p className="text-sm text-muted-foreground">Loading companies...</p>
+                <motion.div
+                  animate={{ scale: [1, 1.08, 1] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
+                  style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
+                >
+                  <Brain className="w-6 h-6" style={{ color: '#D4AF37' }} />
+                </motion.div>
+                <p className="text-sm font-medium text-foreground">No companies yet</p>
+                <p className="text-xs text-muted-foreground mt-1">Import companies to see your top accounts by engagement</p>
               </div>
             ) : (
               <div className="space-y-1">
@@ -368,9 +473,16 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           <div className="px-5 pb-5">
             {activity.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="w-12 h-12 rounded-xl bg-gray-100/50 flex items-center justify-center mb-3"><Inbox className="w-6 h-6 text-muted-foreground/40" /></div>
-                <p className="text-sm text-muted-foreground">No activity yet</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Actions will appear here as they happen</p>
+                <motion.div
+                  animate={{ scale: [1, 1.08, 1] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
+                  style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
+                >
+                  <Brain className="w-6 h-6" style={{ color: '#D4AF37' }} />
+                </motion.div>
+                <p className="text-sm font-medium text-foreground">No activity recorded</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Start engaging with your contacts to see pipeline activity here</p>
               </div>
             ) : (
               <div className="relative">

@@ -540,3 +540,20 @@ model AuditLog {
   @@index([entity])
   @@index([createdAt])
 }
+
+model ConversationPlan {
+  id               String   @id @default(cuid())
+  companyName      String
+  executiveRole    String
+  executiveName    String?
+  industry         String?
+  context          String?
+  capabilities     String?
+  plan             Json     // Stores the full ApiPlan object
+  generatedAt      DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([companyName])
+  @@index([createdAt])
+}

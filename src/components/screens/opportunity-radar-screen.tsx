@@ -6,7 +6,7 @@ import {
   Radar, Crosshair, Sparkles, ChevronDown, ChevronUp,
   UserCheck, Flame, Sun, Droplets, Eye, Building2,
   MessageSquare, BarChart3, RefreshCw, Cpu, Cloud, Database,
-  AlertCircle,
+  AlertCircle, Brain,
 } from 'lucide-react';
 import { PageTransition, AnimatedCounter, EmptyState } from '@/components/ui/animated-components';
 import { Badge } from '@/components/ui/badge';
@@ -314,11 +314,61 @@ export default function OpportunityRadarScreen({ navigateTo }: { navigateTo?: (s
 
         <AnimatePresence mode="wait">
           {filtered.length === 0 ? (
-            <EmptyState
-              icon={Radar}
-              title={totalOpps === 0 ? 'No opportunities detected' : 'No opportunities match this filter'}
-              description={totalOpps === 0 ? 'Companies will appear here once the AI identifies matching signals.' : 'Try selecting a different filter to see more results.'}
-            />
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center justify-center py-16 text-center"
+            >
+              <motion.div
+                animate={{ scale: [1, 1.08, 1] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
+              >
+                <Brain className="w-7 h-7" style={{ color: '#D4AF37' }} />
+              </motion.div>
+              <p className="text-sm font-semibold text-foreground">
+                {totalOpps === 0 ? 'Opportunity Radar Active — Awaiting Signals' : 'No opportunities match this filter'}
+              </p>
+              {totalOpps === 0 ? (
+                <>
+                  <p className="text-xs text-muted-foreground max-w-sm mt-1">
+                    AI is monitoring your accounts for buying signals. Opportunities will appear here when the engine detects high-intent patterns.
+                  </p>
+                  <div className="space-y-2 mt-3">
+                    {[
+                      'Funding rounds and expansion signals',
+                      'Leadership changes creating new entry points',
+                      'Technology stack changes indicating needs',
+                    ].map((text, i) => (
+                      <motion.p
+                        key={i}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3 + i * 0.15, duration: 0.4 }}
+                        className="flex items-center gap-2 text-xs text-muted-foreground"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#D4AF37' }} />
+                        {text}
+                      </motion.p>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => navigateTo?.('signal-intelligence')}
+                    className="mt-4 px-4 py-2 rounded-lg text-xs font-semibold text-white shadow-sm transition-colors"
+                    style={{ background: '#D4AF37' }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#C5A030'; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#D4AF37'; }}
+                  >
+                    Run Signal Scan
+                  </button>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground max-w-sm mt-1">
+                  Try selecting a different filter to see more results.
+                </p>
+              )}
+            </motion.div>
           ) : (
             <motion.div
               key={filter}

@@ -438,14 +438,14 @@ async function gatherStats(): Promise<PipelineStats> {
     topIndustriesRaw,
   ] = await Promise.all([
     db.company.count({ where: { status: { not: 'archived' } } }),
-    db.contact.count({ where: { archivedAt: null } }),
-    db.contact.count({ where: { emailHealth: 'valid', archivedAt: null } }),
-    db.contact.count({ where: { emailHealth: 'risky', archivedAt: null } }),
-    db.contact.count({ where: { emailHealth: 'invalid', archivedAt: null } }),
+    db.contact.count({ where: { status: { not: 'archived' } } }),
+    db.contact.count({ where: { emailHealth: 'valid', status: { not: 'archived' } } }),
+    db.contact.count({ where: { emailHealth: 'risky', status: { not: 'archived' } } }),
+    db.contact.count({ where: { emailHealth: 'invalid', status: { not: 'archived' } } }),
     db.company.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
     db.draft.count({ where: { createdAt: { gte: new Date(now.getTime() - 90 * 86400000) } } }),
-    db.draft.count({ where: { status: 'draft' } }),
-    db.opportunity.count({ where: { status: 'negotiation' } }),
+    db.draft.count({ where: { status: 'pending_review' } }),
+    db.company.count({ where: { lifecycleStage: 'negotiation' } }),
     db.company.count({
       where: {
         status: { not: 'archived' },
@@ -453,9 +453,9 @@ async function gatherStats(): Promise<PipelineStats> {
       },
     }),
     db.company.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
-    db.contact.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo }, archivedAt: null } }),
-    db.emailHealthCheck.count({ where: { checkedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo }, status: 'valid' } }),
-    db.opportunity.count({ where: { status: { notIn: ['won', 'lost', 'archived'] } } }),
+    db.contact.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo }, status: { not: 'archived' } } }),
+    db.contact.count({ where: { emailHealth: 'valid', lastCheckedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
+    db.company.count({ where: { lifecycleStage: { notIn: ['closed', 'closed_won', 'closed_lost'] } } }),
     // Group companies by industry, take top 5
     db.company.groupBy({
       by: ['industry'],

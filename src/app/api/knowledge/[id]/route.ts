@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/apiHelpers";
 
 // ---------------------------------------------------------------------------
-// GET – single capability document with snippets
+// GET – single capability asset
 // ---------------------------------------------------------------------------
 
 export async function GET(
@@ -13,23 +13,22 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const doc = await db.capabilityDocument.findUnique({
+    const asset = await db.capabilityAsset.findUnique({
       where: { id },
-      include: { snippets: { orderBy: { createdAt: "desc" } } },
     });
 
-    if (!doc) {
+    if (!asset) {
       return apiError("Not found", 404);
     }
 
-    return apiSuccess(doc);
+    return apiSuccess(asset);
   } catch {
     return apiError("Failed to fetch document");
   }
 }
 
 // ---------------------------------------------------------------------------
-// DELETE – remove document (snippets cascade automatically)
+// DELETE – remove capability asset
 // ---------------------------------------------------------------------------
 
 export async function DELETE(
@@ -39,14 +38,12 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // Confirm the document exists first
-    const doc = await db.capabilityDocument.findUnique({ where: { id } });
-    if (!doc) {
+    const asset = await db.capabilityAsset.findUnique({ where: { id } });
+    if (!asset) {
       return apiError("Not found", 404);
     }
 
-    // Snippets are deleted automatically via onDelete: Cascade
-    await db.capabilityDocument.delete({ where: { id } });
+    await db.capabilityAsset.delete({ where: { id } });
 
     return apiSuccess({ success: true });
   } catch {

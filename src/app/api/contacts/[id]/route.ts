@@ -18,18 +18,11 @@ export async function GET(
           orderBy: { createdAt: "desc" },
           take: 20,
         },
-        timeline: {
+        drafts: {
           orderBy: { createdAt: "desc" },
           take: 20,
-          include: {
-            company: { select: { id: true, name: true } },
-          },
         },
-        healthChecks: {
-          orderBy: { checkedAt: "desc" },
-          take: 20,
-        },
-        drafts: {
+        events: {
           orderBy: { createdAt: "desc" },
           take: 20,
         },
@@ -112,12 +105,12 @@ export async function PATCH(
       data: updateData,
     });
 
-    await db.timelineEntry.create({
+    await db.companyTimelineEvent.create({
       data: {
         companyId: contact.companyId,
-        contactId: id,
-        action: "contact_updated",
-        details: `Contact "${updated.name}" was updated`,
+        eventType: "contact_added",
+        title: `Contact updated`,
+        description: `Contact was updated`,
       },
     });
 
@@ -140,22 +133,17 @@ export async function DELETE(
       return apiError("Contact not found", 404);
     }
 
-    // Check if already archived
-    if (contact.archivedAt !== null) {
-      return apiError("Contact is already archived", 409);
-    }
-
     const archived = await db.contact.update({
       where: { id },
-      data: { archivedAt: new Date() },
+      data: { status: "archived" },
     });
 
-    await db.timelineEntry.create({
+    await db.companyTimelineEvent.create({
       data: {
         companyId: contact.companyId,
-        contactId: id,
-        action: "contact_archived",
-        details: `Contact "${contact.name}" was archived`,
+        eventType: "status_change",
+        title: `Contact archived`,
+        description: `Contact was archived`,
       },
     });
 

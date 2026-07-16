@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+import { db } from '@/lib/db';
 
 export async function GET() {
   try {
-    const plans = await prisma.conversationPlan.findMany({
+    const plans = await db.conversationPlan.findMany({
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
@@ -24,7 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const saved = await prisma.conversationPlan.create({
+    const saved = await db.conversationPlan.create({
       data: {
         companyName,
         executiveRole,

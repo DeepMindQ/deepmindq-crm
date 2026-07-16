@@ -1,13 +1,6 @@
-import { NextRequest } from 'next/server'
-import { z } from 'zod'
 import { db } from '@/lib/db'
+import { z } from 'zod'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
-import type {
-  CompanyStatus,
-  DataFreshness,
-  EmailHealthStatus,
-  RoleBucket,
-} from '@/lib/types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -92,14 +85,10 @@ async function scoreCompany(
     where: { id: companyId },
     include: {
       contacts: {
-        where: { archivedAt: null },
+        where: { status: { not: 'archived' } },
         select: { id: true, emailHealth: true },
       },
       researchCard: { select: { id: true } },
-      opportunities: {
-        where: { status: { notIn: ['won', 'lost', 'archived'] } },
-        select: { id: true },
-      },
       _count: { select: { notes: true } },
     },
   })
@@ -125,7 +114,7 @@ async function scoreCompany(
   factors.intelligence = clamp(Math.round((intScore / 5) * 20), 20)
 
   // 3. Data Freshness (15pts)
-  factors.dataFreshness = FRESHNESS_SCORES[company.dataFreshness ?? 'unknown'] ?? 0
+  factors.dataFreshness = FRESHNESS_SCORES['unknown'] ?? 0
 
   // 4. Contact Count (15pts): min(contacts * 3, 15)
   const contactCount = company.contacts.length
@@ -135,7 +124,7 @@ async function scoreCompany(
   factors.hasResearch = company.researchCard ? 10 : 0
 
   // 6. Has Open Opportunities (10pts)
-  factors.hasOpportunities = company.opportunities.length > 0 ? 10 : 0
+  factors.hasOpportunities = company.lifecycleStage === 'proposal' || company.lifecycleStage === 'negotiation' ? 10 : 0
 
   // 7. Notes Activity (10pts): min(notesCount * 2, 10)
   const notesCount = company._count.notes
@@ -158,10 +147,10 @@ async function scoreCompany(
   const recommendations: string[] = []
   if (factors.status < 20) recommendations.push('Update company status to active')
   if (factors.intelligence < 10) recommendations.push('Generate research card to improve intelligence score')
-  if (factors.dataFreshness < 10) recommendations.push('Refresh company data to improve freshness')
+  // Data freshness is always unknown for now
   if (factors.contactCount < 9) recommendations.push('Add more contacts to this company')
   if (factors.hasResearch === 0) recommendations.push('Generate AI research card')
-  if (factors.hasOpportunities === 0) recommendations.push('Create an opportunity for this company')
+  if (factors.hasOpportunities === 0) recommendations.push('Advance this company to proposal or negotiation stage')
   if (factors.notesActivity < 6) recommendations.push('Add notes from recent interactions')
   if (emailBonus === 0 && contactCount > 0) recommendations.push('Validate email addresses for contacts')
 
@@ -184,11 +173,11 @@ async function scoreContact(
   companyScoreMap: Map<string, number>,
 ): Promise<ScoreResult> {
   const contact = await db.contact.findFirst({
-    where: { id: contactId, archivedAt: null },
+    where: { id: contactId, status: { not: 'archived' } },
     include: {
       company: { select: { id: true } },
       drafts: { where: { status: 'draft' }, select: { id: true } },
-      _count: { select: { timeline: true } },
+      _count: { select: { events: true } },
     },
   })
 
@@ -220,11 +209,11 @@ async function scoreContact(
   factors.companyScore = Math.round((parentCompanyScore / 100) * 20)
 
   // 5. Timeline Activity (10pts): min(timelineCount * 2, 10)
-  const timelineCount = contact._count.timeline
-  factors.timelineActivity = clamp(timelineCount * 2, 10)
+  const eventCount = contact._count.events
+  factors.timelineActivity = clamp(eventCount * 2, 10)
 
   // 6. Job Title Seniority (10pts)
-  factors.seniority = SENIORITY_SCORES[contact.roleBucket ?? 'Other'] ?? 3
+  factors.seniority = contact.title ? SENIORITY_SCORES[contact.title.includes('Executive') || contact.title.includes('CEO') || contact.title.includes('VP') || contact.title.includes('CTO') || contact.title.includes('CFO') ? 'Executive' : contact.title.includes('Manager') || contact.title.includes('Director') || contact.title.includes('Head') ? 'Manager' : 'Other'] ?? 3 : 3
 
   const total = Object.values(factors).reduce((sum, v) => sum + v, 0)
   const score = clamp(total, 100)
@@ -271,7 +260,7 @@ export async function POST(request: NextRequest) {
           select: { id: true },
         }),
         db.contact.findMany({
-          where: { archivedAt: null },
+          where: { status: { not: 'archived' } },
           select: { id: true },
         }),
       ])

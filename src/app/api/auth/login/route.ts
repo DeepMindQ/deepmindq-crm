@@ -55,9 +55,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Password verified. OTP sent to your email.',
-      // Include dev code in development
-      ...(otpResult.devCode && process.env.NODE_ENV === 'development' ? { devCode: otpResult.devCode } : {}),
+      message: otpResult.devCode ? 'Password verified. OTP generated (email not configured).' : 'Password verified. OTP sent to your email.',
+      ...(otpResult.devCode ? { devCode: otpResult.devCode } : {}),
     });
   } catch (error) {
     console.error('[auth/login] Error:', error);

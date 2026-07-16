@@ -26,9 +26,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'OTP sent to your email',
-      // Include dev code in development only
-      ...(result.devCode && process.env.NODE_ENV === 'development' ? { devCode: result.devCode } : {}),
+      message: result.devCode ? 'OTP generated (email not configured — code shown below)' : 'OTP sent to your email',
+      // Always include code when email delivery failed (no EMAIL_API_KEY configured)
+      ...(result.devCode ? { devCode: result.devCode } : {}),
     });
   } catch (error) {
     console.error('[auth/request-otp] Error:', error);

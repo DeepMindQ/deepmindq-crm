@@ -506,7 +506,9 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                   {devCode && (
                     <div className="text-center">
                       <p className="text-amber-400/80 text-xs bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 inline-block">
-                        Dev code: <span className="font-mono font-bold text-amber-300">{devCode}</span>
+                        Your code: <span className="font-mono font-bold text-amber-300 text-base tracking-widest">{devCode}</span>
+                        <br />
+                        <span className="text-amber-500/60 text-[10px]">(Email not configured — enter this code to continue)</span>
                       </p>
                     </div>
                   )}

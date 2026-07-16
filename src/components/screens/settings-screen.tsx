@@ -1233,7 +1233,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                           </InputOTP>
                         </div>
                         {profileDevCode && profileOtpPurpose === 'update_profile' && (
-                          <p className="text-center text-xs text-amber-400/80 bg-amber-500/10 rounded px-2 py-1 mb-2">Dev: {profileDevCode}</p>
+                          <p className="text-center text-xs text-amber-400/80 bg-amber-500/10 rounded px-2 py-1 mb-2">Your code: <span className="font-mono font-bold">{profileDevCode}</span></p>
                         )}
                       </div>
                       <div className="flex flex-col gap-2">
@@ -1302,7 +1302,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                           </InputOTP>
                         </div>
                         {profileDevCode && profileOtpPurpose === 'change_email' && (
-                          <p className="text-center text-xs text-amber-400/80 bg-amber-500/10 rounded px-2 py-1">Dev: {profileDevCode}</p>
+                          <p className="text-center text-xs text-amber-400/80 bg-amber-500/10 rounded px-2 py-1">Your code: <span className="font-mono font-bold">{profileDevCode}</span></p>
                         )}
                       </div>
                       <Button size="sm" onClick={() => { setProfileOtpPurpose('change_email'); handleProfileOtpRequest('change_email'); }} disabled={profileOtpCountdown > 0 || profileLoading} variant="outline" className="gap-1.5">
@@ -1375,7 +1375,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                           </InputOTP>
                         </div>
                         {profileDevCode && profileOtpPurpose === 'change_password' && (
-                          <p className="text-center text-xs text-amber-400/80 bg-amber-500/10 rounded px-2 py-1">Dev: {profileDevCode}</p>
+                          <p className="text-center text-xs text-amber-400/80 bg-amber-500/10 rounded px-2 py-1">Your code: <span className="font-mono font-bold">{profileDevCode}</span></p>
                         )}
                       </div>
                       <Button size="sm" onClick={() => { setProfileOtpPurpose('change_password'); handleProfileOtpRequest('change_password'); }} disabled={profileOtpCountdown > 0 || profileLoading} variant="outline" className="gap-1.5">

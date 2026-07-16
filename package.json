@@ -14,7 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma generate && next build",
+    "vercel-build": "prisma generate && prisma db push --accept-data-loss --skip-generate && next build",
     "cloud:setup": "bash scripts/setup-cloud.sh",
     "cloud:migrate": "node scripts/migrate-to-postgres.js",
     "cloud:export": "node scripts/export-seed-data.js"

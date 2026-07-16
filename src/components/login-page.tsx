@@ -504,13 +504,31 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                   </div>
 
                   {devCode && (
-                    <div className="text-center">
-                      <p className="text-amber-400/80 text-xs bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 inline-block">
-                        Your code: <span className="font-mono font-bold text-amber-300 text-base tracking-widest">{devCode}</span>
-                        <br />
-                        <span className="text-amber-500/60 text-[10px]">(Email not configured — enter this code to continue)</span>
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="bg-gradient-to-br from-amber-500/15 to-amber-600/5 border border-amber-500/30 rounded-2xl p-5 text-center space-y-3"
+                    >
+                      <p className="text-amber-300/90 text-sm font-medium">
+                        Your verification code:
                       </p>
-                    </div>
+                      <p className="font-mono font-bold text-3xl tracking-[0.3em]" style={{ color: C.goldLight }}>
+                        {devCode}
+                      </p>
+                      <div className="flex items-center justify-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => { setOtp(devCode); setTimeout(() => handleVerifyOtp(), 300); }}
+                          className="text-xs font-medium px-4 py-1.5 rounded-lg text-amber-950 transition-all hover:shadow-lg"
+                          style={{ background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` }}
+                        >
+                          Auto-fill & Verify
+                        </button>
+                      </div>
+                      <p className="text-amber-500/50 text-[11px]">
+                        Email delivery not configured yet — use this code to login
+                      </p>
+                    </motion.div>
                   )}
 
                   {error && (

@@ -16,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
@@ -146,6 +146,31 @@ export default function ContactsScreen() {
 
   /* ── Bulk delete confirm ── */
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+
+  /* AI: Suggested stakeholders */
+  const [aiSuggesting, setAiSuggesting] = useState(false)
+  const [aiSuggestions, setAiSuggestions] = useState<Array<{ name: string | null; role: string; whyRelevant: string; influence: string; priority: number; recommendedAction: string }>>([])
+  const [aiSuggestOpen, setAiSuggestOpen] = useState(false)
+
+  const handleAiSuggestContacts = async () => {
+    if (!activeCompanyId) return
+    setAiSuggesting(true)
+    try {
+      const res = await fetch(`/api/ai/suggested-contacts?companyId=${activeCompanyId}`)
+      const json = await res.json()
+      const data = json.data ?? json
+      if (data.contacts && data.contacts.length > 0) {
+        setAiSuggestions(data.contacts)
+        setAiSuggestOpen(true)
+        toast.success(`AI found ${data.contacts.length} potential stakeholders`)
+      } else {
+        toast.info('No additional stakeholders found for this company')
+      }
+    } catch {
+      toast.error('Failed to fetch AI suggestions')
+    }
+    finally { setAiSuggesting(false) }
+  }
 
   /* ── Company filter search ── */
   const [companySearch, setCompanySearch] = useState('')
@@ -588,6 +613,21 @@ export default function ContactsScreen() {
             }
             <span className="hidden sm:inline ml-1.5">{batchValidateMutation.isPending ? 'Validating...' : 'Validate All'}</span>
           </Button>
+
+          {/* AI: Suggest Stakeholders for selected company */}
+          {activeCompanyId && (
+            <Button
+              size="sm"
+              onClick={handleAiSuggestContacts}
+              disabled={aiSuggesting}
+              className="rounded-lg press-scale shadow-xs shrink-0 text-white font-medium"
+              style={{ background: 'linear-gradient(135deg, #D4AF37, #B8960F)' }}
+            >
+              {aiSuggesting ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+              <span className="hidden sm:inline ml-1.5">{aiSuggesting ? 'AI Scanning...' : 'AI Find Stakeholders'}</span>
+            </Button>
+          )}
+
           <Button
             size="sm"
             onClick={() => setDlgOpen(true)}
@@ -1396,6 +1436,50 @@ export default function ContactsScreen() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ═══ AI Suggested Stakeholders Dialog ═══ */}
+      <Dialog open={aiSuggestOpen} onOpenChange={setAiSuggestOpen}>
+        <DialogContent className="rounded-xl max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5" style={{ color: '#D4AF37' }} />
+              AI-Discovered Stakeholders
+            </DialogTitle>
+            <DialogDescription>
+              These stakeholders were identified by AI through live web research. They are not yet in your CRM.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-4">
+            {aiSuggestions.map((s, i) => (
+              <div key={i} className="border border-gray-200 rounded-xl p-4 space-y-2 hover:shadow-sm transition-shadow">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{s.name || 'Unknown'}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{s.role}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                      style={{ background: s.influence === 'Decision Maker' ? 'rgba(212,175,55,0.12)' : 'rgba(99,102,241,0.08)', color: s.influence === 'Decision Maker' ? '#9A8340' : '#6366F1' }}>
+                      {s.influence}
+                    </span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                      {'★'.repeat(s.priority)}{'☆'.repeat(5 - s.priority)}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-700 leading-relaxed">{s.whyRelevant}</p>
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50 border border-blue-100 w-fit">
+                  <span className="text-[11px] font-medium text-blue-700">{s.recommendedAction}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+            <p className="text-[11px] text-gray-400">{aiSuggestions.length} stakeholders found via AI web research</p>
+            <Button size="sm" variant="outline" className="rounded-lg" onClick={() => setAiSuggestOpen(false)}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

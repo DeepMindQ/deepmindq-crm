@@ -527,6 +527,8 @@ export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) 
   const [insights, setInsights] = useState<Insights | null>(null);
   const [activities, setActivities] = useState<AuditItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [aiInsights, setAiInsights] = useState<{ summary: string; keyInsights: Array<{ type: string; icon: string; title: string; description: string }>; predictions: Array<{ metric: string; current: number; predicted: number; trend: string; confidence: number }> } | null>(null);
+  const [aiRecommendations, setAiRecommendations] = useState<Array<{ type: string; priority: string; entityType: string; entityId: string; entityName: string; action: string; reasoning: string }>>([]);
   const [queryResult, setQueryResult] = useState<any>(null);
   const [queryLoading, setQueryLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'engines' | 'query'>('overview');
@@ -536,9 +538,14 @@ export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) 
   const fetchData = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [insRes, actRes] = await Promise.all([fetch('/api/command-center/insights'), fetch('/api/audit?limit=15')]);
+      const [insRes, actRes, aiInsRes, aiRecRes] = await Promise.all([
+        fetch('/api/command-center/insights'), fetch('/api/audit?limit=15'),
+        fetch('/api/ai/insights'), fetch('/api/ai/recommendations'),
+      ]);
       const insData = await insRes.json(); if (insData?.companyEngine) setInsights(insData);
       const actData = await actRes.json(); if (Array.isArray(actData)) setActivities(actData);
+      try { const aiInsData = await aiInsRes.json(); if (aiInsData?.data) setAiInsights(aiInsData.data); } catch {}
+      try { const aiRecData = await aiRecRes.json(); if (aiRecData?.data?.recommendations) setAiRecommendations(aiRecData.data.recommendations); } catch {}
       setLastRefresh(new Date());
     } catch { /* silent */ }
     setLoading(false); setRefreshing(false);
@@ -632,17 +639,55 @@ export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) 
         </AnimatePresence>
 
         {/* RECOMMENDATIONS */}
-        {insights.recommendations.length > 0 && (
+        {(insights.recommendations.length > 0 || aiRecommendations.length > 0) && (
           <div>
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `${C.gold}12` }}><Lightbulb className="w-4 h-4" style={{ color: C.gold }} /></div>
               <div>
                 <h2 className="text-sm font-bold" style={{ color: C.text }}>AI Recommendations</h2>
-                <p className="text-[10px]" style={{ color: C.textDim }}>{insights.recommendations.filter(r => r.priority === 'high').length} critical • {insights.recommendations.filter(r => r.priority === 'medium').length} warnings</p>
+                <p className="text-[10px]" style={{ color: C.textDim }}>{aiInsights?.summary || `${insights.recommendations.filter(r => r.priority === 'high').length} critical • ${insights.recommendations.filter(r => r.priority === 'medium').length} warnings`}</p>
               </div>
+              {aiInsights && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border" style={{ background: `${C.gold}10`, color: C.gold, borderColor: `${C.gold}25` }}>Live AI</span>}
             </div>
+            {aiInsights?.summary && (
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-4 p-4 rounded-2xl border" style={{ background: `linear-gradient(135deg, ${C.gold}06, ${C.gold}02)`, borderColor: `${C.gold}20` }}>
+                <p className="text-xs font-medium" style={{ color: C.text }}>{aiInsights.summary}</p>
+                {aiInsights.predictions.length > 0 && (
+                  <div className="flex flex-wrap gap-3 mt-3">
+                    {aiInsights.predictions.slice(0, 3).map((p, i) => (
+                      <div key={i} className="flex items-center gap-1.5 text-[10px]">
+                        <span style={{ color: p.trend === 'up' ? C.green : p.trend === 'down' ? C.red : C.textMuted }}>{p.trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : p.trend === 'down' ? <ArrowDownRight className="w-3 h-3" /> : '→'}</span>
+                        <span style={{ color: C.textMuted }}>{p.metric}</span>
+                        <span className="font-bold" style={{ color: C.text }}>{p.current} → {p.predicted}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {insights.recommendations.slice(0, 6).map((rec, i) => {
+              {aiRecommendations.slice(0, 4).map((rec, i) => {
+                const ps = PRIORITY[rec.priority as 'high' | 'medium' | 'low'] || PRIORITY.medium;
+                const PIcon = ps.icon;
+                return (
+                  <motion.div key={`ai-${i}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                    className="flex items-start gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all duration-200 group"
+                    style={{ background: C.card, borderColor: C.border }}
+                    whileHover={{ borderColor: `${C.gold}35`, background: `${C.gold}04` }}>
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${C.gold}12` }}><Sparkles className="w-4 h-4" style={{ color: C.gold }} /></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-semibold" style={{ color: C.text }}>{rec.action}</span>
+                        <span className="text-[8px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-md" style={{ background: ps.bg, color: ps.color }}>{ps.label}</span>
+                      </div>
+                      <p className="text-[10px] leading-relaxed" style={{ color: C.textMuted }}>{rec.reasoning}</p>
+                      <p className="text-[9px] mt-1" style={{ color: C.textDim }}>{rec.entityName}</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 shrink-0 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: C.textDim }} />
+                  </motion.div>
+                );
+              })}
+              {insights.recommendations.slice(0, aiRecommendations.length > 0 ? 2 : 6).map((rec, i) => {
                 const ps = PRIORITY[rec.priority], ec = ENGINES[rec.engine as keyof typeof ENGINES];
                 const PIcon = ps.icon;
                 return (

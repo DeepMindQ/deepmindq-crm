@@ -1,9 +1,11 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users, Heart, AlertTriangle, Activity, Plus, ArrowRight, Sparkles,
-  Mail, Phone, MessageSquare, BookOpen, StickyNote, Clock,
+  Mail, Phone, MessageSquare, BookOpen, StickyNote, Clock, RefreshCw,
+  Loader2, Inbox, AlertCircle,
 } from 'lucide-react';
 import { PageTransition, StatCard, StaggerGrid, StaggerItem, SectionHeader, GlassPanel } from '@/components/ui/animated-components';
 import { Badge } from '@/components/ui/badge';
@@ -36,20 +38,57 @@ interface CompanyTimeline {
 
 interface RecommendedAction {
   company: string;
+  companyId: string;
   person: string;
   action: string;
   reason: string;
   priority: 'high' | 'medium';
 }
 
-/* ── Demo Data ──────────────────────────────────────── */
-const stats = [
-  { label: 'Active Relationships', value: 47, icon: Users, color: '#D4AF37', trend: { value: '12%', up: true } },
-  { label: 'Strong Connections', value: 28, icon: Heart, color: '#10B981', trend: { value: '8%', up: true } },
-  { label: 'Need Attention', value: 6, icon: AlertTriangle, color: '#F59E0B', trend: { value: '3 new', up: false } },
-  { label: 'Total Interactions', value: 312, icon: Activity, color: '#6366F1', trend: { value: '24 this week', up: true } },
-];
+interface ApiStats {
+  activeRelationships: number;
+  strongConnections: number;
+  needAttention: number;
+  totalInteractions: number;
+}
 
+interface ApiWeeklyActivity {
+  emailsSent: number;
+  meetings: number;
+  calls: number;
+  notesAdded: number;
+}
+
+interface ApiCompanyTimeline {
+  id: string;
+  name: string;
+  health: number;
+  contacts: Contact[];
+  interactions: Array<{
+    date: string;
+    type: InteractionType;
+    description: string;
+    nextAction?: string;
+  }>;
+}
+
+interface ApiRecommendedAction {
+  company: string;
+  companyId: string;
+  person: string;
+  action: string;
+  reason: string;
+  priority: 'high' | 'medium';
+}
+
+interface ApiData {
+  stats: ApiStats;
+  companyTimelines: ApiCompanyTimeline[];
+  recommendedActions: ApiRecommendedAction[];
+  weeklyActivity: ApiWeeklyActivity;
+}
+
+/* ── Static Maps ───────────────────────────────────── */
 const interactionIcons: Record<InteractionType, typeof Mail> = {
   'Email Sent': Mail,
   Meeting: MessageSquare,
@@ -66,96 +105,13 @@ const interactionColors: Record<InteractionType, string> = {
   Note: 'bg-gray-50 text-gray-700 border-gray-200',
 };
 
-const companyTimelines: CompanyTimeline[] = [
-  {
-    id: 'abc-mfg',
-    name: 'ABC Manufacturing',
-    health: 82,
-    healthColor: 'green',
-    contacts: [
-      { name: 'Sarah Chen', initials: 'SC', color: '#6366F1' },
-      { name: 'James Wright', initials: 'JW', color: '#0EA5E9' },
-      { name: 'Maria Lopez', initials: 'ML', color: '#EC4899' },
-    ],
-    interactions: [
-      { date: 'Jun 18, 2025', type: 'Research', description: 'Reviewed Q2 procurement strategy and expansion plans. Key pain point: supply chain visibility.' },
-      { date: 'Jun 20, 2025', type: 'Email Sent', description: 'Sent industry benchmark report on supply chain optimization to Sarah Chen with personalized insights.' },
-      { date: 'Jun 24, 2025', type: 'Meeting', description: 'Discovery call with Sarah & James — discussed current ERP limitations and timeline for evaluation.', nextAction: 'Send technical whitepaper on integration capabilities' },
-    ],
-  },
-  {
-    id: 'xyz-bank',
-    name: 'XYZ Bank',
-    health: 68,
-    healthColor: 'green',
-    contacts: [
-      { name: 'David Park', initials: 'DP', color: '#10B981' },
-      { name: 'Emma Wilson', initials: 'EW', color: '#F59E0B' },
-    ],
-    interactions: [
-      { date: 'Jun 12, 2025', type: 'Note', description: 'Initial contact made at FinTech Summit. David expressed interest in risk analytics solutions.' },
-      { date: 'Jun 17, 2025', type: 'Email Sent', description: 'Follow-up email with case study from similar financial institution. David confirmed interest in a demo.' },
-      { date: 'Jun 25, 2025', type: 'Meeting', description: 'Proposal presentation scheduled for July 2 with David and Emma (Head of Compliance).', nextAction: 'Prepare customized demo environment with sample risk data' },
-    ],
-  },
-  {
-    id: 'def-energy',
-    name: 'DEF Energy',
-    health: 34,
-    healthColor: 'red',
-    contacts: [
-      { name: 'Robert Hall', initials: 'RH', color: '#EF4444' },
-      { name: 'Lisa Tran', initials: 'LT', color: '#8B5CF6' },
-    ],
-    interactions: [
-      { date: 'May 28, 2025', type: 'Research', description: 'Researched DEF Energy\'s recent regulatory compliance challenges and sustainability reporting needs.' },
-      { date: 'Jun 5, 2025', type: 'Email Sent', description: 'Sent introductory email to Robert Hall referencing their recent ESG report findings. No response received.' },
-      { date: 'Jun 10, 2025', type: 'Call', description: 'Left voicemail for Robert. Followed up via LinkedIn — profile viewed but no reply.', nextAction: 'Reach out to Lisa Tran (VP Operations) as alternate point of contact' },
-    ],
-  },
-  {
-    id: 'ghi-tech',
-    name: 'GHI Technologies',
-    health: 55,
-    healthColor: 'amber',
-    contacts: [
-      { name: 'Alex Kumar', initials: 'AK', color: '#0EA5E9' },
-      { name: 'Nina Patel', initials: 'NP', color: '#D4AF37' },
-      { name: 'Tom Bradley', initials: 'TB', color: '#10B981' },
-    ],
-    interactions: [
-      { date: 'Jun 3, 2025', type: 'Meeting', description: 'Initial discovery meeting. Alex shared roadmap for data platform consolidation — potential $120K opportunity.' },
-      { date: 'Jun 15, 2025', type: 'Email Sent', description: 'Sent detailed solution architecture and ROI projection. Nina requested security compliance documentation.' },
-      { date: 'Jun 22, 2025', type: 'Note', description: 'Security docs delivered. Tom (CTO) reviewing. Decision expected by mid-July.', nextAction: 'Schedule technical deep-dive with Tom Bradley' },
-    ],
-  },
-];
-
-const recommendedActions: RecommendedAction[] = [
-  {
-    company: 'ABC Manufacturing',
-    person: 'Sarah Chen',
-    action: 'Send technical whitepaper on ERP integration',
-    reason: 'Follow-up from Jun 24 discovery call — 4 days overdue',
-    priority: 'high',
-  },
-  {
-    company: 'DEF Energy',
-    person: 'Lisa Tran',
-    action: 'Introductory outreach email via alternative contact',
-    reason: 'Robert Hall unresponsive after 3 touchpoints',
-    priority: 'high',
-  },
-  {
-    company: 'GHI Technologies',
-    person: 'Tom Bradley',
-    action: 'Schedule technical deep-dive meeting',
-    reason: 'Security docs delivered — capitalize on CTO engagement window',
-    priority: 'medium',
-  },
-];
-
 /* ── Helpers ────────────────────────────────────────── */
+function getHealthColor(health: number): 'green' | 'amber' | 'red' {
+  if (health >= 60) return 'green';
+  if (health >= 40) return 'amber';
+  return 'red';
+}
+
 function healthBarColor(healthColor: string) {
   if (healthColor === 'green') return '#10B981';
   if (healthColor === 'amber') return '#F59E0B';
@@ -179,8 +135,143 @@ function HealthBar({ pct, color }: { pct: number; color: string }) {
   );
 }
 
+/* ── Skeleton / Placeholder ─────────────────────────── */
+function SkeletonPulse({ className }: { className?: string }) {
+  return <div className={`animate-pulse rounded-md bg-gray-200 ${className ?? ''}`} />;
+}
+
+function LoadingSkeleton() {
+  return (
+    <PageTransition className="p-6 max-w-7xl mx-auto space-y-8">
+      {/* Header skeleton */}
+      <div className="flex items-start justify-between">
+        <div className="space-y-2">
+          <SkeletonPulse className="h-7 w-52" />
+          <SkeletonPulse className="h-4 w-64" />
+        </div>
+        <SkeletonPulse className="h-10 w-40" />
+      </div>
+
+      {/* Stats skeleton */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <SkeletonPulse key={i} className="h-28 w-full rounded-xl" />
+        ))}
+      </div>
+
+      {/* Main content skeleton */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2 space-y-5">
+          <SkeletonPulse className="h-5 w-64" />
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonPulse key={i} className="h-72 w-full rounded-xl" />
+          ))}
+        </div>
+        <div className="space-y-5">
+          <SkeletonPulse className="h-5 w-48" />
+          <SkeletonPulse className="h-96 w-full rounded-xl" />
+          <SkeletonPulse className="h-40 w-full rounded-xl" />
+        </div>
+      </div>
+    </PageTransition>
+  );
+}
+
 /* ── Component ──────────────────────────────────────── */
 export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: (screen: string, id?: string) => void }) {
+  const [data, setData] = useState<ApiData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/ai/relationship-memory');
+      if (!res.ok) {
+        throw new Error(`Request failed with status ${res.status}`);
+      }
+      const json = await res.json();
+      const apiData: ApiData = json.data ?? json;
+      setData(apiData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load relationship data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  /* ── Derived data ─────────────────────────────── */
+  const stats = data
+    ? [
+        { label: 'Active Relationships', value: data.stats.activeRelationships, icon: Users, color: '#D4AF37', trend: { value: `${data.stats.activeRelationships} accounts`, up: true } },
+        { label: 'Strong Connections', value: data.stats.strongConnections, icon: Heart, color: '#10B981', trend: { value: `${data.stats.strongConnections} connections`, up: true } },
+        { label: 'Need Attention', value: data.stats.needAttention, icon: AlertTriangle, color: '#F59E0B', trend: { value: `${data.stats.needAttention} accounts`, up: false } },
+        { label: 'Total Interactions', value: data.stats.totalInteractions, icon: Activity, color: '#6366F1', trend: { value: `${data.weeklyActivity.emailsSent + data.weeklyActivity.meetings + data.weeklyActivity.calls + data.weeklyActivity.notesAdded} this week`, up: true } },
+      ]
+    : [];
+
+  const companyTimelines: CompanyTimeline[] = data
+    ? data.companyTimelines.map((ct) => ({
+        ...ct,
+        healthColor: getHealthColor(ct.health),
+      }))
+    : [];
+
+  const recommendedActions: RecommendedAction[] = data
+    ? data.recommendedActions
+    : [];
+
+  const weeklyActivity = data?.weeklyActivity ?? null;
+
+  /* ── States ───────────────────────────────────── */
+  if (loading) return <LoadingSkeleton />;
+
+  if (error) {
+    return (
+      <PageTransition className="p-6 max-w-7xl mx-auto">
+        <div className="flex flex-col items-center justify-center py-24 space-y-4">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center bg-red-50">
+            <AlertCircle className="w-8 h-8 text-red-500" />
+          </div>
+          <h2 className="text-lg font-semibold text-foreground">Failed to Load Data</h2>
+          <p className="text-sm text-muted-foreground max-w-md text-center">{error}</p>
+          <Button onClick={fetchData} variant="outline" className="gap-2 mt-2">
+            <RefreshCw className="w-4 h-4" /> Try Again
+          </Button>
+        </div>
+      </PageTransition>
+    );
+  }
+
+  if (!data || (data.companyTimelines.length === 0 && data.recommendedActions.length === 0)) {
+    return (
+      <PageTransition className="p-6 max-w-7xl mx-auto">
+        <div className="flex flex-col items-center justify-center py-24 space-y-4">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center bg-gray-100">
+            <Inbox className="w-8 h-8 text-gray-400" />
+          </div>
+          <h2 className="text-lg font-semibold text-foreground">No Relationships Yet</h2>
+          <p className="text-sm text-muted-foreground max-w-md text-center">
+            Start adding interactions to build your relationship memory. The AI will surface insights and recommendations as your data grows.
+          </p>
+          <Button
+            onClick={() => navigateTo?.('interactions', 'new')}
+            className="gap-2 mt-2 font-medium shadow-sm"
+            style={{ background: '#D4AF37', color: '#fff' }}
+          >
+            <Plus className="w-4 h-4" /> Add Your First Interaction
+          </Button>
+        </div>
+      </PageTransition>
+    );
+  }
+
+  /* ── Main Render ──────────────────────────────── */
   return (
     <PageTransition className="p-6 max-w-7xl mx-auto space-y-8">
       {/* ── 1. Page Header ─────────────────────────── */}
@@ -189,13 +280,24 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Relationship Memory</h1>
           <p className="text-sm text-muted-foreground mt-1">Track every interaction. Never lose context.</p>
         </div>
-        <Button
-          onClick={() => navigateTo?.('interactions', 'new')}
-          className="gap-2 font-medium shadow-sm"
-          style={{ background: '#D4AF37', color: '#fff' }}
-        >
-          <Plus className="w-4 h-4" /> Add Interaction
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={fetchData}
+            variant="outline"
+            className="gap-2 font-medium shadow-sm"
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Refresh
+          </Button>
+          <Button
+            onClick={() => navigateTo?.('interactions', 'new')}
+            className="gap-2 font-medium shadow-sm"
+            style={{ background: '#D4AF37', color: '#fff' }}
+          >
+            <Plus className="w-4 h-4" /> Add Interaction
+          </Button>
+        </div>
       </div>
 
       {/* ── 2. Relationship Health Overview ─────────── */}
@@ -235,7 +337,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                   <HealthBar pct={company.health} color={healthBarColor(company.healthColor)} />
 
                   {/* Key contacts */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {company.contacts.map((c) => (
                       <div key={c.name} className="flex items-center gap-1.5 bg-gray-50 rounded-full pl-1 pr-3 py-1">
                         <span
@@ -345,7 +447,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                   size="sm"
                   className="w-full mt-1 text-xs font-medium gap-1.5"
                   variant="outline"
-                  onClick={() => navigateTo?.('company', companyTimelines.find(c => c.name === rec.company)?.id)}
+                  onClick={() => navigateTo?.('company-detail', rec.companyId)}
                 >
                   Do It <ArrowRight className="w-3 h-3" />
                 </Button>
@@ -354,22 +456,24 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
           </GlassPanel>
 
           {/* Quick stats mini-card */}
-          <GlassPanel className="p-4 space-y-3">
-            <p className="text-xs font-semibold text-foreground uppercase tracking-wider">This Week</p>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: 'Emails Sent', value: '12', color: '#6366F1' },
-                { label: 'Meetings', value: '4', color: '#10B981' },
-                { label: 'Calls Made', value: '7', color: '#0EA5E9' },
-                { label: 'Notes Added', value: '9', color: '#D4AF37' },
-              ].map((item) => (
-                <div key={item.label} className="text-center p-2 rounded-lg bg-gray-50">
-                  <p className="text-lg font-bold tabular-nums" style={{ color: item.color }}>{item.value}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{item.label}</p>
-                </div>
-              ))}
-            </div>
-          </GlassPanel>
+          {weeklyActivity && (
+            <GlassPanel className="p-4 space-y-3">
+              <p className="text-xs font-semibold text-foreground uppercase tracking-wider">This Week</p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'Emails Sent', value: String(weeklyActivity.emailsSent), color: '#6366F1' },
+                  { label: 'Meetings', value: String(weeklyActivity.meetings), color: '#10B981' },
+                  { label: 'Calls Made', value: String(weeklyActivity.calls), color: '#0EA5E9' },
+                  { label: 'Notes Added', value: String(weeklyActivity.notesAdded), color: '#D4AF37' },
+                ].map((item) => (
+                  <div key={item.label} className="text-center p-2 rounded-lg bg-gray-50">
+                    <p className="text-lg font-bold tabular-nums" style={{ color: item.color }}>{item.value}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{item.label}</p>
+                  </div>
+                ))}
+              </div>
+            </GlassPanel>
+          )}
         </div>
       </div>
     </PageTransition>

@@ -107,8 +107,29 @@ function ActionMenu({ companyId, navigateTo }: { companyId: string; navigateTo?:
 
   const items = [
     { label: 'View Details', action: () => navigateTo?.('company-detail', companyId) },
-    { label: 'Enrich Data', action: () => toast.info('Enrichment started') },
-    { label: 'Add Note', action: () => toast.info('Coming soon') },
+    { label: 'Generate AI Brief', action: async () => {
+      toast.loading('Generating AI account brief...', { id: 'ai-brief' });
+      try {
+        const res = await fetch(`/api/ai/account-brief?companyId=${companyId}`);
+        const json = await res.json();
+        const data = json.data ?? json;
+        if (data.brief) {
+          toast.success('AI brief generated! View it in Company Details.', { id: 'ai-brief' });
+          navigateTo?.('company-detail', companyId);
+        } else {
+          toast.error(data.error || 'Failed to generate brief', { id: 'ai-brief' });
+        }
+      } catch { toast.error('AI brief request failed', { id: 'ai-brief' }); }
+    }},
+    { label: 'Enrich Data', action: async () => {
+      toast.loading('Enriching company data...', { id: 'enrich' });
+      try {
+        const res = await fetch('/api/companies/enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ companyIds: [companyId] }) });
+        const data = await res.json();
+        toast.success('Data enrichment started', { id: 'enrich' });
+      } catch { toast.error('Enrichment failed', { id: 'enrich' }); }
+    }},
+    { label: 'Add Note', action: () => navigateTo?.('company-detail', companyId) },
   ];
 
   return (

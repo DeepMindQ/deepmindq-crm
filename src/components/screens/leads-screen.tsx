@@ -221,6 +221,25 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
   const [scoreBreakdowns, setScoreBreakdowns] = useState<Record<string, any>>({});
   const [recalculating, setRecalculating] = useState(false);
 
+  /* AI: Score all leads */
+  const [aiScoring, setAiScoring] = useState(false);
+  const handleAiScoreAll = async () => {
+    setAiScoring(true);
+    try {
+      const res = await fetch('/api/ai/score-leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scoreAll: true }) });
+      const data = await res.json();
+      if (data.data?.scores) {
+        const count = data.data.scores.length;
+        toast.success(`AI scored ${count} entities successfully`);
+        // Refresh leads to show new scores
+        fetchLeads();
+      } else {
+        toast.error(data.error || 'AI scoring failed');
+      }
+    } catch { toast.error('AI scoring request failed'); }
+    finally { setAiScoring(false); }
+  };
+
   /* L-05: Export */
   const [exporting, setExporting] = useState(false);
 
@@ -788,6 +807,12 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
           {recalculating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
           {recalculating ? 'Recalculating...' : 'Recalc Scores'}
         </Button>
+
+        {/* AI: Score All Leads with AI */}
+        <Button size="sm" className="h-9 gap-2 text-xs font-medium text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #D4AF37, #B8960F)' }} onClick={handleAiScoreAll} disabled={aiScoring}>
+          {aiScoring ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
+          {aiScoring ? 'AI Scoring...' : 'AI Score All'}
+        </Button>
       </div>
 
       {/* Filter Panel */}
@@ -1107,8 +1132,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
               className="fixed right-0 top-0 h-full w-full sm:w-[420px] z-50 flex flex-col border-l border-gray-200 overflow-hidden"
               style={{
-                background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                backdropFilter: 'blur(40px)',
+                background: '#FFFFFF', border: '1px solid #E5E7EB',
                 boxShadow: '-20px 0 60px rgba(0, 0, 0, 0.5), inset 1px 0 0 rgba(0, 0, 0, 0.04)',
               }}
             >

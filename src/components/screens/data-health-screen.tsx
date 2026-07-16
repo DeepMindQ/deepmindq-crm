@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, useInView, useMotionValue, useTransform, animate } from 'framer-motion';
 import {
   PageTransition,
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/animated-components';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   HeartPulse,
   Mail,
@@ -29,7 +30,82 @@ import {
   AlertTriangle,
   Users,
   TrendingUp,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
+
+/* ═══════════════════════════════════════════════════════════
+   Types
+   ═══════════════════════════════════════════════════════════ */
+interface DataHealthResponse {
+  overallScore: number;
+  totalRecords: number;
+  healthyRecords: number;
+  needsAttention: number;
+  criticalRecords: number;
+  healthBreakdown: {
+    dataCompleteness: number;
+    contactEnrichment: number;
+    signalCoverage: number;
+    relationshipMapping: number;
+  };
+  qualityCategories: {
+    missingEmails: { count: number; entity: 'contacts' };
+    missingCompanyData: { count: number; entity: 'companies' };
+    staleSignals: { count: number; entity: 'companies' };
+    incompleteStakeholders: { count: number; entity: 'companies' };
+    missingIndustry: { count: number; entity: 'companies' };
+    potentialDuplicates: { count: number; entity: 'contacts' };
+  };
+  enrichmentQueue: Array<{
+    id: string;
+    name: string;
+    type: 'company' | 'contact';
+    missing: string;
+    priority: 'high' | 'medium' | 'low';
+  }>;
+  dataFreshness: Array<{
+    group: string;
+    lastUpdated: string;
+    completeness: number;
+    totalRecords: number;
+  }>;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Shared constants
+   ═══════════════════════════════════════════════════════════ */
+const PRIORITY_STYLES: Record<string, string> = {
+  high: 'bg-red-50 text-red-700 border-red-200',
+  medium: 'bg-amber-50 text-amber-700 border-amber-200',
+  low: 'bg-blue-50 text-blue-700 border-blue-200',
+};
+
+/** Map quality category key → (label, icon, unit, fixTarget) */
+const CATEGORY_META: Record<
+  keyof DataHealthResponse['qualityCategories'],
+  { label: string; icon: typeof Mail; unit: string; fixTarget: string }
+> = {
+  missingEmails: { label: 'Missing Emails', icon: Mail, unit: 'contacts', fixTarget: 'contacts' },
+  missingCompanyData: { label: 'Missing Company Data', icon: Building2, unit: 'companies', fixTarget: 'companies' },
+  staleSignals: { label: 'Stale Signals', icon: Radio, unit: 'companies not monitored', fixTarget: 'companies' },
+  incompleteStakeholders: { label: 'Incomplete Stakeholder Maps', icon: GitBranch, unit: 'companies', fixTarget: 'companies' },
+  missingIndustry: { label: 'Missing Industry Classification', icon: Tag, unit: 'companies', fixTarget: 'companies' },
+  potentialDuplicates: { label: 'Duplicate Records', icon: Copy, unit: 'potential', fixTarget: 'duplicates' },
+};
+
+/** Score color based on 0-100 threshold */
+function scoreColor(score: number): string {
+  if (score >= 80) return '#16a34a';
+  if (score >= 60) return '#D4AF37';
+  if (score >= 40) return '#f59e0b';
+  return '#ef4444';
+}
+
+/** Derive a category "health" score from its issue count */
+function categoryScore(count: number): number {
+  return Math.max(0, Math.min(100, 100 - count * 2));
+}
 
 /* ═══════════════════════════════════════════════════════════
    Circular Gauge Component
@@ -42,8 +118,7 @@ function CircularGauge({ score, size = 160, strokeWidth = 12 }: { score: number;
   const motionVal = useMotionValue(0);
   const strokeDashoffset = useTransform(motionVal, v => circumference - (v / 100) * circumference);
 
-  const color =
-    score >= 80 ? '#16a34a' : score >= 60 ? '#D4AF37' : score >= 40 ? '#f59e0b' : '#ef4444';
+  const color = scoreColor(score);
 
   // Animate the counter
   const counterRef = useRef<HTMLSpanElement>(null);
@@ -78,55 +153,251 @@ function CircularGauge({ score, size = 160, strokeWidth = 12 }: { score: number;
 }
 
 /* ═══════════════════════════════════════════════════════════
-   Demo Data
+   Loading Skeleton
    ═══════════════════════════════════════════════════════════ */
+function LoadingSkeleton() {
+  return (
+    <PageTransition>
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-8 pr-1 pb-4">
+        {/* Header */}
+        <div className="flex items-center justify-between pt-2">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <Skeleton className="h-6 w-32 rounded-full" />
+        </div>
 
-const HEALTH_BREAKDOWN = [
-  { label: 'Data Completeness', score: 82, color: '#16a34a' },
-  { label: 'Contact Enrichment', score: 64, color: '#D4AF37' },
-  { label: 'Signal Coverage', score: 71, color: '#f59e0b' },
-  { label: 'Relationship Mapping', score: 58, color: '#ef4444' },
-];
+        {/* Overall Health Score */}
+        <GlassPanel className="p-6">
+          <div className="flex flex-col lg:flex-row items-center gap-8">
+            <div className="shrink-0">
+              <CircularGauge score={0} />
+            </div>
+            <div className="flex-1 w-full space-y-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="h-3 w-56" />
+              </div>
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-3 w-32" />
+                      <Skeleton className="h-3 w-8" />
+                    </div>
+                    <Skeleton className="h-2 w-full rounded-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="shrink-0 grid grid-cols-2 gap-3 lg:w-48">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
+                  <Skeleton className="w-4 h-4 mx-auto mb-1.5 rounded" />
+                  <Skeleton className="h-5 w-10 mx-auto mb-0.5" />
+                  <Skeleton className="h-2.5 w-14 mx-auto" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </GlassPanel>
 
-const QUALITY_CATEGORIES = [
-  { icon: Mail, label: 'Missing Emails', count: 23, unit: 'contacts', score: 88, color: '#ef4444' },
-  { icon: Building2, label: 'Missing Company Data', count: 12, unit: 'companies', score: 72, color: '#f59e0b' },
-  { icon: Radio, label: 'Stale Signals', count: 8, unit: 'companies not monitored', score: 65, color: '#f59e0b' },
-  { icon: GitBranch, label: 'Incomplete Stakeholder Maps', count: 15, unit: 'companies', score: 54, color: '#ef4444' },
-  { icon: Tag, label: 'Missing Industry Classification', count: 9, unit: 'companies', score: 78, color: '#D4AF37' },
-  { icon: Copy, label: 'Duplicate Records', count: 5, unit: 'potential', score: 91, color: '#16a34a' },
-];
+        {/* Quality Categories */}
+        <div>
+          <div className="space-y-2 mb-4">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-3 w-40" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 h-full flex flex-col">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="w-9 h-9 rounded-lg" />
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-36" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-5 w-10 rounded-full" />
+                </div>
+                <div className="flex-1 flex items-end justify-between gap-3">
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-2 w-full rounded-full" />
+                    <Skeleton className="h-2.5 w-20" />
+                  </div>
+                  <Skeleton className="h-8 w-16 rounded-md" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-const ENRICHMENT_QUEUE = [
-  { id: 'eq1', name: 'Acme Corp', type: 'company', missing: 'Revenue, employee count, tech stack', priority: 'high' as const },
-  { id: 'eq2', name: 'Sarah Chen', type: 'contact', missing: 'LinkedIn profile, job title, email', priority: 'high' as const },
-  { id: 'eq3', name: 'NovaTech Solutions', type: 'company', missing: 'Industry classification, headquarters', priority: 'medium' as const },
-  { id: 'eq4', name: 'James Rodriguez', type: 'contact', missing: 'Phone number, company email', priority: 'medium' as const },
-  { id: 'eq5', name: 'BlueSky Analytics', type: 'company', missing: 'Funding data, decision makers', priority: 'high' as const },
-  { id: 'eq6', name: 'Emily Watson', type: 'contact', missing: 'Social profiles, seniority level', priority: 'low' as const },
-  { id: 'eq7', name: 'Pinnacle Systems', type: 'company', missing: 'Annual revenue, headcount', priority: 'medium' as const },
-  { id: 'eq8', name: 'David Kim', type: 'contact', missing: 'Email address, current role', priority: 'low' as const },
-];
+        {/* Enrichment Queue */}
+        <div>
+          <div className="space-y-2 mb-4">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-3 w-52" />
+          </div>
+          <GlassPanel className="overflow-hidden">
+            <div className="divide-y divide-gray-100">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center gap-4 px-5 py-4">
+                  <Skeleton className="w-8 h-8 rounded-lg shrink-0" />
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-64" />
+                  </div>
+                  <Skeleton className="h-5 w-14 rounded-full shrink-0" />
+                  <Skeleton className="h-8 w-20 rounded-md shrink-0" />
+                </div>
+              ))}
+            </div>
+          </GlassPanel>
+        </div>
 
-const PRIORITY_STYLES: Record<string, string> = {
-  high: 'bg-red-50 text-red-700 border-red-200',
-  medium: 'bg-amber-50 text-amber-700 border-amber-200',
-  low: 'bg-blue-50 text-blue-700 border-blue-200',
-};
-
-const FRESHNESS_DATA = [
-  { group: 'Enterprise Accounts', lastUpdated: '2 hours ago', completeness: 94, color: '#16a34a' },
-  { group: 'Mid-Market Accounts', lastUpdated: '6 hours ago', completeness: 82, color: '#D4AF37' },
-  { group: 'SMB Accounts', lastUpdated: '1 day ago', completeness: 71, color: '#f59e0b' },
-  { group: 'Prospect Pool', lastUpdated: '3 days ago', completeness: 58, color: '#ef4444' },
-  { group: 'Churned Accounts', lastUpdated: '2 weeks ago', completeness: 42, color: '#ef4444' },
-];
+        {/* Data Freshness */}
+        <div>
+          <div className="space-y-2 mb-4">
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="h-3 w-64" />
+          </div>
+          <GlassPanel className="p-5">
+            <div className="space-y-5">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-5 w-24 rounded-full" />
+                    </div>
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                  <Skeleton className="h-2 w-full rounded-full" />
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-6 mt-6 pt-4 border-t border-gray-100">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <Skeleton className="w-2.5 h-2.5 rounded-full" />
+                  <Skeleton className="h-3 w-14" />
+                </div>
+              ))}
+            </div>
+          </GlassPanel>
+        </div>
+      </div>
+    </PageTransition>
+  );
+}
 
 /* ═══════════════════════════════════════════════════════════
    Component
    ═══════════════════════════════════════════════════════════ */
 
 export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen: string, id?: string) => void }) {
+  const [data, setData] = useState<DataHealthResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async (cacheBust = false) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = cacheBust ? `/api/data-health?_t=${Date.now()}` : '/api/data-health';
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch data health (${res.status})`);
+      }
+      const json = await res.json();
+      const d = json.data ?? json;
+      setData(d);
+    } catch (err) {
+      console.error('[DataHealthScreen] fetch error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load data health');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  /* ── Derived data ── */
+  const healthBreakdown = data
+    ? [
+        { label: 'Data Completeness', score: data.healthBreakdown.dataCompleteness, color: scoreColor(data.healthBreakdown.dataCompleteness) },
+        { label: 'Contact Enrichment', score: data.healthBreakdown.contactEnrichment, color: scoreColor(data.healthBreakdown.contactEnrichment) },
+        { label: 'Signal Coverage', score: data.healthBreakdown.signalCoverage, color: scoreColor(data.healthBreakdown.signalCoverage) },
+        { label: 'Relationship Mapping', score: data.healthBreakdown.relationshipMapping, color: scoreColor(data.healthBreakdown.relationshipMapping) },
+      ]
+    : [];
+
+  const qualityCategories = data
+    ? (Object.keys(CATEGORY_META) as Array<keyof DataHealthResponse['qualityCategories']>).map((key) => {
+        const cat = data.qualityCategories[key];
+        const meta = CATEGORY_META[key];
+        const score = categoryScore(cat.count);
+        return {
+          icon: meta.icon,
+          label: meta.label,
+          count: cat.count,
+          unit: meta.unit,
+          score,
+          color: scoreColor(score),
+          fixTarget: meta.fixTarget,
+        };
+      })
+    : [];
+
+  const totalIssues = data
+    ? Object.values(data.qualityCategories).reduce((sum, c) => sum + c.count, 0)
+    : 0;
+
+  /* ── States ── */
+  if (loading) return <LoadingSkeleton />;
+
+  if (error) {
+    return (
+      <PageTransition>
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center">
+            <AlertCircle className="w-7 h-7 text-red-500" />
+          </div>
+          <div className="text-center space-y-1">
+            <p className="text-sm font-semibold text-foreground">Failed to load data health</p>
+            <p className="text-xs text-muted-foreground max-w-sm">{error}</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2 gap-2 border-gray-200 text-foreground hover:bg-gray-100"
+            onClick={() => fetchData(true)}
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Retry
+          </Button>
+        </div>
+      </PageTransition>
+    );
+  }
+
+  if (!data) {
+    return (
+      <PageTransition>
+        <EmptyState
+          title="No data health information"
+          description="Start adding companies and contacts to see data health metrics."
+          icon={HeartPulse}
+        />
+      </PageTransition>
+    );
+  }
+
+  /* ── Main Render ── */
   return (
     <PageTransition>
       <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-8 pr-1 pb-4">
@@ -137,10 +408,21 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
             title="Data Health"
             subtitle="Monitor and improve the quality of your intelligence data"
           />
-          <Badge variant="outline" className="text-xs font-normal text-muted-foreground border-primary/20 bg-primary/5 hidden sm:inline-flex">
-            <HeartPulse className="h-3 w-3 mr-1.5" />
-            72 issues detected
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs font-normal text-muted-foreground border-primary/20 bg-primary/5 hidden sm:inline-flex">
+              <HeartPulse className="h-3 w-3 mr-1.5" />
+              {totalIssues} issues detected
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2.5 text-xs border-gray-200 text-muted-foreground hover:text-foreground hover:bg-gray-100 gap-1.5"
+              onClick={() => fetchData(true)}
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
+          </div>
         </div>
 
         {/* ── 2. Overall Health Score ────────────────────────────────────── */}
@@ -148,7 +430,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
           <div className="flex flex-col lg:flex-row items-center gap-8">
             {/* Gauge */}
             <div className="shrink-0">
-              <CircularGauge score={76} />
+              <CircularGauge score={data.overallScore} />
             </div>
 
             {/* Breakdown */}
@@ -158,7 +440,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                 <p className="text-xs text-muted-foreground">Scores across key data quality dimensions</p>
               </div>
               <div className="space-y-3">
-                {HEALTH_BREAKDOWN.map((item, i) => (
+                {healthBreakdown.map((item, i) => (
                   <div key={item.label} className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-foreground/80">{item.label}</span>
@@ -175,10 +457,10 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
             {/* Quick Stats */}
             <div className="shrink-0 grid grid-cols-2 gap-3 lg:w-48">
               {[
-                { label: 'Total Records', value: 2483, icon: Users, color: '#D4AF37' },
-                { label: 'Healthy', value: 1847, icon: CheckCircle2, color: '#16a34a' },
-                { label: 'Needs Attention', value: 521, icon: AlertTriangle, color: '#f59e0b' },
-                { label: 'Critical', value: 115, icon: TrendingUp, color: '#ef4444' },
+                { label: 'Total Records', value: data.totalRecords, icon: Users, color: '#D4AF37' },
+                { label: 'Healthy', value: data.healthyRecords, icon: CheckCircle2, color: '#16a34a' },
+                { label: 'Needs Attention', value: data.needsAttention, icon: AlertTriangle, color: '#f59e0b' },
+                { label: 'Critical', value: data.criticalRecords, icon: TrendingUp, color: '#ef4444' },
               ].map((stat) => (
                 <div key={stat.label} className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
                   <stat.icon className="w-4 h-4 mx-auto mb-1.5" style={{ color: stat.color }} />
@@ -196,7 +478,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
         <div>
           <SectionHeader title="Data Quality Categories" subtitle="Areas requiring attention" />
           <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" stagger={0.06}>
-            {QUALITY_CATEGORIES.map((cat) => (
+            {qualityCategories.map((cat) => (
               <StaggerItem key={cat.label}>
                 <motion.div
                   whileHover={{ y: -2, boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
@@ -233,7 +515,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                       size="sm"
                       variant="outline"
                       className="h-8 px-3 text-xs font-medium border-gray-200 text-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-all duration-200 shrink-0"
-                      onClick={() => navigateTo?.('duplicates')}
+                      onClick={() => navigateTo?.(cat.fixTarget)}
                     >
                       Fix
                       <ArrowRight className="h-3 w-3 ml-1" />
@@ -250,7 +532,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
           <SectionHeader title="Enrichment Queue" subtitle="Records needing data enrichment" />
           <GlassPanel className="overflow-hidden">
             <div className="divide-y divide-gray-100">
-              {ENRICHMENT_QUEUE.map((item, idx) => (
+              {data.enrichmentQueue.map((item, idx) => (
                 <motion.div
                   key={item.id}
                   initial={{ opacity: 0, x: -8 }}
@@ -312,12 +594,14 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
           <SectionHeader title="Data Freshness" subtitle="How recently data was updated across account groups" />
           <GlassPanel className="p-5">
             <div className="space-y-5">
-              {FRESHNESS_DATA.map((item, idx) => {
+              {data.dataFreshness.map((item, idx) => {
                 const freshnessPct =
                   item.lastUpdated.includes('hour') ? 95
                     : item.lastUpdated.includes('day') && !item.lastUpdated.includes('week') ? 70
                       : item.lastUpdated.includes('week') ? 35
                         : 50;
+
+                const color = scoreColor(item.completeness);
 
                 return (
                   <div key={item.group}>
@@ -334,12 +618,12 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                       </div>
                       <span
                         className="text-xs font-bold tabular-nums"
-                        style={{ color: item.color }}
+                        style={{ color }}
                       >
                         {item.completeness}% complete
                       </span>
                     </div>
-                    <AnimatedBar value={freshnessPct} max={100} color={item.color} delay={0.1 * idx} />
+                    <AnimatedBar value={freshnessPct} max={100} color={color} delay={0.1 * idx} />
                   </div>
                 );
               })}

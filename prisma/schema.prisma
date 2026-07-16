@@ -601,3 +601,65 @@ model AccountStrategy {
   @@index([status])
   @@index([createdAt])
 }
+
+// ── Authentication & User Management ──
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  phone         String?
+  company       String?
+  designation   String?
+  role          String   @default("admin") // admin, user
+  passwordHash  String?                          // null = first-time user (no password yet)
+  hasPassword   Boolean  @default(false)
+  avatarUrl     String?
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  otpCodes      OtpCode[]
+  sessions      Session[]
+
+  @@index([email])
+  @@index([isActive])
+}
+
+model OtpCode {
+  id          String   @id @default(cuid())
+  userId      String?
+  email       String                          // email this OTP was sent to
+  code        String                          // 6-digit code
+  purpose     String                          // login, set_password, change_email, change_password, update_profile
+  metadata    String?  @default("{}")         // JSON: e.g. { newEmail: "..." } for change_email
+  verified    Boolean  @default(false)
+  attempts    Int      @default(0)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([code])
+  @@index([purpose])
+  @@index([expiresAt])
+  @@index([verified])
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  userId      String
+  token       String   @unique                  // opaque session token
+  userAgent   String?
+  ipAddress   String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}

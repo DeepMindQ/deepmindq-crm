@@ -1,31 +1,20 @@
-import { db } from "@/lib/db"
-import { apiSuccess } from "@/lib/apiHelpers"
+import { NextResponse } from 'next/server';
+import { getCurrentSession, requireAuth, AuthError } from '@/lib/session';
 
 export async function GET() {
   try {
-    const user = await db.user.findFirst({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    })
+    const user = await getCurrentSession();
 
-    return apiSuccess({ user })
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    return NextResponse.json({ user });
   } catch (error) {
-    console.error("Fetch me error:", error)
-    return apiSuccess({
-      user: {
-        id: 'demo-1',
-        name: 'Ravi Shanker',
-        email: 'ravi@deepmindq.com',
-        role: 'admin',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-    })
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    console.error('[auth/me] Error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

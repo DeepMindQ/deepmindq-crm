@@ -19,7 +19,7 @@ import {
   BookOpen, Compass, Search, ExternalLink,
 } from 'lucide-react';
 
-import LandingPage from '@/app/landing-page';
+import LoginPage from '@/components/login-page';
 import { useAppStore } from '@/lib/store';
 
 /* ═════════════════════════════════════════════════════
@@ -896,33 +896,57 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
 }
 
 /* ═══════════════════════════════════════════════════
-   Root Page — toggles between Landing and App
+   Root Page — toggles between Login and App
    ═══════════════════════════════════════════════════ */
 export default function HomePage() {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [checking, setChecking] = useState(true);
 
-  // Restore login state from sessionStorage
+  // Check session on mount
   useEffect(() => {
-    if (sessionStorage.getItem('dmq_logged_in') === '1') {
-      setLoggedIn(true);
-    }
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          setLoggedIn(true);
+        }
+      } catch {
+        // Not authenticated — show login
+      } finally {
+        setChecking(false);
+      }
+    })();
   }, []);
 
   const handleLogin = () => {
-    sessionStorage.setItem('dmq_logged_in', '1');
     setLoggedIn(true);
     window.location.hash = '#command-center';
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('dmq_logged_in');
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Ignore
+    }
     setLoggedIn(false);
     window.location.hash = '';
     window.location.replace('/');
   };
 
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a0c10' }}>
+        <div className="text-center">
+          <div className="w-10 h-10 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500 text-sm">Checking session...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!loggedIn) {
-    return <LandingPage onLogin={handleLogin} />;
+    return <LoginPage onLogin={handleLogin} />;
   }
 
   return (

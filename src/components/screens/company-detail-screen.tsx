@@ -161,6 +161,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
 
   // Account brief (AI)
   const [brief, setBrief] = useState<any>(null);
+  const [briefSources, setBriefSources] = useState<Array<{title: string; url: string; snippet: string}>>([]);
   const [loadingBrief, setLoadingBrief] = useState(false);
 
   const [activeTab, setActiveTab] = useState('overview');
@@ -1116,6 +1117,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                     const res = await fetch(`/api/ai/account-brief?companyId=${companyId}`);
                     const data = await res.json();
                     setBrief(data.brief);
+                    setBriefSources(data.sources || []);
                     toast.success('Account brief generated');
                   } catch { toast.error('Failed to generate brief'); }
                   finally { setLoadingBrief(false); }
@@ -1204,6 +1206,34 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                     )}
                   </div>
                 </AnimatedCard>
+
+                {briefSources.length > 0 && (
+                  <div className="lg:col-span-2">
+                    <AnimatedCard delay={0.5}>
+                      <div className="p-5 space-y-3">
+                        <h4 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2" style={{ color: '#D4AF37' }}>
+                          <Globe size={14} /> Research Sources ({briefSources.length})
+                        </h4>
+                        <div className="space-y-2 max-h-48 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                          {briefSources.map((src, i) => {
+                            let domain = '';
+                            try { domain = new URL(src.url).hostname.replace('www.', ''); } catch { domain = src.url; }
+                            return (
+                              <a key={i} href={src.url} target="_blank" rel="noopener noreferrer"
+                                className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-colors group">
+                                <ExternalLink size={12} className="mt-0.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-medium text-gray-900 line-clamp-1 group-hover:text-[#D4AF37] transition-colors">{src.title || domain}</p>
+                                  <p className="text-[10px] text-muted-foreground">{domain}</p>
+                                </div>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </AnimatedCard>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-16">

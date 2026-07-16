@@ -702,16 +702,30 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
                             </span>
                           )}
 
-                          <span className="ml-auto text-xs text-muted-foreground hidden sm:inline-flex items-center gap-1.5">
-                            <Clock className="w-3 h-3" />
-                            {formatTimeAgo(signal.detectedAt)}
-                          </span>
+                          <div className="ml-auto hidden sm:flex items-center gap-2">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Clock className="w-3 h-3" />
+                              {formatTimeAgo(signal.detectedAt)}
+                            </div>
+                            {isExternal && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-px rounded-full"
+                                style={{ color: '#D4AF37', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
+                                <Brain className="w-2.5 h-2.5" /> AI
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         {/* Mobile timestamp */}
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3 sm:hidden">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3 sm:hidden">
                           <Clock className="w-3 h-3" />
                           {formatTimeAgo(signal.detectedAt)}
+                          {isExternal && (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-px rounded-full"
+                              style={{ color: '#D4AF37', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
+                              <Brain className="w-2.5 h-2.5" /> AI
+                            </span>
+                          )}
                         </div>
 
                         {/* Title */}

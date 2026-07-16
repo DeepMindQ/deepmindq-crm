@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,6 +58,28 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [genPhase, setGenPhase] = useState(0);
+  const progressRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const GEN_PHASES = [
+    'Researching executive profile...',
+    'Analyzing conversation patterns...',
+    'Crafting engagement strategy...',
+    'Finalizing approach recommendation...',
+  ];
+
+  useEffect(() => {
+    if (loading) {
+      setGenPhase(0);
+      const phaseInterval = setInterval(() => {
+        setGenPhase((p) => (p + 1) % GEN_PHASES.length);
+      }, 1500);
+      progressRef.current = phaseInterval;
+      return () => clearInterval(phaseInterval);
+    } else {
+      setGenPhase(0);
+    }
+  }, [loading]);
 
   // Form state
   const [form, setForm] = useState({ companyName: '', executiveRole: '', executiveName: '', industry: '', context: '', yourCapabilities: '' });
@@ -187,6 +209,49 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                     </div>
                   </div>
 
+                  {/* Loading Overlay */}
+                  <AnimatePresence>
+                    {loading && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.3 }}
+                        className="mt-5 p-6 rounded-xl border text-center"
+                        style={{ background: 'rgba(212,175,55,0.03)', borderColor: 'rgba(212,175,55,0.15)' }}
+                      >
+                        <motion.div
+                          animate={{ scale: [1, 1.15, 1] }}
+                          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                          className="inline-flex items-center justify-center w-12 h-12 rounded-full mb-4"
+                          style={{ background: 'rgba(212,175,55,0.12)' }}
+                        >
+                          <Brain className="w-6 h-6" style={{ color: '#D4AF37' }} />
+                        </motion.div>
+                        <p className="text-sm font-semibold text-foreground mb-2">Generating Plan</p>
+                        <motion.p
+                          key={genPhase}
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: 0.3 }}
+                          className="text-xs text-muted-foreground mb-4"
+                        >
+                          {GEN_PHASES[genPhase]}
+                        </motion.p>
+                        <div className="w-full h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                          <motion.div
+                            className="h-full rounded-full"
+                            style={{ background: 'linear-gradient(90deg, #D4AF37, #E8C84A, #D4AF37)', backgroundSize: '200% 100%' }}
+                            initial={{ width: '0%' }}
+                            animate={{ width: '100%', backgroundPosition: ['0% 0%', '100% 0%', '0% 0%'] }}
+                            transition={{ width: { duration: 6, ease: 'linear' }, backgroundPosition: { duration: 2, repeat: Infinity, ease: 'linear' } }}
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   <div className="flex justify-end mt-5">
                     <Button onClick={handleGenerate} disabled={loading} className="gap-2 font-semibold text-sm shadow-sm" style={{ background: '#D4AF37', color: '#fff', border: 'none' }}>
                       {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
@@ -254,6 +319,11 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                               </span>
                             </div>
                           </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-muted-foreground">
+                              Generated {new Date(p.generatedAt).toLocaleString()}
+                            </span>
+                          </div>
 
                           {/* Likely Priorities */}
                           <div className="mb-3">
@@ -275,6 +345,14 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                               &ldquo;{cp.suggestedOpening}&rdquo;
                             </p>
                           </div>
+
+                          {/* Value Proposition */}
+                          {cp.valueProposition && (
+                            <div className="mt-2 p-2.5 rounded-lg border" style={{ background: 'rgba(212,175,55,0.04)', borderColor: 'rgba(212,175,55,0.2)' }}>
+                              <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: '#D4AF37' }}>Value Proposition</p>
+                              <p className="text-xs text-gray-700 leading-relaxed">{cp.valueProposition}</p>
+                            </div>
+                          )}
 
                           {/* Topics to Avoid */}
                           {cp.topicsToAvoid.length > 0 && (

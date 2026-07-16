@@ -107,8 +107,18 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
 }`;
 
   try {
-    const { generateText } = await import('z-ai-web-dev-sdk');
-    const response = await generateText(prompt);
+    const ZAI = (await import('z-ai-web-dev-sdk')).default;
+    const { ensureZaiConfig } = await import('@/lib/zai-config');
+    await ensureZaiConfig();
+    const zai = await ZAI.create();
+    const completion = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'You are a business intelligence assistant. Return valid JSON only, no markdown, no code fences.' },
+        { role: 'user', content: prompt },
+      ],
+      thinking: { type: 'disabled' },
+    });
+    const response = completion.choices?.[0]?.message?.content || '';
 
     // Parse the AI response
     const jsonMatch = response.match(/\{[\s\S]*\}/);

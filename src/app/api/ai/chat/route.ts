@@ -12,6 +12,8 @@ interface ChatMessage {
 }
 
 async function callAI(systemPrompt: string, messages: ChatMessage[]): Promise<string> {
+  const { ensureZaiConfig } = await import('@/lib/zai-config');
+  await ensureZaiConfig();
   const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
   const completion = await ZAI.chat.completions.create({
     messages: [

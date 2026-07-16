@@ -28,6 +28,8 @@ interface QueryResult {
 // ── LLM helper (thin wrapper around z-ai-web-dev-sdk) ─────────────
 
 async function createZAI() {
+  const { ensureZaiConfig } = await import('@/lib/zai-config');
+  await ensureZaiConfig();
   const Z = await import('z-ai-web-dev-sdk').then((m: any) => m.default);
   return Z.create();
 }

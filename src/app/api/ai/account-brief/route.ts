@@ -44,6 +44,8 @@ const briefCache = new Map<string, { data: CachedBrief; expiresAt: number }>()
 type ZAIInstance = Awaited<ReturnType<typeof createZAI>>
 
 async function createZAI() {
+  const { ensureZaiConfig } = await import('@/lib/zai-config');
+  await ensureZaiConfig();
   const ZAI = await import('z-ai-web-dev-sdk').then((m) => m.default)
   return ZAI.create()
 }

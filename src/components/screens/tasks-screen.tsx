@@ -145,7 +145,7 @@ const cardVariants = {
    TasksScreen
    ═══════════════════════════════════════════════════════════════════════ */
 
-export function TasksScreen() {
+export default function TasksScreen() {
   const { setActiveView, setSelectedCompanyId, setSelectedContactId, setTaskCount } = useAppStore()
   const qc = useQueryClient()
 

@@ -113,6 +113,8 @@ export async function POST(request: Request) {
     let ZAI: any;
     try {
       ZAI = (await import('z-ai-web-dev-sdk')).default;
+      const { ensureZaiConfig } = await import('@/lib/zai-config');
+      await ensureZaiConfig();
       const zai = await ZAI.create();
 
       const completion = await zai.chat.completions.create({

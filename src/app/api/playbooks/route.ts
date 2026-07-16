@@ -39,7 +39,10 @@ export async function POST(req: NextRequest) {
     // AI generation
     if (aiGenerate && !steps) {
       try {
-        const { generateWithWebSearch } = await import('z-ai-web-dev-sdk');
+        const ZAI = (await import('z-ai-web-dev-sdk')).default;
+        const { ensureZaiConfig } = await import('@/lib/zai-config');
+        await ensureZaiConfig();
+        const zai = await ZAI.create();
         const categoryLabel = category === 'introduction' ? 'Initial outreach and introduction' :
           category === 'follow_up' ? 'Follow-up engagement' :
           category === 'discovery' ? 'Discovery call and needs assessment' :
@@ -64,8 +67,14 @@ Return a JSON object with this exact structure (no markdown, no code fences, raw
 
 Provide 4-6 detailed steps with actionable tips. Make the content specific and practical, not generic.`;
 
-        const result = await generateWithWebSearch(prompt, { maxTokens: 3000 });
-        const content = typeof result === 'string' ? result : JSON.stringify(result);
+        const completion = await zai.chat.completions.create({
+          messages: [
+            { role: 'system', content: 'You are a sales playbook expert. Return valid JSON only, no markdown fences.' },
+            { role: 'user', content: prompt },
+          ],
+          thinking: { type: 'disabled' },
+        });
+        const content = completion.choices?.[0]?.message?.content || '';
 
         // Try to parse the JSON from the response
         let jsonStr = content;

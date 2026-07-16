@@ -197,6 +197,10 @@ async function generateWithAI(
     throw new Error('SDK_NOT_AVAILABLE');
   }
 
+  // Ensure .z-ai-config exists (needed for Vercel/serverless)
+  const { ensureZaiConfig } = await import('@/lib/zai-config');
+  await ensureZaiConfig();
+
   const capabilityContext = capabilities
     .map(cap => `[${cap.category}] ${cap.title}: ${cap.content || cap.summary}`)
     .join('\n');

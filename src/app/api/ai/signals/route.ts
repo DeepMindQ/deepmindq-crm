@@ -78,6 +78,8 @@ function setCache(companyId: string | null, limit: number, data: SignalsResponse
 // ---------------------------------------------------------------------------
 
 async function getZAI() {
+  const { ensureZaiConfig } = await import('@/lib/zai-config');
+  await ensureZaiConfig();
   const ZAI = await import('z-ai-web-dev-sdk').then((m) => m.default)
   return ZAI.create()
 }

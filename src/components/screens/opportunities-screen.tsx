@@ -96,7 +96,7 @@ const INITIAL_FORM = {
    OpportunitiesScreen
    ═══════════════════════════════════════════════════════════════════════ */
 
-export function OpportunitiesScreen() {
+export default function OpportunitiesScreen() {
   const { setActiveView, setSelectedCompanyId, setSelectedContactId } = useAppStore()
   const qc = useQueryClient()
 

@@ -72,6 +72,8 @@ function pct(numerator: number, denominator: number): number {
 
 /* ── AI helper using z-ai-web-dev-sdk ── */
 async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
+  const { ensureZaiConfig } = await import('@/lib/zai-config');
+  await ensureZaiConfig();
   const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
   const completion = await ZAI.chat.completions.create({
     messages: [

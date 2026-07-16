@@ -76,7 +76,7 @@ function fillPreview(template: string): string {
    Screen
    ═══════════════════════════════════════════════════════════════════════ */
 
-export function PromptTemplatesScreen() {
+export default function PromptTemplatesScreen() {
   const queryClient = useQueryClient()
   const [category, setCategory] = useState<CategoryFilter>('all')
   const [search, setSearch] = useState('')

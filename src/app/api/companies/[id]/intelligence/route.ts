@@ -21,6 +21,8 @@ interface AiInsights {
 
 async function webSearch(query: string, num = 5) {
   try {
+    const { ensureZaiConfig } = await import('@/lib/zai-config');
+    await ensureZaiConfig();
     const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
     const results = await Z.functions.invoke('web_search', { query, num });
     return (results || []).slice(0, num).map((r: any) => ({

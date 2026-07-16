@@ -334,6 +334,8 @@ function parseAIResponse(raw: string, originals: Recommendation[]): Recommendati
 async function enhanceWithAI(recs: Recommendation[]): Promise<Recommendation[]> {
   if (recs.length === 0) return recs
 
+  const { ensureZaiConfig } = await import('@/lib/zai-config');
+  await ensureZaiConfig();
   const ZAI = await import('z-ai-web-dev-sdk').then((m) => m.default).then((Z) => Z.create())
 
   const completion = await ZAI.chat.completions.create({

@@ -256,7 +256,7 @@ function PipelineTooltip({ active, payload }: { active?: boolean; payload?: Arra
    Reports Screen
    ═══════════════════════════════════════════════════════════════════════ */
 
-export function ReportsScreen() {
+export default function ReportsScreen() {
   const [datePreset, setDatePreset] = useState('30d')
   const [pipelineSort, setPipelineSort] = useState<SortKey>('count')
   const [pipelineSortDir, setPipelineSortDir] = useState<SortDir>('desc')

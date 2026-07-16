@@ -56,6 +56,8 @@ interface ConversationPlan {
 // ---------------------------------------------------------------------------
 
 async function createZAI() {
+  const { ensureZaiConfig } = await import('@/lib/zai-config');
+  await ensureZaiConfig();
   return import('z-ai-web-dev-sdk').then((m) => m.default).then((Z) => Z.create());
 }
 

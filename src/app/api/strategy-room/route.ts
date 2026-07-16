@@ -71,7 +71,10 @@ export async function POST(req: NextRequest) {
     // AI generation
     if (aiGenerate) {
       try {
-        const { generateWithWebSearch } = await import('z-ai-web-dev-sdk');
+        const ZAI = (await import('z-ai-web-dev-sdk')).default;
+        const { ensureZaiConfig } = await import('@/lib/zai-config');
+        await ensureZaiConfig();
+        const zai = await ZAI.create();
         const prompt = `You are a strategic account planning expert. Create a comprehensive account strategy for: "${title}"
 ${companyName ? `Company: ${companyName}` : ''}
 ${objective ? `Objective: ${objective}` : ''}
@@ -103,8 +106,14 @@ Return a JSON object (no markdown, raw JSON only):
 
 Be specific and actionable. Make stakeholder names realistic but mark them as [To be identified] if not known.`;
 
-        const result = await generateWithWebSearch(prompt, { maxTokens: 4000 });
-        const content = typeof result === 'string' ? result : JSON.stringify(result);
+        const completion = await zai.chat.completions.create({
+          messages: [
+            { role: 'system', content: 'You are a strategic account planning expert. Return valid JSON only, no markdown fences.' },
+            { role: 'user', content: prompt },
+          ],
+          thinking: { type: 'disabled' },
+        });
+        const content = completion.choices?.[0]?.message?.content || '';
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);

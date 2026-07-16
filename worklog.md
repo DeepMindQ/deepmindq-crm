@@ -161,3 +161,26 @@ Stage Summary:
 - Phase 1 code deployed to Vercel production
 - All 5 tasks verified present: AI scanning animation, live news feed, signal strength bars, real API charts, light tooltip
 - User's deepmindq-crm repo on GitHub is linked to Vercel for auto-deploys
+
+---
+Task ID: phase-2
+Agent: Main Orchestrator
+Task: Phase 2 — Streaming AI feel, source links, timestamps, real duplicates
+
+Work Log:
+- Created /api/duplicates/route.ts with real fuzzy matching (Levenshtein distance, 3 detection rules: name+company, email domain, LinkedIn URL)
+- Rewrote duplicates-screen.tsx from 432-line static mock to 640-line real API with AI scanning animation
+- Added progressive generation overlay to conversation-studio-screen.tsx (phase cycling, gold shimmer bar)
+- Added valueProposition display and generated-at timestamps to conversation plans
+- Added clickable Research Sources panel to company-detail-screen.tsx AI brief tab
+- Added AI Detected micro-badge to external signals in signal-intelligence-screen.tsx
+- Build verified passing, committed and pushed
+
+Stage Summary:
+- 5 files changed, 859 insertions, 106 deletions
+- New API: /api/duplicates (GET) — real contact dedup from 10K+ contacts
+- Duplicates screen: 0% mock → 100% real data with AI scanning animation
+- Conversation Studio: progressive generation phases + value proposition + timestamps
+- Company Detail: research sources now clickable with domain extraction
+- Signal Intelligence: AI badge on external signals
+- Committed as df070f9, pushed to origin/main, Vercel deploying

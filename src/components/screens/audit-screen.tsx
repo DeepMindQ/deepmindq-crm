@@ -126,36 +126,7 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-// ── Demo data (20 entries) ─────────────────────────────────────────────────
 
-const NOW = Date.now();
-
-function ago(ms: number) {
-  return new Date(NOW - ms).toISOString();
-}
-
-const DEMO_DATA: AuditEntry[] = [
-  { id: 'a01', timestamp: ago(2 * 60_000),       userId: 'Ravi Shanker', action: 'create',  entityType: 'Contact',      entityName: 'Sarah Chen',                     details: 'Contact created: Sarah Chen - email s.chen@stripe.com added from manual entry' },
-  { id: 'a02', timestamp: ago(5 * 60_000),       userId: 'Ravi Shanker', action: 'verify',  entityType: 'Contact',      entityName: 'Sarah Chen',                     details: 'Email verified: s.chen@stripe.com (valid, deliverable, score 92)' },
-  { id: 'a03', timestamp: ago(15 * 60_000),      userId: 'Ravi Shanker', action: 'create',  entityType: 'Draft',        entityName: 'Michael Torres',                 details: 'Draft generated for Michael Torres - AI personalized cold outreach' },
-  { id: 'a04', timestamp: ago(20 * 60_000),      userId: 'Ravi Shanker', action: 'approve', entityType: 'Draft',        entityName: 'AI-Powered Transformation',     details: 'Draft approved: "AI-Powered Transformation at Salesforce" - moved to queue' },
-  { id: 'a05', timestamp: ago(25 * 60_000),      userId: 'Ravi Shanker', action: 'send',    entityType: 'SendQueue',    entityName: 'Michael Torres',                 details: 'Email queued for sending to m.torres@salesforce.com - scheduled 9:00 AM' },
-  { id: 'a06', timestamp: ago(60 * 60_000),      userId: 'Ravi Shanker', action: 'import',  entityType: 'ImportBatch',  entityName: 'Q3_leads.xlsx',                 details: 'Batch imported: Q3_leads.xlsx (245 rows processed, 238 accepted, 7 skipped)' },
-  { id: 'a07', timestamp: ago(2 * 3600_000),     userId: 'Ravi Shanker', action: 'update',  entityType: 'Company',      entityName: 'Siemens AG',                     details: 'Company research updated: Siemens AG - refreshed headcount, revenue, tech stack' },
-  { id: 'a08', timestamp: ago(3 * 3600_000),     userId: 'Ravi Shanker', action: 'create',  entityType: 'Suppression',  entityName: 'j.doe@tempmail.com',            details: 'Suppression added: j.doe@tempmail.com (disposable domain detected)' },
-  { id: 'a09', timestamp: ago(4 * 3600_000),     userId: 'Ravi Shanker', action: 'delete',  entityType: 'Contact',      entityName: 'John Smith',                     details: 'Contact deleted: John Smith (j.smith@oldco.com) - hard bounce, invalid domain' },
-  { id: 'a10', timestamp: ago(5 * 3600_000),     userId: 'Ravi Shanker', action: 'update',  entityType: 'Draft',        entityName: 'Lisa Park',                      details: 'Draft edited: "Enterprise AI Solutions" for Lisa Park at Samsung - 3 sections revised' },
-  { id: 'a11', timestamp: ago(6 * 3600_000),     userId: 'Ravi Shanker', action: 'approve', entityType: 'Draft',        entityName: 'Cloud Migration Pitch',          details: 'Draft approved: "Cloud Migration Pitch" for David Kim at AWS - fast-track approved' },
-  { id: 'a12', timestamp: ago(8 * 3600_000),     userId: 'Ravi Shanker', action: 'send',    entityType: 'SendQueue',    entityName: 'Lisa Park',                      details: 'Email sent to l.park@samsung.com - opened (1), clicked (0), replied (0)' },
-  { id: 'a13', timestamp: ago(10 * 3600_000),    userId: 'Ravi Shanker', action: 'import',  entityType: 'ImportBatch',  entityName: 'sales_leads_oct.csv',            details: 'Batch imported: sales_leads_oct.csv (182 rows processed, 175 accepted, 7 duplicates)' },
-  { id: 'a14', timestamp: ago(12 * 3600_000),    userId: 'Ravi Shanker', action: 'verify',  entityType: 'Contact',      entityName: 'Emily Watson',                   details: 'Email verified: e.watson@nvidia.com (valid, catch-all, score 78)' },
-  { id: 'a15', timestamp: ago(14 * 3600_000),    userId: 'Ravi Shanker', action: 'create',  entityType: 'Company',      entityName: 'Datadog Inc',                    details: 'Company created: Datadog Inc - auto-enriched from LinkedIn, 4,500 employees' },
-  { id: 'a16', timestamp: ago(18 * 3600_000),    userId: 'Ravi Shanker', action: 'reject',  entityType: 'Draft',        entityName: 'James Rodriguez',                details: 'Draft rejected: "Growth Strategy" for James Rodriguez - tone too aggressive, flagged for revision' },
-  { id: 'a17', timestamp: ago(22 * 3600_000),    userId: 'Ravi Shanker', action: 'update',  entityType: 'Capability',   entityName: 'Email Verification',             details: 'Capability configured: Email Verification - daily limit raised to 5,000, API key rotated' },
-  { id: 'a18', timestamp: ago(28 * 3600_000),    userId: 'Ravi Shanker', action: 'create',  entityType: 'Suppression',  entityName: '@spamtrap.io domain',            details: 'Domain suppression added: @spamtrap.io - spam trap domain, 14 contacts affected' },
-  { id: 'a19', timestamp: ago(36 * 3600_000),    userId: 'Ravi Shanker', action: 'delete',  entityType: 'ImportBatch',  entityName: 'bad_list_jan.csv',               details: 'Import batch deleted: bad_list_jan.csv - contained 89% invalid emails, purged' },
-  { id: 'a20', timestamp: ago(48 * 3600_000),    userId: 'Ravi Shanker', action: 'update',  entityType: 'Company',      entityName: 'Stripe Inc',                     details: 'Company data refreshed: Stripe Inc - revenue updated to $8.1B, headcount 8,000' },
-];
 
 // ── Component ──────────────────────────────────────────────────────────────
 
@@ -186,10 +157,10 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
         if (Array.isArray(d) && d.length > 0) {
           setData(d);
         } else {
-          setData(DEMO_DATA);
+          setData([]);
         }
       })
-      .catch(() => setData(DEMO_DATA))
+      .catch(() => setData([]))
       .finally(() => setLoading(false));
   }, []);
 

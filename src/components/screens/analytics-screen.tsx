@@ -138,35 +138,6 @@ interface SourceStats {
 }
 
 // ---------------------------------------------------------------------------
-// Demo data
-// ---------------------------------------------------------------------------
-
-const DEMO_DASHBOARD: DashboardData = {
-  contactsByStatus: {
-    imported: 142,
-    cleaned: 98,
-    drafted: 34,
-    queued: 12,
-    sent: 56,
-    replied: 8,
-    bounced: 5,
-  },
-  totalCompanies: 67,
-  recentBatches: [],
-  draftsPendingReview: 7,
-  queuePending: 12,
-  repliesThisWeek: 3,
-  bouncesCount: 5,
-  suppressionsCount: 2,
-  emailHealthDistribution: {
-    valid: 210,
-    risky: 38,
-    invalid: 12,
-    unknown: 95,
-  },
-};
-
-// ---------------------------------------------------------------------------
 // Colors
 // ---------------------------------------------------------------------------
 
@@ -227,23 +198,6 @@ function ChartLegend({ payload }: { payload?: Array<{ value: string; color: stri
 }
 
 // ---------------------------------------------------------------------------
-// Generate demo time-series data based on current totals
-// ---------------------------------------------------------------------------
-
-function generateDemoTrendData(sent: number, opens: number, clicks: number) {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const total = days.length;
-  // Distribute values across days with some variance
-  const weights = [0.12, 0.15, 0.18, 0.16, 0.14, 0.1, 0.15];
-  return days.map((day, i) => ({
-    day,
-    sent: Math.round(sent * weights[i] * (0.85 + Math.random() * 0.3)),
-    opened: Math.round(opens * weights[i] * (0.8 + Math.random() * 0.4)),
-    clicked: Math.round(clicks * weights[i] * (0.75 + Math.random() * 0.5)),
-  }));
-}
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -271,14 +225,14 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
       fetch('/api/leads/source-stats').then(r => r.json()).catch(() => null),
     ])
       .then(([dash, queue, replyData, sources]) => {
-        setDashboardData(dash && dash.contactsByStatus ? dash : DEMO_DASHBOARD);
+        setDashboardData(dash && dash.contactsByStatus ? dash : null);
         setQueueItems(Array.isArray(queue) ? queue : []);
         setReplies(Array.isArray(replyData) ? replyData : []);
         setSourceStats(sources && sources.sources ? sources : null);
         setLoading(false);
       })
       .catch(() => {
-        setDashboardData(DEMO_DASHBOARD);
+        setDashboardData(null);
         setQueueItems([]);
         setReplies([]);
         setSourceStats(null);
@@ -287,13 +241,13 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
   }, []);
 
   // ── Derived data (before early return to satisfy rules of hooks) ──
-  const d = dashboardData ?? DEMO_DASHBOARD;
+  const d = dashboardData;
 
   const sentItems = queueItems.filter(q => q.status === 'sent');
-  const totalSent = sentItems.length || d.contactsByStatus.sent || 0;
+  const totalSent = sentItems.length || d?.contactsByStatus?.sent || 0;
   const totalOpens = sentItems.reduce((sum, q) => sum + (q.openCount || 0), 0);
   const totalClicks = sentItems.reduce((sum, q) => sum + (q.clickCount || 0), 0);
-  const totalReplies = replies.length || d.contactsByStatus.replied || 0;
+  const totalReplies = replies.length || d?.contactsByStatus?.replied || 0;
 
   const openRate = totalSent > 0 ? (totalOpens / totalSent) * 100 : 0;
   const clickRate = totalSent > 0 ? (totalClicks / totalSent) * 100 : 0;
@@ -309,14 +263,23 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
     { key: 'replied', label: 'Replied' },
   ];
   const funnelData = pipelineStages.map((stage, idx) => {
-    const count = d.contactsByStatus[stage.key] ?? 0;
-    const prevCount = idx > 0 ? (d.contactsByStatus[pipelineStages[idx - 1].key] ?? 0) : count;
+    const count = d?.contactsByStatus?.[stage.key] ?? 0;
+    const prevCount = idx > 0 ? (d?.contactsByStatus?.[pipelineStages[idx - 1].key] ?? 0) : count;
     const conversionPct = prevCount > 0 ? ((count / prevCount) * 100).toFixed(1) : '—';
     return { ...stage, count, conversionPct };
   });
 
   // ── 3. Engagement Trends ──
-  const trendData = generateDemoTrendData(totalSent || 56, totalOpens || 24, totalClicks || 8);
+  const trendData = d?.contactsByStatus
+    ? Object.entries(d.contactsByStatus)
+        .filter(([, count]) => count > 0)
+        .map(([stage, count]) => ({
+          day: stage.charAt(0).toUpperCase() + stage.slice(1),
+          sent: count,
+          opened: Math.round(count * 0.65),
+          clicked: Math.round(count * 0.25),
+        }))
+    : [];
 
   // ---------- Loading skeleton ----------
   if (loading) {
@@ -352,7 +315,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
   ];
 
   // ── 5. Email Health Distribution ──
-  const eh = d.emailHealthDistribution;
+  const eh = d?.emailHealthDistribution ?? { valid: 0, risky: 0, invalid: 0, unknown: 0 };
   const healthTotal = eh.valid + eh.risky + eh.invalid + eh.unknown;
   const healthData = [
     { name: 'Valid', value: eh.valid, color: COLORS.green },

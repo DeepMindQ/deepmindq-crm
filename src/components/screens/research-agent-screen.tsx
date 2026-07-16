@@ -6,7 +6,7 @@ import {
   Search, Brain, Building2, User, Globe, TrendingUp, Users, DollarSign,
   Cpu, Newspaper, ChevronRight, Loader2, Sparkles, ExternalLink,
   Download, RotateCcw, Target, ArrowRight, Zap, FileText,
-  Briefcase, Linkedin, Clock, Shield, BarChart3
+  Briefcase, Clock, Shield, BarChart3
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════

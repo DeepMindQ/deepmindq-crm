@@ -76,45 +76,8 @@ export async function GET() {
     // Sort by date
     notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    // Add static notifications if none exist
-    if (notifications.length === 0) {
-      notifications.push(
-        {
-          id: 'welcome-1',
-          title: 'Welcome to DeepMindQ',
-          message: 'Start by importing contacts or exploring the Command Center',
-          type: 'system',
-          icon: 'Sparkles',
-          createdAt: new Date().toISOString(),
-          link: '#command-center',
-        },
-        {
-          id: 'tip-1',
-          title: 'Try the Research Agent',
-          message: 'Deep AI-powered research on any company or person',
-          type: 'feature',
-          icon: 'Brain',
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-          link: '#research-agent',
-        },
-        {
-          id: 'tip-2',
-          title: 'Create a Sales Playbook',
-          message: 'Standardize your outreach with AI-generated playbooks',
-          type: 'feature',
-          icon: 'BookOpen',
-          createdAt: new Date(Date.now() - 7200000).toISOString(),
-          link: '#playbooks',
-        },
-      );
-    }
-
     return NextResponse.json(notifications.slice(0, 20));
   } catch {
-    // Fallback notifications
-    return NextResponse.json([
-      { id: 'f1', title: 'System Active', message: 'DeepMindQ is running and ready', type: 'system', icon: 'Activity', createdAt: new Date().toISOString(), link: null },
-      { id: 'f2', title: 'Try Research Agent', message: 'AI-powered company research is available', type: 'feature', icon: 'Brain', createdAt: new Date().toISOString(), link: '#research-agent' },
-    ]);
+    return NextResponse.json([]);
   }
 }

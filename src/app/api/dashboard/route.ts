@@ -1,41 +1,19 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
-
-/* ═══════════════════════════════════════════════════
-   Demo data — shown when no real DB data exists
-   ═══════════════════════════════════════════════════ */
-const DEMO_DATA = {
-  contactsByStatus: {
-    imported: 142,
-    cleaned: 98,
-    drafted: 34,
-    queued: 12,
-    sent: 56,
-    replied: 8,
-    bounced: 5,
-  },
-  totalCompanies: 67,
-  recentBatches: [
-    { id: 'demo-1', fileName: 'tech_leads_q3_2026.xlsx', totalRows: 250, acceptedRows: 218, status: 'completed', createdAt: new Date(Date.now() - 86400000).toISOString() },
-    { id: 'demo-2', fileName: 'fintech_decision_makers.csv', totalRows: 180, acceptedRows: 156, status: 'completed', createdAt: new Date(Date.now() - 172800000).toISOString() },
-    { id: 'demo-3', fileName: 'healthcare_cios_list.xlsx', totalRows: 95, acceptedRows: 82, status: 'completed', createdAt: new Date(Date.now() - 604800000).toISOString() },
-  ],
-  draftsPendingReview: 7,
-  queuePending: 12,
-  repliesThisWeek: 3,
-  bouncesCount: 5,
-  suppressionsCount: 2,
-  emailHealthDistribution: {
-    valid: 210,
-    risky: 38,
-    invalid: 12,
-    unknown: 95,
-  },
-};
 
 export async function GET() {
   try {
+    // Auto-seed if DB is empty
+    const contactCount = await db.contact.count();
+    if (contactCount === 0) {
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
+        await fetch(`${baseUrl}/api/seed`, { method: 'POST' });
+      } catch (e) {
+        console.error('Auto-seed failed:', e);
+      }
+    }
+
     const [
       contactsByStatus,
       totalCompanies,
@@ -87,13 +65,6 @@ export async function GET() {
       healthCounts[group.emailHealth] = group._count.emailHealth;
     }
 
-    const totalLeads = Object.values(statusCounts).reduce((a, b) => a + b, 0);
-
-    // If no real data exists, return demo data so the app looks alive
-    if (totalLeads === 0 && totalCompanies === 0) {
-      return NextResponse.json({ ...DEMO_DATA, _demo: true });
-    }
-
     return NextResponse.json({
       contactsByStatus: statusCounts,
       totalCompanies,
@@ -107,6 +78,16 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Dashboard error:', error);
-    return NextResponse.json({ ...DEMO_DATA, _demo: true });
+    return NextResponse.json({
+      contactsByStatus: {},
+      totalCompanies: 0,
+      recentBatches: [],
+      draftsPendingReview: 0,
+      queuePending: 0,
+      repliesThisWeek: 0,
+      bouncesCount: 0,
+      suppressionsCount: 0,
+      emailHealthDistribution: {},
+    });
   }
 }

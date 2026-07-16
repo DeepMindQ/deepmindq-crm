@@ -1,61 +1,33 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 
-/* ═══════════════════════════════════════════════════
-   Demo analytics data — shown when DB is unavailable
-   ═══════════════════════════════════════════════════ */
-const DEMO_ANALYTICS = {
-  kpis: {
-    totalSent: 67,
-    replyRate: 34.3,
-    bounceRate: 7.0,
-    avgHealthScore: 78.4,
-    totalSentTrend: 12.5,
-    replyRateTrend: 3.2,
-    bounceRateTrend: -1.8,
-    avgHealthScoreTrend: 2.1,
-  },
-  funnelData: [
-    { stage: 'Imported', count: 355, percentage: 100.0 },
-    { stage: 'Verified', count: 280, percentage: 78.9 },
-    { stage: 'Drafted', count: 45, percentage: 12.7 },
-    { stage: 'Approved', count: 12, percentage: 3.4 },
-    { stage: 'Queued', count: 8, percentage: 2.3 },
-    { stage: 'Sent', count: 67, percentage: 18.9 },
-    { stage: 'Replied', count: 23, percentage: 6.5 },
-  ],
-  campaignPerformance: [
-    { batchId: 'demo-1', fileName: 'tech_leads_q3_2026.xlsx', sent: 28, replied: 9, bounced: 2, replyRate: 32.1, deliveredAt: new Date(Date.now() - 86400000).toISOString() },
-    { batchId: 'demo-2', fileName: 'fintech_decision_makers.csv', sent: 22, replied: 8, bounced: 1, replyRate: 36.4, deliveredAt: new Date(Date.now() - 172800000).toISOString() },
-    { batchId: 'demo-3', fileName: 'healthcare_cios_list.xlsx', sent: 17, replied: 6, bounced: 2, replyRate: 35.3, deliveredAt: new Date(Date.now() - 604800000).toISOString() },
-  ],
-  recentActivity: [
-    { action: 'email_sent', description: 'Sent email to Sarah Chen (Stripe)', timestamp: new Date(Date.now() - 1800000).toISOString() },
-    { action: 'reply_received', description: 'Positive reply from Aisha Patel (Apollo Hospitals)', timestamp: new Date(Date.now() - 3600000).toISOString() },
-    { action: 'bounce', description: 'Hard bounce for Lisa Chang (Shopify)', timestamp: new Date(Date.now() - 7200000).toISOString() },
-    { action: 'draft_approved', description: 'Approved draft for Priya Sharma (Infosys)', timestamp: new Date(Date.now() - 14400000).toISOString() },
-    { action: 'import_completed', description: 'Imported 218 contacts from tech_leads_q3_2026.xlsx', timestamp: new Date(Date.now() - 28800000).toISOString() },
-    { action: 'suppression_added', description: 'Suppressed lisa.chang@shopify.com (bounce)', timestamp: new Date(Date.now() - 43200000).toISOString() },
-    { action: 'email_sent', description: 'Sent email to James O\'Brien (JPMorgan Chase)', timestamp: new Date(Date.now() - 57600000).toISOString() },
-    { action: 'draft_created', description: 'AI drafted email for Robert Fischer (Siemens AG)', timestamp: new Date(Date.now() - 86400000).toISOString() },
-  ],
-  topCompanies: [
-    { name: 'JPMorgan Chase', industry: 'Financial Services', contactCount: 3, avgScore: 85.0 },
-    { name: 'Stripe', industry: 'Fintech', contactCount: 2, avgScore: 92.0 },
-    { name: 'Tata Consultancy Services', industry: 'IT Services', contactCount: 2, avgScore: 87.0 },
-    { name: 'Salesforce', industry: 'Technology', contactCount: 1, avgScore: 95.0 },
-    { name: 'Siemens AG', industry: 'Manufacturing', contactCount: 1, avgScore: 91.0 },
-    { name: 'Apollo Hospitals', industry: 'Healthcare', contactCount: 1, avgScore: 90.0 },
-    { name: 'Infosys', industry: 'IT Services', contactCount: 1, avgScore: 88.0 },
-    { name: 'Samsung Electronics', industry: 'Technology', contactCount: 1, avgScore: 82.0 },
-    { name: 'Paystack', industry: 'Fintech', contactCount: 1, avgScore: 78.0 },
-    { name: 'NHS Digital', industry: 'Healthcare', contactCount: 1, avgScore: 72.0 },
-  ],
+const EMPTY_RESPONSE = {
+  kpis: { totalSent: 0, replyRate: 0, bounceRate: 0, avgHealthScore: 0, totalSentTrend: 0, replyRateTrend: 0, bounceRateTrend: 0, avgHealthScoreTrend: 0 },
+  funnelData: [],
+  campaignPerformance: [],
+  recentActivity: [],
+  topCompanies: [],
 };
 
 export async function GET() {
   try {
+    // Auto-seed if DB is empty
+    const contactCount = await db.contact.count();
+    if (contactCount === 0) {
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
+        await fetch(`${baseUrl}/api/seed`, { method: 'POST' });
+      } catch (e) {
+        console.error('Auto-seed failed:', e);
+      }
+    }
+
     // ── Fetch all needed data in parallel ──
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 86400000);
+
     const [
       contactStatusGroups,
       totalContacts,
@@ -65,6 +37,17 @@ export async function GET() {
       recentReplies,
       recentBounces,
       recentAuditLogs,
+      // Trend data: last 7 days
+      sentLast7,
+      repliedLast7,
+      bouncedLast7,
+      // Trend data: previous 7 days (7–14 days ago)
+      sentPrev7,
+      repliedPrev7,
+      bouncedPrev7,
+      // Per-batch reply/bounce counts for campaign performance
+      batchReplyCounts,
+      batchBounceCounts,
     ] = await Promise.all([
       // Contact status distribution
       db.contact.groupBy({
@@ -73,7 +56,7 @@ export async function GET() {
       }),
       // Total contacts
       db.contact.count(),
-      // All contacts (for avg health score — use aggregate in prod)
+      // Aggregates for avg scores
       db.contact.aggregate({
         _avg: { emailHealthScore: true, leadScore: true },
         _count: true,
@@ -112,11 +95,55 @@ export async function GET() {
         orderBy: { createdAt: 'desc' },
         take: 8,
       }),
+      // ── Trend: sent in last 7 days ──
+      db.contact.count({
+        where: { status: 'sent', updatedAt: { gte: sevenDaysAgo } },
+      }),
+      // ── Trend: replied in last 7 days ──
+      db.contact.count({
+        where: { status: 'replied', updatedAt: { gte: sevenDaysAgo } },
+      }),
+      // ── Trend: bounced in last 7 days ──
+      db.contact.count({
+        where: { status: 'bounced', updatedAt: { gte: sevenDaysAgo } },
+      }),
+      // ── Trend: sent in previous 7 days ──
+      db.contact.count({
+        where: { status: 'sent', updatedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
+      }),
+      // ── Trend: replied in previous 7 days ──
+      db.contact.count({
+        where: { status: 'replied', updatedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
+      }),
+      // ── Trend: bounced in previous 7 days ──
+      db.contact.count({
+        where: { status: 'bounced', updatedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
+      }),
+      // Per-batch reply counts (from reply table joined through contact → batch)
+      db.contact.groupBy({
+        by: ['importBatchId'],
+        where: {
+          importBatchId: { not: null },
+          status: 'replied',
+        },
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
+      }),
+      // Per-batch bounce counts
+      db.contact.groupBy({
+        by: ['importBatchId'],
+        where: {
+          importBatchId: { not: null },
+          status: 'bounced',
+        },
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
+      }),
     ]);
 
-    // If no real data, return demo data
+    // If no real data, return empty
     if (totalContacts === 0) {
-      return NextResponse.json({ ...DEMO_ANALYTICS, _demo: true });
+      return NextResponse.json(EMPTY_RESPONSE);
     }
 
     // ── Build status counts ──
@@ -129,17 +156,34 @@ export async function GET() {
     const totalReplied = statusCounts['replied'] || 0;
     const totalBounced = statusCounts['bounced'] || 0;
 
+    // ── Compute real trends ──
+    function computeTrend(current: number, previous: number): number {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return parseFloat((((current - previous) / previous) * 100).toFixed(1));
+    }
+
+    const sentTrend = computeTrend(sentLast7, sentPrev7);
+    const replyRateCurrent = sentLast7 > 0 ? (repliedLast7 / sentLast7) * 100 : 0;
+    const replyRatePrevious = sentPrev7 > 0 ? (repliedPrev7 / sentPrev7) * 100 : 0;
+    const replyRateTrend = computeTrend(replyRateCurrent, replyRatePrevious);
+    const bounceRateCurrent = sentLast7 > 0 ? (bouncedLast7 / sentLast7) * 100 : 0;
+    const bounceRatePrevious = sentPrev7 > 0 ? (bouncedPrev7 / sentPrev7) * 100 : 0;
+    const bounceRateTrend = computeTrend(bounceRateCurrent, bounceRatePrevious);
+
+    // For avgHealthScoreTrend, we can compare overall avg — use a simple proxy
+    const avgHealthScore = parseFloat((contacts._avg.emailHealthScore || 0).toFixed(1));
+    const avgHealthScoreTrend = avgHealthScore > 0 ? parseFloat(((avgHealthScore - 70) / 70 * 10).toFixed(1)) : 0;
+
     // ── KPIs ──
     const kpis = {
       totalSent,
       replyRate: totalSent > 0 ? parseFloat(((totalReplied / totalSent) * 100).toFixed(1)) : 0,
       bounceRate: totalSent > 0 ? parseFloat(((totalBounced / totalSent) * 100).toFixed(1)) : 0,
-      avgHealthScore: parseFloat((contacts._avg.emailHealthScore || 0).toFixed(1)),
-      // Trends: compare last 7 days vs previous 7 days (simplified — use counts as proxy)
-      totalSentTrend: totalSent > 10 ? 12.5 : 0,
-      replyRateTrend: totalReplied > 0 ? 3.2 : 0,
-      bounceRateTrend: totalBounced > 0 ? -1.8 : 0,
-      avgHealthScoreTrend: (contacts._avg.emailHealthScore || 0) > 70 ? 2.1 : 0,
+      avgHealthScore,
+      totalSentTrend: sentTrend,
+      replyRateTrend,
+      bounceRateTrend,
+      avgHealthScoreTrend,
     };
 
     // ── Funnel data ──
@@ -161,16 +205,32 @@ export async function GET() {
       };
     });
 
-    // ── Campaign performance (from batches) ──
-    const campaignPerformance = recentBatches.map((batch: any) => ({
-      batchId: batch.id,
-      fileName: batch.fileName,
-      sent: batch.acceptedRows || 0,
-      replied: Math.round((batch.acceptedRows || 0) * 0.33),
-      bounced: Math.round((batch.acceptedRows || 0) * 0.05),
-      replyRate: parseFloat((33 + Math.random() * 5).toFixed(1)),
-      deliveredAt: batch.createdAt,
-    }));
+    // ── Campaign performance (from batches with real reply/bounce data) ──
+    // Build lookup maps for per-batch reply and bounce counts
+    const replyCountMap = new Map<string, number>();
+    for (const item of batchReplyCounts as { importBatchId: string; _count: { id: number } }[]) {
+      replyCountMap.set(item.importBatchId, item._count.id);
+    }
+    const bounceCountMap = new Map<string, number>();
+    for (const item of batchBounceCounts as { importBatchId: string; _count: { id: number } }[]) {
+      bounceCountMap.set(item.importBatchId, item._count.id);
+    }
+
+    const campaignPerformance = recentBatches.map((batch: any) => {
+      const sent = batch.acceptedRows || 0;
+      const replied = replyCountMap.get(batch.id) || 0;
+      const bounced = bounceCountMap.get(batch.id) || 0;
+      const replyRate = sent > 0 ? parseFloat(((replied / sent) * 100).toFixed(1)) : 0;
+      return {
+        batchId: batch.id,
+        fileName: batch.fileName,
+        sent,
+        replied,
+        bounced,
+        replyRate,
+        deliveredAt: batch.createdAt,
+      };
+    });
 
     // ── Recent activity (from audit logs or replies/bounces) ──
     const recentActivity: { action: string; description: string; timestamp: string }[] = [];
@@ -230,6 +290,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Analytics error:', error);
-    return NextResponse.json({ ...DEMO_ANALYTICS, _demo: true });
+    return NextResponse.json(EMPTY_RESPONSE);
   }
 }

@@ -75,21 +75,9 @@ async function extractTextFromPDFFallback(buffer: Buffer): Promise<string> {
 }
 
 export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
-  try {
-    const pdfParse = (await import('pdf-parse')).default;
-    const data = await pdfParse(buffer);
-    const text = (data.text || '').trim();
-    if (text.length > 10) {
-      return text;
-    }
-    // pdf-parse returned very little, try fallback
-    const fallback = await extractTextFromPDFFallback(buffer);
-    return fallback || text || '[PDF text extraction produced no results]';
-  } catch {
-    // pdf-parse not available or failed — use regex fallback
-    const fallback = await extractTextFromPDFFallback(buffer);
-    return fallback || '[PDF text extraction failed. Please try a .txt or .md file.]';
-  }
+  // pdf-parse has native deps that crash on Vercel serverless — use regex fallback directly
+  const fallback = await extractTextFromPDFFallback(buffer);
+  return fallback || '[PDF text extraction produced minimal results. Try uploading as .txt instead.]';
 }
 
 /* ── DOCX parser — C-05 ── */

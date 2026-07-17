@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Inline imports for auth routes (12 handlers)
-import * as mod_auth____catchall_nextauth from './auth____catchall_nextauth.ts';
 import * as mod_auth__logout from './auth__logout.ts';
 import * as mod_auth__reset_password from './auth__reset-password.ts';
 import * as mod_auth__reset_password__confirm from './auth__reset-password__confirm.ts';
@@ -14,9 +13,8 @@ import * as mod_auth__set_password from './auth__set-password.ts';
 import * as mod_auth__verify_otp from './auth__verify-otp.ts';
 import * as mod_auth__request_otp from './auth__request-otp.ts';
 
-// Route registry
+// Route registry — specific routes FIRST, catch-all LAST
 const ROUTES = [
-  { key: 'auth/[...nextauth]', handler: mod_auth____catchall_nextauth },
   { key: 'auth/logout', handler: mod_auth__logout },
   { key: 'auth/reset-password', handler: mod_auth__reset_password },
   { key: 'auth/reset-password/confirm', handler: mod_auth__reset_password__confirm },
@@ -28,6 +26,11 @@ const ROUTES = [
   { key: 'auth/set-password', handler: mod_auth__set_password },
   { key: 'auth/verify-otp', handler: mod_auth__verify_otp },
   { key: 'auth/request-otp', handler: mod_auth__request_otp },
+  // Catch-all MUST be last — only matches if nothing above matched
+  { key: 'auth/[...nextauth]', handler: {
+    GET: () => NextResponse.json({ error: 'Not found' }, { status: 404 }),
+    POST: () => NextResponse.json({ error: 'Not found' }, { status: 404 }),
+  }},
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';

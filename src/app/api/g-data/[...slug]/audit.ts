@@ -11,15 +11,14 @@ export async function GET(request: NextRequest) {
       take: Math.min(limit, 500),
     });
 
-    // Map DB shape → frontend shape
+    // Map DB shape → frontend shape (matches AuditItem interface in command-center-screen)
     const entries = auditLogs.map((log) => ({
       id: log.id,
-      timestamp: log.createdAt.toISOString(),
-      userId: log.userId || 'system',
-      action: log.action,
-      entityType: log.entity,
-      entityName: log.entityId || log.entity || '',
+      action: log.action || '',
+      entity: log.entity || '',
+      entityId: log.entityId || undefined,
       details: log.details || '',
+      createdAt: log.createdAt.toISOString(),
     }));
 
     return NextResponse.json(entries);

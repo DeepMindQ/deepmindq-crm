@@ -1,13 +1,21 @@
 /**
- * Shared ZAI SDK helpers — single source of truth for
- * SDK init, web search, LLM calls, and company research.
+ * Shared AI helpers — Gemini LLM + Tavily Web Search
  *
- * ALL AI engines MUST use these helpers — never create
- * your own SDK instance or LLM wrapper.
+ * Replaces Z.AI internal SDK (unreachable from Vercel) with:
+ *   - Google Gemini (via OpenAI-compatible endpoint) for LLM
+ *   - Tavily API for web search
+ *
+ * ALL 27 downstream files import from here — fixing this file
+ * fixes the entire AI pipeline.
+ *
+ * Env vars (set on Vercel + local .env.local):
+ *   GEMINI_API_KEY   — Google AI Studio API key
+ *   GEMINI_BASE_URL  — OpenAI-compatible endpoint (default: Gemini)
+ *   TAVILY_API_KEY   — Tavily search API key
  */
 
 // ---------------------------------------------------------------------------
-// Types
+// Types (unchanged — consumed by 27+ files)
 // ---------------------------------------------------------------------------
 
 export interface WebSearchResult {
@@ -55,85 +63,154 @@ export interface CompanyResearch {
 }
 
 // ---------------------------------------------------------------------------
-// Singleton SDK instance (one per serverless invocation)
+// Config
 // ---------------------------------------------------------------------------
 
-let _zai: Awaited<ReturnType<typeof createZAIInstance>> | null = null;
-
-async function createZAIInstance() {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default);
-  return ZAI.create();
-}
-
-export async function getZAI() {
-  if (!_zai) {
-    _zai = await createZAIInstance();
-  }
-  return _zai;
-}
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || ''
+const GEMINI_BASE_URL = process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai'
+const TAVILY_API_KEY = process.env.TAVILY_API_KEY || ''
+const GEMINI_MODEL = 'gemini-2.0-flash'
 
 // ---------------------------------------------------------------------------
-// Web search — robust response parsing
+// LLM — Gemini via OpenAI-compatible endpoint
 // ---------------------------------------------------------------------------
 
 /**
- * Invoke web_search and return a normalized array of results.
- */
-export async function webSearch(query: string, num = 10): Promise<WebSearchResult[]> {
-  try {
-    const zai = await getZAI();
-    const raw = await zai.functions.invoke('web_search', { query, num });
-
-    let items: unknown[] = [];
-    if (Array.isArray(raw)) {
-      items = raw;
-    } else if (raw && typeof raw === 'object') {
-      const obj = raw as Record<string, unknown>;
-      for (const key of ['results', 'data', 'items', 'hits', 'organic_results']) {
-        if (Array.isArray(obj[key])) {
-          items = obj[key] as unknown[];
-          break;
-        }
-      }
-    }
-
-    return items.slice(0, num).map((r: unknown) => {
-      const item = r as Record<string, unknown>;
-      return {
-        title: String(item.title ?? item.name ?? ''),
-        url: String(item.url ?? ''),
-        snippet: String(item.snippet ?? item.description ?? item.content ?? ''),
-        name: item.name ? String(item.name) : undefined,
-        host_name: item.host_name ? String(item.host_name) : undefined,
-        description: item.description ? String(item.description) : undefined,
-        date: item.date ? String(item.date) : undefined,
-      };
-    }).filter(r => r.title || r.url || r.snippet);
-  } catch (err) {
-    console.error('[zai-helpers] web_search failed:', err instanceof Error ? err.message : err);
-    return [];
-  }
-}
-
-// ---------------------------------------------------------------------------
-// LLM chat completion
-// ---------------------------------------------------------------------------
-
-/**
- * Call the LLM with a proper system + user message pair.
+ * Call Gemini LLM with system + user message pair.
+ * OpenAI-compatible: same interface, just different base URL.
  */
 export async function callLLM(systemPrompt: string, userPrompt: string): Promise<string> {
-  const zai = await getZAI();
-  const completion = await zai.chat.completions.create({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  });
-  return completion.choices?.[0]?.message?.content ?? '';
+  if (!GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY not configured. Set it in Vercel env vars or .env.local')
+  }
+
+  const response = await fetch(`${GEMINI_BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${GEMINI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: GEMINI_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 8192,
+    }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('[callLLM] Gemini API error:', response.status, errorText)
+    throw new Error(`Gemini API error ${response.status}: ${errorText.slice(0, 200)}`)
+  }
+
+  const data = await response.json()
+  return data.choices?.[0]?.message?.content ?? ''
+}
+
+/**
+ * Multi-turn chat — for ai__chat.ts streaming conversations.
+ * Accepts an array of messages and returns the assistant response.
+ */
+export async function callChatLLM(systemPrompt: string, messages: Array<{ role: 'user' | 'assistant'; content: string }>): Promise<string> {
+  if (!GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY not configured')
+  }
+
+  const response = await fetch(`${GEMINI_BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${GEMINI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: GEMINI_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages,
+      ],
+      temperature: 0.7,
+      max_tokens: 8192,
+    }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('[callChatLLM] Gemini API error:', response.status, errorText)
+    throw new Error(`Gemini API error ${response.status}: ${errorText.slice(0, 200)}`)
+  }
+
+  const data = await response.json()
+  return data.choices?.[0]?.message?.content ?? ''
+}
+
+// ---------------------------------------------------------------------------
+// Web Search — Tavily API
+// ---------------------------------------------------------------------------
+
+interface TavilyResult {
+  title: string
+  url: string
+  content: string
+  score: number
+  raw_content?: string
+}
+
+/**
+ * Invoke Tavily web search and return normalized results.
+ * Drop-in replacement for the old Z.AI web_search function.
+ */
+export async function webSearch(query: string, num = 10): Promise<WebSearchResult[]> {
+  if (!TAVILY_API_KEY) {
+    console.error('[webSearch] TAVILY_API_KEY not configured')
+    return []
+  }
+
+  try {
+    const response = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: TAVILY_API_KEY,
+        query,
+        max_results: Math.min(num, 10),
+        search_depth: 'basic',
+        include_answer: false,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[webSearch] Tavily API error:', response.status, errorText)
+      return []
+    }
+
+    const data = await response.json()
+    const results: TavilyResult[] = data.results || []
+
+    return results.slice(0, num).map((r, i) => {
+      let hostName = ''
+      try { hostName = new URL(r.url).hostname } catch { /* ignore */ }
+
+      return {
+        title: r.title || '',
+        url: r.url || '',
+        snippet: r.content || '',
+        name: r.title || '',
+        host_name: hostName,
+        description: r.content || '',
+        date: '',
+        rank: i,
+        favicon: '',
+      }
+    }).filter(r => r.title || r.url || r.snippet)
+  } catch (err) {
+    console.error('[webSearch] failed:', err instanceof Error ? err.message : err)
+    return []
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -141,29 +218,29 @@ export async function callLLM(systemPrompt: string, userPrompt: string): Promise
 // ---------------------------------------------------------------------------
 
 export function extractJSON(raw: string): unknown {
-  const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
 
-  try { return JSON.parse(cleaned); } catch { /* fall through */ }
+  try { return JSON.parse(cleaned) } catch { /* fall through */ }
 
-  const objMatch = cleaned.match(/\{[\s\S]*\}/);
+  const objMatch = cleaned.match(/\{[\s\S]*\}/)
   if (objMatch) {
-    try { return JSON.parse(objMatch[0]); } catch { /* fall through */ }
+    try { return JSON.parse(objMatch[0]) } catch { /* fall through */ }
   }
 
-  const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+  const arrMatch = cleaned.match(/\[[\s\S]*\]/)
   if (arrMatch) {
-    try { return JSON.parse(arrMatch[0]); } catch { /* fall through */ }
+    try { return JSON.parse(arrMatch[0]) } catch { /* fall through */ }
   }
 
-  return null;
+  return null
 }
 
 // ---------------------------------------------------------------------------
-// Company Research — comprehensive web search + LLM extraction
+// Company Research — Tavily search + Gemini extraction
 // ---------------------------------------------------------------------------
 
 /**
- * Full company research using multiple web searches + LLM extraction.
+ * Full company research using multiple Tavily searches + Gemini extraction.
  * Returns structured data: overview, revenue, headcount, tech stack,
  * key people, recent news, social profiles.
  */
@@ -172,47 +249,46 @@ export async function researchCompany(
   domain?: string | null,
   existingIndustry?: string | null,
 ): Promise<CompanyResearch> {
-  const domainStr = domain || '';
-  const industryStr = existingIndustry || '';
+  const domainStr = domain || ''
+  const industryStr = existingIndustry || ''
 
-  // Run 4 parallel web searches for comprehensive data
+  // Run 4 parallel Tavily searches
   const [bizResults, techResults, peopleResults, newsResults] = await Promise.allSettled([
     webSearch(`${companyName} ${domainStr} revenue employees funding 2024 2025 overview`, 8),
     webSearch(`${companyName} technology stack products services digital`, 6),
     webSearch(`${companyName} CEO CTO CIO COO CFO leadership team executives LinkedIn`, 8),
     webSearch(`${companyName} news 2025 funding hiring expansion partnership`, 8),
-  ]);
+  ])
 
   // Collect all snippets
-  const allSnippets: string[] = [];
-  let linkedInUrl = '';
-  let twitterUrl = '';
-  let websiteUrl = domainStr ? `https://${domainStr}` : '';
+  const allSnippets: string[] = []
+  let linkedInUrl = ''
+  let twitterUrl = ''
+  let websiteUrl = domainStr ? `https://${domainStr}` : ''
 
   for (const result of [bizResults, techResults, peopleResults, newsResults]) {
     if (result.status === 'fulfilled' && result.value.length > 0) {
       for (const r of result.value) {
-        allSnippets.push(`[${r.title}] ${r.snippet}`);
+        allSnippets.push(`[${r.title}] ${r.snippet}`)
         if (r.url?.includes('linkedin.com/company') && !linkedInUrl) {
-          linkedInUrl = r.url;
+          linkedInUrl = r.url
         }
         if ((r.url?.includes('twitter.com') || r.url?.includes('x.com')) && !twitterUrl) {
-          twitterUrl = r.url;
+          twitterUrl = r.url
         }
-        // Find official website if we don't have one
         if (!websiteUrl && r.url && !r.url.includes('linkedin.com') && !r.url.includes('twitter.com') && !r.url.includes('wikipedia.org')) {
-          const urlObj = new URL(r.url);
+          const urlObj = new URL(r.url)
           if (urlObj.hostname !== 'www.google.com' && urlObj.hostname !== 'news.google.com') {
-            websiteUrl = r.url;
+            websiteUrl = r.url
           }
         }
       }
     }
   }
 
-  const searchContext = allSnippets.slice(0, 30).join('\n');
+  const searchContext = allSnippets.slice(0, 30).join('\n')
 
-  // Extract structured data with LLM
+  // Extract structured data with Gemini
   const systemPrompt = `You are a senior business intelligence analyst. Based ONLY on the web search results provided, extract accurate, factual company data.
 
 CRITICAL RULES:
@@ -237,7 +313,7 @@ Return ONLY valid JSON (no markdown fences) with this structure:
   "recentNews": [
     {"title": "headline", "snippet": "summary", "signalType": "funding|hiring|leadership|expansion|technology|product|partnership|other", "impact": "high|medium|low"}
   ]
-}`;
+}`
 
   const userPrompt = `Company: ${companyName}
 Domain: ${domainStr || 'Unknown'}
@@ -246,11 +322,11 @@ Current Industry: ${industryStr || 'Unknown'}
 Web Search Results:
 ${searchContext || 'No results found.'}
 
-Extract accurate company data as JSON. Ground everything in the search results above.`;
+Extract accurate company data as JSON. Ground everything in the search results above.`
 
   try {
-    const response = await callLLM(systemPrompt, userPrompt);
-    const parsed = extractJSON(response) as Record<string, unknown> | null;
+    const response = await callLLM(systemPrompt, userPrompt)
+    const parsed = extractJSON(response) as Record<string, unknown> | null
 
     if (parsed && typeof parsed === 'object') {
       const keyPeople = Array.isArray(parsed.keyPeople)
@@ -261,7 +337,7 @@ Extract accurate company data as JSON. Ground everything in the search results a
             linkedInUrl: p.linkedInUrl ? String(p.linkedInUrl) : undefined,
             source: 'web_search',
           })).filter(p => p.name)
-        : [];
+        : []
 
       const recentNews = Array.isArray(parsed.recentNews)
         ? (parsed.recentNews as Record<string, unknown>[]).map(n => ({
@@ -274,11 +350,11 @@ Extract accurate company data as JSON. Ground everything in the search results a
             impact: (['high','medium','low'].includes(String(n.impact))
               ? String(n.impact) : 'medium') as NewsSignal['impact'],
           })).filter(n => n.title)
-        : [];
+        : []
 
-      const socialProfiles: Record<string, string> = {};
-      if (linkedInUrl) socialProfiles.linkedin = linkedInUrl;
-      if (twitterUrl) socialProfiles.twitter = twitterUrl;
+      const socialProfiles: Record<string, string> = {}
+      if (linkedInUrl) socialProfiles.linkedin = linkedInUrl
+      if (twitterUrl) socialProfiles.twitter = twitterUrl
 
       return {
         businessOverview: String(parsed.businessOverview || `${companyName} operates in the ${industryStr || 'technology'} sector.`),
@@ -292,16 +368,16 @@ Extract accurate company data as JSON. Ground everything in the search results a
         industry: String(parsed.industry || industryStr || 'Not found'),
         website: String(parsed.website || websiteUrl || ''),
         confidence: searchContext ? 80 : 20,
-      };
+      }
     }
   } catch (err) {
-    console.error('[researchCompany] LLM extraction failed:', err);
+    console.error('[researchCompany] LLM extraction failed:', err)
   }
 
-  // Fallback — return minimal data with whatever URLs we found
-  const socialProfiles: Record<string, string> = {};
-  if (linkedInUrl) socialProfiles.linkedin = linkedInUrl;
-  if (twitterUrl) socialProfiles.twitter = twitterUrl;
+  // Fallback
+  const socialProfiles: Record<string, string> = {}
+  if (linkedInUrl) socialProfiles.linkedin = linkedInUrl
+  if (twitterUrl) socialProfiles.twitter = twitterUrl
 
   return {
     businessOverview: `${companyName} operates in the ${industryStr || 'technology'} sector.`,
@@ -315,33 +391,32 @@ Extract accurate company data as JSON. Ground everything in the search results a
     industry: industryStr || 'Not found',
     website: websiteUrl,
     confidence: 10,
-  };
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Find Key People — LinkedIn-safe search
+// Find Key People — Tavily search
 // ---------------------------------------------------------------------------
 
 /**
- * Find key executives at a company via web search.
- * Uses search engine results (LinkedIn-safe, no scraping).
+ * Find key executives at a company via Tavily search.
  */
 export async function findKeyPeople(companyName: string): Promise<KeyPerson[]> {
   const [execResults, vpResults] = await Promise.allSettled([
     webSearch(`${companyName} CEO CTO CIO COO CFO president executives LinkedIn`, 8),
     webSearch(`${companyName} VP director head of management team LinkedIn`, 6),
-  ]);
+  ])
 
-  const allSnippets: string[] = [];
+  const allSnippets: string[] = []
   for (const result of [execResults, vpResults]) {
     if (result.status === 'fulfilled') {
       for (const r of result.value) {
-        allSnippets.push(`[${r.title}] ${r.snippet}`);
+        allSnippets.push(`[${r.title}] ${r.snippet}`)
       }
     }
   }
 
-  if (allSnippets.length === 0) return [];
+  if (allSnippets.length === 0) return []
 
   const systemPrompt = `You are an executive research specialist. From the web search results below, identify key people at "${companyName}".
 
@@ -349,13 +424,13 @@ Extract ONLY people who are clearly mentioned in the search results.
 Return valid JSON array: [{"name": "Full Name", "title": "Exact Title", "department": "department", "linkedInUrl": "url or empty"}]
 
 Include C-suite, VPs, Directors, and Heads. Maximum 10 people.
-If no people are found, return an empty array [].`;
+If no people are found, return an empty array [].`
 
-  const userPrompt = `Company: ${companyName}\n\nSearch Results:\n${allSnippets.slice(0, 20).join('\n')}`;
+  const userPrompt = `Company: ${companyName}\n\nSearch Results:\n${allSnippets.slice(0, 20).join('\n')}`
 
   try {
-    const response = await callLLM(systemPrompt, userPrompt);
-    const parsed = extractJSON(response);
+    const response = await callLLM(systemPrompt, userPrompt)
+    const parsed = extractJSON(response)
 
     if (Array.isArray(parsed)) {
       return (parsed as Record<string, unknown>[])
@@ -366,17 +441,17 @@ If no people are found, return an empty array [].`;
           linkedInUrl: p.linkedInUrl ? String(p.linkedInUrl) : undefined,
           source: 'web_search',
         }))
-        .filter(p => p.name && p.title);
+        .filter(p => p.name && p.title)
     }
   } catch (err) {
-    console.error('[findKeyPeople] failed:', err);
+    console.error('[findKeyPeople] failed:', err)
   }
 
-  return [];
+  return []
 }
 
 // ---------------------------------------------------------------------------
-// Company News & Signals
+// Company News & Signals — Tavily search
 // ---------------------------------------------------------------------------
 
 /**
@@ -386,18 +461,18 @@ export async function getCompanyNews(companyName: string): Promise<NewsSignal[]>
   const [newsResults, signalResults] = await Promise.allSettled([
     webSearch(`${companyName} news 2025`, 8),
     webSearch(`${companyName} funding hiring expansion acquisition digital transformation`, 6),
-  ]);
+  ])
 
-  const allSnippets: string[] = [];
+  const allSnippets: string[] = []
   for (const result of [newsResults, signalResults]) {
     if (result.status === 'fulfilled') {
       for (const r of result.value) {
-        allSnippets.push(`[${r.title}] ${r.snippet} (source: ${r.url})`);
+        allSnippets.push(`[${r.title}] ${r.snippet} (source: ${r.url})`)
       }
     }
   }
 
-  if (allSnippets.length === 0) return [];
+  if (allSnippets.length === 0) return []
 
   const systemPrompt = `You are a B2B sales intelligence analyst. Analyze the news/search results about "${companyName}" and identify buying signals.
 
@@ -414,13 +489,13 @@ Return valid JSON array:
 }]
 
 Maximum 8 signals. Only include signals clearly supported by the results.
-If no relevant signals, return empty array [].`;
+If no relevant signals, return empty array [].`
 
-  const userPrompt = `Company: ${companyName}\n\nSearch Results:\n${allSnippets.slice(0, 20).join('\n')}`;
+  const userPrompt = `Company: ${companyName}\n\nSearch Results:\n${allSnippets.slice(0, 20).join('\n')}`
 
   try {
-    const response = await callLLM(systemPrompt, userPrompt);
-    const parsed = extractJSON(response);
+    const response = await callLLM(systemPrompt, userPrompt)
+    const parsed = extractJSON(response)
 
     if (Array.isArray(parsed)) {
       return (parsed as Record<string, unknown>[])
@@ -434,13 +509,13 @@ If no relevant signals, return empty array [].`;
           impact: (['high','medium','low'].includes(String(n.impact))
             ? String(n.impact) : 'medium') as NewsSignal['impact'],
         }))
-        .filter(n => n.title);
+        .filter(n => n.title)
     }
   } catch (err) {
-    console.error('[getCompanyNews] failed:', err);
+    console.error('[getCompanyNews] failed:', err)
   }
 
-  return [];
+  return []
 }
 
 // ---------------------------------------------------------------------------
@@ -453,36 +528,82 @@ If no relevant signals, return empty array [].`;
  */
 export async function verifyEmailBasic(email: string): Promise<{ valid: boolean; reason: string; score: number }> {
   if (!email || !email.includes('@')) {
-    return { valid: false, reason: 'Invalid email format', score: 0 };
+    return { valid: false, reason: 'Invalid email format', score: 0 }
   }
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(email)) {
-    return { valid: false, reason: 'Invalid email syntax', score: 10 };
+    return { valid: false, reason: 'Invalid email syntax', score: 10 }
   }
 
-  const domain = email.split('@')[1].toLowerCase();
+  const domain = email.split('@')[1].toLowerCase()
 
-  // Check for disposable email providers
-  const disposableDomains = ['guerrillamail.com', 'mailinator.com', 'throwaway.email', 'yopmail.com', 'tempmail.com'];
+  const disposableDomains = ['guerrillamail.com', 'mailinator.com', 'throwaway.email', 'yopmail.com', 'tempmail.com']
   if (disposableDomains.some(d => domain.includes(d))) {
-    return { valid: false, reason: 'Disposable email provider', score: 5 };
+    return { valid: false, reason: 'Disposable email provider', score: 5 }
   }
 
-  // Check for free providers
-  const freeProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com', 'icloud.com', 'protonmail.com'];
-  const isFree = freeProviders.includes(domain);
+  const freeProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com', 'icloud.com', 'protonmail.com']
+  const isFree = freeProviders.includes(domain)
 
-  // DNS MX lookup
   try {
-    const dns = await import('dns/promises');
-    const records = await dns.resolveMx(domain);
+    const dns = await import('dns/promises')
+    const records = await dns.resolveMx(domain)
     if (records && records.length > 0) {
-      return { valid: true, reason: 'MX record found', score: isFree ? 60 : 85 };
+      return { valid: true, reason: 'MX record found', score: isFree ? 60 : 85 }
     }
   } catch {
     // No MX record
   }
 
-  return { valid: false, reason: 'No MX record found', score: 20 };
+  return { valid: false, reason: 'No MX record found', score: 20 }
+}
+
+// ---------------------------------------------------------------------------
+// Legacy getZAI() — backward compat for ai__chat.ts and ai__generate-ppt.ts
+// Returns a minimal compatible object.
+// ---------------------------------------------------------------------------
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+let _compatZAI: any = null
+
+/**
+ * @deprecated Use callLLM() or webSearch() instead.
+ * Provides a minimal Z.AI SDK-compatible object for legacy code.
+ */
+export async function getZAI(): Promise<any> {
+  if (_compatZAI) return _compatZAI
+
+  _compatZAI = {
+    chat: {
+      completions: {
+        create: async (body: any) => {
+          const msgs = body.messages || []
+          // Separate system from user/assistant messages
+          const systemMsg = msgs.find((m: any) => m.role === 'system')
+          const chatMsgs = msgs.filter((m: any) => m.role !== 'system')
+
+          const response = await callChatLLM(
+            systemMsg?.content || 'You are a helpful assistant.',
+            chatMsgs.map((m: any) => ({ role: m.role, content: m.content }))
+          )
+
+          return {
+            choices: [{ message: { content: response } }],
+            model: GEMINI_MODEL,
+          }
+        },
+      },
+    },
+    // For PPT generation — not supported via Gemini, returns error
+    functions: {
+      invoke: async (functionName: string, args: any) => {
+        console.warn(`[getZAI] functions.invoke("${functionName}") called — Z.AI SDK functions not available in production. Use direct API calls.`)
+        throw new Error(`Z.AI function "${functionName}" is not available. The internal Z.AI SDK is not reachable from Vercel. For PPT generation, use a server-side library instead.`)
+      },
+    },
+  }
+
+  return _compatZAI
 }

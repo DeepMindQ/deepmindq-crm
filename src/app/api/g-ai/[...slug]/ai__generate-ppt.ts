@@ -1,12 +1,13 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { researchCompany, callLLM, webSearch, getZAI, type CompanyResearch } from '@/lib/zai-helpers';
+import { researchCompany, callLLM, webSearch, type CompanyResearch } from '@/lib/zai-helpers';
 
 /* ═══════════════════════════════════════════════════
-   PPT/Slide Generation via Z.AI SDK
+   PPT/Slide Generation via Gemini LLM
    
-   Uses Z.AI's built-in PPT generation to create
-   professional presentation files for companies.
+   Generates structured slide content using Gemini,
+   then returns it as a JSON slide deck the frontend
+   can render or the user can copy-paste.
    
    POST /api/ai/generate-ppt
    Body: { 
@@ -77,49 +78,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid type or missing customPrompt' }, { status: 400 });
     }
 
-    // Generate PPT using Z.AI SDK
+    // Generate PPT content using Gemini LLM
     console.log(`[generate-ppt] Generating ${type} PPT for: ${company?.rawName || 'custom'}`);
 
+    const slideContent = await callLLM(
+      `You are a professional presentation designer. Create a structured JSON slide deck.
+Each slide must have: "slideNumber" (int), "title" (string), "content" (array of bullet point strings), "speakerNotes" (string).
+Return ONLY a JSON array of slides. No markdown fences.`,
+      pptPrompt,
+    );
+
+    // Try to parse as JSON slides
+    let slides: Array<{ slideNumber: number; title: string; content: string[]; speakerNotes: string }> = [];
     try {
-      const zai = await getZAI();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await (zai as any).functions.invoke('ppt_generation', {
-        prompt: pptPrompt,
-      });
-
-      // Return the result — could be a URL, base64, or file reference
-      return NextResponse.json({
-        success: true,
-        type,
-        companyId: company?.id || null,
-        companyName: company?.rawName || 'Custom',
-        result,
-        generatedAt: new Date().toISOString(),
-        researchConfidence: research?.confidence || 0,
-      });
-    } catch (sdkErr: any) {
-      console.error('[generate-ppt] Z.AI PPT generation failed:', sdkErr?.message);
-      
-      // Fallback: Generate markdown-based PPT content via LLM
-      // This ensures we always return something useful
-      console.log('[generate-ppt] Falling back to LLM-based slide content');
-      const fallbackContent = await callLLM(
-        'You are a presentation designer. Create a professional slide deck outline in markdown format. Each slide should be separated by ---. Include slide titles, bullet points, and speaker notes.',
-        pptPrompt,
-      );
-
-      return NextResponse.json({
-        success: true,
-        type,
-        companyId: company?.id || null,
-        companyName: company?.rawName || 'Custom',
-        content: fallbackContent,
-        fallback: true,
-        message: 'Generated as markdown content. Z.AI PPT service may be temporarily unavailable.',
-        generatedAt: new Date().toISOString(),
-        researchConfidence: research?.confidence || 0,
-      });
+      const cleaned = slideContent.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+      slides = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      // If JSON parse fails, create a single slide with the text
+      slides = [{ slideNumber: 1, title: `${company?.rawName || 'Custom'} — ${type}`, content: [slideContent.slice(0, 500)], speakerNotes: '' }];
     }
+
+    return NextResponse.json({
+      success: true,
+      type,
+      companyId: company?.id || null,
+      companyName: company?.rawName || 'Custom',
+      slides,
+      slideCount: slides.length,
+      generatedAt: new Date().toISOString(),
+      researchConfidence: research?.confidence || 0,
+    });
   } catch (error) {
     console.error('[generate-ppt] Error:', error);
     return NextResponse.json({ error: 'PPT generation failed' }, { status: 500 });

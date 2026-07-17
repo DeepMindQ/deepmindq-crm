@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-import { getZAI } from '@/lib/zai-helpers'
+import { callChatLLM } from '@/lib/zai-helpers'
 
 // ---------------------------------------------------------------------------
-// LLM helper — multi-turn chat using shared SDK instance
+// LLM helper — multi-turn chat via Gemini
 // ---------------------------------------------------------------------------
 
 interface ChatMessage {
@@ -13,15 +13,7 @@ interface ChatMessage {
 }
 
 async function callAI(systemPrompt: string, messages: ChatMessage[]): Promise<string> {
-  const zai = await getZAI()
-  const completion = await zai.chat.completions.create({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      ...messages,
-    ],
-    thinking: { type: 'disabled' },
-  })
-  return completion.choices?.[0]?.message?.content ?? ''
+  return callChatLLM(systemPrompt, messages)
 }
 
 // ---------------------------------------------------------------------------

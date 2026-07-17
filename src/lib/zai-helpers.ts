@@ -1,17 +1,19 @@
 /**
- * Shared AI helpers — Gemini LLM + Tavily Web Search
+ * Shared AI helpers — LLM + Tavily Web Search
  *
  * Replaces Z.AI internal SDK (unreachable from Vercel) with:
- *   - Google Gemini (via OpenAI-compatible endpoint) for LLM
+ *   - NVIDIA NIM (primary), Fireworks (backup), Groq, Gemini for LLM
  *   - Tavily API for web search
  *
  * ALL 27 downstream files import from here — fixing this file
  * fixes the entire AI pipeline.
  *
  * Env vars (set on Vercel + local .env.local):
- *   GEMINI_API_KEY   — Google AI Studio API key
- *   GEMINI_BASE_URL  — OpenAI-compatible endpoint (default: Gemini)
- *   TAVILY_API_KEY   — Tavily search API key
+ *   NVIDIA_API_KEY    — NVIDIA NIM API key (build.nvidia.com)
+ *   FIREWORKS_API_KEY — Fireworks AI API key (fireworks.ai)
+ *   GROQ_API_KEY      — Groq API key
+ *   GEMINI_API_KEY    — Google AI Studio API key
+ *   TAVILY_API_KEY    — Tavily search API key
  */
 
 // ---------------------------------------------------------------------------
@@ -64,8 +66,16 @@ export interface CompanyResearch {
 
 // ---------------------------------------------------------------------------
 // Config — supports multiple LLM providers with automatic fallback
-// Priority: GROQ > GEMINI (tries multiple models)
+// Priority: NVIDIA NIM > Fireworks > Groq > Gemini (tries multiple models)
 // ---------------------------------------------------------------------------
+
+const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || ''
+const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1'
+const NVIDIA_MODEL = 'nvidia/llama-3.3-nemotron-super-49b-v1'
+
+const FIREWORKS_API_KEY = process.env.FIREWORKS_API_KEY || ''
+const FIREWORKS_BASE_URL = 'https://api.fireworks.ai/inference/v1'
+const FIREWORKS_MODEL = 'accounts/fireworks/models/llama-v3p3-70b-instruct'
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || ''
 const GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
@@ -117,7 +127,25 @@ export async function callLLM(systemPrompt: string, userPrompt: string): Promise
     { role: 'user', content: userPrompt },
   ]
 
-  // Try Groq first (faster, more reliable free tier)
+  // Try NVIDIA NIM first (primary — free credits, fast)
+  if (NVIDIA_API_KEY) {
+    try {
+      return await callLLMProvider(NVIDIA_BASE_URL, NVIDIA_API_KEY, NVIDIA_MODEL, messages)
+    } catch (err) {
+      console.warn('[callLLM] NVIDIA failed, trying Fireworks:', err instanceof Error ? err.message : err)
+    }
+  }
+
+  // Try Fireworks (backup)
+  if (FIREWORKS_API_KEY) {
+    try {
+      return await callLLMProvider(FIREWORKS_BASE_URL, FIREWORKS_API_KEY, FIREWORKS_MODEL, messages)
+    } catch (err) {
+      console.warn('[callLLM] Fireworks failed, trying Groq:', err instanceof Error ? err.message : err)
+    }
+  }
+
+  // Try Groq
   if (GROQ_API_KEY) {
     try {
       return await callLLMProvider(GROQ_BASE_URL, GROQ_API_KEY, GROQ_MODEL, messages)
@@ -137,7 +165,7 @@ export async function callLLM(systemPrompt: string, userPrompt: string): Promise
     }
   }
 
-  throw new Error('All LLM providers failed. Set a valid GROQ_API_KEY or GEMINI_API_KEY (with billing enabled) in Vercel env vars.')
+  throw new Error('All LLM providers failed. Set NVIDIA_API_KEY or FIREWORKS_API_KEY in Vercel env vars.')
 }
 
 /**
@@ -149,7 +177,25 @@ export async function callChatLLM(systemPrompt: string, messages: Array<{ role: 
     ...messages,
   ]
 
-  // Try Groq first
+  // Try NVIDIA NIM first (primary)
+  if (NVIDIA_API_KEY) {
+    try {
+      return await callLLMProvider(NVIDIA_BASE_URL, NVIDIA_API_KEY, NVIDIA_MODEL, allMessages)
+    } catch (err) {
+      console.warn('[callChatLLM] NVIDIA failed, trying Fireworks:', err instanceof Error ? err.message : err)
+    }
+  }
+
+  // Try Fireworks (backup)
+  if (FIREWORKS_API_KEY) {
+    try {
+      return await callLLMProvider(FIREWORKS_BASE_URL, FIREWORKS_API_KEY, FIREWORKS_MODEL, allMessages)
+    } catch (err) {
+      console.warn('[callChatLLM] Fireworks failed, trying Groq:', err instanceof Error ? err.message : err)
+    }
+  }
+
+  // Try Groq
   if (GROQ_API_KEY) {
     try {
       return await callLLMProvider(GROQ_BASE_URL, GROQ_API_KEY, GROQ_MODEL, allMessages)
@@ -169,7 +215,7 @@ export async function callChatLLM(systemPrompt: string, messages: Array<{ role: 
     }
   }
 
-  throw new Error('All LLM providers failed. Set a valid GROQ_API_KEY or GEMINI_API_KEY (with billing enabled) in Vercel env vars.')
+  throw new Error('All LLM providers failed. Set NVIDIA_API_KEY or FIREWORKS_API_KEY in Vercel env vars.')
 }
 
 // ---------------------------------------------------------------------------
@@ -653,7 +699,7 @@ export async function getZAI(): Promise<any> {
 
           return {
             choices: [{ message: { content: response } }],
-            model: GEMINI_MODELS[0],
+            model: NVIDIA_API_KEY ? NVIDIA_MODEL : (FIREWORKS_API_KEY ? FIREWORKS_MODEL : GEMINI_MODELS[0]),
           }
         },
       },

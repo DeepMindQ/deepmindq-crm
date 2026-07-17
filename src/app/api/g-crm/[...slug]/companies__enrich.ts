@@ -53,17 +53,18 @@ export async function POST(request: Request) {
 
     const enrichmentData = await aiEnrichCompany(companyName, company.domain, company.industry);
 
-    // Upsert research card
+    // Upsert research card — only fields that exist in Prisma schema
+    const { keyPeople: _kp, recentNews: _rn, industry: _ind, website: _web, ...prismaFields } = enrichmentData;
     const researchCard = await db.companyResearchCard.upsert({
       where: { companyId: company.id },
       create: {
         companyId: company.id,
-        ...enrichmentData,
+        ...prismaFields,
         enrichmentSource: 'ai_web_search',
         enrichmentDate: new Date(),
       },
       update: {
-        ...enrichmentData,
+        ...prismaFields,
         enrichmentSource: 'ai_web_search',
         enrichmentDate: new Date(),
       },

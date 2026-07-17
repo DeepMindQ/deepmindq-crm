@@ -133,17 +133,18 @@ export async function POST(request: Request) {
       };
     }
 
-    // Upsert research card
+    // Upsert research card — only fields that exist in Prisma schema
+    const { keyPeople: _kp, recentNews: _rn, ...prismaFields } = enrichmentData;
     await db.companyResearchCard.upsert({
       where: { companyId: company.id },
       create: {
         companyId: company.id,
-        ...enrichmentData,
+        ...prismaFields,
         enrichmentSource: 'batch_ai_web_search',
         enrichmentDate: new Date(),
       },
       update: {
-        ...enrichmentData,
+        ...prismaFields,
         enrichmentSource: 'batch_ai_web_search',
         enrichmentDate: new Date(),
       },

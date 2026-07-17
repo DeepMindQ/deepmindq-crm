@@ -80,3 +80,34 @@ Stage Summary:
 - BLOCKER: Gemini API key has 0 free tier quota. LLM calls fail. System works via Tavily fallback but email generation falls back to templates (not AI-personalized).
 - ACTION NEEDED: User must get a valid Gemini API key with quota (enable billing at aistudio.google.com) or provide a valid Groq API key.
 
+---
+Task ID: 3
+Agent: Main
+Task: Phase 1 — Manual enrichment with selection on Companies page
+
+Work Log:
+- Full audit of codebase found 5 critical issues:
+  1. companies-screen.tsx missing MoreHorizontal/ChevronLeft/ChevronRight imports → page crash
+  2. batches.ts auto-enriches 5 companies on every CSV import (user wants manual only)
+  3. companies__enrich.ts spreads keyPeople/recentNews into Prisma upsert but those fields don't exist in schema → Prisma errors
+  4. companies__enrich-next.ts same Prisma schema mismatch
+  5. No selection UI on Companies page for manual enrichment
+- Fixed companies-screen.tsx:
+  - Added missing imports (MoreHorizontal, ChevronLeft, ChevronRight, CheckSquare, Square, Check)
+  - Added checkbox selection (single, multi, select-all) with gold highlight
+  - Replaced "Enrich All" auto-button with context-aware "Enrich N Selected" / "Enrich All" button
+  - Added live progress bar showing current company name + X/Y counter
+  - Added Stop button during enrichment
+  - Added "N selected" action bar with clear button
+  - Added green "AI" badge on enriched company rows
+  - Enrichment now calls /api/companies/enrich per company with force:true, 1.8s delay between calls (respects NVIDIA 40 RPM)
+- Removed auto-enrich from batches.ts (deleted lines 359-384)
+- Fixed Prisma schema mismatch in companies__enrich.ts and companies__enrich-next.ts (destructured out keyPeople/recentNews/industry/website before upsert)
+- Updated Company interface in companies-screen.tsx to include researchCard for enrichment status display
+
+Stage Summary:
+- 3 files modified: companies-screen.tsx, batches.ts, companies__enrich.ts, companies__enrich-next.ts
+- Enrichment is now 100% manual: user selects companies → clicks Enrich → sees live progress
+- CSV import no longer triggers any auto-enrichment
+- No more Prisma errors from invalid field names
+

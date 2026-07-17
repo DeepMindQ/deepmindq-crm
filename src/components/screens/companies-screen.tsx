@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, MoreHorizontal, ChevronLeft, ChevronRight, CheckSquare, Square, Check } from 'lucide-react';
 import { PageTransition, AnimatedCounter } from '@/components/ui/animated-components';
 import {
   Building2, Globe, MapPin, Users, Search, Brain, Download,
@@ -46,6 +46,14 @@ interface Company {
   intelligenceScore: number | null;
   contactCount?: number;
   _count?: { contacts: number; notes: number; signals: number };
+  researchCard?: {
+    id: string;
+    businessOverview: string | null;
+    revenue: string | null;
+    employeeCount: string | null;
+    fundingStage: string | null;
+    enrichmentDate: string | null;
+  } | null;
 }
 
 interface CompaniesScreenProps {
@@ -256,9 +264,14 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
   const [stats, setStats] = useState({ withContacts: 0, withSignals: 0, avgScore: 0 });
   const [metaLoading, setMetaLoading] = useState(true);
 
+  /* ── Selection state ── */
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   /* ── Batch enrichment state ── */
   const [enrichLoading, setEnrichLoading] = useState(false);
-  const [enrichProgress, setEnrichProgress] = useState(0);
+  const [enrichProgress, setEnrichProgress] = useState<{ current: number; total: number; companyName: string } | null>(null);
+  const [enrichCancelled, setEnrichCancelled] = useState(false);
+  const enrichCancelRef = useRef(false);
 
   /* ── Filter state ── */
   const [search, setSearch] = useState('');
@@ -331,63 +344,106 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
 
   useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
 
-  /* ── Batch enrichment (after fetchCompanies is defined) ── */
-  const startBatchEnrich = useCallback(async () => {
-    try {
-      setEnrichLoading(true);
-      setEnrichProgress(0);
+  /* ── Selection helpers ── */
+  const allSelected = companies.length > 0 && companies.every(c => selectedIds.has(c.id));
+  const someSelected = selectedIds.size > 0 && !allSelected;
 
-      // Get initial status
-      const statusRes = await fetch('/api/g-crm/companies/enrich-status');
-      const statusData = await statusRes.json();
-      if (statusData.remaining === 0) {
-        toast.info('All companies already enriched!');
-        setEnrichLoading(false);
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(companies.map(c => c.id)));
+    }
+  };
+
+  /* ── Manual enrichment: enrich selected companies one-by-one ── */
+  const enrichSelected = useCallback(async () => {
+    // Determine which IDs to enrich: if none selected, enrich all from DB
+    let idsToEnrich: string[] = [];
+
+    if (selectedIds.size > 0) {
+      idsToEnrich = [...selectedIds];
+    } else {
+      // Fetch all unenriched company IDs from DB
+      try {
+        const res = await fetch('/api/companies?limit=500');
+        const data = await res.json();
+        const all = data.companies || data.data?.companies || [];
+        idsToEnrich = all
+          .filter((c: Company) => !c.researchCard)
+          .map((c: Company) => c.id);
+      } catch {
+        toast.error('Failed to fetch companies for enrichment');
         return;
       }
-
-      toast.success(`Enriching ${statusData.remaining} companies...`);
-
-      const enrichOne = async () => {
-        try {
-          const r = await fetch('/api/g-crm/companies/enrich-next', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({}),
-          });
-          const d = await r.json();
-
-          if (d.done) {
-            setEnrichLoading(false);
-            setEnrichProgress(100);
-            toast.success(`Done! All companies enriched.`);
-            fetchCompanies();
-            return;
-          }
-
-          if (d.enriched) {
-            const total = statusData.totalCompanies || 1;
-            const processed = total - d.remaining;
-            setEnrichProgress(Math.round((processed / total) * 100));
-          }
-
-          if (d.error) {
-            console.warn('[enrich] Error:', d.error);
-          }
-
-          // Continue polling
-          setTimeout(enrichOne, 1500);
-        } catch {
-          setTimeout(enrichOne, 3000);
-        }
-      };
-
-      setTimeout(enrichOne, 500);
-    } catch {
-      toast.error('Failed to start enrichment');
-      setEnrichLoading(false);
     }
-  }, [fetchCompanies]);
+
+    if (idsToEnrich.length === 0) {
+      toast.info('No unenriched companies found');
+      return;
+    }
+
+    setEnrichLoading(true);
+    setEnrichCancelled(false);
+    enrichCancelRef.current = false;
+    setSelectedIds(new Set());
+
+    toast.success(`Enriching ${idsToEnrich.length} companies...`);
+
+    let enriched = 0;
+    let failed = 0;
+
+    for (const companyId of idsToEnrich) {
+      if (enrichCancelRef.current) {
+        toast.info(`Enrichment stopped. ${enriched} enriched, ${failed} failed.`);
+        break;
+      }
+
+      // Find company name for progress display
+      const company = companies.find(c => c.id === companyId);
+      const name = company?.rawName || companyId.slice(0, 8);
+      enriched++;
+      setEnrichProgress({ current: enriched, total: idsToEnrich.length, companyName: name });
+
+      try {
+        const r = await fetch('/api/companies/enrich', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ companyId, force: true }),
+        });
+        const d = await r.json();
+        if (!r.ok || d.error) {
+          console.warn(`[enrich] ${name}:`, d.error);
+          failed++;
+        }
+      } catch {
+        failed++;
+      }
+
+      // Small delay between calls to respect rate limits (NVIDIA ~40 RPM free)
+      if (enriched < idsToEnrich.length) {
+        await new Promise(r => setTimeout(r, 1800));
+      }
+    }
+
+    setEnrichLoading(false);
+    setEnrichProgress(null);
+    toast.success(`Done! ${enriched - failed} enriched successfully, ${failed} failed.`);
+    fetchCompanies();
+  }, [selectedIds, companies, fetchCompanies]);
+
+  const cancelEnrich = () => {
+    enrichCancelRef.current = true;
+    setEnrichCancelled(true);
+  };
 
   // Reset page on filter change
   useEffect(() => { setPage(1); }, [debouncedSearch, industry, country]);
@@ -492,18 +548,30 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
             Export
           </Button>
 
-          {/* Batch Enrich */}
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={enrichLoading}
-            onClick={startBatchEnrich}
-            className="h-8 px-3 text-xs font-medium rounded-lg shrink-0"
-            style={{ borderColor: enrichLoading ? undefined : 'rgba(212,175,55,0.3)', color: enrichLoading ? '#9CA3AF' : gold }}
-          >
-            {enrichLoading ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : <Sparkles size={14} className="mr-1.5" />}
-            {enrichLoading ? `Enriching ${enrichProgress}%` : 'Enrich All'}
-          </Button>
+          {/* Enrich Selected / Enrich All */}
+          {!enrichLoading ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={enrichSelected}
+              className="h-8 px-3 text-xs font-medium rounded-lg shrink-0"
+              style={{ borderColor: selectedIds.size > 0 ? 'rgba(212,175,55,0.5)' : 'rgba(212,175,55,0.3)', color: gold }}
+            >
+              <Sparkles size={14} className="mr-1.5" />
+              {selectedIds.size > 0 ? `Enrich ${selectedIds.size} Selected` : 'Enrich All'}
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={cancelEnrich}
+              className="h-8 px-3 text-xs font-medium rounded-lg shrink-0"
+              style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#DC2626' }}
+            >
+              <X size={14} className="mr-1.5" />
+              Stop
+            </Button>
+          )}
 
           {/* Add Company */}
           <Button
@@ -549,6 +617,59 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
         ))}
       </motion.div>
 
+      {/* ═══ Enrichment Progress Bar ═══ */}
+      {enrichLoading && enrichProgress && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border px-4 py-3"
+          style={{ background: 'rgba(212,175,55,0.06)', borderColor: 'rgba(212,175,55,0.2)' }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Loader2 size={14} className="animate-spin" style={{ color: gold }} />
+              <span className="text-xs font-semibold" style={{ color: '#374151' }}>
+                Enriching: {enrichProgress.companyName}
+              </span>
+            </div>
+            <span className="text-xs font-bold tabular-nums" style={{ color: gold }}>
+              {enrichProgress.current} / {enrichProgress.total}
+            </span>
+          </div>
+          <div className="w-full h-2 rounded-full" style={{ background: 'rgba(0,0,0,0.05)' }}>
+            <motion.div
+              className="h-full rounded-full"
+              style={{ background: 'linear-gradient(90deg, #D4AF37, #E8C547)' }}
+              initial={{ width: 0 }}
+              animate={{ width: `${(enrichProgress.current / enrichProgress.total) * 100}%` }}
+              transition={{ duration: 0.3 }}
+            />
+          </div>
+        </motion.div>
+      )}
+
+      {/* ═══ Selection Action Bar ═══ */}
+      {selectedIds.size > 0 && !enrichLoading && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3 px-4 py-2 rounded-xl border"
+          style={{ background: 'rgba(59,130,246,0.04)', borderColor: 'rgba(59,130,246,0.15)' }}
+        >
+          <Check size={14} style={{ color: '#2563EB' }} />
+          <span className="text-xs font-medium" style={{ color: '#2563EB' }}>
+            {selectedIds.size} company{selectedIds.size > 1 ? 'ies' : 'y'} selected
+          </span>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs underline ml-1"
+            style={{ color: '#6B7280' }}
+          >
+            Clear
+          </button>
+        </motion.div>
+      )}
+
       {/* ═══ Table ═══ */}
       <div className="flex-1 min-h-0 rounded-xl border overflow-hidden" style={{ background: card, borderColor: border }}>
         {/* Header */}
@@ -556,6 +677,17 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
           className="flex items-center gap-4 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider border-b"
           style={{ color: textMuted, borderColor: border }}
         >
+          <div className="w-8 shrink-0 flex justify-center" onClick={(e) => e.stopPropagation()}>
+            <button onClick={toggleSelectAll} className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+              {allSelected ? (
+                <CheckSquare size={14} style={{ color: gold }} />
+              ) : someSelected ? (
+                <CheckSquare size={14} style={{ color: '#9CA3AF' }} />
+              ) : (
+                <Square size={14} style={{ color: '#D1D5DB' }} />
+              )}
+            </button>
+          </div>
           <div className="w-[220px] shrink-0">Company</div>
           <div className="w-[130px] shrink-0 hidden lg:block">Domain</div>
           <div className="w-[60px] shrink-0 hidden md:block">Country</div>
@@ -632,6 +764,8 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
               {companies.map((company, i) => {
                 const sc = STATUS_COLORS[company.status] || { bg: 'rgba(100,100,100,0.12)', text: '#52525B' };
                 const cc = company.contactCount ?? company._count?.contacts ?? 0;
+                const isSelected = selectedIds.has(company.id);
+                const isEnriched = !!company.researchCard;
                 return (
                   <motion.div
                     key={company.id}
@@ -642,15 +776,36 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                     onClick={() => navigateTo?.('company-detail', company.id)}
                     className="group flex items-center gap-4 px-4 py-2.5 cursor-pointer border-l-2 border-l-transparent hover:border-l-[3px] transition-all duration-200"
                     style={{
-                      background: i % 2 === 0 ? '#F9FAFB' : 'transparent',
+                      background: isSelected ? 'rgba(212,175,55,0.06)' : (i % 2 === 0 ? '#F9FAFB' : 'transparent'),
                       hoverBorderLeftColor: gold,
                     }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderLeftColor = gold; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderLeftColor = 'transparent'; }}
                   >
-                    {/* Company Name + Industry */}
+                    {/* Checkbox */}
+                    <div className="w-8 shrink-0 flex justify-center" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => toggleSelect(company.id)} className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                        {isSelected ? (
+                          <CheckSquare size={14} style={{ color: gold }} />
+                        ) : (
+                          <Square size={14} className="opacity-0 group-hover:opacity-40 transition-opacity" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Company Name + Industry + Enriched Badge */}
                     <div className="w-[220px] shrink-0 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 truncate">{company.rawName}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-medium text-gray-900 truncate">{company.rawName}</span>
+                        {isEnriched && (
+                          <span
+                            className="shrink-0 text-[8px] font-bold uppercase tracking-wider px-1.5 py-px rounded-full"
+                            style={{ background: 'rgba(16,185,129,0.1)', color: '#059669', border: '1px solid rgba(16,185,129,0.2)' }}
+                          >
+                            AI
+                          </span>
+                        )}
+                      </div>
                       {company.industry && (
                         <span
                           className="inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded"

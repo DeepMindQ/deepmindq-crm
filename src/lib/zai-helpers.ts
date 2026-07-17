@@ -173,6 +173,42 @@ export async function callChatLLM(systemPrompt: string, messages: Array<{ role: 
 }
 
 // ---------------------------------------------------------------------------
+// Tavily AI Answer — lightweight LLM substitute for extraction tasks
+// Uses Tavily's built-in AI to answer questions from search results.
+// Much cheaper/faster than a full LLM call, good for structured extraction.
+// ---------------------------------------------------------------------------
+
+/**
+ * Get an AI-generated answer from Tavily search.
+ * Returns empty string if Tavily is unavailable.
+ */
+export async function tavilyAIAnswer(query: string): Promise<string> {
+  if (!TAVILY_API_KEY) return ''
+
+  try {
+    const response = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: TAVILY_API_KEY,
+        query,
+        max_results: 5,
+        search_depth: 'advanced',
+        include_answer: true,
+      }),
+    })
+
+    if (!response.ok) return ''
+
+    const data = await response.json()
+    return data.answer || ''
+  } catch (err) {
+    console.warn('[tavilyAIAnswer] failed:', err instanceof Error ? err.message : err)
+    return ''
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Web Search — Tavily API
 // ---------------------------------------------------------------------------
 
@@ -182,6 +218,7 @@ interface TavilyResult {
   content: string
   score: number
   raw_content?: string
+  answer?: string
 }
 
 /**

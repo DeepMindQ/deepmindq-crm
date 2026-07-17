@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { webSearch, callLLM, extractJSON, findKeyPeople, getCompanyNews } from '@/lib/zai-helpers';
+import { webSearch, callLLM, extractJSON, findKeyPeople, getCompanyNews, tavilyAIAnswer } from '@/lib/zai-helpers';
 
 /* ═══════════════════════════════════════════════════
    Company Data Enrichment via AI + Web Search
@@ -222,16 +222,43 @@ Provide accurate company data as JSON.`;
       };
     }
   } catch (err) {
-    console.error('[companies/enrich] AI extraction failed:', err);
+    console.error('[companies/enrich] LLM extraction failed, trying Tavily AI fallback:', err);
+    // Try Tavily AI answer as LLM substitute
+    try {
+      const tavilyAnswer = await tavilyAIAnswer(
+        `${companyName} ${domain || ''} revenue employees funding industry technology overview`
+      );
+      if (tavilyAnswer) {
+        const socialProfiles: Record<string, string> = {};
+        if (linkedInUrl) socialProfiles.linkedin = linkedInUrl;
+        if (twitterUrl) socialProfiles.twitter = twitterUrl;
+
+        return {
+          businessOverview: tavilyAnswer.slice(0, 500),
+          revenue: 'Not found',
+          employeeCount: 'Not found',
+          fundingStage: 'Not found',
+          techStack: '',
+          socialProfiles: JSON.stringify(socialProfiles),
+          keyPeople: keyPeopleData,
+          recentNews: newsData,
+          industry: existingIndustry || 'Not found',
+          website: websiteUrl || domain ? `https://${domain}` : '',
+        };
+      }
+    } catch { /* fall through to basic fallback */ }
   }
 
-  // Fallback
+  // Final fallback — search-only, no AI
   const socialProfiles: Record<string, string> = {};
   if (linkedInUrl) socialProfiles.linkedin = linkedInUrl;
   if (twitterUrl) socialProfiles.twitter = twitterUrl;
 
+  // Build a basic overview from search snippets
+  const snippetOverview = allSnippets.slice(0, 3).join(' ');
+
   return {
-    businessOverview: `${companyName} operates in the ${existingIndustry || 'technology'} sector.`,
+    businessOverview: snippetOverview || `${companyName} operates in the ${existingIndustry || 'technology'} sector.`,
     revenue: 'Not found',
     employeeCount: 'Not found',
     fundingStage: 'Not found',

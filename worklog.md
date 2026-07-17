@@ -313,3 +313,35 @@ Stage Summary:
 - Hero has scroll parallax kinetic typography
 - Stats have colored sparkline charts
 - Significantly more breathing room and better typographic hierarchy
+---
+Task ID: 1
+Agent: main
+Task: Fix AI engines returning no real external data
+
+Work Log:
+- Audited all 8 serverless function entry points and 123 handler modules
+- Identified 5 root causes preventing real data from returning:
+  1. 18 AI handlers used role: 'assistant' for system prompts (LLM ignored instructions)
+  2. companies__enrich.ts had NO web search - just asked LLM to guess from company name
+  3. web_search response parsing was broken in signals handler (only checked Array.isArray)
+  4. Promise.all killed entire search batch on single failure (should use allSettled)
+  5. Some handlers created 4 separate SDK instances per request
+- Created /src/lib/zai-helpers.ts - shared utility with:
+  - Singleton SDK instance per serverless invocation
+  - Robust web_search parsing (handles array, {results:[]}, {data:[]}, etc.)
+  - Proper callLLM with role: 'system'
+  - Shared extractJSON helper
+- Fixed 18 files: role 'assistant' → 'system'
+- Rewrote companies__enrich.ts to use 3 web searches + LLM synthesis
+- Rewrote ai__signals.ts to use shared helpers
+- Rewrote ai__account-brief.ts with Promise.allSettled + shared helpers
+- Fixed companies___id__intelligence.ts with shared helpers
+- Fixed ai__suggested-contacts.ts (was creating 4 SDK instances)
+- Fixed research-agent.ts with shared helpers + robust parsing
+- Committed and pushed to trigger Vercel redeploy
+
+Stage Summary:
+- All AI enrichment endpoints now use web_search for REAL external data
+- System prompts correctly use role: 'system' so LLM follows instructions
+- Shared zai-helpers.ts eliminates redundant SDK instances and standardizes parsing
+- Vercel deployment triggered via git push

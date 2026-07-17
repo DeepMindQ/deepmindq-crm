@@ -1,7 +1,7 @@
 // Combined API middleware: auth + rate limit + audit logging
 import { auth } from './auth'
 import { rateLimit } from './rate-limit'
-import { createAuditLog } from './audit'
+import { logAction } from './audit'
 import { logRequest } from './logger'
 import { apiError } from './apiHelpers'
 
@@ -51,12 +51,12 @@ export async function withApiMiddleware(
 
         // Audit logging (fire and forget)
         if (options.auditEntity && options.auditAction) {
-          createAuditLog({
-            userId: session.user.id,
-            action: options.auditAction,
-            entity: options.auditEntity,
-            request,
-          }).catch(() => {}) // never block on audit
+          logAction(
+            options.auditAction,
+            options.auditEntity,
+            session.user.id,
+            { method: request.method, path: new URL(request.url).pathname }
+          ).catch(() => {}) // never block on audit
         }
 
         logRequest(request.method, path, 200, Date.now() - startTime, ip)

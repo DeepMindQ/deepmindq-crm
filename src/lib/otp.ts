@@ -177,24 +177,40 @@ export async function requestOtp(
 
   // Send email
   const htmlContent = buildOtpEmailHtml(code, purpose);
-  const emailResult = await sendEmail({
-    to: normalizedEmail,
-    subject: `${purposeLabel(purpose)} - ${code}`,
-    html: htmlContent,
-    from: process.env.EMAIL_FROM || 'noreply@deepmindq.com',
-  });
+  let emailSent = false;
 
-  if (!emailResult.success) {
-    console.error(`[OTP] Email send failed (${emailResult.provider}): ${emailResult.error}`);
-    console.log(`[OTP] DEV MODE — Code for ${normalizedEmail}: ${code}`);
-    // Still return success so dev/testing works — include the code
-    return { success: true, devCode: code };
+  const config = {
+    provider: process.env.EMAIL_PROVIDER || 'resend',
+    hasKey: !!process.env.EMAIL_API_KEY,
+  };
+
+  if (config.hasKey) {
+    const emailResult = await sendEmail({
+      to: normalizedEmail,
+      subject: `${purposeLabel(purpose)} - ${code}`,
+      html: htmlContent,
+      from: process.env.EMAIL_FROM || 'noreply@deepmindq.com',
+    });
+
+    if (emailResult.success) {
+      emailSent = true;
+      console.log(`[OTP] Code sent to ${normalizedEmail} via ${emailResult.provider}`);
+    } else {
+      console.error(`[OTP] Email send failed (${emailResult.provider}): ${emailResult.error}`);
+    }
+  } else {
+    console.warn(`[OTP] No EMAIL_API_KEY configured (provider: ${config.provider}). OTP will be returned in response.`);
   }
 
-  console.log(`[OTP] Code sent to ${normalizedEmail} via ${emailResult.provider}`);
-  // In dev mode, log the code too
+  // Always log the code in development
   if (process.env.NODE_ENV === 'development') {
-    console.log(`[OTP] DEV — Code: ${code}`);
+    console.log(`[OTP] DEV — Code for ${normalizedEmail}: ${code}`);
+  }
+
+  // If email was NOT sent, return the code so the user can still log in
+  if (!emailSent) {
+    console.log(`[OTP] FALLBACK — Code for ${normalizedEmail}: ${code}`);
+    return { success: true, devCode: code };
   }
 
   return { success: true };

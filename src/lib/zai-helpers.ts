@@ -64,7 +64,7 @@ export interface CompanyResearch {
 
 // ---------------------------------------------------------------------------
 // Config — supports multiple LLM providers with automatic fallback
-// Priority: GROQ > GEMINI (Groq is faster + more reliable free tier)
+// Priority: GROQ > GEMINI (tries multiple models)
 // ---------------------------------------------------------------------------
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || ''
@@ -73,7 +73,8 @@ const GROQ_MODEL = 'llama-3.3-70b-versatile'
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || ''
 const GEMINI_BASE_URL = process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai'
-const GEMINI_MODEL = 'gemini-2.0-flash'
+// Try multiple Gemini models — some keys have quota on specific models
+const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro']
 
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY || ''
 
@@ -82,11 +83,10 @@ const TAVILY_API_KEY = process.env.TAVILY_API_KEY || ''
 // ---------------------------------------------------------------------------
 
 /**
- * Call LLM with automatic provider fallback.
- * Priority: GROQ > GEMINI
- * Both use OpenAI-compatible endpoints.
+ * Call a single LLM provider endpoint.
+ * Returns the text content or throws.
  */
-async function callLLMProvider(baseURL: string, apiKey: string, model: string, systemPrompt: string, userMessages: Array<{ role: string; content: string }>): Promise<string> {
+async function callLLMProvider(baseURL: string, apiKey: string, model: string, userMessages: Array<{ role: string; content: string }>): Promise<string> {
   const response = await fetch(`${baseURL}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -99,11 +99,12 @@ async function callLLMProvider(baseURL: string, apiKey: string, model: string, s
       temperature: 0.7,
       max_tokens: 8192,
     }),
+    timeout: 25000, // 25s — Vercel Hobby is 10s, but we rely on the platform timeout
   })
 
   if (!response.ok) {
     const errorText = await response.text()
-    throw new Error(`${response.status}: ${errorText.slice(0, 200)}`)
+    throw new Error(`${model}: ${response.status} — ${errorText.slice(0, 150)}`)
   }
 
   const data = await response.json()
@@ -119,22 +120,24 @@ export async function callLLM(systemPrompt: string, userPrompt: string): Promise
   // Try Groq first (faster, more reliable free tier)
   if (GROQ_API_KEY) {
     try {
-      return await callLLMProvider(GROQ_BASE_URL, GROQ_API_KEY, GROQ_MODEL, systemPrompt, messages)
+      return await callLLMProvider(GROQ_BASE_URL, GROQ_API_KEY, GROQ_MODEL, messages)
     } catch (err) {
       console.warn('[callLLM] Groq failed, trying Gemini:', err instanceof Error ? err.message : err)
     }
   }
 
-  // Fallback to Gemini
+  // Try Gemini models in order
   if (GEMINI_API_KEY) {
-    try {
-      return await callLLMProvider(GEMINI_BASE_URL, GEMINI_API_KEY, GEMINI_MODEL, systemPrompt, messages)
-    } catch (err) {
-      console.error('[callLLM] Gemini also failed:', err instanceof Error ? err.message : err)
+    for (const model of GEMINI_MODELS) {
+      try {
+        return await callLLMProvider(GEMINI_BASE_URL, GEMINI_API_KEY, model, messages)
+      } catch (err) {
+        console.warn(`[callLLM] Gemini ${model} failed:`, err instanceof Error ? err.message : err)
+      }
     }
   }
 
-  throw new Error('No LLM provider available. Set GROQ_API_KEY or GEMINI_API_KEY in Vercel env vars.')
+  throw new Error('All LLM providers failed. Set a valid GROQ_API_KEY or GEMINI_API_KEY (with billing enabled) in Vercel env vars.')
 }
 
 /**
@@ -149,22 +152,24 @@ export async function callChatLLM(systemPrompt: string, messages: Array<{ role: 
   // Try Groq first
   if (GROQ_API_KEY) {
     try {
-      return await callLLMProvider(GROQ_BASE_URL, GROQ_API_KEY, GROQ_MODEL, systemPrompt, allMessages)
+      return await callLLMProvider(GROQ_BASE_URL, GROQ_API_KEY, GROQ_MODEL, allMessages)
     } catch (err) {
       console.warn('[callChatLLM] Groq failed, trying Gemini:', err instanceof Error ? err.message : err)
     }
   }
 
-  // Fallback to Gemini
+  // Try Gemini models in order
   if (GEMINI_API_KEY) {
-    try {
-      return await callLLMProvider(GEMINI_BASE_URL, GEMINI_API_KEY, GEMINI_MODEL, systemPrompt, allMessages)
-    } catch (err) {
-      console.error('[callChatLLM] Gemini also failed:', err instanceof Error ? err.message : err)
+    for (const model of GEMINI_MODELS) {
+      try {
+        return await callLLMProvider(GEMINI_BASE_URL, GEMINI_API_KEY, model, allMessages)
+      } catch (err) {
+        console.warn(`[callChatLLM] Gemini ${model} failed:`, err instanceof Error ? err.message : err)
+      }
     }
   }
 
-  throw new Error('No LLM provider available. Set GROQ_API_KEY or GEMINI_API_KEY in Vercel env vars.')
+  throw new Error('All LLM providers failed. Set a valid GROQ_API_KEY or GEMINI_API_KEY (with billing enabled) in Vercel env vars.')
 }
 
 // ---------------------------------------------------------------------------
@@ -611,7 +616,7 @@ export async function getZAI(): Promise<any> {
 
           return {
             choices: [{ message: { content: response } }],
-            model: GEMINI_MODEL,
+            model: GEMINI_MODELS[0],
           }
         },
       },

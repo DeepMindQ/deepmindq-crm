@@ -49,6 +49,8 @@ export async function POST(request: Request) {
     // ── Enrich this company ──
     const { webSearch, callLLM, extractJSON, tavilyAIAnswer } = await import('@/lib/zai-helpers');
     const companyName = company.rawName || company.normalizedName;
+    let companyIndustry: string | null = null;
+    let companyWebsite: string | null = null;
 
     // Lightweight: 2 parallel searches + 1 LLM call (fits Vercel 10s)
     const [bizResults, peopleResults] = await Promise.allSettled([
@@ -78,19 +80,20 @@ export async function POST(request: Request) {
       const response = await callLLM(systemPrompt, userPrompt);
       const parsed = extractJSON(response) as Record<string, unknown> | null;
 
-      if (parsed && typeof parsed === 'object') {
+    if (parsed && typeof parsed === 'object') {
         enrichmentData = {
           businessOverview: String(parsed.businessOverview || ''),
           revenue: String(parsed.revenue || 'Not found'),
           employeeCount: String(parsed.employeeCount || 'Not found'),
           fundingStage: String(parsed.fundingStage || 'Not found'),
           techStack: String(parsed.techStack || ''),
-          industry: String(parsed.industry || company.industry || 'Not found'),
-          website: String(parsed.website || company.website || ''),
           socialProfiles: '{}',
           keyPeople: '[]',
           recentNews: '[]',
         };
+        // Store industry/website for company backfill
+        if (parsed.industry && String(parsed.industry) !== 'Not found') companyIndustry = String(parsed.industry);
+        if (parsed.website) companyWebsite = String(parsed.website);
       }
     } catch (err) {
       console.warn(`[enrich-next] LLM failed for ${companyName}, trying Tavily AI`);
@@ -107,8 +110,6 @@ export async function POST(request: Request) {
             employeeCount: 'Not found',
             fundingStage: 'Not found',
             techStack: '',
-            industry: company.industry || 'Not found',
-            website: company.website || '',
             socialProfiles: '{}',
             keyPeople: '[]',
             recentNews: '[]',
@@ -125,8 +126,6 @@ export async function POST(request: Request) {
         employeeCount: 'Not found',
         fundingStage: 'Not found',
         techStack: '',
-        industry: company.industry || 'Not found',
-        website: company.website || '',
         socialProfiles: '{}',
         keyPeople: '[]',
         recentNews: '[]',
@@ -149,14 +148,10 @@ export async function POST(request: Request) {
       },
     });
 
-    // Backfill company fields
+    // Backfill company fields from enrichment
     const companyUpdate: Record<string, string> = {};
-    if (!company.industry && enrichmentData.industry && enrichmentData.industry !== 'Not found') {
-      companyUpdate.industry = enrichmentData.industry;
-    }
-    if (!company.website && enrichmentData.website) {
-      companyUpdate.website = enrichmentData.website;
-    }
+    if (companyIndustry && !company.industry) companyUpdate.industry = companyIndustry;
+    if (companyWebsite && !company.website) companyUpdate.website = companyWebsite;
     if (Object.keys(companyUpdate).length > 0) {
       await db.company.update({ where: { id: company.id }, data: companyUpdate });
     }

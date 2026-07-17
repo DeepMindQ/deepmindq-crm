@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
+import { callLLM } from '@/lib/zai-helpers'
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -14,26 +15,12 @@ const summarizeSchema = z.object({
 })
 
 // ---------------------------------------------------------------------------
-// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
+// Types
 // ---------------------------------------------------------------------------
 
 interface SummaryResult {
   summary: string
   keyPoints: string[]
-}
-
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  })
-  return completion.choices?.[0]?.message?.content ?? ''
 }
 
 function parseSummaryResponse(text: string): SummaryResult | null {
@@ -211,7 +198,7 @@ Company data:
 Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
         try {
-          const text = await callAI(systemPrompt, 'Generate the summary now.')
+          const text = await callLLM(systemPrompt, 'Generate the summary now.')
           result = parseSummaryResponse(text)
           if (result) usedLlm = true
         } catch (llmErr: unknown) {
@@ -276,7 +263,7 @@ Contact data:
 Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
         try {
-          const text = await callAI(systemPrompt, 'Generate the summary now.')
+          const text = await callLLM(systemPrompt, 'Generate the summary now.')
           result = parseSummaryResponse(text)
           if (result) usedLlm = true
         } catch (llmErr: unknown) {

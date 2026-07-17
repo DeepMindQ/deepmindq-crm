@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
+import { callLLM, webSearch } from '@/lib/zai-helpers'
 
 /* ── In-memory cache (5 minutes) ── */
 let cachedResult: { data: InsightsResponse; ts: number } | null = null
@@ -50,12 +51,6 @@ interface PipelineStats {
    AI-POWERED INSIGHTS (Primary Path)
    ══════════════════════════════════════════════════════════════════════════ */
 
-async function createZAI() {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  return import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-}
-
 /**
  * Fetch live industry trend context via web search.
  * Runs in parallel with the LLM where possible, but we need results first
@@ -65,17 +60,9 @@ async function fetchIndustryTrends(topIndustries: { industry: string; count: num
   if (topIndustries.length === 0) return ''
 
   try {
-    const ZAI = await createZAI()
     const topThree = topIndustries.slice(0, 3).map(i => i.industry)
     const query = `B2B sales and outreach trends 2025 for ${topThree.join(', ')} industries`
-    const results = await ZAI.functions.invoke('web_search', { query, num: 5 })
-
-    // results may be an array of items or an object with a results array
-    const items: Array<{ title?: string; snippet?: string; url?: string }> = Array.isArray(results)
-      ? results
-      : Array.isArray((results as Record<string, unknown>)?.results)
-        ? (results as Record<string, unknown>).results as typeof items
-        : []
+    const items = await webSearch(query, 5)
 
     const snippets = items
       .slice(0, 5)
@@ -96,8 +83,6 @@ async function fetchIndustryTrends(topIndustries: { industry: string; count: num
  * a structured InsightsResponse out of the JSON it returns.
  */
 async function buildAIInsights(stats: PipelineStats, trendContext: string): Promise<InsightsResponse> {
-  const ZAI = await createZAI()
-
   const healthRate = stats.totalContacts > 0
     ? Math.round((stats.healthyEmails / stats.totalContacts) * 100)
     : 0
@@ -173,19 +158,10 @@ async function buildAIInsights(stats: PipelineStats, trendContext: string): Prom
     instructionsBlock,
   ].join('\n')
 
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      {
-        role: 'system',
-        content:
-          'You are a sales intelligence analyst. You respond ONLY with valid JSON matching the requested schema. No markdown, no commentary.',
-      },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  })
-
-  const raw = completion.choices?.[0]?.message?.content ?? ''
+  const raw = await callLLM(
+    'You are a sales intelligence analyst. You respond ONLY with valid JSON matching the requested schema. No markdown, no commentary.',
+    userPrompt,
+  )
 
   // Extract JSON — handle potential markdown fences or leading/trailing whitespace
   const jsonMatch = raw.match(/\{[\s\S]*\}/)

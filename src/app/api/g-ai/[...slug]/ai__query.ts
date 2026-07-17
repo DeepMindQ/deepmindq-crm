@@ -1,50 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-// Prisma types removed — db proxy handles queries
-
-// ---------------------------------------------------------------------------
-// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
-// ---------------------------------------------------------------------------
-
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  })
-  return completion.choices?.[0]?.message?.content ?? ''
-}
-
-// ---------------------------------------------------------------------------
-// JSON extraction (tolerant of markdown fences)
-// ---------------------------------------------------------------------------
-
-function extractJson(raw: string): unknown {
-  const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
-
-  try {
-    return JSON.parse(cleaned)
-  } catch {
-    // fall through
-  }
-
-  const match = cleaned.match(/\{[\s\S]*\}/)
-  if (match) {
-    try {
-      return JSON.parse(match[0])
-    } catch {
-      // fall through
-    }
-  }
-
-  return null
-}
+import { callLLM, extractJSON } from '@/lib/zai-helpers'
 
 // ---------------------------------------------------------------------------
 // Safe Prisma query builder
@@ -132,9 +89,9 @@ export async function POST(request: NextRequest) {
 
     // 1. Try AI-powered query parsing
     try {
-      const rawResponse = await callAI(QUERY_SYSTEM_PROMPT, query)
+      const rawResponse = await callLLM(QUERY_SYSTEM_PROMPT, query)
 
-      const parsed = extractJson(rawResponse)
+      const parsed = extractJSON(rawResponse)
       if (parsed && typeof parsed === 'object' && 'entityType' in parsed) {
         const result = await executeQuery(parsed as Record<string, unknown>, query)
         return apiSuccess(result)

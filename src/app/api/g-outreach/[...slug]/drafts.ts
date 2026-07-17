@@ -140,6 +140,8 @@ export async function POST(request: Request) {
       }
 
       // Generate email using shared logic (no HTTP self-call)
+      // domain is passed so email-generation.ts can do quick web search for company intelligence
+      const domain = email ? email.split('@')[1] : null;
       const draftData = await generateEmailDraft({
         name,
         email,
@@ -152,6 +154,7 @@ export async function POST(request: Request) {
         serviceLine,
         searchMode: 'hybrid',
         minScore: 15,
+        domain,  // Pass domain for quick company research
       });
 
       // E-06: Compute thread headers

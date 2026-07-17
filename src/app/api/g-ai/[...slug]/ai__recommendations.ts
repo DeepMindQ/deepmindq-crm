@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { apiSuccess, apiError } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
+import { callLLM } from '@/lib/zai-helpers'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -334,19 +335,7 @@ function parseAIResponse(raw: string, originals: Recommendation[]): Recommendati
 async function enhanceWithAI(recs: Recommendation[]): Promise<Recommendation[]> {
   if (recs.length === 0) return recs
 
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then((m) => m.default).then((Z) => Z.create())
-
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'system', content: RECOMMENDATION_SYSTEM_PROMPT },
-      { role: 'user', content: buildAIUserPrompt(recs) },
-    ],
-    thinking: { type: 'disabled' },
-  })
-
-  const raw = completion.choices?.[0]?.message?.content ?? ''
+  const raw = await callLLM(RECOMMENDATION_SYSTEM_PROMPT, buildAIUserPrompt(recs))
 
   if (!raw || raw.length < 10) {
     console.warn('[ai/recommendations] AI returned empty or too-short response, using rule-based fallback')

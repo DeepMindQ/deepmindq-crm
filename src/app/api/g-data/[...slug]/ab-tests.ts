@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { generateEmailDraft } from '@/lib/email-generation';
 import { generateMessageId } from '@/lib/email-tracking';
+import { callLLM } from '@/lib/zai-helpers';
 
 /* ═══════════════════════════════════════════════════
    GET /api/ab-tests
@@ -110,18 +111,8 @@ export async function POST(request: Request) {
     });
 
     // Use AI to generate 3 subject line variants
-    let ZAI: any;
     try {
-      ZAI = (await import('z-ai-web-dev-sdk')).default;
-      const { ensureZaiConfig } = await import('@/lib/zai-config');
-      await ensureZaiConfig();
-      const zai = await ZAI.create();
-
-      const completion = await zai.chat.completions.create({
-        messages: [
-          {
-            role: 'system',
-            content: `You are an email subject line expert for B2B outreach. Generate 3 different subject line variants for an A/B test.
+      const systemPrompt = `You are an email subject line expert for B2B outreach. Generate 3 different subject line variants for an A/B test.
 
 The email body topic: "${baseDraft.body.slice(0, 200)}..."
 Company: ${contactInfo.company || 'Unknown'}
@@ -132,19 +123,15 @@ Generate 3 subject lines with different strategies:
 - variant_b: Value/result driven (highlight specific outcome)
 - control: Direct/standard professional approach
 
-Keep each subject line under 60 characters. Respond with JSON only: {"variant_a": "...", "variant_b": "...", "control": "..."}`,
-          },
-        ],
-        thinking: { type: 'disabled' },
-      });
+Keep each subject line under 60 characters. Respond with JSON only: {"variant_a": "...", "variant_b": "...", "control": "..."}`;
 
-      let aiText = completion.choices[0]?.message?.content || '';
-      aiText = aiText.trim();
-      if (aiText.startsWith('```')) {
-        aiText = aiText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      const aiText = await callLLM(systemPrompt, 'Generate the subject line variants now.');
+      let cleanedAiText = aiText.trim();
+      if (cleanedAiText.startsWith('```')) {
+        cleanedAiText = cleanedAiText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
       }
 
-      const parsed = JSON.parse(aiText);
+      const parsed = JSON.parse(cleanedAiText);
       for (const label of variantLabels) {
         if (parsed[label]) {
           variants.push({ label, subject: parsed[label].slice(0, 100) });

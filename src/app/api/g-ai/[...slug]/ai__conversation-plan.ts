@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers';
+import { callLLM, webSearch as webSearchHelper } from '@/lib/zai-helpers';
+import type { WebSearchResult as WebSearchResultType } from '@/lib/zai-helpers';
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -20,12 +22,6 @@ type ConversationPlanInput = z.infer<typeof conversationPlanSchema>;
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface WebSearchResult {
-  title: string;
-  url: string;
-  snippet: string;
-}
 
 interface ConversationPlan {
   executiveProfile: {
@@ -49,45 +45,6 @@ interface ConversationPlan {
     timing: string;
   };
   aiReasoning: string;
-}
-
-// ---------------------------------------------------------------------------
-// SDK helpers
-// ---------------------------------------------------------------------------
-
-async function createZAI() {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  return import('z-ai-web-dev-sdk').then((m) => m.default).then((Z) => Z.create());
-}
-
-async function webSearch(query: string): Promise<WebSearchResult[]> {
-  try {
-    const zai = await createZAI();
-    const results = await zai.functions.invoke('web_search', { query, num: 5 });
-    return (results || [])
-      .slice(0, 5)
-      .map((r: Record<string, string>) => ({
-        title: r.name || '',
-        url: r.url || '',
-        snippet: r.snippet || '',
-      }));
-  } catch (e) {
-    console.error('[conversation-plan] Web search failed:', e);
-    return [];
-  }
-}
-
-async function aiChat(systemPrompt: string, userPrompt: string): Promise<string> {
-  const zai = await createZAI();
-  const completion = await zai.chat.completions.create({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  });
-  return completion.choices?.[0]?.message?.content ?? '';
 }
 
 // ---------------------------------------------------------------------------
@@ -176,7 +133,7 @@ async function generateConversationPlan(
 
   // Step 1: Web search for real context
   const searchQuery = `${companyName} ${executiveRole} strategy priorities 2025`;
-  const searchResults = await webSearch(searchQuery);
+  const searchResults = await webSearchHelper(searchQuery) as WebSearchResultType[];
   const sources = searchResults.map((r) => r.url).filter(Boolean);
 
   // Step 2: Build user prompt with search context
@@ -205,7 +162,7 @@ ${webContext}
 Generate a highly specific, actionable conversation plan. Use the web research to make the plan current and relevant. Reference real developments when available.`;
 
   // Step 3: Call LLM
-  const raw = await aiChat(SYSTEM_PROMPT, userPrompt);
+  const raw = await callLLM(SYSTEM_PROMPT, userPrompt);
   const plan = parseConversationPlan(raw);
 
   if (!plan) {

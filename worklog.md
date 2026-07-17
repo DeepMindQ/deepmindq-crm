@@ -57,4 +57,26 @@ Stage Summary:
 - internal-api.z.ai uses private Alibaba Cloud IPs unreachable from Vercel
 - The SDK CANNOT work from Vercel serverless functions
 - All code changes are correct and deployed, but the SDK itself is incompatible with Vercel's network
-- Need to replace z-ai-web-dev-sdk with direct fetch() calls to a publicly accessible API, or find a proxy solution
+- Need to replace z-ai-web-dev-sdk with direct fetch() calls to a publicly accessible API, or find a proxy solution---
+Task ID: 1
+Agent: main
+Task: Phase 0 — Fix all broken AI engines for single-company operations
+
+Work Log:
+- Verified Vercel env vars (GEMINI_API_KEY, TAVILY_API_KEY, GEMINI_BASE_URL already set)
+- Added GROQ_API_KEY to Vercel, then removed it (key returned Forbidden — invalid)
+- Tested all API keys: Tavily ✅, Gemini ❌ (0 quota), Groq ❌ (Forbidden)
+- Updated zai-helpers.ts: multi-model Gemini fallback (tries 4 models), removed unused param
+- Added tavilyAIAnswer() as lightweight LLM substitute
+- Rewrote research-agent.ts with 3-tier fallback: LLM → Tavily AI → raw search results
+- Added Tavily AI fallback to companies__enrich.ts
+- Verified all previously-rewritten files: zai-helpers.ts ✅, ai__enrich.ts ✅, email-generation.ts ✅, drafts.ts ✅, research-agent.ts ✅, batches.ts (auto-enrich) ✅
+- Knowledge engine demo data: kept as valid DB-empty fallback
+- Deployed to Vercel, ran 7 live tests
+
+Stage Summary:
+- PRODUCED: 2 commits pushed, deployed to https://deepmindq.com
+- TESTS PASSED: Research Agent (Tavily AI fallback) ✅, Email Draft (template mode) ✅, AI Enrich (web search) ✅, Knowledge Search ✅, Knowledge Engine ✅
+- BLOCKER: Gemini API key has 0 free tier quota. LLM calls fail. System works via Tavily fallback but email generation falls back to templates (not AI-personalized).
+- ACTION NEEDED: User must get a valid Gemini API key with quota (enable billing at aistudio.google.com) or provide a valid Groq API key.
+

@@ -95,18 +95,9 @@ function Preloader({ onComplete }: { onComplete: () => void }) {
   const [skip, setSkip] = useState(false);
 
   useEffect(() => {
-    if (sessionStorage.getItem('dmq-visited')) {
-      setSkip(true);
-      onComplete();
-      return;
-    }
-    const t1 = setTimeout(() => setPhase(1), 300);
-    const t2 = setTimeout(() => setPhase(2), 1800);
-    const t3 = setTimeout(() => {
-      sessionStorage.setItem('dmq-visited', '1');
-      onComplete();
-    }, 2400);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    // Skip preloader — show content immediately
+    onComplete();
+    return () => {};
   }, [onComplete]);
 
   if (skip) return null;
@@ -1790,7 +1781,7 @@ function Footer({ onLogin }: { onLogin: () => void }) {
 interface LandingPageProps { onLogin: () => void; }
 
 export default function LandingPage({ onLogin }: LandingPageProps) {
-  const [showLogin, setShowLogin] = useState(false);
+  const [showLogin, setShowLogin] = useState(true); // Show login immediately
   const [preloaderDone, setPreloaderDone] = useState(false);
   const handleLogin = useCallback(() => setShowLogin(true), []);
 

@@ -66,10 +66,10 @@ async function buildContextString(context: {
         parts.push(
           `### Research Summary:\n` +
             `- Overview: ${company.researchCard.businessOverview || 'N/A'}\n` +
-            `- Tech Landscape: ${company.researchCard.currentTechLandscape || 'N/A'}\n` +
+            `- Tech Landscape: ${(company.researchCard as any).techLandscape || (company.researchCard as any).currentTechLandscape || 'N/A'}\n` +
             `- Challenges: ${company.researchCard.potentialChallenges || 'N/A'}\n` +
             `- Opportunities: ${company.researchCard.possibleOpportunities || 'N/A'}\n` +
-            `- Next Action: ${company.researchCard.nextAction || 'N/A'}`,
+            `- Next Action: ${(company.researchCard as any).nextAction || 'N/A'}`,
         )
       }
 
@@ -98,7 +98,7 @@ async function buildContextString(context: {
         parts.push(
           `### Recent Drafts:\n` +
             contact.drafts
-              .map((d) => `  - "${d.subject}" (${d.status}, match: ${d.matchScore ?? 'N/A'})`)
+              .map((d) => `  - "${d.subject}" (${d.status}, match: ${(d as any).matchScore ?? d.confidenceScore ?? 'N/A'})`)
               .join('\n'),
         )
       }

@@ -1,5 +1,5 @@
 // Combined API middleware: auth + rate limit + audit logging
-import { auth } from './auth'
+import { getCurrentSession } from './session'
 import { rateLimit } from './rate-limit'
 import { logAction } from './audit'
 import { logRequest } from './logger'
@@ -43,8 +43,8 @@ export async function withApiMiddleware(
     // Auth check
     if (requireAuth) {
       try {
-        const session = await auth()
-        if (!session?.user) {
+        const session = await getCurrentSession()
+        if (!session) {
           logRequest(request.method, path, 401, Date.now() - startTime, ip)
           return { authorized: false, rateLimited: false, response: apiError('Authentication required', 401) }
         }
@@ -54,13 +54,13 @@ export async function withApiMiddleware(
           logAction(
             options.auditAction,
             options.auditEntity,
-            session.user.id,
+            session.id,
             { method: request.method, path: new URL(request.url).pathname }
           ).catch(() => {}) // never block on audit
         }
 
         logRequest(request.method, path, 200, Date.now() - startTime, ip)
-        return { authorized: true, userId: session.user.id, rateLimited: false }
+        return { authorized: true, userId: session.id, rateLimited: false }
       } catch {
         // Auth not configured yet - allow through in development
         if (process.env.NODE_ENV !== 'production') {

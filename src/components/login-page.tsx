@@ -37,7 +37,7 @@ interface LoginPageProps {
 export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
   const [step, setStep] = useState<LoginStep>('email');
   const [mode, setMode] = useState<LoginMode>('otp');
-  const [email, setEmail] = useState(initialEmail || 'shanker001@gmail.com');
+  const [email, setEmail] = useState(initialEmail || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [otp, setOtp] = useState('');

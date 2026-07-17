@@ -98,12 +98,14 @@ Include 4-6 sections. Match the icon to the section topic.`;
       );
     }
 
-    const sections = (parsed.sections || []).map((s: any) => ({
-      title: s.title || 'Research Section',
-      icon: s.icon || 'FileText',
-      content: s.content || 'No content available.',
-      sources: Array.isArray(s.sources) ? s.sources : [],
-    }));
+    const sections = Array.isArray(parsed.sections)
+      ? parsed.sections.map((s: any) => ({
+          title: s.title || 'Research Section',
+          icon: s.icon || 'FileText',
+          content: s.content || 'No content available.',
+          sources: Array.isArray(s.sources) ? s.sources : [],
+        }))
+      : [];
 
     const result = {
       query,

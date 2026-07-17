@@ -1781,7 +1781,7 @@ function Footer({ onLogin }: { onLogin: () => void }) {
 interface LandingPageProps { onLogin: () => void; }
 
 export default function LandingPage({ onLogin }: LandingPageProps) {
-  const [showLogin, setShowLogin] = useState(true); // Show login immediately
+  const [showLogin, setShowLogin] = useState(false); // Only show when user clicks Login
   const [preloaderDone, setPreloaderDone] = useState(false);
   const handleLogin = useCallback(() => setShowLogin(true), []);
 

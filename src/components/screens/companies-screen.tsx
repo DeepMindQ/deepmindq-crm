@@ -259,7 +259,6 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
   /* ── Batch enrichment state ── */
   const [enrichLoading, setEnrichLoading] = useState(false);
   const [enrichProgress, setEnrichProgress] = useState(0);
-  const enrichJobIdRef = useRef<string | null>(null);
 
   /* ── Filter state ── */
   const [search, setSearch] = useState('');
@@ -337,38 +336,53 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
     try {
       setEnrichLoading(true);
       setEnrichProgress(0);
-      const res = await fetch('/api/g-crm/companies/enrich-batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ unenrichedOnly: true }),
-      });
-      const data = await res.json();
-      if (!res.ok) { toast.error(data.error || 'Failed to start'); setEnrichLoading(false); return; }
 
-      const jobId = data.jobId;
-      enrichJobIdRef.current = jobId;
-      toast.success(`Enriching ${data.totalCompanies} companies...`);
+      // Get initial status
+      const statusRes = await fetch('/api/g-crm/companies/enrich-status');
+      const statusData = await statusRes.json();
+      if (statusData.remaining === 0) {
+        toast.info('All companies already enriched!');
+        setEnrichLoading(false);
+        return;
+      }
 
-      const poll = async () => {
-        if (!enrichJobIdRef.current) return;
+      toast.success(`Enriching ${statusData.remaining} companies...`);
+
+      const enrichOne = async () => {
         try {
-          const r = await fetch(`/api/g-crm/companies/enrich-batch/${enrichJobIdRef.current}`);
+          const r = await fetch('/api/g-crm/companies/enrich-next', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+          });
           const d = await r.json();
-          setEnrichProgress(d.progress);
-          if (d.status === 'completed' || d.status === 'cancelled') {
+
+          if (d.done) {
             setEnrichLoading(false);
             setEnrichProgress(100);
-            enrichJobIdRef.current = null;
-            toast.success(`Done! ${d.processed} enriched, ${d.failed} failed`);
+            toast.success(`Done! All companies enriched.`);
             fetchCompanies();
             return;
           }
-          setTimeout(poll, 2000);
+
+          if (d.enriched) {
+            const total = statusData.totalCompanies || 1;
+            const processed = total - d.remaining;
+            setEnrichProgress(Math.round((processed / total) * 100));
+          }
+
+          if (d.error) {
+            console.warn('[enrich] Error:', d.error);
+          }
+
+          // Continue polling
+          setTimeout(enrichOne, 1500);
         } catch {
-          setTimeout(poll, 3000);
+          setTimeout(enrichOne, 3000);
         }
       };
-      setTimeout(poll, 1500);
+
+      setTimeout(enrichOne, 500);
     } catch {
       toast.error('Failed to start enrichment');
       setEnrichLoading(false);

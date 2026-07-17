@@ -1,7 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { getVectorIndex } from '@/lib/vector-index';
-import { tokenize, queryToVector } from '@/lib/embeddings';
+import { tokenize, textToVector } from '@/lib/embeddings';
 
 /* ═══════════════════════════════════════════════════
    Demo fallback capabilities when DB is empty

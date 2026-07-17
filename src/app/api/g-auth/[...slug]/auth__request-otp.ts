@@ -26,8 +26,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: result.devCode ? 'OTP generated (email not configured — code shown below)' : 'OTP sent to your email',
-      // Always include code when email delivery failed (no EMAIL_API_KEY configured)
+      message: result.devCode
+        ? `Your verification code is: ${result.devCode} (email not configured — set EMAIL_PROVIDER and EMAIL_API_KEY env vars)`
+        : 'OTP sent to your email',
       ...(result.devCode ? { devCode: result.devCode } : {}),
     });
   } catch (error) {

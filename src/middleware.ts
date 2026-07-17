@@ -5,8 +5,6 @@ import { NextRequest, NextResponse } from 'next/server'
  *
  * Frontend calls:     /api/companies/123
  * Actual route:       /api/g-crm/companies/123
- *
- * This avoids changing 100+ fetch() calls across the codebase.
  */
 
 // Map of clean prefix → group directory
@@ -69,17 +67,16 @@ const ROUTE_GROUPS: Record<string, string> = {
   'settings': 'g-system/settings',
 }
 
-// Routes that exist directly (not under any g-* group) — skip rewrite
-const DIRECT_ROUTES = new Set(['healthz', ''])
-
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Only handle /api/* paths
-  if (!pathname.startsWith('/api/')) return
+  if (!pathname.startsWith('/api/')) {
+    return NextResponse.next()
+  }
 
   // Extract the part after /api/
-  const afterApi = pathname.slice(5) // e.g. "companies/123" or "auth/request-otp"
+  const afterApi = pathname.slice(5)
 
   // Find the longest matching prefix
   let bestMatch = ''
@@ -96,13 +93,13 @@ export function middleware(request: NextRequest) {
 
   // If we found a group mapping, rewrite to it
   if (bestGroup) {
-    const rest = afterApi.slice(bestMatch.length) // e.g. "/123" or ""
+    const rest = afterApi.slice(bestMatch.length)
     const newUrl = request.nextUrl.clone()
-    newUrl.pathname = `/api/${bestGroup}${rest}`
+    newUrl.pathname = '/api/' + bestGroup + rest
     return NextResponse.rewrite(newUrl)
   }
 
-  return
+  return NextResponse.next()
 }
 
 export const config = {

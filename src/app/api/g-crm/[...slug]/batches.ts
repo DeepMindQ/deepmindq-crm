@@ -371,7 +371,7 @@ export async function POST(request: Request) {
           const baseUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
           await Promise.allSettled(
             toEnrich.map(cid =>
-              fetch(`${baseUrl}/api/companies/enrich`, {
+              fetch(`${baseUrl}/api/g-crm/companies/enrich`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ companyId: cid }),

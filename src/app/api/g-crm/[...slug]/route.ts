@@ -7,6 +7,8 @@ import * as mod_companies__enrich from './companies__enrich.ts';
 import * as mod_companies__stats from './companies__stats.ts';
 import * as mod_companies__compare from './companies__compare.ts';
 import * as mod_companies__bulk from './companies__bulk.ts';
+import * as mod_companies__enrich_batch from './companies__enrich-batch.ts';
+import * as mod_companies__enrich_batch___id from './companies__enrich-batch___id.ts';
 import * as mod_companies___id from './companies___id.ts';
 import * as mod_companies___id__signals from './companies___id__signals.ts';
 import * as mod_companies___id__signals___signalId from './companies___id__signals___signalId.ts';
@@ -51,6 +53,8 @@ const ROUTES = [
   { key: 'companies/stats', handler: mod_companies__stats },
   { key: 'companies/compare', handler: mod_companies__compare },
   { key: 'companies/bulk', handler: mod_companies__bulk },
+  { key: 'companies/enrich-batch', handler: mod_companies__enrich_batch },
+  { key: 'companies/enrich-batch/[id]', handler: mod_companies__enrich_batch___id },
   { key: 'companies/[id]', handler: mod_companies___id },
   { key: 'companies/[id]/signals', handler: mod_companies___id__signals },
   { key: 'companies/[id]/signals/[signalId]', handler: mod_companies___id__signals___signalId },

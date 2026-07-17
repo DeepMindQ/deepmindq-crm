@@ -1,16 +1,16 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Sparkles, Loader2 } from 'lucide-react';
 import { PageTransition, AnimatedCounter } from '@/components/ui/animated-components';
 import {
   Building2, Globe, MapPin, Users, Search, Brain, Download,
-  ChevronLeft, ChevronRight, MoreHorizontal, Sparkles,
   TrendingUp, BarChart3, Signal, X,
 } from 'lucide-react';
 
@@ -180,7 +180,7 @@ function ActionMenu({ companyId, navigateTo }: { companyId: string; navigateTo?:
     { label: 'Enrich Data', action: async () => {
       toast.loading('Enriching company data...', { id: 'enrich' });
       try {
-        const res = await fetch('/api/companies/enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ companyIds: [companyId] }) });
+        const res = await fetch('/api/g-crm/companies/enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ companyId }) });
         const data = await res.json();
         toast.success('Data enrichment started', { id: 'enrich' });
       } catch { toast.error('Enrichment failed', { id: 'enrich' }); }
@@ -256,6 +256,11 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
   const [stats, setStats] = useState({ withContacts: 0, withSignals: 0, avgScore: 0 });
   const [metaLoading, setMetaLoading] = useState(true);
 
+  /* ── Batch enrichment state ── */
+  const [enrichLoading, setEnrichLoading] = useState(false);
+  const [enrichProgress, setEnrichProgress] = useState(0);
+  const enrichJobIdRef = useRef<string | null>(null);
+
   /* ── Filter state ── */
   const [search, setSearch] = useState('');
   const [industry, setIndustry] = useState('');
@@ -326,6 +331,49 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
   }, [debouncedSearch, industry, country, page]);
 
   useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
+
+  /* ── Batch enrichment (after fetchCompanies is defined) ── */
+  const startBatchEnrich = useCallback(async () => {
+    try {
+      setEnrichLoading(true);
+      setEnrichProgress(0);
+      const res = await fetch('/api/g-crm/companies/enrich-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unenrichedOnly: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || 'Failed to start'); setEnrichLoading(false); return; }
+
+      const jobId = data.jobId;
+      enrichJobIdRef.current = jobId;
+      toast.success(`Enriching ${data.totalCompanies} companies...`);
+
+      const poll = async () => {
+        if (!enrichJobIdRef.current) return;
+        try {
+          const r = await fetch(`/api/g-crm/companies/enrich-batch/${enrichJobIdRef.current}`);
+          const d = await r.json();
+          setEnrichProgress(d.progress);
+          if (d.status === 'completed' || d.status === 'cancelled') {
+            setEnrichLoading(false);
+            setEnrichProgress(100);
+            enrichJobIdRef.current = null;
+            toast.success(`Done! ${d.processed} enriched, ${d.failed} failed`);
+            fetchCompanies();
+            return;
+          }
+          setTimeout(poll, 2000);
+        } catch {
+          setTimeout(poll, 3000);
+        }
+      };
+      setTimeout(poll, 1500);
+    } catch {
+      toast.error('Failed to start enrichment');
+      setEnrichLoading(false);
+    }
+  }, [fetchCompanies]);
 
   // Reset page on filter change
   useEffect(() => { setPage(1); }, [debouncedSearch, industry, country]);
@@ -428,6 +476,19 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
           >
             <Download size={14} className="mr-1.5" />
             Export
+          </Button>
+
+          {/* Batch Enrich */}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={enrichLoading}
+            onClick={startBatchEnrich}
+            className="h-8 px-3 text-xs font-medium rounded-lg shrink-0"
+            style={{ borderColor: enrichLoading ? undefined : 'rgba(212,175,55,0.3)', color: enrichLoading ? '#9CA3AF' : gold }}
+          >
+            {enrichLoading ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : <Sparkles size={14} className="mr-1.5" />}
+            {enrichLoading ? `Enriching ${enrichProgress}%` : 'Enrich All'}
           </Button>
 
           {/* Add Company */}

@@ -5,6 +5,7 @@
  *   Finds the next unenriched company, enriches it, returns result.
  *   Client calls this in a loop. No server-side job tracking needed.
  *   The database IS the state (company.researchCard exists = enriched).
+ *   v2 — fixed Prisma schema fields
  *
  * GET /api/g-crm/companies/enrich-status
  *   Returns count of enriched vs total companies (for progress display).

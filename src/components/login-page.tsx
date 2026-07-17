@@ -275,7 +275,7 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto"
       style={{
         background: 'linear-gradient(135deg, #0a0c10 0%, #111827 50%, #0a0c10 100%)',
         fontFamily: "var(--font-inter), system-ui, sans-serif",

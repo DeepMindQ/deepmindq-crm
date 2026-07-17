@@ -21,16 +21,15 @@ const enrichSchema = z.object({
 const COMPANY_FIELDS = [
   { field: 'domain', label: 'Domain' },
   { field: 'website', label: 'Website' },
-  { field: 'linkedinUrl', label: 'LinkedIn URL' },
   { field: 'industry', label: 'Industry' },
-  { field: 'employeeSize', label: 'Employee Size' },
+  { field: 'sizeRange', label: 'Employee Size' },
   { field: 'country', label: 'Country' },
   { field: 'location', label: 'Location' },
 ] as const
 
 const CONTACT_FIELDS = [
   { field: 'email', label: 'Email' },
-  { field: 'jobTitle', label: 'Job Title' },
+  { field: 'title', label: 'Job Title' },
   { field: 'phone', label: 'Phone' },
   { field: 'location', label: 'Location' },
   { field: 'linkedinUrl', label: 'LinkedIn URL' },
@@ -92,8 +91,8 @@ async function enrichCompany(
     where: { id: entityId },
     include: {
       contacts: {
-        where: { archivedAt: null },
-        select: { email: true, location: true, jobTitle: true },
+        where: { status: { not: 'archived' } },
+        select: { email: true, location: true, title: true },
         take: 5,
       },
     },
@@ -115,14 +114,13 @@ async function enrichCompany(
   let suggestions: EnrichmentSuggestion[] = []
 
   if (missingFields.length > 0) {
-    const context = `Company Name: ${company.name}
+    const context = `Company Name: ${company.rawName}
 Domain: ${company.domain || 'Unknown'}
 Website: ${company.website || 'Unknown'}
 Industry: ${company.industry || 'Unknown'}
-Employees: ${company.employeeSize || 'Unknown'}
+Employees: ${company.sizeRange || 'Unknown'}
 Country: ${company.country || 'Unknown'}
 Location: ${company.location || 'Unknown'}
-LinkedIn: ${company.linkedinUrl || 'Unknown'}
 Contacts: ${company.contacts.map((c) => `${c.email ?? 'no email'} - ${c.location ?? 'no location'}`).join('; ') || 'None'}`
 
     const systemPrompt = `You are a B2B data enrichment assistant. Given the following context about an entity, suggest plausible values for the missing fields.
@@ -182,11 +180,11 @@ async function enrichContact(
   autoFill: boolean,
 ) {
   const contact = await db.contact.findFirst({
-    where: { id: entityId, archivedAt: null },
+    where: { id: entityId, status: { not: 'archived' } },
     include: {
       company: {
         select: {
-          name: true,
+          rawName: true,
           domain: true,
           website: true,
           industry: true,
@@ -213,14 +211,13 @@ async function enrichContact(
   let suggestions: EnrichmentSuggestion[] = []
 
   if (missingFields.length > 0) {
-    const context = `Contact Name: ${contact.name}
+    const context = `Contact Name: ${contact.rawName}
 Email: ${contact.email || 'Unknown'}
-Job Title: ${contact.jobTitle || 'Unknown'}
-Role Bucket: ${contact.roleBucket || 'Unknown'}
+Job Title: ${contact.title || 'Unknown'}
 Phone: ${contact.phone || 'Unknown'}
 Location: ${contact.location || 'Unknown'}
 LinkedIn: ${contact.linkedinUrl || 'Unknown'}
-Company: ${contact.company.name}
+Company: ${contact.company.rawName}
 Company Domain: ${contact.company.domain || 'Unknown'}
 Company Industry: ${contact.company.industry || 'Unknown'}
 Company Location: ${contact.company.location || 'Unknown'}

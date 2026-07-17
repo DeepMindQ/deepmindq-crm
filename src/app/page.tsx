@@ -907,7 +907,10 @@ export default function HomePage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/auth/me');
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch('/api/auth/me', { signal: controller.signal });
+        clearTimeout(timeout);
         if (res.ok) {
           setLoggedIn(true);
         }
@@ -919,19 +922,32 @@ export default function HomePage() {
     })();
   }, []);
 
-  const handleLogin = () => {
-    setLoggedIn(true);
-    window.location.hash = '#command-center';
+  const handleLogin = async () => {
+    // Verify session actually exists before showing dashboard
+    try {
+      const res = await fetch('/api/auth/me');
+      if (res.ok) {
+        setLoggedIn(true);
+        window.location.hash = '#command-center';
+        return;
+      }
+    } catch { /* fall through */ }
+    // Session not found — stay on login
+    setLoggedIn(false);
   };
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {
-      // Ignore
-    }
-    setLoggedIn(false);
-    window.location.hash = '';
+      const res = await fetch('/api/auth/logout', { method: 'POST' });
+      if (res.ok) {
+        // Successfully logged out
+        document.cookie = 'dmq_session=; path=/; max-age=0';
+        window.location.replace('/');
+        return;
+      }
+    } catch { /* fall through */ }
+    // Force-clear cookie as fallback
+    document.cookie = 'dmq_session=; path=/; max-age=0';
     window.location.replace('/');
   };
 
@@ -940,7 +956,7 @@ export default function HomePage() {
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a0c10' }}>
         <div className="text-center">
           <div className="w-10 h-10 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-500 text-sm">Checking session...</p>
+          <p className="text-gray-500 text-sm">Loading...</p>
         </div>
       </div>
     );

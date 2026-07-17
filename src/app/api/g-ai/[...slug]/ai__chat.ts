@@ -32,7 +32,6 @@ async function callAI(systemPrompt: string, messages: ChatMessage[]): Promise<st
 async function buildContextString(context: {
   companyId?: string
   contactId?: string
-  opportunityId?: string
 }): Promise<{ contextStr: string; sources: string[] }> {
   const parts: string[] = []
   const sources: string[] = []
@@ -41,28 +40,26 @@ async function buildContextString(context: {
     const company = await db.company.findUnique({
       where: { id: context.companyId },
       include: {
-        contacts: { where: { archivedAt: null }, take: 5, orderBy: { createdAt: 'desc' } },
+        contacts: { where: { status: { not: 'archived' } }, take: 5, orderBy: { createdAt: 'desc' } },
         researchCard: true,
-        opportunities: { take: 3, orderBy: { updatedAt: 'desc' } },
       },
     })
     if (company) {
-      sources.push(`Company: ${company.name}`)
+      sources.push(`Company: ${company.rawName}`)
       const contactList =
         company.contacts.length > 0
-          ? company.contacts.map((c) => `  - ${c.name} (${c.jobTitle || 'Unknown'}, ${c.email || 'no email'}, status: ${c.status})`).join('\n')
+          ? company.contacts.map((c) => `  - ${c.rawName} (${c.title || 'Unknown'}, ${c.email || 'no email'}, status: ${c.status})`).join('\n')
           : '  - No contacts added yet.'
       parts.push(
-        `## Company: ${company.name}\n` +
+        `## Company: ${company.rawName}\n` +
           `- Industry: ${company.industry || 'Unknown'}\n` +
           `- Domain: ${company.domain || 'Unknown'}\n` +
           `- Website: ${company.website || 'Unknown'}\n` +
-          `- Employees: ${company.employeeSize || 'Unknown'}\n` +
+          `- Employees: ${company.sizeRange || 'Unknown'}\n` +
           `- Country: ${company.country || 'Unknown'}\n` +
           `- Location: ${company.location || 'Unknown'}\n` +
           `- Status: ${company.status}\n` +
-          `- Intelligence Score: ${company.intelligenceScore ?? 'N/A'}/100\n` +
-          `- Data Freshness: ${company.dataFreshness || 'Unknown'}\n\n` +
+          `- Intelligence Score: ${company.intelligenceScore ?? 'N/A'}/100\n\n` +
           `### Contacts:\n${contactList}`,
       )
       if (company.researchCard) {
@@ -75,14 +72,7 @@ async function buildContextString(context: {
             `- Next Action: ${company.researchCard.nextAction || 'N/A'}`,
         )
       }
-      if (company.opportunities.length > 0) {
-        parts.push(
-          `### Opportunities:\n` +
-            company.opportunities
-              .map((o) => `  - "${o.title}" (${o.status}) — Next: ${o.nextAction || 'N/A'}`)
-              .join('\n'),
-        )
-      }
+
     }
   }
 
@@ -92,12 +82,12 @@ async function buildContextString(context: {
       include: { company: true, drafts: { take: 3, orderBy: { createdAt: 'desc' } } },
     })
     if (contact) {
-      sources.push(`Contact: ${contact.name}`)
+      sources.push(`Contact: ${contact.rawName}`)
       parts.push(
-        `## Contact: ${contact.name}\n` +
-          `- Company: ${contact.company?.name || 'Unknown'}\n` +
-          `- Job Title: ${contact.jobTitle || 'Unknown'}\n` +
-          `- Role Bucket: ${contact.roleBucket || 'Unknown'}\n` +
+        `## Contact: ${contact.rawName}\n` +
+          `- Company: ${contact.company?.rawName || 'Unknown'}\n` +
+          `- Job Title: ${contact.title || 'Unknown'}\n` +
+          `- Role: ${contact.role || 'Unknown'}\n` +
           `- Email: ${contact.email || 'Unknown'}\n` +
           `- Email Health: ${contact.emailHealth}\n` +
           `- Status: ${contact.status}\n` +
@@ -112,24 +102,6 @@ async function buildContextString(context: {
               .join('\n'),
         )
       }
-    }
-  }
-
-  if (context.opportunityId) {
-    const opp = await db.opportunity.findUnique({
-      where: { id: context.opportunityId },
-      include: { company: true, targetContact: true },
-    })
-    if (opp) {
-      sources.push(`Opportunity: ${opp.title}`)
-      parts.push(
-        `## Opportunity: ${opp.title}\n` +
-          `- Company: ${opp.company?.name || 'Unknown'}\n` +
-          `- Status: ${opp.status}\n` +
-          `- Target Contact: ${opp.targetContact?.name || 'None assigned'}\n` +
-          `- Description: ${opp.description || 'N/A'}\n` +
-          `- Next Action: ${opp.nextAction || 'N/A'}`,
-      )
     }
   }
 
@@ -197,7 +169,7 @@ export async function POST(request: NextRequest) {
     // 1. Build context string if context IDs provided
     let contextStr = ''
     let sources: string[] = []
-    if (context && (context.companyId || context.contactId || context.opportunityId)) {
+    if (context && (context.companyId || context.contactId)) {
       const ctx = await buildContextString(context)
       contextStr = ctx.contextStr
       sources = ctx.sources

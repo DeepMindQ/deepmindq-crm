@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
+import { webSearch, callLLM } from '@/lib/zai-helpers'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -37,48 +38,10 @@ interface CachedBrief {
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000
 const briefCache = new Map<string, { data: CachedBrief; expiresAt: number }>()
 
-// ---------------------------------------------------------------------------
-// SDK helpers
-// ---------------------------------------------------------------------------
+// SDK helpers are now imported from @/lib/zai-helpers (webSearch, callLLM, extractJSON)
+// No need for local createZAI / webSearch / callLLM functions
 
-type ZAIInstance = Awaited<ReturnType<typeof createZAI>>
-
-async function createZAI() {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then((m) => m.default)
-  return ZAI.create()
-}
-
-async function webSearch(zai: ZAIInstance, query: string): Promise<SearchSource[]> {
-  try {
-    const results = await zai.functions.invoke('web_search', { query, num: 10 })
-    const items = results?.results ?? results?.data ?? results
-    if (!Array.isArray(items)) return []
-    return items
-      .filter((r: Record<string, unknown>) => r.title || r.url)
-      .map((r: Record<string, unknown>) => ({
-        title: String(r.title ?? ''),
-        url: String(r.url ?? ''),
-        snippet: String(r.snippet ?? r.description ?? r.content ?? ''),
-      }))
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.error(`[account-brief] Search failed for "${query}": ${msg}`)
-    return []
-  }
-}
-
-async function callLLM(zai: ZAIInstance, userPrompt: string): Promise<string> {
-  const completion = await zai.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: SYSTEM_PROMPT },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  })
-  return completion.choices?.[0]?.message?.content ?? ''
-}
+type ZAIInstance = any
 
 // ---------------------------------------------------------------------------
 // JSON extraction — tolerant of markdown fences
@@ -195,36 +158,33 @@ export async function GET(request: NextRequest) {
 
   const name = company.normalizedName
 
-  // 2. Initialize SDK
-  let zai: ZAIInstance
-  try {
-    zai = await createZAI()
-  } catch (err: unknown) {
-    console.error('[account-brief] SDK init failed:', err instanceof Error ? err.message : err)
-    return apiError('Failed to initialize AI SDK', 500)
-  }
+  // 2. Web search is handled by shared helpers — no SDK init needed here
+  // (shared zai-helpers manages SDK singleton internally)
 
-  // 3. Run 4 parallel web searches
+  // 3. Run 4 parallel web searches (allSettled so one failure doesn't kill all)
   const queries = [
     `${name} business overview revenue employees`,
     `${name} technology stack digital transformation`,
     `${name} challenges industry trends 2025`,
     `${name} leadership CIO CTO CEO executives`,
   ]
-  const searchResults = await Promise.all(queries.map((q) => webSearch(zai, q)))
+  const searchResults = await Promise.allSettled(queries.map((q) => webSearch(q, 10)))
 
   // Deduplicate sources by URL
   const seenUrls = new Set<string>()
   const sources: SearchSource[] = []
   for (const batch of searchResults) {
-    for (const src of batch) {
-      if (src.url && !seenUrls.has(src.url)) { seenUrls.add(src.url); sources.push(src) }
+    if (batch.status === 'fulfilled') {
+      for (const src of batch.value) {
+        if (src.url && !seenUrls.has(src.url)) { seenUrls.add(src.url); sources.push(src) }
+      }
     }
   }
 
   // 4. Build user prompt with DB data + search context
   const searchContext = searchResults
-    .flatMap((batch, i) => batch.map((r) => `[Search ${i + 1}] ${r.title}\n  URL: ${r.url}\n  ${r.snippet}`))
+    .filter(r => r.status === 'fulfilled')
+    .flatMap((batch, i) => batch.value.map((r) => `[Search ${i + 1}] ${r.title}\n  URL: ${r.url}\n  ${r.snippet}`))
     .join('\n\n')
   const dbContext = [
     `Company Name: ${name}`, `Domain: ${company.domain ?? 'Unknown'}`,
@@ -238,7 +198,7 @@ export async function GET(request: NextRequest) {
   // 5. Generate brief via LLM
   let brief: AccountBrief
   try {
-    const raw = await callLLM(zai, userPrompt)
+    const raw = await callLLM(SYSTEM_PROMPT, userPrompt)
     const parsed = parseBriefJson(raw)
     brief = parsed ?? (() => { console.error('[account-brief] Unparseable LLM JSON'); return buildFallbackBrief('LLM response was not valid JSON') })()
   } catch (err: unknown) {

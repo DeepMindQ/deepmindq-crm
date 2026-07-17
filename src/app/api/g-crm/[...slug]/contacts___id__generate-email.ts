@@ -14,7 +14,7 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
   const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
   const completion = await ZAI.chat.completions.create({
     messages: [
-      { role: 'assistant', content: systemPrompt },
+      { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
     thinking: { type: 'disabled' },

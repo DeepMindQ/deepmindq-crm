@@ -275,7 +275,7 @@ Only include companies with matchScore >= 40. Sort by matchScore descending.`
     // 4. Single LLM call with all companies
     const completion = await ZAI.chat.completions.create({
       messages: [
-        { role: 'assistant', content: systemPrompt },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
       thinking: { type: 'disabled' },

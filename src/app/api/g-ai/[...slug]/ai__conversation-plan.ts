@@ -82,7 +82,7 @@ async function aiChat(systemPrompt: string, userPrompt: string): Promise<string>
   const zai = await createZAI();
   const completion = await zai.chat.completions.create({
     messages: [
-      { role: 'assistant', content: systemPrompt },
+      { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
     thinking: { type: 'disabled' },

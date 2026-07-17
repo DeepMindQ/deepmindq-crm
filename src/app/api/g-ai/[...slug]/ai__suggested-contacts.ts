@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
+import { webSearch, callLLM } from '@/lib/zai-helpers';
 
 // ── Types ──
 
@@ -33,37 +34,7 @@ function setCache(companyId: string, data: Record<string, unknown>) {
 }
 
 // ── Z-AI SDK helpers ──
-
-async function webSearch(query: string, num = 10): Promise<WebResult[]> {
-  try {
-    const { ensureZaiConfig } = await import('@/lib/zai-config');
-    await ensureZaiConfig();
-    const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
-    const results = await ZAI.functions.invoke('web_search', { query, num });
-    return (results || [])
-      .slice(0, num)
-      .map((r: Record<string, string>) => ({
-        title: r.name || '',
-        url: r.url || '',
-        snippet: r.snippet || '',
-      }));
-  } catch (e) {
-    console.error('[suggested-contacts] Web search failed:', e);
-    return [];
-  }
-}
-
-async function aiChat(systemPrompt: string, userPrompt: string): Promise<string> {
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  });
-  return completion.choices?.[0]?.message?.content ?? '';
-}
+// Using shared helpers from @/lib/zai-helpers (singleton SDK, robust web search parsing)
 
 // ── JSON parsing with regex fallback ──
 
@@ -135,14 +106,16 @@ export async function GET(request: NextRequest) {
 
     const companyName = company.rawName;
 
-    // 3 parallel web searches
-    const [leadership, linkedin, orgStructure] = await Promise.all([
+    // 3 parallel web searches (allSettled for resilience)
+    const searchSettled = await Promise.allSettled([
       webSearch(`${companyName} leadership team CIO CTO CEO executives`, 10),
       webSearch(`${companyName} VP director management team LinkedIn`, 10),
       webSearch(`${companyName} organizational structure department heads`, 10),
     ]);
 
-    const allResults = [leadership, linkedin, orgStructure].flat();
+    const allResults = searchSettled
+      .filter(r => r.status === 'fulfilled')
+      .flatMap(r => r.value);
     const seenUrls = new Set<string>();
     const uniqueResults = allResults.filter((r) => {
       if (!r.url || seenUrls.has(r.url)) return false;
@@ -193,7 +166,7 @@ Return ONLY valid JSON array:
 
 Identify 5-8 stakeholders. Focus on C-suite, VPs, and Directors relevant to technology, digital transformation, and operations.`;
 
-    const raw = await aiChat(systemPrompt, userPrompt);
+    const raw = await callLLM(systemPrompt, userPrompt);
     const contacts = parseContacts(raw);
 
     const response = {

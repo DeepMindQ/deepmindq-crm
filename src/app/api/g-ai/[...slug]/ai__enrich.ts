@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
+import { callLLM, webSearch, extractJSON } from '@/lib/zai-helpers'
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -35,28 +36,12 @@ const CONTACT_FIELDS = [
   { field: 'linkedinUrl', label: 'LinkedIn URL' },
 ] as const
 
-// ---------------------------------------------------------------------------
-// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
-// ---------------------------------------------------------------------------
+// LLM helper — uses shared zai-helpers (singleton SDK, correct system role)
 
 interface EnrichmentSuggestion {
   field: string
   suggestedValue: string
   confidence: number
-}
-
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  })
-  return completion.choices?.[0]?.message?.content ?? ''
 }
 
 function parseEnrichmentResponse(text: string): EnrichmentSuggestion[] {
@@ -152,7 +137,7 @@ For each field, provide a suggested value and confidence (0-1). Only suggest val
 Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence": 0.0-1.0 }]`
 
     try {
-      const text = await callAI(systemPrompt, 'Suggest values for the missing fields.')
+      const text = await callLLM(systemPrompt, 'Suggest values for the missing fields.')
       suggestions = parseEnrichmentResponse(text)
       // Filter to only suggest for actually missing fields
       suggestions = suggestions.filter((s) => missingFields.includes(s.field))
@@ -253,7 +238,7 @@ For each field, provide a suggested value and confidence (0-1). Only suggest val
 Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence": 0.0-1.0 }]`
 
     try {
-      const text = await callAI(systemPrompt, 'Suggest values for the missing fields.')
+      const text = await callLLM(systemPrompt, 'Suggest values for the missing fields.')
       suggestions = parseEnrichmentResponse(text)
       // Filter to only suggest for actually missing fields
       suggestions = suggestions.filter((s) => missingFields.includes(s.field))

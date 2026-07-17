@@ -1,9 +1,12 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { webSearch, callLLM } from '@/lib/zai-helpers';
 
 /* ═══════════════════════════════════════════════════════════════
    Types
    ═══════════════════════════════════════════════════════════════ */
+
+// Web search and LLM helpers are imported from @/lib/zai-helpers
 
 interface AiInsights {
   businessOverview: string;
@@ -13,39 +16,6 @@ interface AiInsights {
   techStack: string[];
   competitors: string[];
   webFindings: Array<{ title: string; url: string; snippet: string }>;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Z-AI SDK helpers
-   ═══════════════════════════════════════════════════════════════ */
-
-async function webSearch(query: string, num = 5) {
-  try {
-    const { ensureZaiConfig } = await import('@/lib/zai-config');
-    await ensureZaiConfig();
-    const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
-    const results = await Z.functions.invoke('web_search', { query, num });
-    return (results || []).slice(0, num).map((r: any) => ({
-      title: r.name || '',
-      url: r.url || '',
-      snippet: r.snippet || '',
-    }));
-  } catch (e) {
-    console.error('[intelligence] Web search failed:', e);
-    return [];
-  }
-}
-
-async function aiChat(systemPrompt: string, userPrompt: string): Promise<string> {
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  });
-  return completion.choices?.[0]?.message?.content ?? '';
 }
 
 /**
@@ -119,12 +89,14 @@ async function generateIntelligence(
       `${companyName || ''} competitors ${industry || ''}`,
     ];
 
-    const searchResults = await Promise.all(
+    const searchResults = await Promise.allSettled(
       searchQueries.map(q => webSearch(q, 5)),
     );
 
     // Flatten and deduplicate
-    const allResults = searchResults.flat();
+    const allResults = searchResults
+      .filter(r => r.status === 'fulfilled')
+      .flatMap(r => r.value);
     const seen = new Set<string>();
     const uniqueResults = allResults.filter(r => {
       if (seen.has(r.url)) return false;
@@ -178,7 +150,7 @@ Be specific. Reference real information from web results when available.`;
     const systemPrompt =
       'You are a B2B sales intelligence analyst. Analyze company data combined with live web search results. Generate actionable, specific, data-driven insights. Always respond with valid JSON only.';
 
-    const raw = await aiChat(systemPrompt, userPrompt);
+    const raw = await callLLM(systemPrompt, userPrompt);
     const insights = parseAiResponse(raw);
 
     if (insights) {

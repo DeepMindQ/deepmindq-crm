@@ -340,7 +340,7 @@ async function enhanceWithAI(recs: Recommendation[]): Promise<Recommendation[]> 
 
   const completion = await ZAI.chat.completions.create({
     messages: [
-      { role: 'assistant', content: RECOMMENDATION_SYSTEM_PROMPT },
+      { role: 'system', content: RECOMMENDATION_SYSTEM_PROMPT },
       { role: 'user', content: buildAIUserPrompt(recs) },
     ],
     thinking: { type: 'disabled' },

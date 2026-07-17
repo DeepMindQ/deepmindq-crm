@@ -176,7 +176,7 @@ async function buildAIInsights(stats: PipelineStats, trendContext: string): Prom
   const completion = await ZAI.chat.completions.create({
     messages: [
       {
-        role: 'assistant',
+        role: 'system',
         content:
           'You are a sales intelligence analyst. You respond ONLY with valid JSON matching the requested schema. No markdown, no commentary.',
       },

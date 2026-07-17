@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       const completion = await zai.chat.completions.create({
         messages: [
           {
-            role: 'assistant',
+            role: 'system',
             content: `You are a knowledge extraction engine for a B2B technology services company. Analyze the following website content and extract structured knowledge assets.
 
 ${suggestedServiceLine ? `The suggested service line is: "${suggestedServiceLine}"` : ''}

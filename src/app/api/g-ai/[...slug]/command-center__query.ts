@@ -39,7 +39,7 @@ async function llmChat(systemPrompt: string, userPrompt: string): Promise<string
     const ZAI = await createZAI();
     const completion = await ZAI.chat.completions.create({
       messages: [
-        { role: 'assistant', content: systemPrompt },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
       thinking: { type: 'disabled' },

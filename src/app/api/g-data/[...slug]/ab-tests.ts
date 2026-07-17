@@ -120,7 +120,7 @@ export async function POST(request: Request) {
       const completion = await zai.chat.completions.create({
         messages: [
           {
-            role: 'assistant',
+            role: 'system',
             content: `You are an email subject line expert for B2B outreach. Generate 3 different subject line variants for an A/B test.
 
 The email body topic: "${baseDraft.body.slice(0, 200)}..."

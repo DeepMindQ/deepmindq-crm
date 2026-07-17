@@ -1,8 +1,9 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { webSearch, callLLM, extractJSON } from '@/lib/zai-helpers';
 
 /* ═══════════════════════════════════════════════════
-   L-03: Company Data Enrichment via AI
+   L-03: Company Data Enrichment via AI + Web Search
    ═══════════════════════════════════════════════════ */
 
 export async function POST(request: Request) {
@@ -45,8 +46,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // Use AI to estimate company data
-    const enrichmentData = await aiEnrichCompany(company.rawName, company.domain, company.industry);
+    // Use AI + web search to get REAL data about the company
+    const enrichmentData = await aiEnrichCompany(company.rawName || company.normalizedName, company.domain, company.industry);
 
     // Upsert research card with enrichment data
     const researchCard = await db.companyResearchCard.upsert({
@@ -54,12 +55,12 @@ export async function POST(request: Request) {
       create: {
         companyId: company.id,
         ...enrichmentData,
-        enrichmentSource: 'ai_estimated',
+        enrichmentSource: 'ai_web_search',
         enrichmentDate: new Date(),
       },
       update: {
         ...enrichmentData,
-        enrichmentSource: 'ai_estimated',
+        enrichmentSource: 'ai_web_search',
         enrichmentDate: new Date(),
       },
     });
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
     // Update enrichmentScore for all contacts at this company
     await db.contact.updateMany({
       where: { companyId: company.id },
-      data: { enrichmentScore: 10, enrichmentData: JSON.stringify(enrichmentData) },
+      data: { enrichmentScore: 50, enrichmentData: JSON.stringify(enrichmentData) },
     });
 
     return NextResponse.json({ success: true, researchCard });
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
   }
 }
 
-/* ── AI-powered enrichment ── */
+/* ── AI + Web Search enrichment ── */
 async function aiEnrichCompany(
   companyName: string,
   domain: string | null,
@@ -90,60 +91,92 @@ async function aiEnrichCompany(
   techStack: string;
   socialProfiles: string;
 }> {
-  const prompt = `You are a business intelligence assistant. Based on the company name and domain provided, estimate the following information. Be concise and realistic.
+  // Step 1: Run web searches for REAL external data
+  const searchQueries = [
+    `${companyName} ${domain || ''} revenue employees funding 2024 2025`,
+    `${companyName} technology stack products services`,
+    `${companyName} LinkedIn company profile overview`,
+  ];
 
-Company: ${companyName}
-Domain: ${domain || 'Unknown'}
-Current Industry: ${existingIndustry || 'Unknown'}
+  console.log(`[companies/enrich] Searching for: ${companyName}`);
+
+  const searchResults = await Promise.allSettled(
+    searchQueries.map(q => webSearch(q, 8)),
+  );
+
+  // Collect all search results into context
+  const allSnippets: string[] = [];
+  let linkedInUrl = '';
+  let twitterUrl = '';
+
+  for (const result of searchResults) {
+    if (result.status === 'fulfilled' && result.value.length > 0) {
+      for (const r of result.value) {
+        allSnippets.push(`[${r.title}] ${r.snippet}`);
+        if (r.url?.includes('linkedin.com/company') && !linkedInUrl) {
+          linkedInUrl = r.url;
+        }
+        if ((r.url?.includes('twitter.com') || r.url?.includes('x.com')) && !twitterUrl) {
+          twitterUrl = r.url;
+        }
+      }
+    }
+  }
+
+  const searchContext = allSnippets.slice(0, 30).join('\n');
+
+  // Step 2: Ask LLM with real search context
+  const systemPrompt = `You are a business intelligence research assistant. Based on the web search results provided, extract accurate, factual information about the company. Only include information that is directly supported by the search results. If the search results don't contain specific data, say "Not found in search results" rather than guessing.
 
 Return ONLY valid JSON (no markdown, no code fences) with these fields:
 {
-  "businessOverview": "1-2 sentence business description",
-  "revenue": "estimated revenue range like '$10M-$50M' or 'Self-funded' or '$1B+'",
-  "employeeCount": "estimated like '51-200' or '1,000-5,000' or '10,000+'",
+  "businessOverview": "2-3 sentence factual description based on search results",
+  "revenue": "exact or estimated revenue from search results, e.g. '$10M-$50M' or 'Not found in search results'",
+  "employeeCount": "employee count from search results, e.g. '51-200' or 'Not found in search results'",
   "fundingStage": "one of: Bootstrap, Seed, Series A, Series B, Series C+, PE-backed, Public, Unknown",
-  "techStack": "comma-separated list of likely technologies like 'React, AWS, Python, PostgreSQL'",
-  "socialProfiles": "JSON string of likely social URLs like {\"linkedin\": \"https://linkedin.com/company/...\", \"twitter\": \"https://twitter.com/...\"}"
+  "techStack": "comma-separated technologies mentioned in search results, or empty string if none found",
+  "socialProfiles": "JSON string with any social URLs found, e.g. {\\"linkedin\\": \\"https://...\\", \\"twitter\\": \\"https://...\\"}"
 }`;
 
-  try {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const { ensureZaiConfig } = await import('@/lib/zai-config');
-    await ensureZaiConfig();
-    const zai = await ZAI.create();
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: 'system', content: 'You are a business intelligence assistant. Return valid JSON only, no markdown, no code fences.' },
-        { role: 'user', content: prompt },
-      ],
-      thinking: { type: 'disabled' },
-    });
-    const response = completion.choices?.[0]?.message?.content || '';
+  const userPrompt = `Company: ${companyName}
+Domain: ${domain || 'Unknown'}
+Current Industry: ${existingIndustry || 'Unknown'}
 
-    // Parse the AI response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
+Web Search Results:
+${searchContext || 'No web search results found.'}
+
+Based on the above search results, provide accurate company data as JSON.`;
+
+  try {
+    const response = await callLLM(systemPrompt, userPrompt);
+    const parsed = extractJSON(response) as Record<string, unknown> | null;
+
+    if (parsed && typeof parsed === 'object') {
+      console.log(`[companies/enrich] Successfully enriched ${companyName} with web data`);
       return {
-        businessOverview: parsed.businessOverview || '',
-        revenue: parsed.revenue || 'Unknown',
-        employeeCount: parsed.employeeCount || 'Unknown',
-        fundingStage: parsed.fundingStage || 'Unknown',
-        techStack: parsed.techStack || '',
-        socialProfiles: parsed.socialProfiles ? JSON.stringify(parsed.socialProfiles) : '{}',
+        businessOverview: String(parsed.businessOverview || `${companyName} operates in the ${existingIndustry || 'technology'} sector.`),
+        revenue: String(parsed.revenue || 'Unknown'),
+        employeeCount: String(parsed.employeeCount || 'Unknown'),
+        fundingStage: String(parsed.fundingStage || 'Unknown'),
+        techStack: String(parsed.techStack || ''),
+        socialProfiles: parsed.socialProfiles ? JSON.stringify(parsed.socialProfiles) : JSON.stringify(Object.fromEntries(
+          Object.entries({ linkedin: linkedInUrl, twitter: twitterUrl }).filter(([, v]) => v)
+        )),
       };
     }
   } catch (err) {
-    console.error('AI enrichment failed, using defaults:', err);
+    console.error('[companies/enrich] AI enrichment failed:', err);
   }
 
-  // Fallback defaults
+  // Fallback — at least include any social URLs found
   return {
     businessOverview: `${companyName} operates in the ${existingIndustry || 'technology'} sector.`,
     revenue: 'Unknown',
     employeeCount: 'Unknown',
     fundingStage: 'Unknown',
     techStack: '',
-    socialProfiles: '{}',
+    socialProfiles: JSON.stringify(Object.fromEntries(
+      Object.entries({ linkedin: linkedInUrl, twitter: twitterUrl }).filter(([, v]) => v)
+    )),
   };
 }

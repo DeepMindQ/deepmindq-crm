@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { webSearch, callLLM, extractJSON } from '@/lib/zai-helpers';
 
 // POST /api/research-agent — Deep research on company or person
 export async function POST(req: NextRequest) {
@@ -14,16 +15,11 @@ export async function POST(req: NextRequest) {
 
     let aiResult: string;
     try {
-      const ZAI = (await import('z-ai-web-dev-sdk')).default;
-      const { ensureZaiConfig } = await import('@/lib/zai-config');
-      await ensureZaiConfig();
-      const zai = await ZAI.create();
-
-      // First do web search, then LLM synthesis
-      const searchResult = await zai.functions.invoke('web_search', { query });
-      const searchContext = Array.isArray(searchResult?.results)
-        ? searchResult.results.map((r: any) => `${r.title}: ${r.snippet || r.content || ''}`).join('\n')
-        : (typeof searchResult === 'string' ? searchResult : JSON.stringify(searchResult));
+      // First do web search with robust parsing
+      const searchResults = await webSearch(query, 10);
+      const searchContext = searchResults
+        .map((r) => `[${r.title}] ${r.snippet} (Source: ${r.url})`)
+        .join('\n');
 
       const systemContext = isCompany
         ? `You are a senior business intelligence analyst at a top-tier strategy firm. Your research reports are used by sales teams to prepare for high-value B2B outreach. You write with specificity, citing exact figures, dates, names, and sources. You never use vague filler like "the company has demonstrated consistent growth" — instead you say "Revenue grew 34% YoY to $180M in FY2024 per their Q4 earnings filing." If you cannot find specific data, explicitly say "Not publicly available" rather than guessing.`
@@ -79,14 +75,11 @@ ICON OPTIONS for sections: "Building2" "DollarSign" "Cpu" "Users" "Newspaper" "T
 
 Include 4-6 sections. Match the icon to the section topic.`;
 
-      const completion = await zai.chat.completions.create({
-        messages: [
-          { role: 'system', content: `You have access to the following web search results for context:\n\n${searchContext}\n\nUse this context to provide specific, verifiable information. If the search results don't contain enough detail, say so explicitly.` },
-          { role: 'user', content: prompt },
-        ],
-        thinking: { type: 'disabled' },
-      });
-      aiResult = completion.choices?.[0]?.message?.content || '';
+      const completion = await callLLM(
+        `You have access to the following web search results for context:\n\n${searchContext}\n\nUse this context to provide specific, verifiable information. If the search results don't contain enough detail, say so explicitly.`,
+        prompt,
+      );
+      aiResult = completion;
     } catch (sdkError) {
       console.error('AI SDK error:', sdkError);
       return NextResponse.json(
@@ -95,15 +88,10 @@ Include 4-6 sections. Match the icon to the section topic.`;
       );
     }
 
-    // Parse the AI response
-    let jsonStr = aiResult;
-    const jsonMatch = aiResult.match(/\{[\s\S]*\}/);
-    if (jsonMatch) jsonStr = jsonMatch[0];
+    // Parse the AI response using shared helper
+    const parsed = extractJSON(aiResult) as Record<string, unknown> | null;
 
-    let parsed;
-    try {
-      parsed = JSON.parse(jsonStr);
-    } catch {
+    if (!parsed || typeof parsed !== 'object') {
       return NextResponse.json(
         { error: 'AI returned invalid data. Please try again.' },
         { status: 502 }

@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -549,7 +549,7 @@ model ConversationPlan {
   industry         String?
   context          String?
   capabilities     String?
-  plan             Json     // Stores the full ApiPlan object
+  plan             String    // JSON string of the full ApiPlan object
   generatedAt      DateTime @default(now())
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

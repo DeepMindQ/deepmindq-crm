@@ -8,12 +8,12 @@
  * ALL 27 downstream files import from here — fixing this file
  * fixes the entire AI pipeline.
  *
- * Env vars (set on Vercel + local .env.local):
- *   NVIDIA_API_KEY    — NVIDIA NIM API key (build.nvidia.com)
- *   FIREWORKS_API_KEY — Fireworks AI API key (fireworks.ai)
- *   GROQ_API_KEY      — Groq API key
- *   GEMINI_API_KEY    — Google AI Studio API key
- *   TAVILY_API_KEY    — Tavily search API key
+ * API keys are resolved dynamically from ai-config.ts:
+ *   1. Runtime override (set via Settings UI → /api/settings)
+ *   2. Environment variable (process.env.*)
+ *   3. Empty string (provider disabled)
+ *
+ * Users can now manage all API keys from Settings > AI Providers.
  */
 
 // ---------------------------------------------------------------------------
@@ -65,28 +65,13 @@ export interface CompanyResearch {
 }
 
 // ---------------------------------------------------------------------------
-// Config — supports multiple LLM providers with automatic fallback
-// Priority: NVIDIA NIM > Fireworks > Groq > Gemini (tries multiple models)
+// Dynamic config — reads from ai-config.ts (env vars → Settings UI overrides)
 // ---------------------------------------------------------------------------
 
-const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || ''
-const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1'
-const NVIDIA_MODEL = process.env.NVIDIA_MODEL || 'meta/llama-3.1-8b-instruct'
+import { getLLMChain, getSearchProvider, getProviderConfig } from '@/lib/ai-config'
 
-const FIREWORKS_API_KEY = process.env.FIREWORKS_API_KEY || ''
-const FIREWORKS_BASE_URL = 'https://api.fireworks.ai/inference/v1'
-const FIREWORKS_MODEL = 'accounts/fireworks/models/llama-v3p3-70b-instruct'
-
-const GROQ_API_KEY = process.env.GROQ_API_KEY || ''
-const GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
-const GROQ_MODEL = 'llama-3.3-70b-versatile'
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || ''
-const GEMINI_BASE_URL = process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai'
-// Try multiple Gemini models — some keys have quota on specific models
-const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro']
-
-const TAVILY_API_KEY = process.env.TAVILY_API_KEY || ''
+// Gemini-specific: try multiple models since some keys have per-model quotas
+const GEMINI_FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro']
 
 // ---------------------------------------------------------------------------
 // LLM — Gemini via OpenAI-compatible endpoint
@@ -127,45 +112,32 @@ export async function callLLM(systemPrompt: string, userPrompt: string): Promise
     { role: 'user', content: userPrompt },
   ]
 
-  // Try NVIDIA NIM first (primary — free credits, fast)
-  if (NVIDIA_API_KEY) {
-    try {
-      return await callLLMProvider(NVIDIA_BASE_URL, NVIDIA_API_KEY, NVIDIA_MODEL, messages)
-    } catch (err) {
-      console.warn('[callLLM] NVIDIA failed, trying Fireworks:', err instanceof Error ? err.message : err)
-    }
-  }
+  const chain = getLLMChain()
+  const errors: string[] = []
 
-  // Try Fireworks (backup)
-  if (FIREWORKS_API_KEY) {
+  for (const provider of chain) {
     try {
-      return await callLLMProvider(FIREWORKS_BASE_URL, FIREWORKS_API_KEY, FIREWORKS_MODEL, messages)
-    } catch (err) {
-      console.warn('[callLLM] Fireworks failed, trying Groq:', err instanceof Error ? err.message : err)
-    }
-  }
-
-  // Try Groq
-  if (GROQ_API_KEY) {
-    try {
-      return await callLLMProvider(GROQ_BASE_URL, GROQ_API_KEY, GROQ_MODEL, messages)
-    } catch (err) {
-      console.warn('[callLLM] Groq failed, trying Gemini:', err instanceof Error ? err.message : err)
-    }
-  }
-
-  // Try Gemini models in order
-  if (GEMINI_API_KEY) {
-    for (const model of GEMINI_MODELS) {
-      try {
-        return await callLLMProvider(GEMINI_BASE_URL, GEMINI_API_KEY, model, messages)
-      } catch (err) {
-        console.warn(`[callLLM] Gemini ${model} failed:`, err instanceof Error ? err.message : err)
+      // Gemini: try multiple model variants
+      if (provider.label.includes('Gemini')) {
+        for (const model of GEMINI_FALLBACK_MODELS) {
+          try {
+            return await callLLMProvider(provider.baseUrl, provider.apiKey, model, messages)
+          } catch (err) {
+            errors.push(`Gemini/${model}: ${err instanceof Error ? err.message : err}`)
+          }
+        }
+        continue
       }
+      return await callLLMProvider(provider.baseUrl, provider.apiKey, provider.model, messages)
+    } catch (err) {
+      errors.push(`${provider.label}: ${err instanceof Error ? err.message : err}`)
     }
   }
 
-  throw new Error('All LLM providers failed. Set NVIDIA_API_KEY or FIREWORKS_API_KEY in Vercel env vars.')
+  const msg = errors.length > 0
+    ? `All LLM providers failed:\n${errors.map(e => '  - ' + e).join('\n')}`
+    : 'No LLM providers configured. Add API keys in Settings > AI Providers.'
+  throw new Error(msg)
 }
 
 /**
@@ -177,45 +149,31 @@ export async function callChatLLM(systemPrompt: string, messages: Array<{ role: 
     ...messages,
   ]
 
-  // Try NVIDIA NIM first (primary)
-  if (NVIDIA_API_KEY) {
-    try {
-      return await callLLMProvider(NVIDIA_BASE_URL, NVIDIA_API_KEY, NVIDIA_MODEL, allMessages)
-    } catch (err) {
-      console.warn('[callChatLLM] NVIDIA failed, trying Fireworks:', err instanceof Error ? err.message : err)
-    }
-  }
+  const chain = getLLMChain()
+  const errors: string[] = []
 
-  // Try Fireworks (backup)
-  if (FIREWORKS_API_KEY) {
+  for (const provider of chain) {
     try {
-      return await callLLMProvider(FIREWORKS_BASE_URL, FIREWORKS_API_KEY, FIREWORKS_MODEL, allMessages)
-    } catch (err) {
-      console.warn('[callChatLLM] Fireworks failed, trying Groq:', err instanceof Error ? err.message : err)
-    }
-  }
-
-  // Try Groq
-  if (GROQ_API_KEY) {
-    try {
-      return await callLLMProvider(GROQ_BASE_URL, GROQ_API_KEY, GROQ_MODEL, allMessages)
-    } catch (err) {
-      console.warn('[callChatLLM] Groq failed, trying Gemini:', err instanceof Error ? err.message : err)
-    }
-  }
-
-  // Try Gemini models in order
-  if (GEMINI_API_KEY) {
-    for (const model of GEMINI_MODELS) {
-      try {
-        return await callLLMProvider(GEMINI_BASE_URL, GEMINI_API_KEY, model, allMessages)
-      } catch (err) {
-        console.warn(`[callChatLLM] Gemini ${model} failed:`, err instanceof Error ? err.message : err)
+      if (provider.label.includes('Gemini')) {
+        for (const model of GEMINI_FALLBACK_MODELS) {
+          try {
+            return await callLLMProvider(provider.baseUrl, provider.apiKey, model, allMessages)
+          } catch (err) {
+            errors.push(`Gemini/${model}: ${err instanceof Error ? err.message : err}`)
+          }
+        }
+        continue
       }
+      return await callLLMProvider(provider.baseUrl, provider.apiKey, provider.model, allMessages)
+    } catch (err) {
+      errors.push(`${provider.label}: ${err instanceof Error ? err.message : err}`)
     }
   }
 
-  throw new Error('All LLM providers failed. Set NVIDIA_API_KEY or FIREWORKS_API_KEY in Vercel env vars.')
+  const msg = errors.length > 0
+    ? `All LLM providers failed:\n${errors.map(e => '  - ' + e).join('\n')}`
+    : 'No LLM providers configured. Add API keys in Settings > AI Providers.'
+  throw new Error(msg)
 }
 
 // ---------------------------------------------------------------------------
@@ -229,14 +187,15 @@ export async function callChatLLM(systemPrompt: string, messages: Array<{ role: 
  * Returns empty string if Tavily is unavailable.
  */
 export async function tavilyAIAnswer(query: string): Promise<string> {
-  if (!TAVILY_API_KEY) return ''
+  const searchProvider = getSearchProvider()
+  if (!searchProvider) return ''
 
   try {
     const response = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        api_key: TAVILY_API_KEY,
+        api_key: searchProvider.apiKey,
         query,
         max_results: 5,
         search_depth: 'advanced',
@@ -272,8 +231,9 @@ interface TavilyResult {
  * Drop-in replacement for the old Z.AI web_search function.
  */
 export async function webSearch(query: string, num = 10): Promise<WebSearchResult[]> {
-  if (!TAVILY_API_KEY) {
-    console.error('[webSearch] TAVILY_API_KEY not configured')
+  const searchProvider = getSearchProvider()
+  if (!searchProvider) {
+    console.error('[webSearch] No search provider configured. Add Tavily API key in Settings > AI Providers.')
     return []
   }
 
@@ -282,7 +242,7 @@ export async function webSearch(query: string, num = 10): Promise<WebSearchResul
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        api_key: TAVILY_API_KEY,
+        api_key: searchProvider.apiKey,
         query,
         max_results: Math.min(num, 10),
         search_depth: 'basic',
@@ -699,7 +659,7 @@ export async function getZAI(): Promise<any> {
 
           return {
             choices: [{ message: { content: response } }],
-            model: NVIDIA_API_KEY ? NVIDIA_MODEL : (FIREWORKS_API_KEY ? FIREWORKS_MODEL : GEMINI_MODELS[0]),
+            model: getLLMChain()[0]?.model || 'unknown',
           }
         },
       },

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getAIConfig, updateAIConfig, testProviderConnection } from '@/lib/ai-config';
 
 /* ═══════════════════════════════════════════════════
    Types
@@ -128,7 +129,10 @@ function deepMerge(target: any, source: any): any {
    ═══════════════════════════════════════════════════ */
 export async function GET() {
   try {
-    return NextResponse.json({ settings: currentSettings });
+    return NextResponse.json({
+      settings: currentSettings,
+      aiProviders: getAIConfig(),
+    });
   } catch (error) {
     console.error('Settings GET error:', error);
     return NextResponse.json({ settings: DEFAULT_SETTINGS, _demo: true });
@@ -150,6 +154,20 @@ export async function PUT(request: Request) {
       );
     }
 
+    // Handle AI provider updates separately
+    if (body.aiProviders) {
+      const updatedAI = updateAIConfig(body.aiProviders);
+      const { aiProviders: _ai, ...restBody } = body;
+      if (Object.keys(restBody).length > 0) {
+        currentSettings = deepMerge(currentSettings, restBody) as SettingsObject;
+      }
+      return NextResponse.json({
+        success: true,
+        settings: currentSettings,
+        aiProviders: updatedAI,
+      });
+    }
+
     // Deep merge the incoming partial settings
     currentSettings = deepMerge(currentSettings, body) as SettingsObject;
 
@@ -161,6 +179,33 @@ export async function PUT(request: Request) {
     console.error('Settings PUT error:', error);
     return NextResponse.json(
       { error: 'Failed to update settings' },
+      { status: 500 }
+    );
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   POST /api/settings/test-provider — test a single
+   AI provider connection
+   ═══════════════════════════════════════════════════ */
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { providerId } = body;
+
+    if (!providerId || typeof providerId !== 'string') {
+      return NextResponse.json(
+        { error: 'providerId is required' },
+        { status: 400 }
+      );
+    }
+
+    const result = await testProviderConnection(providerId);
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error('Provider test error:', error);
+    return NextResponse.json(
+      { success: false, message: 'Test failed: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
     );
   }

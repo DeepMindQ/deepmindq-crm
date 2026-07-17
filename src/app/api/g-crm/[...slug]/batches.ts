@@ -356,6 +356,33 @@ export async function POST(request: Request) {
         } catch { /* non-critical */ }
       }
 
+      // AUTO-ENRICH: Trigger company enrichment for newly created companies
+      try {
+        const newCompanyIds = [...new Set(
+          (await db.contact.findMany({
+            where: { id: { in: result.newContactIds } },
+            select: { companyId: true },
+          })).map(c => c.companyId).filter(Boolean)
+        )];
+        if (newCompanyIds.length > 0) {
+          // Enrich up to 5 companies immediately (rest can be enriched manually)
+          const toEnrich = newCompanyIds.slice(0, 5);
+          console.log(`[batches] Auto-enriching ${toEnrich.length} new companies after import`);
+          const baseUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
+          await Promise.allSettled(
+            toEnrich.map(cid =>
+              fetch(`${baseUrl}/api/companies/enrich`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ companyId: cid }),
+              })
+            )
+          );
+        }
+      } catch (enrichErr) {
+        console.warn('[batches] Auto-enrichment failed (non-critical):', enrichErr);
+      }
+
       return NextResponse.json({
         success: true,
         batch: {

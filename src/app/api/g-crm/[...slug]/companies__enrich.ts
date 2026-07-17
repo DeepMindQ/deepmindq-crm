@@ -1,15 +1,16 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { webSearch, callLLM, extractJSON } from '@/lib/zai-helpers';
+import { webSearch, callLLM, extractJSON, findKeyPeople, getCompanyNews } from '@/lib/zai-helpers';
 
 /* ═══════════════════════════════════════════════════
-   L-03: Company Data Enrichment via AI + Web Search
+   Company Data Enrichment via AI + Web Search
+   Now includes: key people, news signals, LinkedIn
    ═══════════════════════════════════════════════════ */
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { companyId, domain } = body as { companyId?: string; domain?: string };
+    const { companyId, domain, force } = body as { companyId?: string; domain?: string; force?: boolean };
 
     if (!companyId && !domain) {
       return NextResponse.json({ error: 'Provide companyId or domain' }, { status: 400 });
@@ -33,8 +34,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    // Check if already enriched recently (within 24h)
-    if (company.researchCard?.enrichmentDate) {
+    // Check if already enriched recently (within 24h) unless force=true
+    if (!force && company.researchCard?.enrichmentDate) {
       const enrichedAt = new Date(company.researchCard.enrichmentDate);
       const hoursSince = (Date.now() - enrichedAt.getTime()) / (1000 * 60 * 60);
       if (hoursSince < 24) {
@@ -46,10 +47,13 @@ export async function POST(request: Request) {
       }
     }
 
-    // Use AI + web search to get REAL data about the company
-    const enrichmentData = await aiEnrichCompany(company.rawName || company.normalizedName, company.domain, company.industry);
+    // Use AI + web search to get REAL data
+    const companyName = company.rawName || company.normalizedName;
+    console.log(`[companies/enrich] Starting enrichment for: ${companyName}`);
 
-    // Upsert research card with enrichment data
+    const enrichmentData = await aiEnrichCompany(companyName, company.domain, company.industry);
+
+    // Upsert research card
     const researchCard = await db.companyResearchCard.upsert({
       where: { companyId: company.id },
       create: {
@@ -65,7 +69,19 @@ export async function POST(request: Request) {
       },
     });
 
-    // Update enrichmentScore for all contacts at this company
+    // Update company fields from research if they were missing
+    const companyUpdate: Record<string, string> = {};
+    if (!company.industry && enrichmentData.industry && enrichmentData.industry !== 'Not found') {
+      companyUpdate.industry = enrichmentData.industry;
+    }
+    if (!company.website && enrichmentData.website) {
+      companyUpdate.website = enrichmentData.website;
+    }
+    if (Object.keys(companyUpdate).length > 0) {
+      await db.company.update({ where: { id: company.id }, data: companyUpdate });
+    }
+
+    // Update enrichment score for contacts
     await db.contact.updateMany({
       where: { companyId: company.id },
       data: { enrichmentScore: 50, enrichmentData: JSON.stringify(enrichmentData) },
@@ -78,7 +94,7 @@ export async function POST(request: Request) {
   }
 }
 
-/* ── AI + Web Search enrichment ── */
+/* ── AI + Web Search enrichment with key people and news ── */
 async function aiEnrichCompany(
   companyName: string,
   domain: string | null,
@@ -90,24 +106,31 @@ async function aiEnrichCompany(
   fundingStage: string;
   techStack: string;
   socialProfiles: string;
+  keyPeople: string;
+  recentNews: string;
+  industry: string;
+  website: string;
 }> {
-  // Step 1: Run web searches for REAL external data
+  // Run multiple parallel web searches
   const searchQueries = [
     `${companyName} ${domain || ''} revenue employees funding 2024 2025`,
     `${companyName} technology stack products services`,
     `${companyName} LinkedIn company profile overview`,
+    `${companyName} CEO CTO CIO executives leadership team`,
+    `${companyName} news 2025 funding hiring expansion`,
   ];
 
   console.log(`[companies/enrich] Searching for: ${companyName}`);
 
   const searchResults = await Promise.allSettled(
-    searchQueries.map(q => webSearch(q, 8)),
+    searchQueries.map(q => webSearch(q, 6)),
   );
 
-  // Collect all search results into context
+  // Collect all search results
   const allSnippets: string[] = [];
   let linkedInUrl = '';
   let twitterUrl = '';
+  let websiteUrl = '';
 
   for (const result of searchResults) {
     if (result.status === 'fulfilled' && result.value.length > 0) {
@@ -119,23 +142,51 @@ async function aiEnrichCompany(
         if ((r.url?.includes('twitter.com') || r.url?.includes('x.com')) && !twitterUrl) {
           twitterUrl = r.url;
         }
+        if (!websiteUrl && r.url && !r.url.includes('linkedin.com') && !r.url.includes('twitter.com') && !r.url.includes('wikipedia.org') && !r.url.includes('google.com')) {
+          websiteUrl = r.url;
+        }
       }
     }
   }
 
   const searchContext = allSnippets.slice(0, 30).join('\n');
 
-  // Step 2: Ask LLM with real search context
-  const systemPrompt = `You are a business intelligence research assistant. Based on the web search results provided, extract accurate, factual information about the company. Only include information that is directly supported by the search results. If the search results don't contain specific data, say "Not found in search results" rather than guessing.
+  // Extract key people via dedicated search
+  let keyPeopleData: string = '[]';
+  try {
+    const people = await findKeyPeople(companyName);
+    if (people.length > 0) {
+      keyPeopleData = JSON.stringify(people.slice(0, 10));
+    }
+  } catch (err) {
+    console.warn('[companies/enrich] Key people search failed:', err);
+  }
 
-Return ONLY valid JSON (no markdown, no code fences) with these fields:
+  // Extract news/signals via dedicated search
+  let newsData: string = '[]';
+  try {
+    const news = await getCompanyNews(companyName);
+    if (news.length > 0) {
+      newsData = JSON.stringify(news.slice(0, 8));
+    }
+  } catch (err) {
+    console.warn('[companies/enrich] News search failed:', err);
+  }
+
+  // Ask LLM with real search context
+  const systemPrompt = `You are a business intelligence research assistant. Based ONLY on the web search results provided, extract accurate, factual information.
+
+CRITICAL: Only include information directly supported by the search results. If something is not found, write "Not found".
+
+Return ONLY valid JSON:
 {
-  "businessOverview": "2-3 sentence factual description based on search results",
-  "revenue": "exact or estimated revenue from search results, e.g. '$10M-$50M' or 'Not found in search results'",
-  "employeeCount": "employee count from search results, e.g. '51-200' or 'Not found in search results'",
-  "fundingStage": "one of: Bootstrap, Seed, Series A, Series B, Series C+, PE-backed, Public, Unknown",
-  "techStack": "comma-separated technologies mentioned in search results, or empty string if none found",
-  "socialProfiles": "JSON string with any social URLs found, e.g. {\\"linkedin\\": \\"https://...\\", \\"twitter\\": \\"https://...\\"}"
+  "businessOverview": "2-3 sentence factual description",
+  "revenue": "revenue or range, or 'Not found'",
+  "employeeCount": "employee count or range, or 'Not found'",
+  "fundingStage": "Bootstrap/Seed/Series A/Series B/Series C+/PE-backed/Public/Not found",
+  "techStack": "comma-separated technologies, or empty string",
+  "industry": "primary industry",
+  "website": "official website URL"
 }`;
 
   const userPrompt = `Company: ${companyName}
@@ -143,40 +194,52 @@ Domain: ${domain || 'Unknown'}
 Current Industry: ${existingIndustry || 'Unknown'}
 
 Web Search Results:
-${searchContext || 'No web search results found.'}
+${searchContext || 'No results found.'}
 
-Based on the above search results, provide accurate company data as JSON.`;
+Provide accurate company data as JSON.`;
 
   try {
     const response = await callLLM(systemPrompt, userPrompt);
     const parsed = extractJSON(response) as Record<string, unknown> | null;
 
     if (parsed && typeof parsed === 'object') {
-      console.log(`[companies/enrich] Successfully enriched ${companyName} with web data`);
+      console.log(`[companies/enrich] Successfully enriched ${companyName}`);
+      const socialProfiles: Record<string, string> = {};
+      if (linkedInUrl) socialProfiles.linkedin = linkedInUrl;
+      if (twitterUrl) socialProfiles.twitter = twitterUrl;
+
       return {
         businessOverview: String(parsed.businessOverview || `${companyName} operates in the ${existingIndustry || 'technology'} sector.`),
-        revenue: String(parsed.revenue || 'Unknown'),
-        employeeCount: String(parsed.employeeCount || 'Unknown'),
-        fundingStage: String(parsed.fundingStage || 'Unknown'),
+        revenue: String(parsed.revenue || 'Not found'),
+        employeeCount: String(parsed.employeeCount || 'Not found'),
+        fundingStage: String(parsed.fundingStage || 'Not found'),
         techStack: String(parsed.techStack || ''),
-        socialProfiles: parsed.socialProfiles ? JSON.stringify(parsed.socialProfiles) : JSON.stringify(Object.fromEntries(
-          Object.entries({ linkedin: linkedInUrl, twitter: twitterUrl }).filter(([, v]) => v)
-        )),
+        socialProfiles: JSON.stringify(socialProfiles),
+        keyPeople: keyPeopleData,
+        recentNews: newsData,
+        industry: String(parsed.industry || existingIndustry || 'Not found'),
+        website: String(parsed.website || websiteUrl || domain ? `https://${domain}` : ''),
       };
     }
   } catch (err) {
-    console.error('[companies/enrich] AI enrichment failed:', err);
+    console.error('[companies/enrich] AI extraction failed:', err);
   }
 
-  // Fallback — at least include any social URLs found
+  // Fallback
+  const socialProfiles: Record<string, string> = {};
+  if (linkedInUrl) socialProfiles.linkedin = linkedInUrl;
+  if (twitterUrl) socialProfiles.twitter = twitterUrl;
+
   return {
     businessOverview: `${companyName} operates in the ${existingIndustry || 'technology'} sector.`,
-    revenue: 'Unknown',
-    employeeCount: 'Unknown',
-    fundingStage: 'Unknown',
+    revenue: 'Not found',
+    employeeCount: 'Not found',
+    fundingStage: 'Not found',
     techStack: '',
-    socialProfiles: JSON.stringify(Object.fromEntries(
-      Object.entries({ linkedin: linkedInUrl, twitter: twitterUrl }).filter(([, v]) => v)
-    )),
+    socialProfiles: JSON.stringify(socialProfiles),
+    keyPeople: keyPeopleData,
+    recentNews: newsData,
+    industry: existingIndustry || 'Not found',
+    website: websiteUrl || domain ? `https://${domain}` : '',
   };
 }

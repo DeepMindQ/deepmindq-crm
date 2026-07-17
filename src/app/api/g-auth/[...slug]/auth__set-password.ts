@@ -23,6 +23,14 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, otpCode, password } = parsed.data;
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // ── Owner-only access ──
+    const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || 'shanker001@gmail.com')
+      .split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    if (!ALLOWED_EMAILS.includes(normalizedEmail)) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
 
     // First verify the OTP for set_password purpose
     const otpResult = await verifyOtp(email, otpCode, 'set_password');

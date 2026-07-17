@@ -4,6 +4,12 @@ import { verifyOtp, type OtpPurpose } from '@/lib/otp';
 import { createSession } from '@/lib/session';
 import { db } from '@/lib/db';
 
+// ── Owner-only access: only these emails can verify OTP ──
+const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || 'shanker001@gmail.com')
+  .split(',')
+  .map(e => e.trim().toLowerCase())
+  .filter(Boolean);
+
 const schema = z.object({
   email: z.string().email('Invalid email address'),
   code: z.string().length(6, 'Code must be 6 digits'),
@@ -21,6 +27,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, code, purpose } = parsed.data;
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // ── BLOCK any email not in the allowlist ──
+    if (!ALLOWED_EMAILS.includes(normalizedEmail)) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
     const result = await verifyOtp(email, code, purpose as OtpPurpose);
 
     if (!result.success) {

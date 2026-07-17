@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server"
 
-// Mock register route — no bcryptjs or next-auth imports
+// Registration is disabled — this is a single-owner workspace.
 
 export async function POST() {
-  return NextResponse.json({
-    success: true,
-    data: { id: "demo-1", name: "User", email: "" },
-  })
+  return NextResponse.json({ error: 'Registration is disabled' }, { status: 403 });
+}
+
+export async function GET() {
+  return NextResponse.json({ error: 'Registration is disabled' }, { status: 403 });
 }

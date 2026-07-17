@@ -261,7 +261,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ withContacts: 0, withSignals: 0, avgScore: 0 });
+  const [stats, setStats] = useState({ withContacts: 0, withSignals: 0, avgScore: 0, enriched: 0 });
   const [metaLoading, setMetaLoading] = useState(true);
 
   /* ── Selection state ── */
@@ -278,6 +278,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
   const [industry, setIndustry] = useState('');
   const [country, setCountry] = useState('');
   const [page, setPage] = useState(1);
+  const [enrichmentStatus, setEnrichmentStatus] = useState<'' | 'enriched' | 'unenriched'>('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const limit = 20;
 
@@ -318,6 +319,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
       if (debouncedSearch) params.set('search', debouncedSearch);
       if (industry) params.set('industry', industry);
       if (country) params.set('country', country);
+      if (enrichmentStatus) params.set('enrichment', enrichmentStatus);
       params.set('sort', 'name');
       params.set('order', 'asc');
 
@@ -331,10 +333,11 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
       // Derive stats from the response page
       const wc = list.filter((c: Company) => (c.contactCount || c._count?.contacts || 0) > 0).length;
       const ws = list.filter((c: Company) => (c.intelligenceScore ?? 0) > 0).length;
+      const enriched = list.filter((c: Company) => !!c.researchCard).length;
       const avg = list.length > 0
         ? Math.round(list.reduce((a: number, c: Company) => a + (c.intelligenceScore ?? 0), 0) / list.length)
         : 0;
-      setStats({ withContacts: wc, withSignals: ws, avgScore: avg });
+      setStats({ withContacts: wc, withSignals: ws, avgScore: avg, enriched });
     } catch {
       toast.error('Failed to load companies');
     } finally {
@@ -446,7 +449,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
   };
 
   // Reset page on filter change
-  useEffect(() => { setPage(1); }, [debouncedSearch, industry, country]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, industry, country, enrichmentStatus]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const showEmpty = !loading && companies.length === 0;
@@ -526,6 +529,18 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
             {countries.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
 
+          {/* Enrichment Status */}
+          <select
+            value={enrichmentStatus}
+            onChange={(e) => setEnrichmentStatus(e.target.value as '' | 'enriched' | 'unenriched')}
+            className={selectCls}
+            style={selectStyle}
+          >
+            <option value="">All Status</option>
+            <option value="enriched">Enriched</option>
+            <option value="unenriched">Not Enriched</option>
+          </select>
+
           {/* Export CSV */}
           <Button
             size="sm"
@@ -596,8 +611,8 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
         {[
           { icon: Building2, value: total, label: 'Total Companies', color: '#374151' },
           { icon: Users, value: stats.withContacts, label: 'With Contacts', color: '#2563EB' },
-          { icon: Signal, value: stats.withSignals, label: 'With Signals', color: '#D97706' },
-          { icon: BarChart3, value: stats.avgScore, label: 'Avg Intelligence Score', color: '#059669' },
+          { icon: Sparkles, value: stats.enriched, label: 'Enriched (AI)', color: '#059669' },
+          { icon: BarChart3, value: stats.avgScore, label: 'Avg Intelligence Score', color: '#D97706' },
         ].map((s) => (
           <div
             key={s.label}
@@ -813,6 +828,25 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                         >
                           {company.industry}
                         </span>
+                      )}
+                      {isEnriched && company.researchCard && (
+                        <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
+                          {company.researchCard.revenue && company.researchCard.revenue !== 'Not found' && company.researchCard.revenue !== 'Unknown' && (
+                            <span className="text-[9px]" style={{ color: textMuted }}>
+                              {company.researchCard.revenue}
+                            </span>
+                          )}
+                          {company.researchCard.employeeCount && company.researchCard.employeeCount !== 'Not found' && company.researchCard.employeeCount !== 'Unknown' && (
+                            <span className="text-[9px]" style={{ color: '#9CA3AF' }}>
+                              · {company.researchCard.employeeCount} emp
+                            </span>
+                          )}
+                          {company.researchCard.fundingStage && company.researchCard.fundingStage !== 'Not found' && company.researchCard.fundingStage !== 'Unknown' && (
+                            <span className="text-[9px]" style={{ color: '#9CA3AF' }}>
+                              · {company.researchCard.fundingStage}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
 

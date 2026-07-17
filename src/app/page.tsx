@@ -8,6 +8,7 @@ import { AiChatSidebar } from '@/components/shared/ai-chat-sidebar';
 import { AiChatButton } from '@/components/shared/ai-chat-button';
 import { CommandPalette } from '@/components/shared/command-palette';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { QueryProvider } from '@/providers/query-provider';
 
 import {
   LayoutDashboard, Upload, Users, Building2, FileText, Send,
@@ -905,21 +906,23 @@ export default function HomePage() {
 
   // Check session on mount
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
+        const timeout = setTimeout(() => controller.abort(), 5000);
         const res = await fetch('/api/auth/me', { signal: controller.signal });
         clearTimeout(timeout);
-        if (res.ok) {
+        if (res.ok && !cancelled) {
           setLoggedIn(true);
         }
       } catch {
-        // Not authenticated — show login
+        // Not authenticated — show landing
       } finally {
-        setChecking(false);
+        if (!cancelled) setChecking(false);
       }
     })();
+    return () => { cancelled = true; };
   }, []);
 
   const handleLogin = async () => {
@@ -968,7 +971,9 @@ export default function HomePage() {
 
   return (
     <ErrorBoundary>
-      <AppShell onLogout={handleLogout} />
+      <QueryProvider>
+        <AppShell onLogout={handleLogout} />
+      </QueryProvider>
     </ErrorBoundary>
   );
 }

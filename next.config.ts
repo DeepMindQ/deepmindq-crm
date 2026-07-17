@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   compress: true,
   typescript: {
+    // TODO: 368 pre-existing TS errors across 40+ files. Fix incrementally.
+    // DO NOT add new errors — fix them in the same PR that introduces them.
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,

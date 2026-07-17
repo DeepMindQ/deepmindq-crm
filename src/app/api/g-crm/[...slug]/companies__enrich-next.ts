@@ -150,10 +150,21 @@ export async function POST(request: Request) {
       },
     });
 
-    // Backfill company fields from enrichment
-    const companyUpdate: Record<string, string> = {};
+    // Backfill company fields + calculate intelligence score (#26)
+    const companyUpdate: Record<string, string | number> = {};
     if (companyIndustry && !company.industry) companyUpdate.industry = companyIndustry;
     if (companyWebsite && !company.website) companyUpdate.website = companyWebsite;
+
+    let score = 10;
+    if (enrichmentData.businessOverview && enrichmentData.businessOverview.length > 20) score += 15;
+    if (enrichmentData.revenue && enrichmentData.revenue !== 'Not found') score += 15;
+    if (enrichmentData.employeeCount && enrichmentData.employeeCount !== 'Not found') score += 10;
+    if (enrichmentData.fundingStage && enrichmentData.fundingStage !== 'Not found') score += 10;
+    if (enrichmentData.techStack && enrichmentData.techStack.length > 0) score += 10;
+    if (company.domain) score += 10;
+    if (company.website) score += 5;
+    companyUpdate.intelligenceScore = Math.min(100, score);
+
     if (Object.keys(companyUpdate).length > 0) {
       await db.company.update({ where: { id: company.id }, data: companyUpdate });
     }

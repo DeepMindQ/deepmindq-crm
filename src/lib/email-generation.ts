@@ -202,20 +202,16 @@ async function generateWithAI(
     executive: 'Write in a concise, C-suite appropriate tone. Direct, data-driven, respectful of their time.',
   };
 
-  // Build company research context for the LLM
+  // Build company research context — compact to stay within Vercel 10s timeout (#24)
   let researchContext = '';
   if (researchCard && researchCard.confidence > 20) {
-    researchContext = `
-── COMPANY INTELLIGENCE (from real-time web research) ──
-Business Overview: ${researchCard.businessOverview}
-Revenue: ${researchCard.revenue}
-Employees: ${researchCard.employeeCount}
-Funding Stage: ${researchCard.fundingStage}
-Technology Stack: ${researchCard.techStack || 'Not identified'}
-Industry: ${researchCard.industry}
-${researchCard.keyPeople.length > 0 ? `Key People: ${researchCard.keyPeople.slice(0, 3).map(p => `${p.name} (${p.title})`).join(', ')}` : ''}
-${researchCard.recentNews.length > 0 ? `Recent News: ${researchCard.recentNews.slice(0, 3).map(n => n.title).join('; ')}` : ''}
-`;
+    const parts: string[] = ['── COMPANY INTELLIGENCE ──'];
+    if (researchCard.businessOverview) parts.push(`Overview: ${researchCard.businessOverview}`);
+    if (researchCard.revenue && researchCard.revenue !== 'Not found') parts.push(`Revenue: ${researchCard.revenue}`);
+    if (researchCard.employeeCount && researchCard.employeeCount !== 'Not found') parts.push(`Employees: ${researchCard.employeeCount}`);
+    if (researchCard.fundingStage && researchCard.fundingStage !== 'Not found') parts.push(`Funding: ${researchCard.fundingStage}`);
+    if (researchCard.industry) parts.push(`Industry: ${researchCard.industry}`);
+    researchContext = parts.join('\n');
   }
 
   const systemPrompt = `You are an expert B2B sales email writer for a technology services company.

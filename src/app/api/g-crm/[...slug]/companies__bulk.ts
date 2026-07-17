@@ -157,6 +157,38 @@ export async function POST(request: Request) {
         break;
       }
 
+      /* ── Cleanup garbage sizeRange values (#27) ── */
+      case 'cleanupSizeRange': {
+        const VALID_RANGES = ['1-10', '11-50', '51-200', '201-500', '501-1,000', '1,001-5,000', '5,001-10,000', '10,001+'];
+        const garbageCompanies = await db.company.findMany({
+          where: { id: { in: validIds } },
+          select: { id: true, sizeRange: true },
+        });
+        let cleaned = 0;
+        for (const c of garbageCompanies) {
+          const sr = (c as any).sizeRange;
+          if (sr && !VALID_RANGES.includes(sr)) {
+            // Try to parse as a number and map to range
+            const num = parseInt(String(sr).replace(/[^0-9]/g, ''), 10);
+            let mapped = null;
+            if (!isNaN(num)) {
+              if (num <= 10) mapped = '1-10';
+              else if (num <= 50) mapped = '11-50';
+              else if (num <= 200) mapped = '51-200';
+              else if (num <= 500) mapped = '201-500';
+              else if (num <= 1000) mapped = '501-1,000';
+              else if (num <= 5000) mapped = '1,001-5,000';
+              else if (num <= 10000) mapped = '5,001-10,000';
+              else mapped = '10,001+';
+            }
+            await db.company.update({ where: { id: c.id }, data: { sizeRange: mapped } });
+            cleaned++;
+          }
+        }
+        result = { cleaned, action: 'cleanupSizeRange' };
+        break;
+      }
+
       default:
         return NextResponse.json(
           { error: `Unknown action: ${action}. Valid actions: updateStatus, addTag, removeTag, delete, assign` },

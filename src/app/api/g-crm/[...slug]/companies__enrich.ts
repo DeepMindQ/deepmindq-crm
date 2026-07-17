@@ -71,13 +71,27 @@ export async function POST(request: Request) {
     });
 
     // Update company fields from research if they were missing
-    const companyUpdate: Record<string, string> = {};
+    const companyUpdate: Record<string, string | number> = {};
     if (!company.industry && enrichmentData.industry && enrichmentData.industry !== 'Not found') {
       companyUpdate.industry = enrichmentData.industry;
     }
     if (!company.website && enrichmentData.website) {
       companyUpdate.website = enrichmentData.website;
     }
+
+    // Calculate real intelligence score from enrichment data (#26)
+    let score = 10; // base score for having a company record
+    if (enrichmentData.businessOverview && enrichmentData.businessOverview !== `${companyName} operates in the ${company.industry || 'technology'} sector.`) score += 15;
+    if (enrichmentData.revenue && enrichmentData.revenue !== 'Not found' && enrichmentData.revenue !== 'Unknown') score += 15;
+    if (enrichmentData.employeeCount && enrichmentData.employeeCount !== 'Not found' && enrichmentData.employeeCount !== 'Unknown') score += 10;
+    if (enrichmentData.fundingStage && enrichmentData.fundingStage !== 'Not found' && enrichmentData.fundingStage !== 'Unknown') score += 10;
+    if (enrichmentData.techStack && enrichmentData.techStack.length > 0) score += 10;
+    if (enrichmentData.industry && enrichmentData.industry !== 'Not found') score += 10;
+    if (company.domain) score += 10;
+    if (company.website) score += 5;
+    if (enrichmentData.socialProfiles && enrichmentData.socialProfiles !== '{}' && enrichmentData.socialProfiles !== '{}') score += 5;
+    companyUpdate.intelligenceScore = Math.min(100, score);
+
     if (Object.keys(companyUpdate).length > 0) {
       await db.company.update({ where: { id: company.id }, data: companyUpdate });
     }

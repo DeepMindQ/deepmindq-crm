@@ -71,7 +71,7 @@ export interface CompanyResearch {
 
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || ''
 const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1'
-const NVIDIA_MODEL = 'nvidia/llama-3.3-nemotron-super-49b-v1'
+const NVIDIA_MODEL = process.env.NVIDIA_MODEL || 'meta/llama-3.1-8b-instruct'
 
 const FIREWORKS_API_KEY = process.env.FIREWORKS_API_KEY || ''
 const FIREWORKS_BASE_URL = 'https://api.fireworks.ai/inference/v1'
@@ -109,7 +109,7 @@ async function callLLMProvider(baseURL: string, apiKey: string, model: string, u
       temperature: 0.7,
       max_tokens: 8192,
     }),
-    timeout: 25000, // 25s — Vercel Hobby is 10s, but we rely on the platform timeout
+    timeout: 15000, // 15s fetch timeout (Vercel Hobby kills at 10s total)
   })
 
   if (!response.ok) {

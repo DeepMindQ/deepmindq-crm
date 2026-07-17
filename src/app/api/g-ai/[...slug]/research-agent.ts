@@ -151,7 +151,7 @@ Include 4-6 sections. Match the icon to the section topic.`;
         query,
         type,
         generatedAt: new Date().toLocaleString(),
-        executiveSummary: `Research results for "${query}" based on ${searchResults.length} web sources. Note: AI analysis is currently unavailable — configure a valid GEMINI_API_KEY or GROQ_API_KEY for enriched research reports.`,
+        executiveSummary: `Research results for "${query}" based on ${searchResults.length} web sources. Note: AI analysis is currently unavailable — configure NVIDIA_API_KEY or FIREWORKS_API_KEY in Vercel env vars.`,
         keyInsights: searchResults.slice(0, 5).map((r) => r.snippet || r.title).filter(Boolean),
         riskFactors: [],
         opportunitySignals: [],

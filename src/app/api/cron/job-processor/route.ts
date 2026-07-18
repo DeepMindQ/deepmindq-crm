@@ -8,14 +8,14 @@ import { processNextJobs, recoverStaleJobs } from '@/lib/workflow-engine';
  * Also recovers stale jobs (running > 30 min, likely from a serverless timeout).
  *
  * Vercel Cron config is in vercel.json (crons array).
- * This endpoint is also safe to call manually for testing.
+ * Set CRON_SECRET env var in Vercel to secure this endpoint.
  */
 export async function GET(request: Request) {
-  // Verify this is called by Vercel Cron (Authorization header)
-  // Vercel sets the "Authorization" header with the cron secret
-  const authHeader = request.headers.get('authorization');
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authHeader = request.headers.get('Authorization');
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return new Response('Unauthorized', { status: 401 });
   }
 
   const startTime = Date.now();

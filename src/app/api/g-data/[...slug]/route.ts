@@ -32,12 +32,14 @@ import * as mod_config_scoring from './config__scoring.ts';
 import * as mod_config_scoring_id from './config__scoring___id.ts';
 import * as mod_config_seed from './config__seed.ts';
 
-// Workflow Engine (Phase 2)
-import * as mod_jobs from './jobs.ts';
-import * as mod_jobs_id from './jobs___id.ts';
-import * as mod_jobs_actions from './jobs__actions.ts';
+// Workflow Engine (Phase 2) — loaded dynamically to avoid Turbopack bundling issues
+// with the deep dependency chain (jobs → workflow-engine → processor → zai-helpers → ai-config → db).
+// Static imports caused the entire router module to fail silently on Vercel.
+async function loadJobs() { return await import('./jobs.ts'); }
+async function loadJobsId() { return await import('./jobs___id.ts'); }
+async function loadJobsActions() { return await import('./jobs__actions.ts'); }
 
-// Route registry
+// Route registry — jobs routes use lazy loaders instead of static module refs
 const ROUTES = [
   // Original data routes
   { key: 'stats', handler: mod_stats },
@@ -73,10 +75,10 @@ const ROUTES = [
   { key: 'config/scoring/[id]', handler: mod_config_scoring_id },
   { key: 'config/seed', handler: mod_config_seed },
 
-  // Workflow Engine: Job management
-  { key: 'jobs', handler: mod_jobs },
-  { key: 'jobs/[id]', handler: mod_jobs_id },
-  { key: 'jobs/actions', handler: mod_jobs_actions },
+  // Workflow Engine: Job management (dynamic loaders)
+  { key: 'jobs', loader: loadJobs },
+  { key: 'jobs/[id]', loader: loadJobsId },
+  { key: 'jobs/actions', loader: loadJobsActions },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';
@@ -102,7 +104,7 @@ function keyToRegex(key: string): { regex: RegExp; paramNames: string[] } {
   return { regex: new RegExp('^' + regexParts.join('/') + '$'), paramNames };
 }
 
-function matchRoute(slug: string[]): { handler: Record<string, Function>; params: Record<string, string> } | null {
+function matchRoute(slug: string[]): { handler?: Record<string, Function>; loader?: () => Promise<Record<string, Function>>; params: Record<string, string> } | null {
   const path = slug.join('/');
   for (const route of ROUTES) {
     const { regex, paramNames } = keyToRegex(route.key);
@@ -110,23 +112,28 @@ function matchRoute(slug: string[]): { handler: Record<string, Function>; params
     if (match) {
       const params: Record<string, string> = {};
       paramNames.forEach((name, i) => { params[name] = match[i + 1] || ''; });
-      return { handler: route.handler, params };
+      return { handler: (route as any).handler, loader: (route as any).loader, params };
     }
   }
   return null;
 }
 
-
-// Debug: expose registered route keys (temporary)
-const debug_handler = {
-  GET: async () => NextResponse.json({ registeredRoutes: ROUTES.map(r => r.key), routeCount: ROUTES.length })
-};
-ROUTES.push({ key: 'debug-routes', handler: debug_handler as any });
-
 async function handle(method: HttpMethod, req: NextRequest, slug: string[]): Promise<Response> {
   const matched = matchRoute(slug);
   if (!matched) return NextResponse.json({ error: 'Not found', path: slug.join('/') }, { status: 404 });
-  const fn = matched.handler[method];
+
+  // Resolve handler: either direct (static import) or lazy (dynamic import)
+  let handler = matched.handler;
+  if (!handler && matched.loader) {
+    try {
+      handler = await matched.loader();
+    } catch (err: any) {
+      console.error(`[router:data] Failed to load module for /${slug.join('/')}:`, err.message);
+      return NextResponse.json({ error: 'Module load error', detail: err.message }, { status: 500 });
+    }
+  }
+
+  const fn = handler?.[method];
   if (typeof fn !== 'function') return NextResponse.json({ error: `${method} not allowed` }, { status: 405 });
   try { return await fn(req, { params: Promise.resolve(matched.params) }); }
   catch (err: any) { console.error(`[router:data] ${method} /${slug.join('/')}:`, err.message); return NextResponse.json({ error: 'Internal error', detail: err.message }, { status: 500 }); }

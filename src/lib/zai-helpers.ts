@@ -310,6 +310,11 @@ export function extractJSON(raw: string): unknown {
  * Full company research using multiple Tavily searches + Gemini extraction.
  * Returns structured data: overview, revenue, headcount, tech stack,
  * key people, recent news, social profiles.
+ *
+ * @deprecated Use `researchCompany` from `@/lib/research-engine` instead.
+ *             This legacy function does NOT produce evidence records,
+ *             per-field confidence, or signal detection.
+ *             The research-engine version provides full provenance tracking.
  */
 export async function researchCompany(
   companyName: string,

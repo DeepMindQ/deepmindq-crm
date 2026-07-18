@@ -112,8 +112,9 @@ export async function researchCompany(
     searchQueries.map(sq => webSearch(sq.query, 8)),
   );
 
-  const searchResultsByCategory: Record<string, Array<{ title: string; snippet: string; url: string; source: string }>> = {};
-  const allSearchResults: Array<{ title: string; snippet: string; url: string; source: string }> = [];
+  type SearchResult = { title: string; snippet: string; url: string; source: string; date: string };
+  const searchResultsByCategory: Record<string, SearchResult[]> = {};
+  const allSearchResults: SearchResult[] = [];
 
   searchQueries.forEach((sq, i) => {
     const settled = searchSettled[i];
@@ -123,6 +124,7 @@ export async function researchCompany(
         snippet: r.snippet || r.description || '',
         url: r.url,
         source: r.host_name || r.name || '',
+        date: r.date || '',
       }));
       allSearchResults.push(...searchResultsByCategory[sq.key]);
     } else {
@@ -324,33 +326,34 @@ Extract accurate company data as JSON. Ground everything in the search results a
   if (result.linkedInUrl) result.socialProfiles.linkedin = result.linkedInUrl;
   if (result.twitterUrl) result.socialProfiles.twitter = result.twitterUrl;
 
-  const { keyPeople: _kp, recentNews: _rn, ...prismaFields } = {
+  // Build all research card fields (schema now includes industry, website, keyPeople, recentNews)
+  const researchCardData = {
     businessOverview: result.businessOverview,
-    revenue: result.revenue,
-    employeeCount: result.employeeCount,
-    fundingStage: result.fundingStage,
-    techStack: result.techStack,
-    socialProfiles: JSON.stringify(result.socialProfiles),
-    keyPeople: JSON.stringify(result.keyPeople),
-    recentNews: JSON.stringify(result.recentNews),
-    industry: result.industry,
-    website: result.website,
+    revenue: result.revenue !== 'Not found' ? result.revenue : null,
+    employeeCount: result.employeeCount !== 'Not found' ? result.employeeCount : null,
+    fundingStage: result.fundingStage !== 'Not found' ? result.fundingStage : null,
+    techStack: result.techStack || null,
+    socialProfiles: Object.keys(result.socialProfiles).length > 0
+      ? JSON.stringify(result.socialProfiles) : null,
+    keyPeople: result.keyPeople.length > 0
+      ? JSON.stringify(result.keyPeople) : undefined, // uses schema default "[]"
+    recentNews: result.recentNews.length > 0
+      ? JSON.stringify(result.recentNews) : undefined, // uses schema default "[]"
+    industry: result.industry !== 'Not found' ? result.industry : null,
+    website: result.website || null,
+    enrichmentSource: 'research_engine_v3',
+    enrichmentDate: new Date(),
+    fieldConfidence: JSON.stringify(fieldConfidence),
   };
 
   await db.companyResearchCard.upsert({
     where: { companyId },
     create: {
       companyId,
-      ...prismaFields,
-      enrichmentSource: 'research_engine_v3',
-      enrichmentDate: new Date(),
-      fieldConfidence: JSON.stringify(fieldConfidence),
+      ...researchCardData,
     },
     update: {
-      ...prismaFields,
-      enrichmentSource: 'research_engine_v3',
-      enrichmentDate: new Date(),
-      fieldConfidence: JSON.stringify(fieldConfidence),
+      ...researchCardData,
     },
   });
 

@@ -155,6 +155,12 @@ model CompanyResearchCard {
   enrichmentDate    DateTime?
   fieldConfidence   String?   // JSON: {"revenue":0.9,"employeeCount":0.7,...} — per-field confidence from Phase 3
 
+  // Phase 3: Research engine fields
+  industry         String?                          // primary industry from research
+  website          String?                          // official website URL
+  keyPeople        String?   @default("[]")        // JSON: [{name, title, department, linkedInUrl, source}]
+  recentNews       String?   @default("[]")        // JSON: [{title, snippet, source, url, signalType, impact}]
+
   lastResearchedAt    DateTime @updatedAt
   createdAt           DateTime @default(now())
 
@@ -223,6 +229,8 @@ model Evidence {
   extractedValue String?                             // the value extracted from this evidence
   relevanceScore Float  @default(0.5)                // 0-1 how relevant this evidence is
   confidence    Float    @default(0.5)               // 0-1 confidence in this evidence
+  sourceDate    DateTime?                           // when the source was published (for recency scoring)
+  sourceQualityTier String @default("standard")    // premium, standard, low — configurable via SystemSetting
   createdAt     DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)

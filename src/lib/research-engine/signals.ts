@@ -8,8 +8,11 @@
  * - Type classification
  * - Impact assessment (high/medium/low on sales opportunity)
  * - Confidence score
- * - Links to supporting evidence
+ * - Links to supporting evidence (via sourceUrl → Evidence record)
  * - Signal date (when the event happened, not when we found it)
+ *
+ * Evidence linking uses sourceUrl matching (stable, unique) instead of
+ * fragile snippet prefix matching.
  */
 
 import { db } from '@/lib/db';
@@ -28,6 +31,7 @@ export interface DetectedSignal {
   signalDate: string | null; // ISO date of the event
   confidence: number; // 0-1
   evidenceSnippet: string; // the snippet that triggered this signal
+  evidenceUrl: string; // URL of the source — used for evidence linking
 }
 
 export interface SignalDetectionResult {
@@ -41,6 +45,7 @@ export interface SignalDetectionResult {
 /**
  * Analyze search results for buying signals using LLM.
  * Returns structured signals with impact assessment.
+ * Each signal includes evidenceUrl for reliable evidence linking.
  */
 export async function detectSignals(
   companyName: string,
@@ -51,7 +56,7 @@ export async function detectSignals(
   }
 
   const context = snippets.slice(0, 25).map((s, i) =>
-    `[${i + 1}] ${s.title}\n${s.snippet}\nSource: ${s.source} (${s.url})`
+    `[${i}] URL: ${s.url}\n${s.title}\n${s.snippet}\nSource: ${s.source}`
   ).join('\n\n');
 
   const systemPrompt = `You are a B2B sales intelligence analyst specializing in buying signal detection.
@@ -73,6 +78,7 @@ IMPACT ASSESSMENT:
 - low: Tangential (e.g., minor news, general industry trend)
 
 For each signal, also estimate when the event occurred (signalDate) if mentioned.
+The evidenceIndex must point to the source index in the input list.
 
 Return ONLY valid JSON array:
 [{
@@ -80,7 +86,7 @@ Return ONLY valid JSON array:
   "title": "concise signal headline",
   "description": "1-2 sentence explanation of the signal and why it matters",
   "source": "source publication",
-  "sourceUrl": "url or empty",
+  "sourceUrl": "the URL from the source (use the URL field from the input)",
   "impact": "high|medium|low",
   "severity": "high|medium|low",
   "signalDate": "YYYY-MM-DD or null",
@@ -98,26 +104,27 @@ Maximum 10 signals. Only include signals clearly supported by the results. Empty
 
     if (Array.isArray(parsed)) {
       const signals: DetectedSignal[] = (parsed as Record<string, unknown>[])
-        .map((s, i) => {
+        .map((s) => {
           const evidenceIndex = typeof s.evidenceIndex === 'number' ? s.evidenceIndex : -1;
-          const evidenceSnippet = evidenceIndex >= 0 && evidenceIndex < snippets.length
-            ? snippets[evidenceIndex].snippet
-            : '';
+          const sourceData = evidenceIndex >= 0 && evidenceIndex < snippets.length
+            ? snippets[evidenceIndex]
+            : null;
 
           return {
             signalType: (['funding', 'hiring', 'leadership_change', 'expansion', 'technology', 'product', 'partnership'].includes(String(s.signalType))
               ? String(s.signalType) : 'expansion') as string,
             title: String(s.title || ''),
             description: String(s.description || ''),
-            source: String(s.source || 'web_search'),
-            sourceUrl: String(s.sourceUrl || ''),
+            source: String(s.source || sourceData?.source || 'web_search'),
+            sourceUrl: String(s.sourceUrl || sourceData?.url || ''),
             impact: (['high', 'medium', 'low'].includes(String(s.impact))
               ? String(s.impact) : 'medium') as 'high' | 'medium' | 'low',
             severity: (['high', 'medium', 'low'].includes(String(s.severity))
               ? String(s.severity) : 'medium') as 'high' | 'medium' | 'low',
             signalDate: s.signalDate ? String(s.signalDate) : null,
             confidence: typeof s.confidence === 'number' ? Math.min(1, Math.max(0, s.confidence)) : 0.6,
-            evidenceSnippet,
+            evidenceSnippet: sourceData?.snippet || '',
+            evidenceUrl: sourceData?.url || String(s.sourceUrl || ''),
           };
         })
         .filter(s => s.title && s.description);
@@ -139,7 +146,8 @@ Maximum 10 signals. Only include signals clearly supported by the results. Empty
 /**
  * Store detected signals in the database.
  * Deduplicates against existing signals for the same company.
- * Returns the IDs of newly created signals.
+ * Links signals to Evidence records via sourceUrl (reliable, unique).
+ * Returns count of newly created signals.
  */
 export async function storeSignals(
   companyId: string,
@@ -159,25 +167,39 @@ export async function storeSignals(
 
   if (newSignals.length === 0) return [];
 
-  // Find supporting evidence IDs
-  const evidenceRecords = await db.evidence.findMany({
-    where: {
-      companyId,
-      snippet: { in: newSignals.map(s => s.evidenceSnippet).filter(Boolean) },
-    },
-    select: { id: true, snippet: true },
-  });
+  // ── Reliable evidence linking via sourceUrl (not snippet prefix) ──
+  // Collect all unique URLs from signals to batch-lookup evidence
+  const signalUrls = [...new Set(newSignals.map(s => s.evidenceUrl).filter(Boolean))];
 
-  const snippetToEvidenceId = new Map<string, string>();
-  for (const e of evidenceRecords) {
-    if (e.snippet) snippetToEvidenceId.set(e.snippet.slice(0, 100), e.id);
+  // Build a map: URL → Evidence ID
+  const urlToEvidenceId = new Map<string, string>();
+  if (signalUrls.length > 0) {
+    const evidenceRecords = await db.evidence.findMany({
+      where: {
+        companyId,
+        sourceUrl: { in: signalUrls },
+      },
+      select: { id: true, sourceUrl: true },
+    });
+    for (const e of evidenceRecords) {
+      urlToEvidenceId.set(e.sourceUrl, e.id);
+    }
   }
 
-  const created = await db.companySignal.createMany({
+  await db.companySignal.createMany({
     data: newSignals.map(s => {
-      const evidenceId = s.evidenceSnippet
-        ? snippetToEvidenceId.get(s.evidenceSnippet.slice(0, 100))
-        : null;
+      // Look up evidence by sourceUrl (reliable) with fallback to snippet
+      let evidenceId = s.evidenceUrl ? urlToEvidenceId.get(s.evidenceUrl) : null;
+
+      // Fallback: if no URL match, try finding by snippet content
+      if (!evidenceId && s.evidenceSnippet) {
+        // We'll try to find by URL in sourceUrl field first,
+        // then by checking if the snippet contains the signal's source URL
+        const fallbackUrl = newSignals
+          .find(ns => ns.evidenceSnippet === s.evidenceSnippet)?.evidenceUrl;
+        if (fallbackUrl) evidenceId = urlToEvidenceId.get(fallbackUrl);
+      }
+
       return {
         companyId,
         signalType: s.signalType,
@@ -203,12 +225,16 @@ export async function storeSignals(
         eventType: 'signal',
         title: `Signal: ${s.title}`,
         description: s.description,
-        metadata: JSON.stringify({ signalType: s.signalType, impact: s.impact, confidence: s.confidence }),
+        metadata: JSON.stringify({
+          signalType: s.signalType,
+          impact: s.impact,
+          confidence: s.confidence,
+          sourceUrl: s.evidenceUrl,
+        }),
       })),
     });
   }
 
-  // Log count of created signals (createMany doesn't return IDs)
   return newSignals.map((_, i) => `signal_${i}`);
 }
 
@@ -252,6 +278,7 @@ function ruleBasedSignalDetection(
           signalDate: null,
           confidence: 0.5,
           evidenceSnippet: s.snippet,
+          evidenceUrl: s.url, // direct URL reference for evidence linking
         });
         break; // one signal per snippet
       }

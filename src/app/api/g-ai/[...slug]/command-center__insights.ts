@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { callLLM } from '@/lib/zai-helpers';
+import { governedAICall } from '@/lib/ai-governance';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    AI-powered Command Center Insights
@@ -123,7 +123,15 @@ Your job is to analyse the provided platform metrics and return a JSON object wi
 
 IMPORTANT: Return ONLY valid JSON. No markdown fences, no commentary.`;
 
-  const raw = await callLLM(systemPrompt, `Here are the current platform metrics:\n\n${metricsContext}`);
+  const result = await governedAICall({
+    generationType: 'insights',
+    systemPrompt,
+    userPrompt: `Here are the current platform metrics:\n\n${metricsContext}`,
+    enforceGovernance: false, // Platform-level dashboard
+    inputParams: { healthScore },
+  })
+  if (!result.success) throw new Error('AI analysis failed')
+  const raw = result.response!
 
   // Parse — tolerate optional markdown code fences
   const cleaned = raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim();

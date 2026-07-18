@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
-import { callLLM } from '@/lib/zai-helpers';
+import { governedAICall } from '@/lib/ai-governance';
 import { getResearchContext, buildResearchContextText } from '@/lib/intelligence-contract';
 
 // ── Types ──
@@ -176,7 +176,18 @@ Return ONLY valid JSON array:
 
 Identify 5-8 stakeholders. Focus on C-suite, VPs, and Directors relevant to technology, digital transformation, and operations.`;
 
-        const raw = await callLLM(systemPrompt, userPrompt);
+        const result = await governedAICall({
+          generationType: 'suggested_contacts',
+          companyId,
+          researchContext: ctx,
+          systemPrompt,
+          userPrompt,
+          enforceGovernance: true,
+          signalIds: ctx.signals.map(s => s.id),
+          inputParams: { companyName, hasPhase3KeyPeople: ctx.keyPeople.length },
+        })
+        if (!result.success) throw new Error('AI analysis failed')
+        const raw = result.response!
         const llmContacts = parseContacts(raw);
 
         // Merge: add LLM contacts that aren't duplicates of Phase 3 key people

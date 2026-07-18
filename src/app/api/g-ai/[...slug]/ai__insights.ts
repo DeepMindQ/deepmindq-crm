@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-import { callLLM } from '@/lib/zai-helpers'
+import { governedAICall } from '@/lib/ai-governance'
 import { getSignalMetrics } from '@/lib/intelligence-contract'
 
 /* ── In-memory cache (5 minutes) ── */
@@ -180,10 +180,16 @@ async function buildAIInsights(stats: PipelineStats, phase3Context: string): Pro
     instructionsBlock,
   ].join('\n')
 
-  const raw = await callLLM(
-    'You are a sales intelligence analyst. You respond ONLY with valid JSON matching the requested schema. No markdown, no commentary.',
+  const systemPrompt = 'You are a sales intelligence analyst. You respond ONLY with valid JSON matching the requested schema. No markdown, no commentary.'
+  const result = await governedAICall({
+    generationType: 'insights',
+    systemPrompt,
     userPrompt,
-  )
+    enforceGovernance: false, // Platform-level, not company-specific
+    inputParams: { totalCompanies: stats.totalCompanies, hasPhase3Context: !!phase3Context },
+  })
+  if (!result.success) throw new Error('Governance/LLM check failed')
+  const raw = result.response!
 
   // Extract JSON — handle potential markdown fences or leading/trailing whitespace
   const jsonMatch = raw.match(/\{[\s\S]*\}/)

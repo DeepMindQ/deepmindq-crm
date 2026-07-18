@@ -248,7 +248,8 @@ model Evidence {
   confidence    Float    @default(0.5)               // 0-1 confidence in this evidence
   sourceDate    DateTime?                           // when the source was published (for recency scoring)
   sourceQualityTier String @default("standard")    // premium, standard, low — configurable via SystemSetting
-  createdAt     DateTime @default(now())
+  status          String  @default("active")        // active, aging, superseded, expired — evidence lifecycle
+  createdAt       DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -257,6 +258,7 @@ model Evidence {
   @@index([jobId])
   @@index([confidence])
   @@index([createdAt])
+  @@index([status])
 }
 
 model CompanyTimelineEvent {
@@ -1014,6 +1016,7 @@ model AIGenerationAudit {
   governanceChecks      String?  @default("{}")          // JSON: {email: {research: true, capability: true, freshness: true}, ...}
   outputSummary         String?                          // brief summary of what was generated (not full output)
   modelUsed             String?                          // which LLM model was used
+  promptVersion         String?                          // governance prompt version hash for reproducibility
   inputParams           String?  @default("{}")          // JSON: the input parameters (sanitized, no PII)
   createdAt             DateTime @default(now())
 
@@ -1022,6 +1025,28 @@ model AIGenerationAudit {
   @@index([contactId])
   @@index([createdAt])
   @@index([governancePassed])
+}
+
+// ── Signal-Capability Matching ──
+// Automatic matching of detected buying signals to capability assets.
+// Enables: "This hiring signal maps to our Cloud Migration capability"
+
+model SignalCapabilityMatch {
+  id               String   @id @default(cuid())
+  companyId        String
+  signalId         String                           // CompanySignal ID
+  capabilityId     String                           // CapabilityAsset ID
+  matchScore       Float    @default(0)             // 0-1 how relevant the match is
+  reason           String                           // why this capability matches this signal
+  businessProblem  String?                          // identified business problem
+  expectedOutcome  String?                          // expected outcome if engaged
+  salesAngle       String?                          // recommended sales angle
+  createdAt        DateTime @default(now())
+
+  @@index([companyId])
+  @@index([signalId])
+  @@index([capabilityId])
+  @@index([matchScore])
 }
 
 // ── System Settings (persistent key-value store) ──

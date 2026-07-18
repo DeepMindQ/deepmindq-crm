@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { webSearch, callLLM, extractJSON, tavilyAIAnswer } from '@/lib/zai-helpers';
 import { db } from '@/lib/db';
-import { getResearchContext, type ResearchContext } from '@/lib/intelligence-contract';
+import { getResearchContext, buildResearchContextText, type ResearchContext } from '@/lib/intelligence-contract';
+import { runResearch, getEvidenceSummary } from '@/lib/research-engine';
 import { runGovernanceChecks, recordGeneration, HALLUCINATION_PREVENTION_RULES } from '@/lib/ai-governance';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -29,26 +30,73 @@ export async function POST(req: NextRequest) {
 
     const isCompany = type === 'company';
 
-    // ── Intelligence-contract: freshness check (only for company with companyId) ──
-    let researchContext: ResearchContext | null = null;
-    let freshnessWarning: string | null = null;
-
+    // ══════════════════════════════════════════════════════════════════
+    // PHASE 3 ROUTING: Company research with companyId MUST go through
+    // the research engine — no independent webSearch allowed.
+    // ══════════════════════════════════════════════════════════════════
     if (companyId && isCompany) {
-      try {
-        researchContext = await getResearchContext(companyId);
-        const { freshness } = researchContext;
+      const company = await db.company.findUnique({
+        where: { id: companyId },
+        select: { id: true, rawName: true, normalizedName: true, domain: true, industry: true },
+      });
 
-        if (freshness.status === 'fresh' || freshness.status === 'aging') {
-          const daysAgo = freshness.daysSinceResearch ?? 0;
-          freshnessWarning = `Recent research exists (last researched ${daysAgo} day${daysAgo !== 1 ? 's' : ''} ago). Consider refreshing via the Research Engine instead. Proceeding with deep research...`;
-        }
-      } catch (ctxErr) {
-        // Non-blocking — if we can't load context, just proceed without it
-        console.warn('[research-agent] Could not load research context for freshness check:', ctxErr instanceof Error ? ctxErr.message : ctxErr);
+      if (!company) {
+        return NextResponse.json({ error: 'Company not found' }, { status: 404 });
       }
+
+      // Route through Phase 3 research engine (no independent web search)
+      const researchResult = await runResearch({
+        companyId,
+        companyName: company.rawName || company.normalizedName,
+        domain: company.domain,
+        industry: company.industry,
+        force: true,
+      });
+
+      // Load fresh intelligence context
+      const ctx = await getResearchContext(companyId);
+      const evidenceSummary = await getEvidenceSummary(companyId);
+      const intelligenceText = buildResearchContextText(ctx);
+
+      // Record audit
+      const governanceResult = await runGovernanceChecks({
+        companyId,
+        generationType: 'research_agent',
+        researchContext: ctx,
+      });
+      await recordGeneration({
+        generationType: 'research_agent',
+        companyId,
+        researchContext: ctx,
+        governanceResult,
+        outputSummary: `Phase 3 research triggered for ${company.rawName}. ${researchResult.evidenceCount} evidence, ${researchResult.signals.signalCount} signals.`,
+        inputParams: { query, type, _routedThrough: 'phase3_research_engine' },
+      });
+
+      return NextResponse.json({
+        query,
+        type,
+        companyId,
+        generatedAt: new Date().toLocaleString(),
+        executiveSummary: researchResult.businessOverview || `Research completed for ${company.rawName}.`,
+        keyInsights: researchResult.keyPeople.map(p => `${p.name}, ${p.title}`).slice(0, 5),
+        riskFactors: [],
+        opportunitySignals: researchResult.signals.signals.slice(0, 3).map(s => s.title),
+        sections: [],
+        _routedThrough: 'phase3_research_engine',
+        evidenceCount: researchResult.evidenceCount,
+        signalCount: researchResult.signals.signalCount,
+        researchFreshness: ctx.freshness,
+        evidenceSummary,
+      });
     }
 
-    // Step 1: Web search (always works — Tavily)
+    // ══════════════════════════════════════════════════════════════════
+    // Non-company research (person lookup or no companyId) — allowed
+    // but must store results as Evidence records.
+    // ══════════════════════════════════════════════════════════════════
+
+    // Step 1: Web search (Tavily)
     const searchResults = await webSearch(query, 10);
     const searchContext = searchResults
       .map((r) => `[${r.title}] ${r.snippet} (Source: ${r.url})`)
@@ -158,6 +206,8 @@ Include 4-6 sections. Match the icon to the section topic.`;
 
           // ── Record generation audit for fallback ──
           if (companyId) {
+            let researchContext: ResearchContext | null = null;
+            try { researchContext = await getResearchContext(companyId); } catch { /* non-blocking */ }
             const governanceResult = researchContext
               ? await runGovernanceChecks({
                   companyId,
@@ -172,7 +222,7 @@ Include 4-6 sections. Match the icon to the section topic.`;
               researchContext,
               governanceResult,
               outputSummary: tavilyAnswer?.substring(0, 500),
-              inputParams: { query, type, _fallback: 'tavily_ai' },
+              inputParams: { query, type, _fallback: 'tavily_ai', _routedThrough: 'web_search_person_path' },
             });
           }
 
@@ -187,7 +237,7 @@ Include 4-6 sections. Match the icon to the section topic.`;
             opportunitySignals: insights.slice(0, 3),
             sections,
             _fallback: 'tavily_ai',
-            ...(freshnessWarning ? { _freshnessWarning: freshnessWarning } : {}),
+            _routedThrough: 'web_search_person_path',
           });
         }
       } catch (tavilyErr) {
@@ -208,6 +258,8 @@ Include 4-6 sections. Match the icon to the section topic.`;
 
       // ── Record generation audit for raw search fallback ──
       if (companyId) {
+        let researchContext: ResearchContext | null = null;
+        try { researchContext = await getResearchContext(companyId); } catch { /* non-blocking */ }
         const governanceResult = researchContext
           ? await runGovernanceChecks({
               companyId,
@@ -222,7 +274,7 @@ Include 4-6 sections. Match the icon to the section topic.`;
           researchContext,
           governanceResult,
           outputSummary: `Raw search fallback: ${searchResults.length} results`,
-          inputParams: { query, type, _fallback: 'raw_search' },
+          inputParams: { query, type, _fallback: 'raw_search', _routedThrough: 'web_search_person_path' },
         });
       }
 
@@ -237,7 +289,7 @@ Include 4-6 sections. Match the icon to the section topic.`;
         opportunitySignals: [],
         sections,
         _fallback: 'raw_search',
-        ...(freshnessWarning ? { _freshnessWarning: freshnessWarning } : {}),
+        _routedThrough: 'web_search_person_path',
       });
     }
 
@@ -249,6 +301,8 @@ Include 4-6 sections. Match the icon to the section topic.`;
 
       // ── Record generation audit for raw text fallback ──
       if (companyId) {
+        let researchContext: ResearchContext | null = null;
+        try { researchContext = await getResearchContext(companyId); } catch { /* non-blocking */ }
         const governanceResult = researchContext
           ? await runGovernanceChecks({
               companyId,
@@ -263,7 +317,7 @@ Include 4-6 sections. Match the icon to the section topic.`;
           researchContext,
           governanceResult,
           outputSummary: aiResult?.substring(0, 500),
-          inputParams: { query, type, _fallback: 'llm_raw_text' },
+          inputParams: { query, type, _fallback: 'llm_raw_text', _routedThrough: 'web_search_person_path' },
         });
       }
 
@@ -283,7 +337,7 @@ Include 4-6 sections. Match the icon to the section topic.`;
           sources: [{ title: r.title, url: r.url, domain: (() => { try { return new URL(r.url).hostname; } catch { return ''; } })() }],
         })),
         _fallback: 'llm_raw_text',
-        ...(freshnessWarning ? { _freshnessWarning: freshnessWarning } : {}),
+        _routedThrough: 'web_search_person_path',
       });
     }
 
@@ -297,7 +351,7 @@ Include 4-6 sections. Match the icon to the section topic.`;
       : [];
 
     // ── Evidence Storage: store each section's sources as Evidence records ──
-    if (companyId && isCompany && parsed.sections) {
+    if (companyId && parsed.sections) {
       try {
         const sectionList = Array.isArray(parsed.sections) ? parsed.sections : [];
         for (const section of sectionList) {
@@ -349,6 +403,8 @@ Include 4-6 sections. Match the icon to the section topic.`;
 
     // ── Record generation audit for successful LLM result ──
     if (companyId) {
+      let researchContext: ResearchContext | null = null;
+      try { researchContext = await getResearchContext(companyId); } catch { /* non-blocking */ }
       const governanceResult = researchContext
         ? await runGovernanceChecks({
             companyId,
@@ -363,7 +419,7 @@ Include 4-6 sections. Match the icon to the section topic.`;
         researchContext,
         governanceResult,
         outputSummary: (parsed.executiveSummary as string)?.substring(0, 500),
-        inputParams: { query, type },
+        inputParams: { query, type, _routedThrough: 'web_search_person_path' },
       });
     }
 
@@ -377,7 +433,7 @@ Include 4-6 sections. Match the icon to the section topic.`;
       riskFactors: Array.isArray(parsed.riskFactors) ? parsed.riskFactors : [],
       opportunitySignals: Array.isArray(parsed.opportunitySignals) ? parsed.opportunitySignals : [],
       sections,
-      ...(freshnessWarning ? { _freshnessWarning: freshnessWarning } : {}),
+      _routedThrough: 'web_search_person_path',
     });
   } catch (error) {
     console.error('Research agent error:', error);

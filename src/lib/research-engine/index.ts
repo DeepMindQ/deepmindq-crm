@@ -27,6 +27,10 @@ export {
   type DetectedSignal,
   type SignalDetectionResult,
 } from './signals';
+export {
+  matchSignalsToCapabilities,
+  getSignalCapabilityMatches,
+} from './signal-capability-matching';
 
 /**
  * Convenience function: run full research pipeline for a company.

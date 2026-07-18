@@ -144,13 +144,35 @@ export async function researchCompany(
   // STEP 2: Evidence Collection (25-40%)
   // Store pre-fetched search results as evidence (no re-searching)
   // ═══════════════════════════════════════════════════
-  onProgress?.({ step: 2, label: 'Collecting evidence', progress: 28, message: 'Storing evidence from search results...' });
+  onProgress?.({ step: 2, label: 'Collecting evidence', progress: 28, message: 'Marking old evidence as superseded...' });
 
-  // Cleanup old evidence before storing new (GAP 21)
+  // ── Evidence Lifecycle: Mark existing evidence as superseded before storing new ──
   if (force) {
-    const deleted = await cleanupOldEvidence(companyId, jobId);
-    if (deleted > 0) {
-      console.log(`[researcher] Cleaned up ${deleted} old evidence records for ${companyName}`);
+    const supersededCount = await db.evidence.updateMany({
+      where: { companyId, status: 'active' },
+      data: { status: 'superseded' },
+    });
+    if (supersededCount > 0) {
+      console.log(`[researcher] Marked ${supersededCount} existing evidence records as superseded for ${companyName}`);
+    }
+  }
+
+  // Cleanup very old superseded evidence (>50 records kept, older deleted)
+  const supersededTotal = await db.evidence.count({
+    where: { companyId, status: 'superseded' },
+  });
+  if (supersededTotal > 50) {
+    const oldestIds = await db.evidence.findMany({
+      where: { companyId, status: 'superseded' },
+      orderBy: { createdAt: 'asc' },
+      take: supersededTotal - 50,
+      select: { id: true },
+    });
+    if (oldestIds.length > 0) {
+      await db.evidence.deleteMany({
+        where: { id: { in: oldestIds.map(i => i.id) } },
+      });
+      console.log(`[researcher] Purged ${oldestIds.length} expired superseded evidence records`);
     }
   }
 

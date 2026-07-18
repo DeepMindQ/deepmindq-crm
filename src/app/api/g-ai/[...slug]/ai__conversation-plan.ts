@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers';
-import { callLLM, webSearch as webSearchHelper } from '@/lib/zai-helpers';
-import type { WebSearchResult as WebSearchResultType } from '@/lib/zai-helpers';
+import { callLLM } from '@/lib/zai-helpers';
 import {
   getResearchContext,
   buildResearchContextText,
@@ -258,71 +257,6 @@ Generate a highly specific, actionable conversation plan. Ground every claim in 
   return { plan, sources };
 }
 
-// ---------------------------------------------------------------------------
-// Main generation logic — fallback web search path
-// ---------------------------------------------------------------------------
-
-async function generateConversationPlanFallback(
-  input: ConversationPlanInput,
-): Promise<{ plan: ConversationPlan; sources: string[] }> {
-  const {
-    companyName,
-    executiveRole,
-    executiveName,
-    industry,
-    context,
-    yourCapabilities,
-  } = input;
-
-  const capabilities = yourCapabilities || 'AI Automation, Data Analytics, Cloud Modernization, Digital Transformation';
-  const execLabel = executiveName
-    ? `${executiveName}, ${executiveRole} at ${companyName}`
-    : `${executiveRole} at ${companyName}`;
-
-  // Step 1: Web search for real context (fallback path)
-  const searchQuery = `${companyName} ${executiveRole} strategy priorities 2025`;
-  const searchResults = (await webSearchHelper(searchQuery)) as WebSearchResultType[];
-  const sources = searchResults.map((r) => r.url).filter(Boolean);
-
-  // Step 2: Build user prompt with search context
-  const webContext =
-    searchResults.length > 0
-      ? searchResults
-          .map(
-            (r, i) =>
-              `${i + 1}. ${r.title}\n   ${r.snippet}\n   URL: ${r.url}`,
-          )
-          .join('\n\n')
-      : 'No web results found for this company.';
-
-  const userPrompt = `Generate a conversation plan for engaging with ${execLabel}.
-
-── TARGET INFO ──
-Company: ${companyName}
-Industry: ${industry || 'Not specified'}
-Executive Role: ${executiveRole}
-${executiveName ? `Executive Name: ${executiveName}` : '(Executive name not provided — keep the plan role-focused)'}
-
-Additional Context: ${context || 'None provided'}
-
-── YOUR CAPABILITIES ──
-${capabilities}
-
-── LIVE WEB RESEARCH (fallback — no companyId linked) ──
-${webContext}
-
-Generate a highly specific, actionable conversation plan. Use the web research to make the plan current and relevant. Reference real developments when available.`;
-
-  // Step 3: Call LLM
-  const raw = await callLLM(SYSTEM_PROMPT, userPrompt);
-  const plan = parseConversationPlan(raw);
-
-  if (!plan) {
-    throw new Error('Failed to parse AI response into a valid conversation plan');
-  }
-
-  return { plan, sources };
-}
 
 // ---------------------------------------------------------------------------
 // POST /api/ai/conversation-plan
@@ -334,29 +268,27 @@ export async function POST(request: NextRequest) {
     const parsed = validateBody(conversationPlanSchema, body);
     if (parsed instanceof Response) return parsed;
 
-    const intelligenceSource = parsed.companyId ? 'phase3' as const : 'fallback_web' as const;
+    if (!parsed.companyId) {
+      return apiError('companyId is required. All AI generation must consume the Intelligence Contract.', 400);
+    }
 
+    // ── Phase 3 Intelligence Path ──
+    const intelligenceSource = 'phase3' as const;
     let result: { plan: ConversationPlan; sources: string[] };
 
-    if (parsed.companyId) {
-      // ── Phase 3 Intelligence Path ──
-      let researchCtx: ResearchContext;
-      try {
-        researchCtx = await getResearchContext(parsed.companyId);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Unknown error';
-        console.error('[conversation-plan] Failed to load research context:', msg);
-        return apiError(
-          `Could not load company intelligence for companyId "${parsed.companyId}": ${msg}. Ensure the company exists and has been researched.`,
-          422,
-        );
-      }
-
-      result = await generateConversationPlanPhase3(parsed, researchCtx);
-    } else {
-      // ── Fallback Web Search Path ──
-      result = await generateConversationPlanFallback(parsed);
+    let researchCtx: ResearchContext;
+    try {
+      researchCtx = await getResearchContext(parsed.companyId);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('[conversation-plan] Failed to load research context:', msg);
+      return apiError(
+        `Could not load company intelligence for companyId "${parsed.companyId}": ${msg}. Ensure the company exists and has been researched.`,
+        422,
+      );
     }
+
+    result = await generateConversationPlanPhase3(parsed, researchCtx);
 
     return apiSuccess({
       plan: result.plan,

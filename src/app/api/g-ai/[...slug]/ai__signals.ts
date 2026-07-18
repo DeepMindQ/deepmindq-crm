@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, safeInt } from '@/lib/apiHelpers'
 import { getResearchContext, type ResearchContext } from '@/lib/intelligence-contract'
-import { callLLM } from '@/lib/zai-helpers'
+import { governedAICall } from '@/lib/ai-governance'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -111,7 +111,18 @@ ${signalContext}
 Enrich each signal with sales-specific analysis. Return JSON array.`
 
   try {
-    const raw = await callLLM(ENRICH_SYSTEM_PROMPT, userPrompt)
+    const result = await governedAICall({
+      generationType: 'signal_analysis',
+      companyId: ctx.companyId,
+      researchContext: ctx,
+      systemPrompt: ENRICH_SYSTEM_PROMPT,
+      userPrompt,
+      enforceGovernance: false, // Enrichment of existing data
+      signalIds: ctx.signals.map(s => s.id),
+      inputParams: { companyName: ctx.companyName, signalCount: ctx.signals.length },
+    })
+    if (!result.success) throw new Error('AI enrichment failed')
+    const raw = result.response!
     const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
     const enriched = JSON.parse(cleaned)
 

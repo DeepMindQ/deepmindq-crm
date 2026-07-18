@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { callChatLLM } from '@/lib/zai-helpers'
+import { HALLUCINATION_PREVENTION_RULES } from '@/lib/ai-governance'
 
 // ---------------------------------------------------------------------------
 // LLM helper — multi-turn chat via Gemini
@@ -168,7 +169,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Build system prompt
     const systemPrompt = `You are DeepMindQ AI Assistant, an intelligent sales CRM assistant.
-
+${HALLUCINATION_PREVENTION_RULES}
 You have access to the user's CRM data including companies, contacts, opportunities, and research.
 
 Be helpful, concise, and actionable. Suggest next steps when relevant. Use markdown formatting for readability when appropriate (bold, lists, etc.).

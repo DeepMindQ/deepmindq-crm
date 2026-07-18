@@ -324,6 +324,7 @@ RULES:
 - If the data is empty for a source, say so clearly and suggest what the user can do.
 - Keep the summary under 300 words but information-dense.
 - Return ONLY valid JSON, no markdown fences.
+- If a "Company Intelligence (from Research Engine)" section is provided below, it contains the canonical intelligence contract data for the queried company. ALWAYS prioritize this data over any web search results. Ground all company-specific claims in the intelligence contract. Never fabricate company data not present in the intelligence context.
 
 ${HALLUCINATION_PREVENTION_RULES}`;
 
@@ -559,21 +560,23 @@ export async function POST(req: NextRequest) {
         webResults = await webSearch(plan.webSearchQuery);
       }
 
-      // After executing all fetches, check if we have company data
-      // If companies were fetched and they have research cards, inject intelligence context
+      // After executing all fetches, check if we have company-specific intelligence
+      // If the planner requested companies with researchCard/signals, inject
+      // the full intelligence contract context so the analyst grounds its output.
       let intelligenceContext = '';
-      const companyIds = new Set<string>();
 
-      // Extract company IDs from fetched companies data
-      if (fetchedData.companies && Array.isArray(fetchedData.companies)) {
-        for (const c of fetchedData.companies) {
-          if (c.id) companyIds.add(c.id);
-        }
-      }
+      // Check if any data fetch targets a specific company's intelligence
+      const isCompanyIntelligenceQuery = plan.dataFetches.some(
+        f => f.source === 'companies' && f.includeRelations?.some(r => r === 'researchCard' || r === 'signals')
+      );
 
-      // For up to 3 companies, fetch intelligence contract data
-      if (companyIds.size > 0) {
-        const ids = Array.from(companyIds).slice(0, 3);
+      if (isCompanyIntelligenceQuery && fetchedData.companies && Array.isArray(fetchedData.companies)) {
+        const companyIds = fetchedData.companies
+          .map((c: any) => c.id)
+          .filter(Boolean) as string[];
+
+        // For up to 3 companies, fetch intelligence contract data
+        const ids = companyIds.slice(0, 3);
         const contexts = await Promise.allSettled(
           ids.map(id => getResearchContext(id).then(ctx => buildResearchContextText(ctx)))
         );
@@ -581,7 +584,10 @@ export async function POST(req: NextRequest) {
           .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled' && r.value.length > 100)
           .map(r => r.value);
         if (validContexts.length > 0) {
-          intelligenceContext = '\n\n## Company Intelligence (from Research Engine)\n' + validContexts.join('\n\n---\n\n');
+          intelligenceContext = '\n\n## Company Intelligence (from Research Engine — Intelligence Contract)\n' +
+            'The following data comes from the Phase 3 Research Engine and is the canonical, evidence-backed intelligence for these companies. ' +
+            'Prefer this data over any web search results for company-specific claims.\n' +
+            validContexts.join('\n\n---\n\n');
         }
       }
 

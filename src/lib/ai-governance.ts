@@ -154,7 +154,17 @@ EVIDENCE GROUNDING RULES (Mandatory):
 6. If intelligence is stale (>30 days), preface claims with "Based on data from [date]...".
 7. Never state confidence levels higher than what the field confidence scores indicate.
 8. If asked about something not in the intelligence, say "I don't have current data on that. Consider running a research refresh."
+9. Never assume company strategy, transformation plans, or business priorities not explicitly stated in the intelligence.
+10. Never invent technology usage, customer references, or partnership details.
+11. Never mention capabilities that are not present in the provided capability library.
+12. Clearly state when information is unavailable rather than guessing.
+13. Reduce stated confidence when intelligence quality is low or evidence is weak.
+14. Mention uncertainty explicitly when evidence is from a single source or has low confidence.
+15. Never create fake business problems or pain points — only reference those derived from signals or evidence.
 `.trim();
+
+// ── Current prompt version hash (bump when rules change) ──
+export const GOVERNANCE_PROMPT_VERSION = 'v3-phase3-harden';
 
 // ── Public Functions ─────────────────────────────────────────────────────────
 
@@ -543,5 +553,196 @@ export async function preFlightCheck(context: GovernanceContext): Promise<{
     groundingNote,
     promptAddon,
     config,
+  };
+}
+
+// ── MANDATORY: Centralized Governed AI Call ─────────────────────────────────
+// This is the ONLY approved way for AI routes to call the LLM.
+// No AI route should call callLLM() directly — all calls MUST go through this.
+
+import { callLLM } from '@/lib/zai-helpers';
+
+interface GovernedAICallParams {
+  /** Generation type for governance config lookup (e.g. 'email_draft', 'insights') */
+  generationType: string;
+  /** Company ID if company-specific generation */
+  companyId?: string;
+  /** Contact ID if contact-specific generation */
+  contactId?: string;
+  /** Pre-loaded research context (avoids double-loading) */
+  researchContext?: ResearchContext | null;
+  /** Number of matched capability assets */
+  capabilityMatchCount?: number;
+  /** System prompt (will have governance rules injected) */
+  systemPrompt: string;
+  /** User prompt (will have grounding notes appended) */
+  userPrompt: string;
+  /** Whether to enforce governance blocking (default: true).
+   *  Set to false for non-company-specific routes (insights, recommendations, score-leads)
+   *  where governance is advisory only. */
+  enforceGovernance?: boolean;
+  /** Evidence IDs used for audit trail */
+  evidenceIds?: string[];
+  /** Signal IDs used for audit trail */
+  signalIds?: string[];
+  /** Capability asset IDs used for audit trail */
+  capabilityAssetIds?: string[];
+  /** Input parameters for audit trail (sanitized, no PII) */
+  inputParams?: Record<string, unknown>;
+}
+
+export interface GovernedAIResult {
+  /** Whether governance passed and LLM call succeeded */
+  success: boolean;
+  /** The LLM response text */
+  response: string | null;
+  /** Governance result (always present) */
+  governanceResult: GovernanceResult;
+  /** If governance blocked, the rejection reason */
+  rejectionReason: string | null;
+  /** Evidence grounding note injected into the prompt */
+  groundingNote: string;
+  /** Governance warning addon injected into the prompt */
+  promptAddon: string;
+}
+
+/**
+ * MANDATORY centralized AI call function.
+ *
+ * Every AI route in the application MUST use this function instead of calling
+ * callLLM() directly. This ensures:
+ *
+ *   1. Governance checks run BEFORE the LLM is called
+ *   2. Hallucination prevention rules are injected into the system prompt
+ *   3. Evidence grounding notes are appended to the user prompt
+ *   4. Confidence thresholds are enforced per generation type
+ *   5. Every call is recorded in AIGenerationAudit for full traceability
+ *   6. If governance fails and enforceGovernance is true, the LLM is NOT called
+ *
+ * Usage:
+ *   const result = await governedAICall({
+ *     generationType: 'email_draft',
+ *     companyId: 'xxx',
+ *     researchContext: ctx,
+ *     systemPrompt: 'You are an email writer...',
+ *     userPrompt: 'Write an email for...',
+ *   });
+ *   if (!result.success) return apiError(result.rejectionReason!, 422);
+ *   // use result.response
+ */
+export async function governedAICall(
+  params: GovernedAICallParams,
+): Promise<GovernedAIResult> {
+  const {
+    generationType,
+    companyId,
+    contactId,
+    researchContext: ctx,
+    capabilityMatchCount,
+    systemPrompt,
+    userPrompt,
+    enforceGovernance = true,
+    evidenceIds,
+    signalIds,
+    capabilityAssetIds,
+    inputParams,
+  } = params;
+
+  // ── Step 1: Run governance checks ──
+  const governanceResult = await runGovernanceChecks({
+    companyId,
+    contactId,
+    generationType,
+    researchContext: ctx,
+    capabilityMatchCount,
+  });
+
+  // ── Step 2: Build prompt addons ──
+  const groundingNote = buildEvidenceGroundingNote(ctx);
+  const promptAddon = buildGovernancePromptAddon(governanceResult);
+
+  // ── Step 3: Check if blocked ──
+  if (!governanceResult.canProceed && enforceGovernance) {
+    // Record the blocked generation in audit trail
+    await recordGeneration({
+      generationType,
+      companyId,
+      contactId,
+      researchContext: ctx,
+      evidenceIds,
+      signalIds,
+      capabilityAssetIds,
+      governanceResult,
+      outputSummary: `BLOCKED: ${governanceResult.rejectionReason}`,
+      inputParams,
+    });
+
+    return {
+      success: false,
+      response: null,
+      governanceResult,
+      rejectionReason: governanceResult.rejectionReason,
+      groundingNote,
+      promptAddon,
+    };
+  }
+
+  // ── Step 4: Call LLM with governed prompt ──
+  const governedSystemPrompt = `${systemPrompt}\n\n${HALLUCINATION_PREVENTION_RULES}`;
+  const governedUserPrompt = `${userPrompt}\n\n${groundingNote}\n${promptAddon}`;
+
+  let response: string | null = null;
+  try {
+    response = await callLLM(governedSystemPrompt, governedUserPrompt);
+  } catch (llmErr) {
+    console.error(
+      `[ai-governance] LLM call failed for ${generationType}:`,
+      llmErr instanceof Error ? llmErr.message : llmErr,
+    );
+    // Record failed LLM call
+    await recordGeneration({
+      generationType,
+      companyId,
+      contactId,
+      researchContext: ctx,
+      evidenceIds,
+      signalIds,
+      capabilityAssetIds,
+      governanceResult,
+      outputSummary: `LLM_CALL_FAILED`,
+      inputParams,
+    });
+
+    return {
+      success: false,
+      response: null,
+      governanceResult,
+      rejectionReason: `LLM call failed: ${llmErr instanceof Error ? llmErr.message : 'Unknown error'}`,
+      groundingNote,
+      promptAddon,
+    };
+  }
+
+  // ── Step 5: Record successful generation ──
+  await recordGeneration({
+    generationType,
+    companyId,
+    contactId,
+    researchContext: ctx,
+    evidenceIds,
+    signalIds,
+    capabilityAssetIds,
+    governanceResult,
+    outputSummary: response?.substring(0, 500),
+    inputParams,
+  });
+
+  return {
+    success: true,
+    response,
+    governanceResult,
+    rejectionReason: null,
+    groundingNote,
+    promptAddon,
   };
 }

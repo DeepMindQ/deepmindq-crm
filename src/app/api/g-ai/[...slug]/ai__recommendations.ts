@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { apiSuccess, apiError } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
-import { callLLM } from '@/lib/zai-helpers'
+import { governedAICall } from '@/lib/ai-governance'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -335,7 +335,15 @@ function parseAIResponse(raw: string, originals: Recommendation[]): Recommendati
 async function enhanceWithAI(recs: Recommendation[]): Promise<Recommendation[]> {
   if (recs.length === 0) return recs
 
-  const raw = await callLLM(RECOMMENDATION_SYSTEM_PROMPT, buildAIUserPrompt(recs))
+  const result = await governedAICall({
+    generationType: 'recommendations',
+    systemPrompt: RECOMMENDATION_SYSTEM_PROMPT,
+    userPrompt: buildAIUserPrompt(recs),
+    enforceGovernance: false,
+    inputParams: { recommendationCount: recs.length },
+  })
+  if (!result.success) throw new Error('AI enhancement failed')
+  const raw = result.response!
 
   if (!raw || raw.length < 10) {
     console.warn('[ai/recommendations] AI returned empty or too-short response, using rule-based fallback')

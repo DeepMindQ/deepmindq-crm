@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-import { callLLM } from '@/lib/zai-helpers'
+import { governedAICall } from '@/lib/ai-governance'
 import { getResearchContext, buildResearchContextText, type ResearchContext } from '@/lib/intelligence-contract'
 
 /* ── In-memory cache (1 hour TTL) ── */
@@ -277,7 +277,15 @@ Return ONLY valid JSON array:
 Only include companies with matchScore >= 40. Sort by matchScore descending.`
 
     // 4. Single LLM call with all Phase 3 intelligence
-    const raw = await callLLM(systemPrompt, userPrompt)
+    const aiResult = await governedAICall({
+      generationType: 'opportunities',
+      systemPrompt,
+      userPrompt,
+      enforceGovernance: false, // Batch analysis, not single-company
+      inputParams: { companiesScanned: companyIds.length, topCompanies: companyIds.slice(0, 5) },
+    })
+    if (!aiResult.success) throw new Error('AI generation failed')
+    const raw = aiResult.response!
     const opportunities = parseLLMJson(raw)
 
     // Enrich with companyId mapping

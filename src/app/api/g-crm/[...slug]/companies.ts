@@ -168,8 +168,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ companies: result, total, page, limit });
   } catch (error) {
     console.error('Companies list error:', error);
-    const { searchParams } = new URL(request.url);
-    return NextResponse.json(filterDemoCompanies(searchParams));
+    return NextResponse.json({ error: 'Failed to load companies' }, { status: 500 });
   }
 }
 

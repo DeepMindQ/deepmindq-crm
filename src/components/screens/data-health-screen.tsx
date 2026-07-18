@@ -12,6 +12,7 @@ import {
   AnimatedBar,
   GlassPanel,
 } from '@/components/ui/animated-components';
+import { useAppStore } from '@/lib/store';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -730,7 +731,15 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                     <Button
                       size="sm"
                       className="h-8 px-3 text-xs font-medium bg-gradient-to-r from-yellow-500/90 to-amber-600/90 text-black hover:from-yellow-500 hover:to-amber-600 border-0 shadow-sm shadow-amber-500/10 transition-all duration-200"
-                      onClick={() => navigateTo?.(item.type === 'company' ? 'company-detail' : 'contact-detail', item.id)}
+                      onClick={() => {
+                        if (item.type === 'company') {
+                          useAppStore.getState().setSelectedCompanyId(item.id);
+                          navigateTo?.('companies');
+                        } else {
+                          useAppStore.getState().setSelectedContactId(item.id);
+                          navigateTo?.('contacts');
+                        }
+                      }}
                     >
                       <Sparkles className="h-3 w-3 mr-1" />
                       Enrich

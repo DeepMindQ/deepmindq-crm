@@ -27,10 +27,7 @@ import {
   StaggerItem,
   SectionHeader,
   StatCard,
-  ShimmerText,
   GlassPanel,
-  AnimatedBar,
-  PulseDot,
   EmptyState,
   AnimatedCounter,
 } from '@/components/ui/animated-components';
@@ -47,7 +44,6 @@ import {
   Activity,
   FileSpreadsheet,
   ShieldCheck,
-  Zap,
   Eye,
   MousePointerClick,
   MessageSquare,

@@ -176,7 +176,7 @@ function ActionMenu({ companyId, navigateTo }: { companyId: string; navigateTo?:
   }, []);
 
   const items = [
-    { label: 'View Details', action: () => navigateTo?.('company-detail', companyId) },
+    { label: 'View Details', action: () => { useAppStore.getState().setSelectedCompanyId(companyId); navigateTo?.('companies'); } },
     { label: 'Generate AI Brief', action: async () => {
       toast.loading('Generating AI account brief...', { id: 'ai-brief' });
       try {
@@ -185,7 +185,7 @@ function ActionMenu({ companyId, navigateTo }: { companyId: string; navigateTo?:
         const data = json.data ?? json;
         if (data.brief) {
           toast.success('AI brief generated! View it in Company Details.', { id: 'ai-brief' });
-          navigateTo?.('company-detail', companyId);
+          useAppStore.getState().setSelectedCompanyId(companyId); navigateTo?.('companies');
         } else {
           toast.error(data.error || 'Failed to generate brief', { id: 'ai-brief' });
         }
@@ -199,7 +199,7 @@ function ActionMenu({ companyId, navigateTo }: { companyId: string; navigateTo?:
         toast.success('Data enrichment started', { id: 'enrich' });
       } catch { toast.error('Enrichment failed', { id: 'enrich' }); }
     }},
-    { label: 'Add Note', action: () => navigateTo?.('company-detail', companyId) },
+    { label: 'Add Note', action: () => { useAppStore.getState().setSelectedCompanyId(companyId); navigateTo?.('companies'); } },
   ];
 
   return (
@@ -294,7 +294,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
         toast.error(data.error || 'Company already exists');
         if (data.companyId) {
           useAppStore.getState().setSelectedCompanyId(data.companyId);
-          navigateTo?.('company-detail', data.companyId);
+          navigateTo?.('companies');
           setShowAddDialog(false);
         }
       } else {
@@ -795,7 +795,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                 size="sm"
                 className="mt-3 text-xs font-semibold shadow-sm"
                 style={{ background: '#D4AF37', color: '#fff', border: 'none' }}
-                onClick={() => toast.info('Use the Import screen to add companies')}
+                onClick={() => navigateTo?.('import')}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#C5A030'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#D4AF37'; }}
               >
@@ -828,7 +828,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 8 }}
                     transition={{ duration: 0.25, delay: i * 0.02 }}
-                    onClick={() => navigateTo?.('company-detail', company.id)}
+                    onClick={() => { useAppStore.getState().setSelectedCompanyId(company.id); navigateTo?.('companies'); }}
                     className="group flex items-center gap-4 px-4 py-2.5 cursor-pointer border-l-2 border-l-transparent hover:border-l-[3px] transition-all duration-200"
                     style={{
                       background: isSelected ? 'rgba(212,175,55,0.06)' : (i % 2 === 0 ? '#F9FAFB' : 'transparent'),

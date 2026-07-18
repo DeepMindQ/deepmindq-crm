@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Building2, Users, FileText, Send, Mail, TrendingUp, TrendingDown, ChevronRight, Zap, UserPlus, Eye, MessageSquare, AlertTriangle, Inbox, Sparkles, Brain, RefreshCw } from 'lucide-react';
+import { useAppStore } from '@/lib/store';
 
 const gold = '#B8860B', goldLight = '#D4A843';
 const card = 'rgba(255, 255, 255, 0.85)', border = 'rgba(0, 0, 0, 0.08)';
@@ -136,7 +137,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
       const r = await fetch('/api/dashboard');
       const d = await r.json();
       if (d?.contactsByStatus) setData(d);
-    } catch { /* */ }
+    } catch (err) { console.error('[Dashboard] fetch dashboard failed:', err); }
   }, []);
 
   const fetchAct = useCallback(async () => {
@@ -144,7 +145,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
       const r = await fetch('/api/audit?limit=8');
       const d = await r.json();
       if (Array.isArray(d)) setActivity(d.slice(0, 8));
-    } catch { /* */ }
+    } catch (err) { console.error('[Dashboard] fetch activity failed:', err); }
   }, []);
 
   const fetchTopCompanies = useCallback(async () => {
@@ -159,7 +160,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           domain: c.domain,
         })));
       }
-    } catch { /* */ }
+    } catch (err) { console.error('[Dashboard] fetch top companies failed:', err); }
   }, []);
 
   const fetchSegments = useCallback(async () => {
@@ -172,7 +173,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           _count: s._count || { contacts: 0 },
         })));
       }
-    } catch { /* */ }
+    } catch (err) { console.error('[Dashboard] fetch segments failed:', err); }
   }, []);
 
   const fetchBriefing = useCallback(async () => {
@@ -437,7 +438,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                 {topCompanies.map((co, i) => (
                   <motion.button key={co.id} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100/50 transition-colors text-left group"
                     initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.4 + i * 0.05 }}
-                    onClick={() => navigateTo?.('company-detail', co.id)}>
+                    onClick={() => { useAppStore.getState().setSelectedCompanyId(co.id); navigateTo?.('companies'); }}>
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold" style={{ background: 'rgba(212,175,55,0.1)', color: gold }}>
                       {i + 1}
                     </div>

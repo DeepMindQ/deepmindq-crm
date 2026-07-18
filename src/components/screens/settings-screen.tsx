@@ -55,7 +55,7 @@ import {
   Download,
   Trash2,
   ExternalLink,
-  UserCircle, Lock, Phone, Building2, Briefcase, KeyRound, ShieldCheckCircle, Eye, RefreshCw as RefreshIcon,
+  UserCircle, Lock, Phone, Building2, Briefcase, KeyRound, Eye,
 } from 'lucide-react';
 import DataRulesSection from './settings-data-rules';
 import { toast } from 'sonner';

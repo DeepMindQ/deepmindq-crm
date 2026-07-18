@@ -85,7 +85,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
         body: JSON.stringify({ id }),
       });
       setSuppressions(prev => prev.filter(s => s.id !== id));
-    } catch { /* ignore */ }
+    } catch (err) { console.error('[Bounces] remove suppression failed:', err); }
   };
 
   const hardBounces = bounces.filter(b => b.bounceType === 'hard').length;

@@ -606,10 +606,10 @@ export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) 
       ]);
       const insData = await insRes.json(); if (insData?.companyEngine) setInsights(insData);
       const actData = await actRes.json(); if (Array.isArray(actData)) setActivities(actData);
-      try { const aiInsData = await aiInsRes.json(); if (aiInsData?.data) setAiInsights(aiInsData.data); } catch {}
-      try { const aiRecData = await aiRecRes.json(); if (aiRecData?.data?.recommendations) setAiRecommendations(aiRecData.data.recommendations); } catch {}
+      try { const aiInsData = await aiInsRes.json(); if (aiInsData?.data) setAiInsights(aiInsData.data); } catch (err) { console.error('[CommandCenter] fetch AI insights failed:', err); }
+      try { const aiRecData = await aiRecRes.json(); if (aiRecData?.data?.recommendations) setAiRecommendations(aiRecData.data.recommendations); } catch (err) { console.error('[CommandCenter] fetch AI recommendations failed:', err); }
       setLastRefresh(new Date());
-    } catch { /* silent */ }
+    } catch (err) { console.error('[CommandCenter] fetch data failed:', err); }
     setLoading(false); setRefreshing(false);
   }, []);
 

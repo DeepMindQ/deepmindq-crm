@@ -106,6 +106,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Pipeline error:', error);
-    return NextResponse.json({ ...DEMO_PIPELINE, _demo: true });
+    return NextResponse.json({ error: 'Failed to load pipeline data' }, { status: 500 });
   }
 }

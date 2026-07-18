@@ -13,12 +13,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   PageTransition, AnimatedCard, StatCard, GlassPanel,
-  EmptyState, StaggerGrid, StaggerItem, SectionHeader, AnimatedBar,
+  EmptyState, StaggerGrid, StaggerItem, SectionHeader,
 } from '@/components/ui/animated-components';
 import { CompanyMindMap } from '@/components/company-mind-map';
 import {
   ArrowLeft, Globe, MapPin, Users, Building2, ExternalLink, Edit3, Save,
-  X, Sparkles, Loader2, Pin, Trash2, Plus, FileText, Phone, Mail,
+  X, Sparkles, Loader2, Pin, Trash2, Plus, FileText, Mail,
   Target, Brain, Activity, TrendingUp, Award, UserCircle, Eye,
   EyeOff, AlertTriangle, CheckCircle2, Clock, MessageSquare,
   Send, MailOpen, RotateCcw, DollarSign, Layers, BookOpen,
@@ -205,7 +205,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
           internalSummary: data.internalSummary || '',
         });
       }
-    } catch { /* empty */ }
+    } catch (err) { console.error('[CompanyDetail] fetch company failed:', err); }
   }, [companyId]);
 
   /* ── Fetch Contacts ── */
@@ -216,7 +216,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
         const data = await res.json();
         setContacts(data.contacts || data || []);
       }
-    } catch { /* empty */ }
+    } catch (err) { console.error('[CompanyDetail] fetch contacts failed:', err); }
   }, [companyId]);
 
   /* ── Fetch Notes ── */
@@ -228,7 +228,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
         const data = await res.json();
         setNotes(data.notes || data || []);
       }
-    } catch { /* empty */ }
+    } catch (err) { console.error('[CompanyDetail] fetch notes failed:', err); }
   }, [companyId]);
 
   /* ── Fetch Signals ── */
@@ -240,7 +240,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
         const data = await res.json();
         setSignals(data.signals || data || []);
       }
-    } catch { /* empty */ }
+    } catch (err) { console.error('[CompanyDetail] fetch signals failed:', err); }
   }, [companyId]);
 
   /* ── Fetch Timeline ── */
@@ -251,7 +251,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
         const data = await res.json();
         setTimeline(data.events || data || []);
       }
-    } catch { /* empty */ }
+    } catch (err) { console.error('[CompanyDetail] fetch timeline failed:', err); }
   }, [companyId]);
 
   /* ── Initial Load ── */
@@ -364,13 +364,13 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isRead: !signal.isRead }),
       });
-    } catch { /* optimistic update is fine */ }
+    } catch (err) { console.error('[CompanyDetail] signal read toggle failed:', err); }
   };
 
   /* ── Parse helpers ── */
   const parseTags = (tagsStr: string | null | undefined): string[] => {
     if (!tagsStr) return [];
-    try { return JSON.parse(tagsStr); } catch { return []; }
+    try { return JSON.parse(tagsStr); } catch (err) { console.error('[CompanyDetail] parse tags failed:', err); return []; }
   };
 
   const parseTechStack = (tech: string | null | undefined): string[] => {
@@ -379,13 +379,13 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
       const parsed = JSON.parse(tech);
       if (Array.isArray(parsed)) return parsed;
       if (typeof parsed === 'string') return parsed.split(',').map((s: string) => s.trim()).filter(Boolean);
-    } catch { /* fall through */ }
+    } catch (err) { console.error('[CompanyDetail] parse tech stack failed:', err); }
     return String(tech).split(',').map(s => s.trim()).filter(Boolean);
   };
 
   const parseSocials = (socials: string | null | undefined): Record<string, string> => {
     if (!socials) return {};
-    try { return JSON.parse(socials); } catch { return {}; }
+    try { return JSON.parse(socials); } catch (err) { console.error('[CompanyDetail] parse socials failed:', err); return {}; }
   };
 
   const researchCard = company?.researchCard;
@@ -1217,7 +1217,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                         <div className="space-y-2 max-h-48 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
                           {briefSources.map((src, i) => {
                             let domain = '';
-                            try { domain = new URL(src.url).hostname.replace('www.', ''); } catch { domain = src.url; }
+                            try { domain = new URL(src.url).hostname.replace('www.', ''); } catch (err) { console.error('[CompanyDetail] parse URL domain failed:', err); domain = src.url; }
                             return (
                               <a key={i} href={src.url} target="_blank" rel="noopener noreferrer"
                                 className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-colors group">

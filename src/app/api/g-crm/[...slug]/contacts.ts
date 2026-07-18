@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       where.emailHealth = emailHealth;
     }
     if (roleBucket) {
-      where.roleBucket = roleBucket;
+      where.role = roleBucket;
     }
     if (companyId) {
       where.companyId = companyId;
@@ -90,6 +90,17 @@ export async function POST(request: NextRequest) {
       ["name", "email", "jobTitle", "linkedinUrl", "phone", "location"]
     );
 
+    // Find or create a default batch for manual contacts
+    let batchId = data.batchId;
+    if (!batchId) {
+      const defaultBatch = await db.importBatch.upsert({
+        where: { id: 'manual' },
+        update: {},
+        create: { id: 'manual', fileName: 'manual-entry', status: 'completed', totalRows: 0, validRows: 0 },
+      });
+      batchId = defaultBatch.id;
+    }
+
     const contact = await db.contact.create({
       data: {
         rawName: sanitized.name || data.name,
@@ -100,6 +111,7 @@ export async function POST(request: NextRequest) {
         phone: sanitized.phone || null,
         location: sanitized.location || null,
         companyId: data.companyId,
+        batchId,
       },
     });
 

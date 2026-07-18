@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -55,6 +56,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
   const [detailContacts, setDetailContacts] = useState<SegmentContact[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
 
   const fetchSegments = async () => {
     setLoading(true);
@@ -113,7 +115,6 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
 
   /* ── Delete segment ── */
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete segment "${name}"?`)) return;
     try {
       await fetch(`/api/segments?id=${id}`, { method: 'DELETE' });
       toast.success('Segment deleted');
@@ -213,7 +214,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                           <div className="flex items-center gap-2">
                             <Button
                               variant="ghost" size="sm" className="h-7 text-[10px] text-muted-foreground hover:text-red-600 px-2"
-                              onClick={(e) => { e.stopPropagation(); handleDelete(seg.id, seg.name); }}
+                              onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ id: seg.id, name: seg.name }); }}
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
@@ -338,6 +339,22 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
             </ScrollArea>
           </DialogContent>
         </Dialog>
+
+        {/* Delete confirmation dialog */}
+        <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Segment</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete segment "{deleteConfirm?.name}"? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { if (deleteConfirm) { handleDelete(deleteConfirm.id, deleteConfirm.name); setDeleteConfirm(null); } }}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </PageTransition>
   );

@@ -121,7 +121,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
         openCount: q.openCount || 0,
         clickCount: q.clickCount || 0,
       })));
-    } catch { /* ignore */ }
+    } catch (err) { console.error('[Queue] fetch drafts failed:', err); }
     setLoading(false);
   }, []);
 
@@ -148,7 +148,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
           openCount: q.openCount || 0,
           clickCount: q.clickCount || 0,
         })));
-      } catch { /* ignore */ }
+      } catch (err) { console.error('[Queue] fetch queue failed:', err); }
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -165,7 +165,8 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
       const data = await res.json();
       await load();
       return data;
-    } catch {
+    } catch (err) {
+      console.error('[Queue] queue action failed:', err);
       return null;
     }
   };

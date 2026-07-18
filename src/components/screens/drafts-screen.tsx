@@ -225,7 +225,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
       setScheduleDate('');
       setScheduleTime('09:00');
       setRefreshKey(k => k + 1);
-    } catch { /* ignore */ }
+    } catch (err) { console.error('[Drafts] approve/send draft failed:', err); }
   };
 
   // Get tomorrow's date as default min
@@ -243,7 +243,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
       });
       setSelectedDraft(null);
       setRefreshKey(k => k + 1);
-    } catch { /* ignore */ }
+    } catch (err) { console.error('[Drafts] reject draft failed:', err); }
   };
 
   const confidenceColor = (s?: number) => !s ? 'text-zinc-500' : s >= 85 ? 'text-emerald-600' : s >= 70 ? 'text-amber-600' : 'text-red-600';

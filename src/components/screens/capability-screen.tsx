@@ -299,7 +299,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
         });
         const data = await res.json();
         if (!cancelled) setCoverage(data);
-      } catch { /* ignore */ }
+      } catch (err) { console.error('[Capability] fetch coverage failed:', err); }
       if (!cancelled) setCoverageLoading(false);
     })();
     return () => { cancelled = true; };
@@ -324,7 +324,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
       const data = await res.json();
       setRagResults(data.results || []);
       setRagInsight(data.engineInsight || null);
-    } catch { setRagResults([]); }
+    } catch (err) { console.error('[Capability] RAG search failed:', err); setRagResults([]); }
     setRagLoading(false);
   };
 
@@ -819,7 +819,8 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
       const res = await fetch(`/api/capabilities?${params.toString()}`);
       const data = await res.json();
       setItems(Array.isArray(data) ? data : []);
-    } catch {
+    } catch (err) {
+      console.error('[Capability] fetch capabilities failed:', err);
       setItems([]);
     } finally {
       setLoading(false);

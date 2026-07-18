@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { PageTransition, AnimatedCounter, EmptyState } from '@/components/ui/animated-components';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAppStore } from '@/lib/store';
 
 /* ═══════════════════════════════════════════════════
    Types
@@ -652,7 +653,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
 
                           {signal.companyName && (
                             <button
-                              onClick={() => signal.companyId && navigateTo?.('company-detail', signal.companyId)}
+                              onClick={() => { if (signal.companyId) { useAppStore.getState().setSelectedCompanyId(signal.companyId); navigateTo?.('companies'); } }}
                               className="text-sm font-semibold text-foreground hover:text-[#D4AF37] transition-colors cursor-pointer inline-flex items-center gap-1"
                             >
                               {signal.companyName}

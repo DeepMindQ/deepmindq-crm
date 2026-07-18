@@ -110,20 +110,10 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
   };
 
   const fetchEnrollments = async (seqId: string) => {
-    try {
-      // We need to fetch enrollments — but we don't have a direct endpoint
-      // so we fetch the sequence detail from a GET with includes
-      const res = await fetch(`/api/sequences`);
-      const all = await res.json();
-      const seq = all.find((s: Sequence) => s.id === seqId);
-      if (seq) {
-        // Enrollment count is available but not the detail list.
-        // For now, show a placeholder. A dedicated enrollment list API would be needed.
-        setEnrollments([]);
-      }
-    } catch {
-      setEnrollments([]);
-    }
+    // TODO: There is no dedicated enrollments list endpoint yet.
+    // Replace with: const res = await fetch(`/api/sequences/${seqId}/enrollments`);
+    // const data = await res.json(); setEnrollments(data.enrollments || []);
+    setEnrollments([]);
   };
 
   const handleSave = async () => {

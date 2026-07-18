@@ -91,23 +91,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Dashboard error:', error);
-    return NextResponse.json({
-      contactsByStatus: {},
-      totalCompanies: 0,
-      recentBatches: [],
-      draftsPendingReview: 0,
-      queuePending: 0,
-      repliesThisWeek: 0,
-      bouncesCount: 0,
-      suppressionsCount: 0,
-      emailHealthDistribution: {},
-      importedCount: 0,
-      totalLeads: 0,
-      draftCount: 0,
-      queueCount: 0,
-      replyCount: 0,
-      bounceCount: 0,
-      totalContacts: 0,
-    });
+    return NextResponse.json({ error: 'Failed to load dashboard' }, { status: 500 });
   }
 }

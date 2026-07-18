@@ -121,9 +121,9 @@ export async function GET() {
       }),
       // Per-batch reply counts (from reply table joined through contact → batch)
       db.contact.groupBy({
-        by: ['importBatchId'],
+        by: ['batchId'],
         where: {
-          importBatchId: { not: null },
+          batchId: { not: null },
           status: 'replied',
         },
         _count: { id: true },
@@ -131,9 +131,9 @@ export async function GET() {
       }),
       // Per-batch bounce counts
       db.contact.groupBy({
-        by: ['importBatchId'],
+        by: ['batchId'],
         where: {
-          importBatchId: { not: null },
+          batchId: { not: null },
           status: 'bounced',
         },
         _count: { id: true },
@@ -208,12 +208,12 @@ export async function GET() {
     // ── Campaign performance (from batches with real reply/bounce data) ──
     // Build lookup maps for per-batch reply and bounce counts
     const replyCountMap = new Map<string, number>();
-    for (const item of batchReplyCounts as { importBatchId: string; _count: { id: number } }[]) {
-      replyCountMap.set(item.importBatchId, item._count.id);
+    for (const item of batchReplyCounts as { batchId: string; _count: { id: number } }[]) {
+      replyCountMap.set(item.batchId, item._count.id);
     }
     const bounceCountMap = new Map<string, number>();
-    for (const item of batchBounceCounts as { importBatchId: string; _count: { id: number } }[]) {
-      bounceCountMap.set(item.importBatchId, item._count.id);
+    for (const item of batchBounceCounts as { batchId: string; _count: { id: number } }[]) {
+      bounceCountMap.set(item.batchId, item._count.id);
     }
 
     const campaignPerformance = recentBatches.map((batch: any) => {
@@ -290,6 +290,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Analytics error:', error);
-    return NextResponse.json(EMPTY_RESPONSE);
+    return NextResponse.json({ error: 'Failed to load analytics' }, { status: 500 });
   }
 }

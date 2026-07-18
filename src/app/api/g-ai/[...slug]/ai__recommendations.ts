@@ -101,7 +101,7 @@ async function unvalidatedEmails(): Promise<Recommendation[]> {
 async function noResearch(): Promise<Recommendation[]> {
   const companies = await db.company.findMany({
     where: {
-      status: { in: ['active', 'new'] },
+      status: { in: ['active', 'prospect'] },
       researchCard: null,
     },
     take: 5,
@@ -169,12 +169,12 @@ async function hotOpportunities(): Promise<Recommendation[]> {
 }
 
 /**
- * 6. New companies: Companies with status='new' and no contacts → add contacts
+ * 6. Prospect companies: Companies with status='prospect' and no contacts → add contacts
  */
 async function newCompaniesNoContacts(): Promise<Recommendation[]> {
   const companies = await db.company.findMany({
     where: {
-      status: 'new',
+      status: 'prospect',
       contacts: { none: {} },
     },
     take: 5,

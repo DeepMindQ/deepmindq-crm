@@ -117,3 +117,28 @@ Stage Summary:
 - 1 new Prisma field (fieldConfidence on CompanyResearchCard)
 - processor.ts wired to use research engine for research + signal jobs
 - All live on deepmindq.com
+---
+Task ID: 3-gap-fix
+Agent: Main Agent
+Task: Phase 3 honest audit and gap fixes
+
+Work Log:
+- Read all Phase 3 files (researcher.ts, evidence.ts, signals.ts, index.ts, processor.ts, zai-helpers.ts, schema.prisma)
+- Identified 8 gaps: missing schema fields, broken upsert, no recency scoring, hardcoded source tiers, fragile evidence linking, no corroboration scoring
+- GAP 1: Added industry, website, keyPeople, recentNews to CompanyResearchCard; added sourceDate, sourceQualityTier to Evidence
+- GAP 2: Fixed researcher.ts upsert (was destructuring out keyPeople/recentNews because schema didn't have them)
+- GAP 3: Added @deprecated JSDoc to legacy researchCompany in zai-helpers.ts
+- GAP 4+5+6+8: Rewrote evidence.ts with 4-factor confidence: relevance (30%) + quality tier (25%) + recency decay (25%) + corroboration (20%)
+- Source quality tiers now loaded from SystemSetting (config-over-code)
+- Recency uses exponential decay with configurable half-life (default 365 days)
+- Corroboration scoring counts unique domains confirming same value
+- GAP 7: Rewrote signal evidence linking to use sourceUrl (reliable) instead of snippet prefix (fragile)
+- Added evidenceUrl to DetectedSignal type for direct URL-based evidence linking
+- Passed date field from search results through to evidence storage
+- prisma generate: OK, next build: OK (zero errors), deployed to Vercel production: READY
+
+Stage Summary:
+- Phase 3 is now genuinely complete — all 8 gaps fixed
+- Build passes with zero errors
+- Deployed to deepmindq.com (production)
+- Key files changed: schema.prisma, evidence.ts, researcher.ts, signals.ts, zai-helpers.ts

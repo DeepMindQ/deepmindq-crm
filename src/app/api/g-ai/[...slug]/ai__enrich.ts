@@ -15,39 +15,36 @@ const enrichSchema = z.object({
 })
 
 // ---------------------------------------------------------------------------
-// Field definitions for missing-field detection
+// Field definitions
 // ---------------------------------------------------------------------------
 
 const COMPANY_FIELDS = [
   { field: 'domain', label: 'Domain' },
   { field: 'website', label: 'Website' },
-  { field: 'linkedinUrl', label: 'LinkedIn URL' },
   { field: 'industry', label: 'Industry' },
-  { field: 'employeeSize', label: 'Employee Size' },
+  { field: 'sizeRange', label: 'Employee Size' },
   { field: 'country', label: 'Country' },
   { field: 'location', label: 'Location' },
 ] as const
 
 const CONTACT_FIELDS = [
   { field: 'email', label: 'Email' },
-  { field: 'jobTitle', label: 'Job Title' },
+  { field: 'title', label: 'Job Title' },
   { field: 'phone', label: 'Phone' },
   { field: 'location', label: 'Location' },
   { field: 'linkedinUrl', label: 'LinkedIn URL' },
 ] as const
 
-// LLM helper — uses shared zai-helpers (singleton SDK, correct system role)
-
 interface EnrichmentSuggestion {
   field: string
   suggestedValue: string
   confidence: number
+  source: 'web_search' | 'llm_inference'
 }
 
 function parseEnrichmentResponse(text: string): EnrichmentSuggestion[] {
   if (!text) return []
 
-  // Parse response
   const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
 
   try {
@@ -59,13 +56,13 @@ function parseEnrichmentResponse(text: string): EnrichmentSuggestion[] {
           field: String(item.field),
           suggestedValue: String(item.suggestedValue),
           confidence: typeof item.confidence === 'number' ? Math.min(1, Math.max(0, item.confidence)) : 0.5,
+          source: item.source === 'web_search' ? 'web_search' as const : 'llm_inference' as const,
         }))
     }
   } catch {
     // fall through
   }
 
-  // Try regex extraction
   const suggestions: EnrichmentSuggestion[] = []
   const itemRegex = /\{\s*"field"\s*:\s*"([^"]+)"\s*,\s*"suggestedValue"\s*:\s*"([^"]+)"\s*(?:,\s*"confidence"\s*:\s*([\d.]+))?\s*\}/g
   let match
@@ -74,6 +71,7 @@ function parseEnrichmentResponse(text: string): EnrichmentSuggestion[] {
       field: match[1],
       suggestedValue: match[2],
       confidence: match[3] ? Math.min(1, Math.max(0, parseFloat(match[3]))) : 0.5,
+      source: 'web_search',
     })
   }
 
@@ -81,7 +79,7 @@ function parseEnrichmentResponse(text: string): EnrichmentSuggestion[] {
 }
 
 // ---------------------------------------------------------------------------
-// Company enrichment
+// Company enrichment — NOW uses web search
 // ---------------------------------------------------------------------------
 
 async function enrichCompany(
@@ -92,8 +90,8 @@ async function enrichCompany(
     where: { id: entityId },
     include: {
       contacts: {
-        where: { archivedAt: null },
-        select: { email: true, location: true, jobTitle: true },
+        where: { status: { not: 'archived' } },
+        select: { email: true, location: true, title: true },
         take: 5,
       },
     },
@@ -111,48 +109,73 @@ async function enrichCompany(
     }
   }
 
-  // Generate suggestions via AI
+  if (missingFields.length === 0) {
+    return apiSuccess({ missingFields: [], suggestions: [], enriched: false, message: 'All fields populated' })
+  }
+
   let suggestions: EnrichmentSuggestion[] = []
 
-  if (missingFields.length > 0) {
-    const context = `Company Name: ${company.name}
+  // STEP 1: Web search for REAL data
+  const companyName = company.rawName || company.normalizedName || ''
+  const searchResults = await webSearch(
+    `${companyName} ${company.domain || ''} employees revenue industry country headquarters website LinkedIn`,
+    10
+  )
+
+  const searchContext = searchResults
+    .slice(0, 10)
+    .map(r => `[${r.title}] ${r.snippet}`)
+    .join('\n')
+
+  // STEP 2: Ask LLM with REAL search context (not guessing!)
+  const context = `Company Name: ${company.rawName}
 Domain: ${company.domain || 'Unknown'}
 Website: ${company.website || 'Unknown'}
 Industry: ${company.industry || 'Unknown'}
-Employees: ${company.employeeSize || 'Unknown'}
+Employees: ${company.sizeRange || 'Unknown'}
 Country: ${company.country || 'Unknown'}
 Location: ${company.location || 'Unknown'}
-LinkedIn: ${company.linkedinUrl || 'Unknown'}
-Contacts: ${company.contacts.map((c) => `${c.email ?? 'no email'} - ${c.location ?? 'no location'}`).join('; ') || 'None'}`
+Contacts: ${company.contacts.map((c) => `${c.email ?? 'no email'} - ${c.location ?? 'no location'}`).join('; ') || 'None'}
 
-    const systemPrompt = `You are a B2B data enrichment assistant. Given the following context about an entity, suggest plausible values for the missing fields.
+WEB SEARCH RESULTS (real-time data):
+${searchContext || 'No search results found.'}`
 
-Context:
-${context}
+  const systemPrompt = `You are a B2B data enrichment assistant. Based on the COMPANY CONTEXT and WEB SEARCH RESULTS below, fill in the missing fields.
 
-Missing fields to suggest: ${missingFields.join(', ')}
+CRITICAL RULES:
+- ONLY suggest values that are DIRECTLY supported by the web search results
+- If the search results don't mention a field, set confidence to 0.0 or omit it
+- NEVER guess or fabricate values
+- For domain/website: only suggest if found in search results
+- For industry: use what search results say, not your training data
+- For employee count: use exact numbers from search results
 
-For each field, provide a suggested value and confidence (0-1). Only suggest values you are reasonably confident about.
+Missing fields: ${missingFields.join(', ')}
 
-Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence": 0.0-1.0 }]`
+For each field, provide a suggested value, confidence (0-1), and source.
+source must be "web_search" if the value comes from search results, "llm_inference" only if you're very confident from context.
 
-    try {
-      const text = await callLLM(systemPrompt, 'Suggest values for the missing fields.')
-      suggestions = parseEnrichmentResponse(text)
-      // Filter to only suggest for actually missing fields
-      suggestions = suggestions.filter((s) => missingFields.includes(s.field))
-    } catch (llmErr: unknown) {
-      const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-      console.error('[ai/enrich] LLM call failed:', msg)
-    }
+Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence": 0.0-1.0, "source": "web_search" }]`
+
+  try {
+    const text = await callLLM(systemPrompt, `Fill in the missing fields for this company using the search results.\n\n${context}`)
+    suggestions = parseEnrichmentResponse(text)
+    // Filter to only suggest for actually missing fields
+    suggestions = suggestions.filter((s) => missingFields.includes(s.field))
+  } catch (llmErr: unknown) {
+    const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
+    console.error('[ai/enrich] LLM call failed:', msg)
   }
 
-  // Auto-fill if requested
+  // Auto-fill ONLY if:
+  // 1. Requested by user
+  // 2. Confidence >= 0.8 (raised from 0.6 to prevent hallucination)
+  // 3. Value comes from web search (not LLM inference)
   let enriched = false
   if (autoFill && suggestions.length > 0) {
     const updateData: Record<string, string> = {}
     for (const s of suggestions) {
-      if (s.confidence >= 0.6) {
+      if (s.confidence >= 0.8 && s.source === 'web_search' && s.suggestedValue && s.suggestedValue !== 'Not found') {
         updateData[s.field] = s.suggestedValue
       }
     }
@@ -170,11 +193,12 @@ Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence":
     missingFields,
     suggestions,
     enriched,
+    searchResultsCount: searchResults.length,
   })
 }
 
 // ---------------------------------------------------------------------------
-// Contact enrichment
+// Contact enrichment — NOW uses web search
 // ---------------------------------------------------------------------------
 
 async function enrichContact(
@@ -182,11 +206,11 @@ async function enrichContact(
   autoFill: boolean,
 ) {
   const contact = await db.contact.findFirst({
-    where: { id: entityId, archivedAt: null },
+    where: { id: entityId, status: { not: 'archived' } },
     include: {
       company: {
         select: {
-          name: true,
+          rawName: true,
           domain: true,
           website: true,
           industry: true,
@@ -209,51 +233,66 @@ async function enrichContact(
     }
   }
 
-  // Generate suggestions via AI
+  if (missingFields.length === 0) {
+    return apiSuccess({ missingFields: [], suggestions: [], enriched: false, message: 'All fields populated' })
+  }
+
   let suggestions: EnrichmentSuggestion[] = []
 
-  if (missingFields.length > 0) {
-    const context = `Contact Name: ${contact.name}
+  // Web search for the contact
+  const searchQuery = [
+    contact.rawName,
+    contact.company?.rawName,
+    contact.title,
+    'LinkedIn',
+  ].filter(Boolean).join(' ');
+
+  const searchResults = await webSearch(searchQuery, 8)
+  const searchContext = searchResults
+    .slice(0, 8)
+    .map(r => `[${r.title}] ${r.snippet}`)
+    .join('\n')
+
+  const context = `Contact Name: ${contact.rawName}
 Email: ${contact.email || 'Unknown'}
-Job Title: ${contact.jobTitle || 'Unknown'}
-Role Bucket: ${contact.roleBucket || 'Unknown'}
+Job Title: ${contact.title || 'Unknown'}
 Phone: ${contact.phone || 'Unknown'}
 Location: ${contact.location || 'Unknown'}
 LinkedIn: ${contact.linkedinUrl || 'Unknown'}
-Company: ${contact.company.name}
+Company: ${contact.company.rawName}
 Company Domain: ${contact.company.domain || 'Unknown'}
 Company Industry: ${contact.company.industry || 'Unknown'}
-Company Location: ${contact.company.location || 'Unknown'}
-Company Country: ${contact.company.country || 'Unknown'}`
 
-    const systemPrompt = `You are a B2B data enrichment assistant. Given the following context about an entity, suggest plausible values for the missing fields.
+WEB SEARCH RESULTS (real-time data):
+${searchContext || 'No search results found.'}`
 
-Context:
-${context}
+  const systemPrompt = `You are a B2B data enrichment assistant. Based on the CONTEXT and WEB SEARCH RESULTS below, fill in the missing fields.
 
-Missing fields to suggest: ${missingFields.join(', ')}
+CRITICAL RULES:
+- ONLY suggest values DIRECTLY supported by the web search results
+- If search results don't mention a field, set confidence to 0.0 or omit it
+- NEVER guess or fabricate values
+- For LinkedIn URL: only provide if found in search results as a URL
 
-For each field, provide a suggested value and confidence (0-1). Only suggest values you are reasonably confident about.
+Missing fields: ${missingFields.join(', ')}
 
-Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence": 0.0-1.0 }]`
+Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence": 0.0-1.0, "source": "web_search" }]`
 
-    try {
-      const text = await callLLM(systemPrompt, 'Suggest values for the missing fields.')
-      suggestions = parseEnrichmentResponse(text)
-      // Filter to only suggest for actually missing fields
-      suggestions = suggestions.filter((s) => missingFields.includes(s.field))
-    } catch (llmErr: unknown) {
-      const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-      console.error('[ai/enrich] LLM call failed:', msg)
-    }
+  try {
+    const text = await callLLM(systemPrompt, `Fill in the missing fields for this contact.\n\n${context}`)
+    suggestions = parseEnrichmentResponse(text)
+    suggestions = suggestions.filter((s) => missingFields.includes(s.field))
+  } catch (llmErr: unknown) {
+    const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
+    console.error('[ai/enrich] LLM call failed:', msg)
   }
 
-  // Auto-fill if requested
+  // Auto-fill with high confidence + web search source only
   let enriched = false
   if (autoFill && suggestions.length > 0) {
     const updateData: Record<string, string> = {}
     for (const s of suggestions) {
-      if (s.confidence >= 0.6) {
+      if (s.confidence >= 0.8 && s.source === 'web_search' && s.suggestedValue && s.suggestedValue !== 'Not found') {
         updateData[s.field] = s.suggestedValue
       }
     }
@@ -271,6 +310,7 @@ Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence":
     missingFields,
     suggestions,
     enriched,
+    searchResultsCount: searchResults.length,
   })
 }
 

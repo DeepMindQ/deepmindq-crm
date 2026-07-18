@@ -1,11 +1,14 @@
 /* ═══════════════════════════════════════════════════
    Shared AI email generation logic.
 
-   Used by both /api/drafts and /api/ai/generate to avoid
-   self-referencing HTTP calls (server calling itself).
+   CRITICAL: This function now accepts and USES company research
+   data (researchCard) so emails are personalized with REAL
+   company intelligence from web search.
    ═══════════════════════════════════════════════════ */
 
-/* ── Knowledge Retrieval — calls the search handler directly to avoid HTTP self-call ── */
+import { callLLM, webSearch, researchCompany, type CompanyResearch } from '@/lib/zai-helpers';
+
+/* ── Knowledge Retrieval — calls the search handler directly ── */
 async function retrieveKnowledge(params: {
   query: string;
   industry?: string;
@@ -19,7 +22,6 @@ async function retrieveKnowledge(params: {
   limit?: number;
 }) {
   try {
-    // Call the knowledge search endpoint via internal fetch
     const baseUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const response = await fetch(`${baseUrl}/api/knowledge/search`, {
       method: 'POST',
@@ -45,7 +47,7 @@ async function retrieveKnowledge(params: {
   }
 }
 
-/* ── Template-based draft generator ── */
+/* ── Template-based draft generator (fallback when AI unavailable) ── */
 function generateTemplateDraft(
   name: string,
   title: string | undefined,
@@ -61,7 +63,8 @@ function generateTemplateDraft(
     relevanceScore: number;
     serviceLine?: string;
     content?: string;
-  }>
+  }>,
+  researchCard?: CompanyResearch | null,
 ) {
   const serviceLines = capabilities
     .filter(c => c.category === 'service_line')
@@ -81,18 +84,23 @@ function generateTemplateDraft(
   const bestPP = proofPoints[0];
   const bestCTA = ctas[0] || { title: '15-Minute Discovery Call', summary: 'Would you be open to a brief 15-minute call to explore how this might apply to your team?' };
 
-  const industryInsights: Record<string, string> = {
-    'financial services': 'the increasing regulatory pressure and the need for faster processing',
-    'healthcare': 'the shift toward value-based care and data interoperability requirements',
-    'technology': 'the challenge of scaling engineering teams while maintaining quality',
-    'manufacturing': 'the pressure to digitize operations and improve supply chain visibility',
-    'retail': 'the need for real-time inventory intelligence and personalization at scale',
-    'energy': 'the transition to renewable sources and grid modernization challenges',
-    'media': 'content monetization challenges and the shift to streaming models',
-    'government': 'modernization of legacy systems and improving citizen service delivery',
-  };
+  // Use research data for observation if available
   let observation = '';
-  if (industry) {
+  if (researchCard?.businessOverview && researchCard.confidence > 30) {
+    observation = researchCard.businessOverview.substring(0, 200);
+  } else if (researchCard?.recentNews?.length) {
+    observation = `recent news: ${researchCard.recentNews[0].title}`;
+  } else if (industry) {
+    const industryInsights: Record<string, string> = {
+      'financial services': 'the increasing regulatory pressure and the need for faster processing',
+      'healthcare': 'the shift toward value-based care and data interoperability requirements',
+      'technology': 'the challenge of scaling engineering teams while maintaining quality',
+      'manufacturing': 'the pressure to digitize operations and improve supply chain visibility',
+      'retail': 'the need for real-time inventory intelligence and personalization at scale',
+      'energy': 'the transition to renewable sources and grid modernization challenges',
+      'media': 'content monetization challenges and the shift to streaming models',
+      'government': 'modernization of legacy systems and improving citizen service delivery',
+    };
     observation = industryInsights[industry.toLowerCase()] || `the evolving landscape in ${industry}`;
   } else if (company) {
     observation = `the growth trajectory at ${company}`;
@@ -145,13 +153,14 @@ function generateTemplateDraft(
   if (title) confidence += 5;
   if (company) confidence += 5;
   if (bestPP) confidence += 5;
+  if (researchCard?.confidence && researchCard.confidence > 50) confidence += 15;
   confidence = Math.min(95, confidence);
 
   const assumptions: string[] = [];
-  if (!industry) assumptions.push('Industry not specified — used general approach');
-  if (!title) assumptions.push('Job title not provided — could not tailor to role-specific pain points');
-  if (!company) assumptions.push('Company name not provided — could not reference specific context');
-  if (assumptions.length === 0) assumptions.push('All key parameters provided — high confidence match');
+  if (!researchCard) assumptions.push('No company research data available — used general approach');
+  if (!industry) assumptions.push('Industry not specified');
+  if (!title) assumptions.push('Job title not provided');
+  if (assumptions.length === 0) assumptions.push('Company research data + knowledge base used — high confidence');
 
   return {
     subject,
@@ -170,7 +179,7 @@ function generateTemplateDraft(
   };
 }
 
-/* ── AI SDK generation ── */
+/* ── AI SDK generation — NOW uses real company research ── */
 async function generateWithAI(
   name: string,
   email: string | undefined,
@@ -180,19 +189,9 @@ async function generateWithAI(
   companySize: string | undefined,
   tone: string,
   additionalContext: string | undefined,
-  capabilities: Array<{ id: string; title: string; summary: string; category: string; relevanceScore: number; content?: string }>
+  capabilities: Array<{ id: string; title: string; summary: string; category: string; relevanceScore: number; content?: string }>,
+  researchCard?: CompanyResearch | null,
 ) {
-  let ZAI: any;
-  try {
-    ZAI = (await import('z-ai-web-dev-sdk')).default;
-  } catch {
-    throw new Error('SDK_NOT_AVAILABLE');
-  }
-
-  // Ensure .z-ai-config exists (needed for Vercel/serverless)
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-
   const capabilityContext = capabilities
     .map(cap => `[${cap.category}] ${cap.title}: ${cap.content || cap.summary}`)
     .join('\n');
@@ -203,23 +202,36 @@ async function generateWithAI(
     executive: 'Write in a concise, C-suite appropriate tone. Direct, data-driven, respectful of their time.',
   };
 
-  const systemPrompt = `You are an expert B2B sales email writer for DeepMindQ, a technology services company specializing in AI, Cloud Engineering, Data Engineering, and Digital Transformation.
+  // Build company research context — compact to stay within Vercel 10s timeout (#24)
+  let researchContext = '';
+  if (researchCard && researchCard.confidence > 20) {
+    const parts: string[] = ['── COMPANY INTELLIGENCE ──'];
+    if (researchCard.businessOverview) parts.push(`Overview: ${researchCard.businessOverview}`);
+    if (researchCard.revenue && researchCard.revenue !== 'Not found') parts.push(`Revenue: ${researchCard.revenue}`);
+    if (researchCard.employeeCount && researchCard.employeeCount !== 'Not found') parts.push(`Employees: ${researchCard.employeeCount}`);
+    if (researchCard.fundingStage && researchCard.fundingStage !== 'Not found') parts.push(`Funding: ${researchCard.fundingStage}`);
+    if (researchCard.industry) parts.push(`Industry: ${researchCard.industry}`);
+    researchContext = parts.join('\n');
+  }
+
+  const systemPrompt = `You are an expert B2B sales email writer for a technology services company.
 
 ${toneInstruction[tone] || toneInstruction.professional}
 
 Write a personalized, concise outbound email (under 150 words) that:
-- Opens with a specific, relevant observation about the prospect's company, role, or industry
-- Naturally connects to a DeepMindQ capability (ONLY use the provided capability library — never invent services)
+- Opens with a SPECIFIC observation about the prospect's company based on the intelligence provided below
+- Naturally connects to a relevant capability from the knowledge base
 - Ends with a soft, low-friction call-to-action
 - Sounds human and authentic — no buzzwords like "delve", "leverage", "synergy", "revolutionize", "paradigm shift"
-- Is professional but conversational
 - NEVER mention pricing or make unsubstantiated claims
 - NEVER use generic templates — every email must feel unique to this specific prospect
+- If company intelligence is available, reference a SPECIFIC detail from it (news, technology, people, challenge)
 
-The following capabilities were retrieved from the knowledge base based on relevance (scores shown):
+The following capabilities were retrieved from the knowledge base based on relevance:
 ${capabilities.map(c => `  - [${c.relevanceScore}%] ${c.title} (${c.category})`).join('\n')}
 
 Prioritize the highest-scored capabilities.
+${researchContext ? 'CRITICAL: Use the company intelligence below to make the email highly specific and relevant. Reference actual details about the company.' : ''}
 
 You MUST respond with valid JSON in this exact format (no markdown, no code fences):
 {"subject": "email subject line", "body": "email body text", "cta": "call to action text", "confidence_score": 75, "assumptions": ["any assumptions made"]}`;
@@ -234,22 +246,15 @@ You MUST respond with valid JSON in this exact format (no markdown, no code fenc
 **Email:** ${email || 'Not provided'}
 ${additionalContext ? `**Additional Context:**\n${additionalContext}` : ''}
 
-**DeepMindQ Capabilities (retrieved from knowledge base):**
+**Knowledge Base Capabilities:**
 ${capabilityContext}
+${researchContext}
 
 Write the email now. Respond with JSON only.`;
 
-  const zai = await ZAI.create();
-  const completion = await zai.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  });
+  const response = await callLLM(systemPrompt, userPrompt);
 
-  let aiResponse = completion.choices[0]?.message?.content || '';
-  aiResponse = aiResponse.trim();
+  let aiResponse = response.trim();
   if (aiResponse.startsWith('```')) {
     aiResponse = aiResponse.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
   }
@@ -267,7 +272,7 @@ Write the email now. Respond with JSON only.`;
   } catch {
     const lines = aiResponse.split('\n').filter(Boolean);
     parsed = {
-      subject: lines[0]?.replace(/^subject:\s*/i, '').slice(0, 100) || 'Introduction to DeepMindQ',
+      subject: lines[0]?.replace(/^subject:\s*/i, '').slice(0, 100) || 'Introduction',
       body: lines.slice(1).join('\n').slice(0, 1000) || aiResponse,
       cta: 'Would you be open to a brief 15-minute call this week?',
       confidence_score: 50,
@@ -275,11 +280,14 @@ Write the email now. Respond with JSON only.`;
     };
   }
 
+  let confidence = Math.min(100, Math.max(0, parsed.confidence_score || 50));
+  if (researchCard?.confidence && researchCard.confidence > 50) confidence = Math.min(95, confidence + 10);
+
   return {
     subject: parsed.subject || 'Draft email',
     body: parsed.body || '',
     cta: parsed.cta || '',
-    confidenceScore: Math.min(100, Math.max(0, parsed.confidence_score || 50)),
+    confidenceScore: confidence,
     assumptions: parsed.assumptions || [],
     sourceSnippets: capabilities.slice(0, 5).map(cap => ({
       id: cap.id,
@@ -293,7 +301,7 @@ Write the email now. Respond with JSON only.`;
 }
 
 /* ═══════════════════════════════════════════════════
-   Main generation function — used by both API routes
+   Main generation function
    ═══════════════════════════════════════════════════ */
 export async function generateEmailDraft(params: {
   name: string;
@@ -308,11 +316,14 @@ export async function generateEmailDraft(params: {
   problems?: string;
   searchMode?: string;
   minScore?: number;
+  researchCard?: CompanyResearch | null;
+  companyId?: string;
+  domain?: string;
 }) {
   const {
     name, email, title, company, industry, companySize,
     tone = 'professional', additionalContext, serviceLine, problems,
-    searchMode, minScore,
+    searchMode, minScore, researchCard: providedResearch, companyId, domain,
   } = params;
 
   // Build a rich search query from the prospect context
@@ -335,17 +346,55 @@ export async function generateEmailDraft(params: {
     limit: 8,
   });
 
+  // If no researchCard provided but we have a company name, do a quick search
+  let researchCard = providedResearch;
+  if (!researchCard && company) {
+    try {
+      // Quick single-query search for company context (faster than full researchCompany)
+      const results = await webSearch(`${company} ${domain || ''} ${industry || ''} overview news 2025`, 5);
+      if (results.length > 0) {
+        const snippets = results.map(r => `[${r.title}] ${r.snippet}`).join('\n');
+        const overview = await callLLM(
+          'Summarize this company in 2-3 sentences based ONLY on these search results. Be specific and factual.',
+          `Company: ${company}\nDomain: ${domain || 'Unknown'}\nIndustry: ${industry || 'Unknown'}\n\nSearch Results:\n${snippets}`
+        );
+        researchCard = {
+          businessOverview: overview,
+          revenue: 'Not found',
+          employeeCount: 'Not found',
+          fundingStage: 'Not found',
+          techStack: '',
+          socialProfiles: {},
+          keyPeople: [],
+          recentNews: results.slice(0, 3).map(r => ({
+            title: r.title,
+            snippet: r.snippet,
+            source: r.host_name || new URL(r.url).hostname,
+            url: r.url,
+            signalType: 'other' as const,
+            impact: 'medium' as const,
+          })),
+          industry: industry || 'Not found',
+          website: domain ? `https://${domain}` : '',
+          confidence: 60,
+        };
+      }
+    } catch (err) {
+      console.warn('[generateEmailDraft] Quick company search failed, proceeding without research:', err);
+    }
+  }
+
   // Try AI generation first, fall back to template
   try {
     return await generateWithAI(
       name, email, title, company, industry, companySize,
-      tone, additionalContext, retrievedCapabilities
+      tone, additionalContext, retrievedCapabilities, researchCard
     );
   } catch (aiError) {
     const errMsg = aiError instanceof Error ? aiError.message : 'Unknown error';
-    console.warn(`AI SDK unavailable (${errMsg}), using template engine`);
+    console.warn(`AI generation failed (${errMsg}), using template engine`);
     return generateTemplateDraft(
-      name, title, company, industry, companySize, tone, retrievedCapabilities
+      name, title, company, industry, companySize, tone, retrievedCapabilities, researchCard
     );
   }
 }

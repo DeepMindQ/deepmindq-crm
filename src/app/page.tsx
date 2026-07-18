@@ -8,6 +8,7 @@ import { AiChatSidebar } from '@/components/shared/ai-chat-sidebar';
 import { AiChatButton } from '@/components/shared/ai-chat-button';
 import { CommandPalette } from '@/components/shared/command-palette';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { QueryProvider } from '@/providers/query-provider';
 
 import {
   LayoutDashboard, Upload, Users, Building2, FileText, Send,
@@ -912,33 +913,51 @@ export default function HomePage() {
 
   // Check session on mount
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/auth/me');
-        if (res.ok) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch('/api/auth/me', { signal: controller.signal });
+        clearTimeout(timeout);
+        if (res.ok && !cancelled) {
           setLoggedIn(true);
         }
       } catch {
-        // Not authenticated — show login
+        // Not authenticated — show landing
       } finally {
-        setChecking(false);
+        if (!cancelled) setChecking(false);
       }
     })();
+    return () => { cancelled = true; };
   }, []);
 
-  const handleLogin = () => {
-    setLoggedIn(true);
-    window.location.hash = '#command-center';
+  const handleLogin = async () => {
+    // Verify session actually exists before showing dashboard
+    try {
+      const res = await fetch('/api/auth/me');
+      if (res.ok) {
+        setLoggedIn(true);
+        window.location.hash = '#command-center';
+        return;
+      }
+    } catch { /* fall through */ }
+    // Session not found — stay on login
+    setLoggedIn(false);
   };
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {
-      // Ignore
-    }
-    setLoggedIn(false);
-    window.location.hash = '';
+      const res = await fetch('/api/auth/logout', { method: 'POST' });
+      if (res.ok) {
+        // Successfully logged out
+        document.cookie = 'dmq_session=; path=/; max-age=0';
+        window.location.replace('/');
+        return;
+      }
+    } catch { /* fall through */ }
+    // Force-clear cookie as fallback
+    document.cookie = 'dmq_session=; path=/; max-age=0';
     window.location.replace('/');
   };
 
@@ -947,7 +966,7 @@ export default function HomePage() {
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a0c10' }}>
         <div className="text-center">
           <div className="w-10 h-10 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-500 text-sm">Checking session...</p>
+          <p className="text-gray-500 text-sm">Loading...</p>
         </div>
       </div>
     );
@@ -959,7 +978,9 @@ export default function HomePage() {
 
   return (
     <ErrorBoundary>
-      <AppShell onLogout={handleLogout} />
+      <QueryProvider>
+        <AppShell onLogout={handleLogout} />
+      </QueryProvider>
     </ErrorBoundary>
   );
 }

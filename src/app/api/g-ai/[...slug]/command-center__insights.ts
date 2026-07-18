@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { callLLM } from '@/lib/zai-helpers';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    AI-powered Command Center Insights
@@ -20,21 +21,6 @@ interface AIResult {
   aiSummary: string;
   aiStrategicInsights: Array<{ insight: string; impact: 'high' | 'medium' | 'low'; action: string }>;
   aiHealthAnalysis: string;
-}
-
-// ── LLM helper (same pattern used across the project) ──
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  });
-  return completion.choices?.[0]?.message?.content ?? '';
 }
 
 // ── Build a metrics context string for the AI ──
@@ -137,7 +123,7 @@ Your job is to analyse the provided platform metrics and return a JSON object wi
 
 IMPORTANT: Return ONLY valid JSON. No markdown fences, no commentary.`;
 
-  const raw = await callAI(systemPrompt, `Here are the current platform metrics:\n\n${metricsContext}`);
+  const raw = await callLLM(systemPrompt, `Here are the current platform metrics:\n\n${metricsContext}`);
 
   // Parse — tolerate optional markdown code fences
   const cleaned = raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim();

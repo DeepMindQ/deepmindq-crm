@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server"
 
-// Mock reset-password request route — no bcryptjs or next-auth imports
+// Password reset is disabled — this is a single-owner workspace.
 
 export async function POST() {
-  return NextResponse.json({
-    success: true,
-    data: { message: "Reset email sent" },
-  })
+  return NextResponse.json({ error: 'Not available' }, { status: 403 });
 }

@@ -87,6 +87,7 @@ export async function GET(request: Request) {
     const industry = searchParams.get('industry');
     const status = searchParams.get('status');
     const sizeRange = searchParams.get('sizeRange');
+    const enrichment = searchParams.get('enrichment'); // 'enriched' | 'unenriched'
     const sortBy = searchParams.get('sortBy') || 'name';
     const sortDir = searchParams.get('sortDir') === 'desc' ? 'desc' : 'asc';
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
@@ -116,6 +117,12 @@ export async function GET(request: Request) {
 
     if (sizeRange) {
       where.sizeRange = sizeRange;
+    }
+
+    if (enrichment === 'enriched') {
+      where.researchCard = { isNot: null };
+    } else if (enrichment === 'unenriched') {
+      where.researchCard = null;
     }
 
     // Build orderBy

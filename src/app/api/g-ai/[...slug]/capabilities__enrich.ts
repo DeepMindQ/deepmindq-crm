@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { callLLM } from '@/lib/zai-helpers';
 
 /* ═══════════════════════════════════════════════════
    POST /api/capabilities/enrich
@@ -75,31 +76,9 @@ export async function POST(request: Request) {
     }
 
     // Step 2: Use AI to extract structured capability assets
-    let ZAI: any;
-    let aiAvailable = false;
     try {
-      ZAI = (await import('z-ai-web-dev-sdk')).default;
-      aiAvailable = true;
-    } catch { /* SDK not available */ }
-
-    if (!aiAvailable) {
-      return NextResponse.json({
-        success: false,
-        error: 'AI SDK not available for enrichment',
-        pageTitle,
-        contentLength: pageContent.length,
-      }, { status: 500 });
-    }
-
-    try {
-      const { ensureZaiConfig } = await import('@/lib/zai-config');
-      await ensureZaiConfig();
-      const zai = await ZAI.create();
-      const completion = await zai.chat.completions.create({
-        messages: [
-          {
-            role: 'system',
-            content: `You are a knowledge extraction engine for a B2B technology services company. Analyze the following website content and extract structured knowledge assets.
+      const aiResponse = await callLLM(
+        `You are a knowledge extraction engine for a B2B technology services company. Analyze the following website content and extract structured knowledge assets.
 
 ${suggestedServiceLine ? `The suggested service line is: "${suggestedServiceLine}"` : ''}
 
@@ -123,22 +102,15 @@ For each asset:
 
 CRITICAL: Respond with valid JSON only. Format:
 {"pageTitle":"...","overallSummary":"...","assets":[{"title":"...","summary":"...","content":"...","category":"service_line","serviceLine":"...","targetIndustries":"...","targetRoles":"...","problems":"...","evidence":"..."}]}`,
-          },
-          {
-            role: 'user',
-            content: `Extract knowledge assets from this website:\n\nURL: ${url}\nPage Title: ${pageTitle}\n\nContent:\n${pageContent}`,
-          },
-        ],
-        thinking: { type: 'disabled' },
-      });
+        `Extract knowledge assets from this website:\n\nURL: ${url}\nPage Title: ${pageTitle}\n\nContent:\n${pageContent}`,
+      );
 
-      let aiResponse = completion.choices[0]?.message?.content || '';
-      aiResponse = aiResponse.trim();
-      if (aiResponse.startsWith('```')) {
-        aiResponse = aiResponse.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      let cleanedResponse = aiResponse.trim();
+      if (cleanedResponse.startsWith('```')) {
+        cleanedResponse = cleanedResponse.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
       }
 
-      const parsed = JSON.parse(aiResponse);
+      const parsed = JSON.parse(cleanedResponse);
       const assets = (parsed.assets || []).map((a: Record<string, unknown>) => ({
         title: String(a.title || 'Untitled'),
         summary: String(a.summary || ''),

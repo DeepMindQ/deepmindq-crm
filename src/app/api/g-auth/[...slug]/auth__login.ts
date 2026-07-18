@@ -4,6 +4,12 @@ import { verifyPassword } from '@/lib/password';
 import { requestOtp } from '@/lib/otp';
 import { db } from '@/lib/db';
 
+// ── Owner-only access: only these emails can log in ──
+const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || 'shanker001@gmail.com')
+  .split(',')
+  .map(e => e.trim().toLowerCase())
+  .filter(Boolean);
+
 const schema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(1, 'Password is required'),
@@ -21,6 +27,11 @@ export async function POST(request: NextRequest) {
 
     const { email, password } = parsed.data;
     const normalizedEmail = email.trim().toLowerCase();
+
+    // ── BLOCK any email not in the allowlist ──
+    if (!ALLOWED_EMAILS.includes(normalizedEmail)) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
 
     // Find user
     const user = await db.user.findUnique({ where: { email: normalizedEmail } });

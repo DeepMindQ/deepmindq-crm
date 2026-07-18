@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requestOtp, type OtpPurpose } from '@/lib/otp';
 
+// ── Owner-only access: only these emails can request OTP ──
+const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || 'shanker001@gmail.com')
+  .split(',')
+  .map(e => e.trim().toLowerCase())
+  .filter(Boolean);
+
 const schema = z.object({
   email: z.string().email('Invalid email address'),
   purpose: z.enum(['login', 'set_password', 'change_email', 'change_password', 'update_profile']),
@@ -18,6 +24,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, purpose } = parsed.data;
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // ── BLOCK any email not in the allowlist ──
+    if (!ALLOWED_EMAILS.includes(normalizedEmail)) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
     const result = await requestOtp(email, purpose as OtpPurpose);
 
     if (!result.success) {

@@ -65,6 +65,11 @@ export async function GET() {
       healthCounts[group.emailHealth] = group._count.emailHealth;
     }
 
+    // Get additional counts for sidebar pipeline
+    const totalContacts = await db.contact.count();
+    const totalLeadsCount = await db.contact.count({ where: { status: { in: ['active', 'prospect', 'engaged', 'qualified'] } } });
+    const importedCount = await db.importBatch.count();
+
     return NextResponse.json({
       contactsByStatus: statusCounts,
       totalCompanies,
@@ -75,6 +80,14 @@ export async function GET() {
       bouncesCount,
       suppressionsCount,
       emailHealthDistribution: healthCounts,
+      // Aliases for sidebar pipeline in page.tsx
+      importedCount,
+      totalLeads: totalLeadsCount,
+      draftCount: draftsPendingReview,
+      queueCount: queuePending,
+      replyCount: repliesThisWeek,
+      bounceCount: bouncesCount,
+      totalContacts,
     });
   } catch (error) {
     console.error('Dashboard error:', error);
@@ -88,6 +101,13 @@ export async function GET() {
       bouncesCount: 0,
       suppressionsCount: 0,
       emailHealthDistribution: {},
+      importedCount: 0,
+      totalLeads: 0,
+      draftCount: 0,
+      queueCount: 0,
+      replyCount: 0,
+      bounceCount: 0,
+      totalContacts: 0,
     });
   }
 }

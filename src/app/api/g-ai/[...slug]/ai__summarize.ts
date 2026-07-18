@@ -3,37 +3,24 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
+import { callLLM } from '@/lib/zai-helpers'
 
 // ---------------------------------------------------------------------------
 // Validation
 // ---------------------------------------------------------------------------
 
 const summarizeSchema = z.object({
-  entityType: z.enum(['company', 'contact', 'opportunity']),
+  entityType: z.enum(['company', 'contact']),
   entityId: z.string().min(1),
 })
 
 // ---------------------------------------------------------------------------
-// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
+// Types
 // ---------------------------------------------------------------------------
 
 interface SummaryResult {
   summary: string
   keyPoints: string[]
-}
-
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  })
-  return completion.choices?.[0]?.message?.content ?? ''
 }
 
 function parseSummaryResponse(text: string): SummaryResult | null {
@@ -83,9 +70,7 @@ function summarizeCompany(data: {
   contactCount: number
   notesCount: number
   timelineCount: number
-  opportunityCount: number
   researchOverview: string | null
-  dataFreshness: string | null
   intelligenceScore: number | null
 }): SummaryResult {
   const parts: string[] = []
@@ -101,17 +86,11 @@ function summarizeCompany(data: {
     parts.push(`${data.timelineCount} activity event${data.timelineCount !== 1 ? 's' : ''} recorded.`)
   }
 
-  if (data.opportunityCount > 0) {
-    parts.push(`${data.opportunityCount} active opportunit${data.opportunityCount !== 1 ? 'ies' : 'y'} in pipeline.`)
-  }
-
   const keyPoints: string[] = []
   keyPoints.push(`Status: ${data.status}`)
   if (data.industry) keyPoints.push(`Industry: ${data.industry}`)
   keyPoints.push(`${data.contactCount} contact${data.contactCount !== 1 ? 's' : ''} tracked`)
   if (data.intelligenceScore) keyPoints.push(`Intelligence score: ${data.intelligenceScore}/5`)
-  if (data.dataFreshness) keyPoints.push(`Data freshness: ${data.dataFreshness}`)
-  if (data.opportunityCount > 0) keyPoints.push(`${data.opportunityCount} active opportunit${data.opportunityCount !== 1 ? 'ies' : 'y'}`)
   if (data.researchOverview) keyPoints.push('Research card available')
 
   return {
@@ -122,16 +101,16 @@ function summarizeCompany(data: {
 
 function summarizeContact(data: {
   name: string
-  jobTitle: string | null
+  title: string | null
   companyName: string
   emailHealth: string
   draftCount: number
   timelineCount: number
   lastContactedAt: string | null
-  roleBucket: string | null
+  role: string | null
 }): SummaryResult {
   const parts: string[] = []
-  const role = data.jobTitle ?? 'team member'
+  const role = data.title ?? 'team member'
   parts.push(`${data.name} is a ${role} at ${data.companyName}.`)
   parts.push(`Email health: ${data.emailHealth}.`)
 
@@ -146,51 +125,13 @@ function summarizeContact(data: {
   }
 
   const keyPoints: string[] = []
-  if (data.roleBucket) keyPoints.push(`Seniority: ${data.roleBucket}`)
+  if (data.role) keyPoints.push(`Seniority: ${data.role}`)
   keyPoints.push(`Email health: ${data.emailHealth}`)
   if (data.draftCount > 0) keyPoints.push(`${data.draftCount} draft${data.draftCount !== 1 ? 's' : ''} available`)
   if (data.timelineCount > 0) keyPoints.push(`${data.timelineCount} timeline event${data.timelineCount !== 1 ? 's' : ''}`)
   if (data.lastContactedAt) {
     keyPoints.push(`Last contact: ${formatDistanceToNow(new Date(data.lastContactedAt), { addSuffix: true })}`)
   }
-
-  return {
-    summary: parts.join(' '),
-    keyPoints: keyPoints.slice(0, 5),
-  }
-}
-
-function summarizeOpportunity(data: {
-  title: string
-  companyName: string
-  status: string
-  contactName: string | null
-  nextAction: string | null
-  createdAt: string
-  updatedAt: string
-  description: string | null
-}): SummaryResult {
-  const parts: string[] = []
-  parts.push(`"${data.title}" is an opportunity with ${data.companyName}, currently in the ${data.status} stage.`)
-
-  if (data.contactName) {
-    parts.push(`Target contact: ${data.contactName}.`)
-  }
-
-  if (data.nextAction) {
-    parts.push(`Next action: ${data.nextAction}.`)
-  }
-
-  if (data.description) {
-    parts.push(data.description.slice(0, 200) + (data.description.length > 200 ? '...' : ''))
-  }
-
-  const keyPoints: string[] = []
-  keyPoints.push(`Stage: ${data.status}`)
-  if (data.contactName) keyPoints.push(`Contact: ${data.contactName}`)
-  if (data.nextAction) keyPoints.push(`Next action: ${data.nextAction}`)
-  keyPoints.push(`Created ${formatDistanceToNow(new Date(data.createdAt), { addSuffix: true })}`)
-  keyPoints.push(`Last updated ${formatDistanceToNow(new Date(data.updatedAt), { addSuffix: true })}`)
 
   return {
     summary: parts.join(' '),
@@ -218,12 +159,8 @@ export async function POST(request: NextRequest) {
       const company = await db.company.findUnique({
         where: { id: entityId },
         include: {
-          contacts: { where: { archivedAt: null }, select: { id: true, name: true } },
+          contacts: { where: { status: { not: 'archived' } }, select: { id: true, rawName: true } },
           researchCard: { select: { businessOverview: true } },
-          opportunities: {
-            where: { status: { notIn: ['won', 'lost', 'archived'] } },
-            select: { id: true },
-          },
           _count: { select: { notes: true, timeline: true } },
         },
       })
@@ -231,15 +168,13 @@ export async function POST(request: NextRequest) {
       if (!company) return apiError('Company not found', 404)
 
       const templateData = {
-        name: company.name,
+        name: company.rawName,
         status: company.status,
         industry: company.industry,
         contactCount: company.contacts.length,
         notesCount: company._count.notes,
         timelineCount: company._count.timeline,
-        opportunityCount: company.opportunities.length,
         researchOverview: company.researchCard?.businessOverview ?? null,
-        dataFreshness: company.dataFreshness,
         intelligenceScore: company.intelligenceScore,
       }
 
@@ -247,25 +182,23 @@ export async function POST(request: NextRequest) {
         const systemPrompt = `You are a B2B sales intelligence assistant. Summarize the following company data for a sales rep. Include a concise summary (2-3 sentences) and 3-5 key bullet points.
 
 Company data:
-- Name: ${company.name}
+- Name: ${company.rawName}
 - Status: ${company.status}
 - Industry: ${company.industry ?? 'Unknown'}
-- Employees: ${company.employeeSize ?? 'Unknown'}
+- Employees: ${company.sizeRange ?? 'Unknown'}
 - Country: ${company.country ?? 'Unknown'}
 - Domain: ${company.domain ?? 'Unknown'}
 - Intelligence Score: ${company.intelligenceScore ?? 'N/A'}/5
-- Data Freshness: ${company.dataFreshness ?? 'Unknown'}
 - Contacts: ${company.contacts.length}
 - Notes: ${company._count.notes}
 - Timeline Events: ${company._count.timeline}
-- Open Opportunities: ${company.opportunities.length}
 - Research Overview: ${company.researchCard?.businessOverview ?? 'None'}
-- Contact Names: ${company.contacts.map((c) => c.name).join(', ') || 'None'}
+- Contact Names: ${company.contacts.map((c) => c.rawName).join(', ') || 'None'}
 
 Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
         try {
-          const text = await callAI(systemPrompt, 'Generate the summary now.')
+          const text = await callLLM(systemPrompt, 'Generate the summary now.')
           result = parseSummaryResponse(text)
           if (result) usedLlm = true
         } catch (llmErr: unknown) {
@@ -288,9 +221,9 @@ Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
     // ── Contact ──
     if (entityType === 'contact') {
       const contact = await db.contact.findFirst({
-        where: { id: entityId, archivedAt: null },
+        where: { id: entityId, status: { not: 'archived' } },
         include: {
-          company: { select: { name: true } },
+          company: { select: { rawName: true } },
           drafts: { where: { status: 'draft' }, select: { id: true } },
           _count: { select: { timeline: true } },
         },
@@ -299,24 +232,24 @@ Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
       if (!contact) return apiError('Contact not found', 404)
 
       const templateData = {
-        name: contact.name,
-        jobTitle: contact.jobTitle,
-        companyName: contact.company.name,
+        name: contact.rawName,
+        title: contact.title,
+        companyName: contact.company.rawName,
         emailHealth: contact.emailHealth,
         draftCount: contact.drafts.length,
         timelineCount: contact._count.timeline,
         lastContactedAt: contact.lastContactedAt?.toISOString() ?? null,
-        roleBucket: contact.roleBucket,
+        role: contact.role,
       }
 
       {
         const systemPrompt = `You are a B2B sales intelligence assistant. Summarize the following contact data for a sales rep. Include a concise summary (2-3 sentences) and 3-5 key bullet points.
 
 Contact data:
-- Name: ${contact.name}
-- Job Title: ${contact.jobTitle ?? 'Unknown'}
-- Role Bucket: ${contact.roleBucket ?? 'Unknown'}
-- Company: ${contact.company.name}
+- Name: ${contact.rawName}
+- Job Title: ${contact.title ?? 'Unknown'}
+- Role: ${contact.role ?? 'Unknown'}
+- Company: ${contact.company.rawName}
 - Email: ${contact.email ?? 'None'}
 - Email Health: ${contact.emailHealth}
 - Email Health Score: ${contact.emailHealthScore ?? 'N/A'}
@@ -330,7 +263,7 @@ Contact data:
 Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
         try {
-          const text = await callAI(systemPrompt, 'Generate the summary now.')
+          const text = await callLLM(systemPrompt, 'Generate the summary now.')
           result = parseSummaryResponse(text)
           if (result) usedLlm = true
         } catch (llmErr: unknown) {
@@ -341,65 +274,6 @@ Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
       if (!result) {
         result = summarizeContact(templateData)
-      }
-
-      return apiSuccess({
-        summary: result.summary,
-        keyPoints: result.keyPoints,
-        confidence: usedLlm ? 0.95 : 0.8,
-      })
-    }
-
-    // ── Opportunity ──
-    if (entityType === 'opportunity') {
-      const opportunity = await db.opportunity.findUnique({
-        where: { id: entityId },
-        include: {
-          company: { select: { name: true } },
-          targetContact: { select: { name: true } },
-        },
-      })
-
-      if (!opportunity) return apiError('Opportunity not found', 404)
-
-      const templateData = {
-        title: opportunity.title,
-        companyName: opportunity.company.name,
-        status: opportunity.status,
-        contactName: opportunity.targetContact?.name ?? null,
-        nextAction: opportunity.nextAction,
-        createdAt: opportunity.createdAt.toISOString(),
-        updatedAt: opportunity.updatedAt.toISOString(),
-        description: opportunity.description,
-      }
-
-      {
-        const systemPrompt = `You are a B2B sales intelligence assistant. Summarize the following opportunity for a sales rep. Include a concise summary (2-3 sentences) and 3-5 key bullet points.
-
-Opportunity data:
-- Title: ${opportunity.title}
-- Company: ${opportunity.company.name}
-- Status: ${opportunity.status}
-- Target Contact: ${opportunity.targetContact?.name ?? 'None'}
-- Next Action: ${opportunity.nextAction ?? 'None'}
-- Description: ${opportunity.description ?? 'None'}
-- Created: ${opportunity.createdAt.toISOString()}
-- Updated: ${opportunity.updatedAt.toISOString()}
-
-Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
-
-        try {
-          const text = await callAI(systemPrompt, 'Generate the summary now.')
-          result = parseSummaryResponse(text)
-          if (result) usedLlm = true
-        } catch (llmErr: unknown) {
-          const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-          console.error('[ai/summarize] LLM call failed:', msg)
-        }
-      }
-
-      if (!result) {
-        result = summarizeOpportunity(templateData)
       }
 
       return apiSuccess({

@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { getAIConfig, updateAIConfig, testProviderConnection } from '@/lib/ai-config';
+import { db } from '@/lib/db';
 
 /* ═══════════════════════════════════════════════════
    Types
@@ -91,15 +93,10 @@ const DEFAULT_SETTINGS: SettingsObject = {
   },
 };
 
-/* ═══════════════════════════════════════════════════
-   In-memory settings store (survives hot reloads,
-   resets on server restart — safe for Vercel)
-   ═══════════════════════════════════════════════════ */
-let currentSettings: SettingsObject = DEFAULT_SETTINGS;
+const APP_SETTINGS_KEY = 'app_settings';
 
 /* ═══════════════════════════════════════════════════
-   Deep-merge helper — merges partial updates into
-   the current settings without losing untouched keys
+   Deep-merge helper
    ═══════════════════════════════════════════════════ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function deepMerge(target: any, source: any): any {
@@ -124,11 +121,44 @@ function deepMerge(target: any, source: any): any {
 }
 
 /* ═══════════════════════════════════════════════════
+   Load/save settings from DB
+   ═══════════════════════════════════════════════════ */
+async function loadSettings(): Promise<SettingsObject> {
+  try {
+    const setting = await db.systemSetting.findUnique({
+      where: { key: APP_SETTINGS_KEY },
+    });
+    if (setting?.value) {
+      return deepMerge(DEFAULT_SETTINGS, JSON.parse(setting.value));
+    }
+  } catch {
+    // DB not available yet
+  }
+  return DEFAULT_SETTINGS;
+}
+
+async function saveSettings(settings: SettingsObject): Promise<void> {
+  try {
+    await db.systemSetting.upsert({
+      where: { key: APP_SETTINGS_KEY },
+      update: { value: JSON.stringify(settings) },
+      create: { key: APP_SETTINGS_KEY, value: JSON.stringify(settings) },
+    });
+  } catch {
+    console.warn('[settings] Failed to persist to DB');
+  }
+}
+
+/* ═══════════════════════════════════════════════════
    GET /api/settings — return current settings
    ═══════════════════════════════════════════════════ */
 export async function GET() {
   try {
-    return NextResponse.json({ settings: currentSettings });
+    const [settings, aiProviders] = await Promise.all([
+      loadSettings(),
+      getAIConfig(),
+    ]);
+    return NextResponse.json({ settings, aiProviders });
   } catch (error) {
     console.error('Settings GET error:', error);
     return NextResponse.json({ settings: DEFAULT_SETTINGS, _demo: true });
@@ -137,7 +167,6 @@ export async function GET() {
 
 /* ═══════════════════════════════════════════════════
    PUT /api/settings — update settings
-   Accepts a partial settings object and deep-merges
    ═══════════════════════════════════════════════════ */
 export async function PUT(request: Request) {
   try {
@@ -150,17 +179,67 @@ export async function PUT(request: Request) {
       );
     }
 
+    // Handle AI provider updates separately
+    if (body.aiProviders) {
+      const updatedAI = await updateAIConfig(body.aiProviders);
+      const { aiProviders: _ai, ...restBody } = body;
+      if (Object.keys(restBody).length > 0) {
+        const currentSettings = await loadSettings();
+        const merged = deepMerge(currentSettings, restBody) as SettingsObject;
+        await saveSettings(merged);
+        return NextResponse.json({
+          success: true,
+          settings: merged,
+          aiProviders: updatedAI,
+        });
+      }
+      return NextResponse.json({
+        success: true,
+        settings: await loadSettings(),
+        aiProviders: updatedAI,
+      });
+    }
+
     // Deep merge the incoming partial settings
-    currentSettings = deepMerge(currentSettings, body) as SettingsObject;
+    const currentSettings = await loadSettings();
+    const merged = deepMerge(currentSettings, body) as SettingsObject;
+    await saveSettings(merged);
 
     return NextResponse.json({
       success: true,
-      settings: currentSettings,
+      settings: merged,
     });
   } catch (error) {
     console.error('Settings PUT error:', error);
     return NextResponse.json(
       { error: 'Failed to update settings' },
+      { status: 500 }
+    );
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   POST /api/settings/test-provider — test a single
+   AI provider connection
+   ═══════════════════════════════════════════════════ */
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { providerId } = body;
+
+    if (!providerId || typeof providerId !== 'string') {
+      return NextResponse.json(
+        { error: 'providerId is required' },
+        { status: 400 }
+      );
+    }
+
+    const result = await testProviderConnection(providerId);
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error('Provider test error:', error);
+    return NextResponse.json(
+      { success: false, message: 'Test failed: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
     );
   }

@@ -1,30 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
+import { callLLM } from '@/lib/zai-helpers'
 
 // ---------------------------------------------------------------------------
-// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
+// Types
 // ---------------------------------------------------------------------------
 
 type LLMResult = { subject: string; body: string } | null
-
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  })
-  return completion.choices?.[0]?.message?.content ?? ''
-}
-
-// ---------------------------------------------------------------------------
-// JSON extraction from LLM output (tolerant of markdown fences)
-// ---------------------------------------------------------------------------
 
 function parseLlmJson(raw: string): LLMResult {
   const cleaned = raw
@@ -233,7 +216,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 ${researchContext ? `${researchContext}\n` : ''}${knowledgeContext ? `${knowledgeContext}\n` : ''}Respond in JSON format: { "subject": "...", "body": "..." }`
 
       try {
-        const text = await callAI(systemPrompt, 'Generate the email now.')
+        const text = await callLLM(systemPrompt, 'Generate the email now.')
         const result = parseLlmJson(text)
         if (result) {
           subject = result.subject

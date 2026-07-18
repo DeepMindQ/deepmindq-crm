@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
+import { callLLM, webSearch } from '@/lib/zai-helpers'
 
 /* ── In-memory cache (1 hour TTL) ── */
 let cachedResult: { data: OpportunitiesResponse; ts: number } | null = null
@@ -67,20 +68,16 @@ async function withConcurrency<T>(
 
 /* ── Web search for a single company ── */
 async function searchCompany(
-  zai: Awaited<ReturnType<typeof import('z-ai-web-dev-sdk').default.create>>,
   name: string,
 ): Promise<SearchResult> {
   try {
     const query = `${name} investment digital transformation AI 2025`
-    const results = await zai.functions.invoke('web_search', { query, num: 8 })
-    const items = results?.results?.map(
-      (r: { title?: string; snippet?: string; url?: string }) => ({
-        title: r.title ?? '',
-        snippet: r.snippet ?? '',
-        url: r.url ?? '',
-      }),
-    ) ?? []
-    return { companyName: name, results: items, error: null }
+    const items = await webSearch(query, 8)
+    return {
+      companyName: name,
+      results: items.map(r => ({ title: r.title, snippet: r.snippet, url: r.url })),
+      error: null
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { companyName: name, results: null, error: msg }
@@ -208,10 +205,8 @@ export async function GET() {
     }
 
     // 2. Run web searches with concurrency limit of 3
-    const ZAI = await import('z-ai-web-dev-sdk').then((m) => m.default).then((Z) => Z.create())
-
     const searchTasks = companies.map(
-      (c) => () => searchCompany(ZAI, c.normalizedName),
+      (c) => () => searchCompany(c.normalizedName),
     )
 
     const searchResults = await withConcurrency(searchTasks, 3)
@@ -273,15 +268,7 @@ Return ONLY valid JSON array:
 Only include companies with matchScore >= 40. Sort by matchScore descending.`
 
     // 4. Single LLM call with all companies
-    const completion = await ZAI.chat.completions.create({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      thinking: { type: 'disabled' },
-    })
-
-    const raw = completion.choices?.[0]?.message?.content ?? ''
+    const raw = await callLLM(systemPrompt, userPrompt)
     const opportunities = parseLLMJson(raw)
     const distribution = buildDistribution(opportunities)
 

@@ -549,7 +549,7 @@ model ConversationPlan {
   industry         String?
   context          String?
   capabilities     String?
-  plan             Json     // Stores the full ApiPlan object
+  plan             String    // JSON string of the full ApiPlan object
   generatedAt      DateTime @default(now())
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -662,4 +662,156 @@ model Session {
   @@index([userId])
   @@index([token])
   @@index([expiresAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Phase 1: Data Intelligence Engine
+//
+// All business rules (column mapping, validation, normalization,
+// scoring) are stored in these config tables — NOT in code.
+// Admin can modify rules from Settings > Data Rules without
+// any developer intervention or code deployment.
+// ═══════════════════════════════════════════════════════════════
+
+model DataUpload {
+  id                String    @id @default(cuid())
+  fileName          String
+  totalRows         Int       @default(0)
+  processedRows     Int       @default(0)
+  acceptedRows      Int       @default(0)
+  warningRows       Int       @default(0)
+  failedRows        Int       @default(0)
+  duplicateRows     Int       @default(0)
+  dataQualityScore  Float     @default(0)
+  // created → mapping_confirmed → processing → review_ready → committing → completed
+  //                                                ↘ cancelled
+  //                                                ↘ failed
+  status            String    @default("created")
+  columnMapping     String                          // JSON: {sourceHeader: targetField}
+  consentSource     String    @default("manual_upload")
+  leadSource        String    @default("manual")
+  errorMessage      String?
+  completedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  rows              UploadRow[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model UploadRow {
+  id                  String   @id @default(cuid())
+  uploadId            String
+  rowIndex            Int
+  rawData             String                           // JSON: original row
+  mappedData          String?                          // JSON: after column mapping
+  normalizedData      String?                          // JSON: after normalization
+  validationIssues    String?                          // JSON: [{field, ruleId, severity, message}]
+  suggestedCorrections String?                         // JSON: [{field, original, suggested, ruleId}]
+  appliedCorrections  String?                          // JSON: [{field, original, applied}]
+  // pending → accepted / warning / failed / duplicate
+  // warning → corrected / rejected
+  status              String   @default("pending")
+  duplicateOfRow      Int?                             // rowIndex of the row this duplicates
+  qualityScore        Float    @default(0)
+  companyId           String?                          // populated after commit
+  createdAt           DateTime @default(now())
+
+  upload              DataUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  @@index([uploadId])
+  @@index([status])
+  @@index([qualityScore])
+}
+
+// ── Config: Column Mapping Rules ──
+// Maps source column headers (via regex) to internal field names.
+// Admin can add patterns for new file formats without code changes.
+
+model ColumnMappingRule {
+  id          String   @id @default(cuid())
+  name        String                            // human-readable name
+  pattern     String                            // regex pattern for column header
+  targetField String                            // internal field: name, email, company, etc.
+  priority    Int      @default(0)               // higher = checked first
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([targetField])
+  @@index([isActive])
+  @@index([priority])
+}
+
+// ── Config: Field Validation Rules ──
+// Configurable validation rules per field.
+// Rule types: required, regex, format, range, uniqueness, custom.
+
+model FieldValidationRule {
+  id          String   @id @default(cuid())
+  name        String
+  targetField String                            // which field to validate
+  ruleType    String                            // required | regex | format | range | uniqueness | custom
+  config      String    @default("{}")           // JSON: {pattern, minLength, maxLength, min, max, ...}
+  severity    String    @default("error")        // error | warning
+  message     String                            // human-readable error message
+  isActive    Boolean  @default(true)
+  priority    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([targetField])
+  @@index([isActive])
+}
+
+// ── Config: Normalization Mappings ──
+// Maps messy source values to clean normalized values.
+// Categories: industry, country, employee_size, company_name, title
+
+model NormalizationMapping {
+  id              String   @id @default(cuid())
+  category        String                            // industry | country | employee_size | title
+  sourceValue     String                            // the messy input
+  normalizedValue String                            // the clean output
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([category, sourceValue])
+  @@index([category])
+  @@index([isActive])
+}
+
+// ── Config: Scoring Weights ──
+// Configurable weights for lead scoring dimensions.
+// Dimension: role, email_health, company_fit, data_completeness, engagement, enrichment
+
+model ScoringWeight {
+  id          String   @id @default(cuid())
+  dimension   String                            // scoring dimension
+  field       String?                           // sub-field within dimension
+  key         String?                           // specific value (e.g., "Technology" for industry)
+  weight      Float                             // weight or score value
+  maxScore    Float     @default(100)           // max possible score for this dimension
+  description String?                           // human-readable
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([dimension, field, key])
+  @@index([dimension])
+  @@index([isActive])
+}
+
+// ── System Settings (persistent key-value store) ──
+// Replaces in-memory settings that reset on Vercel cold starts.
+// AI provider configs, app settings, feature flags — all persisted here.
+
+model SystemSetting {
+  key       String   @id                         // unique setting key (e.g., "ai_config", "app_settings")
+  value     String   @default("{}")               // JSON value
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 }

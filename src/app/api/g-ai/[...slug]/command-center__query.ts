@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { callLLM, webSearch } from '@/lib/zai-helpers';
 
 /* ═══════════════════════════════════════════════════════════════════
    AI Command Center — Natural Language Query (v2)
@@ -25,50 +26,18 @@ interface QueryResult {
   aiProcessed?: boolean;
 }
 
-// ── LLM helper (thin wrapper around z-ai-web-dev-sdk) ─────────────
-
-async function createZAI() {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const Z = await import('z-ai-web-dev-sdk').then((m: any) => m.default);
-  return Z.create();
-}
+// ── LLM helper (uses shared callLLM) ─────────────────────────
 
 async function llmChat(systemPrompt: string, userPrompt: string): Promise<string | null> {
   try {
-    const ZAI = await createZAI();
-    const completion = await ZAI.chat.completions.create({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      thinking: { type: 'disabled' },
-    });
-    // The SDK returns the content string directly in certain shapes;
-    // handle both { choices: [{ message: { content } }] } and plain string.
-    if (typeof completion === 'string') return completion;
-    const content =
-      completion?.choices?.[0]?.message?.content ??
-      completion?.content ??
-      completion?.message?.content ??
-      null;
-    return typeof content === 'string' ? content : null;
+    return await callLLM(systemPrompt, userPrompt);
   } catch (err) {
     console.error('[CommandCenter LLM]', err);
     return null;
   }
 }
 
-async function webSearch(query: string, num = 5): Promise<any[]> {
-  try {
-    const ZAI = await createZAI();
-    const results = await ZAI.functions.invoke('web_search', { query, num });
-    return Array.isArray(results) ? results : results?.results ?? [];
-  } catch (err) {
-    console.error('[CommandCenter WebSearch]', err);
-    return [];
-  }
-}
+// webSearch is imported from @/lib/zai-helpers and used directly.
 
 // ── Query Plan (what the first LLM pass returns) ──────────────────
 

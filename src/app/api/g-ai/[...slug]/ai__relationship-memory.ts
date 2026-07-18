@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { apiSuccess, apiError } from '@/lib/apiHelpers'
 import { format } from 'date-fns'
+import { callLLM } from '@/lib/zai-helpers'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -102,22 +103,10 @@ function eventTypeToDisplay(eventType: string): InteractionType {
 }
 
 // ---------------------------------------------------------------------------
-// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
+// LLM helper — uses shared SDK instance
 // ---------------------------------------------------------------------------
 
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  })
-  return completion.choices?.[0]?.message?.content ?? ''
-}
+// callLLM is imported from @/lib/zai-helpers and used directly.
 
 // ---------------------------------------------------------------------------
 // 1. Stats
@@ -394,7 +383,7 @@ Do NOT include any text outside the JSON array.`
       )
       .join('\n')}\n\nSuggest 3-5 specific next-best-actions for re-engagement.`
 
-    const raw = await callAI(systemPrompt, userPrompt)
+    const raw = await callLLM(systemPrompt, userPrompt)
 
     // Parse JSON with fallback
     let parsed: RecommendedAction[]
@@ -634,7 +623,7 @@ Respond with ONLY a JSON array of objects. No text before or after the array.`
 
     const userPrompt = `Analyze these company relationships:\n\n${JSON.stringify(companiesData, null, 1)}`
 
-    const raw = await callAI(systemPrompt, userPrompt)
+    const raw = await callLLM(systemPrompt, userPrompt)
 
     let parsed: AICompanyAnalysisResult[]
     try {
@@ -711,7 +700,7 @@ Respond with ONLY a JSON array. No text outside the array.`
 
     const userPrompt = `Portfolio overview:\n\n${JSON.stringify(portfolioData, null, 1)}\n\nGenerate 5-8 strategic recommendations covering cross-sell, contact sequencing, timing, and risk alert categories.`
 
-    const raw = await callAI(systemPrompt, userPrompt)
+    const raw = await callLLM(systemPrompt, userPrompt)
 
     let parsed: RecommendedAction[]
     try {
@@ -768,7 +757,7 @@ No text outside the JSON object.`
 
     const userPrompt = `This week's activity: ${JSON.stringify(thisWeek)}\nLast week's activity: ${JSON.stringify(lastWeek)}`
 
-    const raw = await callAI(systemPrompt, userPrompt)
+    const raw = await callLLM(systemPrompt, userPrompt)
 
     let parsed: { trendAnalysis: string }
     try {
@@ -812,7 +801,7 @@ No text outside the JSON object.`
 
     const userPrompt = `Portfolio stats: ${JSON.stringify(stats)}\n\nTop companies:\n${companyLines.join('\n')}`
 
-    const raw = await callAI(systemPrompt, userPrompt)
+    const raw = await callLLM(systemPrompt, userPrompt)
 
     let parsed: { summary: string }
     try {

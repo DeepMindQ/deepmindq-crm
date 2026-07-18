@@ -15,6 +15,8 @@ import * as mod_ai__conversation_plan from './ai__conversation-plan.ts';
 import * as mod_ai__insights from './ai__insights.ts';
 import * as mod_ai__account_brief from './ai__account-brief.ts';
 import * as mod_ai__generate from './ai__generate.ts';
+import * as mod_ai__generate_pdf from './ai__generate-pdf.ts';
+import * as mod_ai__generate_ppt from './ai__generate-ppt.ts';
 import * as mod_command_center__query from './command-center__query.ts';
 import * as mod_command_center__insights from './command-center__insights.ts';
 import * as mod_research_agent from './research-agent.ts';
@@ -50,6 +52,8 @@ const ROUTES = [
   { key: 'ai/insights', handler: mod_ai__insights },
   { key: 'ai/account-brief', handler: mod_ai__account_brief },
   { key: 'ai/generate', handler: mod_ai__generate },
+  { key: 'ai/generate-pdf', handler: mod_ai__generate_pdf },
+  { key: 'ai/generate-ppt', handler: mod_ai__generate_ppt },
   { key: 'command-center/query', handler: mod_command_center__query },
   { key: 'command-center/insights', handler: mod_command_center__insights },
   { key: 'research-agent', handler: mod_research_agent },

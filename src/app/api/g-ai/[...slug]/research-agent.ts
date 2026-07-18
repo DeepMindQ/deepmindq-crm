@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { webSearch, callLLM, extractJSON } from '@/lib/zai-helpers';
+import { webSearch, callLLM, extractJSON, tavilyAIAnswer } from '@/lib/zai-helpers';
 
 // POST /api/research-agent — Deep research on company or person
 export async function POST(req: NextRequest) {
@@ -13,14 +13,22 @@ export async function POST(req: NextRequest) {
 
     const isCompany = type === 'company';
 
-    let aiResult: string;
-    try {
-      // First do web search with robust parsing
-      const searchResults = await webSearch(query, 10);
-      const searchContext = searchResults
-        .map((r) => `[${r.title}] ${r.snippet} (Source: ${r.url})`)
-        .join('\n');
+    // Step 1: Web search (always works — Tavily)
+    const searchResults = await webSearch(query, 10);
+    const searchContext = searchResults
+      .map((r) => `[${r.title}] ${r.snippet} (Source: ${r.url})`)
+      .join('\n');
 
+    if (searchResults.length === 0) {
+      return NextResponse.json(
+        { error: 'No search results found. Try a more specific query.' },
+        { status: 404 }
+      );
+    }
+
+    // Step 2: Try full LLM-based research (best quality)
+    let aiResult: string | null = null;
+    try {
       const systemContext = isCompany
         ? `You are a senior business intelligence analyst at a top-tier strategy firm. Your research reports are used by sales teams to prepare for high-value B2B outreach. You write with specificity, citing exact figures, dates, names, and sources. You never use vague filler like "the company has demonstrated consistent growth" — instead you say "Revenue grew 34% YoY to $180M in FY2024 per their Q4 earnings filing." If you cannot find specific data, explicitly say "Not publicly available" rather than guessing.`
         : `You are a senior executive research analyst. Your profiles are used by account executives preparing for C-level outreach. You include specific role history with dates, board memberships, published articles or talks, educational credentials with years, and verifiable professional accomplishments. You never use vague phrases — instead of "recognized industry leader" you say "Keynote speaker at SaaStr Annual 2024, published in Harvard Business Review (March 2024)." If information is unavailable, say so explicitly.`;
@@ -75,48 +83,125 @@ ICON OPTIONS for sections: "Building2" "DollarSign" "Cpu" "Users" "Newspaper" "T
 
 Include 4-6 sections. Match the icon to the section topic.`;
 
-      const completion = await callLLM(
+      aiResult = await callLLM(
         `You have access to the following web search results for context:\n\n${searchContext}\n\nUse this context to provide specific, verifiable information. If the search results don't contain enough detail, say so explicitly.`,
         prompt,
       );
-      aiResult = completion;
-    } catch (sdkError) {
-      console.error('AI SDK error:', sdkError);
-      return NextResponse.json(
-        { error: 'AI research service unavailable. Please try again.' },
-        { status: 503 }
-      );
+    } catch (llmErr) {
+      console.warn('[research-agent] LLM failed, using Tavily AI fallback:', llmErr instanceof Error ? llmErr.message : llmErr);
     }
 
-    // Parse the AI response using shared helper
+    // Step 3: If LLM failed, use Tavily AI answer as fallback
+    if (!aiResult) {
+      try {
+        const tavilyAnswer = await tavilyAIAnswer(
+          isCompany
+            ? `Provide a detailed business intelligence report on ${query}. Include: overview, revenue, employees, leadership, recent news, technology stack, and competitive position.`
+            : `Provide a detailed professional profile of ${query}. Include: current role, career history, education, accomplishments, and recent activity.`
+        );
+
+        if (tavilyAnswer) {
+          // Wrap Tavily's answer into the expected JSON structure
+          const sections = searchResults.slice(0, 5).map((r) => {
+            let domain = '';
+            try { domain = new URL(r.url).hostname; } catch { /* ignore */ }
+            return {
+              title: r.title,
+              icon: 'FileText' as const,
+              content: r.snippet,
+              sources: [{ title: r.title, url: r.url, domain }],
+            };
+          });
+
+          // Extract key insights from search result titles/snippets
+          const insights = searchResults
+            .slice(0, 5)
+            .map((r) => r.snippet || r.title)
+            .filter(Boolean);
+
+          return NextResponse.json({
+            query,
+            type,
+            generatedAt: new Date().toLocaleString(),
+            executiveSummary: tavilyAnswer,
+            keyInsights: insights,
+            riskFactors: [],
+            opportunitySignals: insights.slice(0, 3),
+            sections,
+            _fallback: 'tavily_ai',
+          });
+        }
+      } catch (tavilyErr) {
+        console.warn('[research-agent] Tavily AI fallback also failed:', tavilyErr);
+      }
+
+      // Step 4: Last resort — return raw search results structured
+      const sections = searchResults.slice(0, 6).map((r) => {
+        let domain = '';
+        try { domain = new URL(r.url).hostname; } catch { /* ignore */ }
+        return {
+          title: r.title,
+          icon: 'FileText' as const,
+          content: r.snippet,
+          sources: [{ title: r.title, url: r.url, domain }],
+        };
+      });
+
+      return NextResponse.json({
+        query,
+        type,
+        generatedAt: new Date().toLocaleString(),
+        executiveSummary: `Research results for "${query}" based on ${searchResults.length} web sources. Note: AI analysis is currently unavailable — configure NVIDIA_API_KEY or FIREWORKS_API_KEY in Vercel env vars.`,
+        keyInsights: searchResults.slice(0, 5).map((r) => r.snippet || r.title).filter(Boolean),
+        riskFactors: [],
+        opportunitySignals: [],
+        sections,
+        _fallback: 'raw_search',
+      });
+    }
+
+    // Parse the LLM response
     const parsed = extractJSON(aiResult) as Record<string, unknown> | null;
 
     if (!parsed || typeof parsed !== 'object') {
-      return NextResponse.json(
-        { error: 'AI returned invalid data. Please try again.' },
-        { status: 502 }
-      );
+      // LLM returned non-JSON — return raw text as summary
+      return NextResponse.json({
+        query,
+        type,
+        generatedAt: new Date().toLocaleString(),
+        executiveSummary: aiResult,
+        keyInsights: searchResults.slice(0, 5).map((r) => r.snippet || r.title).filter(Boolean),
+        riskFactors: [],
+        opportunitySignals: [],
+        sections: searchResults.slice(0, 4).map((r) => ({
+          title: r.title,
+          icon: 'FileText' as const,
+          content: r.snippet,
+          sources: [{ title: r.title, url: r.url, domain: (() => { try { return new URL(r.url).hostname; } catch { return ''; } })() }],
+        })),
+        _fallback: 'llm_raw_text',
+      });
     }
 
-    const sections = (parsed.sections || []).map((s: any) => ({
-      title: s.title || 'Research Section',
-      icon: s.icon || 'FileText',
-      content: s.content || 'No content available.',
-      sources: Array.isArray(s.sources) ? s.sources : [],
-    }));
+    const sections = Array.isArray(parsed.sections)
+      ? parsed.sections.map((s: any) => ({
+          title: s.title || 'Research Section',
+          icon: s.icon || 'FileText',
+          content: s.content || 'No content available.',
+          sources: Array.isArray(s.sources) ? s.sources : [],
+        }))
+      : [];
 
-    const result = {
+    return NextResponse.json({
       query,
       type,
       generatedAt: new Date().toLocaleString(),
-      executiveSummary: parsed.executiveSummary || `Research analysis for "${query}". The AI service returned incomplete data — please try again.`,
+      executiveSummary: parsed.executiveSummary || `Research analysis for "${query}".`,
       keyInsights: Array.isArray(parsed.keyInsights) ? parsed.keyInsights : [],
       riskFactors: Array.isArray(parsed.riskFactors) ? parsed.riskFactors : [],
       opportunitySignals: Array.isArray(parsed.opportunitySignals) ? parsed.opportunitySignals : [],
       sections,
-    };
-
-    return NextResponse.json(result);
+    });
   } catch (error) {
     console.error('Research agent error:', error);
     return NextResponse.json(

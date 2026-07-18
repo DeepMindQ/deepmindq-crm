@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
+import { callLLM } from '@/lib/zai-helpers'
 
 /* ── In-memory cache (5 minutes) ── */
 let cachedResult: { data: DataHealthResponse; ts: number } | null = null
@@ -68,21 +69,6 @@ const NOT_ARCHIVED = { not: 'archived' }
 function pct(numerator: number, denominator: number): number {
   if (denominator === 0) return 0
   return Math.round((numerator / denominator) * 100)
-}
-
-/* ── AI helper using z-ai-web-dev-sdk ── */
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  })
-  return completion.choices?.[0]?.message?.content ?? ''
 }
 
 /* ── Parse a JSON array from LLM output, with fallback ── */
@@ -468,7 +454,7 @@ export async function GET() {
       // Run the three AI analyses in parallel
       const [diagnosisResult, strategyResult, predictionResult] = await Promise.allSettled([
         // ── 8a. AI Health Diagnosis ──
-        callAI(
+        callLLM(
           `You are a senior sales operations analyst writing a data health report for a sales ops manager. Your tone is direct, practical, and action-oriented. You reference specific numbers from the data. You explain the BUSINESS IMPACT of each issue, not just the raw count. You prioritize issues by revenue/pipeline impact.
 
 Rules:
@@ -484,7 +470,7 @@ ${JSON.stringify(metricsSnapshot, null, 2)}`
         ),
 
         // ── 8b. AI Enrichment Strategy ──
-        callAI(
+        callLLM(
           `You are a data enrichment strategist for a B2B sales CRM. Given data health metrics, produce an actionable enrichment strategy as a JSON array.
 
 Each item must have exactly these fields:
@@ -505,7 +491,7 @@ ${JSON.stringify(metricsSnapshot, null, 2)}`
         ),
 
         // ── 8c. AI Data Quality Prediction ──
-        callAI(
+        callLLM(
           `You are a data quality analyst. Based on the current CRM data health metrics, predict what will happen to data quality over the next 30-90 days if no action is taken.
 
 Rules:

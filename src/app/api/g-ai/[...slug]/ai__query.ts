@@ -1,102 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-// Prisma types removed — db proxy handles queries
-
-// ---------------------------------------------------------------------------
-// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
-// ---------------------------------------------------------------------------
-
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  })
-  return completion.choices?.[0]?.message?.content ?? ''
-}
-
-// ---------------------------------------------------------------------------
-// JSON extraction (tolerant of markdown fences)
-// ---------------------------------------------------------------------------
-
-function extractJson(raw: string): unknown {
-  const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
-
-  try {
-    return JSON.parse(cleaned)
-  } catch {
-    // fall through
-  }
-
-  const match = cleaned.match(/\{[\s\S]*\}/)
-  if (match) {
-    try {
-      return JSON.parse(match[0])
-    } catch {
-      // fall through
-    }
-  }
-
-  return null
-}
+import { callLLM, extractJSON } from '@/lib/zai-helpers'
 
 // ---------------------------------------------------------------------------
 // Safe Prisma query builder
 // ---------------------------------------------------------------------------
 
 const ALLOWED_COMPANY_FILTERS: Record<string, (v: string) => any> = {
-  name: (v) => ({ name: { contains: v, mode: 'insensitive' } }),
+  rawName: (v) => ({ rawName: { contains: v, mode: 'insensitive' } }),
   domain: (v) => ({ domain: { contains: v, mode: 'insensitive' } }),
   industry: (v) => ({ industry: { contains: v, mode: 'insensitive' } }),
   status: (v) => ({ status: v }),
-  employeeSize: (v) => ({ employeeSize: v }),
+  sizeRange: (v) => ({ sizeRange: v }),
   country: (v) => ({ country: { contains: v, mode: 'insensitive' } }),
 }
 
 const ALLOWED_CONTACT_FILTERS: Record<string, (v: string) => any> = {
-  name: (v) => ({ name: { contains: v, mode: 'insensitive' } }),
+  rawName: (v) => ({ rawName: { contains: v, mode: 'insensitive' } }),
   email: (v) => ({ email: { contains: v, mode: 'insensitive' } }),
-  jobTitle: (v) => ({ jobTitle: { contains: v, mode: 'insensitive' } }),
-  roleBucket: (v) => ({ roleBucket: v }),
+  title: (v) => ({ title: { contains: v, mode: 'insensitive' } }),
+  role: (v) => ({ role: v }),
   status: (v) => ({ status: v }),
   emailHealth: (v) => ({ emailHealth: v }),
 }
 
-const ALLOWED_OPPORTUNITY_FILTERS: Record<string, (v: string) => any> = {
-  title: (v) => ({ title: { contains: v, mode: 'insensitive' } }),
-  status: (v) => ({ status: v }),
-}
-
 const ALLOWED_COMPANY_SORT: Record<string, any> = {
-  name: { name: 'asc' },
+  rawName: { rawName: 'asc' },
   domain: { domain: 'asc' },
   industry: { industry: 'asc' },
   status: { status: 'asc' },
-  employeeSize: { employeeSize: 'asc' },
+  sizeRange: { sizeRange: 'asc' },
   country: { country: 'asc' },
   intelligenceScore: { intelligenceScore: 'desc' },
   createdAt: { createdAt: 'desc' },
 }
 
 const ALLOWED_CONTACT_SORT: Record<string, any> = {
-  name: { name: 'asc' },
+  rawName: { rawName: 'asc' },
   email: { email: 'asc' },
-  jobTitle: { jobTitle: 'asc' },
-  roleBucket: { roleBucket: 'asc' },
+  title: { title: 'asc' },
+  role: { role: 'asc' },
   status: { status: 'asc' },
   emailHealth: { emailHealth: 'asc' },
-  createdAt: { createdAt: 'desc' },
-}
-
-const ALLOWED_OPPORTUNITY_SORT: Record<string, any> = {
-  title: { title: 'asc' },
-  status: { status: 'asc' },
   createdAt: { createdAt: 'desc' },
 }
 
@@ -107,18 +53,16 @@ const ALLOWED_OPPORTUNITY_SORT: Record<string, any> = {
 const QUERY_SYSTEM_PROMPT = `You are a CRM query parser for DeepMindQ, a sales intelligence platform. Your job is to convert natural language queries into structured JSON for database filtering.
 
 Given the CRM query, return ONLY a JSON object (no markdown, no explanation) with:
-- "entityType": one of "company", "contact", "opportunity"
+- "entityType": one of "company", "contact"
 - "filters": a flat object of { field: value } for filtering. Use exact values for enum fields, case-insensitive substring for text fields.
 - "sortBy": string field name to sort by
 - "sortOrder": "asc" or "desc"
 
 Available fields and their accepted values:
 
-**Companies**: name (text), domain (text), industry (text), status ("new"/"active"/"inactive"/"archived"), employeeSize ("1-10"/"11-50"/"51-200"/"201-500"/"501-1000"/"1001-5000"/"5001+"), country (text), intelligenceScore (number, sort only), createdAt (date, sort only)
+**Companies**: rawName (text), domain (text), industry (text), status ("new"/"active"/"inactive"/"archived"), sizeRange ("1-10"/"11-50"/"51-200"/"201-500"/"501-1000"/"1001-5000"/"5001+"), country (text), intelligenceScore (number, sort only), createdAt (date, sort only)
 
-**Contacts**: name (text), email (text), jobTitle (text), roleBucket ("Executive"/"Manager"/"Technical"/"Operations"/"Sales"/"Other"), status ("new"/"active"/"inactive"/"archived"), emailHealth ("valid"/"risky"/"invalid"/"unknown"), createdAt (date, sort only)
-
-**Opportunities**: title (text), status ("researching"/"qualified"/"proposal"/"negotiation"/"won"/"lost"/"archived"), createdAt (date, sort only)
+**Contacts**: rawName (text), email (text), title (text), role ("Executive"/"Manager"/"Technical"/"Operations"/"Sales"/"Other"), status ("new"/"active"/"inactive"/"archived"), emailHealth ("valid"/"risky"/"invalid"/"unknown"), createdAt (date, sort only)
 
 Important rules:
 - "hot leads" = entityType: "company", status: "active", sortBy: "intelligenceScore", sortOrder: "desc"
@@ -130,8 +74,7 @@ Important rules:
 
 Examples:
 - "hot leads in healthcare" → { "entityType": "company", "filters": { "industry": "Healthcare", "status": "active" }, "sortBy": "intelligenceScore", "sortOrder": "desc" }
-- "executives at active companies" → { "entityType": "contact", "filters": { "roleBucket": "Executive", "status": "active" }, "sortBy": "createdAt", "sortOrder": "desc" }
-- "lost deals" → { "entityType": "opportunity", "filters": { "status": "lost" }, "sortBy": "createdAt", "sortOrder": "desc" }
+- "executives at active companies" → { "entityType": "contact", "filters": { "role": "Executive", "status": "active" }, "sortBy": "createdAt", "sortOrder": "desc" }
 - "companies in technology" → { "entityType": "company", "filters": { "industry": "Technology" }, "sortBy": "intelligenceScore", "sortOrder": "desc" }
 - "invalid emails" → { "entityType": "contact", "filters": { "emailHealth": "invalid" }, "sortBy": "createdAt", "sortOrder": "desc" }`
 
@@ -146,9 +89,9 @@ export async function POST(request: NextRequest) {
 
     // 1. Try AI-powered query parsing
     try {
-      const rawResponse = await callAI(QUERY_SYSTEM_PROMPT, query)
+      const rawResponse = await callLLM(QUERY_SYSTEM_PROMPT, query)
 
-      const parsed = extractJson(rawResponse)
+      const parsed = extractJSON(rawResponse)
       if (parsed && typeof parsed === 'object' && 'entityType' in parsed) {
         const result = await executeQuery(parsed as Record<string, unknown>, query)
         return apiSuccess(result)
@@ -205,7 +148,7 @@ async function executeQuery(
         where,
         orderBy,
         take: 20,
-        include: { _count: { select: { contacts: true, opportunities: true } } },
+        include: { _count: { select: { contacts: true } } },
       })
 
       return { data, queryInterpretation, totalResults: data.length }
@@ -216,27 +159,10 @@ async function executeQuery(
       const orderBy = buildOrderBy(sortBy, sortOrder, ALLOWED_CONTACT_SORT, { createdAt: 'desc' })
 
       const data = await db.contact.findMany({
-        where: { ...where, archivedAt: null },
+        where: { ...where, status: { not: 'archived' } },
         orderBy,
         take: 20,
-        include: { company: { select: { name: true, industry: true } } },
-      })
-
-      return { data, queryInterpretation, totalResults: data.length }
-    }
-
-    if (entityType === 'opportunity') {
-      const where = buildWhereClause(filters, ALLOWED_OPPORTUNITY_FILTERS)
-      const orderBy = buildOrderBy(sortBy, sortOrder, ALLOWED_OPPORTUNITY_SORT, { createdAt: 'desc' })
-
-      const data = await db.opportunity.findMany({
-        where,
-        orderBy,
-        take: 20,
-        include: {
-          company: { select: { name: true, industry: true } },
-          targetContact: { select: { name: true, jobTitle: true } },
-        },
+        include: { company: { select: { rawName: true, industry: true } } },
       })
 
       return { data, queryInterpretation, totalResults: data.length }

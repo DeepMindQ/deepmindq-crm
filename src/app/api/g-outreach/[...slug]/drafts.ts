@@ -140,6 +140,8 @@ export async function POST(request: Request) {
       }
 
       // Generate email using shared logic (no HTTP self-call)
+      // domain is passed so email-generation.ts can do quick web search for company intelligence
+      const domain = email ? email.split('@')[1] : null;
       const draftData = await generateEmailDraft({
         name,
         email,
@@ -152,6 +154,7 @@ export async function POST(request: Request) {
         serviceLine,
         searchMode: 'hybrid',
         minScore: 15,
+        domain,  // Pass domain for quick company research
       });
 
       // E-06: Compute thread headers
@@ -302,7 +305,21 @@ export async function POST(request: Request) {
 
     const company = contact.company;
 
-    // Use the shared generateEmailDraft (E-13: deduplicated)
+    // Use the shared generateEmailDraft — NOW passes researchCard for real company intelligence
+    const researchCard = company?.researchCard ? {
+      businessOverview: company.researchCard.businessOverview || '',
+      revenue: company.researchCard.revenue || 'Not found',
+      employeeCount: company.researchCard.employeeCount || 'Not found',
+      fundingStage: company.researchCard.fundingStage || 'Not found',
+      techStack: company.researchCard.techStack || '',
+      socialProfiles: company.researchCard.socialProfiles ? JSON.parse(String(company.researchCard.socialProfiles)) : {},
+      keyPeople: company.researchCard.keyPeople ? JSON.parse(String(company.researchCard.keyPeople || '[]')) : [],
+      recentNews: company.researchCard.recentNews ? JSON.parse(String(company.researchCard.recentNews || '[]')) : [],
+      industry: company?.industry || 'Not found',
+      website: company?.website || company?.domain || '',
+      confidence: company.researchCard.enrichmentDate ? 80 : 20,
+    } : null;
+
     const draftData = await generateEmailDraft({
       name: contact.rawName || 'Unknown',
       email: contact.email,
@@ -314,6 +331,9 @@ export async function POST(request: Request) {
       additionalContext: body.additionalContext,
       serviceLine: body.serviceLine,
       problems: body.problems,
+      researchCard,
+      companyId: company?.id,
+      domain: company?.domain,
     });
 
     // E-06: Compute thread headers

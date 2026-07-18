@@ -65,7 +65,8 @@ function timeAgo(date: string) {
   if (s < 60) return `${s}s ago`; if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`; return `${Math.floor(s / 86400)}d ago`;
 }
-function actIcon(entity: string) {
+function actIcon(entity?: string) {
+  if (!entity) return Activity;
   if (entity.includes('contact') || entity.includes('lead')) return Users;
   if (entity.includes('company')) return Building2; if (entity.includes('draft') || entity.includes('email')) return Mail;
   if (entity.includes('signal')) return Zap; return Activity;
@@ -226,7 +227,7 @@ function ActivityFeed({ items }: { items: AuditItem[] }) {
                   <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: 'rgba(0, 0, 0, 0.04)' }}><Icon className="w-3.5 h-3.5" style={{ color: C.textMuted }} /></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] leading-snug" style={{ color: C.text }}>{fmtTitle(item.action)}</p>
-                    <p className="text-[9px] capitalize mt-0.5" style={{ color: C.textDim }}>{item.entity.replace(/_/g, ' ')}</p>
+                    <p className="text-[9px] capitalize mt-0.5" style={{ color: C.textDim }}>{(item.entity || '').replace(/_/g, ' ')}</p>
                   </div>
                   <span className="text-[9px] tabular-nums shrink-0 mt-1" style={{ color: C.textDim }}>{timeAgo(item.createdAt)}</span>
                 </motion.div>

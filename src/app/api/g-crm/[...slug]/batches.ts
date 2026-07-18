@@ -20,6 +20,24 @@ function normalizeTitle(s: string | undefined | null): string {
   return s.trim();
 }
 
+// Sanitize sizeRange to valid buckets (#27)
+const VALID_SIZE_RANGES = ['1-10', '11-50', '51-200', '201-500', '501-1,000', '1,001-5,000', '5,001-10,000', '10,001+'];
+function sanitizeSizeRange(raw: string | undefined | null): string | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  if (VALID_SIZE_RANGES.includes(trimmed)) return trimmed;
+  const num = parseInt(trimmed.replace(/[^0-9]/g, ''), 10);
+  if (isNaN(num)) return undefined;
+  if (num <= 10) return '1-10';
+  if (num <= 50) return '11-50';
+  if (num <= 200) return '51-200';
+  if (num <= 500) return '201-500';
+  if (num <= 1000) return '501-1,000';
+  if (num <= 5000) return '1,001-5,000';
+  if (num <= 10000) return '5,001-10,000';
+  return '10,001+';
+}
+
 // Map common column headers to internal fields
 function guessMapping(headers: string[]): Record<string, string> {
   const map: Record<string, string> = {};
@@ -33,6 +51,7 @@ function guessMapping(headers: string[]): Record<string, string> {
     else if (/^(linkedin|linkedinurl|linkedin_url|li)$/.test(low)) map[h] = 'linkedin';
     else if (/^(location|city|country|address)$/.test(low)) map[h] = 'location';
     else if (/^(industry|sector|vertical)$/.test(low)) map[h] = 'industry';
+    else if (/^(size|employees|count|staff|headcount|company_size|noofemployees)$/.test(low)) map[h] = 'size';
     else if (/^(website|url|web|site)$/.test(low)) map[h] = 'website';
     else if (/^(domain)$/.test(low)) map[h] = 'domain';
   }
@@ -111,6 +130,7 @@ async function processChunk(
     const rawLinkedin = String(row[reverseMap['linkedin'] || ''] || '').trim();
     const rawLocation = String(row[reverseMap['location'] || ''] || '').trim();
     const rawIndustry = String(row[reverseMap['industry'] || ''] || '').trim();
+    const rawSize = String(row[reverseMap['size'] || ''] || '').trim();
 
     if (!rawName && !rawEmail) { invalid++; continue; }
     if (rawEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) { invalid++; continue; }
@@ -143,6 +163,7 @@ async function processChunk(
               rawName: rawCompany, normalizedName,
               domain: rawEmail ? rawEmail.split('@')[1] : undefined,
               industry: rawIndustry || undefined,
+              sizeRange: sanitizeSizeRange(rawSize),
               location: rawLocation || undefined,
             },
           });

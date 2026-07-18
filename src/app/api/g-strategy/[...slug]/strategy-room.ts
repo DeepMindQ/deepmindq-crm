@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { callLLM } from '@/lib/zai-helpers';
 
 function safeJsonParse(str: string | null | undefined, fallback: any) {
   if (!str) return fallback;
@@ -71,10 +72,6 @@ export async function POST(req: NextRequest) {
     // AI generation
     if (aiGenerate) {
       try {
-        const ZAI = (await import('z-ai-web-dev-sdk')).default;
-        const { ensureZaiConfig } = await import('@/lib/zai-config');
-        await ensureZaiConfig();
-        const zai = await ZAI.create();
         const prompt = `You are a strategic account planning expert. Create a comprehensive account strategy for: "${title}"
 ${companyName ? `Company: ${companyName}` : ''}
 ${objective ? `Objective: ${objective}` : ''}
@@ -106,14 +103,10 @@ Return a JSON object (no markdown, raw JSON only):
 
 Be specific and actionable. Make stakeholder names realistic but mark them as [To be identified] if not known.`;
 
-        const completion = await zai.chat.completions.create({
-          messages: [
-            { role: 'system', content: 'You are a strategic account planning expert. Return valid JSON only, no markdown fences.' },
-            { role: 'user', content: prompt },
-          ],
-          thinking: { type: 'disabled' },
-        });
-        const content = completion.choices?.[0]?.message?.content || '';
+        const content = await callLLM(
+          'You are a strategic account planning expert. Return valid JSON only, no markdown fences.',
+          prompt,
+        );
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);

@@ -2,12 +2,21 @@ import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
+import noUngovernedLlm from "./eslint-rules/no-ungoverned-llm.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
+  plugins: {
+    "no-ungoverned-llm": {
+      rules: {
+        "no-ungoverned-llm": noUngovernedLlm,
+      },
+    },
+  },
   rules: {
+    "no-ungoverned-llm/no-ungoverned-llm": "error",
     // TypeScript rules
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/no-unused-vars": "off",

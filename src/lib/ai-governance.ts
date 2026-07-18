@@ -235,6 +235,14 @@ const GOVERNANCE_CONFIGS: Record<string, GovernanceConfig> = {
     requireRecentIntelligence: false,
     maxStalenessDays: 180,
   },
+  // Phase 4 A4: Chat with company context (advisory — never blocks, but provides quality signals)
+  chat: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 365,
+  },
   // Phase 3 Hardening: Relationship memory — portfolio-wide analysis
   relationship_memory: {
     minResearchConfidence: 0,

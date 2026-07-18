@@ -267,23 +267,28 @@ export function extractJSON(raw: string): unknown {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// GOVERNANCE ARCHITECTURE RULE (Phase 3 Freeze)
+// GOVERNANCE ARCHITECTURE RULE (Phase 3 Freeze + Phase 4 A2 Enforcement)
 // ═══════════════════════════════════════════════════════════════════════════════
 //
-// The following deprecated functions were REMOVED in Phase 3 freeze:
+// DEPRECATED FUNCTIONS (removed in Phase 3 — do NOT re-add):
 //   - researchCompany()    → use research-engine/researcher.ts
 //   - findKeyPeople()      → inlined in research-engine/researcher.ts (governed)
 //   - getCompanyNews()     → use research-engine/signals.ts
 //   - getZAI()             → removed entirely
-//   - callChatLLM        → removed entirely
+//   - callChatLLM()        → removed entirely
 //
-// All AI generation MUST flow through:
-//   - governedAICall()         (company-specific, with confidence/freshness checks)
-//   - governedAICallAggregate() (non-company, with hallucination prevention + audit)
+// ACTIVE EXPORTS (used by governed AI routes via ai-governance.ts):
+//   - callLLM()            → ONLY for import by ai-governance.ts
+//   - webSearch()          → for research engine, signal detection
+//   - extractJSON()        → for parsing LLM responses
+//   - tavilyAIAnswer()     → for lightweight extraction tasks
+//   - verifyEmailBasic()   → for email validation
+//   - Type exports: WebSearchResult, KeyPerson, NewsSignal, CompanyResearch
 //
-// callLLM() is exported ONLY for use by ai-governance.ts.
-// No route, module, or engine may call it directly.
-// Build-time guard: scripts/check-governance.sh enforces this.
+// ENFORCEMENT:
+//   - ESLint rule: no-ungoverned-llm (blocks unauthorized callLLM imports)
+//   - CI script: scripts/check-governance.sh
+//   - Build fails if any violation detected
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ---------------------------------------------------------------------------

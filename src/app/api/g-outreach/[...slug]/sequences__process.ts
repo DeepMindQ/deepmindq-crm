@@ -8,10 +8,15 @@ import { generateMessageId } from '@/lib/email-tracking';
    Called by cron / manual trigger. Finds enrollments
    where nextStepAt <= now and status = "active",
    generates the email for the current step, creates
-   a draft, approves and queues it, then advances
-   to the next step.
+   a draft (pending_review), then advances to the
+   next step.
 
    Body: {} (no params needed — processes all due enrollments)
+
+   Phase 4 A1: This endpoint generates drafts with status 'pending_review' ONLY.
+   It does NOT create SendQueue entries. The human approval flow is:
+     Draft (pending_review) → Human reviews → PATCH /api/drafts {action:'approve'} → SendQueue created
+   No code path in this file may create SendQueue entries.
    ═══════════════════════════════════════════════════ */
 export async function POST() {
   try {
@@ -90,27 +95,20 @@ export async function POST() {
             .replace(/\{\{company\}\}/g, company?.rawName || 'your company');
         }
 
-        // Create a draft
+        // Create a draft — Phase 4 A1: AI generates draft only.
+        // Human must review and approve before SendQueue entry is created.
+        // See drafts.ts PATCH handler for the approval → SendQueue flow.
         const draft = await db.draft.create({
           data: {
             contactId: contact.id,
             subject,
             body,
             cta,
-            status: 'approved',
+            status: 'pending_review',
             confidenceScore: 70,
             messageId: generateMessageId(),
             sequenceId: sequence.id,
             sequenceStepId: step.id,
-          },
-        });
-
-        // Create queue item immediately
-        await db.sendQueue.create({
-          data: {
-            draftId: draft.id,
-            status: 'pending',
-            scheduledAt: now,
           },
         });
 

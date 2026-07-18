@@ -4,7 +4,8 @@ import { apiError, apiSuccess } from '@/lib/apiHelpers'
 // ── GOVERNANCE ENFORCEMENT ──
 // This route MUST go through the governance layer.
 // Direct access to callLLM / callChatLLM is FORBIDDEN.
-import { governedAICallAggregate } from '@/lib/ai-governance'
+import { governedAICallAggregate, governedAICall } from '@/lib/ai-governance'
+import type { ResearchContext } from '@/lib/intelligence-contract'
 
 // ---------------------------------------------------------------------------
 // GOVERNANCE ARCHITECTURE NOTE
@@ -108,6 +109,58 @@ async function buildContextString(context: {
   return { contextStr: parts.join('\n\n'), sources }
 }
 
+/**
+ * Load research context for governance when companyId is present.
+ * Returns null if no research card exists (governance will flag this).
+ */
+async function loadResearchContext(companyId: string): Promise<ResearchContext | null> {
+  try {
+    const company = await db.company.findUnique({
+      where: { id: companyId },
+      include: {
+        researchCard: true,
+        evidences: {
+          where: { isActive: true },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        },
+        signals: {
+          where: { lifecycleStatus: { in: ['detected', 'validated', 'active'] } },
+          orderBy: { detectedAt: 'desc' },
+          take: 5,
+        },
+      },
+    });
+
+    if (!company?.researchCard) return null;
+
+    // Count active capability matches
+    const capabilityMatchCount = await db.signalCapabilityMatch.count({
+      where: { companyId, matchScore: { gte: 0.4 } },
+    });
+
+    return {
+      company: {
+        rawName: company.rawName,
+        domain: company.domain,
+        industry: company.industry,
+        website: company.website,
+        sizeRange: company.sizeRange,
+        country: company.country,
+        location: company.location,
+        intelligenceScore: company.intelligenceScore,
+      },
+      researchCard: company.researchCard,
+      evidences: company.evidences,
+      signals: company.signals,
+      capabilityMatchCount,
+    } as unknown as ResearchContext;
+  } catch (err) {
+    console.error('[ai/chat] Failed to load research context:', err);
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Template fallback responses
 // ---------------------------------------------------------------------------
@@ -201,23 +254,67 @@ ${
       ? `## Previous Conversation\n${historyBlock}\n\n## Current User Message\n${message}`
       : message
 
-    // 4. Call through GOVERNANCE LAYER (governedAICallAggregate)
-    //    This ensures: hallucination prevention, audit logging, governance tracking.
+    // 4. Call through GOVERNANCE LAYER
+    //    - Company context: use governedAICall (full confidence/freshness/capability checks)
+    //    - No company context: use governedAICallAggregate (advisory governance, no blocking)
     try {
-      const result = await governedAICallAggregate({
-        generationType: 'chat',
-        systemPrompt,
-        userPrompt,
-        inputParams: {
-          hasCompanyContext: !!context?.companyId,
-          hasContactContext: !!context?.contactId,
-          conversationTurns: (conversationHistory || []).length,
-          messageLength: message.length,
-        },
-      })
+      let result;
+
+      if (context?.companyId) {
+        // Company-specific chat: full governance with confidence gates
+        const researchContext = await loadResearchContext(context.companyId);
+        result = await governedAICall({
+          generationType: 'chat',
+          companyId: context.companyId,
+          contactId: context.contactId,
+          researchContext,
+          systemPrompt,
+          userPrompt,
+          enforceGovernance: false, // Chat is advisory, never block the user
+          inputParams: {
+            hasCompanyContext: true,
+            hasContactContext: !!context?.contactId,
+            conversationTurns: (conversationHistory || []).length,
+            messageLength: message.length,
+            researchConfidence: researchContext?.researchCard?.averageConfidence ?? null,
+            freshnessScore: researchContext?.researchCard?.freshnessScore ?? null,
+          },
+        });
+      } else {
+        // General chat: aggregate governance (no company-specific checks)
+        result = await governedAICallAggregate({
+          generationType: 'chat',
+          systemPrompt,
+          userPrompt,
+          inputParams: {
+            hasCompanyContext: false,
+            hasContactContext: !!context?.contactId,
+            conversationTurns: (conversationHistory || []).length,
+            messageLength: message.length,
+          },
+        });
+      }
 
       if (result.success && result.response) {
-        return apiSuccess({ message: result.response, sources: sources.length > 0 ? sources : undefined })
+        // If company context existed, include governance metadata in response
+        const response: Record<string, unknown> = {
+          message: result.response,
+          sources: sources.length > 0 ? sources : undefined,
+        };
+
+        // Add governance quality indicators when company context is active
+        if (context?.companyId && result.governanceResult) {
+          const checks = result.governanceResult.checks;
+          response.governance = {
+            passed: result.governanceResult.passed,
+            confidence: checks?.confidence?.value ?? null,
+            freshness: checks?.freshness?.value ?? null,
+            stalenessWarning: checks?.freshness?.passed === false,
+            capabilityMatches: checks?.capabilityMatch?.value ?? null,
+          };
+        }
+
+        return apiSuccess(response);
       }
 
       // Governance blocked or LLM failed — fall through to template

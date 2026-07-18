@@ -1,13 +1,11 @@
 import { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-import { webSearch, callLLM } from '@/lib/zai-helpers'
+import { callLLM } from '@/lib/zai-helpers'
+import { getResearchContext, buildResearchContextText, type ResearchContext } from '@/lib/intelligence-contract'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface SearchSource { title: string; url: string; snippet: string }
 
 interface AccountBrief {
   businessOverview: string
@@ -27,8 +25,9 @@ interface CachedBrief {
   companyId: string
   companyName: string
   brief: AccountBrief
-  sources: SearchSource[]
+  sources: Array<{ title: string; url: string; snippet: string }>
   generatedAt: string
+  intelligenceSource: 'phase3' | 'fallback_llm'
 }
 
 // ---------------------------------------------------------------------------
@@ -38,13 +37,8 @@ interface CachedBrief {
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000
 const briefCache = new Map<string, { data: CachedBrief; expiresAt: number }>()
 
-// SDK helpers are now imported from @/lib/zai-helpers (webSearch, callLLM, extractJSON)
-// No need for local createZAI / webSearch / callLLM functions
-
-type ZAIInstance = any
-
 // ---------------------------------------------------------------------------
-// JSON extraction — tolerant of markdown fences
+// JSON extraction
 // ---------------------------------------------------------------------------
 
 function parseBriefJson(raw: string): AccountBrief | null {
@@ -85,20 +79,52 @@ function normalizeBrief(o: Record<string, unknown>): AccountBrief {
 
 function buildFallbackBrief(errorMsg: string): AccountBrief {
   return {
-    businessOverview: `AI generation failed: ${errorMsg}. Raw search results are available in sources.`,
+    businessOverview: `AI generation failed: ${errorMsg}.`,
     technologyContext: 'Unable to generate technology context due to an error.',
     industryChallenges: 'Unable to generate industry challenges due to an error.',
     painPoints: [], relevantSolutions: [], targetExecutives: [], conversationStarters: [], keySignals: [],
-    recommendedApproach: 'Manual review required — AI brief generation encountered an error.',
+    recommendedApproach: 'Manual review required.',
     strategicPriority: 'Medium', confidence: 0,
   }
 }
 
 // ---------------------------------------------------------------------------
-// System prompt
+// Build sources list from Phase 3 evidence
 // ---------------------------------------------------------------------------
 
-const SYSTEM_PROMPT = `You are a senior enterprise intelligence analyst. Based on the provided search results and company data, generate a comprehensive Account Intelligence Brief.
+function buildSourcesFromContext(ctx: ResearchContext): CachedBrief['sources'] {
+  const sources: CachedBrief['sources'] = []
+
+  // From signals
+  for (const s of ctx.signals) {
+    if (s.sourceUrl) {
+      sources.push({ title: s.title, url: s.sourceUrl, snippet: s.description || '' })
+    }
+  }
+
+  // From recent news
+  for (const n of ctx.recentNews) {
+    if (n.url) {
+      sources.push({ title: n.title, url: n.url, snippet: n.snippet })
+    }
+  }
+
+  return sources.slice(0, 20)
+}
+
+// ---------------------------------------------------------------------------
+// System prompt — NOW consumes Phase 3 intelligence
+// ---------------------------------------------------------------------------
+
+const SYSTEM_PROMPT = `You are a senior enterprise intelligence analyst. Based on the provided company intelligence data (from our research engine), generate a comprehensive Account Intelligence Brief.
+
+The intelligence below comes from our Phase 3 Research Engine which has already:
+- Searched the web across 4 query categories (business, tech, people, news)
+- Collected evidence from multiple sources with quality tiers
+- Extracted structured company data with per-field confidence scores
+- Detected buying signals with impact assessment
+
+Use this intelligence to generate the brief. DO NOT search the web again.
 
 Return ONLY valid JSON (no markdown, no code fences) with this exact structure:
 {
@@ -108,20 +134,22 @@ Return ONLY valid JSON (no markdown, no code fences) with this exact structure:
   "painPoints": ["list of 3-5 specific pain points"],
   "relevantSolutions": ["list of 3-5 solution areas that could help"],
   "targetExecutives": [
-    { "role": "CIO", "focus": "what they likely care about" },
-    { "role": "CTO", "focus": "..." }
+    { "role": "CIO", "focus": "what they likely care about" }
   ],
   "conversationStarters": ["3-4 specific conversation opening ideas"],
   "recommendedApproach": "How to approach this company - warm intro, direct, event-based, etc.",
   "strategicPriority": "High/Medium/Low with reasoning",
-  "keySignals": ["list of detected signals from search results"],
+  "keySignals": ["list of detected signals"],
   "confidence": 75
 }
 
-Be specific, data-driven, and actionable. Ground every claim in the provided search results. If the search results are sparse, lower the confidence score accordingly. confidence should be 0-100 integer.`
+Be specific, data-driven, and actionable. Ground every claim in the provided intelligence.
+confidence should be 0-100 integer, reflecting how much Phase 3 data was available.`
 
 // ---------------------------------------------------------------------------
 // GET /api/ai/account-brief?companyId=xxx
+// REWIRED: Now consumes Phase 3 intelligence via intelligence-contract layer.
+// No more independent web searches.
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
@@ -135,85 +163,69 @@ export async function GET(request: NextRequest) {
     briefCache.delete(companyId)
   }
 
-  // 1. Fetch company from DB
-  let company: {
-    id: string; normalizedName: string; domain: string | null; industry: string | null
-    country: string | null; sizeRange: string | null; website: string | null
-    internalSummary: string | null; _count: { contacts: number }
-  } | null
   try {
-    company = await db.company.findUnique({
-      where: { id: companyId },
-      select: {
-        id: true, normalizedName: true, domain: true, industry: true, country: true,
-        sizeRange: true, website: true, internalSummary: true,
-        _count: { select: { contacts: true } },
-      },
-    })
-  } catch (err: unknown) {
-    console.error(`[account-brief] DB lookup failed:`, err instanceof Error ? err.message : err)
-    return apiError('Failed to look up company', 500)
-  }
-  if (!company) return apiError('Company not found', 404)
+    // ── CONSUME PHASE 3 INTELLIGENCE (single source of truth) ──
+    const ctx = await getResearchContext(companyId)
 
-  const name = company.normalizedName
+    // Build the intelligence text for LLM
+    const researchContextText = buildResearchContextText(ctx)
 
-  // 2. Web search is handled by shared helpers — no SDK init needed here
-  // (shared zai-helpers manages SDK singleton internally)
+    // Build CRM context
+    const dbContext = [
+      `Company Name: ${ctx.companyName}`,
+      `Domain: ${ctx.domain || 'Unknown'}`,
+      `Industry: ${ctx.industry || 'Unknown'}`,
+      `Country: ${ctx.country || 'Unknown'}`,
+      `Company Size: ${ctx.sizeRange || 'Unknown'}`,
+      `Website: ${ctx.website || 'Unknown'}`,
+      `Known Contacts in CRM: ${ctx.contactCount}`,
+      `Internal Notes: ${ctx.internalNotes || 'None'}`,
+      `Research Freshness: ${ctx.freshness.score}/100 (${ctx.freshness.status})`,
+    ].join('\n')
 
-  // 3. Run 4 parallel web searches (allSettled so one failure doesn't kill all)
-  const queries = [
-    `${name} business overview revenue employees`,
-    `${name} technology stack digital transformation`,
-    `${name} challenges industry trends 2025`,
-    `${name} leadership CIO CTO CEO executives`,
-  ]
-  const searchResults = await Promise.allSettled(queries.map((q) => webSearch(q, 10)))
+    // Determine base confidence from Phase 3 data quality
+    const hasResearch = ctx.researchCard !== null
+    const baseConfidence = hasResearch
+      ? Math.round(ctx.freshness.score * 0.4 + Object.values(ctx.fieldConfidence).reduce((a, b) => a + b, 0) / Math.max(1, Object.keys(ctx.fieldConfidence).length) * 60)
+      : 0
 
-  // Deduplicate sources by URL
-  const seenUrls = new Set<string>()
-  const sources: SearchSource[] = []
-  for (const batch of searchResults) {
-    if (batch.status === 'fulfilled') {
-      for (const src of batch.value) {
-        if (src.url && !seenUrls.has(src.url)) { seenUrls.add(src.url); sources.push(src) }
-      }
+    const userPrompt = `## Company Data (from CRM)\n${dbContext}\n\n## Phase 3 Research Intelligence\n${researchContextText}\n\nBased on the above Phase 3 intelligence, generate the Account Intelligence Brief as JSON.`
+
+    // Generate brief via LLM (using Phase 3 data, NOT web search)
+    let brief: AccountBrief
+    try {
+      const raw = await callLLM(SYSTEM_PROMPT, userPrompt)
+      const parsed = parseBriefJson(raw)
+      brief = parsed ?? buildFallbackBrief('LLM response was not valid JSON')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('[account-brief] LLM generation failed:', msg)
+      brief = buildFallbackBrief(msg)
     }
-  }
 
-  // 4. Build user prompt with DB data + search context
-  const searchContext = searchResults
-    .filter(r => r.status === 'fulfilled')
-    .flatMap((batch, i) => batch.value.map((r) => `[Search ${i + 1}] ${r.title}\n  URL: ${r.url}\n  ${r.snippet}`))
-    .join('\n\n')
-  const dbContext = [
-    `Company Name: ${name}`, `Domain: ${company.domain ?? 'Unknown'}`,
-    `Industry: ${company.industry ?? 'Unknown'}`, `Country: ${company.country ?? 'Unknown'}`,
-    `Company Size: ${company.sizeRange ?? 'Unknown'}`, `Website: ${company.website ?? 'Unknown'}`,
-    `Known Contacts in CRM: ${company._count.contacts}`, `Internal Notes: ${company.internalSummary ?? 'None'}`,
-  ].join('\n')
+    // Adjust confidence based on Phase 3 data availability
+    if (hasResearch && brief.confidence < baseConfidence) {
+      brief.confidence = Math.round((brief.confidence + baseConfidence) / 2)
+    }
 
-  const userPrompt = `## Company Data (from CRM)\n${dbContext}\n\n## Web Search Results\n${searchContext || 'No search results returned.'}\n\nBased on the above, generate the Account Intelligence Brief as JSON.`
+    // Build response
+    const sources = buildSourcesFromContext(ctx)
+    const response: CachedBrief = {
+      companyId: ctx.companyId,
+      companyName: ctx.companyName,
+      brief,
+      sources,
+      generatedAt: new Date().toISOString(),
+      intelligenceSource: hasResearch ? 'phase3' : 'fallback_llm',
+    }
 
-  // 5. Generate brief via LLM
-  let brief: AccountBrief
-  try {
-    const raw = await callLLM(SYSTEM_PROMPT, userPrompt)
-    const parsed = parseBriefJson(raw)
-    brief = parsed ?? (() => { console.error('[account-brief] Unparseable LLM JSON'); return buildFallbackBrief('LLM response was not valid JSON') })()
+    // Cache and prune
+    briefCache.set(companyId, { data: response, expiresAt: Date.now() + CACHE_TTL_MS })
+    for (const [key, val] of briefCache.entries()) { if (val.expiresAt <= Date.now()) briefCache.delete(key) }
+
+    return apiSuccess(response)
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.error(`[account-brief] LLM generation failed: ${msg}`)
-    brief = buildFallbackBrief(msg)
+    console.error(`[account-brief] Error:`, err instanceof Error ? err.message : err)
+    return apiError('Failed to generate account brief', 500)
   }
-
-  // 6. Build response, cache, and prune stale entries
-  const response: CachedBrief = {
-    companyId: company.id, companyName: name, brief, sources,
-    generatedAt: new Date().toISOString(),
-  }
-  briefCache.set(companyId, { data: response, expiresAt: Date.now() + CACHE_TTL_MS })
-  for (const [key, val] of briefCache.entries()) { if (val.expiresAt <= Date.now()) briefCache.delete(key) }
-
-  return apiSuccess(response)
 }

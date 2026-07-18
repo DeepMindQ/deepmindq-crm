@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { db } from '@/lib/db'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
-import { callLLM, webSearch, extractJSON } from '@/lib/zai-helpers'
+import { callLLM } from '@/lib/zai-helpers'
+import { getResearchContext, buildResearchContextText } from '@/lib/intelligence-contract'
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -39,7 +39,7 @@ interface EnrichmentSuggestion {
   field: string
   suggestedValue: string
   confidence: number
-  source: 'web_search' | 'llm_inference'
+  source: 'phase3_research' | 'phase3_inference'
 }
 
 function parseEnrichmentResponse(text: string): EnrichmentSuggestion[] {
@@ -56,7 +56,7 @@ function parseEnrichmentResponse(text: string): EnrichmentSuggestion[] {
           field: String(item.field),
           suggestedValue: String(item.suggestedValue),
           confidence: typeof item.confidence === 'number' ? Math.min(1, Math.max(0, item.confidence)) : 0.5,
-          source: item.source === 'web_search' ? 'web_search' as const : 'llm_inference' as const,
+          source: 'phase3_research' as const,
         }))
     }
   } catch {
@@ -71,7 +71,7 @@ function parseEnrichmentResponse(text: string): EnrichmentSuggestion[] {
       field: match[1],
       suggestedValue: match[2],
       confidence: match[3] ? Math.min(1, Math.max(0, parseFloat(match[3]))) : 0.5,
-      source: 'web_search',
+      source: 'phase3_research',
     })
   }
 
@@ -79,13 +79,14 @@ function parseEnrichmentResponse(text: string): EnrichmentSuggestion[] {
 }
 
 // ---------------------------------------------------------------------------
-// Company enrichment — NOW uses web search
+// Company enrichment — REWIRED: reads from Phase 3 ResearchCard
 // ---------------------------------------------------------------------------
 
 async function enrichCompany(
   entityId: string,
   autoFill: boolean,
 ) {
+  const { db } = await import('@/lib/db')
   const company = await db.company.findUnique({
     where: { id: entityId },
     include: {
@@ -113,75 +114,86 @@ async function enrichCompany(
     return apiSuccess({ missingFields: [], suggestions: [], enriched: false, message: 'All fields populated' })
   }
 
+  // ── CONSUME PHASE 3 INTELLIGENCE (no web search) ──
   let suggestions: EnrichmentSuggestion[] = []
 
-  // STEP 1: Web search for REAL data
-  const companyName = company.rawName || company.normalizedName || ''
-  const searchResults = await webSearch(
-    `${companyName} ${company.domain || ''} employees revenue industry country headquarters website LinkedIn`,
-    10
-  )
+  try {
+    const ctx = await getResearchContext(entityId)
 
-  const searchContext = searchResults
-    .slice(0, 10)
-    .map(r => `[${r.title}] ${r.snippet}`)
-    .join('\n')
+    if (ctx.researchCard) {
+      // Direct field mapping from Phase 3 research card
+      const rc = ctx.researchCard
 
-  // STEP 2: Ask LLM with REAL search context (not guessing!)
-  const context = `Company Name: ${company.rawName}
-Domain: ${company.domain || 'Unknown'}
-Website: ${company.website || 'Unknown'}
-Industry: ${company.industry || 'Unknown'}
-Employees: ${company.sizeRange || 'Unknown'}
-Country: ${company.country || 'Unknown'}
-Location: ${company.location || 'Unknown'}
-Contacts: ${company.contacts.map((c) => `${c.email ?? 'no email'} - ${c.location ?? 'no location'}`).join('; ') || 'None'}
+      const fieldMapping: Record<string, { value: string | null; confidence: number }> = {
+        website: { value: rc.website, confidence: ctx.fieldConfidence.website || 0.8 },
+        industry: { value: rc.industry, confidence: ctx.fieldConfidence.industry || 0.8 },
+      }
 
-WEB SEARCH RESULTS (real-time data):
-${searchContext || 'No search results found.'}`
+      // Map employeeCount → sizeRange
+      if (missingFields.includes('sizeRange') && rc.employeeCount && rc.employeeCount !== 'Not found') {
+        fieldMapping.sizeRange = { value: rc.employeeCount, confidence: ctx.fieldConfidence.employeeCount || 0.7 }
+      }
 
-  const systemPrompt = `You are a B2B data enrichment assistant. Based on the COMPANY CONTEXT and WEB SEARCH RESULTS below, fill in the missing fields.
+      // Map from company record if research card has industry/website
+      for (const [field, data] of Object.entries(fieldMapping)) {
+        if (missingFields.includes(field) && data.value && data.value !== 'Not found') {
+          suggestions.push({
+            field,
+            suggestedValue: data.value,
+            confidence: data.confidence,
+            source: 'phase3_research',
+          })
+        }
+      }
+
+      // If we still have missing fields, ask LLM to infer from research context
+      const stillMissing = missingFields.filter(f => !suggestions.some(s => s.field === f))
+      if (stillMissing.length > 0 && ctx.researchCard.businessOverview) {
+        const researchText = buildResearchContextText(ctx)
+        const systemPrompt = `You are a B2B data enrichment assistant. Based on the company intelligence below, suggest values for these missing fields: ${stillMissing.join(', ')}.
 
 CRITICAL RULES:
-- ONLY suggest values that are DIRECTLY supported by the web search results
-- If the search results don't mention a field, set confidence to 0.0 or omit it
-- NEVER guess or fabricate values
-- For domain/website: only suggest if found in search results
-- For industry: use what search results say, not your training data
-- For employee count: use exact numbers from search results
+- ONLY suggest values supported by the intelligence below
+- If the intelligence doesn't contain enough info for a field, set confidence to 0.0 or omit it
+- NEVER fabricate values
 
-Missing fields: ${missingFields.join(', ')}
+Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence": 0.0-1.0 }]`
 
-For each field, provide a suggested value, confidence (0-1), and source.
-source must be "web_search" if the value comes from search results, "llm_inference" only if you're very confident from context.
-
-Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence": 0.0-1.0, "source": "web_search" }]`
-
-  try {
-    const text = await callLLM(systemPrompt, `Fill in the missing fields for this company using the search results.\n\n${context}`)
-    suggestions = parseEnrichmentResponse(text)
-    // Filter to only suggest for actually missing fields
-    suggestions = suggestions.filter((s) => missingFields.includes(s.field))
-  } catch (llmErr: unknown) {
-    const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-    console.error('[ai/enrich] LLM call failed:', msg)
+        try {
+          const text = await callLLM(systemPrompt, `Company: ${ctx.companyName}\n\n${researchText}`)
+          const inferred = parseEnrichmentResponse(text).filter(s =>
+            stillMissing.includes(s.field) && s.confidence >= 0.5
+          )
+          // Mark inferred suggestions differently
+          for (const s of inferred) {
+            s.source = 'phase3_inference'
+          }
+          suggestions.push(...inferred)
+        } catch {
+          // Non-critical
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[ai/enrich] Phase 3 context fetch failed:', err instanceof Error ? err.message : err)
   }
 
   // Auto-fill ONLY if:
   // 1. Requested by user
-  // 2. Confidence >= 0.8 (raised from 0.6 to prevent hallucination)
-  // 3. Value comes from web search (not LLM inference)
+  // 2. Confidence >= 0.7
+  // 3. Value comes from Phase 3 research (not inference)
   let enriched = false
   if (autoFill && suggestions.length > 0) {
+    const { db: dbImport } = await import('@/lib/db')
     const updateData: Record<string, string> = {}
     for (const s of suggestions) {
-      if (s.confidence >= 0.8 && s.source === 'web_search' && s.suggestedValue && s.suggestedValue !== 'Not found') {
+      if (s.confidence >= 0.7 && s.source === 'phase3_research' && s.suggestedValue && s.suggestedValue !== 'Not found') {
         updateData[s.field] = s.suggestedValue
       }
     }
 
     if (Object.keys(updateData).length > 0) {
-      await db.company.update({
+      await dbImport.company.update({
         where: { id: entityId },
         data: updateData,
       })
@@ -193,26 +205,27 @@ Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence":
     missingFields,
     suggestions,
     enriched,
-    searchResultsCount: searchResults.length,
+    intelligenceSource: 'phase3',
   })
 }
 
 // ---------------------------------------------------------------------------
-// Contact enrichment — NOW uses web search
+// Contact enrichment — reads Phase 3 research for the company
 // ---------------------------------------------------------------------------
 
 async function enrichContact(
   entityId: string,
   autoFill: boolean,
 ) {
+  const { db } = await import('@/lib/db')
   const contact = await db.contact.findFirst({
     where: { id: entityId, status: { not: 'archived' } },
     include: {
       company: {
         select: {
+          id: true,
           rawName: true,
           domain: true,
-          website: true,
           industry: true,
           country: true,
           location: true,
@@ -239,66 +252,55 @@ async function enrichContact(
 
   let suggestions: EnrichmentSuggestion[] = []
 
-  // Web search for the contact
-  const searchQuery = [
-    contact.rawName,
-    contact.company?.rawName,
-    contact.title,
-    'LinkedIn',
-  ].filter(Boolean).join(' ');
+  // ── CONSUME PHASE 3 INTELLIGENCE for the contact's company ──
+  if (contact.companyId) {
+    try {
+      const ctx = await getResearchContext(contact.companyId)
 
-  const searchResults = await webSearch(searchQuery, 8)
-  const searchContext = searchResults
-    .slice(0, 8)
-    .map(r => `[${r.title}] ${r.snippet}`)
-    .join('\n')
+      // Check if Phase 3 keyPeople has a match for this contact
+      if (ctx.keyPeople.length > 0) {
+        const contactName = (contact.rawName || '').toLowerCase()
+        const matchedPerson = ctx.keyPeople.find(p =>
+          p.name && contactName.includes(p.name.toLowerCase().split(' ')[0])
+        )
 
-  const context = `Contact Name: ${contact.rawName}
-Email: ${contact.email || 'Unknown'}
-Job Title: ${contact.title || 'Unknown'}
-Phone: ${contact.phone || 'Unknown'}
-Location: ${contact.location || 'Unknown'}
-LinkedIn: ${contact.linkedinUrl || 'Unknown'}
-Company: ${contact.company.rawName}
-Company Domain: ${contact.company.domain || 'Unknown'}
-Company Industry: ${contact.company.industry || 'Unknown'}
-
-WEB SEARCH RESULTS (real-time data):
-${searchContext || 'No search results found.'}`
-
-  const systemPrompt = `You are a B2B data enrichment assistant. Based on the CONTEXT and WEB SEARCH RESULTS below, fill in the missing fields.
-
-CRITICAL RULES:
-- ONLY suggest values DIRECTLY supported by the web search results
-- If search results don't mention a field, set confidence to 0.0 or omit it
-- NEVER guess or fabricate values
-- For LinkedIn URL: only provide if found in search results as a URL
-
-Missing fields: ${missingFields.join(', ')}
-
-Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence": 0.0-1.0, "source": "web_search" }]`
-
-  try {
-    const text = await callLLM(systemPrompt, `Fill in the missing fields for this contact.\n\n${context}`)
-    suggestions = parseEnrichmentResponse(text)
-    suggestions = suggestions.filter((s) => missingFields.includes(s.field))
-  } catch (llmErr: unknown) {
-    const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-    console.error('[ai/enrich] LLM call failed:', msg)
+        if (matchedPerson) {
+          if (missingFields.includes('title') && matchedPerson.title) {
+            suggestions.push({
+              field: 'title',
+              suggestedValue: matchedPerson.title,
+              confidence: 0.85,
+              source: 'phase3_research',
+            })
+          }
+          if (missingFields.includes('linkedinUrl') && matchedPerson.linkedInUrl) {
+            suggestions.push({
+              field: 'linkedinUrl',
+              suggestedValue: matchedPerson.linkedInUrl,
+              confidence: 0.9,
+              source: 'phase3_research',
+            })
+          }
+        }
+      }
+    } catch {
+      // Non-critical — continue without Phase 3 data
+    }
   }
 
-  // Auto-fill with high confidence + web search source only
+  // Auto-fill with high confidence from Phase 3
   let enriched = false
   if (autoFill && suggestions.length > 0) {
+    const { db: dbImport } = await import('@/lib/db')
     const updateData: Record<string, string> = {}
     for (const s of suggestions) {
-      if (s.confidence >= 0.8 && s.source === 'web_search' && s.suggestedValue && s.suggestedValue !== 'Not found') {
+      if (s.confidence >= 0.8 && s.source === 'phase3_research') {
         updateData[s.field] = s.suggestedValue
       }
     }
 
     if (Object.keys(updateData).length > 0) {
-      await db.contact.update({
+      await dbImport.contact.update({
         where: { id: entityId },
         data: updateData,
       })
@@ -310,12 +312,13 @@ Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence":
     missingFields,
     suggestions,
     enriched,
-    searchResultsCount: searchResults.length,
+    intelligenceSource: 'phase3',
   })
 }
 
 // ---------------------------------------------------------------------------
 // POST /api/ai/enrich
+// REWIRED: Reads from Phase 3 ResearchCard instead of independent web search
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {

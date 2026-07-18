@@ -1,31 +1,20 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, safeInt } from '@/lib/apiHelpers'
-import { randomUUID } from 'crypto'
-import { webSearch, callLLM } from '@/lib/zai-helpers'
+import { getResearchContext, type ResearchContext } from '@/lib/intelligence-contract'
+import { callLLM } from '@/lib/zai-helpers'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type SignalType = 'hiring' | 'leadership' | 'investment' | 'technology' | 'expansion'
 type SignalPriority = 'high' | 'medium' | 'low'
-
-interface RawSearchResult {
-  url: string
-  name: string
-  snippet: string
-  host_name: string
-  rank: number
-  date?: string
-  favicon?: string
-}
 
 interface ParsedSignal {
   id: string
   companyId: string
   companyName: string
-  type: SignalType
+  type: string
   title: string
   description: string
   whyItMatters: string
@@ -34,13 +23,16 @@ interface ParsedSignal {
   source: string
   detectedAt: string
   confidence: number
+  // Phase 3 linkage
+  phase3SignalId?: string
+  sourceUrl?: string
 }
 
 interface SignalsResponse {
   signals: ParsedSignal[]
   scannedCompanies: number
   totalSignalsFound: number
-  sources?: { company: string; results: { title: string; url: string; snippet: string }[] }[]
+  intelligenceSource: 'phase3' | 'phase3_enriched'
 }
 
 interface CacheEntry {
@@ -62,205 +54,134 @@ function cacheKey(companyId: string | null, limit: number): string {
 function getCache(companyId: string | null, limit: number): SignalsResponse | null {
   const key = cacheKey(companyId, limit)
   const entry = signalCache.get(key)
-  if (entry && Date.now() - entry.ts < CACHE_TTL) {
-    return entry.data
-  }
+  if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.data
   if (entry) signalCache.delete(key)
   return null
 }
 
 function setCache(companyId: string | null, limit: number, data: SignalsResponse): void {
-  const key = cacheKey(companyId, limit)
-  signalCache.set(key, { data, ts: Date.now() })
+  signalCache.set(cacheKey(companyId, limit), { data, ts: Date.now() })
 }
 
 // ---------------------------------------------------------------------------
-// Search queries per company
+// Map Phase 3 signal types to AI route types
 // ---------------------------------------------------------------------------
 
-function buildSearchQueries(companyName: string): string[] {
-  return [
-    `${companyName} news 2025`,
-    `${companyName} hiring AI digital transformation`,
-    `${companyName} leadership executive appointment`,
-  ]
+const TYPE_MAP: Record<string, string> = {
+  funding: 'investment',
+  hiring: 'hiring',
+  leadership_change: 'leadership',
+  expansion: 'expansion',
+  technology: 'technology',
+  product: 'technology',
+  partnership: 'expansion',
 }
 
 // ---------------------------------------------------------------------------
-// LLM signal extraction
+// Enrich Phase 3 signals with LLM analysis (adds whyItMatters, recommendedAction)
 // ---------------------------------------------------------------------------
 
-const SIGNAL_SYSTEM_PROMPT = `You are a B2B sales intelligence analyst. Given web search results about a company, extract actionable buying signals.
+const ENRICH_SYSTEM_PROMPT = `You are a B2B sales intelligence analyst. Given stored company signals, enrich each with sales-specific analysis.
 
-Classify each signal into one of these types:
-- "hiring" — the company is actively recruiting for roles related to AI, digital transformation, engineering growth, or new departments
-- "leadership" — executive appointments, C-suite changes, new board members, or leadership restructuring
-- "investment" — funding rounds, M&A activity, budget increases, IPOs, or major financial events
-- "technology" — new tech adoption, platform migrations, product launches, patent filings, or tech stack changes
-- "expansion" — opening new offices, entering new markets, geographic growth, partnerships, or joint ventures
-
-For each signal provide:
-- type: one of the five categories above
-- title: a concise, specific headline (max 80 chars)
-- description: 1-2 sentences summarizing the finding based on the search results
+For each signal, add:
 - whyItMatters: 1 sentence explaining why this matters for B2B sales outreach
 - recommendedAction: a specific, actionable next step for a sales team
 - priority: "high", "medium", or "low" based on urgency and sales relevance
-- source: the source domain(s) where this was found, e.g. "LinkedIn / TechCrunch"
-- confidence: 0-100 based on how clearly the signal is supported by the search results
 
-Only include signals that are clearly supported by the search results. Do not fabricate information.
-Return a JSON array of signal objects. If no meaningful signals are found, return an empty array [].
-Respond ONLY with valid JSON, no markdown fences, no explanation.`
+Return a JSON array of signal objects with the SAME structure as input, plus the 3 new fields.
+Respond ONLY with valid JSON, no markdown fences.`
 
-function buildAnalysisPrompt(companyName: string, allResults: RawSearchResult[]): string {
-  const formatted = allResults
-    .slice(0, 20)
-    .map((r, i) => `[${i + 1}] ${r.name}\n    Source: ${r.host_name} | URL: ${r.url}\n    Date: ${r.date ?? 'unknown'}\n    Snippet: ${r.snippet}`)
-    .join('\n\n')
+async function enrichSignalsWithLLM(
+  ctx: ResearchContext,
+): Promise<ParsedSignal[]> {
+  if (ctx.signals.length === 0) return []
 
-  return `Analyze these web search results about "${companyName}" and extract buying signals.\n\n${formatted}\n\nExtract all relevant buying signals as a JSON array.`
-}
+  const signalContext = ctx.signals.map((s, i) =>
+    `[${i + 1}] Type: ${s.type} | Title: ${s.title} | Description: ${s.description || 'N/A'} | Impact: ${s.impact} | Confidence: ${s.confidence} | Source: ${s.sourceUrl || 'N/A'}`
+  ).join('\n\n')
 
-interface RawLLMSignal {
-  type?: string
-  title?: string
-  description?: string
-  whyItMatters?: string
-  recommendedAction?: string
-  priority?: string
-  source?: string
-  confidence?: number
-}
+  const userPrompt = `Company: ${ctx.companyName}
+Industry: ${ctx.industry || 'Unknown'}
+Employees: ${ctx.researchCard?.employeeCount || 'Unknown'}
+Revenue: ${ctx.researchCard?.revenue || 'Unknown'}
 
-function parseLLMSignals(raw: string): RawLLMSignal[] {
-  const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+Detected Signals:
+${signalContext}
+
+Enrich each signal with sales-specific analysis. Return JSON array.`
 
   try {
-    const parsed = JSON.parse(cleaned)
-    if (Array.isArray(parsed)) return parsed
-  } catch {
-    // Try regex extraction of individual objects
-    const signals: RawLLMSignal[] = []
-    const objRegex = /\{\s*"type"\s*:\s*"[^"]+"/g
-    let match = objRegex.exec(cleaned)
-    while (match) {
-      try {
-        // Find the matching closing brace
-        let depth = 0
-        let start = match.index
-        let end = start
-        for (let i = start; i < cleaned.length; i++) {
-          if (cleaned[i] === '{') depth++
-          else if (cleaned[i] === '}') depth--
-          if (depth === 0) { end = i + 1; break }
-        }
-        const obj = JSON.parse(cleaned.slice(start, end))
-        signals.push(obj)
-      } catch {
-        // skip malformed objects
+    const raw = await callLLM(ENRICH_SYSTEM_PROMPT, userPrompt)
+    const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+    const enriched = JSON.parse(cleaned)
+
+    if (!Array.isArray(enriched)) return mapSignalsDirectly(ctx)
+
+    return enriched.slice(0, ctx.signals.length).map((e: Record<string, unknown>, i: number) => {
+      const original = ctx.signals[i]
+      if (!original) return null
+
+      const result: ParsedSignal = {
+        id: original.id,
+        companyId: ctx.companyId,
+        companyName: ctx.companyName,
+        type: TYPE_MAP[original.type] || original.type,
+        title: String(e.title || original.title),
+        description: String(e.description || original.description || ''),
+        whyItMatters: String(e.whyItMatters || `This ${original.type} signal indicates potential buying intent or organizational change.`),
+        recommendedAction: String(e.recommendedAction || 'Research further and prepare targeted outreach.'),
+        priority: ['high', 'medium', 'low'].includes(String(e.priority)) ? String(e.priority) as SignalPriority : (original.impact as SignalPriority) || 'medium',
+        source: original.type,
+        detectedAt: original.detectedAt,
+        confidence: Math.min(100, Math.max(0, Math.round((original.confidence || 0.5) * 100))),
+        phase3SignalId: original.id,
+        sourceUrl: original.sourceUrl || undefined,
       }
-      match = objRegex.exec(cleaned)
-    }
-    return signals
-  }
-
-  return []
-}
-
-const VALID_TYPES: SignalType[] = ['hiring', 'leadership', 'investment', 'technology', 'expansion']
-const VALID_PRIORITIES: SignalPriority[] = ['high', 'medium', 'low']
-
-function normalizeSignal(raw: RawLLMSignal, companyId: string, companyName: string): ParsedSignal | null {
-  if (!raw.title && !raw.description) return null
-
-  const type = VALID_TYPES.includes(raw.type as SignalType) ? (raw.type as SignalType) : 'technology'
-  const priority = VALID_PRIORITIES.includes(raw.priority as SignalPriority) ? (raw.priority as SignalPriority) : 'medium'
-  const confidence = typeof raw.confidence === 'number'
-    ? Math.min(100, Math.max(0, Math.round(raw.confidence)))
-    : 60
-
-  return {
-    id: randomUUID(),
-    companyId,
-    companyName,
-    type,
-    title: String(raw.title || 'Detected Activity'),
-    description: String(raw.description || 'Activity detected from web search results.'),
-    whyItMatters: String(raw.whyItMatters || 'This signal indicates potential buying intent or organizational change.'),
-    recommendedAction: String(raw.recommendedAction || 'Research further and prepare targeted outreach.'),
-    priority,
-    source: String(raw.source || 'Web Search'),
-    detectedAt: new Date().toISOString(),
-    confidence,
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Per-company signal scanning
-// ---------------------------------------------------------------------------
-
-interface CompanyRow {
-  id: string
-  normalizedName: string
-}
-
-interface ScanCompanyResult {
-  signals: ParsedSignal[]
-  rawResults: RawSearchResult[]
-}
-
-async function scanCompany(company: CompanyRow): Promise<ScanCompanyResult> {
-  const queries = buildSearchQueries(company.normalizedName)
-
-  // Run all 3 searches in parallel using shared helper (robust parsing)
-  const searchSettled = await Promise.allSettled(
-    queries.map((q) => webSearch(q, 5)),
-  )
-
-  const allResults: RawSearchResult[] = []
-  const sources: string[] = []
-
-  for (const result of searchSettled) {
-    if (result.status === 'fulfilled' && Array.isArray(result.value) && result.value.length > 0) {
-      for (const r of result.value) {
-        const mapped: RawSearchResult = {
-          url: r.url,
-          name: r.title || r.name || '',
-          snippet: r.snippet || '',
-          host_name: r.host_name || (() => { try { return new URL(r.url).hostname.replace('www.', ''); } catch { return ''; } })(),
-          rank: 0,
-        }
-        allResults.push(mapped)
-        if (mapped.host_name && !sources.includes(mapped.host_name)) {
-          sources.push(mapped.host_name)
-        }
-      }
-    }
-  }
-
-  if (allResults.length === 0) return { signals: [], rawResults: [] }
-
-  // Ask LLM to analyze
-  try {
-    const userPrompt = buildAnalysisPrompt(company.normalizedName, allResults)
-    const llmResponse = await callLLM(SIGNAL_SYSTEM_PROMPT, userPrompt)
-    const rawSignals = parseLLMSignals(llmResponse)
-
-    return {
-      signals: rawSignals
-        .map((s) => normalizeSignal(s, company.id, company.normalizedName))
-        .filter((s): s is ParsedSignal => s !== null),
-      rawResults: allResults,
-    }
+      return result
+    }).filter((s): s is ParsedSignal => s !== null)
   } catch (err) {
-    console.error(`[ai/signals] LLM analysis failed for ${company.normalizedName}:`, err instanceof Error ? err.message : err)
-    return { signals: [], rawResults: allResults }
+    console.error('[ai/signals] LLM enrichment failed, using direct mapping:', err)
+    return mapSignalsDirectly(ctx)
   }
+}
+
+/**
+ * Direct mapping from Phase 3 signals without LLM enrichment (fallback).
+ */
+function mapSignalsDirectly(ctx: ResearchContext): ParsedSignal[] {
+  return ctx.signals.map(s => ({
+    id: s.id,
+    companyId: ctx.companyId,
+    companyName: ctx.companyName,
+    type: TYPE_MAP[s.type] || s.type,
+    title: s.title,
+    description: s.description || '',
+    whyItMatters: `This ${s.type} signal indicates potential buying intent or organizational change.`,
+    recommendedAction: 'Research further and prepare targeted outreach.',
+    priority: (s.impact as SignalPriority) || 'medium',
+    source: s.type,
+    detectedAt: s.detectedAt,
+    confidence: Math.min(100, Math.max(0, Math.round(s.confidence * 100))),
+    phase3SignalId: s.id,
+    sourceUrl: s.sourceUrl || undefined,
+  }))
+}
+
+// ---------------------------------------------------------------------------
+// Process a single company using Phase 3 data
+// ---------------------------------------------------------------------------
+
+async function processCompanySignals(ctx: ResearchContext): Promise<ParsedSignal[]> {
+  if (ctx.signals.length === 0) return []
+
+  // Use LLM to enrich Phase 3 signals with sales-specific analysis
+  return enrichSignalsWithLLM(ctx)
 }
 
 // ---------------------------------------------------------------------------
 // GET /api/ai/signals
+// REWIRED: Now reads from CompanySignal table (Phase 3) instead of
+// performing independent web searches.
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
@@ -273,92 +194,56 @@ export async function GET(request: NextRequest) {
   if (cached) return apiSuccess(cached)
 
   try {
-    // Fetch companies to scan
-    let companies: CompanyRow[]
+    // Fetch companies to process
+    let companyIds: string[]
 
     if (companyId) {
-      const single = await db.company.findUnique({
+      // Single company
+      const exists = await db.company.findUnique({
         where: { id: companyId },
-        select: { id: true, normalizedName: true },
+        select: { id: true },
       })
-      if (!single) return apiError('Company not found', 404)
-      companies = [single]
+      if (!exists) return apiError('Company not found', 404)
+      companyIds = [companyId]
     } else {
-      companies = await db.company.findMany({
+      // Batch: top companies by intelligence score
+      const companies = await db.company.findMany({
         where: { status: { not: 'archived' } },
         orderBy: { intelligenceScore: 'desc' },
         take: limit,
-        select: { id: true, normalizedName: true },
+        select: { id: true },
       })
+      companyIds = companies.map(c => c.id)
     }
 
-    if (companies.length === 0) {
-      const empty: SignalsResponse = { signals: [], scannedCompanies: 0, totalSignalsFound: 0 }
-      return apiSuccess(empty)
+    if (companyIds.length === 0) {
+      return apiSuccess({ signals: [], scannedCompanies: 0, totalSignalsFound: 0, intelligenceSource: 'phase3' } as SignalsResponse)
     }
 
-    // Scan each company — use allSettled so one failure doesn't kill the batch
-    const scanSettled = await Promise.allSettled(
-      companies.map((c) => scanCompany(c)),
+    // ── CONSUME PHASE 3 SIGNALS (no web search) ──
+    const allSignals: ParsedSignal[] = []
+
+    const results = await Promise.allSettled(
+      companyIds.map(id => getResearchContext(id).then(processCompanySignals))
     )
 
-    const allSignals: ParsedSignal[] = []
-    const allSources: SignalsResponse['sources'] = []
-
-    for (let i = 0; i < scanSettled.length; i++) {
-      const result = scanSettled[i]
+    for (const result of results) {
       if (result.status === 'fulfilled') {
-        allSignals.push(...result.value.signals)
-        if (result.value.rawResults.length > 0) {
-          allSources.push({
-            company: companies[i].normalizedName,
-            results: result.value.rawResults.map(r => ({
-              title: r.name,
-              url: r.url,
-              snippet: r.snippet,
-            })),
-          })
-        }
-      } else {
-        console.error('[ai/signals] Company scan failed:', result.reason instanceof Error ? result.reason.message : result.reason)
+        allSignals.push(...result.value)
       }
     }
 
     const response: SignalsResponse = {
       signals: allSignals.sort((a, b) => b.confidence - a.confidence),
-      scannedCompanies: companies.length,
+      scannedCompanies: companyIds.length,
       totalSignalsFound: allSignals.length,
-      sources: allSources,
+      intelligenceSource: 'phase3',
     }
 
-    // Cache the result
     setCache(companyId, limit, response)
-
     return apiSuccess(response)
   } catch (err) {
-    console.error('[ai/signals] Unhandled error:', err instanceof Error ? err.message : err)
-
-    // If we had a partial result from cache, return it as a fallback
-    const stale = getStaleCache(companyId, limit)
-    if (stale) {
-      return apiSuccess({ ...stale, _stale: true })
-    }
-
-    return apiError('Failed to scan for signals', 500)
+    console.error('[ai/signals] Error:', err instanceof Error ? err.message : err)
+    return apiError('Failed to fetch signals', 500)
   }
-}
-
-// ---------------------------------------------------------------------------
-// Stale cache fallback
-// ---------------------------------------------------------------------------
-
-function getStaleCache(companyId: string | null, limit: number): SignalsResponse | null {
-  const key = cacheKey(companyId, limit)
-  const entry = signalCache.get(key)
-  if (entry) {
-    // Clean up expired entry
-    signalCache.delete(key)
-    return entry.data
-  }
-  return null
 }

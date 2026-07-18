@@ -1,14 +1,37 @@
 /* ═══════════════════════════════════════════════════
    Shared AI email generation logic.
 
-   CRITICAL: This function now accepts and USES company research
-   data (researchCard) so emails are personalized with REAL
-   company intelligence from web search.
+   REWIRED: Now auto-reads Phase 3 ResearchCard from DB.
+   Falls back to DB-stored enrichmentData on contacts.
+   NO independent web searches for company intelligence.
+
+   Company intelligence flows:
+   1. getResearchContext() → Phase 3 ResearchCard + Evidence + Signals
+   2. Contact.enrichmentData → cached intelligence from Phase 3
+   3. NO fallback web search (removed)
    ═══════════════════════════════════════════════════ */
 
-import { callLLM, webSearch, researchCompany, type CompanyResearch } from '@/lib/zai-helpers';
+import { callLLM } from '@/lib/zai-helpers';
+import { db } from '@/lib/db';
 
-/* ── Knowledge Retrieval — calls the search handler directly ── */
+/* ── Phase 3 Research Card type (from DB) ── */
+interface Phase3ResearchCard {
+  businessOverview: string | null;
+  revenue: string | null;
+  employeeCount: string | null;
+  fundingStage: string | null;
+  techStack: string | null;
+  industry: string | null;
+  website: string | null;
+  socialProfiles: string | null;
+  keyPeople: string | null;
+  recentNews: string | null;
+  fieldConfidence: string | null;
+  enrichmentSource: string | null;
+  enrichmentDate: Date | null;
+}
+
+/* ── Knowledge Retrieval ── */
 async function retrieveKnowledge(params: {
   query: string;
   industry?: string;
@@ -47,7 +70,90 @@ async function retrieveKnowledge(params: {
   }
 }
 
-/* ── Template-based draft generator (fallback when AI unavailable) ── */
+/* ── Auto-read Phase 3 ResearchCard from DB ── */
+async function fetchResearchCardFromDB(companyId?: string | null): Promise<Phase3ResearchCard | null> {
+  if (!companyId) return null;
+  try {
+    return await db.companyResearchCard.findUnique({
+      where: { companyId },
+    });
+  } catch (err) {
+    console.warn('[email-gen] Failed to fetch research card:', err);
+    return null;
+  }
+}
+
+/* ── Build company intelligence context from Phase 3 ResearchCard ── */
+function buildResearchContextFromCard(card: Phase3ResearchCard): string {
+  const parts: string[] = ['── COMPANY INTELLIGENCE (Phase 3) ──'];
+
+  if (card.businessOverview) parts.push(`Overview: ${card.businessOverview}`);
+  if (card.revenue && card.revenue !== 'Not found') parts.push(`Revenue: ${card.revenue}`);
+  if (card.employeeCount && card.employeeCount !== 'Not found') parts.push(`Employees: ${card.employeeCount}`);
+  if (card.fundingStage && card.fundingStage !== 'Not found') parts.push(`Funding: ${card.fundingStage}`);
+  if (card.industry) parts.push(`Industry: ${card.industry}`);
+  if (card.techStack) parts.push(`Tech Stack: ${card.techStack}`);
+
+  // Parse and include key people
+  if (card.keyPeople) {
+    try {
+      const people = JSON.parse(card.keyPeople) as Array<{ name: string; title: string }>;
+      if (people.length > 0) {
+        parts.push(`Key People: ${people.slice(0, 5).map(p => `${p.name} (${p.title})`).join(', ')}`);
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Parse and include recent news/signals
+  if (card.recentNews) {
+    try {
+      const news = JSON.parse(card.recentNews) as Array<{ title: string; signalType: string; impact: string }>;
+      const highImpact = news.filter(n => n.impact === 'high');
+      if (highImpact.length > 0) {
+        parts.push(`High-Impact Signals: ${highImpact.map(n => n.title).join('; ')}`);
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Field confidence summary
+  if (card.fieldConfidence) {
+    try {
+      const conf = JSON.parse(card.fieldConfidence) as Record<string, number>;
+      const entries = Object.entries(conf);
+      if (entries.length > 0) {
+        parts.push(`Data Confidence: ${entries.map(([f, c]) => `${f}=${Math.round(c * 100)}%`).join(', ')}`);
+      }
+    } catch { /* ignore */ }
+  }
+
+  parts.push(`Source: ${card.enrichmentSource || 'unknown'}`);
+  if (card.enrichmentDate) {
+    const daysAgo = Math.floor((Date.now() - card.enrichmentDate.getTime()) / 86400000);
+    parts.push(`Research Age: ${daysAgo} days ago`);
+  }
+
+  return parts.join('\n');
+}
+
+/* ── Build research context from contact's enrichmentData (Phase 3 cache) ── */
+function buildResearchContextFromContactData(enrichmentData: string | null): string {
+  if (!enrichmentData) return '';
+  try {
+    const data = JSON.parse(enrichmentData) as Record<string, unknown>;
+    const parts: string[] = ['── COMPANY INTELLIGENCE (from contact cache) ──'];
+    if (data.businessOverview) parts.push(`Overview: ${data.businessOverview}`);
+    if (data.revenue && data.revenue !== 'Not found') parts.push(`Revenue: ${data.revenue}`);
+    if (data.employeeCount && data.employeeCount !== 'Not found') parts.push(`Employees: ${data.employeeCount}`);
+    if (data.fundingStage && data.fundingStage !== 'Not found') parts.push(`Funding: ${data.fundingStage}`);
+    if (data.techStack) parts.push(`Tech Stack: ${data.techStack}`);
+    if (data.industry) parts.push(`Industry: ${data.industry}`);
+    return parts.join('\n');
+  } catch {
+    return '';
+  }
+}
+
+/* ── Template-based draft generator ── */
 function generateTemplateDraft(
   name: string,
   title: string | undefined,
@@ -64,45 +170,35 @@ function generateTemplateDraft(
     serviceLine?: string;
     content?: string;
   }>,
-  researchCard?: CompanyResearch | null,
+  researchContext: string,
 ) {
-  const serviceLines = capabilities
-    .filter(c => c.category === 'service_line')
-    .sort((a, b) => b.relevanceScore - a.relevanceScore);
-  const caseStudies = capabilities
-    .filter(c => c.category === 'case_study')
-    .sort((a, b) => b.relevanceScore - a.relevanceScore);
-  const proofPoints = capabilities
-    .filter(c => c.category === 'proof_point')
-    .sort((a, b) => b.relevanceScore - a.relevanceScore);
-  const ctas = capabilities
-    .filter(c => c.category === 'cta')
-    .sort((a, b) => b.relevanceScore - a.relevanceScore);
+  const serviceLines = capabilities.filter(c => c.category === 'service_line').sort((a, b) => b.relevanceScore - a.relevanceScore);
+  const caseStudies = capabilities.filter(c => c.category === 'case_study').sort((a, b) => b.relevanceScore - a.relevanceScore);
+  const proofPoints = capabilities.filter(c => c.category === 'proof_point').sort((a, b) => b.relevanceScore - a.relevanceScore);
+  const ctas = capabilities.filter(c => c.category === 'cta').sort((a, b) => b.relevanceScore - a.relevanceScore);
 
   const bestSL = serviceLines[0];
   const bestCS = caseStudies[0];
   const bestPP = proofPoints[0];
   const bestCTA = ctas[0] || { title: '15-Minute Discovery Call', summary: 'Would you be open to a brief 15-minute call to explore how this might apply to your team?' };
 
-  // Use research data for observation if available
+  // Use research context for observation
   let observation = '';
-  if (researchCard?.businessOverview && researchCard.confidence > 30) {
-    observation = researchCard.businessOverview.substring(0, 200);
-  } else if (researchCard?.recentNews?.length) {
-    observation = `recent news: ${researchCard.recentNews[0].title}`;
-  } else if (industry) {
+  if (researchContext) {
+    // Extract first meaningful line from research context
+    const lines = researchContext.split('\n').filter(l => l.includes('Overview:'));
+    if (lines.length > 0) {
+      observation = lines[0].replace('Overview:', '').trim().substring(0, 200);
+    }
+  }
+  if (!observation && industry) {
     const industryInsights: Record<string, string> = {
       'financial services': 'the increasing regulatory pressure and the need for faster processing',
       'healthcare': 'the shift toward value-based care and data interoperability requirements',
       'technology': 'the challenge of scaling engineering teams while maintaining quality',
-      'manufacturing': 'the pressure to digitize operations and improve supply chain visibility',
-      'retail': 'the need for real-time inventory intelligence and personalization at scale',
-      'energy': 'the transition to renewable sources and grid modernization challenges',
-      'media': 'content monetization challenges and the shift to streaming models',
-      'government': 'modernization of legacy systems and improving citizen service delivery',
     };
     observation = industryInsights[industry.toLowerCase()] || `the evolving landscape in ${industry}`;
-  } else if (company) {
+  } else if (!observation && company) {
     observation = `the growth trajectory at ${company}`;
   }
 
@@ -115,23 +211,15 @@ function generateTemplateDraft(
   const opening = toneOpenings[Math.floor(Math.random() * toneOpenings.length)];
 
   let subject = '';
-  if (bestSL && bestCS) {
-    subject = `${bestSL.title} for ${company || 'your team'} — ${bestCS.evidence || 'a proven approach'}`;
-  } else if (bestSL) {
-    subject = `How ${company || 'your organization'} could benefit from ${bestSL.title}`;
-  } else {
-    subject = `A relevant approach for ${company || 'your team'}`;
-  }
+  if (bestSL && bestCS) subject = `${bestSL.title} for ${company || 'your team'} — a proven approach`;
+  else if (bestSL) subject = `How ${company || 'your organization'} could benefit from ${bestSL.title}`;
+  else subject = `A relevant approach for ${company || 'your team'}`;
   if (subject.length > 100) subject = subject.slice(0, 97) + '...';
 
   let body = `${opening}\n\n`;
-  if (title && company) {
-    body += `Given your role as ${title} at ${company} and ${observation}, I thought this might be relevant.\n\n`;
-  } else if (company) {
-    body += `Given ${observation}, I thought this might be relevant to ${company}.\n\n`;
-  } else {
-    body += `Given ${observation}, I thought this might be relevant to you.\n\n`;
-  }
+  if (title && company) body += `Given your role as ${title} at ${company} and ${observation}, I thought this might be relevant.\n\n`;
+  else if (company) body += `Given ${observation}, I thought this might be relevant to ${company}.\n\n`;
+  else body += `Given ${observation}, I thought this might be relevant to you.\n\n`;
   if (bestSL) {
     body += `We specialize in ${bestSL.summary.toLowerCase()} `;
     if (bestPP) body += `— ${bestPP.summary.toLowerCase()} `;
@@ -139,7 +227,7 @@ function generateTemplateDraft(
   }
   if (bestCS) {
     body += `For example, ${bestCS.summary.charAt(0).toLowerCase() + bestCS.summary.slice(1)}`;
-    if (bestCS.evidence) body += ` (${bestCS.evidence})`;
+    // evidence field removed — using summary only
     body += '\n\n';
   }
   const ctaText = bestCTA.summary || 'Would you be open to a brief 15-minute call to explore how this might apply to your team?';
@@ -153,33 +241,24 @@ function generateTemplateDraft(
   if (title) confidence += 5;
   if (company) confidence += 5;
   if (bestPP) confidence += 5;
-  if (researchCard?.confidence && researchCard.confidence > 50) confidence += 15;
+  if (researchContext) confidence += 15; // Phase 3 data available
   confidence = Math.min(95, confidence);
 
   const assumptions: string[] = [];
-  if (!researchCard) assumptions.push('No company research data available — used general approach');
+  if (!researchContext) assumptions.push('No Phase 3 research data available — using general approach');
+  else assumptions.push('Phase 3 research data used — high confidence');
   if (!industry) assumptions.push('Industry not specified');
   if (!title) assumptions.push('Job title not provided');
-  if (assumptions.length === 0) assumptions.push('Company research data + knowledge base used — high confidence');
 
   return {
-    subject,
-    body,
-    cta: ctaText,
-    confidenceScore: confidence,
-    assumptions,
-    sourceSnippets: capabilities.slice(0, 5).map(cap => ({
-      id: cap.id,
-      title: cap.title,
-      snippetType: cap.category,
-      relevanceScore: cap.relevanceScore,
-    })),
+    subject, body, cta: ctaText, confidenceScore: confidence, assumptions,
+    sourceSnippets: capabilities.slice(0, 5).map(cap => ({ id: cap.id, title: cap.title, snippetType: cap.category, relevanceScore: cap.relevanceScore })),
     generatedAt: new Date().toISOString(),
     generationMethod: 'template' as const,
   };
 }
 
-/* ── AI SDK generation — NOW uses real company research ── */
+/* ── AI SDK generation — NOW uses Phase 3 research from DB ── */
 async function generateWithAI(
   name: string,
   email: string | undefined,
@@ -190,29 +269,15 @@ async function generateWithAI(
   tone: string,
   additionalContext: string | undefined,
   capabilities: Array<{ id: string; title: string; summary: string; category: string; relevanceScore: number; content?: string }>,
-  researchCard?: CompanyResearch | null,
+  researchContext: string,
 ) {
-  const capabilityContext = capabilities
-    .map(cap => `[${cap.category}] ${cap.title}: ${cap.content || cap.summary}`)
-    .join('\n');
+  const capabilityContext = capabilities.map(cap => `[${cap.category}] ${cap.title}: ${cap.content || cap.summary}`).join('\n');
 
   const toneInstruction: Record<string, string> = {
     professional: 'Write in a polished, business-professional tone. Confident but not aggressive.',
     casual: 'Write in a warm, conversational tone. Friendly and approachable, like a peer reaching out.',
     executive: 'Write in a concise, C-suite appropriate tone. Direct, data-driven, respectful of their time.',
   };
-
-  // Build company research context — compact to stay within Vercel 10s timeout (#24)
-  let researchContext = '';
-  if (researchCard && researchCard.confidence > 20) {
-    const parts: string[] = ['── COMPANY INTELLIGENCE ──'];
-    if (researchCard.businessOverview) parts.push(`Overview: ${researchCard.businessOverview}`);
-    if (researchCard.revenue && researchCard.revenue !== 'Not found') parts.push(`Revenue: ${researchCard.revenue}`);
-    if (researchCard.employeeCount && researchCard.employeeCount !== 'Not found') parts.push(`Employees: ${researchCard.employeeCount}`);
-    if (researchCard.fundingStage && researchCard.fundingStage !== 'Not found') parts.push(`Funding: ${researchCard.fundingStage}`);
-    if (researchCard.industry) parts.push(`Industry: ${researchCard.industry}`);
-    researchContext = parts.join('\n');
-  }
 
   const systemPrompt = `You are an expert B2B sales email writer for a technology services company.
 
@@ -227,14 +292,12 @@ Write a personalized, concise outbound email (under 150 words) that:
 - NEVER use generic templates — every email must feel unique to this specific prospect
 - If company intelligence is available, reference a SPECIFIC detail from it (news, technology, people, challenge)
 
-The following capabilities were retrieved from the knowledge base based on relevance:
+The following capabilities were retrieved from the knowledge base:
 ${capabilities.map(c => `  - [${c.relevanceScore}%] ${c.title} (${c.category})`).join('\n')}
 
-Prioritize the highest-scored capabilities.
-${researchContext ? 'CRITICAL: Use the company intelligence below to make the email highly specific and relevant. Reference actual details about the company.' : ''}
+${researchContext ? 'CRITICAL: Use the company intelligence below to make the email highly specific. Reference actual details about the company.' : ''}
 
-You MUST respond with valid JSON in this exact format (no markdown, no code fences):
-{"subject": "email subject line", "body": "email body text", "cta": "call to action text", "confidence_score": 75, "assumptions": ["any assumptions made"]}`;
+You MUST respond with valid JSON:{"subject": "...", "body": "...", "cta": "...", "confidence_score": 75, "assumptions": ["..."]}`;
 
   const userPrompt = `Write a personalized outreach email for this prospect:
 
@@ -255,46 +318,24 @@ Write the email now. Respond with JSON only.`;
   const response = await callLLM(systemPrompt, userPrompt);
 
   let aiResponse = response.trim();
-  if (aiResponse.startsWith('```')) {
-    aiResponse = aiResponse.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
-  }
+  if (aiResponse.startsWith('```')) aiResponse = aiResponse.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
 
-  let parsed: {
-    subject: string;
-    body: string;
-    cta: string;
-    confidence_score: number;
-    assumptions?: string[];
-  };
-
+  let parsed: { subject: string; body: string; cta: string; confidence_score: number; assumptions?: string[] };
   try {
     parsed = JSON.parse(aiResponse);
   } catch {
     const lines = aiResponse.split('\n').filter(Boolean);
-    parsed = {
-      subject: lines[0]?.replace(/^subject:\s*/i, '').slice(0, 100) || 'Introduction',
-      body: lines.slice(1).join('\n').slice(0, 1000) || aiResponse,
-      cta: 'Would you be open to a brief 15-minute call this week?',
-      confidence_score: 50,
-      assumptions: ['AI response was not valid JSON — content may need review'],
-    };
+    parsed = { subject: lines[0]?.slice(0, 100) || 'Introduction', body: lines.slice(1).join('\n').slice(0, 1000) || aiResponse, cta: 'Would you be open to a brief 15-minute call this week?', confidence_score: 50, assumptions: ['AI response was not valid JSON'] };
   }
 
   let confidence = Math.min(100, Math.max(0, parsed.confidence_score || 50));
-  if (researchCard?.confidence && researchCard.confidence > 50) confidence = Math.min(95, confidence + 10);
+  if (researchContext) confidence = Math.min(95, confidence + 10);
 
   return {
-    subject: parsed.subject || 'Draft email',
-    body: parsed.body || '',
-    cta: parsed.cta || '',
+    subject: parsed.subject || 'Draft email', body: parsed.body || '', cta: parsed.cta || '',
     confidenceScore: confidence,
     assumptions: parsed.assumptions || [],
-    sourceSnippets: capabilities.slice(0, 5).map(cap => ({
-      id: cap.id,
-      title: cap.title,
-      snippetType: cap.category,
-      relevanceScore: cap.relevanceScore,
-    })),
+    sourceSnippets: capabilities.slice(0, 5).map(cap => ({ id: cap.id, title: cap.title, snippetType: cap.category, relevanceScore: cap.relevanceScore })),
     generatedAt: new Date().toISOString(),
     generationMethod: 'ai' as const,
   };
@@ -302,6 +343,7 @@ Write the email now. Respond with JSON only.`;
 
 /* ═══════════════════════════════════════════════════
    Main generation function
+   REWIRED: Auto-reads ResearchCard from DB. No fallback web search.
    ═══════════════════════════════════════════════════ */
 export async function generateEmailDraft(params: {
   name: string;
@@ -316,85 +358,74 @@ export async function generateEmailDraft(params: {
   problems?: string;
   searchMode?: string;
   minScore?: number;
-  researchCard?: CompanyResearch | null;
   companyId?: string;
   domain?: string;
+  contactId?: string;
 }) {
   const {
     name, email, title, company, industry, companySize,
     tone = 'professional', additionalContext, serviceLine, problems,
-    searchMode, minScore, researchCard: providedResearch, companyId, domain,
+    searchMode, minScore, companyId, domain, contactId,
   } = params;
 
-  // Build a rich search query from the prospect context
+  // Build search query for knowledge retrieval
   const searchParts = [industry, title, company, problems, additionalContext].filter(Boolean);
-  const searchQuery = searchParts.length > 0
-    ? searchParts.join(' ')
-    : 'enterprise technology solutions';
+  const searchQuery = searchParts.length > 0 ? searchParts.join(' ') : 'enterprise technology solutions';
 
   // Retrieve relevant capabilities via knowledge search
   const retrievedCapabilities = await retrieveKnowledge({
-    query: searchQuery,
-    industry: industry || undefined,
-    role: title || undefined,
-    companySize: companySize || undefined,
-    serviceLine: serviceLine || undefined,
-    problems: problems || undefined,
-    searchMode: searchMode || 'hybrid',
-    minRelevanceScore: minScore ?? 15,
-    includeContent: true,
-    limit: 8,
+    query: searchQuery, industry, role: title, companySize, serviceLine, problems,
+    searchMode: searchMode || 'hybrid', minRelevanceScore: minScore ?? 15, includeContent: true, limit: 8,
   });
 
-  // If no researchCard provided but we have a company name, do a quick search
-  let researchCard = providedResearch;
-  if (!researchCard && company) {
-    try {
-      // Quick single-query search for company context (faster than full researchCompany)
-      const results = await webSearch(`${company} ${domain || ''} ${industry || ''} overview news 2025`, 5);
-      if (results.length > 0) {
-        const snippets = results.map(r => `[${r.title}] ${r.snippet}`).join('\n');
-        const overview = await callLLM(
-          'Summarize this company in 2-3 sentences based ONLY on these search results. Be specific and factual.',
-          `Company: ${company}\nDomain: ${domain || 'Unknown'}\nIndustry: ${industry || 'Unknown'}\n\nSearch Results:\n${snippets}`
-        );
-        researchCard = {
-          businessOverview: overview,
-          revenue: 'Not found',
-          employeeCount: 'Not found',
-          fundingStage: 'Not found',
-          techStack: '',
-          socialProfiles: {},
-          keyPeople: [],
-          recentNews: results.slice(0, 3).map(r => ({
-            title: r.title,
-            snippet: r.snippet,
-            source: r.host_name || new URL(r.url).hostname,
-            url: r.url,
-            signalType: 'other' as const,
-            impact: 'medium' as const,
-          })),
-          industry: industry || 'Not found',
-          website: domain ? `https://${domain}` : '',
-          confidence: 60,
-        };
-      }
-    } catch (err) {
-      console.warn('[generateEmailDraft] Quick company search failed, proceeding without research:', err);
+  // ── AUTO-READ PHASE 3 RESEARCH FROM DB (no web search) ──
+  let researchContext = '';
+
+  // Strategy 1: Read from CompanyResearchCard by companyId
+  if (companyId) {
+    const card = await fetchResearchCardFromDB(companyId);
+    if (card && card.businessOverview) {
+      researchContext = buildResearchContextFromCard(card);
     }
   }
+
+  // Strategy 2: If no companyId, try contactId → contact.companyId
+  if (!researchContext && contactId) {
+    try {
+      const contact = await db.contact.findUnique({
+        where: { id: contactId },
+        select: { companyId: true, enrichmentData: true },
+      });
+      if (contact?.companyId) {
+        const card = await fetchResearchCardFromDB(contact.companyId);
+        if (card && card.businessOverview) {
+          researchContext = buildResearchContextFromCard(card);
+        }
+      }
+      // Strategy 3: Fall back to contact's enrichmentData (cached from Phase 3)
+      if (!researchContext && contact?.enrichmentData) {
+        researchContext = buildResearchContextFromContactData(contact.enrichmentData);
+      }
+    } catch {
+      // Non-critical
+    }
+  }
+
+  // NO FALLBACK WEB SEARCH — Phase 3 is the single source of truth
+  // If no research context is available, the LLM will work without it
+  // and the confidence score will be lower to reflect this.
 
   // Try AI generation first, fall back to template
   try {
     return await generateWithAI(
       name, email, title, company, industry, companySize,
-      tone, additionalContext, retrievedCapabilities, researchCard
+      tone, additionalContext, retrievedCapabilities, researchContext
     );
   } catch (aiError) {
     const errMsg = aiError instanceof Error ? aiError.message : 'Unknown error';
     console.warn(`AI generation failed (${errMsg}), using template engine`);
     return generateTemplateDraft(
-      name, title, company, industry, companySize, tone, retrievedCapabilities, researchCard
+      name, title, company, industry, companySize, tone, retrievedCapabilities, researchContext
     );
   }
 }

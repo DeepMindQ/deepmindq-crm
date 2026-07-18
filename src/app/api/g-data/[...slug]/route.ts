@@ -36,55 +36,56 @@ import * as mod_config_seed from './config__seed.ts';
 async function loadJobs() { return await import('./jobs.ts'); }
 async function loadJobsId() { return await import('./jobs___id.ts'); }
 
-// Inline handler for jobs/actions — avoids the dynamic import + request context issue
-// that causes "Cannot read properties of undefined (reading '1')" in Vercel.
+// Inline handler for jobs/actions — the workflow-engine import is deferred per-action
+// to isolate failures and avoid loading processor.ts (which pulls in zai-helpers)
+// for actions that only need queue.ts functions.
 async function handleJobsActions(req: NextRequest): Promise<Response> {
-  try {
-    const { retryAllFailed, processNextJobs, recoverStaleJobs, queuePendingJobs, enqueueBulkEnrichment } = await import('@/lib/workflow-engine');
-    const body = await req.json();
-    const action = body.action as string;
+  const body = await req.json();
+  const action = body.action as string;
 
-    switch (action) {
-      case 'retry-all-failed': {
-        const result = await retryAllFailed();
-        return NextResponse.json({ success: true, ...result });
-      }
-      case 'process-next': {
-        const limit = body.limit || 5;
-        await recoverStaleJobs(30);
-        await queuePendingJobs(limit);
-        const result = await processNextJobs(limit);
-        return NextResponse.json({ success: true, ...result });
-      }
-      case 'recover-stale': {
-        const timeoutMinutes = body.timeoutMinutes || 30;
-        const recovered = await recoverStaleJobs(timeoutMinutes);
-        return NextResponse.json({ success: true, recovered });
-      }
-      case 'enqueue-enrichment': {
-        const companyIds = body.companyIds as string[];
-        if (!Array.isArray(companyIds) || companyIds.length === 0) {
-          return NextResponse.json({ error: 'companyIds array required' }, { status: 400 });
-        }
-        const result = await enqueueBulkEnrichment(companyIds, {
-          force: body.force === true,
-          priority: body.priority ?? 5,
-        });
-        // Auto-trigger: fire-and-forget first batch so jobs start immediately
-        if (result.created > 0) {
-          processNextJobs(Math.min(result.created, 3)).catch(err => {
-            console.error('[jobs/action] Auto-process after enqueue failed (non-blocking):', err.message);
-          });
-        }
-        return NextResponse.json({ success: true, ...result });
-      }
-      default:
-        return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
+  switch (action) {
+    case 'retry-all-failed': {
+      const { retryAllFailed } = await import('@/lib/workflow-engine/queue');
+      const result = await retryAllFailed();
+      return NextResponse.json({ success: true, ...result });
     }
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.error('[jobs/action]', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    case 'process-next': {
+      const { queuePendingJobs } = await import('@/lib/workflow-engine/queue');
+      const { processNextJobs, recoverStaleJobs } = await import('@/lib/workflow-engine');
+      const limit = body.limit || 5;
+      await recoverStaleJobs(30);
+      await queuePendingJobs(limit);
+      const result = await processNextJobs(limit);
+      return NextResponse.json({ success: true, ...result });
+    }
+    case 'recover-stale': {
+      const { recoverStaleJobs } = await import('@/lib/workflow-engine');
+      const timeoutMinutes = body.timeoutMinutes || 30;
+      const recovered = await recoverStaleJobs(timeoutMinutes);
+      return NextResponse.json({ success: true, recovered });
+    }
+    case 'enqueue-enrichment': {
+      const { enqueueBulkEnrichment } = await import('@/lib/workflow-engine');
+      const companyIds = body.companyIds as string[];
+      if (!Array.isArray(companyIds) || companyIds.length === 0) {
+        return NextResponse.json({ error: 'companyIds array required' }, { status: 400 });
+      }
+      const result = await enqueueBulkEnrichment(companyIds, {
+        force: body.force === true,
+        priority: body.priority ?? 5,
+      });
+      // Auto-trigger: fire-and-forget first batch
+      if (result.created > 0) {
+        import('@/lib/workflow-engine').then(({ processNextJobs }) => {
+          processNextJobs(Math.min(result.created, 3)).catch(err => {
+            console.error('[jobs/action] Auto-process failed:', err.message);
+          });
+        });
+      }
+      return NextResponse.json({ success: true, ...result });
+    }
+    default:
+      return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
   }
 }
 

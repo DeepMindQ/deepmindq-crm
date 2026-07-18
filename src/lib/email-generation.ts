@@ -16,7 +16,7 @@
    3. NO fallback web search (removed)
    ═══════════════════════════════════════════════════ */
 
-import { callLLM } from '@/lib/zai-helpers';
+// callLLM is accessed ONLY through ai-governance.ts (governedAICall / governedAICallAggregate)
 import { governedAICall } from '@/lib/ai-governance';
 import { db } from '@/lib/db';
 import { getResearchContext, type ResearchContext } from '@/lib/intelligence-contract';

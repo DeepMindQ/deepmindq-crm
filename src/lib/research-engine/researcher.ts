@@ -18,7 +18,7 @@
  */
 
 import { db } from '@/lib/db';
-import { webSearch, callLLM, extractJSON, findKeyPeople, type KeyPerson, type NewsSignal } from '@/lib/zai-helpers';
+import { webSearch, extractJSON, type KeyPerson, type NewsSignal } from '@/lib/zai-helpers';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { storeEvidenceFromResults, cleanupOldEvidence, linkEvidenceToFields, type FieldConfidence, type RawEvidence } from './evidence';
 import { detectSignals, storeSignals, type DetectedSignal, type SignalDetectionResult } from './signals';
@@ -196,12 +196,46 @@ export async function researchCompany(
   // ═══════════════════════════════════════════════════
   onProgress?.({ step: 3, label: 'Extracting intelligence', progress: 42, message: 'Finding key people...' });
 
-  // 3a: Key people (parallel with main extraction)
+  // 3a: Key people — governed extraction (no direct callLLM)
   let keyPeople: KeyPerson[] = [];
   try {
-    keyPeople = await findKeyPeople(companyName);
+    const [execResults, vpResults] = await Promise.allSettled([
+      webSearch(`${companyName} CEO CTO CIO COO CFO president executives LinkedIn`, 8),
+      webSearch(`${companyName} VP director head of management team LinkedIn`, 6),
+    ]);
+    const peopleSnippets: string[] = [];
+    for (const r of [execResults, vpResults]) {
+      if (r.status === 'fulfilled') {
+        for (const item of r.value) peopleSnippets.push(`[${item.title}] ${item.snippet}`);
+      }
+    }
+    if (peopleSnippets.length > 0) {
+      const peopleResult = await governedAICallAggregate({
+        generationType: 'research_extraction',
+        systemPrompt: `You are an executive research specialist. From the web search results below, identify key people at "${companyName}".
+Extract ONLY people clearly mentioned. Return valid JSON array: [{"name": "Full Name", "title": "Exact Title", "department": "department", "linkedInUrl": "url or empty"}]
+Include C-suite, VPs, Directors, and Heads. Maximum 10. If no people found, return [].`,
+        userPrompt: `Company: ${companyName}\n\nSearch Results:\n${peopleSnippets.slice(0, 20).join('\n')}`,
+        inputParams: { companyId, step: 'key_people_extraction' },
+      });
+      if (peopleResult.success && peopleResult.response) {
+        const parsed = extractJSON(peopleResult.response);
+        if (Array.isArray(parsed)) {
+          keyPeople = (parsed as Record<string, unknown>[])
+            .map(p => ({
+              name: String(p.name || ''),
+              title: String(p.title || ''),
+              department: p.department ? String(p.department) : undefined,
+              linkedInUrl: p.linkedInUrl ? String(p.linkedInUrl) : undefined,
+              source: 'web_search',
+            }))
+            .filter(p => p.name && p.title)
+            .slice(0, 10);
+        }
+      }
+    }
     if (keyPeople.length > 0) {
-      result.keyPeople = keyPeople.slice(0, 10);
+      result.keyPeople = keyPeople;
     }
   } catch (err) {
     console.warn('[researcher] Key people search failed, continuing');

@@ -1,20 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-import { callChatLLM } from '@/lib/zai-helpers'
-import { HALLUCINATION_PREVENTION_RULES } from '@/lib/ai-governance'
+// ── GOVERNANCE ENFORCEMENT ──
+// This route MUST go through the governance layer.
+// Direct access to callLLM / callChatLLM is FORBIDDEN.
+import { governedAICallAggregate } from '@/lib/ai-governance'
 
 // ---------------------------------------------------------------------------
-// LLM helper — multi-turn chat via Gemini
+// GOVERNANCE ARCHITECTURE NOTE
+// ---------------------------------------------------------------------------
+// All AI generation in this application must flow through the governance layer
+// (ai-governance.ts). The governance layer provides:
+//   - Hallucination prevention rules injection
+//   - Audit logging in AIGenerationAudit
+//   - Evidence grounding and traceability
+//
+// No route, module, or future engine may directly access LLM primitives
+// (callLLM, callChatLLM, or any third-party AI SDK).
+// A build-time guard (scripts/check-governance.sh) enforces this.
 // ---------------------------------------------------------------------------
 
 interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
-}
-
-async function callAI(systemPrompt: string, messages: ChatMessage[]): Promise<string> {
-  return callChatLLM(systemPrompt, messages)
 }
 
 // ---------------------------------------------------------------------------
@@ -169,7 +177,6 @@ export async function POST(request: NextRequest) {
 
     // 2. Build system prompt
     const systemPrompt = `You are DeepMindQ AI Assistant, an intelligent sales CRM assistant.
-${HALLUCINATION_PREVENTION_RULES}
 You have access to the user's CRM data including companies, contacts, opportunities, and research.
 
 Be helpful, concise, and actionable. Suggest next steps when relevant. Use markdown formatting for readability when appropriate (bold, lists, etc.).
@@ -182,19 +189,42 @@ ${
     : 'No specific CRM context is currently active. Answer based on the user\'s general question about their sales CRM data and workflows.'
 }`
 
-    // 3. Build messages array
-    const messages: ChatMessage[] = [...(conversationHistory || []), { role: 'user', content: message }]
+    // 3. Serialize multi-turn conversation into user prompt for governance layer.
+    //    The governance layer uses single-prompt (system + user), so we flatten
+    //    the conversation history into the user prompt with clear turn markers.
+    const historyBlock = (conversationHistory || [])
+      .filter((m: ChatMessage) => m.role === 'user' || m.role === 'assistant')
+      .map((m: ChatMessage) => `[${m.role.toUpperCase()}]: ${m.content}`)
+      .join('\n\n')
 
-    // 4. Try LLM call
+    const userPrompt = historyBlock
+      ? `## Previous Conversation\n${historyBlock}\n\n## Current User Message\n${message}`
+      : message
+
+    // 4. Call through GOVERNANCE LAYER (governedAICallAggregate)
+    //    This ensures: hallucination prevention, audit logging, governance tracking.
     try {
-      const response = await callAI(systemPrompt, messages)
+      const result = await governedAICallAggregate({
+        generationType: 'chat',
+        systemPrompt,
+        userPrompt,
+        inputParams: {
+          hasCompanyContext: !!context?.companyId,
+          hasContactContext: !!context?.contactId,
+          conversationTurns: (conversationHistory || []).length,
+          messageLength: message.length,
+        },
+      })
 
-      if (response) {
-        return apiSuccess({ message: response, sources: sources.length > 0 ? sources : undefined })
+      if (result.success && result.response) {
+        return apiSuccess({ message: result.response, sources: sources.length > 0 ? sources : undefined })
       }
+
+      // Governance blocked or LLM failed — fall through to template
+      console.warn('[ai/chat] Governance result:', result.governanceResult?.overallMessage, result.rejectionReason)
     } catch (llmErr: unknown) {
       const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-      console.error('[ai/chat] LLM call failed:', msg)
+      console.error('[ai/chat] Governance call failed:', msg)
       // Fall through to template
     }
 

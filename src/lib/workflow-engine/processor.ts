@@ -26,7 +26,7 @@ import {
 import { classifyError } from './retry';
 import { logJobEvent } from './index';
 import { db } from '@/lib/db';
-import { webSearch, callLLM, extractJSON } from '@/lib/zai-helpers';
+import { webSearch, extractJSON } from '@/lib/zai-helpers';
 import { governedAICall } from '@/lib/ai-governance';
 import { researchCompany } from '@/lib/research-engine';
 import { detectSignals, storeSignals } from '@/lib/research-engine';

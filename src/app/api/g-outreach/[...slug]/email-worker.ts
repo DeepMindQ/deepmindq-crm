@@ -1,8 +1,19 @@
 /* ═══════════════════════════════════════════════════
-   POST /api/email-worker — Cron Worker (E-03, E-04)
+   POST /api/email-worker — Human-Approved Send Worker
 
-   Called by an external scheduler (Vercel Cron) or
-   manually via "Send All Pending" button.
+   ARCHITECTURE PRINCIPLE — HUMAN-CONTROLLED SELLING:
+   This worker ONLY sends emails that were explicitly approved
+   by a human operator. It processes the SendQueue which is
+   populated ONLY when a human clicks "Approve" on a draft.
+
+   The system MUST NOT autonomously:
+     - Send emails without human approval
+     - Contact prospects automatically
+     - Execute sales sequences without human enrollment
+
+   The AI system only: researches, recommends, drafts, and
+   assists human decision-making. All outreach execution
+   requires explicit human action.
 
    Logic:
      1. Query SendQueue where status="pending" OR

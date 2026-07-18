@@ -16,7 +16,7 @@
  */
 
 import { db } from '@/lib/db';
-import { callLLM, extractJSON, type NewsSignal } from '@/lib/zai-helpers';
+import { extractJSON, type NewsSignal } from '@/lib/zai-helpers';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 
 // ── Types ──

@@ -6,7 +6,7 @@
     "dev": "next dev -p 3000 -H 0.0.0.0 --webpack 2>&1 | tee dev.log",
     "build": "next build && node -e \"const s=require('child_process'),p=require('path'),fs=require('fs');s.spawnSync('cp',['-r',p.join('.next','static'),p.join('.next','standalone','.next','static')]);s.spawnSync('cp',['-r','public',p.join('.next','standalone','public')]);if(fs.existsSync('.z-ai-config')){s.spawnSync('cp',['.z-ai-config',p.join('.next','standalone','.z-ai-config')]);console.log('✓ .z-ai-config copied to standalone')}else{console.log('⚠ .z-ai-config not found in project root')}console.log('✓ Static assets copied to standalone')\"",
     "start": "next start -p 8080",
-    "lint": "eslint .",
+    "lint": "eslint . && bash scripts/check-governance.sh",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

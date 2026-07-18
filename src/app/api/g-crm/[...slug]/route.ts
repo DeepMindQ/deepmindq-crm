@@ -8,12 +8,14 @@ import * as mod_companies__stats from './companies__stats.ts';
 import * as mod_companies__compare from './companies__compare.ts';
 import * as mod_companies__bulk from './companies__bulk.ts';
 import * as mod_companies__enrich_next from './companies__enrich-next.ts';
+import * as mod_companies__research from './companies__research.ts';
 import * as mod_companies___id from './companies___id.ts';
 import * as mod_companies___id__signals from './companies___id__signals.ts';
 import * as mod_companies___id__signals___signalId from './companies___id__signals___signalId.ts';
 import * as mod_companies___id__notes from './companies___id__notes.ts';
 import * as mod_companies___id__notes___noteId from './companies___id__notes___noteId.ts';
 import * as mod_companies___id__intelligence from './companies___id__intelligence.ts';
+import * as mod_companies___id__evidence from './companies___id__evidence.ts';
 import * as mod_companies___id__contacts from './companies___id__contacts.ts';
 import * as mod_companies___id__timeline from './companies___id__timeline.ts';
 import * as mod_companies__meta from './companies__meta.ts';
@@ -54,12 +56,14 @@ const ROUTES = [
   { key: 'companies/bulk', handler: mod_companies__bulk },
   { key: 'companies/enrich-next', handler: mod_companies__enrich_next },
   { key: 'companies/enrich-status', handler: mod_companies__enrich_next },
+  { key: 'companies/research', handler: mod_companies__research },
   { key: 'companies/[id]', handler: mod_companies___id },
   { key: 'companies/[id]/signals', handler: mod_companies___id__signals },
   { key: 'companies/[id]/signals/[signalId]', handler: mod_companies___id__signals___signalId },
   { key: 'companies/[id]/notes', handler: mod_companies___id__notes },
   { key: 'companies/[id]/notes/[noteId]', handler: mod_companies___id__notes___noteId },
   { key: 'companies/[id]/intelligence', handler: mod_companies___id__intelligence },
+  { key: 'companies/[id]/evidence', handler: mod_companies___id__evidence },
   { key: 'companies/[id]/contacts', handler: mod_companies___id__contacts },
   { key: 'companies/[id]/timeline', handler: mod_companies___id__timeline },
   { key: 'companies/meta', handler: mod_companies__meta },

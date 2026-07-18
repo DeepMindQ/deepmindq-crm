@@ -3,11 +3,13 @@ import { NextRequest, NextResponse } from 'next/server';
 // Inline imports for system routes (2 handlers)
 import * as mod_settings from './settings.ts';
 import * as mod_seed from './seed.ts';
+import * as mod_dbsync from './db-sync.ts';
 
 // Route registry
 const ROUTES = [
   { key: 'settings', handler: mod_settings },
   { key: 'seed', handler: mod_seed },
+  { key: 'db-sync', handler: mod_dbsync },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';

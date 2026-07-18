@@ -192,12 +192,14 @@ function ActionMenu({ companyId, navigateTo }: { companyId: string; navigateTo?:
       } catch { toast.error('AI brief request failed', { id: 'ai-brief' }); }
     }},
     { label: 'Enrich Data', action: async () => {
-      toast.loading('Enriching company data...', { id: 'enrich' });
+      toast.loading('Queueing enrichment job...', { id: 'enrich' });
       try {
-        const res = await fetch('/api/g-crm/companies/enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ companyId }) });
-        const data = await res.json();
-        toast.success('Data enrichment started', { id: 'enrich' });
-      } catch { toast.error('Enrichment failed', { id: 'enrich' }); }
+        await fetch('/api/g-data/jobs/actions', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'enqueue-enrichment', companyIds: [companyId], force: true }),
+        });
+        toast.success('Enrichment job queued — check Command Center for progress', { id: 'enrich' });
+      } catch { toast.error('Failed to queue enrichment', { id: 'enrich' }); }
     }},
     { label: 'Add Note', action: () => { useAppStore.getState().setSelectedCompanyId(companyId); navigateTo?.('companies'); } },
   ];
@@ -407,17 +409,16 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
     }
   };
 
-  /* ── Manual enrichment: enrich selected companies one-by-one ── */
+  /* ── Enrichment via Job Queue (Phase 2) ── */
   const enrichSelected = useCallback(async () => {
-    // Determine which IDs to enrich: if none selected, enrich all from DB
+    // Determine which IDs to enrich
     let idsToEnrich: string[] = [];
 
     if (selectedIds.size > 0) {
       idsToEnrich = [...selectedIds];
     } else {
-      // Fetch all unenriched company IDs from DB
       try {
-        const res = await fetch('/api/companies?limit=500');
+        const res = await fetch('/api/g-crm/companies?limit=500');
         const data = await res.json();
         const all = data.companies || data.data?.companies || [];
         idsToEnrich = all
@@ -439,47 +440,31 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
     enrichCancelRef.current = false;
     setSelectedIds(new Set());
 
-    toast.success(`Enriching ${idsToEnrich.length} companies...`);
-
-    let enriched = 0;
-    let failed = 0;
-
-    for (const companyId of idsToEnrich) {
-      if (enrichCancelRef.current) {
-        toast.info(`Enrichment stopped. ${enriched} enriched, ${failed} failed.`);
-        break;
+    // Queue all enrichment jobs via the workflow engine
+    try {
+      const res = await fetch('/api/g-data/jobs/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'enqueue-enrichment',
+          companyIds: idsToEnrich,
+          force: true,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        toast.error(`Enrichment queue failed: ${data.error}`);
+      } else {
+        const created = data.created ?? 0;
+        const skipped = data.skipped ?? 0;
+        toast.success(`${created} enrichment jobs queued${skipped > 0 ? `, ${skipped} skipped (already queued)` : ''}`);
       }
-
-      // Find company name for progress display
-      const company = companies.find(c => c.id === companyId);
-      const name = company?.rawName || companyId.slice(0, 8);
-      enriched++;
-      setEnrichProgress({ current: enriched, total: idsToEnrich.length, companyName: name });
-
-      try {
-        const r = await fetch('/api/companies/enrich', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ companyId, force: true }),
-        });
-        const d = await r.json();
-        if (!r.ok || d.error) {
-          console.warn(`[enrich] ${name}:`, d.error);
-          failed++;
-        }
-      } catch {
-        failed++;
-      }
-
-      // Small delay between calls to respect rate limits (NVIDIA ~40 RPM free)
-      if (enriched < idsToEnrich.length) {
-        await new Promise(r => setTimeout(r, 1800));
-      }
+    } catch {
+      toast.error('Failed to queue enrichment jobs');
     }
 
     setEnrichLoading(false);
     setEnrichProgress(null);
-    toast.success(`Done! ${enriched - failed} enriched successfully, ${failed} failed.`);
     fetchCompanies();
   }, [selectedIds, companies, fetchCompanies]);
 

@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
-import { retryAllFailed, processNextJobs, recoverStaleJobs, getQueueStats, queuePendingJobs } from '@/lib/workflow-engine';
+import { retryAllFailed, processNextJobs, recoverStaleJobs, getQueueStats, queuePendingJobs, enqueueBulkEnrichment } from '@/lib/workflow-engine';
 
 /**
- * POST /api/g-data/jobs/retry-all-failed
- * POST /api/g-data/jobs/process-next
- * POST /api/g-data/jobs/recover-stale
+ * POST /api/g-data/jobs/actions
+ *
+ * Actions:
+ * - retry-all-failed: Retry all failed jobs that haven't exhausted attempts
+ * - process-next: Queue pending jobs and process next N queued jobs
+ * - recover-stale: Mark long-running jobs as failed (server restart recovery)
+ * - enqueue-enrichment: Bulk-create enrichment jobs for given company IDs
  */
 export async function POST(request: Request) {
   try {
@@ -32,6 +36,18 @@ export async function POST(request: Request) {
         const timeoutMinutes = body.timeoutMinutes || 30;
         const recovered = await recoverStaleJobs(timeoutMinutes);
         return NextResponse.json({ success: true, recovered });
+      }
+
+      case 'enqueue-enrichment': {
+        const companyIds = body.companyIds as string[];
+        if (!Array.isArray(companyIds) || companyIds.length === 0) {
+          return NextResponse.json({ error: 'companyIds array required' }, { status: 400 });
+        }
+        const result = await enqueueBulkEnrichment(companyIds, {
+          force: body.force === true,
+          priority: body.priority ?? 5,
+        });
+        return NextResponse.json({ success: true, ...result });
       }
 
       default:

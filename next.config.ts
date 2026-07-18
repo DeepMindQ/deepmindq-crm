@@ -54,6 +54,22 @@ const nextConfig: NextConfig = {
       { source: '/api/team/:path*', destination: '/api/g-data/team/:path*' },
       { source: '/api/compliance/:path*', destination: '/api/g-data/compliance/:path*' },
 
+      // Data Intelligence Engine
+      { source: '/api/upload/analyze', destination: '/api/g-data/upload/analyze' },
+      { source: '/api/upload/create', destination: '/api/g-data/upload/create' },
+      { source: '/api/upload/:id/process-chunk', destination: '/api/g-data/upload/:id/process-chunk' },
+      { source: '/api/upload/:id/progress', destination: '/api/g-data/upload/:id/progress' },
+      { source: '/api/upload/:id/review', destination: '/api/g-data/upload/:id/review' },
+      { source: '/api/upload/:id/apply-corrections', destination: '/api/g-data/upload/:id/apply-corrections' },
+      { source: '/api/upload/:id/commit', destination: '/api/g-data/upload/:id/commit' },
+      { source: '/api/upload/:id/cancel', destination: '/api/g-data/upload/:id/cancel' },
+      { source: '/api/uploads', destination: '/api/g-data/uploads' },
+      { source: '/api/config/column-rules/:path*', destination: '/api/g-data/config/column-rules/:path*' },
+      { source: '/api/config/validation-rules/:path*', destination: '/api/g-data/config/validation-rules/:path*' },
+      { source: '/api/config/normalization/:path*', destination: '/api/g-data/config/normalization/:path*' },
+      { source: '/api/config/scoring/:path*', destination: '/api/g-data/config/scoring/:path*' },
+      { source: '/api/config/seed', destination: '/api/g-data/config/seed' },
+
       // Outreach
       { source: '/api/sequences/:path*', destination: '/api/g-outreach/sequences/:path*' },
       { source: '/api/templates/:path*', destination: '/api/g-outreach/templates/:path*' },

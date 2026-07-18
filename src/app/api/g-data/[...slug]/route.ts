@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Inline imports for data routes (10 handlers)
+// Inline imports for data routes (10 original + Data Intelligence handlers)
 import * as mod_stats from './stats.ts';
 import * as mod_dashboard from './dashboard.ts';
 import * as mod_analytics from './analytics.ts';
@@ -12,8 +12,29 @@ import * as mod_compliance from './compliance.ts';
 import * as mod_audit from './audit.ts';
 import * as mod_audit_logs from './audit-logs.ts';
 
+// Data Intelligence Engine
+import * as mod_upload_analyze from './upload__analyze.ts';
+import * as mod_upload_create from './upload__create.ts';
+import * as mod_upload_process_chunk from './upload___id__process-chunk.ts';
+import * as mod_upload_progress from './upload___id__progress.ts';
+import * as mod_upload_review from './upload___id__review.ts';
+import * as mod_upload_apply_corrections from './upload___id__apply-corrections.ts';
+import * as mod_upload_commit from './upload___id__commit.ts';
+import * as mod_upload_cancel from './upload___id__cancel.ts';
+import * as mod_uploads from './uploads.ts';
+import * as mod_config_column_rules from './config__column-rules.ts';
+import * as mod_config_column_rules_id from './config__column-rules___id.ts';
+import * as mod_config_validation_rules from './config__validation-rules.ts';
+import * as mod_config_validation_rules_id from './config__validation-rules___id.ts';
+import * as mod_config_normalization from './config__normalization.ts';
+import * as mod_config_normalization_id from './config__normalization___id.ts';
+import * as mod_config_scoring from './config__scoring.ts';
+import * as mod_config_scoring_id from './config__scoring___id.ts';
+import * as mod_config_seed from './config__seed.ts';
+
 // Route registry
 const ROUTES = [
+  // Original data routes
   { key: 'stats', handler: mod_stats },
   { key: 'dashboard', handler: mod_dashboard },
   { key: 'analytics', handler: mod_analytics },
@@ -24,6 +45,28 @@ const ROUTES = [
   { key: 'compliance', handler: mod_compliance },
   { key: 'audit', handler: mod_audit },
   { key: 'audit-logs', handler: mod_audit_logs },
+
+  // Data Intelligence: Upload workflow
+  { key: 'upload/analyze', handler: mod_upload_analyze },
+  { key: 'upload/create', handler: mod_upload_create },
+  { key: 'upload/[id]/process-chunk', handler: mod_upload_process_chunk },
+  { key: 'upload/[id]/progress', handler: mod_upload_progress },
+  { key: 'upload/[id]/review', handler: mod_upload_review },
+  { key: 'upload/[id]/apply-corrections', handler: mod_upload_apply_corrections },
+  { key: 'upload/[id]/commit', handler: mod_upload_commit },
+  { key: 'upload/[id]/cancel', handler: mod_upload_cancel },
+  { key: 'uploads', handler: mod_uploads },
+
+  // Data Intelligence: Config CRUD
+  { key: 'config/column-rules', handler: mod_config_column_rules },
+  { key: 'config/column-rules/[id]', handler: mod_config_column_rules_id },
+  { key: 'config/validation-rules', handler: mod_config_validation_rules },
+  { key: 'config/validation-rules/[id]', handler: mod_config_validation_rules_id },
+  { key: 'config/normalization', handler: mod_config_normalization },
+  { key: 'config/normalization/[id]', handler: mod_config_normalization_id },
+  { key: 'config/scoring', handler: mod_config_scoring },
+  { key: 'config/scoring/[id]', handler: mod_config_scoring_id },
+  { key: 'config/seed', handler: mod_config_seed },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';

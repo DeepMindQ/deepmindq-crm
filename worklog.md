@@ -53,4 +53,28 @@ Stage Summary:
 - Users can now manage ALL AI API keys from Settings > AI Providers without developer support
 - Keys take effect immediately — no server restart needed
 - 3 files created/modified: ai-config.ts (new), settings.ts (updated), zai-helpers.ts (refactored), settings-screen.tsx (AI Providers tab added)
-- Note: Local dev server can't be tested in sandbox (container network restrictions), but code passes lint for all new/modified files
+- Note: Local dev server can't be tested in sandbox (container network restrictions), but code passes lint for all new/modified files---
+Task ID: 1
+Agent: Main
+Task: Phase 1 — Data Intelligence Engine (complete build: Engine → Database → API → UI)
+
+Work Log:
+- Reverted prisma/schema.prisma from SQLite to PostgreSQL (production-ready)
+- Added 6 new models: DataUpload, UploadRow, ColumnMappingRule, FieldValidationRule, NormalizationMapping, ScoringWeight
+- Built 7 engine files in src/lib/data-intelligence/: config-store, column-detector, validator, normalizer, deduplicator, quality-scorer, correction-suggester
+- Built engine orchestrator (engine.ts) with full pipeline: analyze → create → processChunk → review → applyCorrections → commit
+- Created barrel export (index.ts) for clean imports
+- Created seed script (scripts/seed-data-intelligence.ts) with 16 column rules, 12 validation rules, 80+ normalization mappings, 30+ scoring weights
+- Created 18 API handler files under g-data/ for upload workflow + config CRUD
+- Registered all routes in g-data/route.ts (28 routes total in data group now)
+- Added 14 URL rewrites in next.config.ts for clean API paths
+- Rewrote import-screen.tsx (1649 lines) with 4-step wizard: Upload & Analyze → Process Data → Review & Correct → Complete
+- Auto-seed mechanism: import screen checks if rules exist and seeds defaults on first load
+- All code passes ESLint
+
+Stage Summary:
+- COMPLETE: Database schema with 6 config tables for configuration-over-code architecture
+- COMPLETE: Data Intelligence Engine (all validation, normalization, dedup, scoring from DB rules)
+- COMPLETE: 18 API endpoints (9 upload workflow + 8 config CRUD + 1 seed)
+- COMPLETE: Rebuilt import UI with full workflow (map → process → review → commit)
+- READY FOR DEPLOY: Git push + Vercel deployment (needs prisma db push on Neon)

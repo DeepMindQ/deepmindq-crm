@@ -40,6 +40,7 @@ import {
   Plug,
   Save,
   RotateCcw,
+  Database,
   CheckCircle2,
   XCircle,
   Users,
@@ -56,6 +57,7 @@ import {
   ExternalLink,
   UserCircle, Lock, Phone, Building2, Briefcase, KeyRound, ShieldCheckCircle, Eye, RefreshCw as RefreshIcon,
 } from 'lucide-react';
+import DataRulesSection from './settings-data-rules';
 import { toast } from 'sonner';
 import {
   BarChart,
@@ -1192,6 +1194,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
     { key: 'hours', label: 'Working Hours' },
     { key: 'verification', label: 'Verification' },
     { key: 'scoring', label: 'Lead Scoring' },
+    { key: 'data-rules', label: 'Data Rules' },
     { key: 'suppression', label: 'Suppression' },
     { key: 'team', label: 'Team Performance' },
     { key: 'compliance', label: 'Compliance' },
@@ -1205,6 +1208,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
     hours: Clock,
     verification: ShieldCheck,
     scoring: Star,
+    'data-rules': Database,
     suppression: Ban,
     team: Users,
     compliance: ShieldAlert,
@@ -2277,6 +2281,13 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
               </GlassPanel>
             </StaggerItem>
           </StaggerGrid>
+        </TabsContent>
+
+        {/* ═══════════════════════════════════════════════════════
+            TAB - Data Intelligence Rules
+           ═══════════════════════════════════════════════════════ */}
+        <TabsContent value="data-rules" className="mt-6 space-y-6">
+          <DataRulesSection />
         </TabsContent>
 
         {/* ═══════════════════════════════════════════════════════

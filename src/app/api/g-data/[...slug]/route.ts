@@ -40,8 +40,15 @@ async function loadJobsId() { return await import('./jobs___id.ts'); }
 // to isolate failures and avoid loading processor.ts (which pulls in zai-helpers)
 // for actions that only need queue.ts functions.
 async function handleJobsActions(req: NextRequest): Promise<Response> {
-  const body = await req.json();
-  const action = body.action as string;
+  // Parse body first — if this fails, the error is from Next.js, not our code
+  let body: any;
+  try {
+    const raw = await req.text();
+    body = raw ? JSON.parse(raw) : {};
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+  const action = String(body.action || '');
 
   switch (action) {
     case 'retry-all-failed': {

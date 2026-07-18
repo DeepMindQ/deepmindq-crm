@@ -27,6 +27,8 @@ import { classifyError } from './retry';
 import { logJobEvent } from './index';
 import { db } from '@/lib/db';
 import { webSearch, callLLM, extractJSON, findKeyPeople, getCompanyNews, tavilyAIAnswer } from '@/lib/zai-helpers';
+import { researchCompany } from '@/lib/research-engine';
+import { detectSignals, storeSignals } from '@/lib/research-engine';
 
 // ── Process a single job by ID ──
 
@@ -357,10 +359,70 @@ Provide accurate company data as JSON.`;
 }
 
 async function processResearchJob(jobId: string, job: any): Promise<void> {
-  // Research is essentially enrichment for now. Phase 3 will add multi-step
-  // research with evidence storage, per-field confidence, and signal detection.
-  // For now, delegate to enrichment processor.
-  await processEnrichmentJob(jobId, { ...job, type: 'enrichment' });
+  const payload = job.payload || {};
+  const companyId = job.companyId || payload.companyId;
+
+  if (!companyId) {
+    await failJob(jobId, 'Missing companyId for research job', 'MISSING_DATA', false);
+    return;
+  }
+
+  const company = await db.company.findUnique({
+    where: { id: companyId },
+  });
+
+  if (!company) {
+    await failJob(jobId, `Company ${companyId} not found`, 'NOT_FOUND', false);
+    return;
+  }
+
+  const companyName = company.rawName || company.normalizedName;
+
+  // Use the Phase 3 research engine with 6-step pipeline
+  const researchResult = await researchCompany(
+    companyId,
+    companyName,
+    company.domain,
+    company.industry,
+    jobId,
+    payload.force === true,
+    (progress) => {
+      // Map research engine progress to job progress
+      const jobProgress = Math.round(progress.step === 1
+        ? progress.progress * 0.25
+        : progress.step === 2
+        ? 25 + progress.progress * 0.15
+        : progress.step === 3
+        ? 40 + progress.progress * 0.25
+        : progress.step === 4
+        ? 65 + progress.progress * 0.10
+        : progress.step === 5
+        ? 75 + progress.progress * 0.10
+        : 85 + progress.progress * 0.15
+      );
+      updateJobProgress(jobId, jobProgress, progress.label, {
+        step: `research_${progress.step}`,
+        progress: jobProgress,
+        message: progress.message,
+      }).catch(() => {}); // non-blocking
+    },
+  );
+
+  await completeJob(jobId, {
+    companyId: company.id,
+    companyName,
+    overallConfidence: researchResult.overallConfidence,
+    evidenceCount: researchResult.evidenceCount,
+    signalsDetected: researchResult.signals.signalCount,
+    highImpactSignals: researchResult.signals.highImpactCount,
+    fieldConfidence: researchResult.fieldConfidence,
+    industry: researchResult.industry,
+    revenue: researchResult.revenue,
+  });
+
+  await logJobEvent(jobId, 'info', 'research_complete',
+    `Research complete for ${companyName}: ${Math.round(researchResult.overallConfidence * 100)}% confidence, ${researchResult.evidenceCount} evidence, ${researchResult.signals.signalCount} signals`
+  );
 }
 
 async function processScoringJob(jobId: string, job: any): Promise<void> {
@@ -457,48 +519,52 @@ async function processSignalDetectionJob(jobId: string, job: any): Promise<void>
   await updateJobProgress(jobId, 30, 'Searching for signals', { step: 'searching', progress: 30 });
   await logJobEvent(jobId, 'info', 'signal_search_start', `Searching signals for ${companyName}`);
 
-  let signals: Array<{ signalType: string; title: string; description: string; source: string; severity: string }> = [];
+  // Use Phase 3 signal detection engine
+  const [newsResults, signalResults] = await Promise.allSettled([
+    webSearch(`${companyName} news 2025`, 8),
+    webSearch(`${companyName} funding hiring expansion acquisition digital transformation`, 8),
+  ]);
 
-  try {
-    const news = await getCompanyNews(companyName);
-    for (const n of news.slice(0, 5)) {
-      signals.push({
-        signalType: n.impact?.toLowerCase() || 'general',
-        title: n.title || 'Company news',
-        description: n.snippet || '',
-        source: n.source || 'web_search',
-        severity: n.impact?.toLowerCase() === 'high' ? 'high' : n.impact?.toLowerCase() === 'medium' ? 'medium' : 'low',
-      });
+  const allSnippets: Array<{ title: string; snippet: string; url: string; source: string }> = [];
+  for (const result of [newsResults, signalResults]) {
+    if (result.status === 'fulfilled') {
+      for (const r of result.value) {
+        allSnippets.push({
+          title: r.title,
+          snippet: r.snippet || r.description || '',
+          url: r.url,
+          source: r.host_name || r.name || '',
+        });
+      }
     }
-  } catch (err) {
-    await logJobEvent(jobId, 'warn', 'signal_search_failed', 'News search failed, continuing');
   }
 
-  await updateJobProgress(jobId, 70, 'Analyzing signals', { step: 'analyzing', progress: 70, message: `Found ${signals.length} signals` });
+  await updateJobProgress(jobId, 60, 'Analyzing signals', { step: 'analyzing', progress: 60, message: `Found ${allSnippets.length} sources, running signal analysis...` });
 
-  // Step 2: Store signals
-  await updateJobProgress(jobId, 90, 'Storing signals', { step: 'storing', progress: 90 });
+  // Step 2: AI-powered signal detection
+  const signalResult = await detectSignals(companyName, allSnippets);
 
-  if (signals.length > 0) {
-    await db.companySignal.createMany({
-      data: signals.map(s => ({
-        companyId,
-        signalType: s.signalType,
-        title: s.title,
-        description: s.description,
-        source: s.source,
-        severity: s.severity,
-      })),
-    });
-  }
+  await updateJobProgress(jobId, 85, 'Storing signals', { step: 'storing', progress: 85, message: `Detected ${signalResult.signalCount} signals` });
 
+  // Step 3: Store signals with evidence links
+  await storeSignals(companyId, signalResult.signals, jobId);
+
+  // Step 4: Complete
   await completeJob(jobId, {
     companyId,
-    signalsFound: signals.length,
-    signals: signals.map(s => ({ type: s.signalType, title: s.title, severity: s.severity })),
+    signalsFound: signalResult.signalCount,
+    highImpactSignals: signalResult.highImpactCount,
+    signals: signalResult.signals.map(s => ({
+      type: s.signalType,
+      title: s.title,
+      impact: s.impact,
+      confidence: s.confidence,
+    })),
   });
 
-  await logJobEvent(jobId, 'info', 'signal_detection_complete', `Detected ${signals.length} signal(s) for ${companyName}`);
+  await logJobEvent(jobId, 'info', 'signal_detection_complete',
+    `Detected ${signalResult.signalCount} signal(s) for ${companyName} (${signalResult.highImpactCount} high-impact)`
+  );
 }
 
 async function processEmailGenerationJob(jobId: string, job: any): Promise<void> {

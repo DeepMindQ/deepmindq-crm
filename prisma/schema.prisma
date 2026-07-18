@@ -102,6 +102,7 @@ model Company {
   researchCard  CompanyResearchCard?
   notes         CompanyNote[]
   signals       CompanySignal[]
+  evidence      Evidence[]
   timeline      CompanyTimelineEvent[]
 
   @@index([domain])
@@ -152,6 +153,7 @@ model CompanyResearchCard {
   socialProfiles    String?   // JSON string
   enrichmentSource  String?
   enrichmentDate    DateTime?
+  fieldConfidence   String?   // JSON: {"revenue":0.9,"employeeCount":0.7,...} — per-field confidence from Phase 3
 
   lastResearchedAt    DateTime @updatedAt
   createdAt           DateTime @default(now())
@@ -185,6 +187,11 @@ model CompanySignal {
   source      String?
   sourceUrl   String?
   severity    String   @default("medium")    // low, medium, high, critical
+  impact      String   @default("medium")    // high, medium, low — sales opportunity impact
+  signalDate  DateTime?                      // when the signal event occurred (not when we detected it)
+  extractedAt DateTime @default(now())       // when our system detected/stored it
+  confidence  Float    @default(0.5)         // 0-1 confidence score from research engine
+  evidenceIds String   @default("[]")        // JSON array of Evidence IDs supporting this signal
   isRead      Boolean  @default(false)
   createdAt   DateTime @default(now())
 
@@ -192,6 +199,38 @@ model CompanySignal {
 
   @@index([companyId])
   @@index([signalType])
+  @@index([severity])
+  @@index([impact])
+  @@index([createdAt])
+  @@index([signalDate])
+}
+
+// ── Phase 3: Evidence — per-field source tracking ──
+// Each piece of extracted information links back to its source.
+// Enables: "show me all evidence for company X's revenue",
+// per-field confidence scoring, audit trail for AI extractions.
+
+model Evidence {
+  id            String   @id @default(cuid())
+  companyId     String
+  jobId         String?                              // which job produced this evidence
+  searchQuery   String?                              // what query found this
+  sourceUrl     String                               // URL of the source
+  sourceTitle   String?                              // title of the source page
+  sourceName    String?                              // publication / website name
+  snippet       String                               // relevant text excerpt
+  extractedField String?                             // which field this evidence supports (revenue, employeeCount, etc.)
+  extractedValue String?                             // the value extracted from this evidence
+  relevanceScore Float  @default(0.5)                // 0-1 how relevant this evidence is
+  confidence    Float    @default(0.5)               // 0-1 confidence in this evidence
+  createdAt     DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([extractedField])
+  @@index([jobId])
+  @@index([confidence])
   @@index([createdAt])
 }
 

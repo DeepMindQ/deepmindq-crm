@@ -138,6 +138,7 @@ const ROUTES = [
   { key: 'jobs', loader: loadJobs },
   { key: 'jobs/actions', inlineHandler: handleJobsActions },
   { key: 'jobs/[id]', loader: loadJobsId },
+  { key: 'jobs/[id]/[action]', loader: loadJobsId },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';
@@ -201,7 +202,8 @@ async function handle(method: HttpMethod, req: NextRequest, slug: string[]): Pro
 
   const fn = handler?.[method];
   if (typeof fn !== 'function') return NextResponse.json({ error: `${method} not allowed` }, { status: 405 });
-  try { return await fn(req, { params: Promise.resolve(matched.params) }); }
+  // Pass original slug array — handlers expect { params: { slug: string[] } }
+  try { return await fn(req, { params: Promise.resolve({ slug }) }); }
   catch (err: any) { console.error(`[router:data] ${method} /${slug.join('/')}:`, err.message); return NextResponse.json({ error: 'Internal error', detail: err.message }, { status: 500 }); }
 }
 

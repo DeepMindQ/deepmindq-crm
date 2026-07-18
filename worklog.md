@@ -112,3 +112,100 @@ Stage Summary:
 - ESLint on test file with `import { openai } from '@ai-sdk/openai'` → 1 error (caught)
 - ESLint on test file with `import { webSearch, extractJSON } from '@/lib/zai-helpers'` → 0 errors (allowed)
 - Test violation file cleaned up (deleted)
+---
+Task ID: B2
+Agent: full-stack-developer
+Task: Evidence quality scoring
+
+Work Log:
+- Created `/home/z/my-project/src/lib/research-engine/evidence-quality.ts` with `computeEvidenceQuality()` function
+  - Scores 5 dimensions: coverage (25%), freshness (25%), sourceQuality (20%), corroboration (15%), volume (15%)
+  - Returns `EvidenceQualityScore` interface with overall 0-100 score plus per-dimension breakdown and supporting metrics
+  - Handles zero-evidence edge case with sensible defaults
+  - Uses active+aging evidence only; filters by 6 KEY_FIELDS for coverage
+- Created `/home/z/my-project/src/app/api/g-crm/[...slug]/companies___id__evidence-quality.ts` API endpoint
+  - GET handler following same pattern as account-intelligence route
+  - Validates company existence, returns 404 if not found
+  - Returns computed quality score as JSON
+- Registered route in `src/app/api/g-crm/[...slug]/route.ts` — added import and route entry
+- Exported `computeEvidenceQuality` and `EvidenceQualityScore` from `src/lib/research-engine/index.ts`
+
+Stage Summary:
+- 3 files created/modified, 0 existing files modified (evidence.ts, schema untouched)
+- Lint passes for all new code (pre-existing lint errors in other files)
+- All 3 validation checks pass
+- API available at `GET /api/g-crm/companies/[id]/evidence-quality`
+
+---
+Task ID: B1
+Agent: full-stack-developer
+Task: Signal lifecycle automation
+
+Work Log:
+- Read existing files: signal-capability-matching.ts (line 279 query), jobs__actions.ts (action switch), jobs.ts (listing endpoint), research-engine/index.ts (exports)
+- Created `src/lib/research-engine/signal-lifecycle.ts` with `transitionSignalLifecycles()` function that loads all non-archived signals, computes correct lifecycle state based on age/confidence/impact, and batch-updates by new status
+- Fixed signal capability matching filter in `signal-capability-matching.ts` line 279-286: changed `where: { companyId }` to `where: { companyId, status: { in: ['active', 'validated', 'aging'] } }` to exclude expired/archived signals
+- Added `run_signal_lifecycle` action case in `src/app/api/g-data/[...slug]/jobs__actions.ts` with import of `transitionSignalLifecycles`, console logging, and JSON response
+- Added `export { transitionSignalLifecycles } from './signal-lifecycle'` to `src/lib/research-engine/index.ts`
+
+Stage Summary:
+- 4 files modified/created, 0 existing files broken
+- Lint passes for all new code (pre-existing lint errors in other files unchanged)
+- All 3 validation checks pass:
+  1. `rg "status.*in.*active.*validated.*aging"` → line 283 confirmed
+  2. `rg "transitionSignalLifecycles"` → line 19 export confirmed
+  3. `rg "signal_lifecycle|signal-lifecycle" src/app/api/g-data/ --type ts -l` → jobs__actions.ts confirmed
+- Signal capability matching now filters out expired/archived signals
+- Lifecycle job triggerable via `POST /api/g-data/jobs/actions` with `{ action: 'run_signal_lifecycle' }`
+---
+Task ID: B3
+Agent: full-stack-developer
+Task: Freshness indicators
+
+Work Log:
+- Read existing files: route.ts (slug router), research-engine/index.ts (exports), apiHelpers.ts (response helpers)
+- Created `src/lib/research-engine/freshness-indicators.ts` with freshness lifecycle logic
+  - `FreshnessStatus` type: 'fresh' | 'aging' | 'stale' | 'expired' | 'none'
+  - Thresholds: fresh <14d, aging 14-45d, stale 45-90d, expired >90d
+  - `evaluateStatus()` computes score 0-100 with linear decay per band
+  - `getCompanyFreshnessProfile()` reads 4 domain timestamps from CompanyResearchCard, returns per-domain + overall status
+  - `getBatchFreshnessProfiles()` for portfolio-level queries
+  - `getStaleCompanies()` returns companies needing refresh, sorted by score (worst first)
+- Created `src/app/api/g-crm/[...slug]/companies___id__freshness.ts` — GET handler for single company freshness
+- Created `src/app/api/g-crm/[...slug]/freshness-overview.ts` — GET handler for portfolio freshness summary with `?view=stale|all&limit=N`
+- Registered both routes in `src/app/api/g-crm/[...slug]/route.ts` (imports + ROUTES array)
+- Exported new functions and types from `src/lib/research-engine/index.ts`
+
+Stage Summary:
+- 5 files created/modified, 0 existing files broken
+- Lint passes for all new code (pre-existing lint errors in other files unchanged)
+- All 3 validation checks pass:
+  1. `rg "getCompanyFreshnessProfile" src/lib/research-engine/freshness-indicators.ts -n` → lines 77, 149 confirmed
+  2. `rg "freshness" src/app/api/g-crm/ --glob *.ts -l` → shows both new route files + route.ts
+  3. `rg "FRESHNESS_THRESHOLDS" src/lib/research-engine/freshness-indicators.ts` → threshold logic confirmed
+- APIs available at `GET /api/g-crm/companies/[id]/freshness` and `GET /api/g-crm/freshness-overview`
+---
+Task ID: B4
+Agent: full-stack-developer
+Task: Governance dashboard
+
+Work Log:
+- Read existing audit API files (audit.ts, audit-logs.ts) and both router patterns (g-data/route.ts, g-crm/route.ts)
+- Analyzed AIGenerationAudit model in prisma/schema.prisma to confirm field types (researchConfidence: Float, freshnessScore: Int, governancePassed: Boolean)
+- Created `/src/app/api/g-data/[...slug]/governance-dashboard.ts` with comprehensive dashboard endpoint
+  - Fixed Prisma groupBy issue: replaced invalid `having` clause with separate blocked-count query using `where: { governancePassed: false }`
+  - Single findMany for both confidence and freshness distributions (avoids duplicate fetch)
+  - 9 aIGenerationAudit queries total: 3 counts, 2 groupBy (type totals + blocked), 1 findMany (records), 1 findMany (recent blocked), 2 groupBy (company health + company passed)
+- Registered `governance-dashboard` route in g-data router (import + ROUTES entry)
+- Created `/src/app/api/g-crm/[...slug]/companies___id__governance.ts` with company-specific governance endpoint
+  - Follows existing `{ params: Promise<{ id: string }> }` pattern used by all companies___id__* handlers in g-crm router
+- Registered `companies/[id]/governance` route in g-crm router (import + ROUTES entry)
+- Ran all 4 validation checks — all passed
+- Ran lint — no new errors introduced (50 pre-existing errors in other files)
+
+Stage Summary:
+- Created 2 new API files: governance-dashboard.ts (g-data) and companies___id__governance.ts (g-crm)
+- Registered both routes in their respective routers following existing patterns
+- Governance dashboard provides: summary stats, generation type breakdown, confidence/freshness distributions, recent blocked generations, company-level health
+- Company governance provides: per-company pass rate, per-type breakdown, recent 20 generations
+- No schema modifications, no UI changes, no ai-governance.ts modifications

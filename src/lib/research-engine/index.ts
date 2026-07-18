@@ -31,6 +31,15 @@ export {
   matchSignalsToCapabilities,
   getSignalCapabilityMatches,
 } from './signal-capability-matching';
+export {
+  getCompanyFreshnessProfile,
+  getBatchFreshnessProfiles,
+  getStaleCompanies,
+  type CompanyFreshnessProfile,
+  type DomainFreshness,
+} from './freshness-indicators';
+export { transitionSignalLifecycles } from './signal-lifecycle';
+export { computeEvidenceQuality, type EvidenceQualityScore } from './evidence-quality';
 
 /**
  * Convenience function: run full research pipeline for a company.

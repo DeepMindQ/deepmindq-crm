@@ -11,6 +11,7 @@ import * as mod_notifications from './notifications.ts';
 import * as mod_compliance from './compliance.ts';
 import * as mod_audit from './audit.ts';
 import * as mod_audit_logs from './audit-logs.ts';
+import * as mod_governance_dashboard from './governance-dashboard.ts';
 
 // Data Intelligence Engine
 import * as mod_upload_analyze from './upload__analyze.ts';
@@ -166,6 +167,7 @@ const ROUTES = [
   { key: 'compliance', handler: mod_compliance },
   { key: 'audit', handler: mod_audit },
   { key: 'audit-logs', handler: mod_audit_logs },
+  { key: 'governance-dashboard', handler: mod_governance_dashboard },
 
   // Data Intelligence: Upload workflow
   { key: 'upload/analyze', handler: mod_upload_analyze },

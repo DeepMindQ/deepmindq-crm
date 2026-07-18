@@ -47,7 +47,11 @@ import * as mod_batches__preview from './batches__preview.ts';
 import * as mod_bounces from './bounces.ts';
 import * as mod_companies___id__research_context from './companies___id__research-context.ts';
 import * as mod_companies___id__account_intelligence from './companies___id__account-intelligence.ts';
+import * as mod_companies___id__evidence_quality from './companies___id__evidence-quality.ts';
+import * as mod_companies___id__governance from './companies___id__governance.ts';
 import * as mod_signals__metrics from './signals__metrics.ts';
+import * as mod_companies___id__freshness from './companies___id__freshness.ts';
+import * as mod_freshness_overview from './freshness-overview.ts';
 
 // Route registry
 const ROUTES = [
@@ -98,7 +102,11 @@ const ROUTES = [
   { key: 'bounces', handler: mod_bounces },
   { key: 'companies/[id]/research-context', handler: mod_companies___id__research_context },
   { key: 'companies/[id]/account-intelligence', handler: mod_companies___id__account_intelligence },
+  { key: 'companies/[id]/evidence-quality', handler: mod_companies___id__evidence_quality },
+  { key: 'companies/[id]/governance', handler: mod_companies___id__governance },
   { key: 'signals/metrics', handler: mod_signals__metrics },
+  { key: 'companies/[id]/freshness', handler: mod_companies___id__freshness },
+  { key: 'freshness-overview', handler: mod_freshness_overview },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';

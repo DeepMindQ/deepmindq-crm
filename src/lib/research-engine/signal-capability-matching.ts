@@ -275,9 +275,13 @@ export async function matchSignalsToCapabilities(
 }> {
   const cfg = { ...DEFAULT_CONFIG, ...config };
 
-  // Load all active signals for this company
+  // Phase 4 B1: Only match against active, validated, and aging signals.
+  // Expired and archived signals MUST NOT influence capability matching.
   const signals = await db.companySignal.findMany({
-    where: { companyId },
+    where: {
+      companyId,
+      status: { in: ['active', 'validated', 'aging'] },
+    },
     orderBy: { confidence: 'desc' },
   });
 

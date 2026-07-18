@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { retryAllFailed, processNextJobs, recoverStaleJobs, getQueueStats, queuePendingJobs, enqueueBulkEnrichment, enqueueBulkResearch, enqueueBulkSignalDetection, createJob } from '@/lib/workflow-engine';
+import { transitionSignalLifecycles } from '@/lib/research-engine/signal-lifecycle';
 
 /**
  * POST /api/g-data/jobs/actions
@@ -119,6 +120,13 @@ export async function POST(request: Request) {
         }
 
         return NextResponse.json({ success: true, created, skipped });
+      }
+
+      case 'run_signal_lifecycle': {
+        console.log('[jobs/action] Running signal lifecycle transition...');
+        const result = await transitionSignalLifecycles();
+        console.log(`[jobs/action] Signal lifecycle complete: ${result.transitioned} transitioned`, result.breakdown);
+        return NextResponse.json({ success: true, ...result });
       }
 
       default:

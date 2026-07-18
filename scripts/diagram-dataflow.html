@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', 'Helvetica Neue', sans-serif; background: #fff; padding: 30px 40px; }
+  .diagram { width: 1100px; }
+  .flow-container { display: flex; flex-direction: column; gap: 0; }
+  .step-row { display: flex; align-items: stretch; gap: 0; }
+  .step-num { width: 52px; min-height: 64px; background: #5c5234; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; border-radius: 6px 0 0 6px; flex-shrink: 0; }
+  .step-body { flex: 1; border: 1.5px solid #cbc7ba; border-left: none; border-radius: 0 6px 6px 0; padding: 10px 16px; background: #fff; display: flex; align-items: center; gap: 14px; }
+  .step-title { font-weight: 600; font-size: 12px; color: #262523; min-width: 140px; }
+  .step-detail { font-size: 10.5px; color: #7d7b74; flex: 1; line-height: 1.5; }
+  .step-module { font-size: 9px; background: #ebebe9; border: 1px solid #cbc7ba; padding: 2px 8px; border-radius: 3px; color: #5c5234; white-space: nowrap; font-weight: 500; }
+  .step-module.gov { background: #fdf8eb; border-color: #9b8133; color: #9b8133; }
+  .arrow-down { display: flex; justify-content: center; padding: 4px 0; }
+  .arrow-down svg { display: block; }
+  .branch { display: flex; gap: 16px; margin-left: 52px; margin-top: 4px; }
+  .branch-item { flex: 1; border: 1.5px solid #cbc7ba; border-radius: 6px; padding: 10px 14px; background: #fafaf9; }
+  .branch-item h4 { font-size: 11px; color: #262523; margin-bottom: 4px; }
+  .branch-item p { font-size: 9.5px; color: #7d7b74; line-height: 1.5; }
+  .branch-item.gov-branch { border-color: #9b8133; background: #fdf8eb; }
+  .branch-arrow { display: flex; align-items: center; padding-left: 4px; }
+</style>
+</head>
+<body>
+<div class="diagram">
+  <div class="flow-container">
+    <!-- Step 1 -->
+    <div class="step-row">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Web Search</div>
+        <div class="step-detail">4 parallel Tavily queries: business, technology, people, news</div>
+        <div class="step-module">zai-helpers.ts</div>
+      </div>
+    </div>
+    <div class="arrow-down"><svg width="16" height="16"><path d="M8 0 L8 12 M3 8 L8 14 L13 8" stroke="#cbc7ba" stroke-width="1.5" fill="none"/></svg></div>
+
+    <!-- Step 2 -->
+    <div class="step-row">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Evidence Collection</div>
+        <div class="step-detail">Store each result with source URL, relevance score, snippet, quality tier</div>
+        <div class="step-module">evidence.ts</div>
+      </div>
+    </div>
+    <div class="arrow-down"><svg width="16" height="16"><path d="M8 0 L8 12 M3 8 L8 14 L13 8" stroke="#cbc7ba" stroke-width="1.5" fill="none"/></svg></div>
+
+    <!-- Step 3 -->
+    <div class="step-row">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">LLM Extraction (Governed)</div>
+        <div class="step-detail">3a: Main data extraction &middot; 3b: Key people extraction &middot; 3c: Structured tech landscape + strategic priorities</div>
+        <div class="step-module gov">governedAICallAggregate</div>
+      </div>
+    </div>
+    <div class="arrow-down"><svg width="16" height="16"><path d="M8 0 L8 12 M3 8 L8 14 L13 8" stroke="#cbc7ba" stroke-width="1.5" fill="none"/></svg></div>
+
+    <!-- Step 4 -->
+    <div class="step-row">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Validation + Scoring</div>
+        <div class="step-detail">Cross-reference extracted data against evidence. Per-field confidence: high/medium/low based on source count, quality, recency</div>
+        <div class="step-module">evidence.ts</div>
+      </div>
+    </div>
+    <div class="arrow-down"><svg width="16" height="16"><path d="M8 0 L8 12 M3 8 L8 14 L13 8" stroke="#cbc7ba" stroke-width="1.5" fill="none"/></svg></div>
+
+    <!-- Step 5 -->
+    <div class="step-row">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Intelligence Storage</div>
+        <div class="step-detail">ResearchCard + Evidence records + Signals + Capability Matches + Freshness timestamps</div>
+        <div class="step-module">researcher.ts</div>
+      </div>
+    </div>
+    <div class="arrow-down"><svg width="16" height="16"><path d="M8 0 L8 12 M3 8 L8 14 L13 8" stroke="#cbc7ba" stroke-width="1.5" fill="none"/></svg></div>
+
+    <!-- Step 6: Branching -->
+    <div class="step-row">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <div class="step-title">AI Generation (Governed)</div>
+        <div class="step-detail">Downstream consumers use governedAICall with confidence gates, hallucination prevention, and full audit</div>
+        <div class="step-module gov">governedAICall</div>
+      </div>
+    </div>
+
+    <div class="branch">
+      <div class="branch-item gov-branch">
+        <h4>Account Brief</h4>
+        <p>Confidence: 0.20<br/>Freshness: 10+<br/>No capability required</p>
+      </div>
+      <div class="branch-item gov-branch">
+        <h4>Conversation Plan</h4>
+        <p>Confidence: 0.60<br/>Freshness: 25+<br/>Recent intel required</p>
+      </div>
+      <div class="branch-item gov-branch">
+        <h4>Email Draft</h4>
+        <p>Confidence: 0.60<br/>Freshness: 25+<br/>Capability match required</p>
+      </div>
+      <div class="branch-item gov-branch">
+        <h4>Signal Analysis</h4>
+        <p>Confidence: 0.20<br/>Freshness: 10+<br/>365-day staleness</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

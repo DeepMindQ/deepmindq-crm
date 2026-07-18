@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
+<style>
+  @page { size: 794px 1123px; margin: 0; }
+  :root {
+    --c-bg: #f4f4f3;
+    --c-accent: #9b8133;
+    --c-text: #262523;
+    --c-muted: #7d7b74;
+    --c-mid: #5c5234;
+    --c-surface: #ebebe9;
+    --c-border: #cbc7ba;
+  }
+  html, body { margin: 0; padding: 0; width: 794px; height: 1123px; background: var(--c-bg); }
+  @media screen {
+    html { height: auto; display: flex; justify-content: center; min-height: 100vh; background: #e0dfdd; }
+    body { transform-origin: top center; scale: min(1, calc(100vw / 794), calc(100vh / 1123)); margin: 0 auto; box-shadow: 0 0 60px rgba(0,0,0,0.15); }
+  }
+  .cover { width: 794px; height: 1123px; position: relative; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+  /* Layer 0: Background */
+  .bg { position: absolute; inset: 0; background: var(--c-bg); z-index: 0; }
+
+  /* Layer 1: Grid pattern */
+  .grid-bg { position: absolute; inset: 0; overflow: hidden; z-index: 1; }
+  .grid-bg svg { width: 100%; height: 100%; opacity: 0.035; }
+
+  /* Layer 2: Anchor line */
+  .anchor-line { position: absolute; left: 95px; top: 112px; bottom: 112px; width: 6px; background: var(--c-mid); z-index: 2; }
+
+  /* Layer 3: Content */
+  .content { position: absolute; left: 125px; right: 60px; top: 0; bottom: 0; z-index: 3; }
+
+  .kicker { position: absolute; top: 168px; font-size: 11pt; font-weight: 500; color: var(--c-accent); letter-spacing: 3pt; text-transform: uppercase; }
+
+  .title { position: absolute; top: 220px; max-width: 560px; }
+  .title h1 { font-family: 'Playfair Display', serif; font-size: 44pt; font-weight: 700; line-height: 1.12; color: var(--c-text); margin: 0; }
+
+  .summary { position: absolute; top: 420px; max-width: 440px; font-size: 12pt; line-height: 1.65; color: var(--c-muted); }
+
+  .meta { position: absolute; top: 620px; }
+  .meta-row { font-size: 11pt; color: var(--c-text); margin-bottom: 8px; }
+  .meta-label { font-size: 9pt; color: var(--c-muted); letter-spacing: 1pt; text-transform: uppercase; margin-bottom: 2px; }
+
+  .footer { position: absolute; bottom: 70px; left: 0; right: 0; display: flex; justify-content: space-between; font-size: 9pt; color: var(--c-muted); letter-spacing: 0.5px; }
+
+  /* Decorative accent line */
+  .accent-rule { position: absolute; left: 0; top: 570px; width: 80px; height: 2px; background: var(--c-accent); }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="bg"></div>
+  <div class="grid-bg">
+    <svg xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+          <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#262523" stroke-width="0.5"/>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#grid)"/>
+    </svg>
+  </div>
+  <div class="anchor-line"></div>
+  <div class="accent-rule"></div>
+  <div class="content">
+    <div class="kicker">Phase 3 Freeze Handover Package</div>
+    <div class="title">
+      <h1>DeepMindQ Sales Intelligence Platform</h1>
+    </div>
+    <div class="summary">
+      Comprehensive architecture, governance, and technical handover documentation covering the AI-governed research pipeline, evidence-grounded intelligence, RFP/RFI detection foundation, and human-controlled selling architecture.
+    </div>
+    <div class="meta">
+      <div class="meta-label">Platform</div>
+      <div class="meta-row">DeepMindQ CRM</div>
+      <div class="meta-label" style="margin-top:12px;">Infrastructure</div>
+      <div class="meta-row">Vercel + Neon PostgreSQL + Prisma v6.19</div>
+      <div class="meta-label" style="margin-top:12px;">Date</div>
+      <div class="meta-row">July 19, 2026</div>
+    </div>
+    <div class="footer">
+      <span>CONFIDENTIAL</span>
+      <span>152 API Routes / 35 DB Models / 6-Step Pipeline</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

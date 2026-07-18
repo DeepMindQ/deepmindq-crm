@@ -380,8 +380,10 @@ export async function getAccountIntelligence(companyId: string): Promise<Account
   const contactCoverage = Math.min(100, ctx.contactCount * 15);
 
   // 6. Engagement Score (0-100): from company's engagementScore field
-  // Use the company intelligenceScore as a proxy if not directly available
-  const engagementScore = 0; // Will be populated from company record
+  const engagementScore = await db.company.findUnique({
+    where: { id: companyId },
+    select: { engagementScore: true, intelligenceScore: true },
+  }).then(c => Math.min(100, Math.max(0, c?.engagementScore || c?.intelligenceScore || 0)));
 
   // Weighted composite: data 25%, evidence 20%, freshness 15%, signals 20%, contacts 10%, engagement 10%
   const compositeScore = Math.round(

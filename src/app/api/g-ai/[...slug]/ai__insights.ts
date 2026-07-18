@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-import { callLLM, webSearch } from '@/lib/zai-helpers'
+import { callLLM } from '@/lib/zai-helpers'
+import { getSignalMetrics } from '@/lib/intelligence-contract'
 
 /* ── In-memory cache (5 minutes) ── */
 let cachedResult: { data: InsightsResponse; ts: number } | null = null
@@ -52,27 +53,48 @@ interface PipelineStats {
    ══════════════════════════════════════════════════════════════════════════ */
 
 /**
- * Fetch live industry trend context via web search.
- * Runs in parallel with the LLM where possible, but we need results first
- * to inject into the prompt.
+ * Fetch signal intelligence from Phase 3 signal metrics.
+ * REWIRED: Uses stored signal data instead of live web search.
+ * Provides signal trends, top signal types, and high-impact company signals.
  */
-async function fetchIndustryTrends(topIndustries: { industry: string; count: number }[]): Promise<string> {
-  if (topIndustries.length === 0) return ''
-
+async function fetchPhase3SignalIntelligence(topIndustries: { industry: string; count: number }[]): Promise<string> {
   try {
-    const topThree = topIndustries.slice(0, 3).map(i => i.industry)
-    const query = `B2B sales and outreach trends 2025 for ${topThree.join(', ')} industries`
-    const items = await webSearch(query, 5)
+    const metrics = await getSignalMetrics({ daysBack: 30, limit: 5 })
 
-    const snippets = items
-      .slice(0, 5)
-      .map(r => r.snippet ? '[' + (r.title ?? 'Article') + '] ' + r.snippet : null)
-      .filter(Boolean)
-      .join('\n')
+    if (metrics.totalSignals === 0) return ''
 
-    return snippets
-      ? 'Live market intelligence for user\'s top industries:\n' + snippets
-      : ''
+    const parts: string[] = ['Phase 3 Signal Intelligence (last 30 days):']
+
+    // Signal type breakdown
+    const typeEntries = Object.entries(metrics.byType)
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, count]) => `${type}: ${count}`)
+    if (typeEntries.length > 0) {
+      parts.push(`Signal types: ${typeEntries.join(', ')}`)
+    }
+
+    // Impact distribution
+    parts.push(`Impact: ${metrics.byImpact.high} high, ${metrics.byImpact.medium} medium, ${metrics.byImpact.low} low`)
+
+    // Top companies with signals
+    if (metrics.topCompanies.length > 0) {
+      const top3 = metrics.topCompanies.slice(0, 3)
+        .map(c => `${c.companyName} (${c.signalCount} signals)`)
+        .join(', ')
+      parts.push(`Most active companies: ${top3}`)
+    }
+
+    // Type details with confidence
+    if (metrics.typeDetails.length > 0) {
+      const details = metrics.typeDetails
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 4)
+        .map(d => `${d.type}: ${d.count} signals, ${Math.round(d.avgConfidence * 100)}% avg confidence, ${d.highImpactCount} high-impact`)
+        .join('; ')
+      parts.push(`Type details: ${details}`)
+    }
+
+    return parts.join('\n')
   } catch {
     return '' // Non-critical — AI still works without it
   }
@@ -82,7 +104,7 @@ async function fetchIndustryTrends(topIndustries: { industry: string; count: num
  * Call the LLM with the gathered stats + optional web context and parse
  * a structured InsightsResponse out of the JSON it returns.
  */
-async function buildAIInsights(stats: PipelineStats, trendContext: string): Promise<InsightsResponse> {
+async function buildAIInsights(stats: PipelineStats, phase3Context: string): Promise<InsightsResponse> {
   const healthRate = stats.totalContacts > 0
     ? Math.round((stats.healthyEmails / stats.totalContacts) * 100)
     : 0
@@ -99,8 +121,8 @@ async function buildAIInsights(stats: PipelineStats, trendContext: string): Prom
     ? ' (WoW ' + (weekOverWeekGrowth >= 0 ? '+' : '') + weekOverWeekGrowth + '%)'
     : ''
 
-  const trendSection = trendContext
-    ? '\n## Live Market Intelligence\n' + trendContext + '\n'
+  const trendSection = phase3Context
+    ? '\n## Phase 3 Signal Intelligence\n' + phase3Context + '\n'
     : ''
 
   const instructionsBlock = [
@@ -130,7 +152,7 @@ async function buildAIInsights(stats: PipelineStats, trendContext: string): Prom
     '- Generate 4-6 key insights. Prioritize: (1) stalled negotiations, (2) email health issues, (3) growth signals, (4) action items.',
     '- Generate 3-4 predictions. Include "Total Companies", "Valid Emails", and at least one derived metric.',
     '- Each insight description must contain strategic analysis, not just data restatement.',
-    '- Predictions should account for momentum, seasonality cues, and the live market intelligence above.',
+    '- Predictions should account for momentum, seasonality cues, and the Phase 3 signal intelligence above.',
     '- If the pipeline is very small (< 10 companies), be encouraging but honest about needing more data.',
     '- Keep the summary under 80 words.',
   ].join('\n')
@@ -486,12 +508,10 @@ export async function GET() {
     // --- AI path (primary) ---
     let data: InsightsResponse
     try {
-      const [trendContext] = await Promise.all([
-        fetchIndustryTrends(stats.topIndustries),
-        // We could parallelize the LLM call too, but it depends on trendContext
-        // so we run it sequentially inside buildAIInsights
+      const [phase3Context] = await Promise.all([
+        fetchPhase3SignalIntelligence(stats.topIndustries),
       ])
-      data = await buildAIInsights(stats, trendContext)
+      data = await buildAIInsights(stats, phase3Context)
     } catch (aiError) {
       // Fallback to rule-based if AI fails for any reason
       console.warn('[AI Insights] AI generation failed, falling back to rules:', aiError)

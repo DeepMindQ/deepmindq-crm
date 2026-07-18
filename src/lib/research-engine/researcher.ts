@@ -152,8 +152,8 @@ export async function researchCompany(
       where: { companyId, status: 'active' },
       data: { status: 'superseded' },
     });
-    if (supersededCount > 0) {
-      console.log(`[researcher] Marked ${supersededCount} existing evidence records as superseded for ${companyName}`);
+    if (supersededCount.count > 0) {
+      console.log(`[researcher] Marked ${supersededCount.count} existing evidence records as superseded for ${companyName}`);
     }
   }
 
@@ -282,9 +282,101 @@ Extract accurate company data as JSON. Ground everything in the search results a
   onProgress?.({ step: 3, label: 'Extracting intelligence', progress: 65, message: 'AI extraction complete' });
 
   // ═══════════════════════════════════════════════════
-  // STEP 4: Field Validation — Cross-Reference (65-75%)
+  // STEP 3c: Phase 3 Hardening — Extract Enhanced Fields (65-72%)
   // ═══════════════════════════════════════════════════
-  onProgress?.({ step: 4, label: 'Validating fields', progress: 67, message: 'Cross-referencing extracted data with evidence...' });
+  onProgress?.({ step: 3, label: 'Extracting enhanced intelligence', progress: 66, message: 'Extracting strategic priorities, tech landscape, and capability inputs...' });
+
+  let structuredTechLandscape: { cloud: string[]; data: string[]; ai: string[]; applications: string[] } = { cloud: [], data: [], ai: [], applications: [] };
+  let strategicPriorities: Array<{ priority: string; description: string; evidence: string; confidence: number }> = [];
+  let extractedBusinessProblems: string[] = [];
+  let extractedTransformationAreas: string[] = [];
+  let extractedTechnologyThemes: string[] = [];
+
+  if (allSearchResults.length >= 3) {
+    const enhancedContext = allSearchResults.slice(0, 20).map(s =>
+      `[${s.title}] ${s.snippet}`
+    ).join('\n');
+
+    try {
+      const enhancedSystemPrompt = `You are a senior technology and business strategy analyst. Based ONLY on the web search results provided, extract structured intelligence about this company.
+
+CRITICAL RULES:
+- Only include information DIRECTLY supported by the search results
+- If a field cannot be determined, return empty arrays
+- NEVER fabricate or guess values
+- Be specific — use actual technology names, not generic terms
+
+Return ONLY valid JSON:
+{
+  "structuredTechLandscape": {
+    "cloud": ["specific cloud services/platforms mentioned"],
+    "data": ["specific data technologies/databases mentioned"],
+    "ai": ["specific AI/ML tools or initiatives mentioned"],
+    "applications": ["specific applications/software mentioned"]
+  },
+  "strategicPriorities": [
+    {"priority": "name of priority", "description": "1-2 sentence explanation", "evidence": "brief quote from source", "confidence": 0.0-1.0}
+  ],
+  "businessProblems": ["specific business challenge or pain point mentioned"],
+  "transformationAreas": ["specific digital transformation or modernization area mentioned"],
+  "technologyThemes": ["overarching technology theme or initiative mentioned"]
+}`;
+
+      const enhancedUserPrompt = `Company: ${companyName}
+Industry: ${result.industry || 'Unknown'}
+Tech Stack (raw): ${result.techStack || 'Not available'}
+
+Web Search Results:
+${enhancedContext}
+
+Extract structured technology and business intelligence as JSON.`;
+
+      const { callLLM: callLLMEnhanced, extractJSON: extractJSONEnhanced } = await import('@/lib/zai-helpers');
+      const enhancedResponse = await callLLMEnhanced(enhancedSystemPrompt, enhancedUserPrompt);
+      const enhancedData = extractJSONEnhanced(enhancedResponse) as Record<string, unknown> | null;
+
+      if (enhancedData) {
+        if (enhancedData.structuredTechLandscape && typeof enhancedData.structuredTechLandscape === 'object') {
+          const stl = enhancedData.structuredTechLandscape as Record<string, unknown>;
+          structuredTechLandscape = {
+            cloud: Array.isArray(stl.cloud) ? stl.cloud.map(String) : [],
+            data: Array.isArray(stl.data) ? stl.data.map(String) : [],
+            ai: Array.isArray(stl.ai) ? stl.ai.map(String) : [],
+            applications: Array.isArray(stl.applications) ? stl.applications.map(String) : [],
+          };
+        }
+        if (Array.isArray(enhancedData.strategicPriorities)) {
+          strategicPriorities = enhancedData.strategicPriorities
+            .filter((p: unknown) => p && typeof p === 'object' && (p as Record<string, unknown>).priority)
+            .map((p: unknown) => ({
+              priority: String((p as Record<string, unknown>).priority),
+              description: String((p as Record<string, unknown>).description || ''),
+              evidence: String((p as Record<string, unknown>).evidence || ''),
+              confidence: Math.min(1, Math.max(0, Number((p as Record<string, unknown>).confidence) || 0.5)),
+            }))
+            .slice(0, 5);
+        }
+        if (Array.isArray(enhancedData.businessProblems)) {
+          extractedBusinessProblems = enhancedData.businessProblems.map(String).filter(Boolean).slice(0, 5);
+        }
+        if (Array.isArray(enhancedData.transformationAreas)) {
+          extractedTransformationAreas = enhancedData.transformationAreas.map(String).filter(Boolean).slice(0, 5);
+        }
+        if (Array.isArray(enhancedData.technologyThemes)) {
+          extractedTechnologyThemes = enhancedData.technologyThemes.map(String).filter(Boolean).slice(0, 5);
+        }
+      }
+    } catch (err) {
+      console.warn('[researcher] Enhanced field extraction failed, continuing with empty fields:', err instanceof Error ? err.message : err);
+    }
+  }
+
+  onProgress?.({ step: 3, label: 'Extracting enhanced intelligence', progress: 72, message: `${strategicPriorities.length} priorities, ${extractedBusinessProblems.length} problems extracted` });
+
+  // ═══════════════════════════════════════════════════
+  // STEP 4: Field Validation — Cross-Reference (72-80%)
+  // ═══════════════════════════════════════════════════
+  onProgress?.({ step: 4, label: 'Validating fields', progress: 74, message: 'Cross-referencing extracted data with evidence...' });
 
   const extractedFields: Record<string, string> = {
     businessOverview: result.businessOverview,
@@ -299,12 +391,12 @@ Extract accurate company data as JSON. Ground everything in the search results a
   const { fieldConfidence, updatedEvidence } = await linkEvidenceToFields(companyId, extractedFields);
   result.fieldConfidence = fieldConfidence;
 
-  onProgress?.({ step: 4, label: 'Validating fields', progress: 75, message: `Linked ${updatedEvidence} evidence records to fields` });
+  onProgress?.({ step: 4, label: 'Validating fields', progress: 80, message: `Linked ${updatedEvidence} evidence records to fields` });
 
   // ═══════════════════════════════════════════════════
-  // STEP 5: Confidence Scoring (75-85%)
+  // STEP 5: Confidence Scoring (80-88%)
   // ═══════════════════════════════════════════════════
-  onProgress?.({ step: 5, label: 'Scoring confidence', progress: 78, message: 'Calculating per-field confidence...' });
+  onProgress?.({ step: 5, label: 'Scoring confidence', progress: 82, message: 'Calculating per-field confidence...' });
 
   // Calculate overall confidence
   const confidences = Object.values(fieldConfidence);
@@ -317,12 +409,12 @@ Extract accurate company data as JSON. Ground everything in the search results a
   const peopleBoost = keyPeople.length > 0 ? 0.05 : 0;
   result.overallConfidence = Math.min(1, Math.round((avgConfidence + evidenceBoost + peopleBoost) * 100) / 100);
 
-  onProgress?.({ step: 5, label: 'Scoring confidence', progress: 85, message: `Overall confidence: ${Math.round(result.overallConfidence * 100)}%` });
+  onProgress?.({ step: 5, label: 'Scoring confidence', progress: 88, message: `Overall confidence: ${Math.round(result.overallConfidence * 100)}%` });
 
   // ═══════════════════════════════════════════════════
-  // STEP 6: Intelligence Storage (85-100%)
+  // STEP 6: Intelligence Storage (88-100%)
   // ═══════════════════════════════════════════════════
-  onProgress?.({ step: 6, label: 'Storing intelligence', progress: 88, message: 'Detecting signals...' });
+  onProgress?.({ step: 6, label: 'Storing intelligence', progress: 89, message: 'Detecting signals...' });
 
   // 6a: Signal detection
   const signalResult = await detectSignals(companyName, allSearchResults);
@@ -343,6 +435,17 @@ Extract accurate company data as JSON. Ground everything in the search results a
 
   // 6b: Store signals
   await storeSignals(companyId, signalResult.signals, jobId);
+
+  // 6b2: Phase 3 Hardening — Run signal-to-capability matching
+  try {
+    const { matchSignalsToCapabilities } = await import('./signal-capability-matching');
+    const matchResult = await matchSignalsToCapabilities(companyId);
+    if (matchResult.totalMatches > 0) {
+      console.log(`[researcher] Signal-capability matching: ${matchResult.totalMatches} matches (${matchResult.highConfidence} high-confidence)`);
+    }
+  } catch (err) {
+    console.warn('[researcher] Signal-capability matching failed (non-critical):', err instanceof Error ? err.message : err);
+  }
 
   // 6c: Store research card
   if (result.linkedInUrl) result.socialProfiles.linkedin = result.linkedInUrl;
@@ -366,6 +469,21 @@ Extract accurate company data as JSON. Ground everything in the search results a
     enrichmentSource: 'research_engine_v3',
     enrichmentDate: new Date(),
     fieldConfidence: JSON.stringify(fieldConfidence),
+    // Phase 3 Hardening: Enhanced fields
+    structuredTechLandscape: JSON.stringify(structuredTechLandscape),
+    strategicPriorities: strategicPriorities.length > 0
+      ? JSON.stringify(strategicPriorities) : undefined,
+    businessProblems: extractedBusinessProblems.length > 0
+      ? JSON.stringify(extractedBusinessProblems) : undefined,
+    transformationAreas: extractedTransformationAreas.length > 0
+      ? JSON.stringify(extractedTransformationAreas) : undefined,
+    technologyThemes: extractedTechnologyThemes.length > 0
+      ? JSON.stringify(extractedTechnologyThemes) : undefined,
+    // Phase 3 Hardening: Category-specific freshness timestamps
+    profileFreshnessAt: new Date(),
+    signalFreshnessAt: new Date(), // signals just detected
+    contactFreshnessAt: keyPeople.length > 0 ? new Date() : undefined,
+    techFreshnessAt: (structuredTechLandscape.cloud.length > 0 || structuredTechLandscape.data.length > 0 || structuredTechLandscape.ai.length > 0) ? new Date() : undefined,
   };
 
   await db.companyResearchCard.upsert({

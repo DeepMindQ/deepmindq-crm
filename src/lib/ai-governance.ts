@@ -66,18 +66,20 @@ export interface GovernanceContext {
 
 const GOVERNANCE_CONFIGS: Record<string, GovernanceConfig> = {
   email_draft: {
-    minResearchConfidence: 0.4,
-    minFreshnessScore: 20,
+    // Phase 3 Hardening: 60% confidence threshold for emails
+    minResearchConfidence: 0.6,
+    minFreshnessScore: 25,
     requireCapabilityMatch: true,
     requireRecentIntelligence: true,
-    maxStalenessDays: 90,
+    maxStalenessDays: 60,
   },
   conversation_plan: {
-    minResearchConfidence: 0.3,
-    minFreshnessScore: 15,
+    // Phase 3 Hardening: 60% confidence threshold for exec conversation plans
+    minResearchConfidence: 0.6,
+    minFreshnessScore: 25,
     requireCapabilityMatch: false,
     requireRecentIntelligence: true,
-    maxStalenessDays: 90,
+    maxStalenessDays: 60,
   },
   account_brief: {
     minResearchConfidence: 0.2,
@@ -114,28 +116,38 @@ const GOVERNANCE_CONFIGS: Record<string, GovernanceConfig> = {
     requireRecentIntelligence: true,
     maxStalenessDays: 120,
   },
+  // Phase 3 Hardening: 50% confidence threshold for opportunity identification
   opportunities: {
-    minResearchConfidence: 0.3,
+    minResearchConfidence: 0.5,
+    minFreshnessScore: 20,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: true,
+    maxStalenessDays: 90,
+  },
+  recommendations: {
+    minResearchConfidence: 0.4,
     minFreshnessScore: 15,
     requireCapabilityMatch: false,
     requireRecentIntelligence: true,
     maxStalenessDays: 120,
   },
-  recommendations: {
-    minResearchConfidence: 0.3,
-    minFreshnessScore: 15,
+  // Phase 3 Hardening: 50% confidence threshold for lead scoring
+  score_leads: {
+    minResearchConfidence: 0.5,
+    minFreshnessScore: 20,
     requireCapabilityMatch: false,
     requireRecentIntelligence: true,
-    maxStalenessDays: 120,
+    maxStalenessDays: 90,
   },
 };
 
 const DEFAULT_CONFIG: GovernanceConfig = {
-  minResearchConfidence: 0.3,
-  minFreshnessScore: 15,
+  // Phase 3 Hardening: default 40% confidence, stricter than before
+  minResearchConfidence: 0.4,
+  minFreshnessScore: 20,
   requireCapabilityMatch: false,
   requireRecentIntelligence: true,
-  maxStalenessDays: 90,
+  maxStalenessDays: 60,
 };
 
 // ── Hallucination Prevention Rules ───────────────────────────────────────────
@@ -513,6 +525,7 @@ export async function recordGeneration(
         governanceChecks: JSON.stringify(governanceResult.checks),
         outputSummary: outputSummary ?? null,
         modelUsed: 'governance-tracked', // Updated by caller if known
+        promptVersion: GOVERNANCE_PROMPT_VERSION,
         inputParams: JSON.stringify(inputParams ?? {}),
       },
     });

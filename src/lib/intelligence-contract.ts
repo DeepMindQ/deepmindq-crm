@@ -663,6 +663,154 @@ export async function getSignalMetrics(options?: {
   };
 }
 
+// ── Phase 3 Hardening: Freshness-Adjusted Confidence ──
+
+/**
+ * Expiration thresholds (days) per category.
+ * When data exceeds these thresholds, confidence is reduced.
+ */
+export const FRESHNESS_EXPIRATION_THRESHOLDS = {
+  /** Signals older than 14 days have reduced confidence */
+  signal: { warningDays: 14, penaltyPerDay: 0.02, maxPenalty: 0.4 },
+  /** Technology data older than 60 days is considered stale */
+  technology: { warningDays: 60, penaltyPerDay: 0.01, maxPenalty: 0.3 },
+  /** Contact/key people data older than 45 days needs re-verification */
+  contact: { warningDays: 45, penaltyPerDay: 0.015, maxPenalty: 0.35 },
+  /** Profile data (revenue, employees) — long lifecycle, 90 day warning */
+  profile: { warningDays: 90, penaltyPerDay: 0.005, maxPenalty: 0.2 },
+} as const;
+
+/**
+ * Apply freshness-based confidence adjustments to field confidence scores.
+ * Returns adjusted field confidence with expiration metadata.
+ *
+ * Rules:
+ * - Signals >14 days: reduce confidence by 2% per day (max 40% penalty)
+ * - Technology >60 days: reduce confidence by 1% per day (max 30% penalty)
+ * - Contacts >45 days: reduce confidence by 1.5% per day (max 35% penalty)
+ * - Profile >90 days: reduce confidence by 0.5% per day (max 20% penalty)
+ */
+export function applyFreshnessAdjustments(
+  fieldConfidence: Record<string, number>,
+  freshness: ResearchFreshness,
+): {
+  adjustedConfidence: Record<string, number>;
+  adjustments: Array<{ field: string; category: string; original: number; adjusted: number; reason: string }>;
+  warnings: string[];
+} {
+  const adjustedConfidence = { ...fieldConfidence };
+  const adjustments: Array<{ field: string; category: string; original: number; adjusted: number; reason: string }> = [];
+  const warnings: string[] = [];
+
+  // Map fields to categories
+  const fieldToCategory: Record<string, keyof typeof FRESHNESS_EXPIRATION_THRESHOLDS> = {
+    revenue: 'profile',
+    employeeCount: 'profile',
+    fundingStage: 'profile',
+    businessOverview: 'profile',
+    industry: 'profile',
+    techStack: 'technology',
+    structuredTechLandscape: 'technology',
+    // Signals and contacts are not in fieldConfidence but tracked via categories
+  };
+
+  for (const [field, confidence] of Object.entries(fieldConfidence)) {
+    const category = fieldToCategory[field];
+    if (!category) continue;
+
+    const catFreshness = freshness.categories[category];
+    const threshold = FRESHNESS_EXPIRATION_THRESHOLDS[category];
+    if (!catFreshness || catFreshness.status === 'none') continue;
+
+    const daysSince = catFreshness.daysSinceVerification;
+    if (daysSince === null || daysSince <= threshold.warningDays) continue;
+
+    // Calculate penalty
+    const excessDays = daysSince - threshold.warningDays;
+    const penalty = Math.min(threshold.maxPenalty, excessDays * threshold.penaltyPerDay);
+    const adjusted = Math.max(0, confidence - penalty);
+
+    if (penalty > 0.01) { // Only record meaningful adjustments
+      adjustedConfidence[field] = Math.round(adjusted * 100) / 100;
+      adjustments.push({
+        field,
+        category,
+        original: confidence,
+        adjusted: Math.round(adjusted * 100) / 100,
+        reason: `${category} data is ${daysSince} days old (threshold: ${threshold.warningDays}d). Penalty: -${Math.round(penalty * 100)}%.`,
+      });
+    }
+  }
+
+  // Generate warnings for stale categories
+  for (const [cat, catFreshness] of Object.entries(freshness.categories) as Array<[string, CategoryFreshness]>) {
+    const threshold = FRESHNESS_EXPIRATION_THRESHOLDS[cat as keyof typeof FRESHNESS_EXPIRATION_THRESHOLDS];
+    if (!threshold) continue;
+
+    if (catFreshness.status === 'stale') {
+      warnings.push(`${cat} intelligence is stale (${catFreshness.daysSinceVerification} days old). Consider re-researching.`);
+    } else if (catFreshness.daysSinceVerification !== null && catFreshness.daysSinceVerification > threshold.warningDays) {
+      warnings.push(`${cat} data is aging (${catFreshness.daysSinceVerification} days since verification).`);
+    }
+  }
+
+  return { adjustedConfidence, adjustments, warnings };
+}
+
+/**
+ * Check if a company needs research refresh based on freshness categories.
+ * Returns a structured assessment of what needs refreshing and why.
+ */
+export function assessRefreshNeeds(freshness: ResearchFreshness): {
+  needsRefresh: boolean;
+  urgency: 'immediate' | 'recommended' | 'optional' | 'none';
+  reasons: string[];
+  categoryNeeds: Array<{ category: string; status: string; daysSince: number | null; action: string }>;
+} {
+  const categoryNeeds: Array<{ category: string; status: string; daysSince: number | null; action: string }> = [];
+  const reasons: string[] = [];
+  let maxUrgency: 'immediate' | 'recommended' | 'optional' | 'none' = 'none';
+
+  const categoryActions: Record<string, { refreshUrgency: 'immediate' | 'recommended' | 'optional'; action: string }> = {
+    signal: { refreshUrgency: 'immediate', action: 'Re-run signal detection to capture latest buying signals' },
+    technology: { refreshUrgency: 'recommended', action: 'Re-research technology landscape for current state' },
+    contact: { refreshUrgency: 'recommended', action: 'Verify key people are still current' },
+    profile: { refreshUrgency: 'optional', action: 'Update company profile data if significant changes expected' },
+  };
+
+  for (const [cat, catFreshness] of Object.entries(freshness.categories)) {
+    const config = categoryActions[cat];
+    if (!config) continue;
+
+    if (catFreshness.status === 'stale') {
+      categoryNeeds.push({
+        category: cat,
+        status: catFreshness.status,
+        daysSince: catFreshness.daysSinceVerification,
+        action: config.action,
+      });
+      reasons.push(`${cat}: ${config.action} (${catFreshness.daysSinceVerification}d old)`);
+      if (config.refreshUrgency === 'immediate') maxUrgency = 'immediate';
+      else if (maxUrgency !== 'immediate') maxUrgency = 'recommended';
+    } else if (catFreshness.status === 'aging') {
+      categoryNeeds.push({
+        category: cat,
+        status: catFreshness.status,
+        daysSince: catFreshness.daysSinceVerification,
+        action: `Consider: ${config.action}`,
+      });
+      if (maxUrgency === 'none') maxUrgency = 'optional';
+    }
+  }
+
+  return {
+    needsRefresh: maxUrgency !== 'none',
+    urgency: maxUrgency,
+    reasons,
+    categoryNeeds,
+  };
+}
+
 /**
  * Build a text context block from research context for LLM prompts.
  * This is the canonical way to inject Phase 3 intelligence into any LLM call.

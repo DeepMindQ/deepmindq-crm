@@ -32,14 +32,63 @@ import * as mod_config_scoring from './config__scoring.ts';
 import * as mod_config_scoring_id from './config__scoring___id.ts';
 import * as mod_config_seed from './config__seed.ts';
 
-// Workflow Engine (Phase 2) — loaded dynamically to avoid Turbopack bundling issues
-// with the deep dependency chain (jobs → workflow-engine → processor → zai-helpers → ai-config → db).
-// Static imports caused the entire router module to fail silently on Vercel.
+// Workflow Engine (Phase 2) — dynamic import to avoid Turbopack bundle failure
 async function loadJobs() { return await import('./jobs.ts'); }
 async function loadJobsId() { return await import('./jobs___id.ts'); }
-async function loadJobsActions() { return await import('./jobs__actions.ts'); }
 
-// Route registry — jobs routes use lazy loaders instead of static module refs
+// Inline handler for jobs/actions — avoids the dynamic import + request context issue
+// that causes "Cannot read properties of undefined (reading '1')" in Vercel.
+async function handleJobsActions(req: NextRequest): Promise<Response> {
+  try {
+    const { retryAllFailed, processNextJobs, recoverStaleJobs, queuePendingJobs, enqueueBulkEnrichment } = await import('@/lib/workflow-engine');
+    const body = await req.json();
+    const action = body.action as string;
+
+    switch (action) {
+      case 'retry-all-failed': {
+        const result = await retryAllFailed();
+        return NextResponse.json({ success: true, ...result });
+      }
+      case 'process-next': {
+        const limit = body.limit || 5;
+        await recoverStaleJobs(30);
+        await queuePendingJobs(limit);
+        const result = await processNextJobs(limit);
+        return NextResponse.json({ success: true, ...result });
+      }
+      case 'recover-stale': {
+        const timeoutMinutes = body.timeoutMinutes || 30;
+        const recovered = await recoverStaleJobs(timeoutMinutes);
+        return NextResponse.json({ success: true, recovered });
+      }
+      case 'enqueue-enrichment': {
+        const companyIds = body.companyIds as string[];
+        if (!Array.isArray(companyIds) || companyIds.length === 0) {
+          return NextResponse.json({ error: 'companyIds array required' }, { status: 400 });
+        }
+        const result = await enqueueBulkEnrichment(companyIds, {
+          force: body.force === true,
+          priority: body.priority ?? 5,
+        });
+        // Auto-trigger: fire-and-forget first batch so jobs start immediately
+        if (result.created > 0) {
+          processNextJobs(Math.min(result.created, 3)).catch(err => {
+            console.error('[jobs/action] Auto-process after enqueue failed (non-blocking):', err.message);
+          });
+        }
+        return NextResponse.json({ success: true, ...result });
+      }
+      default:
+        return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
+    }
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('[jobs/action]', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+// Route registry
 const ROUTES = [
   // Original data routes
   { key: 'stats', handler: mod_stats },
@@ -75,10 +124,10 @@ const ROUTES = [
   { key: 'config/scoring/[id]', handler: mod_config_scoring_id },
   { key: 'config/seed', handler: mod_config_seed },
 
-  // Workflow Engine: Job management (dynamic loaders)
+  // Workflow Engine: Jobs (dynamic loaders) and Actions (inline)
   { key: 'jobs', loader: loadJobs },
   { key: 'jobs/[id]', loader: loadJobsId },
-  { key: 'jobs/actions', loader: loadJobsActions },
+  { key: 'jobs/actions', inlineHandler: handleJobsActions },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';
@@ -104,7 +153,7 @@ function keyToRegex(key: string): { regex: RegExp; paramNames: string[] } {
   return { regex: new RegExp('^' + regexParts.join('/') + '$'), paramNames };
 }
 
-function matchRoute(slug: string[]): { handler?: Record<string, Function>; loader?: () => Promise<Record<string, Function>>; params: Record<string, string> } | null {
+function matchRoute(slug: string[]): { handler?: Record<string, Function>; loader?: () => Promise<Record<string, Function>>; inlineHandler?: (req: NextRequest) => Promise<Response>; params: Record<string, string> } | null {
   const path = slug.join('/');
   for (const route of ROUTES) {
     const { regex, paramNames } = keyToRegex(route.key);
@@ -112,7 +161,7 @@ function matchRoute(slug: string[]): { handler?: Record<string, Function>; loade
     if (match) {
       const params: Record<string, string> = {};
       paramNames.forEach((name, i) => { params[name] = match[i + 1] || ''; });
-      return { handler: (route as any).handler, loader: (route as any).loader, params };
+      return { handler: (route as any).handler, loader: (route as any).loader, inlineHandler: (route as any).inlineHandler, params };
     }
   }
   return null;
@@ -122,7 +171,14 @@ async function handle(method: HttpMethod, req: NextRequest, slug: string[]): Pro
   const matched = matchRoute(slug);
   if (!matched) return NextResponse.json({ error: 'Not found', path: slug.join('/') }, { status: 404 });
 
-  // Resolve handler: either direct (static import) or lazy (dynamic import)
+  // Inline handler (no module import needed)
+  if (matched.inlineHandler) {
+    if (method !== 'POST') return NextResponse.json({ error: `${method} not allowed` }, { status: 405 });
+    try { return await matched.inlineHandler(req); }
+    catch (err: any) { console.error(`[router:data] ${method} /${slug.join('/')}:`, err.message); return NextResponse.json({ error: 'Internal error', detail: err.message }, { status: 500 }); }
+  }
+
+  // Dynamic loader (lazy module import)
   let handler = matched.handler;
   if (!handler && matched.loader) {
     try {

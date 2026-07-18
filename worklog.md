@@ -45,3 +45,26 @@ Stage Summary:
 - Auto-seed mechanism ensures first-use data population
 - db-sync endpoint ensures database table creation on first deploy
 - Enrichment flow: Companies screen → enqueue jobs → Command Center shows progress
+---
+Task ID: 1
+Agent: Main
+Task: Deploy all 5 Phase 1 & 2 fixes to Vercel and smoke test
+
+Work Log:
+- Verified git state: 7 commits on main, all pushed to GitHub
+- Discovered Vercel GitHub auto-deploy was already working — commit 45ad55b was already live (READY state)
+- API token works fine for Vercel REST API (the CLI was the problem)
+- Found jobs/[id] route bug: route.ts was passing `matched.params` ({id:...}) but handler expected `slug[]` array
+- Fixed route.ts: pass `{ slug }` to all handlers + added `jobs/[id]/[action]` route
+- Pushed fix as commit 1d3727c, Vercel auto-deployed in ~60s
+- Ran smoke tests on all endpoints
+
+Stage Summary:
+- ALL 5 FIXES ARE LIVE on deepmindq.com / deepmindq-crm.vercel.app
+- P1-1: Prisma schema synced (db push verified)
+- P1-2: Config auto-seed works — 16 column rules, 12 validation rules, 2 scoring rules returned
+- P2-1: Jobs auto-process fires on enqueue + cron route exists (hobby plan = no sub-daily cron)
+- P2-2: Client-side 5s polling after enrichment in companies-screen.tsx
+- P2-3: Command Center 15s auto-refresh polling
+- Jobs 404 fix: Dynamic imports + inline actions handler + slug param passing
+- Additional fix: jobs/[id] slug array passing bug found and fixed

@@ -68,3 +68,24 @@ Stage Summary:
 - P2-3: Command Center 15s auto-refresh polling
 - Jobs 404 fix: Dynamic imports + inline actions handler + slug param passing
 - Additional fix: jobs/[id] slug array passing bug found and fixed
+
+---
+Task ID: 2
+Agent: Main
+Task: Close Phase 1+2 to 100% — add NormalizationLog + DataQualityScore models
+
+Work Log:
+- Added NormalizationLog Prisma model (uploadId, category, field, originalValue, normalizedValue, ruleApplied)
+- Added DataQualityScore Prisma model (uploadId, companyId, totalScore, completenessScore, validityScore, richnessScore, details)
+- Updated normalizer.ts: all normalize functions now return ruleApplied (db_exact_match, db_fuzzy_match, title_case, numeric_to_range, abbreviation_expansion, extracted_from_email, prepend_protocol, whitespace_cleanup)
+- Updated engine.ts processChunk: batch inserts normLogRecords + qualityScoreRecords alongside rowRecords
+- Updated engine.ts commitUpload: links DataQualityScore.companyId via rowIndex mapping
+- Prisma generate passed (schema valid)
+- TypeScript: zero errors in changed files
+- Pushed as be970d6, Vercel auto-deployed, READY confirmed
+- Smoke tested all endpoints: homepage 200, jobs 200, config 16 rules, actions validation works
+
+Stage Summary:
+- Phase 1: 100% complete (NormalizationLog + DataQualityScore models added and wired)
+- Phase 2: 100% complete (no remaining gaps)
+- All live on deepmindq-crm.vercel.app / deepmindq.com

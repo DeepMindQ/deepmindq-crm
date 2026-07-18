@@ -116,6 +116,13 @@ function matchRoute(slug: string[]): { handler: Record<string, Function>; params
   return null;
 }
 
+
+// Debug: expose registered route keys (temporary)
+const debug_handler = {
+  GET: async () => NextResponse.json({ registeredRoutes: ROUTES.map(r => r.key), routeCount: ROUTES.length })
+};
+ROUTES.push({ key: 'debug-routes', handler: debug_handler as any });
+
 async function handle(method: HttpMethod, req: NextRequest, slug: string[]): Promise<Response> {
   const matched = matchRoute(slug);
   if (!matched) return NextResponse.json({ error: 'Not found', path: slug.join('/') }, { status: 404 });

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { callLLM, webSearch } from '@/lib/zai-helpers';
+import { webSearch } from '@/lib/zai-helpers';
+import { governedAICallAggregate, governedAICall, HALLUCINATION_PREVENTION_RULES } from '@/lib/ai-governance';
 import { getResearchContext, buildResearchContextText } from '@/lib/intelligence-contract';
-import { HALLUCINATION_PREVENTION_RULES } from '@/lib/ai-governance';
 
 /* ═══════════════════════════════════════════════════════════════════
    AI Command Center — Natural Language Query (v2)
@@ -28,18 +28,32 @@ interface QueryResult {
   aiProcessed?: boolean;
 }
 
-// ── LLM helper (uses shared callLLM) ─────────────────────────
+// ── LLM helper (uses governance layer) ─────────────────────────
 
-async function llmChat(systemPrompt: string, userPrompt: string): Promise<string | null> {
+async function governedChat(systemPrompt: string, userPrompt: string, generationType: string, companyId?: string, researchContext?: any): Promise<string | null> {
   try {
-    return await callLLM(systemPrompt, userPrompt);
+    if (companyId) {
+      const result = await governedAICall({
+        generationType,
+        companyId,
+        researchContext,
+        systemPrompt,
+        userPrompt,
+        enforceGovernance: false,
+      });
+      return result.success ? result.response : null;
+    }
+    const result = await governedAICallAggregate({
+      generationType,
+      systemPrompt,
+      userPrompt,
+    });
+    return result.success ? result.response : null;
   } catch (err) {
     console.error('[CommandCenter LLM]', err);
     return null;
   }
 }
-
-// webSearch is imported from @/lib/zai-helpers and used directly.
 
 // ── Query Plan (what the first LLM pass returns) ──────────────────
 
@@ -538,7 +552,7 @@ export async function POST(req: NextRequest) {
     // ── Attempt AI-powered two-pass pipeline ──
     try {
       // Pass 1: Query Planning
-      const plannerRaw = await llmChat(PLANNER_SYSTEM, buildPlannerPrompt(query));
+      const plannerRaw = await governedChat(PLANNER_SYSTEM, buildPlannerPrompt(query), 'command_center_query');
       const plan = parsePlan(plannerRaw);
 
       if (!plan || plan.dataFetches.length === 0) {
@@ -600,7 +614,7 @@ export async function POST(req: NextRequest) {
         webResults,
         intelligenceContext
       );
-      const analysisRaw = await llmChat(analystSystem, analystUser);
+      const analysisRaw = await governedChat(analystSystem, analystUser, 'command_center_analysis');
       const analysis = parseAnalysis(analysisRaw);
 
       // If analysis failed, build a basic summary from the data

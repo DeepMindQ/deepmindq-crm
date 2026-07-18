@@ -27,6 +27,7 @@ import { classifyError } from './retry';
 import { logJobEvent } from './index';
 import { db } from '@/lib/db';
 import { webSearch, callLLM, extractJSON } from '@/lib/zai-helpers';
+import { governedAICall } from '@/lib/ai-governance';
 import { researchCompany } from '@/lib/research-engine';
 import { detectSignals, storeSignals } from '@/lib/research-engine';
 
@@ -478,10 +479,10 @@ async function processEmailGenerationJob(jobId: string, job: any): Promise<void>
   const title = contact.title || 'team member';
   const industry = contact.company?.industry || '';
   const overview = contact.company?.researchCard?.businessOverview || '';
+  const companyId = contact.companyId;
 
   let generatedEmail: { subject: string; body: string } | null = null;
 
-  try {
     const prompt = `Generate a personalized B2B sales email.
 
 Contact: ${contactName} (${title})
@@ -492,14 +493,21 @@ ${overview ? `Company Overview: ${overview}` : ''}
 Generate a professional, concise outreach email. Return ONLY valid JSON:
 {"subject": "email subject line", "body": "email body text"}`;
 
-    const response = await callLLM(
-      'You are a B2B sales email expert. Generate concise, personalized emails. Return only JSON.',
-      prompt
-    );
-    generatedEmail = extractJSON(response) as { subject: string; body: string } | null;
-  } catch (err) {
-    await logJobEvent(jobId, 'warn', 'email_gen_llm_failed', 'LLM generation failed');
-  }
+    const emailResult = await governedAICall({
+      generationType: 'workflow_email_generation',
+      companyId,
+      contactId,
+      systemPrompt: 'You are a B2B sales email expert. Generate concise, personalized emails. Return only JSON.',
+      userPrompt: prompt,
+      enforceGovernance: false,
+      inputParams: { jobId, contactId, companyId },
+    });
+    if (!emailResult.success || !emailResult.response) {
+      await logJobEvent(jobId, 'warn', 'email_gen_llm_failed', 'Governance or LLM generation failed');
+      generatedEmail = null;
+    } else {
+      generatedEmail = extractJSON(emailResult.response) as { subject: string; body: string } | null;
+    }
 
   if (!generatedEmail || !generatedEmail.subject || !generatedEmail.body) {
     await failJob(jobId, 'Failed to generate valid email content', 'GENERATION_ERROR', true);

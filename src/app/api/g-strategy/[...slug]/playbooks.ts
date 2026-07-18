@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { callLLM } from '@/lib/zai-helpers';
+import { governedAICallAggregate } from '@/lib/ai-governance';
 
 function safeJsonParse(str: string | null | undefined, fallback: any) {
   if (!str) return fallback;
@@ -64,10 +64,14 @@ Return a JSON object with this exact structure (no markdown, no code fences, raw
 
 Provide 4-6 detailed steps with actionable tips. Make the content specific and practical, not generic.`;
 
-        const content = await callLLM(
-          'You are a sales playbook expert. Return valid JSON only, no markdown fences.',
-          prompt,
-        );
+        const result = await governedAICallAggregate({
+          generationType: 'playbook_generation',
+          systemPrompt: 'You are a sales playbook expert. Return valid JSON only, no markdown fences.',
+          userPrompt: prompt,
+          inputParams: { name, category, targetIndustry, targetRole },
+        });
+        if (!result.success || !result.response) throw new Error('Playbook generation failed');
+        const content = result.response;
 
         // Try to parse the JSON from the response
         let jsonStr = content;

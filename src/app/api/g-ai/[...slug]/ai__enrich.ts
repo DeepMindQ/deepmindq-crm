@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
-import { callLLM } from '@/lib/zai-helpers'
+import { governedAICall } from '@/lib/ai-governance'
 import { getResearchContext, buildResearchContextText } from '@/lib/intelligence-contract'
 
 // ---------------------------------------------------------------------------
@@ -160,7 +160,17 @@ CRITICAL RULES:
 Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence": 0.0-1.0 }]`
 
         try {
-          const text = await callLLM(systemPrompt, `Company: ${ctx.companyName}\n\n${researchText}`)
+          const result = await governedAICall({
+            generationType: 'enrichment',
+            companyId: entityId,
+            researchContext: ctx,
+            systemPrompt,
+            userPrompt: `Company: ${ctx.companyName}\n\n${researchText}`,
+            enforceGovernance: false, // enrichment is advisory, not blocking
+            inputParams: { entityType: 'company', entityId, stillMissing },
+          })
+          if (!result.success || !result.response) throw new Error('Enrichment inference failed')
+          const text = result.response
           const inferred = parseEnrichmentResponse(text).filter(s =>
             stillMissing.includes(s.field) && s.confidence >= 0.5
           )

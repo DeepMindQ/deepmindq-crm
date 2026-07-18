@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
-import { callLLM } from '@/lib/zai-helpers'
+import { governedAICallAggregate } from '@/lib/ai-governance'
 
 /* ── In-memory cache (5 minutes) ── */
 let cachedResult: { data: DataHealthResponse; ts: number } | null = null
@@ -454,8 +454,9 @@ export async function GET() {
       // Run the three AI analyses in parallel
       const [diagnosisResult, strategyResult, predictionResult] = await Promise.allSettled([
         // ── 8a. AI Health Diagnosis ──
-        callLLM(
-          `You are a senior sales operations analyst writing a data health report for a sales ops manager. Your tone is direct, practical, and action-oriented. You reference specific numbers from the data. You explain the BUSINESS IMPACT of each issue, not just the raw count. You prioritize issues by revenue/pipeline impact.
+        governedAICallAggregate({
+          generationType: 'data_health_analysis',
+          systemPrompt: `You are a senior sales operations analyst writing a data health report for a sales ops manager. Your tone is direct, practical, and action-oriented. You reference specific numbers from the data. You explain the BUSINESS IMPACT of each issue, not just the raw count. You prioritize issues by revenue/pipeline impact.
 
 Rules:
 - Reference specific numbers from the metrics
@@ -464,14 +465,16 @@ Rules:
 - Do NOT use markdown headers or bullets — write flowing prose
 - Address the reader as "your" (e.g. "your pipeline", "your outreach")
 - Be honest but constructive — lead with what matters most`,
-          `Analyze this CRM data health snapshot and write a plain-English diagnosis for the sales ops manager:
+          userPrompt: `Analyze this CRM data health snapshot and write a plain-English diagnosis for the sales ops manager:
 
-${JSON.stringify(metricsSnapshot, null, 2)}`
-        ),
+${JSON.stringify(metricsSnapshot, null, 2)}`,
+          inputParams: { section: 'diagnosis' },
+        }).then(r => r.success ? r.response : null),
 
         // ── 8b. AI Enrichment Strategy ──
-        callLLM(
-          `You are a data enrichment strategist for a B2B sales CRM. Given data health metrics, produce an actionable enrichment strategy as a JSON array.
+        governedAICallAggregate({
+          generationType: 'data_health_analysis',
+          systemPrompt: `You are a data enrichment strategist for a B2B sales CRM. Given data health metrics, produce an actionable enrichment strategy as a JSON array.
 
 Each item must have exactly these fields:
 - "priority": one of "Critical", "High", "Medium", "Low"
@@ -485,14 +488,16 @@ Rules:
 - Focus on actions that have the highest ROI for sales operations
 - Consider lifecycle stage — later-stage records are more valuable
 - Respond ONLY with a valid JSON array, no other text`,
-          `Here is the CRM data health snapshot. Design the optimal enrichment strategy:
+          userPrompt: `Here is the CRM data health snapshot. Design the optimal enrichment strategy:
 
-${JSON.stringify(metricsSnapshot, null, 2)}`
-        ),
+${JSON.stringify(metricsSnapshot, null, 2)}`,
+          inputParams: { section: 'enrichment_strategy' },
+        }).then(r => r.success ? r.response : null),
 
         // ── 8c. AI Data Quality Prediction ──
-        callLLM(
-          `You are a data quality analyst. Based on the current CRM data health metrics, predict what will happen to data quality over the next 30-90 days if no action is taken.
+        governedAICallAggregate({
+          generationType: 'data_health_analysis',
+          systemPrompt: `You are a data quality analyst. Based on the current CRM data health metrics, predict what will happen to data quality over the next 30-90 days if no action is taken.
 
 Rules:
 - Reference specific numbers from the metrics
@@ -501,19 +506,20 @@ Rules:
 - Write 2-3 concise paragraphs
 - Be specific and alarming enough to motivate action, but realistic
 - Do NOT use markdown formatting — write flowing prose`,
-          `Here is the current CRM data health snapshot. Predict the data quality trajectory over the next 30-90 days if no action is taken:
+          userPrompt: `Here is the current CRM data health snapshot. Predict the data quality trajectory over the next 30-90 days if no action is taken:
 
-${JSON.stringify(metricsSnapshot, null, 2)}`
-        ),
+${JSON.stringify(metricsSnapshot, null, 2)}`,
+          inputParams: { section: 'quality_prediction' },
+        }).then(r => r.success ? r.response : null),
       ])
 
       // Extract diagnosis
-      if (diagnosisResult.status === 'fulfilled' && diagnosisResult.value.trim()) {
+      if (diagnosisResult.status === 'fulfilled' && diagnosisResult.value?.trim()) {
         aiDiagnosis = diagnosisResult.value.trim()
       }
 
       // Extract enrichment strategy
-      if (strategyResult.status === 'fulfilled' && strategyResult.value.trim()) {
+      if (strategyResult.status === 'fulfilled' && strategyResult.value?.trim()) {
         const parsed = parseJSONArray<{
           priority: string
           action: string
@@ -526,7 +532,7 @@ ${JSON.stringify(metricsSnapshot, null, 2)}`
       }
 
       // Extract prediction
-      if (predictionResult.status === 'fulfilled' && predictionResult.value.trim()) {
+      if (predictionResult.status === 'fulfilled' && predictionResult.value?.trim()) {
         aiPrediction = predictionResult.value.trim()
       }
 

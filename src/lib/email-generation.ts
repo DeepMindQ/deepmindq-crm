@@ -17,6 +17,7 @@
    ═══════════════════════════════════════════════════ */
 
 import { callLLM } from '@/lib/zai-helpers';
+import { governedAICall } from '@/lib/ai-governance';
 import { db } from '@/lib/db';
 import { getResearchContext, type ResearchContext } from '@/lib/intelligence-contract';
 import {
@@ -402,7 +403,17 @@ ${researchContext}
 
 Write the email now. Respond with JSON only.`;
 
-  const response = await callLLM(systemPrompt, userPrompt);
+  const emailResult = await governedAICall({
+    generationType: 'email_draft',
+    systemPrompt,
+    userPrompt,
+    enforceGovernance: false,
+    inputParams: { company, industry, tone },
+  });
+  if (!emailResult.success || !emailResult.response) {
+    throw new Error('Email generation failed');
+  }
+  const response = emailResult.response;
 
   let aiResponse = response.trim();
   if (aiResponse.startsWith('```')) aiResponse = aiResponse.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');

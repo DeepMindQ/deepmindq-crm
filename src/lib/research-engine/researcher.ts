@@ -19,6 +19,7 @@
 
 import { db } from '@/lib/db';
 import { webSearch, callLLM, extractJSON, findKeyPeople, type KeyPerson, type NewsSignal } from '@/lib/zai-helpers';
+import { governedAICallAggregate } from '@/lib/ai-governance';
 import { storeEvidenceFromResults, cleanupOldEvidence, linkEvidenceToFields, type FieldConfidence, type RawEvidence } from './evidence';
 import { detectSignals, storeSignals, type DetectedSignal, type SignalDetectionResult } from './signals';
 
@@ -244,8 +245,15 @@ Extract accurate company data as JSON. Ground everything in the search results a
   let extractedData: Record<string, string> | null = null;
 
   try {
-    const response = await callLLM(systemPrompt, userPrompt);
-    extractedData = extractJSON(response) as Record<string, string> | null;
+    const llmResult = await governedAICallAggregate({
+      generationType: 'research_extraction',
+      systemPrompt,
+      userPrompt,
+      inputParams: { companyId, step: 'main_extraction' },
+    });
+    if (llmResult.success && llmResult.response) {
+      extractedData = extractJSON(llmResult.response) as Record<string, string> | null;
+    }
   } catch (err) {
     console.warn('[researcher] LLM extraction failed, trying Tavily fallback');
   }
@@ -331,9 +339,16 @@ ${enhancedContext}
 
 Extract structured technology and business intelligence as JSON.`;
 
-      const { callLLM: callLLMEnhanced, extractJSON: extractJSONEnhanced } = await import('@/lib/zai-helpers');
-      const enhancedResponse = await callLLMEnhanced(enhancedSystemPrompt, enhancedUserPrompt);
-      const enhancedData = extractJSONEnhanced(enhancedResponse) as Record<string, unknown> | null;
+      const enhancedResult = await governedAICallAggregate({
+        generationType: 'research_extraction',
+        systemPrompt: enhancedSystemPrompt,
+        userPrompt: enhancedUserPrompt,
+        inputParams: { companyId, step: 'enhanced_extraction' },
+      });
+      let enhancedData: Record<string, unknown> | null = null;
+      if (enhancedResult.success && enhancedResult.response) {
+        enhancedData = extractJSON(enhancedResult.response) as Record<string, unknown> | null;
+      }
 
       if (enhancedData) {
         if (enhancedData.structuredTechLandscape && typeof enhancedData.structuredTechLandscape === 'object') {

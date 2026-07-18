@@ -2,7 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { generateEmailDraft } from '@/lib/email-generation';
 import { generateMessageId } from '@/lib/email-tracking';
-import { callLLM } from '@/lib/zai-helpers';
+import { governedAICall } from '@/lib/ai-governance';
 
 /* ═══════════════════════════════════════════════════
    GET /api/ab-tests
@@ -125,7 +125,16 @@ Generate 3 subject lines with different strategies:
 
 Keep each subject line under 60 characters. Respond with JSON only: {"variant_a": "...", "variant_b": "...", "control": "..."}`;
 
-      const aiText = await callLLM(systemPrompt, 'Generate the subject line variants now.');
+      const result = await governedAICall({
+        generationType: 'ab_test_variant',
+        companyId: baseDraft.contact?.companyId || undefined,
+        systemPrompt,
+        userPrompt: 'Generate the subject line variants now.',
+        enforceGovernance: false,
+        inputParams: { baseDraftId: baseDraft.id, variantCount: 3 },
+      });
+      if (!result.success || !result.response) throw new Error('Subject variant generation failed');
+      const aiText = result.response;
       let cleanedAiText = aiText.trim();
       if (cleanedAiText.startsWith('```')) {
         cleanedAiText = cleanedAiText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');

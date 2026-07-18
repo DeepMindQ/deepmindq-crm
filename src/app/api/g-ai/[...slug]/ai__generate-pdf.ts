@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { callLLM } from '@/lib/zai-helpers';
+import { governedAICall } from '@/lib/ai-governance';
 
 /* ═══════════════════════════════════════════════════
    PDF Report Generation with Real-Time AI Intelligence
@@ -79,6 +79,7 @@ export async function POST(request: Request) {
 
     if (type === 'account_brief') {
       pdfContent = await generateAccountBrief({
+        companyId: company.id,
         companyName: company.rawName,
         domain: company.domain,
         industry: company.industry,
@@ -100,6 +101,7 @@ export async function POST(request: Request) {
       });
     } else if (type === 'stakeholder_map') {
       pdfContent = await generateStakeholderMap({
+        companyId: company.id,
         companyName: company.rawName,
         industry: company.industry,
         keyPeople,
@@ -108,6 +110,7 @@ export async function POST(request: Request) {
       });
     } else if (type === 'outreach_playbook') {
       pdfContent = await generateOutreachPlaybook({
+        companyId: company.id,
         companyName: company.rawName,
         domain: company.domain,
         industry: company.industry,
@@ -123,6 +126,7 @@ export async function POST(request: Request) {
       });
     } else {
       pdfContent = await generateAccountBrief({
+        companyId: company.id,
         companyName: company.rawName,
         domain: company.domain,
         industry: company.industry,
@@ -161,6 +165,7 @@ export async function POST(request: Request) {
 
 /* ── Account Intelligence Brief ── */
 async function generateAccountBrief(data: {
+  companyId: string;
   companyName: string; domain: string | null; industry: string | null;
   country: string | null; location: string | null; overview: string;
   revenue: string; employees: string; funding: string; techStack: string;
@@ -222,11 +227,21 @@ Generate the brief now. Use markdown formatting with headers, bullet points, and
 6. Recommended Approach (based on their industry, needs, and our capabilities)
 7. Risk Factors & Objections to Prepare For`;
 
-  return await callLLM(systemPrompt, userPrompt);
+  const result = await governedAICall({
+    generationType: 'pdf_report',
+    companyId: data.companyId,
+    systemPrompt,
+    userPrompt,
+    enforceGovernance: false, // PDF generation is advisory
+    inputParams: { type: 'pdf', functionName: 'generateAccountBrief' },
+  });
+  if (!result.success) throw new Error(`PDF generation failed: ${result.rejectionReason}`);
+  return result.response!;
 }
 
 /* ── Stakeholder Map ── */
 async function generateStakeholderMap(data: {
+  companyId: string;
   companyName: string; industry: string | null; overview: string;
   keyPeople: Array<{ name: string; title: string; department?: string; linkedInUrl?: string }>;
   contacts: Array<{ rawName: string; title: string | null; email: string; role: string | null }>;
@@ -257,11 +272,21 @@ For each person, indicate:
 - Recommended approach angle
 - Any gaps (roles we should target but haven't identified)`;
 
-  return await callLLM(systemPrompt, userPrompt);
+  const result = await governedAICall({
+    generationType: 'pdf_report',
+    companyId: data.companyId,
+    systemPrompt,
+    userPrompt,
+    enforceGovernance: false, // PDF generation is advisory
+    inputParams: { type: 'pdf', functionName: 'generateStakeholderMap' },
+  });
+  if (!result.success) throw new Error(`PDF generation failed: ${result.rejectionReason}`);
+  return result.response!;
 }
 
 /* ── Outreach Playbook ── */
 async function generateOutreachPlaybook(data: {
+  companyId: string;
   companyName: string; domain: string | null; industry: string | null;
   overview: string; revenue: string; employees: string; techStack: string;
   keyPeople: Array<{ name: string; title: string }>;
@@ -306,5 +331,14 @@ Generate the playbook with these sections:
 7. **Multi-Threading Strategy** (how to approach multiple stakeholders in parallel)
 8. **Success Metrics** (what a successful engagement looks like for this account)`;
 
-  return await callLLM(systemPrompt, userPrompt);
+  const result = await governedAICall({
+    generationType: 'pdf_report',
+    companyId: data.companyId,
+    systemPrompt,
+    userPrompt,
+    enforceGovernance: false, // PDF generation is advisory
+    inputParams: { type: 'pdf', functionName: 'generateOutreachPlaybook' },
+  });
+  if (!result.success) throw new Error(`PDF generation failed: ${result.rejectionReason}`);
+  return result.response!;
 }

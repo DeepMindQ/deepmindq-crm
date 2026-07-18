@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { webSearch, callLLM, extractJSON, tavilyAIAnswer } from '@/lib/zai-helpers';
+import { webSearch, extractJSON, tavilyAIAnswer } from '@/lib/zai-helpers';
+import { governedAICallAggregate, recordGeneration, runGovernanceChecks, type GovernanceResult } from '@/lib/ai-governance';
 import { db } from '@/lib/db';
 import { getResearchContext, buildResearchContextText, type ResearchContext } from '@/lib/intelligence-contract';
 import { runResearch, getEvidenceSummary } from '@/lib/research-engine';
-import { runGovernanceChecks, recordGeneration, HALLUCINATION_PREVENTION_RULES } from '@/lib/ai-governance';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -111,11 +111,11 @@ export async function POST(req: NextRequest) {
 
     // Step 2: Try full LLM-based research (best quality)
     let aiResult: string | null = null;
-    try {
+    {
       const systemContext = isCompany
         ? `You are a senior business intelligence analyst at a top-tier strategy firm. Your research reports are used by sales teams to prepare for high-value B2B outreach. You write with specificity, citing exact figures, dates, names, and sources. You never use vague filler like "the company has demonstrated consistent growth" — instead you say "Revenue grew 34% YoY to $180M in FY2024 per their Q4 earnings filing." If you cannot find specific data, explicitly say "Not publicly available" rather than guessing.
 
-${HALLUCINATION_PREVENTION_RULES}`
+`
         : `You are a senior executive research analyst. Your profiles are used by account executives preparing for C-level outreach. You include specific role history with dates, board memberships, published articles or talks, educational credentials with years, and verifiable professional accomplishments. You never use vague phrases — instead of "recognized industry leader" you say "Keynote speaker at SaaStr Annual 2024, published in Harvard Business Review (March 2024)." If information is unavailable, say so explicitly.`;
 
       const researchDirectives = isCompany
@@ -168,12 +168,15 @@ ICON OPTIONS for sections: "Building2" "DollarSign" "Cpu" "Users" "Newspaper" "T
 
 Include 4-6 sections. Match the icon to the section topic.`;
 
-      aiResult = await callLLM(
-        `You have access to the following web search results for context:\n\n${searchContext}\n\nUse this context to provide specific, verifiable information. If the search results don't contain enough detail, say so explicitly.`,
-        prompt,
-      );
-    } catch (llmErr) {
-      console.warn('[research-agent] LLM failed, using Tavily AI fallback:', llmErr instanceof Error ? llmErr.message : llmErr);
+      const llmResult = await governedAICallAggregate({
+        generationType: 'research_agent_person',
+        systemPrompt: `You have access to the following web search results for context:\n\n${searchContext}\n\nUse this context to provide specific, verifiable information. If the search results don't contain enough detail, say so explicitly.`,
+        userPrompt: prompt,
+        inputParams: { query, type, _routedThrough: 'web_search_person_path' },
+      });
+      if (llmResult.success) {
+        aiResult = llmResult.response;
+      }
     }
 
     // Step 3: If LLM failed, use Tavily AI answer as fallback
@@ -299,28 +302,6 @@ Include 4-6 sections. Match the icon to the section topic.`;
     if (!parsed || typeof parsed !== 'object') {
       // LLM returned non-JSON — return raw text as summary
 
-      // ── Record generation audit for raw text fallback ──
-      if (companyId) {
-        let researchContext: ResearchContext | null = null;
-        try { researchContext = await getResearchContext(companyId); } catch { /* non-blocking */ }
-        const governanceResult = researchContext
-          ? await runGovernanceChecks({
-              companyId,
-              generationType: 'research_agent',
-              researchContext,
-            })
-          : { passed: true, checks: {}, overallMessage: 'No research context available — audit only.', canProceed: true, rejectionReason: null };
-
-        await recordGeneration({
-          generationType: 'research_agent',
-          companyId,
-          researchContext,
-          governanceResult,
-          outputSummary: aiResult?.substring(0, 500),
-          inputParams: { query, type, _fallback: 'llm_raw_text', _routedThrough: 'web_search_person_path' },
-        });
-      }
-
       return NextResponse.json({
         query,
         type,
@@ -399,28 +380,6 @@ Include 4-6 sections. Match the icon to the section topic.`;
         // Non-blocking — note storage failure should not break the response
         console.error('[research-agent] CompanyNote storage failed:', noteErr instanceof Error ? noteErr.message : noteErr);
       }
-    }
-
-    // ── Record generation audit for successful LLM result ──
-    if (companyId) {
-      let researchContext: ResearchContext | null = null;
-      try { researchContext = await getResearchContext(companyId); } catch { /* non-blocking */ }
-      const governanceResult = researchContext
-        ? await runGovernanceChecks({
-            companyId,
-            generationType: 'research_agent',
-            researchContext,
-          })
-        : { passed: true, checks: {}, overallMessage: 'No research context available — audit only.', canProceed: true, rejectionReason: null };
-
-      await recordGeneration({
-        generationType: 'research_agent',
-        companyId,
-        researchContext,
-        governanceResult,
-        outputSummary: (parsed.executiveSummary as string)?.substring(0, 500),
-        inputParams: { query, type, _routedThrough: 'web_search_person_path' },
-      });
     }
 
     return NextResponse.json({

@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
-import { callLLM } from '@/lib/zai-helpers'
+import { governedAICall } from '@/lib/ai-governance'
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -198,7 +198,15 @@ Company data:
 Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
         try {
-          const text = await callLLM(systemPrompt, 'Generate the summary now.')
+          const aiResult = await governedAICall({
+            generationType: 'summarize',
+            companyId: entityId,
+            systemPrompt,
+            userPrompt: 'Generate the summary now.',
+            enforceGovernance: false,
+            inputParams: { entityType: 'company', entityId },
+          })
+          const text = aiResult.success ? aiResult.response : null
           result = parseSummaryResponse(text)
           if (result) usedLlm = true
         } catch (llmErr: unknown) {
@@ -263,7 +271,16 @@ Contact data:
 Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
         try {
-          const text = await callLLM(systemPrompt, 'Generate the summary now.')
+          const aiResult = await governedAICall({
+            generationType: 'summarize',
+            companyId: contact.companyId,
+            contactId: entityId,
+            systemPrompt,
+            userPrompt: 'Generate the summary now.',
+            enforceGovernance: false,
+            inputParams: { entityType: 'contact', entityId },
+          })
+          const text = aiResult.success ? aiResult.response : null
           result = parseSummaryResponse(text)
           if (result) usedLlm = true
         } catch (llmErr: unknown) {

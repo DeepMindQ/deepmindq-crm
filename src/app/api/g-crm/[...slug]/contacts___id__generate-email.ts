@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-import { callLLM } from '@/lib/zai-helpers'
+import { governedAICall } from '@/lib/ai-governance'
 import { getResearchContext, buildResearchContextText } from '@/lib/intelligence-contract'
 
 // ---------------------------------------------------------------------------
@@ -170,12 +170,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 ${researchContext ? `${researchContext}\n` : ''}${knowledgeContext ? `${knowledgeContext}\n` : ''}Respond in JSON format: { "subject": "...", "body": "..." }`
 
       try {
-        const text = await callLLM(systemPrompt, 'Generate the email now.')
-        const result = parseLlmJson(text)
-        if (result) {
-          subject = result.subject
-          emailBody = result.body
-          usedLlm = true
+        const emailResult = await governedAICall({
+          generationType: 'email_draft',
+          companyId: contact.companyId,
+          contactId: contact.id,
+          researchContext: researchContext || null,
+          systemPrompt,
+          userPrompt: 'Generate the email now.',
+          enforceGovernance: false,
+          inputParams: { contactId: contact.id, companyId: contact.companyId },
+        });
+        if (emailResult.success && emailResult.response) {
+          const result = parseLlmJson(emailResult.response);
+          if (result) {
+            subject = result.subject;
+            emailBody = result.body;
+            usedLlm = true;
+          }
         }
       } catch (llmErr: unknown) {
         const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)

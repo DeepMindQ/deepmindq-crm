@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-import { callLLM, extractJSON } from '@/lib/zai-helpers'
+import { extractJSON } from '@/lib/zai-helpers'
+import { governedAICallAggregate } from '@/lib/ai-governance'
 
 // ---------------------------------------------------------------------------
 // Safe Prisma query builder
@@ -89,7 +90,14 @@ export async function POST(request: NextRequest) {
 
     // 1. Try AI-powered query parsing
     try {
-      const rawResponse = await callLLM(QUERY_SYSTEM_PROMPT, query)
+      const result = await governedAICallAggregate({
+        generationType: 'query_parsing',
+        systemPrompt: QUERY_SYSTEM_PROMPT,
+        userPrompt: query,
+        inputParams: { query },
+      });
+      if (!result.success || !result.response) throw new Error('Query parsing failed');
+      const rawResponse = result.response;
 
       const parsed = extractJSON(rawResponse)
       if (parsed && typeof parsed === 'object' && 'entityType' in parsed) {

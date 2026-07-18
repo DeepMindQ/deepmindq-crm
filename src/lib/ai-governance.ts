@@ -139,6 +139,134 @@ const GOVERNANCE_CONFIGS: Record<string, GovernanceConfig> = {
     requireRecentIntelligence: true,
     maxStalenessDays: 90,
   },
+  // Phase 3 Hardening: PDF report generation (reads from research card)
+  pdf_report: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  // Phase 3 Hardening: PPT slide generation
+  ppt_generation: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  // Phase 3 Hardening: CRM query parsing (non-company, advisory)
+  query_parsing: {
+    minResearchConfidence: 0,
+    minFreshnessScore: 0,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 9999,
+  },
+  // Phase 3 Hardening: Company/contact summarization
+  summarize: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  // Phase 3 Hardening: Knowledge base enrichment from URL (non-company)
+  knowledge_enrichment: {
+    minResearchConfidence: 0,
+    minFreshnessScore: 0,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 9999,
+  },
+  // Phase 3 Hardening: Command center query planning (non-company)
+  command_center_query: {
+    minResearchConfidence: 0,
+    minFreshnessScore: 0,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 9999,
+  },
+  // Phase 3 Hardening: Command center analysis (may or may not be company-specific)
+  command_center_analysis: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  // Phase 3 Hardening: Research agent (person lookup path — non-company)
+  research_agent_person: {
+    minResearchConfidence: 0,
+    minFreshnessScore: 0,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 9999,
+  },
+  // Phase 3 Hardening: A/B test subject line generation
+  ab_test_variant: {
+    minResearchConfidence: 0.3,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 120,
+  },
+  // Phase 3 Hardening: Data health analysis (aggregate, non-company)
+  data_health_analysis: {
+    minResearchConfidence: 0,
+    minFreshnessScore: 0,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 9999,
+  },
+  // Phase 3 Hardening: Playbook generation (generic, non-company)
+  playbook_generation: {
+    minResearchConfidence: 0,
+    minFreshnessScore: 0,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 9999,
+  },
+  // Phase 3 Hardening: Strategy room (company-specific when companyId present)
+  strategy_generation: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  // Phase 3 Hardening: Relationship memory — portfolio-wide analysis
+  relationship_memory: {
+    minResearchConfidence: 0,
+    minFreshnessScore: 0,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 9999,
+  },
+  // Phase 3 Hardening: Research engine internal extraction
+  research_extraction: {
+    minResearchConfidence: 0,
+    minFreshnessScore: 0,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 9999,
+  },
+  // Phase 3 Hardening: Research engine signal detection
+  signal_detection: {
+    minResearchConfidence: 0,
+    minFreshnessScore: 0,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 9999,
+  },
+  // Phase 3 Hardening: Workflow email generation job
+  workflow_email_generation: {
+    minResearchConfidence: 0.5,
+    minFreshnessScore: 20,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: true,
+    maxStalenessDays: 90,
+  },
 };
 
 const DEFAULT_CONFIG: GovernanceConfig = {
@@ -149,6 +277,92 @@ const DEFAULT_CONFIG: GovernanceConfig = {
   requireRecentIntelligence: true,
   maxStalenessDays: 60,
 };
+
+// ── Freshness Lifecycle Configuration ─────────────────────────────────────
+// Defines how many days each intelligence type remains "fresh" before
+// the system starts degrading AI behavior.
+
+export const FRESHNESS_LIFECYCLE_DAYS = {
+  profile: 90,    // Company profile intelligence: 90 day lifecycle
+  signals: 14,    // Buying signals: 14 day lifecycle
+  technology: 60, // Technology intelligence: 60 day lifecycle
+  contacts: 45,   // Contact intelligence: 45 day lifecycle
+} as const;
+
+export type FreshnessDomain = keyof typeof FRESHNESS_LIFECYCLE_DAYS;
+
+/**
+ * Evaluate freshness for a specific domain and return a status:
+ *   'fresh'    -- within lifecycle, no action needed
+ *   'aging'    -- past lifecycle but within 2x, generate with warning
+ *   'stale'    -- past 2x lifecycle, confidence reduction or refresh required
+ */
+export function evaluateDomainFreshness(
+  lastRefreshedAt: Date | null | undefined,
+  domain: FreshnessDomain,
+): { status: 'fresh' | 'aging' | 'stale'; daysSinceRefresh: number } {
+  if (!lastRefreshedAt) {
+    return { status: 'stale', daysSinceRefresh: Infinity };
+  }
+
+  const daysSinceRefresh = Math.floor(
+    (Date.now() - new Date(lastRefreshedAt).getTime()) / (24 * 60 * 60 * 1000),
+  );
+
+  const lifecycle = FRESHNESS_LIFECYCLE_DAYS[domain];
+
+  if (daysSinceRefresh <= lifecycle) {
+    return { status: 'fresh', daysSinceRefresh };
+  } else if (daysSinceRefresh <= lifecycle * 2) {
+    return { status: 'aging', daysSinceRefresh };
+  } else {
+    return { status: 'stale', daysSinceRefresh };
+  }
+}
+
+/**
+ * Build a freshness warning string to inject into LLM prompts.
+ * Returns empty string if all domains are fresh.
+ */
+export function buildFreshnessWarning(
+  researchCard: { profileFreshnessAt?: Date | null; signalFreshnessAt?: Date | null; techFreshnessAt?: Date | null; contactFreshnessAt?: Date | null } | null,
+): string {
+  if (!researchCard) return '';
+
+  const warnings: string[] = [];
+
+  const profileFreshness = evaluateDomainFreshness(researchCard.profileFreshnessAt, 'profile');
+  if (profileFreshness.status === 'aging') {
+    warnings.push(`Company profile intelligence is ${profileFreshness.daysSinceRefresh} days old (lifecycle: ${FRESHNESS_LIFECYCLE_DAYS.profile} days). Claims about company strategy may be outdated.`);
+  } else if (profileFreshness.status === 'stale') {
+    warnings.push(`Company profile intelligence is ${profileFreshness.daysSinceRefresh} days old and STALE. Reduce confidence in strategic claims. Recommend running a research refresh before generating outputs.`);
+  }
+
+  const signalFreshness = evaluateDomainFreshness(researchCard.signalFreshnessAt, 'signals');
+  if (signalFreshness.status === 'aging') {
+    warnings.push(`Buying signals are ${signalFreshness.daysSinceRefresh} days old. New signals may have emerged since last research.`);
+  } else if (signalFreshness.status === 'stale') {
+    warnings.push(`Buying signals are severely outdated (${signalFreshness.daysSinceRefresh} days). Do NOT reference signals in output -- they may no longer be relevant.`);
+  }
+
+  const techFreshness = evaluateDomainFreshness(researchCard.techFreshnessAt, 'technology');
+  if (techFreshness.status === 'aging') {
+    warnings.push(`Technology intelligence is ${techFreshness.daysSinceRefresh} days old. Tech stack information may be outdated.`);
+  } else if (techFreshness.status === 'stale') {
+    warnings.push(`Technology intelligence is severely outdated (${techFreshness.daysSinceRefresh} days). Do NOT make claims about current technology usage.`);
+  }
+
+  const contactFreshness = evaluateDomainFreshness(researchCard.contactFreshnessAt, 'contacts');
+  if (contactFreshness.status === 'aging') {
+    warnings.push(`Contact information is ${contactFreshness.daysSinceRefresh} days old. Contact details may have changed.`);
+  } else if (contactFreshness.status === 'stale') {
+    warnings.push(`Contact information is severely outdated (${contactFreshness.daysSinceRefresh} days). Do NOT assume current contact details are accurate.`);
+  }
+
+  if (warnings.length === 0) return '';
+
+  return `\n\nFRESHNESS WARNINGS:\n${warnings.map(w => `- ${w}`).join('\n')}\n\n`;
+}
 
 // ── Hallucination Prevention Rules ───────────────────────────────────────────
 
@@ -700,9 +914,35 @@ export async function governedAICall(
     };
   }
 
+  // ── Freshness lifecycle warnings ──
+  const freshnessWarning = ctx?.researchCard
+    ? buildFreshnessWarning(ctx.researchCard)
+    : '';
+
+  // ── Staleness-based confidence modifier ──
+  // If any intelligence domain is stale, reduce effective confidence
+  let stalenessModifier = 0;
+  if (ctx?.researchCard) {
+    const card = ctx.researchCard;
+    const domains: Array<[FreshnessDomain, Date | null]> = [
+      ['profile', card.profileFreshnessAt],
+      ['signals', card.signalFreshnessAt],
+      ['technology', card.techFreshnessAt],
+      ['contacts', card.contactFreshnessAt],
+    ];
+    for (const [domain, lastRefreshedAt] of domains) {
+      const freshness = evaluateDomainFreshness(lastRefreshedAt, domain);
+      if (freshness.status === 'stale') stalenessModifier += 0.15;
+      else if (freshness.status === 'aging') stalenessModifier += 0.05;
+    }
+  }
+  const stalenessWarning = stalenessModifier > 0
+    ? `\n\nNOTE: Intelligence staleness detected. Effective confidence is reduced by ${Math.round(stalenessModifier * 100)}%. Be more conservative in claims and hedge appropriately.\n`
+    : '';
+
   // ── Step 4: Call LLM with governed prompt ──
-  const governedSystemPrompt = `${systemPrompt}\n\n${HALLUCINATION_PREVENTION_RULES}`;
-  const governedUserPrompt = `${userPrompt}\n\n${groundingNote}\n${promptAddon}`;
+  const governedSystemPrompt = `${systemPrompt}\n\n${HALLUCINATION_PREVENTION_RULES}${stalenessWarning}`;
+  const governedUserPrompt = `${userPrompt}\n\n${groundingNote}\n${promptAddon}${freshnessWarning}`;
 
   let response: string | null = null;
   try {
@@ -757,5 +997,89 @@ export async function governedAICall(
     rejectionReason: null,
     groundingNote,
     promptAddon,
+  };
+}
+
+// ── Aggregate / Non-Company Governed Call ──────────────────────────────────
+
+/**
+ * governedAICallAggregate — for LLM calls that are NOT company-specific.
+ *
+ * Used for: CRM query parsing, data health analysis, playbook generation,
+ * portfolio-wide relationship memory, knowledge enrichment, etc.
+ *
+ * These calls still get:
+ *   - Hallucination prevention rules injected
+ *   - Audit logging in AIGenerationAudit
+ *   - Governance config tracking
+ *
+ * But they SKIP company-specific checks (confidence, freshness, capability match)
+ * since there is no company context to validate against.
+ */
+export async function governedAICallAggregate(params: {
+  generationType: string;
+  systemPrompt: string;
+  userPrompt: string;
+  inputParams?: Record<string, unknown>;
+}): Promise<GovernedAIResult> {
+  const { generationType, systemPrompt, userPrompt, inputParams } = params;
+
+  // Build a minimal governance result for aggregate calls
+  const governanceResult: GovernanceResult = {
+    passed: true,
+    checks: {
+      aggregate_call: {
+        passed: true,
+        message: 'Aggregate/non-company call — company-specific checks skipped.',
+        value: generationType,
+      },
+    },
+    overallMessage: `Aggregate governance passed for ${generationType}.`,
+    canProceed: true,
+    rejectionReason: null,
+  };
+
+  // Call LLM with hallucination prevention rules injected
+  const governedSystemPrompt = `${systemPrompt}\n\n${HALLUCINATION_PREVENTION_RULES}`;
+
+  let response: string | null = null;
+  try {
+    response = await callLLM(governedSystemPrompt, userPrompt);
+  } catch (llmErr) {
+    console.error(
+      `[ai-governance] Aggregate LLM call failed for ${generationType}:`,
+      llmErr instanceof Error ? llmErr.message : llmErr,
+    );
+    await recordGeneration({
+      generationType,
+      governanceResult,
+      outputSummary: `LLM_CALL_FAILED`,
+      inputParams,
+    });
+    return {
+      success: false,
+      response: null,
+      governanceResult,
+      rejectionReason: `LLM call failed: ${llmErr instanceof Error ? llmErr.message : 'Unknown error'}`,
+      groundingNote: '',
+      promptAddon: '',
+    };
+  }
+
+  // Audit log
+  await recordGeneration({
+    generationType,
+    governanceResult,
+    outputSummary: response?.substring(0, 500),
+    inputParams,
+  });
+
+  return {
+    success: true,
+    response,
+    governanceResult,
+    rejectionReason: null,
+    groundingNote: '',
+    promptAddon: '',
   };
 }

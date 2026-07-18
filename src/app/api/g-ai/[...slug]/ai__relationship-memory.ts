@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { apiSuccess, apiError } from '@/lib/apiHelpers'
 import { format } from 'date-fns'
-import { callLLM } from '@/lib/zai-helpers'
+import { governedAICallAggregate } from '@/lib/ai-governance'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -106,7 +106,7 @@ function eventTypeToDisplay(eventType: string): InteractionType {
 // LLM helper — uses shared SDK instance
 // ---------------------------------------------------------------------------
 
-// callLLM is imported from @/lib/zai-helpers and used directly.
+// Governed AI calls are used via governedAICallAggregate from @/lib/ai-governance.
 
 // ---------------------------------------------------------------------------
 // 1. Stats
@@ -383,7 +383,14 @@ Do NOT include any text outside the JSON array.`
       )
       .join('\n')}\n\nSuggest 3-5 specific next-best-actions for re-engagement.`
 
-    const raw = await callLLM(systemPrompt, userPrompt)
+    const result = await governedAICallAggregate({
+      generationType: 'relationship_memory',
+      systemPrompt,
+      userPrompt,
+      inputParams: { function: 'fetchAIActions' },
+    });
+    if (!result.success || !result.response) return [];
+    const raw = result.response;
 
     // Parse JSON with fallback
     let parsed: RecommendedAction[]
@@ -623,7 +630,14 @@ Respond with ONLY a JSON array of objects. No text before or after the array.`
 
     const userPrompt = `Analyze these company relationships:\n\n${JSON.stringify(companiesData, null, 1)}`
 
-    const raw = await callLLM(systemPrompt, userPrompt)
+    const result = await governedAICallAggregate({
+      generationType: 'relationship_memory',
+      systemPrompt,
+      userPrompt,
+      inputParams: { function: 'fetchAICompanyAnalysis' },
+    });
+    if (!result.success || !result.response) return [];
+    const raw = result.response;
 
     let parsed: AICompanyAnalysisResult[]
     try {
@@ -700,7 +714,14 @@ Respond with ONLY a JSON array. No text outside the array.`
 
     const userPrompt = `Portfolio overview:\n\n${JSON.stringify(portfolioData, null, 1)}\n\nGenerate 5-8 strategic recommendations covering cross-sell, contact sequencing, timing, and risk alert categories.`
 
-    const raw = await callLLM(systemPrompt, userPrompt)
+    const result = await governedAICallAggregate({
+      generationType: 'relationship_memory',
+      systemPrompt,
+      userPrompt,
+      inputParams: { function: 'fetchAIStrategicRecommendations' },
+    });
+    if (!result.success || !result.response) return [];
+    const raw = result.response;
 
     let parsed: RecommendedAction[]
     try {
@@ -757,7 +778,14 @@ No text outside the JSON object.`
 
     const userPrompt = `This week's activity: ${JSON.stringify(thisWeek)}\nLast week's activity: ${JSON.stringify(lastWeek)}`
 
-    const raw = await callLLM(systemPrompt, userPrompt)
+    const result = await governedAICallAggregate({
+      generationType: 'relationship_memory',
+      systemPrompt,
+      userPrompt,
+      inputParams: { function: 'fetchAIWeeklyPatternAnalysis' },
+    });
+    if (!result.success || !result.response) return null;
+    const raw = result.response;
 
     let parsed: { trendAnalysis: string }
     try {
@@ -801,7 +829,14 @@ No text outside the JSON object.`
 
     const userPrompt = `Portfolio stats: ${JSON.stringify(stats)}\n\nTop companies:\n${companyLines.join('\n')}`
 
-    const raw = await callLLM(systemPrompt, userPrompt)
+    const result = await governedAICallAggregate({
+      generationType: 'relationship_memory',
+      systemPrompt,
+      userPrompt,
+      inputParams: { function: 'fetchAIRelationshipSummary' },
+    });
+    if (!result.success || !result.response) return null;
+    const raw = result.response;
 
     let parsed: { summary: string }
     try {

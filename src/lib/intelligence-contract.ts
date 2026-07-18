@@ -40,6 +40,11 @@ export interface ResearchContext {
     socialProfiles: Record<string, string>;
     industry: string | null;
     website: string | null;
+    // Domain-specific freshness timestamps
+    profileFreshnessAt: Date | null;
+    signalFreshnessAt: Date | null;
+    techFreshnessAt: Date | null;
+    contactFreshnessAt: Date | null;
   } | null;
 
   // Phase 3 Key People (from research card JSON)
@@ -434,6 +439,10 @@ export async function getResearchContext(companyId: string): Promise<ResearchCon
       socialProfiles,
       industry: researchCard.industry,
       website: researchCard.website,
+      profileFreshnessAt: researchCard.profileFreshnessAt,
+      signalFreshnessAt: researchCard.signalFreshnessAt,
+      techFreshnessAt: researchCard.techFreshnessAt,
+      contactFreshnessAt: researchCard.contactFreshnessAt,
     } : null,
 
     keyPeople,

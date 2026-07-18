@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { callLLM } from '@/lib/zai-helpers';
+import { governedAICallAggregate } from '@/lib/ai-governance';
 
 /* ═══════════════════════════════════════════════════
    POST /api/capabilities/enrich
@@ -77,8 +77,9 @@ export async function POST(request: Request) {
 
     // Step 2: Use AI to extract structured capability assets
     try {
-      const aiResponse = await callLLM(
-        `You are a knowledge extraction engine for a B2B technology services company. Analyze the following website content and extract structured knowledge assets.
+      const result = await governedAICallAggregate({
+        generationType: 'knowledge_enrichment',
+        systemPrompt: `You are a knowledge extraction engine for a B2B technology services company. Analyze the following website content and extract structured knowledge assets.
 
 ${suggestedServiceLine ? `The suggested service line is: "${suggestedServiceLine}"` : ''}
 
@@ -102,8 +103,13 @@ For each asset:
 
 CRITICAL: Respond with valid JSON only. Format:
 {"pageTitle":"...","overallSummary":"...","assets":[{"title":"...","summary":"...","content":"...","category":"service_line","serviceLine":"...","targetIndustries":"...","targetRoles":"...","problems":"...","evidence":"..."}]}`,
-        `Extract knowledge assets from this website:\n\nURL: ${url}\nPage Title: ${pageTitle}\n\nContent:\n${pageContent}`,
-      );
+        userPrompt: `Extract knowledge assets from this website:\n\nURL: ${url}\nPage Title: ${pageTitle}\n\nContent:\n${pageContent}`,
+        inputParams: { url, pageTitle, contentLength: pageContent.length },
+      });
+      if (!result.success || !result.response) {
+        throw new Error('AI extraction failed');
+      }
+      const aiResponse = result.response;
 
       let cleanedResponse = aiResponse.trim();
       if (cleanedResponse.startsWith('```')) {

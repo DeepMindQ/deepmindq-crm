@@ -1,6 +1,8 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { researchCompany, callLLM, webSearch, type CompanyResearch } from '@/lib/zai-helpers';
+import { type CompanyResearch } from '@/lib/zai-helpers';
+import { governedAICall } from '@/lib/ai-governance';
+import { getResearchContext } from '@/lib/intelligence-contract';
 
 /* ═══════════════════════════════════════════════════
    PPT/Slide Generation via Gemini LLM
@@ -32,8 +34,6 @@ export async function POST(request: Request) {
 
     // Fetch company data if companyId provided
     let company: any = null;
-    let research: CompanyResearch | null = null;
-
     if (companyId) {
       company = await db.company.findUnique({
         where: { id: companyId },
@@ -52,16 +52,13 @@ export async function POST(request: Request) {
       }
     }
 
-    // Get real-time research for the company
+    // Get research context for the company
+    let researchContext = null;
     if (company) {
       try {
-        research = await researchCompany(
-          company.rawName || company.normalizedName,
-          company.domain,
-          company.industry,
-        );
+        researchContext = await getResearchContext(company.id);
       } catch (err) {
-        console.warn('[generate-ppt] Research failed, using cached:', err);
+        console.warn('[generate-ppt] Research context load failed:', err instanceof Error ? err.message : err);
       }
     }
 
@@ -69,9 +66,9 @@ export async function POST(request: Request) {
     let pptPrompt: string;
 
     if (type === 'account_brief' && company) {
-      pptPrompt = buildAccountBriefPrompt(company, research);
+      pptPrompt = buildAccountBriefPrompt(company, researchContext);
     } else if (type === 'capability_pitch' && company) {
-      pptPrompt = await buildCapabilityPitchPrompt(company, research);
+      pptPrompt = await buildCapabilityPitchPrompt(company, researchContext);
     } else if (type === 'custom' && customPrompt) {
       pptPrompt = customPrompt;
     } else {
@@ -81,12 +78,21 @@ export async function POST(request: Request) {
     // Generate PPT content using Gemini LLM
     console.log(`[generate-ppt] Generating ${type} PPT for: ${company?.rawName || 'custom'}`);
 
-    const slideContent = await callLLM(
-      `You are a professional presentation designer. Create a structured JSON slide deck.
+    const result = await governedAICall({
+      generationType: 'ppt_generation',
+      companyId: company?.id,
+      researchContext: researchContext,
+      systemPrompt: `You are a professional presentation designer. Create a structured JSON slide deck.
 Each slide must have: "slideNumber" (int), "title" (string), "content" (array of bullet point strings), "speakerNotes" (string).
 Return ONLY a JSON array of slides. No markdown fences.`,
-      pptPrompt,
-    );
+      userPrompt: pptPrompt,
+      enforceGovernance: false,
+      inputParams: { type, companyId: company?.id },
+    });
+    if (!result.success || !result.response) {
+      return NextResponse.json({ error: `PPT generation failed: ${result.rejectionReason || 'LLM error'}` }, { status: 500 });
+    }
+    const slideContent = result.response;
 
     // Try to parse as JSON slides
     let slides: Array<{ slideNumber: number; title: string; content: string[]; speakerNotes: string }> = [];
@@ -107,7 +113,7 @@ Return ONLY a JSON array of slides. No markdown fences.`,
       slides,
       slideCount: slides.length,
       generatedAt: new Date().toISOString(),
-      researchConfidence: research?.confidence || 0,
+      researchConfidence: (researchContext as any)?.confidence || 0,
     });
   } catch (error) {
     console.error('[generate-ppt] Error:', error);

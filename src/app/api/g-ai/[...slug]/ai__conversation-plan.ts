@@ -1,18 +1,11 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers';
-import { callLLM } from '@/lib/zai-helpers';
+import { governedAICall } from '@/lib/ai-governance';
 import {
   getResearchContext,
   buildResearchContextText,
 } from '@/lib/intelligence-contract';
-import {
-  runGovernanceChecks,
-  recordGeneration,
-  HALLUCINATION_PREVENTION_RULES,
-  buildGovernancePromptAddon,
-  buildEvidenceGroundingNote,
-} from '@/lib/ai-governance';
 import type { ResearchContext } from '@/lib/intelligence-contract';
 
 // ---------------------------------------------------------------------------
@@ -96,8 +89,6 @@ function parseConversationPlan(raw: string): ConversationPlan | null {
 // ---------------------------------------------------------------------------
 
 const SYSTEM_PROMPT = `You are an expert executive engagement strategist specializing in enterprise B2B consulting and technology services. Generate a conversation plan for approaching a specific executive at a specific company.
-
-${HALLUCINATION_PREVENTION_RULES}
 
 Return ONLY valid JSON (no markdown fences) with this structure:
 {
@@ -184,33 +175,8 @@ async function generateConversationPlanPhase3(
     ? `${executiveName}, ${executiveRole} at ${companyName}`
     : `${executiveRole} at ${companyName}`;
 
-  // Run governance checks
-  const governanceResult = await runGovernanceChecks({
-    companyId,
-    generationType: 'conversation_plan',
-    researchContext: researchCtx,
-  });
-
-  if (!governanceResult.canProceed) {
-    // Record the rejection in the audit trail before returning
-    await recordGeneration({
-      generationType: 'conversation_plan',
-      companyId,
-      researchContext: researchCtx,
-      signalIds: researchCtx.signals.map((s) => s.id),
-      governanceResult,
-      inputParams: input as unknown as Record<string, unknown>,
-    });
-
-    throw new Error(
-      `Governance check failed: ${governanceResult.rejectionReason}`,
-    );
-  }
-
-  // Build intelligence text and governance context for the prompt
+  // Build intelligence text for the prompt
   const intelligenceText = buildResearchContextText(researchCtx);
-  const groundingNote = buildEvidenceGroundingNote(researchCtx);
-  const governanceAddon = buildGovernancePromptAddon(governanceResult);
 
   const userPrompt = `Generate a conversation plan for engaging with ${execLabel}.
 
@@ -228,12 +194,20 @@ ${capabilities}
 ── COMPANY INTELLIGENCE ──
 ${intelligenceText}
 
-${groundingNote}
-${governanceAddon}
 Generate a highly specific, actionable conversation plan. Ground every claim in the intelligence provided above. Reference real developments, signals, and data points when available.`;
 
-  // Call LLM
-  const raw = await callLLM(SYSTEM_PROMPT, userPrompt);
+  // Call LLM via governedAICall (handles governance checks, hallucination rules, and audit recording)
+  const result = await governedAICall({
+    generationType: 'conversation_plan',
+    companyId,
+    researchContext: researchCtx,
+    signalIds: researchCtx.signals.map(s => s.id),
+    systemPrompt: SYSTEM_PROMPT,
+    userPrompt,
+    inputParams: input as unknown as Record<string, unknown>,
+  });
+  if (!result.success) throw new Error(`Governance check failed: ${result.rejectionReason}`);
+  const raw = result.response!;
   const plan = parseConversationPlan(raw);
 
   if (!plan) {
@@ -242,17 +216,6 @@ Generate a highly specific, actionable conversation plan. Ground every claim in 
 
   // Extract evidence URLs for the sources array
   const sources = extractEvidenceUrls(researchCtx);
-
-  // Record the successful generation in the audit trail
-  await recordGeneration({
-    generationType: 'conversation_plan',
-    companyId,
-    researchContext: researchCtx,
-    signalIds: researchCtx.signals.map((s) => s.id),
-    governanceResult,
-    outputSummary: `Conversation plan for ${execLabel}. Method: ${plan.approachRecommendation.method}. Confidence: ${plan.approachRecommendation.confidence}%.`,
-    inputParams: input as unknown as Record<string, unknown>,
-  });
 
   return { plan, sources };
 }

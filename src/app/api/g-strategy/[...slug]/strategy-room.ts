@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { callLLM } from '@/lib/zai-helpers';
+import { governedAICall } from '@/lib/ai-governance';
 
 function safeJsonParse(str: string | null | undefined, fallback: any) {
   if (!str) return fallback;
@@ -103,10 +103,16 @@ Return a JSON object (no markdown, raw JSON only):
 
 Be specific and actionable. Make stakeholder names realistic but mark them as [To be identified] if not known.`;
 
-        const content = await callLLM(
-          'You are a strategic account planning expert. Return valid JSON only, no markdown fences.',
-          prompt,
-        );
+        const result = await governedAICall({
+          generationType: 'strategy_generation',
+          companyId: companyId || undefined,
+          systemPrompt: 'You are a strategic account planning expert. Return valid JSON only, no markdown fences.',
+          userPrompt: prompt,
+          enforceGovernance: false,
+          inputParams: { title, companyName, objective, companyId },
+        });
+        if (!result.success || !result.response) throw new Error('Strategy generation failed');
+        const content = result.response;
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);

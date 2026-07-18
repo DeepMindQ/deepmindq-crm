@@ -214,8 +214,18 @@ model CompanySignal {
   signalDate  DateTime?                      // when the signal event occurred (not when we detected it)
   extractedAt DateTime @default(now())       // when our system detected/stored it
   confidence  Float    @default(0.5)         // 0-1 confidence score from research engine
+  // RFP/RFI/Tender Intelligence Architecture (Phase 3)
+  opportunityType  String?                           // rfp, rfi, tender, vendor_search, procurement, tech_transformation, partner_requirement
+  publicationDate  DateTime?                        // When the opportunity was published
+  deadline         DateTime?                        // Response deadline
+  buyingArea       String?                          // e.g. "Cloud Migration", "Data Analytics"
+  techRequirement  String?                          // e.g. "AWS, Python, Data Engineering"
+  serviceRequirement String?                        // e.g. "Implementation, Managed Services"
+  matchingCapability String?                       // ID of matched CapabilityAsset
+  sourceQuality    String   @default("standard")   // premium, standard, low
   evidenceIds String   @default("[]")        // JSON array of Evidence IDs supporting this signal
   isRead      Boolean  @default(false)
+  status           String   @default("detected") // detected, validated, active, aging, expired, archived
   createdAt   DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -226,6 +236,8 @@ model CompanySignal {
   @@index([impact])
   @@index([createdAt])
   @@index([signalDate])
+  @@index([companyId, signalType, createdAt])
+  @@index([companyId, status])
 }
 
 // ── Phase 3: Evidence — per-field source tracking ──
@@ -259,6 +271,8 @@ model Evidence {
   @@index([confidence])
   @@index([createdAt])
   @@index([status])
+  @@index([companyId, status, createdAt])
+  @@index([companyId, extractedField, confidence])
 }
 
 model CompanyTimelineEvent {
@@ -1025,6 +1039,8 @@ model AIGenerationAudit {
   @@index([contactId])
   @@index([createdAt])
   @@index([governancePassed])
+  @@index([companyId, generationType, createdAt])
+  @@index([companyId, createdAt])
 }
 
 // ── Signal-Capability Matching ──
@@ -1047,6 +1063,8 @@ model SignalCapabilityMatch {
   @@index([signalId])
   @@index([capabilityId])
   @@index([matchScore])
+  @@index([companyId, signalId])
+  @@index([companyId, capabilityId])
 }
 
 // ── System Settings (persistent key-value store) ──

@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-import { callLLM } from '@/lib/zai-helpers'
 import { getResearchContext, buildResearchContextText, type ResearchContext } from '@/lib/intelligence-contract'
-import { runGovernanceChecks, recordGeneration, HALLUCINATION_PREVENTION_RULES, buildGovernancePromptAddon, buildEvidenceGroundingNote } from '@/lib/ai-governance'
+import { governedAICall } from '@/lib/ai-governance'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -127,8 +126,6 @@ The intelligence below comes from our Phase 3 Research Engine which has already:
 
 Use this intelligence to generate the brief. DO NOT search the web again.
 
-${HALLUCINATION_PREVENTION_RULES}
-
 Return ONLY valid JSON (no markdown, no code fences) with this exact structure:
 {
   "businessOverview": "2-3 paragraph overview of the company",
@@ -170,19 +167,6 @@ export async function GET(request: NextRequest) {
     // ── CONSUME PHASE 3 INTELLIGENCE (single source of truth) ──
     const ctx = await getResearchContext(companyId)
 
-    // ── PHASE 3 HARDENING: Run governance checks ──
-    const governanceResult = await runGovernanceChecks({
-      companyId,
-      generationType: 'account_brief',
-      researchContext: ctx,
-    })
-
-    // Build the intelligence text for LLM (with governance warnings and grounding notes)
-    const governanceAddon = buildGovernancePromptAddon(governanceResult)
-    const groundingNote = buildEvidenceGroundingNote(ctx)
-    const researchContextText = buildResearchContextText(ctx)
-    const fullContextText = researchContextText + (governanceAddon ? '\n\n' + governanceAddon : '') + (groundingNote ? '\n\n' + groundingNote : '')
-
     // Build CRM context
     const dbContext = [
       `Company Name: ${ctx.companyName}`,
@@ -202,18 +186,27 @@ export async function GET(request: NextRequest) {
       ? Math.round(ctx.freshness.score * 0.4 + Object.values(ctx.fieldConfidence).reduce((a, b) => a + b, 0) / Math.max(1, Object.keys(ctx.fieldConfidence).length) * 60)
       : 0
 
-    const userPrompt = '## Company Data (from CRM)\n' + dbContext + '\n\n## Phase 3 Research Intelligence\n' + fullContextText + '\n\nBased on the above Phase 3 intelligence, generate the Account Intelligence Brief as JSON.'
+    const researchContextText = buildResearchContextText(ctx)
+    const userPrompt = '## Company Data (from CRM)\n' + dbContext + '\n\n## Phase 3 Research Intelligence\n' + researchContextText + '\n\nBased on the above Phase 3 intelligence, generate the Account Intelligence Brief as JSON.'
 
-    // Generate brief via LLM (using Phase 3 data, NOT web search)
-    let brief: AccountBrief
-    try {
-      const raw = await callLLM(SYSTEM_PROMPT, userPrompt)
-      const parsed = parseBriefJson(raw)
-      brief = parsed ?? buildFallbackBrief('LLM response was not valid JSON')
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
-      console.error('[account-brief] LLM generation failed:', msg)
-      brief = buildFallbackBrief(msg)
+    // Generate brief via governed LLM call
+    const result = await governedAICall({
+      generationType: 'account_brief',
+      companyId: ctx.companyId,
+      researchContext: ctx,
+      signalIds: ctx.signals.map(s => s.id),
+      systemPrompt: SYSTEM_PROMPT,
+      userPrompt,
+      enforceGovernance: false,
+      inputParams: { companyId, hasResearch },
+    });
+
+    let brief: AccountBrief;
+    if (result.success && result.response) {
+      const parsed = parseBriefJson(result.response);
+      brief = parsed ?? buildFallbackBrief('LLM response was not valid JSON');
+    } else {
+      brief = buildFallbackBrief(result.rejectionReason || 'Governance or LLM failure');
     }
 
     // Adjust confidence based on Phase 3 data availability
@@ -235,17 +228,6 @@ export async function GET(request: NextRequest) {
     // Cache and prune
     briefCache.set(companyId, { data: response, expiresAt: Date.now() + CACHE_TTL_MS })
     for (const [key, val] of briefCache.entries()) { if (val.expiresAt <= Date.now()) briefCache.delete(key) }
-
-    // Phase 3 Hardening: Record generation audit
-    recordGeneration({
-      generationType: 'account_brief',
-      companyId: ctx.companyId,
-      researchContext: ctx,
-      signalIds: ctx.signals.map(s => s.id),
-      governanceResult,
-      outputSummary: brief.strategicPriority + ' priority | confidence: ' + brief.confidence,
-      inputParams: { companyId, hasResearch },
-    }).catch(() => {})
 
     return apiSuccess(response)
   } catch (err: unknown) {

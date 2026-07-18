@@ -17,6 +17,7 @@
 
 import { db } from '@/lib/db';
 import { callLLM, extractJSON, type NewsSignal } from '@/lib/zai-helpers';
+import { governedAICallAggregate } from '@/lib/ai-governance';
 
 // ── Types ──
 
@@ -99,7 +100,17 @@ Maximum 10 signals. Only include signals clearly supported by the results. Empty
   const userPrompt = `Company: ${companyName}\n\nSearch Results:\n${context}`;
 
   try {
-    const response = await callLLM(systemPrompt, userPrompt);
+    const llmResult = await governedAICallAggregate({
+      generationType: 'signal_detection',
+      systemPrompt,
+      userPrompt,
+      inputParams: { companyName },
+    });
+    if (!llmResult.success || !llmResult.response) {
+      console.warn('[signals] Governed LLM call failed');
+      return { signals: [], signalCount: 0, highImpactCount: 0 };
+    }
+    const response = llmResult.response;
     const parsed = extractJSON(response);
 
     if (Array.isArray(parsed)) {
@@ -233,6 +244,48 @@ export async function storeSignals(
         }),
       })),
     });
+  }
+
+  // ── Phase 3: Signal Lifecycle Classification ──
+  // Classify signal status based on age and properties
+  const storedSignals = await db.companySignal.findMany({
+    where: {
+      companyId,
+      title: { in: newSignals.map(s => s.title) },
+    },
+  });
+
+  const now = new Date();
+  const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
+  const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+  const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+
+  for (const signal of storedSignals) {
+    const signalAge = signal.signalDate 
+      ? now.getTime() - new Date(signal.signalDate).getTime()
+      : 0;
+    
+    let newStatus: string;
+    if (signalAge > ONE_YEAR_MS) {
+      newStatus = 'archived';
+    } else if (signalAge > NINETY_DAYS_MS) {
+      newStatus = 'expired';
+    } else if (signalAge > FOURTEEN_DAYS_MS) {
+      newStatus = 'aging';
+    } else if (signal.confidence >= 0.7 && signal.impact === 'high') {
+      newStatus = 'active';
+    } else if (signal.confidence >= 0.5) {
+      newStatus = 'validated';
+    } else {
+      newStatus = 'detected';
+    }
+    
+    if (newStatus !== signal.status) {
+      await db.companySignal.update({
+        where: { id: signal.id },
+        data: { status: newStatus },
+      }).catch(() => {}); // non-blocking
+    }
   }
 
   return newSignals.map((_, i) => `signal_${i}`);

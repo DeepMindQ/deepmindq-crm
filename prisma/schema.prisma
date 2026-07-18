@@ -809,6 +809,70 @@ model ScoringWeight {
 // Replaces in-memory settings that reset on Vercel cold starts.
 // AI provider configs, app settings, feature flags — all persisted here.
 
+// ── Phase 2: Workflow Automation Engine ──
+
+model Job {
+  id          String   @id @default(cuid())
+  type        String                               // enrichment, research, scoring, signal_detection, email_generation
+  status      String   @default("pending")          // pending, queued, running, completed, failed, cancelled
+  priority    Int      @default(5)                  // 1 (highest) – 10 (lowest)
+  companyId   String?                              // optional: entity this job operates on
+  contactId   String?                              // optional: for contact-level jobs
+  batchId     String?                              // optional: for batch operations
+
+  // Progress tracking
+  progress    Int      @default(0)                  // 0-100 overall progress
+  currentStep String?                              // human-readable current step label
+  stepDetail  String?                              // JSON: { step, progress, message } for sub-step tracking
+
+  // Input / Output
+  payload     String?                              // JSON: job input parameters
+  result      String?                              // JSON: job output / result data
+  error       String?                              // error message if failed
+  errorCode   String?                              // machine-readable error code for retry classification
+
+  // Retry tracking
+  attemptCount  Int      @default(0)
+  maxAttempts   Int      @default(3)
+  nextRetryAt   DateTime?                          // when to retry (null = not retryable or no retry needed)
+
+  // Timestamps
+  queuedAt     DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  logs         JobLog[]
+
+  @@index([type])
+  @@index([status])
+  @@index([companyId])
+  @@index([contactId])
+  @@index([priority])
+  @@index([status, type])
+  @@index([nextRetryAt])
+  @@index([createdAt])
+}
+
+model JobLog {
+  id        String   @id @default(cuid())
+  jobId     String
+  level     String   @default("info")               // info, warn, error, debug
+  step      String?                              // current processing step
+  message   String
+  metadata  String?                              // JSON: additional structured data
+  createdAt DateTime @default(now())
+
+  job       Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([jobId, level])
+  @@index([createdAt])
+}
+
+// ── System Settings (persistent key-value store) ──
+
 model SystemSetting {
   key       String   @id                         // unique setting key (e.g., "ai_config", "app_settings")
   value     String   @default("{}")               // JSON value

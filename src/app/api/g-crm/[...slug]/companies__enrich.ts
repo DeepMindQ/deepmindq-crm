@@ -1,19 +1,38 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { webSearch, callLLM, extractJSON, findKeyPeople, getCompanyNews, tavilyAIAnswer } from '@/lib/zai-helpers';
+import { enqueueEnrichment } from '@/lib/workflow-engine';
 
 /* ═══════════════════════════════════════════════════
    Company Data Enrichment via AI + Web Search
-   Now includes: key people, news signals, LinkedIn
+   Supports two modes:
+   - async=true (default): Creates a workflow job and returns jobId immediately
+   - async=false: Direct processing (legacy behavior)
    ═══════════════════════════════════════════════════ */
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { companyId, domain, force } = body as { companyId?: string; domain?: string; force?: boolean };
+    const { companyId, domain, force, async: asyncMode } = body as { companyId?: string; domain?: string; force?: boolean; async?: boolean };
 
     if (!companyId && !domain) {
       return NextResponse.json({ error: 'Provide companyId or domain' }, { status: 400 });
+    }
+
+    // Resolve companyId from domain if needed
+    let resolvedCompanyId = companyId;
+    if (!resolvedCompanyId && domain) {
+      const companyByDomain = await db.company.findFirst({
+        where: { domain: domain.toLowerCase() },
+        select: { id: true },
+      });
+      if (companyByDomain) resolvedCompanyId = companyByDomain.id;
+    }
+
+    // ── Async mode: create a workflow job ──
+    if (asyncMode !== false && resolvedCompanyId) {
+      const jobId = await enqueueEnrichment(resolvedCompanyId, { force });
+      return NextResponse.json({ success: true, mode: 'async', jobId, message: 'Enrichment job queued' });
     }
 
     // Find company

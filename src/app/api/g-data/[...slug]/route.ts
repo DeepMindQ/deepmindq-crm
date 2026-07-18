@@ -32,6 +32,11 @@ import * as mod_config_scoring from './config__scoring.ts';
 import * as mod_config_scoring_id from './config__scoring___id.ts';
 import * as mod_config_seed from './config__seed.ts';
 
+// Workflow Engine (Phase 2)
+import * as mod_jobs from './jobs.ts';
+import * as mod_jobs_id from './jobs___id.ts';
+import * as mod_jobs_actions from './jobs__actions.ts';
+
 // Route registry
 const ROUTES = [
   // Original data routes
@@ -67,6 +72,11 @@ const ROUTES = [
   { key: 'config/scoring', handler: mod_config_scoring },
   { key: 'config/scoring/[id]', handler: mod_config_scoring_id },
   { key: 'config/seed', handler: mod_config_seed },
+
+  // Workflow Engine: Job management
+  { key: 'jobs', handler: mod_jobs },
+  { key: 'jobs/[id]', handler: mod_jobs_id },
+  { key: 'jobs/actions', handler: mod_jobs_actions },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';

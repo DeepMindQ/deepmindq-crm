@@ -594,20 +594,24 @@ export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) 
   const [queryResult, setQueryResult] = useState<any>(null);
   const [queryLoading, setQueryLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'engines' | 'query'>('overview');
+  const [jobStats, setJobStats] = useState<{ pending: number; queued: number; running: number; completed: number; failed: number; cancelled: number; total: number; retryable: number } | null>(null);
+  const [recentJobs, setRecentJobs] = useState<Array<{ id: string; type: string; status: string; priority: number; progress: number; currentStep: string | null; error: string | null; createdAt: string }>>([]);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [insRes, actRes, aiInsRes, aiRecRes] = await Promise.all([
+      const [insRes, actRes, aiInsRes, aiRecRes, jobStatsRes, recentJobsRes] = await Promise.all([
         fetch('/api/command-center/insights'), fetch('/api/audit?limit=15'),
         fetch('/api/ai/insights'), fetch('/api/ai/recommendations'),
+        fetch('/api/g-data/jobs?stats=true&page=1&pageSize=5'),
       ]);
       const insData = await insRes.json(); if (insData?.companyEngine) setInsights(insData);
       const actData = await actRes.json(); if (Array.isArray(actData)) setActivities(actData);
       try { const aiInsData = await aiInsRes.json(); if (aiInsData?.data) setAiInsights(aiInsData.data); } catch (err) { console.error('[CommandCenter] fetch AI insights failed:', err); }
       try { const aiRecData = await aiRecRes.json(); if (aiRecData?.data?.recommendations) setAiRecommendations(aiRecData.data.recommendations); } catch (err) { console.error('[CommandCenter] fetch AI recommendations failed:', err); }
+      try { const jobStatsData = await jobStatsRes.json(); setJobStats(jobStatsData.stats ?? null); setRecentJobs(jobStatsData.jobs ?? []); } catch (err) { console.error('[CommandCenter] fetch job stats failed:', err); }
       setLastRefresh(new Date());
     } catch (err) { console.error('[CommandCenter] fetch data failed:', err); }
     setLoading(false); setRefreshing(false);
@@ -714,6 +718,71 @@ export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) 
             {(['company', 'email', 'capability'] as const).map(eng => <EngineCard key={eng} key_={eng} insights={insights} />)}
           </div>
         </div>
+
+        {/* WORKFLOW JOB QUEUE (Phase 2) */}
+        {jobStats && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 }}
+            className="rounded-2xl border p-5" style={{ background: C.card, borderColor: C.border }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.1)' }}><Cpu className="w-4 h-4" style={{ color: C.blue }} /></div>
+                <div>
+                  <h2 className="text-sm font-bold" style={{ color: C.text }}>Workflow Job Queue</h2>
+                  <p className="text-[10px]" style={{ color: C.textDim }}>{jobStats.total} total jobs processed</p>
+                </div>
+              </div>
+              {jobStats.retryable > 0 && (
+                <button onClick={async () => { try { await fetch('/api/g-data/jobs/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'retry-all-failed' }) }); fetchData(); toast.success(`${jobStats.retryable} jobs queued for retry`); } catch { toast.error('Retry failed'); } }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium border transition-all" style={{ borderColor: `${C.amber}30`, color: C.amber, background: 'rgba(245,158,11,0.05)' }}>
+                  <RefreshCw className="w-3 h-3" />Retry {jobStats.retryable} Failed
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-6 gap-3 mb-4">
+              {[
+                { label: 'Pending', count: jobStats.pending, color: C.textMuted },
+                { label: 'Queued', count: jobStats.queued, color: C.blue },
+                { label: 'Running', count: jobStats.running, color: C.gold },
+                { label: 'Completed', count: jobStats.completed, color: C.green },
+                { label: 'Failed', count: jobStats.failed, color: C.red },
+                { label: 'Retryable', count: jobStats.retryable, color: C.amber },
+              ].map(s => (
+                <div key={s.label} className="text-center p-2.5 rounded-xl border" style={{ background: 'rgba(0,0,0,0.015)', borderColor: 'rgba(0,0,0,0.04)' }}>
+                  <div className="text-lg font-bold tabular-nums" style={{ color: s.color }}>{s.count}</div>
+                  <div className="text-[9px] mt-0.5" style={{ color: C.textDim }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+            {recentJobs.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: C.textDim }}>Recent Jobs</p>
+                {recentJobs.map(job => (
+                  <div key={job.id} className="flex items-center gap-3 px-3 py-2 rounded-xl border" style={{ background: 'rgba(0,0,0,0.01)', borderColor: 'rgba(0,0,0,0.04)' }}>
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${job.status === 'running' ? 'animate-pulse' : ''}`} style={{ background: job.status === 'completed' ? C.green : job.status === 'failed' ? C.red : job.status === 'running' ? C.gold : C.textMuted }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-medium" style={{ color: C.text }}>{fmtTitle(job.type)}</span>
+                        <span className="text-[8px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-md" style={{ background: job.status === 'failed' ? 'rgba(220,38,38,0.08)' : job.status === 'running' ? `${C.gold}12` : 'rgba(0,0,0,0.03)', color: job.status === 'failed' ? C.red : job.status === 'running' ? C.gold : C.textMuted }}>{job.status}</span>
+                      </div>
+                      {job.currentStep && <p className="text-[9px]" style={{ color: C.textDim }}>{job.currentStep}</p>}
+                      {job.error && <p className="text-[9px]" style={{ color: C.red }}>{job.error.slice(0, 80)}</p>}
+                    </div>
+                    {job.status === 'running' && (
+                      <div className="w-16 h-1.5 rounded-full bg-gray-100 overflow-hidden"><div className="h-full rounded-full transition-all duration-500" style={{ width: `${job.progress}%`, background: C.gold }} /></div>
+                    )}
+                    <span className="text-[9px] shrink-0" style={{ color: C.textDim }}>{timeAgo(job.createdAt)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {jobStats.total === 0 && (
+              <div className="text-center py-6">
+                <Cpu className="w-8 h-8 mx-auto mb-2 opacity-20" style={{ color: C.textMuted }} />
+                <p className="text-xs" style={{ color: C.textDim }}>No jobs yet. Enrich a company to create your first workflow job.</p>
+              </div>
+            )}
+          </motion.div>
+        )}
 
         {/* TABS */}
         <div className="flex gap-1 p-1.5 rounded-2xl" style={{ background: 'rgba(0, 0, 0, 0.03)', border: `1px solid ${C.border}` }}>

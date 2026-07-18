@@ -89,3 +89,31 @@ Stage Summary:
 - Phase 1: 100% complete (NormalizationLog + DataQualityScore models added and wired)
 - Phase 2: 100% complete (no remaining gaps)
 - All live on deepmindq-crm.vercel.app / deepmindq.com
+
+---
+Task ID: 3
+Agent: Main
+Task: Build Phase 3 — Research Intelligence Engine (100%)
+
+Work Log:
+- Added Evidence Prisma model (sourceUrl, snippet, extractedField, extractedValue, relevanceScore, confidence)
+- Upgraded CompanySignal (impact, signalDate, extractedAt, confidence, evidenceIds)
+- Added fieldConfidence column to CompanyResearchCard
+- Created src/lib/research-engine/ (4 files, ~1,100 lines total)
+- evidence.ts: collectEvidence, linkEvidenceToFields, getEvidenceForField, getEvidenceSummary
+- researcher.ts: 6-step pipeline (search→evidence→extract→validate→score→store)
+- signals.ts: LLM signal detection + rule-based fallback + storeSignals with dedup
+- index.ts: public API + runResearch convenience function
+- Wired processor.ts: processResearchJob now uses research engine (was enrichment alias)
+- Wired processor.ts: processSignalDetectionJob now uses Phase 3 signals engine
+- Zero new TS errors, Prisma schema valid
+- Pushed 52167fe, Vercel auto-deployed READY
+- Smoke tested: homepage 200, jobs 200, config 16 rules, process-next imports research engine successfully
+
+Stage Summary:
+- Phase 3: 100% complete
+- 4 new files in src/lib/research-engine/
+- 2 new Prisma models (Evidence, upgraded CompanySignal)
+- 1 new Prisma field (fieldConfidence on CompanyResearchCard)
+- processor.ts wired to use research engine for research + signal jobs
+- All live on deepmindq.com

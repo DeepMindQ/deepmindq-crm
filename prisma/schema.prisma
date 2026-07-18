@@ -805,6 +805,52 @@ model ScoringWeight {
   @@index([isActive])
 }
 
+// ── Audit: Normalization Log ──
+// Records every field transformation during data import.
+// Enables: "show me all normalizations applied this month",
+// "which rules fired most often", audit trail per row.
+
+model NormalizationLog {
+  id          String   @id @default(cuid())
+  uploadId    String                               // which upload batch
+  uploadRowId String?                              // specific row (null if batch-level)
+  rowIndex    Int?                                 // row index within upload
+  category    String                               // industry | country | employee_size | title | company_name | domain | website | name
+  field       String                               // target field name
+  originalValue  String                            // value before normalization
+  normalizedValue String                           // value after normalization
+  ruleApplied String?                              // which rule/mapping was applied (null = built-in logic)
+  createdAt   DateTime @default(now())
+
+  @@index([uploadId])
+  @@index([category])
+  @@index([field])
+  @@index([createdAt])
+}
+
+// ── Data Quality Score Log ──
+// Standalone quality score records per row — enables queries like
+// "show all companies scored below 60" without scanning UploadRows.
+
+model DataQualityScore {
+  id              String   @id @default(cuid())
+  uploadId        String                               // source upload
+  uploadRowId     String?                              // specific row reference
+  rowIndex        Int?                                 // row index
+  companyId       String?                              // populated after commit — links to actual Company
+  totalScore      Int                                  // 0-100 overall
+  completenessScore Int                                // 0-100 data completeness dimension
+  validityScore   Int                                  // 0-100 validation health dimension
+  richnessScore   Int                                  // 0-100 data richness dimension
+  details         String    @default("[]")             // JSON: human-readable explanations
+  createdAt       DateTime @default(now())
+
+  @@index([companyId])
+  @@index([uploadId])
+  @@index([totalScore])
+  @@index([createdAt])
+}
+
 // ── System Settings (persistent key-value store) ──
 // Replaces in-memory settings that reset on Vercel cold starts.
 // AI provider configs, app settings, feature flags — all persisted here.

@@ -18,7 +18,7 @@ interface MappedRow {
 
 export interface NormalizationResult {
   normalized: MappedRow;
-  changes: Array<{ field: string; original: string; normalized: string }>;
+  changes: Array<{ field: string; original: string; normalized: string; category: string; ruleApplied?: string }>;
 }
 
 /**
@@ -34,7 +34,7 @@ export async function normalizeRow(row: MappedRow): Promise<NormalizationResult>
     const result = await normalizeIndustry(String(row.industry).trim() as string);
     if (result.changed) {
       normalized.industry = result.value;
-      changes.push({ field: 'industry', original: String(row.industry), normalized: result.value });
+      changes.push({ field: 'industry', original: String(row.industry), normalized: result.value, category: 'industry', ruleApplied: result.ruleApplied });
     }
   }
 
@@ -43,7 +43,7 @@ export async function normalizeRow(row: MappedRow): Promise<NormalizationResult>
     const result = await normalizeCountry(String(row.country).trim());
     if (result.changed) {
       normalized.country = result.value;
-      changes.push({ field: 'country', original: String(row.country), normalized: result.value });
+      changes.push({ field: 'country', original: String(row.country), normalized: result.value, category: 'country', ruleApplied: result.ruleApplied });
     }
   }
 
@@ -52,7 +52,7 @@ export async function normalizeRow(row: MappedRow): Promise<NormalizationResult>
     const result = await normalizeEmployeeSize(String(row.size).trim());
     if (result.changed) {
       normalized.size = result.value;
-      changes.push({ field: 'size', original: String(row.size), normalized: result.value });
+      changes.push({ field: 'size', original: String(row.size), normalized: result.value, category: 'employee_size', ruleApplied: result.ruleApplied });
     }
   }
 
@@ -61,7 +61,7 @@ export async function normalizeRow(row: MappedRow): Promise<NormalizationResult>
     const result = normalizeCompanyName(String(row.company).trim());
     if (result.changed) {
       normalized.company = result.value;
-      changes.push({ field: 'company', original: String(row.company), normalized: result.value });
+      changes.push({ field: 'company', original: String(row.company), normalized: result.value, category: 'company_name' });
     }
   }
 
@@ -70,7 +70,7 @@ export async function normalizeRow(row: MappedRow): Promise<NormalizationResult>
     const emailDomain = String(row.email).split('@')[1]?.toLowerCase().trim();
     if (emailDomain) {
       normalized.domain = emailDomain;
-      changes.push({ field: 'domain', original: '', normalized: emailDomain });
+      changes.push({ field: 'domain', original: '', normalized: emailDomain, category: 'domain', ruleApplied: 'extracted_from_email' });
     }
   }
 
@@ -79,7 +79,7 @@ export async function normalizeRow(row: MappedRow): Promise<NormalizationResult>
     const website = String(row.website).trim();
     if (website && !website.startsWith('http')) {
       normalized.website = `https://${website}`;
-      changes.push({ field: 'website', original: website, normalized: String(normalized.website) });
+      changes.push({ field: 'website', original: website, normalized: String(normalized.website), category: 'website', ruleApplied: 'prepend_protocol' });
     }
   }
 
@@ -88,7 +88,7 @@ export async function normalizeRow(row: MappedRow): Promise<NormalizationResult>
     const cleaned = normalizeName(String(row.name).trim());
     if (cleaned !== String(row.name).trim()) {
       normalized.name = cleaned;
-      changes.push({ field: 'name', original: String(row.name), normalized: cleaned });
+      changes.push({ field: 'name', original: String(row.name), normalized: cleaned, category: 'name', ruleApplied: 'whitespace_cleanup' });
     }
   }
 
@@ -97,7 +97,7 @@ export async function normalizeRow(row: MappedRow): Promise<NormalizationResult>
     const result = await normalizeTitle(String(row.title).trim());
     if (result.changed) {
       normalized.title = result.value;
-      changes.push({ field: 'title', original: String(row.title), normalized: result.value });
+      changes.push({ field: 'title', original: String(row.title), normalized: result.value, category: 'title', ruleApplied: result.ruleApplied });
     }
   }
 
@@ -106,11 +106,11 @@ export async function normalizeRow(row: MappedRow): Promise<NormalizationResult>
 
 // ── Field-Specific Normalization ──
 
-async function normalizeIndustry(value: string): Promise<{ value: string; changed: boolean }> {
+async function normalizeIndustry(value: string): Promise<{ value: string; changed: boolean; ruleApplied?: string }> {
   // First try exact DB mapping
   const dbResult = await getNormalizedValue('industry', value);
   if (dbResult !== value) {
-    return { value: dbResult, changed: true };
+    return { value: dbResult, changed: true, ruleApplied: 'db_exact_match' };
   }
 
   // Fuzzy: try with common variations
@@ -122,39 +122,39 @@ async function normalizeIndustry(value: string): Promise<{ value: string; change
   for (const v of variations) {
     const result = await getNormalizedValue('industry', v);
     if (result !== v) {
-      return { value: result, changed: true };
+      return { value: result, changed: true, ruleApplied: 'db_fuzzy_match' };
     }
   }
 
   // Title-case the industry if it's all lower or all upper
   if (value === value.toLowerCase() || value === value.toUpperCase()) {
-    return { value: toTitleCase(value), changed: true };
+    return { value: toTitleCase(value), changed: true, ruleApplied: 'title_case' };
   }
 
   return { value, changed: false };
 }
 
-async function normalizeCountry(value: string): Promise<{ value: string; changed: boolean }> {
+async function normalizeCountry(value: string): Promise<{ value: string; changed: boolean; ruleApplied?: string }> {
   // Try exact DB mapping
   const dbResult = await getNormalizedValue('country', value);
   if (dbResult !== value) {
-    return { value: dbResult, changed: true };
+    return { value: dbResult, changed: true, ruleApplied: 'db_exact_match' };
   }
 
   // Try lowercase
   const lowerResult = await getNormalizedValue('country', value.toLowerCase());
   if (lowerResult !== value.toLowerCase()) {
-    return { value: lowerResult, changed: true };
+    return { value: lowerResult, changed: true, ruleApplied: 'db_lowercase_match' };
   }
 
   return { value, changed: false };
 }
 
-async function normalizeEmployeeSize(value: string): Promise<{ value: string; changed: boolean }> {
+async function normalizeEmployeeSize(value: string): Promise<{ value: string; changed: boolean; ruleApplied?: string }> {
   // Try exact DB mapping first
   const dbResult = await getNormalizedValue('employee_size', value);
   if (dbResult !== value) {
-    return { value: dbResult, changed: true };
+    return { value: dbResult, changed: true, ruleApplied: 'db_exact_match' };
   }
 
   // Try to parse as a number and convert to range
@@ -186,7 +186,7 @@ async function normalizeEmployeeSize(value: string): Promise<{ value: string; ch
   else if (num <= 10000) range = '5,001-10,000';
   else range = '10,001+';
 
-  return { value: range, changed: true };
+  return { value: range, changed: true, ruleApplied: 'numeric_to_range' };
 }
 
 function normalizeCompanyName(value: string): { value: string; changed: boolean } {
@@ -215,11 +215,11 @@ function normalizeName(value: string): string {
     .trim();
 }
 
-async function normalizeTitle(value: string): Promise<{ value: string; changed: boolean }> {
+async function normalizeTitle(value: string): Promise<{ value: string; changed: boolean; ruleApplied?: string }> {
   // Try exact DB mapping
   const dbResult = await getNormalizedValue('title', value);
   if (dbResult !== value) {
-    return { value: dbResult, changed: true };
+    return { value: dbResult, changed: true, ruleApplied: 'db_exact_match' };
   }
 
   // Standardize common abbreviations
@@ -241,7 +241,7 @@ async function normalizeTitle(value: string): Promise<{ value: string; changed: 
 
   const lower = value.toLowerCase().trim();
   if (abbreviations[lower]) {
-    return { value: abbreviations[lower], changed: true };
+    return { value: abbreviations[lower], changed: true, ruleApplied: 'abbreviation_expansion' };
   }
 
   return { value, changed: false };

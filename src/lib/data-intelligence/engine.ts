@@ -170,6 +170,27 @@ export async function processChunk(
     qualityScore: number;
   }> = [];
 
+  // Accumulators for normalization logs and quality scores
+  const normLogRecords: Array<{
+    uploadId: string;
+    rowIndex: number;
+    category: string;
+    field: string;
+    originalValue: string;
+    normalizedValue: string;
+    ruleApplied: string | null;
+  }> = [];
+
+  const qualityScoreRecords: Array<{
+    uploadId: string;
+    rowIndex: number;
+    totalScore: number;
+    completenessScore: number;
+    validityScore: number;
+    richnessScore: number;
+    details: string;
+  }> = [];
+
   let acceptedRows = 0;
   let warningRows = 0;
   let failedRows = 0;
@@ -245,11 +266,47 @@ export async function processChunk(
       duplicateOfRow,
       qualityScore: quality.total,
     });
+
+    // Collect normalization log entries for batch insert
+    if (normChanges.length > 0) {
+      for (const change of normChanges) {
+        normLogRecords.push({
+          uploadId,
+          rowIndex,
+          category: change.category,
+          field: change.field,
+          originalValue: change.original,
+          normalizedValue: change.normalized,
+          ruleApplied: change.ruleApplied || null,
+        });
+      }
+    }
+
+    // Collect quality score record
+    qualityScoreRecords.push({
+      uploadId,
+      rowIndex,
+      totalScore: quality.total,
+      completenessScore: quality.dimensions.completeness,
+      validityScore: quality.dimensions.validity,
+      richnessScore: quality.dimensions.richness,
+      details: JSON.stringify(quality.details),
+    });
   }
 
   // Batch insert all rows
   if (rowRecords.length > 0) {
     await db.uploadRow.createMany({ data: rowRecords });
+  }
+
+  // Batch insert normalization logs
+  if (normLogRecords.length > 0) {
+    await db.normalizationLog.createMany({ data: normLogRecords });
+  }
+
+  // Batch insert quality score records
+  if (qualityScoreRecords.length > 0) {
+    await db.dataQualityScore.createMany({ data: qualityScoreRecords });
   }
 
   // Update upload progress
@@ -501,6 +558,7 @@ export async function commitUpload(uploadId: string): Promise<CommitResult> {
   let companiesCreated = 0;
   let contactsCreated = 0;
   const companyCache = new Map<string, string>(); // normalizedName → companyId
+  const rowIndexToCompanyId = new Map<number, string>(); // rowIndex → companyId for quality score linking
 
   // Load existing companies for dedup
   const existingCompanies = await db.company.findMany({
@@ -547,6 +605,9 @@ export async function commitUpload(uploadId: string): Promise<CommitResult> {
 
     if (!companyId) continue; // skip if we can't determine a company
 
+    // Track rowIndex → companyId for quality score linking
+    rowIndexToCompanyId.set(row.rowIndex, companyId);
+
     // Determine role bucket from title
     const titleLower = (String(data.title || '')).toLowerCase();
     let roleBucket = 'other';
@@ -578,6 +639,17 @@ export async function commitUpload(uploadId: string): Promise<CommitResult> {
       },
     });
     contactsCreated++;
+  }
+
+  // Link quality score records to their committed companies
+  if (rowIndexToCompanyId.size > 0) {
+    const updatePromises = Array.from(rowIndexToCompanyId.entries()).map(([rowIndex, companyId]) =>
+      db.dataQualityScore.updateMany({
+        where: { uploadId, rowIndex, companyId: null },
+        data: { companyId },
+      })
+    );
+    await Promise.all(updatePromises);
   }
 
   // Mark upload as completed

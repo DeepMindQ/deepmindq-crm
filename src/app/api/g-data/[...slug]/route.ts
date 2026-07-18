@@ -133,9 +133,11 @@ const ROUTES = [
   { key: 'config/seed', handler: mod_config_seed },
 
   // Workflow Engine: Jobs (dynamic loaders) and Actions (inline)
+  // IMPORTANT: 'jobs/actions' MUST come before 'jobs/[id]' because the [id] regex
+  // matches any single segment including "actions".
   { key: 'jobs', loader: loadJobs },
-  { key: 'jobs/[id]', loader: loadJobsId },
   { key: 'jobs/actions', inlineHandler: handleJobsActions },
+  { key: 'jobs/[id]', loader: loadJobsId },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';

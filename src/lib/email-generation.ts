@@ -115,7 +115,7 @@ async function fetchGovernedResearchContext(companyId?: string | null, contactId
     const researchCtx = await getResearchContext(resolvedCompanyId);
     const governanceResult = await runGovernanceChecks({
       companyId: resolvedCompanyId,
-      contactId,
+      contactId: contactId || undefined,
       generationType: 'email_draft',
       researchContext: researchCtx,
     });
@@ -510,10 +510,10 @@ export async function generateEmailDraft(params: {
     recordGeneration({
       generationType: 'email_draft',
       companyId: companyId || researchCtxForAudit?.companyId,
-      contactId,
+      contactId: contactId || undefined,
       researchContext: researchCtxForAudit,
-      capabilityAssetIdsUsed: retrievedCapabilities.map(c => c.id),
-      governanceResult: governanceResult || undefined,
+      capabilityAssetIds: retrievedCapabilities.map(c => c.id),
+      governanceResult: governanceResult!,
       outputSummary: `${result.subject} — ${result.body.substring(0, 100)}...`,
       inputParams: { company, industry, tone, hasResearchContext: !!researchContext },
     }).catch(() => {}); // fire-and-forget

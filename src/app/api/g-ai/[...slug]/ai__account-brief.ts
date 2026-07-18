@@ -241,7 +241,7 @@ export async function GET(request: NextRequest) {
       generationType: 'account_brief',
       companyId: ctx.companyId,
       researchContext: ctx,
-      signalIdsUsed: ctx.signals.map(s => s.id),
+      signalIds: ctx.signals.map(s => s.id),
       governanceResult,
       outputSummary: brief.strategicPriority + ' priority | confidence: ' + brief.confidence,
       inputParams: { companyId, hasResearch },

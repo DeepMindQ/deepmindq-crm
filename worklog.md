@@ -29,3 +29,30 @@ Stage Summary:
 - Auto-seed ensures first deploy works without manual intervention
 - Upload workflow: CSV/Excel → analyze → map → validate → normalize → dedup → score → review → commit
 - GitHub push successful, Vercel auto-deploy triggered
+
+---
+Task ID: phase-2
+Agent: Main Orchestrator
+Task: Phase 2 — Code quality, completeness, and navigation fixes
+
+Work Log:
+- Conducted comprehensive audit of all 38 screen files, navigation structure, store types, and API routes
+- Identified 9 issues: stale ViewId types, broken CSV export, dead navigation links, unreachable dashboard, dead stub files, placeholder "coming soon" button, orphaned screens
+- Fixed ViewId type in store.ts: added conversation-studio, opportunity-radar, relationship-memory, data-health; removed stale capability-library, knowledge-library, contact-profile, company-profile
+- Fixed audit-screen.tsx CSV export: replaced broken alert() with real Blob download and toast notification
+- Fixed relationship-memory-screen.tsx dead navigation: 'Add Interaction' now navigates to Companies, company links use useAppStore.setSelectedCompanyId
+- Added Dashboard to sidebar navigation as new OVERVIEW section at top
+- Implemented Add Company dialog in companies-screen.tsx: 7-field form (name, domain, website, industry, size, country, location) with POST to /api/companies, duplicate detection, auto-refresh
+- Deleted dead stub files: dashboard-screen.full.tsx (18 lines), settings-screen.full.tsx (18 lines)
+- Resolved merge conflicts with remote (batch enrichment, selection checkboxes, next.config rewrites)
+- Build verified: 0 errors, 0 warnings
+- Committed as df5283f, pushed to origin/main, Vercel auto-deploying
+
+Stage Summary:
+- 6 files changed: store.ts, audit-screen.tsx, companies-screen.tsx, relationship-memory-screen.tsx, page.tsx
+- 2 dead files deleted
+- ViewId type now matches all 30 nav items (no more type-unsafe navigation)
+- Audit CSV export actually works now
+- No more dead-end navigation links
+- Dashboard accessible from sidebar for the first time
+- Add Company dialog replaces "coming soon" toast with real CRUD

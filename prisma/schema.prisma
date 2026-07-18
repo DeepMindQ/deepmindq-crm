@@ -156,10 +156,27 @@ model CompanyResearchCard {
   fieldConfidence   String?   // JSON: {"revenue":0.9,"employeeCount":0.7,...} — per-field confidence from Phase 3
 
   // Phase 3: Research engine fields
-  industry         String?                          // primary industry from research
-  website          String?                          // official website URL
+  industry         String?
+  website          String?
   keyPeople        String?   @default("[]")        // JSON: [{name, title, department, linkedInUrl, source}]
   recentNews       String?   @default("[]")        // JSON: [{title, snippet, source, url, signalType, impact}]
+
+  // Phase 3 Hardening: Structured Technology Landscape
+  structuredTechLandscape String? @default("{}")  // JSON: {cloud:[], data:[], ai:[], applications:[]}
+
+  // Phase 3 Hardening: Strategic Priorities
+  strategicPriorities      String? @default("[]")   // JSON: [{priority, description, evidence, confidence}]
+
+  // Phase 3 Hardening: Capability Matching Inputs
+  businessProblems         String? @default("[]")   // JSON: ["problem1", "problem2"]
+  transformationAreas      String? @default("[]")   // JSON: ["area1", "area2"]
+  technologyThemes         String? @default("[]")   // JSON: ["theme1", "theme2"]
+
+  // Phase 3 Hardening: Category-specific Freshness Timestamps
+  profileFreshnessAt     DateTime?    // when company profile data was last verified
+  signalFreshnessAt      DateTime?    // when signals were last refreshed
+  contactFreshnessAt     DateTime?    // when key people/contacts were last verified
+  techFreshnessAt        DateTime?    // when technology landscape was last verified
 
   lastResearchedAt    DateTime @updatedAt
   createdAt           DateTime @default(now())
@@ -277,14 +294,14 @@ model CapabilityAsset {
   id          String   @id @default(cuid())
   title       String
   summary     String
-  category    String   // service_line, case_study, proof_point, objection_response, cta
+  category    String   // service_line, solution, accelerator, technology, case_study, proof_point, objection_response, cta
   serviceLine String?
-  targetIndustries String?
+  targetIndustries String?   // JSON: ["Financial Services", "Healthcare"]
   targetRoles  String?
-  targetCompanySizes String?   // C-03: was missing from schema
-  problems    String?
+  targetCompanySizes String?
+  problems    String?            // JSON: ["legacy system migration", "data silos"]
   evidence    String?
-  content     String?  // full text
+  content     String?
   isActive    Boolean  @default(true)
   version     Int      @default(1)
 
@@ -292,7 +309,7 @@ model CapabilityAsset {
   parentAssetId String?
 
   // C-15: Tagging system
-  tags        String?   // JSON array string
+  tags        String?
 
   // C-09: Feedback scoring
   upvotes     Int      @default(0)
@@ -302,6 +319,18 @@ model CapabilityAsset {
   // C-06: Deduplication
   contentHash String?
 
+  // Phase 3 Hardening: Enhanced Capability Knowledge Base
+  solution         String?            // Solution name (e.g., "Cloud Migration Factory")
+  accelerator      String?            // Reusable accelerator/asset name
+  technology       String?            // Primary technology (e.g., "Azure", "Snowflake")
+  industry         String?            // Primary target industry
+   businessProblem  String?            // Core business problem this addresses
+   customerOutcome  String?            // Outcome the customer achieves
+  differentiator   String?            // What makes this different from alternatives
+  caseStudyRef     String?            // JSON: [{title, url, industry, outcome}]
+  proofPointRef    String?            // JSON: [{metric, value, context}]
+  keywords         String?            // JSON: ["keyword1", "keyword2"] for matching
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -310,6 +339,8 @@ model CapabilityAsset {
   @@index([isActive])
   @@index([parentAssetId])
   @@index([contentHash])
+  @@index([technology])
+  @@index([industry])
 }
 
 // ── Email Template System (E-14) ──
@@ -962,6 +993,35 @@ model JobLog {
   @@index([jobId])
   @@index([jobId, level])
   @@index([createdAt])
+}
+
+// ── Phase 3 Hardening: AI Generation Traceability ──
+// Every AI-generated output stores metadata so the system knows
+// WHY the output was generated and WHAT intelligence backed it.
+
+model AIGenerationAudit {
+  id                    String   @id @default(cuid())
+  generationType        String                           // email_draft, conversation_plan, account_brief, signal_analysis, suggested_contacts, enrichment, insights, opportunities, recommendations, score_leads
+  companyId             String?                          // linked company (if applicable)
+  contactId             String?                          // linked contact (if applicable)
+  researchContextVersion String?                          // snapshot of freshness.score at generation time
+  evidenceIdsUsed       String   @default("[]")          // JSON: ["evidence_id_1", "evidence_id_2"]
+  signalIdsUsed         String   @default("[]")          // JSON: ["signal_id_1"]
+  capabilityAssetIdsUsed String @default("[]")          // JSON: ["asset_id_1"]
+  researchConfidence    Float    @default(0)             // 0-1 average field confidence at generation time
+  freshnessScore        Int      @default(0)             // 0-100 freshness at generation time
+  governancePassed       Boolean  @default(true)          // did it pass confidence gates?
+  governanceChecks      String?  @default("{}")          // JSON: {email: {research: true, capability: true, freshness: true}, ...}
+  outputSummary         String?                          // brief summary of what was generated (not full output)
+  modelUsed             String?                          // which LLM model was used
+  inputParams           String?  @default("{}")          // JSON: the input parameters (sanitized, no PII)
+  createdAt             DateTime @default(now())
+
+  @@index([generationType])
+  @@index([companyId])
+  @@index([contactId])
+  @@index([createdAt])
+  @@index([governancePassed])
 }
 
 // ── System Settings (persistent key-value store) ──

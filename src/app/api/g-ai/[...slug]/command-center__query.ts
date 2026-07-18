@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { callLLM, webSearch } from '@/lib/zai-helpers';
+import { getResearchContext, buildResearchContextText } from '@/lib/intelligence-contract';
+import { HALLUCINATION_PREVENTION_RULES } from '@/lib/ai-governance';
 
 /* ═══════════════════════════════════════════════════════════════════
    AI Command Center — Natural Language Query (v2)
@@ -102,6 +104,8 @@ Available data sources and their filterable fields:
 12. **sequences** — filters: serviceLine, isActive.
 
 IMPORTANT RULES:
+- For questions about a SPECIFIC company's intelligence, strategy, technology, or signals, do NOT set needsWebSearch to true. Instead, fetch companies with includeRelations: ["researchCard", "signals"]. The system will automatically inject research intelligence.
+- Only set needsWebSearch to true for EXTERNAL information (industry trends, market data, competitor comparisons across companies NOT in our database, general news).
 - Set "needsWebSearch" to true ONLY if the user is asking about external/industry information (news, trends, competitors, market data) that cannot be answered from the database.
 - For comparisons between industries/sectors, fetch companies from both and the AI will compare them.
 - For "funding" or "recent" company questions, include companySignals with signalType "funding" and also fetch companies with researchCards.
@@ -286,7 +290,8 @@ function buildAnalystPrompt(
   interpretation: string,
   engine: string,
   fetchedData: Record<string, any[]>,
-  webResults: any[]
+  webResults: any[],
+  intelligenceContext: string = ''
 ): { system: string; user: string } {
   const dataSummary = Object.entries(fetchedData)
     .map(([source, rows]) => {
@@ -318,7 +323,9 @@ RULES:
 - Cite specific data: company names, scores, counts, percentages. Never say "several" when you can say "14".
 - If the data is empty for a source, say so clearly and suggest what the user can do.
 - Keep the summary under 300 words but information-dense.
-- Return ONLY valid JSON, no markdown fences.`;
+- Return ONLY valid JSON, no markdown fences.
+
+${HALLUCINATION_PREVENTION_RULES}`;
 
   const user = `## User's Question
 ${query}
@@ -332,7 +339,7 @@ ${engine}
 ## Fetched Data
 ${dataSummary}
 ${webSection}
-
+${intelligenceContext}
 Produce a JSON object:
 {
   "summary": "...",
@@ -552,13 +559,40 @@ export async function POST(req: NextRequest) {
         webResults = await webSearch(plan.webSearchQuery);
       }
 
+      // After executing all fetches, check if we have company data
+      // If companies were fetched and they have research cards, inject intelligence context
+      let intelligenceContext = '';
+      const companyIds = new Set<string>();
+
+      // Extract company IDs from fetched companies data
+      if (fetchedData.companies && Array.isArray(fetchedData.companies)) {
+        for (const c of fetchedData.companies) {
+          if (c.id) companyIds.add(c.id);
+        }
+      }
+
+      // For up to 3 companies, fetch intelligence contract data
+      if (companyIds.size > 0) {
+        const ids = Array.from(companyIds).slice(0, 3);
+        const contexts = await Promise.allSettled(
+          ids.map(id => getResearchContext(id).then(ctx => buildResearchContextText(ctx)))
+        );
+        const validContexts = contexts
+          .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled' && r.value.length > 100)
+          .map(r => r.value);
+        if (validContexts.length > 0) {
+          intelligenceContext = '\n\n## Company Intelligence (from Research Engine)\n' + validContexts.join('\n\n---\n\n');
+        }
+      }
+
       // Pass 2: AI Analysis
       const { system: analystSystem, user: analystUser } = buildAnalystPrompt(
         query,
         plan.interpretation,
         plan.engine,
         fetchedData,
-        webResults
+        webResults,
+        intelligenceContext
       );
       const analysisRaw = await llmChat(analystSystem, analystUser);
       const analysis = parseAnalysis(analysisRaw);

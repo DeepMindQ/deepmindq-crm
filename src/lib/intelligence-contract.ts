@@ -88,12 +88,46 @@ export interface ResearchContext {
     }>;
   };
 
-  // Freshness
+  // Freshness (with category-specific breakdown)
   freshness: ResearchFreshness;
+
+  // Phase 3 Hardening: Structured Technology Landscape
+  structuredTechLandscape: {
+    cloud: string[];
+    data: string[];
+    ai: string[];
+    applications: string[];
+  };
+
+  // Phase 3 Hardening: Strategic Priorities
+  strategicPriorities: Array<{
+    priority: string;
+    description: string;
+    evidence: string;
+    confidence: number;
+  }>;
+
+  // Phase 3 Hardening: Capability Matching Inputs
+  capabilityMatchingInputs: {
+    businessProblems: string[];
+    transformationAreas: string[];
+    technologyThemes: string[];
+  };
 
   // CRM Context
   contactCount: number;
   internalNotes: string | null;
+}
+
+export interface CategoryFreshness {
+  /** 0-100 category-specific freshness score */
+  score: number;
+  /** 'fresh' | 'aging' | 'stale' | 'none' */
+  status: 'fresh' | 'aging' | 'stale' | 'none';
+  /** When this category was last verified */
+  lastVerifiedAt: string | null;
+  /** Days since last verification (null if never) */
+  daysSinceVerification: number | null;
 }
 
 export interface ResearchFreshness {
@@ -109,6 +143,17 @@ export interface ResearchFreshness {
   evidenceCount: number;
   /** Number of signals */
   signalCount: number;
+  /** Phase 3 Hardening: Category-specific freshness */
+  categories: {
+    /** Company profile (overview, revenue, employees) — long lifecycle (90 days) */
+    profile: CategoryFreshness;
+    /** Signals (buying signals, news) — short lifecycle (14 days) */
+    signal: CategoryFreshness;
+    /** Contacts / key people — medium lifecycle (45 days) */
+    contact: CategoryFreshness;
+    /** Technology intelligence — medium lifecycle (60 days) */
+    technology: CategoryFreshness;
+  };
 }
 
 export interface AccountIntelligence {
@@ -163,8 +208,56 @@ export interface SignalMetrics {
 
 // ── Freshness Scoring ──
 
+// ── Category-Specific Freshness Scoring ──
+
 /**
- * Calculate research freshness score.
+ * Calculate freshness for a single category.
+ * Each category has a different lifecycle:
+ * - Profile: long (90-day half-life) — company fundamentals change slowly
+ * - Signal: short (14-day half-life) — buying signals decay fast
+ * - Contact: medium (45-day half-life) — people change roles periodically
+ * - Technology: medium (60-day half-life) — tech stacks evolve moderately
+ */
+function calculateCategoryFreshness(
+  lastVerifiedAt: Date | null,
+  halfLifeDays: number,
+): CategoryFreshness {
+  if (!lastVerifiedAt) {
+    return { score: 0, status: 'none', lastVerifiedAt: null, daysSinceVerification: null };
+  }
+
+  const daysSince = Math.floor((Date.now() - lastVerifiedAt.getTime()) / (1000 * 60 * 60 * 24));
+  let score: number;
+  let status: CategoryFreshness['status'];
+
+  // Decay based on half-life: score halves every halfLifeDays
+  if (daysSince <= Math.ceil(halfLifeDays * 0.1)) {
+    score = 100;
+    status = 'fresh';
+  } else if (daysSince <= halfLifeDays) {
+    score = Math.round(100 - ((daysSince / halfLifeDays) * 40));
+    status = 'fresh';
+  } else if (daysSince <= halfLifeDays * 2) {
+    score = Math.round(60 - (((daysSince - halfLifeDays) / halfLifeDays) * 30));
+    status = 'aging';
+  } else if (daysSince <= halfLifeDays * 4) {
+    score = Math.round(30 - (((daysSince - halfLifeDays * 2) / (halfLifeDays * 2)) * 20));
+    status = 'stale';
+  } else {
+    score = Math.max(0, 10 - Math.round((daysSince - halfLifeDays * 4) / (halfLifeDays * 2) * 10));
+    status = 'stale';
+  }
+
+  return {
+    score: Math.min(100, Math.max(0, score)),
+    status,
+    lastVerifiedAt: lastVerifiedAt.toISOString(),
+    daysSinceVerification: daysSince,
+  };
+}
+
+/**
+ * Calculate overall research freshness score.
  * - Fresh (0-7 days): 100-80
  * - Aging (7-30 days): 80-50
  * - Stale (30-90 days): 50-20
@@ -175,15 +268,22 @@ function calculateFreshness(
   enrichmentDate: Date | null,
   evidenceCount: number,
   signalCount: number,
+  profileFreshnessAt: Date | null,
+  signalFreshnessAt: Date | null,
+  contactFreshnessAt: Date | null,
+  techFreshnessAt: Date | null,
 ): ResearchFreshness {
+  // Category-specific freshness
+  const profile = calculateCategoryFreshness(profileFreshnessAt, 90);
+  const signal = calculateCategoryFreshness(signalFreshnessAt, 14);
+  const contact = calculateCategoryFreshness(contactFreshnessAt, 45);
+  const technology = calculateCategoryFreshness(techFreshnessAt, 60);
+
   if (!enrichmentDate) {
     return {
-      score: 0,
-      status: 'none',
-      lastResearchedAt: null,
-      daysSinceResearch: null,
-      evidenceCount,
-      signalCount,
+      score: 0, status: 'none', lastResearchedAt: null,
+      daysSinceResearch: null, evidenceCount, signalCount,
+      categories: { profile, signal, contact, technology },
     };
   }
 
@@ -195,16 +295,16 @@ function calculateFreshness(
   let status: ResearchFreshness['status'];
 
   if (daysSince <= 7) {
-    score = Math.round(100 - (daysSince / 7) * 20); // 100 → 80
+    score = Math.round(100 - (daysSince / 7) * 20);
     status = 'fresh';
   } else if (daysSince <= 30) {
-    score = Math.round(80 - ((daysSince - 7) / 23) * 30); // 80 → 50
+    score = Math.round(80 - ((daysSince - 7) / 23) * 30);
     status = 'aging';
   } else if (daysSince <= 90) {
-    score = Math.round(50 - ((daysSince - 30) / 60) * 30); // 50 → 20
+    score = Math.round(50 - ((daysSince - 30) / 60) * 30);
     status = 'stale';
   } else {
-    score = Math.max(0, Math.round(20 - ((daysSince - 90) / 90) * 20)); // 20 → 0
+    score = Math.max(0, Math.round(20 - ((daysSince - 90) / 90) * 20));
     status = 'stale';
   }
 
@@ -219,6 +319,7 @@ function calculateFreshness(
     daysSinceResearch: daysSince,
     evidenceCount,
     signalCount,
+    categories: { profile, signal, contact, technology },
   };
 }
 
@@ -282,19 +383,33 @@ export async function getResearchContext(companyId: string): Promise<ResearchCon
   let recentNews: ResearchContext['recentNews'] = [];
   let fieldConfidence: Record<string, number> = {};
   let socialProfiles: Record<string, string> = {};
+  let structuredTechLandscape: ResearchContext['structuredTechLandscape'] = { cloud: [], data: [], ai: [], applications: [] };
+  let strategicPriorities: ResearchContext['strategicPriorities'] = [];
+  let businessProblems: string[] = [];
+  let transformationAreas: string[] = [];
+  let technologyThemes: string[] = [];
 
   if (researchCard) {
     try { keyPeople = JSON.parse(researchCard.keyPeople || '[]'); } catch { /* ignore */ }
     try { recentNews = JSON.parse(researchCard.recentNews || '[]'); } catch { /* ignore */ }
     try { fieldConfidence = JSON.parse(researchCard.fieldConfidence || '{}'); } catch { /* ignore */ }
     try { socialProfiles = JSON.parse(researchCard.socialProfiles || '{}'); } catch { /* ignore */ }
+    try { structuredTechLandscape = JSON.parse(researchCard.structuredTechLandscape || '{}'); } catch { /* ignore */ }
+    try { strategicPriorities = JSON.parse(researchCard.strategicPriorities || '[]'); } catch { /* ignore */ }
+    try { businessProblems = JSON.parse(researchCard.businessProblems || '[]'); } catch { /* ignore */ }
+    try { transformationAreas = JSON.parse(researchCard.transformationAreas || '[]'); } catch { /* ignore */ }
+    try { technologyThemes = JSON.parse(researchCard.technologyThemes || '[]'); } catch { /* ignore */ }
   }
 
-  // Calculate freshness
+  // Calculate freshness (with category-specific timestamps)
   const freshness = calculateFreshness(
     researchCard?.enrichmentDate || null,
     evidenceSummaryData.totalEvidence,
     signals.length,
+    researchCard?.profileFreshnessAt || null,
+    researchCard?.signalFreshnessAt || null,
+    researchCard?.contactFreshnessAt || null,
+    researchCard?.techFreshnessAt || null,
   );
 
   return {
@@ -339,6 +454,13 @@ export async function getResearchContext(companyId: string): Promise<ResearchCon
     fieldConfidence,
     evidenceSummary: evidenceSummaryData,
     freshness,
+    structuredTechLandscape,
+    strategicPriorities,
+    capabilityMatchingInputs: {
+      businessProblems,
+      transformationAreas,
+      technologyThemes,
+    },
     contactCount,
     internalNotes: notes?.body || null,
   };
@@ -599,6 +721,37 @@ export function buildResearchContextText(ctx: ResearchContext): string {
 
   // Freshness
   parts.push(`Research Freshness: ${ctx.freshness.score}/100 (${ctx.freshness.status})${ctx.freshness.daysSinceResearch !== null ? `, last researched ${ctx.freshness.daysSinceResearch} days ago` : ', never researched'}`);
+
+  // Category-specific freshness (Phase 3 Hardening)
+  const catF = ctx.freshness.categories;
+  parts.push(`Category Freshness: profile=${catF.profile.score}/100 (${catF.profile.status}), signals=${catF.signal.score}/100 (${catF.signal.status}), contacts=${catF.contact.score}/100 (${catF.contact.status}), technology=${catF.technology.score}/100 (${catF.technology.status})`);
+
+  // Structured Technology Landscape (Phase 3 Hardening)
+  const stl = ctx.structuredTechLandscape;
+  if (stl.cloud.length > 0 || stl.data.length > 0 || stl.ai.length > 0 || stl.applications.length > 0) {
+    const techParts: string[] = [];
+    if (stl.cloud.length > 0) techParts.push(`Cloud: ${stl.cloud.join(', ')}`);
+    if (stl.data.length > 0) techParts.push(`Data: ${stl.data.join(', ')}`);
+    if (stl.ai.length > 0) techParts.push(`AI/ML: ${stl.ai.join(', ')}`);
+    if (stl.applications.length > 0) techParts.push(`Applications: ${stl.applications.join(', ')}`);
+    parts.push(`Technology Landscape: ${techParts.join(' | ')}`);
+  }
+
+  // Strategic Priorities (Phase 3 Hardening)
+  if (ctx.strategicPriorities.length > 0) {
+    parts.push(`Strategic Priorities:
+${ctx.strategicPriorities.map(p => `  - ${p.priority} (confidence: ${Math.round(p.confidence * 100)}%): ${p.description}`).join('\n')}`);
+  }
+
+  // Capability Matching Inputs (Phase 3 Hardening)
+  const cmi = ctx.capabilityMatchingInputs;
+  if (cmi.businessProblems.length > 0 || cmi.transformationAreas.length > 0 || cmi.technologyThemes.length > 0) {
+    const cmParts: string[] = [];
+    if (cmi.businessProblems.length > 0) cmParts.push(`Business Problems: ${cmi.businessProblems.join('; ')}`);
+    if (cmi.transformationAreas.length > 0) cmParts.push(`Transformation Areas: ${cmi.transformationAreas.join('; ')}`);
+    if (cmi.technologyThemes.length > 0) cmParts.push(`Technology Themes: ${cmi.technologyThemes.join('; ')}`);
+    parts.push(`Capability Matching: ${cmParts.join(' | ')}`);
+  }
 
   if (parts.length <= 1) {
     return '## PHASE 3 INTELLIGENCE: No research data available. This company has not been researched yet.';

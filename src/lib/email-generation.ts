@@ -5,6 +5,11 @@
    Falls back to DB-stored enrichmentData on contacts.
    NO independent web searches for company intelligence.
 
+   PHASE 3 HARDENING: Now includes AI governance:
+   - Confidence gates before generation
+   - Hallucination prevention rules injected
+   - Generation audit trail recorded
+
    Company intelligence flows:
    1. getResearchContext() → Phase 3 ResearchCard + Evidence + Signals
    2. Contact.enrichmentData → cached intelligence from Phase 3
@@ -13,6 +18,14 @@
 
 import { callLLM } from '@/lib/zai-helpers';
 import { db } from '@/lib/db';
+import { getResearchContext, type ResearchContext } from '@/lib/intelligence-contract';
+import {
+  runGovernanceChecks,
+  recordGeneration,
+  HALLUCINATION_PREVENTION_RULES,
+  buildGovernancePromptAddon,
+  buildEvidenceGroundingNote,
+} from '@/lib/ai-governance';
 
 /* ── Phase 3 Research Card type (from DB) ── */
 interface Phase3ResearchCard {
@@ -81,6 +94,80 @@ async function fetchResearchCardFromDB(companyId?: string | null): Promise<Phase
     console.warn('[email-gen] Failed to fetch research card:', err);
     return null;
   }
+}
+
+/* ── Phase 3 Hardening: Governance check + context fetch ── */
+async function fetchGovernedResearchContext(companyId?: string | null, contactId?: string | null) {
+  if (!companyId && !contactId) return { researchContext: '', researchCtx: null, governanceResult: null, shouldBlock: false, rejectionReason: null };
+
+  let resolvedCompanyId = companyId;
+  if (!resolvedCompanyId && contactId) {
+    const contact = await db.contact.findUnique({
+      where: { id: contactId! },
+      select: { companyId: true },
+    });
+    resolvedCompanyId = contact?.companyId;
+  }
+
+  if (!resolvedCompanyId) return { researchContext: '', researchCtx: null, governanceResult: null, shouldBlock: false, rejectionReason: null };
+
+  try {
+    const researchCtx = await getResearchContext(resolvedCompanyId);
+    const governanceResult = await runGovernanceChecks({
+      companyId: resolvedCompanyId,
+      contactId,
+      generationType: 'email_draft',
+      researchContext: researchCtx,
+    });
+
+    if (!governanceResult.canProceed) {
+      return {
+        researchContext: '',
+        researchCtx,
+        governanceResult,
+        shouldBlock: true,
+        rejectionReason: governanceResult.rejectionReason || 'Additional research required before generating outreach.',
+      };
+    }
+
+    const researchContext = buildResearchContextFromCtx(researchCtx);
+    const governanceAddon = buildGovernancePromptAddon(governanceResult);
+    const groundingNote = buildEvidenceGroundingNote(researchCtx);
+
+    return {
+      researchContext: researchContext + (governanceAddon ? '\n\n' + governanceAddon : '') + (groundingNote ? '\n\n' + groundingNote : ''),
+      researchCtx,
+      governanceResult,
+      shouldBlock: false,
+      rejectionReason: null,
+    };
+  } catch (err) {
+    console.warn('[email-gen] Governance/context fetch failed:', err);
+    return { researchContext: '', researchCtx: null, governanceResult: null, shouldBlock: false, rejectionReason: null };
+  }
+}
+
+function buildResearchContextFromCtx(ctx: ResearchContext): string {
+  const parts: string[] = ['── COMPANY INTELLIGENCE (Phase 3) ──'];
+  if (ctx.researchCard?.businessOverview) parts.push(`Overview: ${ctx.researchCard.businessOverview}`);
+  if (ctx.researchCard?.revenue && ctx.researchCard.revenue !== 'Not found') parts.push(`Revenue: ${ctx.researchCard.revenue}`);
+  if (ctx.researchCard?.employeeCount && ctx.researchCard.employeeCount !== 'Not found') parts.push(`Employees: ${ctx.researchCard.employeeCount}`);
+  if (ctx.researchCard?.fundingStage && ctx.researchCard.fundingStage !== 'Not found') parts.push(`Funding: ${ctx.researchCard.fundingStage}`);
+  if (ctx.researchCard?.industry) parts.push(`Industry: ${ctx.researchCard.industry}`);
+  if (ctx.researchCard?.techStack) parts.push(`Tech Stack: ${ctx.researchCard.techStack}`);
+  if (ctx.keyPeople.length > 0) {
+    parts.push(`Key People: ${ctx.keyPeople.slice(0, 5).map(p => `${p.name} (${p.title})`).join(', ')}`);
+  }
+  const highImpact = ctx.recentNews.filter(n => n.impact === 'high');
+  if (highImpact.length > 0) {
+    parts.push(`High-Impact Signals: ${highImpact.map(n => n.title).join('; ')}`);
+  }
+  const conf = Object.entries(ctx.fieldConfidence);
+  if (conf.length > 0) {
+    parts.push(`Data Confidence: ${conf.map(([f, c]) => `${f}=${Math.round(c * 100)}%`).join(', ')}`);
+  }
+  parts.push(`Research Freshness: ${ctx.freshness.score}/100 (${ctx.freshness.status})`);
+  return parts.join('\n');
 }
 
 /* ── Build company intelligence context from Phase 3 ResearchCard ── */
@@ -378,54 +465,59 @@ export async function generateEmailDraft(params: {
     searchMode: searchMode || 'hybrid', minRelevanceScore: minScore ?? 15, includeContent: true, limit: 8,
   });
 
-  // ── AUTO-READ PHASE 3 RESEARCH FROM DB (no web search) ──
+  // ── PHASE 3 HARDENING: Governance-gated intelligence fetch ──
   let researchContext = '';
+  let governanceResult: Awaited<ReturnType<typeof runGovernanceChecks>> | null = null;
+  let researchCtxForAudit: ResearchContext | null = null;
 
-  // Strategy 1: Read from CompanyResearchCard by companyId
-  if (companyId) {
-    const card = await fetchResearchCardFromDB(companyId);
-    if (card && card.businessOverview) {
-      researchContext = buildResearchContextFromCard(card);
-    }
+  const governed = await fetchGovernedResearchContext(companyId, contactId);
+  if (governed.shouldBlock) {
+    // Return a low-confidence draft with the rejection reason
+    const fallbackDraft = generateTemplateDraft(
+      name, title, company, industry, companySize, tone, retrievedCapabilities, ''
+    );
+    return {
+      ...fallbackDraft,
+      confidenceScore: 15,
+      assumptions: [...(fallbackDraft.assumptions || []), `GOVERNANCE BLOCK: ${governed.rejectionReason}`],
+      generatedAt: new Date().toISOString(),
+      generationMethod: 'template' as const,
+    };
   }
-
-  // Strategy 2: If no companyId, try contactId → contact.companyId
-  if (!researchContext && contactId) {
-    try {
-      const contact = await db.contact.findUnique({
-        where: { id: contactId },
-        select: { companyId: true, enrichmentData: true },
-      });
-      if (contact?.companyId) {
-        const card = await fetchResearchCardFromDB(contact.companyId);
-        if (card && card.businessOverview) {
-          researchContext = buildResearchContextFromCard(card);
-        }
-      }
-      // Strategy 3: Fall back to contact's enrichmentData (cached from Phase 3)
-      if (!researchContext && contact?.enrichmentData) {
-        researchContext = buildResearchContextFromContactData(contact.enrichmentData);
-      }
-    } catch {
-      // Non-critical
-    }
-  }
+  researchContext = governed.researchContext;
+  governanceResult = governed.governanceResult;
+  researchCtxForAudit = governed.researchCtx;
 
   // NO FALLBACK WEB SEARCH — Phase 3 is the single source of truth
-  // If no research context is available, the LLM will work without it
-  // and the confidence score will be lower to reflect this.
 
   // Try AI generation first, fall back to template
+  let result;
   try {
-    return await generateWithAI(
+    result = await generateWithAI(
       name, email, title, company, industry, companySize,
       tone, additionalContext, retrievedCapabilities, researchContext
     );
   } catch (aiError) {
     const errMsg = aiError instanceof Error ? aiError.message : 'Unknown error';
     console.warn(`AI generation failed (${errMsg}), using template engine`);
-    return generateTemplateDraft(
+    result = generateTemplateDraft(
       name, title, company, industry, companySize, tone, retrievedCapabilities, researchContext
     );
   }
+
+  // Phase 3 Hardening: Record generation audit
+  if (companyId || contactId) {
+    recordGeneration({
+      generationType: 'email_draft',
+      companyId: companyId || researchCtxForAudit?.companyId,
+      contactId,
+      researchContext: researchCtxForAudit,
+      capabilityAssetIdsUsed: retrievedCapabilities.map(c => c.id),
+      governanceResult: governanceResult || undefined,
+      outputSummary: `${result.subject} — ${result.body.substring(0, 100)}...`,
+      inputParams: { company, industry, tone, hasResearchContext: !!researchContext },
+    }).catch(() => {}); // fire-and-forget
+  }
+
+  return result;
 }

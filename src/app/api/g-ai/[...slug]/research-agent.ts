@@ -1,17 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { webSearch, callLLM, extractJSON, tavilyAIAnswer } from '@/lib/zai-helpers';
+import { db } from '@/lib/db';
+import { getResearchContext, type ResearchContext } from '@/lib/intelligence-contract';
+import { runGovernanceChecks, recordGeneration, HALLUCINATION_PREVENTION_RULES } from '@/lib/ai-governance';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function mapSectionToField(title: string): string {
+  const t = title.toLowerCase();
+  if (t.includes('financial') || t.includes('revenue') || t.includes('funding')) return 'revenue';
+  if (t.includes('technology') || t.includes('tech stack') || t.includes('product')) return 'techStack';
+  if (t.includes('leadership') || t.includes('executive') || t.includes('management') || t.includes('people')) return 'keyPeople';
+  if (t.includes('overview') || t.includes('company') || t.includes('business')) return 'businessOverview';
+  if (t.includes('news') || t.includes('recent') || t.includes('signal')) return 'recentNews';
+  if (t.includes('competitive') || t.includes('market') || t.includes('position')) return 'businessOverview';
+  return 'businessOverview';
+}
 
 // POST /api/research-agent — Deep research on company or person
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { query, type } = body;
+    const { query, type, companyId } = body;
 
     if (!query?.trim()) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 });
     }
 
     const isCompany = type === 'company';
+
+    // ── Intelligence-contract: freshness check (only for company with companyId) ──
+    let researchContext: ResearchContext | null = null;
+    let freshnessWarning: string | null = null;
+
+    if (companyId && isCompany) {
+      try {
+        researchContext = await getResearchContext(companyId);
+        const { freshness } = researchContext;
+
+        if (freshness.status === 'fresh' || freshness.status === 'aging') {
+          const daysAgo = freshness.daysSinceResearch ?? 0;
+          freshnessWarning = `Recent research exists (last researched ${daysAgo} day${daysAgo !== 1 ? 's' : ''} ago). Consider refreshing via the Research Engine instead. Proceeding with deep research...`;
+        }
+      } catch (ctxErr) {
+        // Non-blocking — if we can't load context, just proceed without it
+        console.warn('[research-agent] Could not load research context for freshness check:', ctxErr instanceof Error ? ctxErr.message : ctxErr);
+      }
+    }
 
     // Step 1: Web search (always works — Tavily)
     const searchResults = await webSearch(query, 10);
@@ -30,7 +65,9 @@ export async function POST(req: NextRequest) {
     let aiResult: string | null = null;
     try {
       const systemContext = isCompany
-        ? `You are a senior business intelligence analyst at a top-tier strategy firm. Your research reports are used by sales teams to prepare for high-value B2B outreach. You write with specificity, citing exact figures, dates, names, and sources. You never use vague filler like "the company has demonstrated consistent growth" — instead you say "Revenue grew 34% YoY to $180M in FY2024 per their Q4 earnings filing." If you cannot find specific data, explicitly say "Not publicly available" rather than guessing.`
+        ? `You are a senior business intelligence analyst at a top-tier strategy firm. Your research reports are used by sales teams to prepare for high-value B2B outreach. You write with specificity, citing exact figures, dates, names, and sources. You never use vague filler like "the company has demonstrated consistent growth" — instead you say "Revenue grew 34% YoY to $180M in FY2024 per their Q4 earnings filing." If you cannot find specific data, explicitly say "Not publicly available" rather than guessing.
+
+${HALLUCINATION_PREVENTION_RULES}`
         : `You are a senior executive research analyst. Your profiles are used by account executives preparing for C-level outreach. You include specific role history with dates, board memberships, published articles or talks, educational credentials with years, and verifiable professional accomplishments. You never use vague phrases — instead of "recognized industry leader" you say "Keynote speaker at SaaStr Annual 2024, published in Harvard Business Review (March 2024)." If information is unavailable, say so explicitly.`;
 
       const researchDirectives = isCompany
@@ -119,9 +156,30 @@ Include 4-6 sections. Match the icon to the section topic.`;
             .map((r) => r.snippet || r.title)
             .filter(Boolean);
 
+          // ── Record generation audit for fallback ──
+          if (companyId) {
+            const governanceResult = researchContext
+              ? await runGovernanceChecks({
+                  companyId,
+                  generationType: 'research_agent',
+                  researchContext,
+                })
+              : { passed: true, checks: {}, overallMessage: 'No research context available — audit only.', canProceed: true, rejectionReason: null };
+
+            await recordGeneration({
+              generationType: 'research_agent',
+              companyId,
+              researchContext,
+              governanceResult,
+              outputSummary: tavilyAnswer?.substring(0, 500),
+              inputParams: { query, type, _fallback: 'tavily_ai' },
+            });
+          }
+
           return NextResponse.json({
             query,
             type,
+            companyId: companyId || undefined,
             generatedAt: new Date().toLocaleString(),
             executiveSummary: tavilyAnswer,
             keyInsights: insights,
@@ -129,6 +187,7 @@ Include 4-6 sections. Match the icon to the section topic.`;
             opportunitySignals: insights.slice(0, 3),
             sections,
             _fallback: 'tavily_ai',
+            ...(freshnessWarning ? { _freshnessWarning: freshnessWarning } : {}),
           });
         }
       } catch (tavilyErr) {
@@ -147,9 +206,30 @@ Include 4-6 sections. Match the icon to the section topic.`;
         };
       });
 
+      // ── Record generation audit for raw search fallback ──
+      if (companyId) {
+        const governanceResult = researchContext
+          ? await runGovernanceChecks({
+              companyId,
+              generationType: 'research_agent',
+              researchContext,
+            })
+          : { passed: true, checks: {}, overallMessage: 'No research context available — audit only.', canProceed: true, rejectionReason: null };
+
+        await recordGeneration({
+          generationType: 'research_agent',
+          companyId,
+          researchContext,
+          governanceResult,
+          outputSummary: `Raw search fallback: ${searchResults.length} results`,
+          inputParams: { query, type, _fallback: 'raw_search' },
+        });
+      }
+
       return NextResponse.json({
         query,
         type,
+        companyId: companyId || undefined,
         generatedAt: new Date().toLocaleString(),
         executiveSummary: `Research results for "${query}" based on ${searchResults.length} web sources. Note: AI analysis is currently unavailable — configure NVIDIA_API_KEY or FIREWORKS_API_KEY in Vercel env vars.`,
         keyInsights: searchResults.slice(0, 5).map((r) => r.snippet || r.title).filter(Boolean),
@@ -157,6 +237,7 @@ Include 4-6 sections. Match the icon to the section topic.`;
         opportunitySignals: [],
         sections,
         _fallback: 'raw_search',
+        ...(freshnessWarning ? { _freshnessWarning: freshnessWarning } : {}),
       });
     }
 
@@ -165,9 +246,31 @@ Include 4-6 sections. Match the icon to the section topic.`;
 
     if (!parsed || typeof parsed !== 'object') {
       // LLM returned non-JSON — return raw text as summary
+
+      // ── Record generation audit for raw text fallback ──
+      if (companyId) {
+        const governanceResult = researchContext
+          ? await runGovernanceChecks({
+              companyId,
+              generationType: 'research_agent',
+              researchContext,
+            })
+          : { passed: true, checks: {}, overallMessage: 'No research context available — audit only.', canProceed: true, rejectionReason: null };
+
+        await recordGeneration({
+          generationType: 'research_agent',
+          companyId,
+          researchContext,
+          governanceResult,
+          outputSummary: aiResult?.substring(0, 500),
+          inputParams: { query, type, _fallback: 'llm_raw_text' },
+        });
+      }
+
       return NextResponse.json({
         query,
         type,
+        companyId: companyId || undefined,
         generatedAt: new Date().toLocaleString(),
         executiveSummary: aiResult,
         keyInsights: searchResults.slice(0, 5).map((r) => r.snippet || r.title).filter(Boolean),
@@ -180,6 +283,7 @@ Include 4-6 sections. Match the icon to the section topic.`;
           sources: [{ title: r.title, url: r.url, domain: (() => { try { return new URL(r.url).hostname; } catch { return ''; } })() }],
         })),
         _fallback: 'llm_raw_text',
+        ...(freshnessWarning ? { _freshnessWarning: freshnessWarning } : {}),
       });
     }
 
@@ -192,15 +296,88 @@ Include 4-6 sections. Match the icon to the section topic.`;
         }))
       : [];
 
+    // ── Evidence Storage: store each section's sources as Evidence records ──
+    if (companyId && isCompany && parsed.sections) {
+      try {
+        const sectionList = Array.isArray(parsed.sections) ? parsed.sections : [];
+        for (const section of sectionList) {
+          const sectionSources = Array.isArray(section.sources) ? section.sources : [];
+          if (sectionSources.length > 0) {
+            for (const source of sectionSources) {
+              await db.evidence.create({
+                data: {
+                  companyId,
+                  searchQuery: query,
+                  sourceUrl: source.url || '',
+                  sourceTitle: source.title || section.title,
+                  sourceName: source.domain || '',
+                  snippet: section.content?.substring(0, 500) || '',
+                  extractedField: mapSectionToField(section.title),
+                  extractedValue: section.content?.substring(0, 200) || null,
+                  relevanceScore: 0.7,
+                  confidence: 0.6,  // research-agent outputs are user-triggered, moderate confidence
+                  sourceQualityTier: 'standard',
+                }
+              });
+            }
+          }
+        }
+      } catch (evidenceErr) {
+        // Non-blocking — evidence storage failure should not break the response
+        console.error('[research-agent] Evidence storage failed:', evidenceErr instanceof Error ? evidenceErr.message : evidenceErr);
+      }
+    }
+
+    // ── Store executive summary as CompanyNote ──
+    if (companyId && isCompany && parsed.executiveSummary) {
+      try {
+        const insightsList = Array.isArray(parsed.keyInsights) ? parsed.keyInsights : [];
+        await db.companyNote.create({
+          data: {
+            companyId,
+            title: `Deep Research: ${query}`,
+            category: 'research',
+            body: `## Research Agent Output\n\n${parsed.executiveSummary}\n\n${insightsList.map((i: string) => `- ${i}`).join('\n') || ''}`,
+            author: 'research-agent',
+          }
+        });
+      } catch (noteErr) {
+        // Non-blocking — note storage failure should not break the response
+        console.error('[research-agent] CompanyNote storage failed:', noteErr instanceof Error ? noteErr.message : noteErr);
+      }
+    }
+
+    // ── Record generation audit for successful LLM result ──
+    if (companyId) {
+      const governanceResult = researchContext
+        ? await runGovernanceChecks({
+            companyId,
+            generationType: 'research_agent',
+            researchContext,
+          })
+        : { passed: true, checks: {}, overallMessage: 'No research context available — audit only.', canProceed: true, rejectionReason: null };
+
+      await recordGeneration({
+        generationType: 'research_agent',
+        companyId,
+        researchContext,
+        governanceResult,
+        outputSummary: (parsed.executiveSummary as string)?.substring(0, 500),
+        inputParams: { query, type },
+      });
+    }
+
     return NextResponse.json({
       query,
       type,
+      companyId: companyId || undefined,
       generatedAt: new Date().toLocaleString(),
       executiveSummary: parsed.executiveSummary || `Research analysis for "${query}".`,
       keyInsights: Array.isArray(parsed.keyInsights) ? parsed.keyInsights : [],
       riskFactors: Array.isArray(parsed.riskFactors) ? parsed.riskFactors : [],
       opportunitySignals: Array.isArray(parsed.opportunitySignals) ? parsed.opportunitySignals : [],
       sections,
+      ...(freshnessWarning ? { _freshnessWarning: freshnessWarning } : {}),
     });
   } catch (error) {
     console.error('Research agent error:', error);

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import {
   PageTransition,
   StaggerGrid,
@@ -221,8 +222,30 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
   }, []);
 
   const handleExport = useCallback(() => {
-    alert('Export started - your CSV file will download shortly.');
-  }, []);
+    if (!data || data.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+    const exportData = filtered.length > 0 ? filtered : data;
+    const headers = ['Timestamp', 'User', 'Action', 'Entity Type', 'Entity Name', 'Details'];
+    const rows = exportData.map(e => [
+      new Date(e.timestamp).toISOString(),
+      e.userId,
+      e.action,
+      e.entityType,
+      e.entityName,
+      (e.details ?? '').replace(/"/g, '""'),
+    ]);
+    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${exportData.length} entries`);
+  }, [data, filtered]);
 
   // ── Loading skeleton ───────────────────────────────────────────────────
   if (loading) {

@@ -8,11 +8,16 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { PageTransition, AnimatedCounter } from '@/components/ui/animated-components';
+import { useAppStore } from '@/lib/store';
 import {
   Building2, Globe, MapPin, Users, Search, Brain, Download,
   ChevronLeft, ChevronRight, MoreHorizontal, Sparkles,
-  TrendingUp, BarChart3, Signal, X,
+  TrendingUp, BarChart3, Signal, X, Plus, Loader2,
 } from 'lucide-react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 /* ═══════════════════════════════════════════════════════════════
    Design Tokens
@@ -256,6 +261,40 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
   const [stats, setStats] = useState({ withContacts: 0, withSignals: 0, avgScore: 0 });
   const [metaLoading, setMetaLoading] = useState(true);
 
+  /* ── Add Company dialog state ── */
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [addForm, setAddForm] = useState({ rawName: '', domain: '', industry: '', sizeRange: '', location: '', country: '', website: '' });
+  const [addSubmitting, setAddSubmitting] = useState(false);
+
+  const handleAddCompany = async () => {
+    if (!addForm.rawName.trim()) { toast.error('Company name is required'); return; }
+    setAddSubmitting(true);
+    try {
+      const res = await fetch('/api/companies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(addForm),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`"${addForm.rawName}" added successfully`);
+        setShowAddDialog(false);
+        setAddForm({ rawName: '', domain: '', industry: '', sizeRange: '', location: '', country: '', website: '' });
+        fetchCompanies();
+      } else if (res.status === 409) {
+        toast.error(data.error || 'Company already exists');
+        if (data.companyId) {
+          useAppStore.getState().setSelectedCompanyId(data.companyId);
+          navigateTo?.('company-detail', data.companyId);
+          setShowAddDialog(false);
+        }
+      } else {
+        toast.error(data.error || 'Failed to add company');
+      }
+    } catch { toast.error('Request failed'); }
+    setAddSubmitting(false);
+  };
+
   /* ── Filter state ── */
   const [search, setSearch] = useState('');
   const [industry, setIndustry] = useState('');
@@ -433,11 +472,11 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
           {/* Add Company */}
           <Button
             size="sm"
-            onClick={() => toast.info('Add company dialog coming soon')}
+            onClick={() => setShowAddDialog(true)}
             className="h-8 px-3 text-xs font-semibold rounded-lg shrink-0"
             style={{ background: gold, color: '#0c1220' }}
           >
-            <Brain size={14} className="mr-1.5" />
+            <Plus size={14} className="mr-1.5" />
             Add Company
           </Button>
         </div>
@@ -706,6 +745,100 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
           </div>
         )}
       </div>
+
+      {/* ═══ Add Company Dialog ═══ */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="text-base font-semibold">Add New Company</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">Create a new company record. Name is required; other fields are optional.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3.5 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Company Name <span className="text-red-500">*</span></Label>
+              <Input
+                placeholder="e.g. Acme Corp"
+                value={addForm.rawName}
+                onChange={e => setAddForm(f => ({ ...f, rawName: e.target.value }))}
+                className="h-9 text-sm"
+                autoFocus
+                onKeyDown={e => { if (e.key === 'Enter') handleAddCompany(); }}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Domain</Label>
+                <Input
+                  placeholder="acme.com"
+                  value={addForm.domain}
+                  onChange={e => setAddForm(f => ({ ...f, domain: e.target.value }))}
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Website</Label>
+                <Input
+                  placeholder="https://acme.com"
+                  value={addForm.website}
+                  onChange={e => setAddForm(f => ({ ...f, website: e.target.value }))}
+                  className="h-9 text-sm"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Industry</Label>
+              <Input
+                placeholder="e.g. Technology, Healthcare"
+                value={addForm.industry}
+                onChange={e => setAddForm(f => ({ ...f, industry: e.target.value }))}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Size Range</Label>
+                <Input
+                  placeholder="e.g. 51-200"
+                  value={addForm.sizeRange}
+                  onChange={e => setAddForm(f => ({ ...f, sizeRange: e.target.value }))}
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Country</Label>
+                <Input
+                  placeholder="e.g. US, IN"
+                  value={addForm.country}
+                  onChange={e => setAddForm(f => ({ ...f, country: e.target.value }))}
+                  className="h-9 text-sm"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Location</Label>
+              <Input
+                placeholder="e.g. San Francisco, CA"
+                value={addForm.location}
+                onChange={e => setAddForm(f => ({ ...f, location: e.target.value }))}
+                className="h-9 text-sm"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              className="text-xs font-medium"
+              style={{ background: gold, color: '#0c1220' }}
+              disabled={addSubmitting || !addForm.rawName.trim()}
+              onClick={handleAddCompany}
+            >
+              {addSubmitting ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : <Plus size={14} className="mr-1.5" />}
+              {addSubmitting ? 'Creating...' : 'Add Company'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageTransition>
   );
 }

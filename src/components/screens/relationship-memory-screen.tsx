@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { useAppStore } from '@/lib/store';
 import {
   Users, Heart, AlertTriangle, Activity, Plus, ArrowRight, Sparkles,
   Mail, Phone, MessageSquare, BookOpen, StickyNote, Clock, RefreshCw,
@@ -289,7 +290,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
             ))}
           </div>
           <Button
-            onClick={() => navigateTo?.('interactions', 'new')}
+            onClick={() => navigateTo?.('companies')}
             className="gap-2 mt-3 font-medium shadow-sm"
             style={{ background: '#D4AF37', color: '#fff' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#C5A030'; }}
@@ -322,11 +323,11 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
             Refresh
           </Button>
           <Button
-            onClick={() => navigateTo?.('interactions', 'new')}
+            onClick={() => navigateTo?.('companies')}
             className="gap-2 font-medium shadow-sm"
             style={{ background: '#D4AF37', color: '#fff' }}
           >
-            <Plus className="w-4 h-4" /> Add Interaction
+            <Plus className="w-4 h-4" /> Explore Companies
           </Button>
         </div>
       </div>
@@ -384,7 +385,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                   {/* Company header row */}
                   <div className="flex items-center justify-between">
                     <button
-                      onClick={() => navigateTo?.('company', company.id)}
+                      onClick={() => { useAppStore.getState().setSelectedCompanyId(company.id); navigateTo?.('companies'); }}
                       className="flex items-center gap-2 group"
                     >
                       <h3 className="text-base font-semibold text-foreground group-hover:underline underline-offset-2">
@@ -533,7 +534,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                   size="sm"
                   className="w-full mt-1 text-xs font-medium gap-1.5"
                   variant="outline"
-                  onClick={() => navigateTo?.('company-detail', rec.companyId)}
+                  onClick={() => { useAppStore.getState().setSelectedCompanyId(rec.companyId); navigateTo?.('companies'); }}
                 >
                   Do It <ArrowRight className="w-3 h-3" />
                 </Button>

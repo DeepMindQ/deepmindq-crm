@@ -7,20 +7,18 @@ export type ViewId =
   | 'import'
   | 'drafts'
   | 'queue'
-  | 'capability-library'
+  | 'capabilities'
   | 'replies'
   | 'duplicates'
   | 'audit'
   | 'settings'
   | 'contacts'
-  | 'contact-profile'
-  | 'company-profile'
   | 'tasks'
   | 'opportunities'
   | 'email-generation'
   | 'reports'
   | 'prompt-templates'
-  | 'knowledge-library'
+  | 'knowledge'
   | 'sequences'
   | 'templates'
   | 'analytics'
@@ -32,7 +30,11 @@ export type ViewId =
   | 'signal-intelligence'
   | 'research-agent'
   | 'playbooks'
-  | 'strategy-room';
+  | 'strategy-room'
+  | 'conversation-studio'
+  | 'opportunity-radar'
+  | 'relationship-memory'
+  | 'data-health';
 
 interface AppState {
   activeView: ViewId;

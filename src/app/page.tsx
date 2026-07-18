@@ -89,6 +89,13 @@ interface NavSection {
 
 const NAV_SECTIONS: NavSection[] = [
   {
+    heading: 'OVERVIEW',
+    defaultOpen: true,
+    items: [
+      { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    ],
+  },
+  {
     heading: 'INTELLIGENCE',
     defaultOpen: true,
     items: [

@@ -47,6 +47,15 @@ export async function POST(request: Request) {
           force: body.force === true,
           priority: body.priority ?? 5,
         });
+
+        // Auto-trigger processing: fire-and-forget the first batch so jobs start immediately.
+        // The Vercel Cron endpoint handles ongoing polling for remaining jobs.
+        if (result.created > 0) {
+          processNextJobs(Math.min(result.created, 3)).catch(err => {
+            console.error('[jobs/action] Auto-process after enqueue failed (non-blocking):', err.message);
+          });
+        }
+
         return NextResponse.json({ success: true, ...result });
       }
 

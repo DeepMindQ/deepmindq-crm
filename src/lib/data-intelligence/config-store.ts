@@ -103,8 +103,12 @@ async function loadAllConfigs(): Promise<ConfigCache> {
       ]);
       return buildCache(cr, vr, nm, sw);
     } catch (err) {
-      console.error('[config-store] Auto-seed failed:', err);
-      // Return empty cache — engine will work with defaults
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[config-store] Auto-seed FAILED — config tables are empty and seeding did not succeed. All rule-based features (column detection, validation, normalization, scoring) will return empty results.', msg);
+      // Re-throw so the caller (API route) returns a 500 and the user sees the error.
+      // Do NOT silently return an empty cache — that makes the engine "work" with zero rules
+      // and the user has no idea why nothing is being detected or validated.
+      throw new Error(`Config auto-seed failed: ${msg}. The data intelligence engine cannot function without seeded rules. Please check database connectivity and table schemas.`);
     }
   }
 

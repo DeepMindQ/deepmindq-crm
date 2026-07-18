@@ -617,8 +617,16 @@ export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) 
     setLoading(false); setRefreshing(false);
   }, []);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+  // Initial fetch on mount
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Auto-refresh every 15 seconds when on the Command Center tab
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchData();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   const handleQuery = useCallback(async (q: string) => {
     setQueryLoading(true); setQueryResult(null);

@@ -441,6 +441,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
     setSelectedIds(new Set());
 
     // Queue all enrichment jobs via the workflow engine
+    let createdCount = 0;
     try {
       const res = await fetch('/api/g-data/jobs/actions', {
         method: 'POST',
@@ -454,18 +455,66 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
       const data = await res.json();
       if (data.error) {
         toast.error(`Enrichment queue failed: ${data.error}`);
-      } else {
-        const created = data.created ?? 0;
-        const skipped = data.skipped ?? 0;
-        toast.success(`${created} enrichment jobs queued${skipped > 0 ? `, ${skipped} skipped (already queued)` : ''}`);
+        setEnrichLoading(false);
+        return;
       }
+      createdCount = data.created ?? 0;
+      const skipped = data.skipped ?? 0;
+      if (createdCount === 0) {
+        toast.info(`No new jobs created${skipped > 0 ? `, ${skipped} already queued` : ''}`);
+        setEnrichLoading(false);
+        return;
+      }
+      toast.success(`${createdCount} enrichment jobs queued — processing will start automatically`);
     } catch {
       toast.error('Failed to queue enrichment jobs');
+      setEnrichLoading(false);
+      return;
     }
 
-    setEnrichLoading(false);
-    setEnrichProgress(null);
-    fetchCompanies();
+    // Poll job status until all enrichment jobs complete or fail
+    const pollInterval = setInterval(async () => {
+      if (enrichCancelRef.current) {
+        clearInterval(pollInterval);
+        setEnrichLoading(false);
+        setEnrichProgress(null);
+        return;
+      }
+      try {
+        const statsRes = await fetch('/api/g-data/jobs?status=all&type=enrichment&page=1&pageSize=50');
+        const statsData = await statsRes.json();
+        const jobs = statsData.jobs || [];
+        const activeJobs = jobs.filter((j: any) => j.status === 'pending' || j.status === 'queued' || j.status === 'running');
+        const completedJobs = jobs.filter((j: any) => j.status === 'completed');
+        const failedJobs = jobs.filter((j: any) => j.status === 'failed');
+
+        // Update progress bar
+        const runningJob = jobs.find((j: any) => j.status === 'running');
+        if (runningJob) {
+          setEnrichProgress({
+            current: completedJobs.length + failedJobs.length,
+            total: createdCount,
+            companyName: runningJob.currentStep || 'Processing...',
+          });
+        } else if (activeJobs.length === 0) {
+          // All done — stop polling, refresh company list
+          clearInterval(pollInterval);
+          setEnrichLoading(false);
+          setEnrichProgress(null);
+          fetchCompanies();
+          if (completedJobs.length > 0) {
+            toast.success(`Enrichment complete: ${completedJobs.length} succeeded${failedJobs.length > 0 ? `, ${failedJobs.length} failed` : ''}`);
+          } else if (failedJobs.length > 0) {
+            toast.error(`Enrichment failed: ${failedJobs.length} jobs failed. Check Command Center for details.`);
+          }
+        }
+      } catch {
+        // Silently continue polling — network blips shouldn't stop it
+      }
+    }, 5000); // Poll every 5 seconds
+
+    // Cleanup on unmount
+    return () => clearInterval(pollInterval);
   }, [selectedIds, companies, fetchCompanies]);
 
   const cancelEnrich = () => {

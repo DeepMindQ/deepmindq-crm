@@ -276,7 +276,7 @@ export async function verifyOtp(
 
   return {
     success: true,
-    userId: otp.userId,
+    userId: otp.userId ?? undefined,
     otpId: otp.id,
     needsPassword: !otp.user?.hasPassword,
   };

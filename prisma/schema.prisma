@@ -804,3 +804,14 @@ model ScoringWeight {
   @@index([dimension])
   @@index([isActive])
 }
+
+// ── System Settings (persistent key-value store) ──
+// Replaces in-memory settings that reset on Vercel cold starts.
+// AI provider configs, app settings, feature flags — all persisted here.
+
+model SystemSetting {
+  key       String   @id                         // unique setting key (e.g., "ai_config", "app_settings")
+  value     String   @default("{}")               // JSON value
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}

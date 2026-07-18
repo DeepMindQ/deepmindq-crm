@@ -31,7 +31,7 @@ export async function normalizeRow(row: MappedRow): Promise<NormalizationResult>
 
   // Industry normalization
   if (row.industry && String(row.industry).trim()) {
-    const result = await normalizeIndustry(String(row.industry).trim());
+    const result = await normalizeIndustry(String(row.industry).trim() as string);
     if (result.changed) {
       normalized.industry = result.value;
       changes.push({ field: 'industry', original: String(row.industry), normalized: result.value });
@@ -79,7 +79,7 @@ export async function normalizeRow(row: MappedRow): Promise<NormalizationResult>
     const website = String(row.website).trim();
     if (website && !website.startsWith('http')) {
       normalized.website = `https://${website}`;
-      changes.push({ field: 'website', original: website, normalized: normalized.website });
+      changes.push({ field: 'website', original: website, normalized: String(normalized.website) });
     }
   }
 

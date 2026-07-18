@@ -9,14 +9,11 @@ import { NextResponse } from 'next/server';
  */
 export async function POST() {
   try {
-    // Dynamic import to avoid circular deps and keep this handler thin
-    const { PrismaClient } = await import('@prisma/client');
-    const prisma = new PrismaClient();
+    const { db } = await import('@/lib/db');
 
     // Check if already seeded
-    const existingRules = await prisma.columnMappingRule.count();
+    const existingRules = await db.columnMappingRule.count();
     if (existingRules > 0) {
-      await prisma.$disconnect();
       return NextResponse.json({
         success: true,
         message: 'Already seeded — rules exist. Delete all rules first to re-seed.',
@@ -24,11 +21,6 @@ export async function POST() {
       });
     }
 
-    // Import seed data
-    const seedModule = await import('../../../../../../scripts/seed-data-intelligence');
-
-    // Run the seed functions directly
-    // Since the seed script uses PrismaClient directly, we'll run the SQL via prisma
     const results: Record<string, number> = {};
 
     // Column Mapping Rules (16 rules)
@@ -52,7 +44,7 @@ export async function POST() {
     ];
 
     for (const rule of cmRules) {
-      await prisma.columnMappingRule.upsert({
+      await db.columnMappingRule.upsert({
         where: { id: rule.id },
         update: rule,
         create: rule,
@@ -77,7 +69,7 @@ export async function POST() {
     ];
 
     for (const rule of vRules) {
-      await prisma.fieldValidationRule.upsert({
+      await db.fieldValidationRule.upsert({
         where: { id: rule.id },
         update: rule,
         create: rule,
@@ -112,7 +104,7 @@ export async function POST() {
     ];
 
     for (const m of normMappings) {
-      await prisma.normalizationMapping.upsert({
+      await db.normalizationMapping.upsert({
         where: { category_sourceValue: { category: m.category, sourceValue: m.sourceValue } },
         update: { normalizedValue: m.normalizedValue },
         create: m,
@@ -136,15 +128,13 @@ export async function POST() {
     ];
 
     for (const w of scoringWeights) {
-      await prisma.scoringWeight.upsert({
+      await db.scoringWeight.upsert({
         where: { dimension_field_key: { dimension: w.dimension, field: w.field, key: w.key } },
         update: { weight: w.weight, maxScore: w.maxScore, description: w.description },
         create: w,
       });
     }
     results.scoringWeights = scoringWeights.length;
-
-    await prisma.$disconnect();
 
     return NextResponse.json({
       success: true,

@@ -79,7 +79,7 @@ export function buildReverseMapping(
 ): Record<TargetField, string> {
   const reverse: Partial<Record<TargetField, string>> = {};
   for (const [header, field] of Object.entries(mapping)) {
-    if (field !== 'skip' && field) {
+    if (field) {
       reverse[field] = header;
     }
   }

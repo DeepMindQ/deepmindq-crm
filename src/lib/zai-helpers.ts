@@ -94,8 +94,7 @@ async function callLLMProvider(baseURL: string, apiKey: string, model: string, u
       temperature: 0.7,
       max_tokens: 8192,
     }),
-    timeout: 15000, // 15s fetch timeout (Vercel Hobby kills at 10s total)
-  })
+    })
 
   if (!response.ok) {
     const errorText = await response.text()
@@ -112,7 +111,7 @@ export async function callLLM(systemPrompt: string, userPrompt: string): Promise
     { role: 'user', content: userPrompt },
   ]
 
-  const chain = getLLMChain()
+  const chain = await getLLMChain()
   const errors: string[] = []
 
   for (const provider of chain) {
@@ -149,7 +148,7 @@ export async function callChatLLM(systemPrompt: string, messages: Array<{ role: 
     ...messages,
   ]
 
-  const chain = getLLMChain()
+  const chain = await getLLMChain()
   const errors: string[] = []
 
   for (const provider of chain) {
@@ -187,7 +186,7 @@ export async function callChatLLM(systemPrompt: string, messages: Array<{ role: 
  * Returns empty string if Tavily is unavailable.
  */
 export async function tavilyAIAnswer(query: string): Promise<string> {
-  const searchProvider = getSearchProvider()
+  const searchProvider = await getSearchProvider()
   if (!searchProvider) return ''
 
   try {
@@ -231,7 +230,7 @@ interface TavilyResult {
  * Drop-in replacement for the old Z.AI web_search function.
  */
 export async function webSearch(query: string, num = 10): Promise<WebSearchResult[]> {
-  const searchProvider = getSearchProvider()
+  const searchProvider = await getSearchProvider()
   if (!searchProvider) {
     console.error('[webSearch] No search provider configured. Add Tavily API key in Settings > AI Providers.')
     return []
@@ -659,7 +658,7 @@ export async function getZAI(): Promise<any> {
 
           return {
             choices: [{ message: { content: response } }],
-            model: getLLMChain()[0]?.model || 'unknown',
+            model: (await getLLMChain())[0]?.model || 'unknown',
           }
         },
       },

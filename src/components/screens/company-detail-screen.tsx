@@ -22,7 +22,7 @@ import {
   Target, Brain, Activity, TrendingUp, Award, UserCircle, Eye,
   EyeOff, AlertTriangle, CheckCircle2, Clock, MessageSquare,
   Send, MailOpen, RotateCcw, DollarSign, Layers, BookOpen,
-  Lightbulb, Bell, Search, ChevronRight, Briefcase, Link2, Network,
+  Lightbulb, Bell, Search, ChevronRight, Briefcase, Link2, Network, Database,
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════
@@ -141,6 +141,136 @@ function NoteTemplateItem({ template, onSelect }: { template: { key: string; lab
       <FileText size={14} className="text-muted-foreground group-hover:text-[#D4AF37] transition-colors" />
       <span className="text-foreground/80 group-hover:text-foreground transition-colors">{template.label}</span>
     </button>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   Evidence Panel (Phase 3)
+   ═══════════════════════════════════════════════════ */
+function EvidencePanel({ companyId }: { companyId: string }) {
+  const [evidence, setEvidence] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedField, setSelectedField] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [evRes, sumRes] = await Promise.all([
+          fetch(`/api/g-crm/companies/${companyId}/evidence?limit=50`),
+          fetch(`/api/g-crm/companies/${companyId}/evidence?summary=true`),
+        ]);
+        const evData = await evRes.json();
+        const sumData = await sumRes.json();
+        setEvidence(evData.evidence || []);
+        setSummary(sumData.summary || null);
+      } catch (err) {
+        console.error('[EvidencePanel] fetch failed:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [companyId]);
+
+  if (loading) {
+    return <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-20 w-full" /><Skeleton className="h-20 w-full" /></div>;
+  }
+
+  const filteredEvidence = selectedField
+    ? evidence.filter((e: any) => e.extractedField === selectedField)
+    : evidence;
+
+  const fieldEntries = summary?.fields ? Object.entries(summary.fields) : [];
+
+  return (
+    <div className="space-y-4">
+      {/* Summary */}
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-lg border border-border/50 bg-white/50 p-3 text-center">
+            <div className="text-2xl font-bold" style={{ color: GOLD }}>{summary.totalEvidence}</div>
+            <div className="text-xs text-muted-foreground">Total Sources</div>
+          </div>
+          {fieldEntries.slice(0, 3).map(([field, data]: [string, any]) => (
+            <div key={field} className="rounded-lg border border-border/50 bg-white/50 p-3 text-center">
+              <div className="text-2xl font-bold" style={{ color: GOLD }}>{data.count}</div>
+              <div className="text-xs text-muted-foreground truncate">{field}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Field filter chips */}
+      {fieldEntries.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setSelectedField(null)}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${!selectedField ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
+            All ({summary?.totalEvidence || 0})
+          </button>
+          {fieldEntries.map(([field, data]: [string, any]) => (
+            <button
+              key={field}
+              onClick={() => setSelectedField(selectedField === field ? null : field)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${selectedField === field ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            >
+              {field} ({data.count})
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Evidence list */}
+      {filteredEvidence.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <Database size={32} className="mx-auto mb-3 opacity-30" />
+          <p className="text-sm">No evidence found. Run research to collect evidence sources.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filteredEvidence.map((e: any) => (
+            <a
+              key={e.id}
+              href={e.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-lg border border-border/50 bg-white/50 p-3 hover:bg-gray-50/80 transition-colors group"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    {e.sourceQualityTier && (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                        e.sourceQualityTier === 'premium' ? 'bg-amber-100 text-amber-700' :
+                        e.sourceQualityTier === 'standard' ? 'bg-blue-100 text-blue-700' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>
+                        {e.sourceQualityTier}
+                      </span>
+                    )}
+                    {e.extractedField && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{e.extractedField}</span>
+                    )}
+                    <span className="text-[10px] text-muted-foreground">{e.sourceName || new URL(e.sourceUrl).hostname}</span>
+                  </div>
+                  <p className="text-xs text-foreground/80 line-clamp-2">{e.snippet || e.sourceTitle}</p>
+                  {e.extractedValue && e.extractedValue !== 'Not found' && (
+                    <p className="text-xs font-medium mt-1" style={{ color: GOLD }}>→ {e.extractedValue}</p>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  {e.confidence > 0 && (
+                    <span className="text-[10px] font-medium text-muted-foreground">{Math.round(e.confidence * 100)}%</span>
+                  )}
+                  <ExternalLink size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -290,25 +420,44 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
     }
   };
 
-  /* ── Enrich Company ── */
+  /* ── Enrich Company (async via job queue) ── */
   const handleEnrich = async () => {
     setEnriching(true);
     try {
-      const res = await fetch('/api/companies/enrich', {
+      const res = await fetch('/api/g-data/jobs/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyId }),
+        body: JSON.stringify({ action: 'enqueue-research', companyIds: [companyId], force: true }),
       });
-      if (res.ok) {
-        toast.success('Company enriched successfully');
-        fetchCompany();
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Research job queued — check Command Center for progress');
+        // Poll for completion
+        const pollInterval = setInterval(async () => {
+          try {
+            const jobRes = await fetch(`/api/g-data/jobs?companyId=${companyId}&type=research&page=1&pageSize=1`);
+            const jobData = await jobRes.json();
+            const job = (jobData.jobs || [])[0];
+            if (job && (job.status === 'completed' || job.status === 'failed')) {
+              clearInterval(pollInterval);
+              setEnriching(false);
+              if (job.status === 'completed') {
+                toast.success('Research completed successfully');
+                fetchCompany();
+              } else {
+                toast.error('Research job failed — check Command Center');
+              }
+            }
+          } catch { /* continue polling */ }
+        }, 5000);
       } else {
-        toast.error('Enrichment failed');
+        toast.error('Failed to queue research');
+        setEnriching(false);
       }
     } catch {
-      toast.error('Enrichment failed');
+      toast.error('Failed to queue research');
+      setEnriching(false);
     }
-    setEnriching(false);
   };
 
   /* ── Create / Update Note ── */
@@ -493,6 +642,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
               { key: 'signals', label: 'Signals', icon: Bell, count: signals.length },
               { key: 'brief', label: 'Account Brief', icon: Sparkles },
               { key: 'stakeholders', label: 'AI Stakeholders', icon: Network },
+              { key: 'evidence', label: 'Evidence', icon: Database },
             ].map(tab => (
               <TabsTrigger
                 key={tab.key}
@@ -654,6 +804,36 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                       </span>
                     )}
                   </div>
+
+                  {/* Phase 3: Enrichment metadata */}
+                  {researchCard && (
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] text-muted-foreground">Last enriched</span>
+                      <span className="text-[10px] font-medium">{researchCard.enrichmentDate ? new Date(researchCard.enrichmentDate).toLocaleDateString() : 'N/A'}</span>
+                    </div>
+                  )}
+                  {researchCard?.enrichmentSource && (
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] text-muted-foreground">Source</span>
+                      <span className="text-[10px] font-medium">{researchCard.enrichmentSource}</span>
+                    </div>
+                  )}
+                  {/* Phase 3: Per-field confidence */}
+                  {researchCard?.fieldConfidence && (() => {
+                    try {
+                      const fc = JSON.parse(researchCard.fieldConfidence) as Record<string, number>;
+                      const entries = Object.entries(fc).filter(([, v]) => v > 0);
+                      if (entries.length === 0) return null;
+                      return (
+                        <div className="mt-3 space-y-2">
+                          <span className="text-[10px] text-muted-foreground font-medium">Field Confidence</span>
+                          {entries.slice(0, 6).map(([field, conf]) => (
+                            <ScoreBar key={field} label={field} value={Math.round(conf * 100)} max={100} color={conf >= 0.7 ? '#22c55e' : conf >= 0.4 ? GOLD : '#ef4444'} />
+                          ))}
+                        </div>
+                      );
+                    } catch { return null; }
+                  })()}
 
                   {!researchCard ? (
                     <EmptyState
@@ -1321,6 +1501,13 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                 <p className="text-sm text-muted-foreground">Click "Discover Stakeholders" to find relevant executives</p>
               </div>
             )}
+          </TabsContent>
+
+          {/* ═════════════════════════════════════════════
+              TAB: Evidence (Phase 3)
+              ═════════════════════════════════════════════ */}
+          <TabsContent value="evidence" className="space-y-4">
+            <EvidencePanel companyId={companyId} />
           </TabsContent>
         </Tabs>
       </div>

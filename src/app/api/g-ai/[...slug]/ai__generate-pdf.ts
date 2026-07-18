@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { researchCompany, callLLM, webSearch, type CompanyResearch } from '@/lib/zai-helpers';
+import { callLLM } from '@/lib/zai-helpers';
 
 /* ═══════════════════════════════════════════════════
    PDF Report Generation with Real-Time AI Intelligence
@@ -62,31 +62,17 @@ export async function POST(request: Request) {
       capabilities = kbData.results || [];
     } catch { /* non-critical */ }
 
-    // Get real-time company research (web search + LLM)
+    // Use research card data (Phase 3 research engine stores all data in the card)
     console.log(`[generate-pdf] Generating ${type} for: ${company.rawName}`);
-    let research: CompanyResearch | null = null;
-    try {
-      research = await researchCompany(
-        company.rawName || company.normalizedName,
-        company.domain,
-        company.industry,
-      );
-    } catch (err) {
-      console.warn('[generate-pdf] Research failed, using cached data:', err);
-    }
-
-    // Use research or fall back to cached research card
-    const overview = research?.businessOverview || company.researchCard?.businessOverview || 'No overview available';
-    const revenue = research?.revenue || company.researchCard?.revenue || 'Unknown';
-    const employees = research?.employeeCount || company.researchCard?.employeeCount || 'Unknown';
-    const funding = research?.fundingStage || company.researchCard?.fundingStage || 'Unknown';
-    const techStack = research?.techStack || company.researchCard?.techStack || '';
-    const keyPeople = research?.keyPeople?.length ? research.keyPeople :
-      (company.researchCard?.keyPeople ? JSON.parse(String(company.researchCard.keyPeople)) : []);
-    const recentNews = research?.recentNews?.length ? research.recentNews :
-      (company.researchCard?.recentNews ? JSON.parse(String(company.researchCard.recentNews)) : []);
-    const socialProfiles = research?.socialProfiles || 
-      (company.researchCard?.socialProfiles ? JSON.parse(String(company.researchCard.socialProfiles)) : {});
+    const rc = company.researchCard;
+    const overview = rc?.businessOverview || 'No overview available';
+    const revenue = rc?.revenue || 'Unknown';
+    const employees = rc?.employeeCount || 'Unknown';
+    const funding = rc?.fundingStage || 'Unknown';
+    const techStack = rc?.techStack || '';
+    const keyPeople = rc?.keyPeople ? JSON.parse(String(rc.keyPeople)) : [];
+    const recentNews = rc?.recentNews ? JSON.parse(String(rc.recentNews)) : [];
+    const socialProfiles = rc?.socialProfiles ? JSON.parse(String(rc.socialProfiles)) : {};
 
     // Generate the PDF content using AI
     let pdfContent: string;
@@ -108,7 +94,7 @@ export async function POST(request: Request) {
         socialProfiles,
         contacts: company.contacts,
         signals: company.signals,
-        notes: company.notes,
+        notes: (company.notes || []).map((n: any) => ({ content: n.body || n.content || '', createdAt: n.createdAt })),
         capabilities,
         website: company.website || (company.domain ? `https://${company.domain}` : ''),
       });
@@ -152,7 +138,7 @@ export async function POST(request: Request) {
         socialProfiles,
         contacts: company.contacts,
         signals: company.signals,
-        notes: company.notes,
+        notes: (company.notes || []).map((n: any) => ({ content: n.body || n.content || '', createdAt: n.createdAt })),
         capabilities,
         website: company.website || (company.domain ? `https://${company.domain}` : ''),
       });
@@ -165,7 +151,7 @@ export async function POST(request: Request) {
       companyName: company.rawName,
       content: pdfContent,
       generatedAt: new Date().toISOString(),
-      researchConfidence: research?.confidence || 0,
+      researchConfidence: 0,
     });
   } catch (error) {
     console.error('[generate-pdf] Error:', error);
@@ -181,8 +167,8 @@ async function generateAccountBrief(data: {
   keyPeople: Array<{ name: string; title: string; linkedInUrl?: string }>;
   recentNews: Array<{ title: string; snippet: string; signalType: string; impact: string }>;
   socialProfiles: Record<string, string>;
-  contacts: Array<{ rawName: string; title: string; email: string; role: string }>;
-  signals: Array<{ signalType: string; title: string; description: string }>;
+  contacts: Array<{ rawName: string; title: string | null; email: string; role: string | null }>;
+  signals: Array<{ signalType: string; title: string; description: string | null }>;
   notes: Array<{ content: string; createdAt: Date }>;
   capabilities: Array<{ title: string; summary: string; category: string }>;
   website: string;
@@ -243,7 +229,7 @@ Generate the brief now. Use markdown formatting with headers, bullet points, and
 async function generateStakeholderMap(data: {
   companyName: string; industry: string | null; overview: string;
   keyPeople: Array<{ name: string; title: string; department?: string; linkedInUrl?: string }>;
-  contacts: Array<{ rawName: string; title: string; email: string; role: string }>;
+  contacts: Array<{ rawName: string; title: string | null; email: string; role: string | null }>;
 }): Promise<string> {
   const systemPrompt = `You are an organizational intelligence analyst. Create a Stakeholder Map showing the key people at a target company. Organize by department/role hierarchy. Use markdown with clear structure.`;
 
@@ -280,9 +266,9 @@ async function generateOutreachPlaybook(data: {
   overview: string; revenue: string; employees: string; techStack: string;
   keyPeople: Array<{ name: string; title: string }>;
   recentNews: Array<{ title: string; snippet: string; signalType: string }>;
-  contacts: Array<{ rawName: string; title: string; email: string; role: string }>;
+  contacts: Array<{ rawName: string; title: string | null; email: string; role: string | null }>;
   capabilities: Array<{ title: string; summary: string; category: string }>;
-  signals: Array<{ signalType: string; title: string; description: string }>;
+  signals: Array<{ signalType: string; title: string; description: string | null }>;
 }): Promise<string> {
   const systemPrompt = `You are a senior sales strategist creating a company-specific Outreach Playbook. This playbook should give a sales rep everything they need to approach this company effectively. Be specific, data-driven, and actionable.`;
 

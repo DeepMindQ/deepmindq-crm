@@ -40,13 +40,14 @@ import type { Company, Contact, Opportunity, CompanyNote, CompanyResearchCard, T
 
 const RESEARCH_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
   businessOverview: { label: 'Business Overview', icon: Building2 },
-  currentTechLandscape: { label: 'Tech Landscape', icon: BarChart3 },
-  potentialChallenges: { label: 'Challenges', icon: Target },
-  possibleOpportunities: { label: 'Opportunities', icon: Sparkles },
-  relevantServices: { label: 'Relevant Services', icon: FileText },
-  keyDecisionMakers: { label: 'Decision Makers', icon: Users },
-  lastInteraction: { label: 'Last Interaction', icon: Clock },
-  nextAction: { label: 'Next Action', icon: ChevronRight },
+  revenue: { label: 'Revenue', icon: DollarSign },
+  employeeCount: { label: 'Employees', icon: Users },
+  fundingStage: { label: 'Funding Stage', icon: Target },
+  techStack: { label: 'Technology Stack', icon: Cpu },
+  industry: { label: 'Industry', icon: BarChart3 },
+  website: { label: 'Website', icon: Globe },
+  enrichmentSource: { label: 'Data Source', icon: FileText },
+  enrichmentDate: { label: 'Last Enriched', icon: Calendar },
 }
 
 const researchColors = [
@@ -178,27 +179,25 @@ export default function CompanyProfileScreen() {
 
   const generateResearch = useMutation({
     mutationFn: async () => {
-      const res = await fetch('/api/research', {
+      const res = await fetch('/api/g-data/jobs/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyId: selectedCompanyId, action: 'generate' }),
+        body: JSON.stringify({ action: 'enqueue-research', companyIds: [selectedCompanyId], force: true }),
       })
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Failed to generate research' }))
-        throw new Error(err.error || 'Failed to generate research')
+        const err = await res.json().catch(() => ({ error: 'Failed to queue research' }))
+        throw new Error(err.error || 'Failed to queue research')
       }
-      return res.json()
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      return data
     },
-    onSuccess: (result) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['company', selectedCompanyId] })
       qc.invalidateQueries({ queryKey: ['company-breadcrumb', selectedCompanyId] })
-      if (result._usedLlm === false) {
-        toast.info('Generated with templates — configure AI key in Settings for AI-powered research')
-      } else {
-        toast.success('AI research generated successfully')
-      }
+      toast.success('Research job queued — check Command Center for progress')
     },
-    onError: (err) => toast.error(err.message || 'Failed to generate research'),
+    onError: (err) => toast.error(err.message || 'Failed to queue research'),
   })
 
   const addContact = useMutation({
@@ -866,7 +865,7 @@ export default function CompanyProfileScreen() {
               </div>
               <h3 className="text-sm font-semibold text-gray-900 mb-1">No research generated yet</h3>
               <p className="text-sm text-gray-500 mb-4 max-w-md mx-auto">
-                Generate an AI-powered research card with business overview, tech landscape, challenges, and opportunities.
+                Generate an AI-powered research card with business overview, tech stack, revenue, and more.
               </p>
               <Button
                 size="sm"
@@ -1096,7 +1095,7 @@ export default function CompanyProfileScreen() {
                 <EmptyState
                   icon={FileText}
                   title="No research generated yet"
-                  description="Click Generate AI Research to create an AI-powered research card with business overview, tech landscape, challenges, and opportunities."
+                  description="Click Generate AI Research to create an AI-powered research card with business overview, tech stack, revenue, and more."
                   actionLabel="Generate AI Research"
                   onAction={() => generateResearch.mutate()}
                   className="py-10"

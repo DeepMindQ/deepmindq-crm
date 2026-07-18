@@ -201,6 +201,19 @@ function ActionMenu({ companyId, navigateTo }: { companyId: string; navigateTo?:
         toast.success('Enrichment job queued — check Command Center for progress', { id: 'enrich' });
       } catch { toast.error('Failed to queue enrichment', { id: 'enrich' }); }
     }},
+    { label: 'Run Research (Phase 3)', action: async () => {
+      toast.loading('Queueing research job...', { id: 'research' });
+      try {
+        const res = await fetch('/api/g-data/jobs/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'enqueue-research', companyIds: [companyId], force: true }),
+        });
+        const data = await res.json();
+        if (data.success) toast.success(`Research job queued (${data.created || 1} job)`, { id: 'research' });
+        else toast.error(data.error || 'Failed to queue research', { id: 'research' });
+      } catch { toast.error('Failed to queue research', { id: 'research' }); }
+    }},
     { label: 'Add Note', action: () => { useAppStore.getState().setSelectedCompanyId(companyId); navigateTo?.('companies'); } },
   ];
 
@@ -517,6 +530,52 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
     return () => clearInterval(pollInterval);
   }, [selectedIds, companies, fetchCompanies]);
 
+  /* ── Research via Job Queue (Phase 3 — full pipeline) ── */
+  const researchSelected = useCallback(async () => {
+    let idsToResearch: string[] = [];
+    if (selectedIds.size > 0) {
+      idsToResearch = [...selectedIds];
+    } else {
+      try {
+        const res = await fetch('/api/g-crm/companies?limit=500');
+        const data = await res.json();
+        const all = data.companies || data.data?.companies || [];
+        idsToResearch = all.map((c: Company) => c.id);
+      } catch {
+        toast.error('Failed to fetch companies');
+        return;
+      }
+    }
+    if (idsToResearch.length === 0) {
+      toast.info('No companies found');
+      return;
+    }
+    setEnrichLoading(true);
+    setSelectedIds(new Set());
+    try {
+      const res = await fetch('/api/g-data/jobs/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'enqueue-research',
+          companyIds: idsToResearch,
+          force: true,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        toast.error(`Research queue failed: ${data.error}`);
+        setEnrichLoading(false);
+        return;
+      }
+      const created = data.created ?? 0;
+      toast.success(`${created} research jobs queued — check Command Center for progress`);
+    } catch {
+      toast.error('Failed to queue research jobs');
+    }
+    setEnrichLoading(false);
+  }, [selectedIds]);
+
   const cancelEnrich = () => {
     enrichCancelRef.current = true;
     setEnrichCancelled(true);
@@ -639,16 +698,28 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
 
           {/* Enrich Selected / Enrich All */}
           {!enrichLoading ? (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={enrichSelected}
-              className="h-8 px-3 text-xs font-medium rounded-lg shrink-0"
-              style={{ borderColor: selectedIds.size > 0 ? 'rgba(212,175,55,0.5)' : 'rgba(212,175,55,0.3)', color: gold }}
-            >
-              <Sparkles size={14} className="mr-1.5" />
-              {selectedIds.size > 0 ? `Enrich ${selectedIds.size} Selected` : 'Enrich All'}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={enrichSelected}
+                className="h-8 px-3 text-xs font-medium rounded-lg shrink-0"
+                style={{ borderColor: selectedIds.size > 0 ? 'rgba(212,175,55,0.5)' : 'rgba(212,175,55,0.3)', color: gold }}
+              >
+                <Sparkles size={14} className="mr-1.5" />
+                {selectedIds.size > 0 ? `Enrich ${selectedIds.size} Selected` : 'Enrich All'}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={researchSelected}
+                disabled={enrichLoading}
+                className="gap-2 text-xs"
+              >
+                <Brain size={13} />
+                {enrichLoading ? 'Researching...' : 'Research All (Phase 3)'}
+              </Button>
+            </div>
           ) : (
             <Button
               size="sm"

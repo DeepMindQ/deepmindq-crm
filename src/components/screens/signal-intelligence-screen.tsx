@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { PageTransition, AnimatedCounter, EmptyState } from '@/components/ui/animated-components';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsTrigger, TabsList } from '@/components/ui/tabs';
 import { useAppStore } from '@/lib/store';
 
 /* ═══════════════════════════════════════════════════
@@ -96,6 +97,12 @@ const priorityConfig: Record<Priority, { color: string; bg: string; label: strin
   high:   { color: '#DC2626', bg: 'rgba(220,38,38,0.08)',  label: 'High Priority' },
   medium: { color: '#D97706', bg: 'rgba(217,119,6,0.08)',  label: 'Medium' },
   low:    { color: '#6B7280', bg: 'rgba(107,114,128,0.08)', label: 'Low' },
+};
+
+/* Framer-motion variant for staggered card animations */
+const staggerItem = {
+  hidden: { opacity: 0, y: 16, scale: 0.98 },
+  visible: { opacity: 1, y: 0, scale: 1 },
 };
 
 const filterPills: { key: 'All' | 'Internal' | ExternalType; label: string }[] = [
@@ -312,6 +319,25 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
   const [newsSources, setNewsSources] = useState<NewsSourceGroup[]>([]);
   const [newsPanelOpen, setNewsPanelOpen] = useState(true);
 
+  /* ── Fetch Research Engine Signals (Phase 3 — from DB) ── */
+  const [dbSignals, setDbSignals] = useState<any[]>([]);
+  const [loadingDbSignals, setLoadingDbSignals] = useState(false);
+
+  const fetchDbSignals = useCallback(async () => {
+    setLoadingDbSignals(true);
+    try {
+      const res = await fetch('/api/g-crm/signals?limit=50');
+      if (res.ok) {
+        const data = await res.json();
+        setDbSignals(data.signals || []);
+      }
+    } catch (err) {
+      console.error('[SignalIntelligence] Failed to fetch DB signals:', err);
+    } finally {
+      setLoadingDbSignals(false);
+    }
+  }, []);
+
   const fetchSignals = useCallback(async (bypassCache = false) => {
     setScanning(true);
     setError(null);
@@ -354,7 +380,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
     }
   }, []);
 
-  useEffect(() => { fetchSignals(); }, [fetchSignals]);
+  useEffect(() => { fetchSignals(); fetchDbSignals(); }, [fetchSignals, fetchDbSignals]);
 
   const filteredSignals = useMemo(() => {
     if (activeFilter === 'All') return signals;
@@ -526,8 +552,21 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
           )}
         </AnimatePresence>
 
-        {/* ─── Filters + Signal Feed ─── */}
-        <div className="space-y-5">
+        {/* ─── Tabs: Live Signals vs Research Signals ─── */}
+        <Tabs defaultValue="live" className="space-y-5">
+          <TabsList>
+            <TabsTrigger value="live" className="text-xs">
+              <Radar size={13} className="mr-1" />
+              Live Signals
+            </TabsTrigger>
+            <TabsTrigger value="research" className="text-xs">
+              <Database size={13} className="mr-1" />
+              Research Signals
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ─── Live Signal Feed Tab ─── */}
+          <TabsContent value="live" className="space-y-5">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -794,7 +833,57 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
               </motion.div>
             ) : null}
           </AnimatePresence>
-        </div>
+          </TabsContent>
+
+          {/* ─── Research Signals Tab (Phase 3 — DB CompanySignal records) ─── */}
+          <TabsContent value="research" className="space-y-3">
+            {loadingDbSignals ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {[1,2,3,4].map(i => <Skeleton key={i} className="h-24 w-full" />)}
+              </div>
+            ) : dbSignals.length === 0 ? (
+              <EmptyState icon={Database} title="No Research Signals" description="Run research on companies to detect buying signals with evidence tracking." />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {dbSignals.slice(0, 20).map((signal: any) => {
+                  const sev = signal.severity || signal.impact || 'low';
+                  const sigImpactColor = sev === 'high' || sev === 'critical' ? '#DC2626' : sev === 'medium' ? '#D97706' : '#6B7280';
+                  return (
+                    <motion.div key={signal.id} variants={staggerItem} initial="hidden" animate="visible" className="rounded-xl border border-border/50 bg-white/80 backdrop-blur p-4 hover:shadow-lg transition-shadow">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: sigImpactColor + '15', color: sigImpactColor }}>
+                            {signal.signalType?.replace(/_/g, ' ') || signal.type?.replace(/_/g, ' ') || 'signal'}
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                            {sev}
+                          </span>
+                        </div>
+                        {signal.confidence > 0 && (
+                          <span className="text-[10px] text-muted-foreground">{Math.round(signal.confidence * 100)}% confidence</span>
+                        )}
+                      </div>
+                      <h4 className="text-sm font-semibold text-foreground mb-1">{signal.title}</h4>
+                      {signal.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">{signal.description}</p>
+                      )}
+                      <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
+                        {signal.source && <span>{signal.source}</span>}
+                        {signal.companyName && <span>· {signal.companyName}</span>}
+                        {(signal.signalDate || signal.detectedAt) && <span>{new Date(signal.signalDate || signal.detectedAt).toLocaleDateString()}</span>}
+                        {signal.sourceUrl && (
+                          <a href={signal.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline flex items-center gap-1">
+                            Source <ExternalLink size={10} />
+                          </a>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </PageTransition>
   );

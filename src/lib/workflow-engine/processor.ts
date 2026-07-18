@@ -26,7 +26,7 @@ import {
 import { classifyError } from './retry';
 import { logJobEvent } from './index';
 import { db } from '@/lib/db';
-import { webSearch, callLLM, extractJSON, findKeyPeople, getCompanyNews, tavilyAIAnswer } from '@/lib/zai-helpers';
+import { webSearch } from '@/lib/zai-helpers';
 import { researchCompany } from '@/lib/research-engine';
 import { detectSignals, storeSignals } from '@/lib/research-engine';
 
@@ -128,6 +128,11 @@ export async function processNextJobs(limit: number = 5): Promise<{
 // ── Job Type Processors ──
 
 async function processEnrichmentJob(jobId: string, job: any): Promise<void> {
+  // Phase 3: Enrichment now delegates to the research engine.
+  // The 'enrichment' job type is a legacy alias — it runs the full
+  // 6-step research pipeline (search→evidence→extract→validate→score→store).
+  // This ensures all enrichment goes through evidence tracking and
+  // per-field confidence scoring.
   const payload = job.payload || {};
   const companyId = job.companyId || payload.companyId;
 
@@ -138,7 +143,6 @@ async function processEnrichmentJob(jobId: string, job: any): Promise<void> {
 
   const company = await db.company.findUnique({
     where: { id: companyId },
-    include: { researchCard: true },
   });
 
   if (!company) {
@@ -146,216 +150,38 @@ async function processEnrichmentJob(jobId: string, job: any): Promise<void> {
     return;
   }
 
-  // Check if already enriched recently (within 24h) unless force
-  if (!payload.force && company.researchCard?.enrichmentDate) {
-    const hoursSince = (Date.now() - new Date(company.researchCard.enrichmentDate).getTime()) / (1000 * 60 * 60);
-    if (hoursSince < 24) {
-      await completeJob(jobId, { skipped: true, reason: 'Recently enriched', researchCard: company.researchCard });
-      return;
-    }
-  }
-
   const companyName = company.rawName || company.normalizedName;
 
-  // Step 1: Searching (0-30%)
-  await updateJobProgress(jobId, 5, 'Searching', { step: 'web_search', progress: 5, message: 'Running web searches...' });
-  await logJobEvent(jobId, 'info', 'enrichment_search_start', `Starting web search for ${companyName}`);
-
-  const searchQueries = [
-    `${companyName} ${company.domain || ''} revenue employees funding 2024 2025`,
-    `${companyName} technology stack products services`,
-    `${companyName} LinkedIn company profile overview`,
-    `${companyName} CEO CTO CIO executives leadership team`,
-    `${companyName} news 2025 funding hiring expansion`,
-  ];
-
-  const searchResults = await Promise.allSettled(
-    searchQueries.map(q => webSearch(q, 6)),
+  // Delegate to Phase 3 research engine
+  const researchResult = await researchCompany(
+    companyId,
+    companyName,
+    company.domain,
+    company.industry,
+    jobId,
+    payload.force === true,
+    (progress) => {
+      const jobProgress = Math.round(progress.progress * 0.95);
+      updateJobProgress(jobId, jobProgress, progress.label, {
+        step: `enrichment_${progress.step}`,
+        progress: jobProgress,
+        message: progress.message,
+      }).catch(() => {});
+    },
   );
 
-  const allSnippets: string[] = [];
-  let linkedInUrl = '';
-  let twitterUrl = '';
-  let websiteUrl = '';
-
-  for (const result of searchResults) {
-    if (result.status === 'fulfilled' && result.value.length > 0) {
-      for (const r of result.value) {
-        allSnippets.push(`[${r.title}] ${r.snippet}`);
-        if (r.url?.includes('linkedin.com/company') && !linkedInUrl) linkedInUrl = r.url;
-        if ((r.url?.includes('twitter.com') || r.url?.includes('x.com')) && !twitterUrl) twitterUrl = r.url;
-        if (!websiteUrl && r.url && !r.url.includes('linkedin.com') && !r.url.includes('twitter.com') && !r.url.includes('wikipedia.org') && !r.url.includes('google.com')) {
-          websiteUrl = r.url;
-        }
-      }
-    }
-  }
-
-  await updateJobProgress(jobId, 30, 'Searching', { step: 'web_search', progress: 30, message: `Found ${allSnippets.length} search results` });
-  await logJobEvent(jobId, 'info', 'enrichment_search_done', `Found ${allSnippets.length} snippets from web search`);
-
-  // Step 2: Extracting key people (30-50%)
-  await updateJobProgress(jobId, 35, 'Finding key people', { step: 'key_people', progress: 35 });
-  let keyPeopleData: string = '[]';
-  try {
-    const people = await findKeyPeople(companyName);
-    if (people.length > 0) keyPeopleData = JSON.stringify(people.slice(0, 10));
-  } catch (err) {
-    await logJobEvent(jobId, 'warn', 'enrichment_key_people_failed', 'Key people search failed, continuing');
-  }
-
-  await updateJobProgress(jobId, 50, 'Extracting', { step: 'key_people', progress: 50, message: 'Key people found, extracting news...' });
-
-  // Step 3: Extracting news/signals (50-60%)
-  let newsData: string = '[]';
-  try {
-    const news = await getCompanyNews(companyName);
-    if (news.length > 0) newsData = JSON.stringify(news.slice(0, 8));
-  } catch (err) {
-    await logJobEvent(jobId, 'warn', 'enrichment_news_failed', 'News search failed, continuing');
-  }
-
-  await updateJobProgress(jobId, 60, 'Extracting', { step: 'llm_extraction', progress: 60, message: 'Running AI extraction...' });
-
-  // Step 4: LLM Extraction (60-80%)
-  const searchContext = allSnippets.slice(0, 30).join('\n');
-
-  const systemPrompt = `You are a business intelligence research assistant. Based ONLY on the web search results provided, extract accurate, factual information.
-
-CRITICAL: Only include information directly supported by the search results. If something is not found, write "Not found".
-
-Return ONLY valid JSON:
-{
-  "businessOverview": "2-3 sentence factual description",
-  "revenue": "revenue or range, or 'Not found'",
-  "employeeCount": "employee count or range, or 'Not found'",
-  "fundingStage": "Bootstrap/Seed/Series A/Series B/Series C+/PE-backed/Public/Not found",
-  "techStack": "comma-separated technologies, or empty string",
-  "industry": "primary industry",
-  "website": "official website URL"
-}`;
-
-  const userPrompt = `Company: ${companyName}
-Domain: ${company.domain || 'Unknown'}
-Current Industry: ${company.industry || 'Unknown'}
-
-Web Search Results:
-${searchContext || 'No results found.'}
-
-Provide accurate company data as JSON.`;
-
-  let extractedData: Record<string, unknown> | null = null;
-
-  try {
-    const response = await callLLM(systemPrompt, userPrompt);
-    extractedData = extractJSON(response) as Record<string, unknown> | null;
-  } catch (err) {
-    await logJobEvent(jobId, 'warn', 'enrichment_llm_failed', 'LLM extraction failed, trying Tavily fallback');
-  }
-
-  // Tavily fallback
-  if (!extractedData || typeof extractedData !== 'object') {
-    try {
-      const tavilyAnswer = await tavilyAIAnswer(
-        `${companyName} ${company.domain || ''} revenue employees funding industry technology overview`
-      );
-      if (tavilyAnswer) {
-        extractedData = {
-          businessOverview: tavilyAnswer.slice(0, 500),
-          revenue: 'Not found',
-          employeeCount: 'Not found',
-          fundingStage: 'Not found',
-          techStack: '',
-          industry: company.industry || 'Not found',
-          website: websiteUrl || company.domain ? `https://${company.domain}` : '',
-        };
-      }
-    } catch { /* fall through */ }
-  }
-
-  await updateJobProgress(jobId, 80, 'Validating', { step: 'validation', progress: 80, message: 'Validating extracted data...' });
-
-  // Step 5: Store results (80-95%)
-  const socialProfiles: Record<string, string> = {};
-  if (linkedInUrl) socialProfiles.linkedin = linkedInUrl;
-  if (twitterUrl) socialProfiles.twitter = twitterUrl;
-
-  const enrichmentData = {
-    businessOverview: String(extractedData?.businessOverview || `${companyName} operates in the ${company.industry || 'technology'} sector.`),
-    revenue: String(extractedData?.revenue || 'Not found'),
-    employeeCount: String(extractedData?.employeeCount || 'Not found'),
-    fundingStage: String(extractedData?.fundingStage || 'Not found'),
-    techStack: String(extractedData?.techStack || ''),
-    socialProfiles: JSON.stringify(socialProfiles),
-    keyPeople: keyPeopleData,
-    recentNews: newsData,
-    industry: String(extractedData?.industry || company.industry || 'Not found'),
-    website: String(extractedData?.website || websiteUrl || (company.domain ? `https://${company.domain}` : '')),
-  };
-
-  // Upsert research card
-  const { keyPeople: _kp, recentNews: _rn, industry: _ind, website: _web, ...prismaFields } = enrichmentData;
-  await db.companyResearchCard.upsert({
-    where: { companyId: company.id },
-    create: {
-      companyId: company.id,
-      ...prismaFields,
-      enrichmentSource: 'workflow_engine',
-      enrichmentDate: new Date(),
-    },
-    update: {
-      ...prismaFields,
-      enrichmentSource: 'workflow_engine',
-      enrichmentDate: new Date(),
-    },
-  });
-
-  // Update company fields
-  const companyUpdate: Record<string, string | number> = {};
-  if (!company.industry && enrichmentData.industry && enrichmentData.industry !== 'Not found') {
-    companyUpdate.industry = enrichmentData.industry;
-  }
-  if (!company.website && enrichmentData.website) {
-    companyUpdate.website = enrichmentData.website;
-  }
-
-  // Calculate intelligence score
-  let score = 10;
-  if (enrichmentData.businessOverview && !enrichmentData.businessOverview.includes('operates in the')) score += 15;
-  if (enrichmentData.revenue && enrichmentData.revenue !== 'Not found') score += 15;
-  if (enrichmentData.employeeCount && enrichmentData.employeeCount !== 'Not found') score += 10;
-  if (enrichmentData.fundingStage && enrichmentData.fundingStage !== 'Not found') score += 10;
-  if (enrichmentData.techStack) score += 10;
-  if (enrichmentData.industry && enrichmentData.industry !== 'Not found') score += 10;
-  if (company.domain) score += 10;
-  if (company.website) score += 5;
-  companyUpdate.intelligenceScore = Math.min(100, score);
-
-  if (Object.keys(companyUpdate).length > 0) {
-    await db.company.update({ where: { id: company.id }, data: companyUpdate });
-  }
-
-  // Update enrichment score for contacts
-  await db.contact.updateMany({
-    where: { companyId: company.id },
-    data: { enrichmentScore: 50, enrichmentData: JSON.stringify(enrichmentData) },
-  });
-
-  await updateJobProgress(jobId, 95, 'Storing', { step: 'storing', progress: 95, message: 'Results stored' });
-
-  // Step 6: Complete
   await completeJob(jobId, {
     companyId: company.id,
     companyName,
-    industry: enrichmentData.industry,
-    revenue: enrichmentData.revenue,
-    employeeCount: enrichmentData.employeeCount,
-    fundingStage: enrichmentData.fundingStage,
-    techStack: enrichmentData.techStack,
-    intelligenceScore: companyUpdate.intelligenceScore,
+    mode: 'enrichment_via_research_engine',
+    overallConfidence: researchResult.overallConfidence,
+    evidenceCount: researchResult.evidenceCount,
+    signalsDetected: researchResult.signals.signalCount,
   });
 
-  await logJobEvent(jobId, 'info', 'enrichment_complete', `Enriched ${companyName} successfully`);
+  await logJobEvent(jobId, 'info', 'enrichment_complete',
+    `Enriched ${companyName} via research engine: ${Math.round(researchResult.overallConfidence * 100)}% confidence, ${researchResult.evidenceCount} evidence`
+  );
 }
 
 async function processResearchJob(jobId: string, job: any): Promise<void> {
@@ -434,7 +260,7 @@ async function processScoringJob(jobId: string, job: any): Promise<void> {
     return;
   }
 
-  // Step 1: Load data
+  // Step 1: Load data (including Phase 3 evidence + fieldConfidence)
   await updateJobProgress(jobId, 30, 'Loading company data', { step: 'loading', progress: 30 });
   const company = await db.company.findUnique({
     where: { id: companyId },
@@ -450,20 +276,60 @@ async function processScoringJob(jobId: string, job: any): Promise<void> {
     return;
   }
 
-  // Step 2: Compute score
+  // Step 2: Compute score using Phase 3 evidence data
   await updateJobProgress(jobId, 70, 'Computing intelligence score', { step: 'computing', progress: 70 });
 
   let score = 0;
   const reasons: string[] = [];
 
+  // Parse fieldConfidence from research card (Phase 3)
+  let fieldConfidence: Record<string, number> = {};
+  try {
+    if (company.researchCard?.fieldConfidence) {
+      fieldConfidence = JSON.parse(company.researchCard.fieldConfidence);
+    }
+  } catch { /* ignore parse errors */ }
+
   // Has research card with real data
   if (company.researchCard) {
     const rc = company.researchCard;
-    if (rc.businessOverview && rc.businessOverview.length > 50) { score += 20; reasons.push('Has business overview'); }
-    if (rc.revenue && rc.revenue !== 'Not found') { score += 15; reasons.push('Revenue known'); }
-    if (rc.employeeCount && rc.employeeCount !== 'Not found') { score += 10; reasons.push('Employee count known'); }
-    if (rc.fundingStage && rc.fundingStage !== 'Not found') { score += 10; reasons.push('Funding stage known'); }
-    if (rc.techStack && rc.techStack.length > 0) { score += 10; reasons.push('Tech stack known'); }
+
+    // Phase 3: Use per-field confidence for scoring
+    if (rc.businessOverview && rc.businessOverview.length > 50) {
+      const fc = fieldConfidence.businessOverview || 0.5;
+      score += Math.round(20 * (0.5 + fc * 0.5));
+      reasons.push(`Business overview (${Math.round(fc * 100)}% confidence)`);
+    }
+    if (rc.revenue && rc.revenue !== 'Not found') {
+      const fc = fieldConfidence.revenue || 0.5;
+      score += Math.round(15 * (0.5 + fc * 0.5));
+      reasons.push(`Revenue known (${Math.round(fc * 100)}% confidence)`);
+    }
+    if (rc.employeeCount && rc.employeeCount !== 'Not found') {
+      const fc = fieldConfidence.employeeCount || 0.5;
+      score += Math.round(10 * (0.5 + fc * 0.5));
+      reasons.push(`Employee count known (${Math.round(fc * 100)}% confidence)`);
+    }
+    if (rc.fundingStage && rc.fundingStage !== 'Not found') {
+      const fc = fieldConfidence.fundingStage || 0.5;
+      score += Math.round(10 * (0.5 + fc * 0.5));
+      reasons.push(`Funding stage known (${Math.round(fc * 100)}% confidence)`);
+    }
+    if (rc.techStack && rc.techStack.length > 0) {
+      score += 10;
+      reasons.push('Tech stack known');
+    }
+
+    // Phase 3: Evidence count bonus
+    try {
+      const { getEvidenceSummary } = await import('@/lib/research-engine');
+      const summary = await getEvidenceSummary(companyId);
+      if (summary.totalEvidence > 0) {
+        const evidenceBonus = Math.min(Math.round(summary.totalEvidence / 5), 10);
+        score += evidenceBonus;
+        reasons.push(`${summary.totalEvidence} evidence records (+${evidenceBonus})`);
+      }
+    } catch { /* non-critical */ }
   }
 
   // Has domain
@@ -472,8 +338,13 @@ async function processScoringJob(jobId: string, job: any): Promise<void> {
   // Has industry
   if (company.industry) { score += 10; reasons.push('Industry classified'); }
 
-  // Has signals
-  if (company.signals.length > 0) { score += 10; reasons.push(`${company.signals.length} signal(s) detected`); }
+  // Has signals (Phase 3: weight by impact)
+  const highImpactSignals = company.signals.filter((s: any) => s.impact === 'high').length;
+  if (company.signals.length > 0) {
+    const signalScore = Math.min(15, company.signals.length * 3 + highImpactSignals * 5);
+    score += signalScore;
+    reasons.push(`${company.signals.length} signal(s) (${highImpactSignals} high-impact, +${signalScore})`);
+  }
 
   // Has contacts with high scores
   const highValueContacts = company.contacts.filter(c => c.leadScore >= 50);
@@ -493,6 +364,7 @@ async function processScoringJob(jobId: string, job: any): Promise<void> {
     companyId,
     score,
     reasons,
+    fieldConfidence,
   });
 
   await logJobEvent(jobId, 'info', 'scoring_complete', `Scored ${company.rawName}: ${score}/100`);

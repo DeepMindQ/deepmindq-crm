@@ -99,26 +99,56 @@ export async function enqueueEnrichment(
   });
 }
 
-// ── Bulk Enqueue ──
+// ── Create Research Job (Phase 3 — full 6-step pipeline) ──
 
-export async function enqueueBulkEnrichment(
-  companyIds: string[],
+export async function enqueueResearch(
+  companyId: string,
   options?: { priority?: number; force?: boolean }
+): Promise<string> {
+  const { createJob } = await import('./queue');
+  return createJob({
+    type: 'research',
+    companyId,
+    priority: options?.priority ?? 4, // slightly higher priority than enrichment
+    payload: { force: options?.force ?? false },
+  });
+}
+
+// ── Create Signal Detection Job (Phase 3) ──
+
+export async function enqueueSignalDetection(
+  companyId: string,
+  options?: { priority?: number }
+): Promise<string> {
+  const { createJob } = await import('./queue');
+  return createJob({
+    type: 'signal_detection',
+    companyId,
+    priority: options?.priority ?? 5,
+  });
+}
+
+// ── Bulk Enqueue Helpers ──
+
+type BulkEnqueueOptions = { priority?: number; force?: boolean };
+
+async function bulkEnqueue(
+  jobType: 'enrichment' | 'research' | 'signal_detection',
+  companyIds: string[],
+  options?: BulkEnqueueOptions,
 ): Promise<{ created: number; skipped: number }> {
   const { createJob } = await import('./queue');
 
-  // Check for existing active jobs for these companies
   const existingActiveJobs = await db.job.findMany({
     where: {
       companyId: { in: companyIds },
       status: { in: ['pending', 'queued', 'running'] },
-      type: 'enrichment',
+      type: jobType,
     },
     select: { companyId: true },
   });
 
   const activeCompanyIds = new Set(existingActiveJobs.map(j => j.companyId!));
-
   let created = 0;
   let skipped = 0;
 
@@ -128,13 +158,34 @@ export async function enqueueBulkEnrichment(
       continue;
     }
     await createJob({
-      type: 'enrichment',
+      type: jobType,
       companyId,
-      priority: options?.priority ?? 5,
-      payload: { force: options?.force ?? false },
+      priority: options?.priority ?? (jobType === 'research' ? 4 : 5),
+      payload: jobType !== 'signal_detection' ? { force: options?.force ?? false } : undefined,
     });
     created++;
   }
 
   return { created, skipped };
+}
+
+export async function enqueueBulkEnrichment(
+  companyIds: string[],
+  options?: BulkEnqueueOptions,
+): Promise<{ created: number; skipped: number }> {
+  return bulkEnqueue('enrichment', companyIds, options);
+}
+
+export async function enqueueBulkResearch(
+  companyIds: string[],
+  options?: BulkEnqueueOptions,
+): Promise<{ created: number; skipped: number }> {
+  return bulkEnqueue('research', companyIds, options);
+}
+
+export async function enqueueBulkSignalDetection(
+  companyIds: string[],
+  options?: { priority?: number },
+): Promise<{ created: number; skipped: number }> {
+  return bulkEnqueue('signal_detection', companyIds, options);
 }

@@ -11,8 +11,11 @@
 export { researchCompany, type ResearchResult, type ResearchStepProgress } from './researcher';
 export {
   collectEvidence,
+  storeEvidenceFromResults,
+  cleanupOldEvidence,
   linkEvidenceToFields,
   getEvidenceForField,
+  getCompanyEvidence,
   getEvidenceSummary,
   type RawEvidence,
   type ExtractedField,

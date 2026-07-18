@@ -6,10 +6,12 @@
  * - "Show me all evidence for company X's revenue"
  * - Per-field confidence scoring based on evidence count & quality
  * - Full audit trail of what was extracted and from where
+ * - Deduplication on re-research (GAP 16+21)
+ * - Accepts pre-fetched results to avoid double-searching (GAP 15)
  */
 
 import { db } from '@/lib/db';
-import { webSearch, type WebSearchResult } from '@/lib/zai-helpers';
+import { type WebSearchResult } from '@/lib/zai-helpers';
 
 // ── Types ──
 
@@ -37,31 +39,44 @@ export interface FieldConfidence {
 // ── Step 2: Evidence Collection ──
 
 /**
- * Run a search query and collect evidence records from results.
- * Each search result becomes an evidence entry.
+ * Store evidence from already-fetched search results (no re-searching).
+ * Used by researcher.ts Step 2 after Step 1 has collected results.
+ * Deduplicates against existing evidence for the same company+URL.
  */
-export async function collectEvidence(
+export async function storeEvidenceFromResults(
   companyId: string,
   jobId: string | null,
-  query: string,
-  maxResults: number = 8,
+  searchQuery: string,
+  results: Array<{ title: string; snippet: string; url: string; source: string }>,
 ): Promise<RawEvidence[]> {
-  const results = await webSearch(query, maxResults);
-  const evidence: RawEvidence[] = [];
+  if (results.length === 0) return [];
 
+  // Get existing URLs for this company to dedup (GAP 16)
+  const existingEvidence = await db.evidence.findMany({
+    where: { companyId },
+    select: { sourceUrl: true },
+  });
+  const existingUrls = new Set(existingEvidence.map(e => e.sourceUrl));
+
+  const evidence: RawEvidence[] = [];
   for (const r of results) {
-    const sourceName = r.host_name || extractDomain(r.url);
+    // Skip duplicates
+    if (existingUrls.has(r.url)) continue;
+
+    const sourceName = r.source || extractDomain(r.url);
+    const relevance = calculateRelevanceFromRaw(r);
     evidence.push({
-      searchQuery: query,
+      searchQuery,
       sourceUrl: r.url,
       sourceTitle: r.title || '',
       sourceName,
-      snippet: r.snippet || r.description || '',
-      relevanceScore: calculateRelevance(r),
+      snippet: r.snippet,
+      relevanceScore: relevance,
     });
+    existingUrls.add(r.url); // prevent intra-batch dups too
   }
 
-  // Batch store evidence
+  // Batch store new evidence
   if (evidence.length > 0) {
     await db.evidence.createMany({
       data: evidence.map(e => ({
@@ -73,12 +88,72 @@ export async function collectEvidence(
         sourceName: e.sourceName,
         snippet: e.snippet,
         relevanceScore: e.relevanceScore,
-        confidence: e.relevanceScore * 0.8, // initial confidence = relevance * 0.8
+        confidence: e.relevanceScore * 0.8,
       })),
     });
   }
 
   return evidence;
+}
+
+/**
+ * Legacy: Run a search query and collect evidence records from results.
+ * Kept for backward compat — prefer storeEvidenceFromResults() when results
+ * are already available.
+ */
+export async function collectEvidence(
+  companyId: string,
+  jobId: string | null,
+  query: string,
+  maxResults: number = 8,
+): Promise<RawEvidence[]> {
+  const { webSearch } = await import('@/lib/zai-helpers');
+  const results = await webSearch(query, maxResults);
+  const normalized = results.map(r => ({
+    title: r.title,
+    snippet: r.snippet || r.description || '',
+    url: r.url,
+    source: r.host_name || r.name || '',
+  }));
+  return storeEvidenceFromResults(companyId, jobId, query, normalized);
+}
+
+// ── Evidence Cleanup on Re-Research (GAP 21) ──
+
+/**
+ * Mark old evidence as superseded before a new research run.
+ * Keeps last run's evidence, archives older runs.
+ */
+export async function cleanupOldEvidence(companyId: string, keepJobId: string | null): Promise<number> {
+  // Get the most recent evidence batch (by this job or latest)
+  const latestEvidence = await db.evidence.findMany({
+    where: { companyId },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+    select: { id: true },
+  });
+
+  if (latestEvidence.length <= 50) return 0; // not enough to warrant cleanup
+
+  // Delete evidence older than the latest 50 records
+  const keepIds = new Set(latestEvidence.map(e => e.id));
+  const oldCount = await db.evidence.count({
+    where: {
+      companyId,
+      id: { notIn: [...keepIds] },
+    },
+  });
+
+  if (oldCount > 0) {
+    await db.evidence.deleteMany({
+      where: {
+        companyId,
+        id: { notIn: [...keepIds] },
+      },
+    });
+  }
+
+  return oldCount;
 }
 
 // ── Step 4: Field Validation — Cross-Reference ──
@@ -94,21 +169,19 @@ export async function linkEvidenceToFields(
   const fieldConfidence: FieldConfidence = {};
   let updatedEvidence = 0;
 
-  // Get all evidence for this company
+  // Get all evidence for this company (only current run's evidence)
   const allEvidence = await db.evidence.findMany({
     where: { companyId },
     orderBy: { relevanceScore: 'desc' },
   });
 
   if (allEvidence.length === 0) {
-    // No evidence — low confidence for everything
     for (const field of Object.keys(extractedData)) {
       fieldConfidence[field] = 0.2;
     }
     return { fieldConfidence, updatedEvidence: 0 };
   }
 
-  // For each extracted field, find supporting evidence
   const searchableFields = [
     'revenue', 'employeeCount', 'fundingStage', 'techStack',
     'industry', 'businessOverview', 'website',
@@ -116,7 +189,7 @@ export async function linkEvidenceToFields(
 
   for (const field of Object.keys(extractedData)) {
     if (!searchableFields.includes(field)) {
-      fieldConfidence[field] = 0.5; // unknown field, medium confidence
+      fieldConfidence[field] = 0.5;
       continue;
     }
 
@@ -127,18 +200,26 @@ export async function linkEvidenceToFields(
     }
 
     // Find evidence snippets that mention this field's value
-    const supportingEvidence = allEvidence.filter(e =>
-      e.snippet.toLowerCase().includes(value.toLowerCase().slice(0, 30))
-    );
+    // Use multiple strategies: exact match, keyword match, partial match
+    const valueLower = value.toLowerCase();
+    const fieldKeywords = getFieldKeywords(field);
+
+    const supportingEvidence = allEvidence.filter(e => {
+      const snippetLower = e.snippet.toLowerCase();
+      // Strategy 1: value appears in snippet
+      if (valueLower !== 'not found' && snippetLower.includes(valueLower.slice(0, 40))) return true;
+      // Strategy 2: field keywords appear in snippet (for short/generic values)
+      if (fieldKeywords.some(kw => snippetLower.includes(kw))) return true;
+      return false;
+    });
 
     if (supportingEvidence.length === 0) {
-      fieldConfidence[field] = 0.3; // extracted but no direct evidence
+      fieldConfidence[field] = 0.3;
       continue;
     }
 
-    // Confidence = based on count and quality of supporting evidence
     const avgRelevance = supportingEvidence.reduce((sum, e) => sum + e.relevanceScore, 0) / supportingEvidence.length;
-    const countBonus = Math.min(supportingEvidence.length / 3, 1); // max bonus at 3+ sources
+    const countBonus = Math.min(supportingEvidence.length / 3, 1);
     const confidence = Math.min(1, avgRelevance * 0.6 + countBonus * 0.4);
 
     fieldConfidence[field] = Math.round(confidence * 100) / 100;
@@ -194,6 +275,44 @@ export async function getEvidenceForField(
 }
 
 /**
+ * Get ALL evidence for a company (with optional field filter).
+ */
+export async function getCompanyEvidence(
+  companyId: string,
+  options?: { field?: string; limit?: number; offset?: number },
+): Promise<{
+  evidence: Array<{
+    id: string;
+    searchQuery: string | null;
+    sourceUrl: string;
+    sourceTitle: string | null;
+    sourceName: string | null;
+    snippet: string;
+    extractedField: string | null;
+    extractedValue: string | null;
+    relevanceScore: number;
+    confidence: number;
+    createdAt: Date;
+  }>;
+  total: number;
+}> {
+  const where: Record<string, unknown> = { companyId };
+  if (options?.field) where.extractedField = options.field;
+
+  const [evidence, total] = await Promise.all([
+    db.evidence.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: options?.limit || 50,
+      skip: options?.offset || 0,
+    }),
+    db.evidence.count({ where }),
+  ]);
+
+  return { evidence, total };
+}
+
+/**
  * Get evidence summary for a company — how many evidence per field.
  */
 export async function getEvidenceSummary(companyId: string): Promise<{
@@ -230,18 +349,38 @@ function extractDomain(url: string): string {
   try { return new URL(url).hostname; } catch { return url; }
 }
 
-function calculateRelevance(result: WebSearchResult): number {
+function calculateRelevanceFromRaw(result: { title: string; snippet: string; url: string }): number {
   let score = 0.5;
-  // Longer snippets are more useful
   if (result.snippet.length > 200) score += 0.15;
   else if (result.snippet.length > 100) score += 0.1;
-  // Has a title
   if (result.title) score += 0.1;
-  // Known high-quality sources
   const highQuality = ['linkedin.com', 'crunchbase.com', 'techcrunch.com', 'bloomberg.com', 'reuters.com'];
   if (highQuality.some(h => result.url?.includes(h))) score += 0.15;
-  // Not a social media link
   const social = ['twitter.com', 'x.com', 'facebook.com', 'instagram.com'];
   if (!social.some(s => result.url?.includes(s))) score += 0.05;
   return Math.min(1, score);
+}
+
+function calculateRelevance(result: WebSearchResult): number {
+  return calculateRelevanceFromRaw({
+    title: result.title,
+    snippet: result.snippet || result.description || '',
+    url: result.url,
+  });
+}
+
+/**
+ * Get search keywords for each field to improve evidence matching.
+ */
+function getFieldKeywords(field: string): string[] {
+  const map: Record<string, string[]> = {
+    revenue: ['revenue', 'annual revenue', 'turnover', 'sales', 'arr', 'million', 'billion', 'usd', '$'],
+    employeeCount: ['employee', 'employees', 'headcount', 'people', 'staff', 'workers', 'team size'],
+    fundingStage: ['funding', 'series', 'seed', 'investment', 'valuation', 'raised', 'venture', 'bootstrap'],
+    techStack: ['technology', 'tech stack', 'built with', 'uses', 'platform', 'framework', 'cloud', 'aws', 'azure', 'kubernetes'],
+    industry: ['industry', 'sector', 'market', 'space', 'vertical', 'category'],
+    businessOverview: ['company', 'founded', 'based', 'headquartered', 'provides', 'offers', 'serves'],
+    website: ['website', 'http', 'www', '.com', 'official site'],
+  };
+  return map[field] || [field];
 }

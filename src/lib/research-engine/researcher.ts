@@ -19,7 +19,7 @@
 
 import { db } from '@/lib/db';
 import { webSearch, callLLM, extractJSON, findKeyPeople, type KeyPerson, type NewsSignal } from '@/lib/zai-helpers';
-import { collectEvidence, linkEvidenceToFields, type FieldConfidence, type RawEvidence } from './evidence';
+import { storeEvidenceFromResults, cleanupOldEvidence, linkEvidenceToFields, type FieldConfidence, type RawEvidence } from './evidence';
 import { detectSignals, storeSignals, type DetectedSignal, type SignalDetectionResult } from './signals';
 
 // ── Types ──
@@ -140,14 +140,24 @@ export async function researchCompany(
 
   // ═══════════════════════════════════════════════════
   // STEP 2: Evidence Collection (25-40%)
+  // Store pre-fetched search results as evidence (no re-searching)
   // ═══════════════════════════════════════════════════
   onProgress?.({ step: 2, label: 'Collecting evidence', progress: 28, message: 'Storing evidence from search results...' });
+
+  // Cleanup old evidence before storing new (GAP 21)
+  if (force) {
+    const deleted = await cleanupOldEvidence(companyId, jobId);
+    if (deleted > 0) {
+      console.log(`[researcher] Cleaned up ${deleted} old evidence records for ${companyName}`);
+    }
+  }
 
   const allEvidence: RawEvidence[] = [];
   for (const sq of searchQueries) {
     const results = searchResultsByCategory[sq.key] || [];
     if (results.length > 0) {
-      const evidence = await collectEvidence(companyId, jobId, sq.query, 8);
+      // Use pre-fetched results — no duplicate web searches (GAP 15)
+      const evidence = await storeEvidenceFromResults(companyId, jobId, sq.query, results);
       allEvidence.push(...evidence);
     }
   }

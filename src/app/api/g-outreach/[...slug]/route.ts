@@ -26,6 +26,9 @@ import * as mod_verify_queue from './verify-queue.ts';
 import * as mod_verify_queue__process from './verify-queue__process.ts';
 import * as mod_review_queue from './review-queue.ts';
 import * as mod_drafts__batch from './drafts__batch.ts';
+import * as mod_opportunities from './opportunities.ts';
+import * as mod_opportunities__batch from './opportunities__batch.ts';
+import * as mod_pursuits from './pursuits.ts';
 
 // Route registry
 const ROUTES = [
@@ -44,6 +47,12 @@ const ROUTES = [
   { key: 'drafts', handler: mod_drafts },
   { key: 'drafts/batch', handler: mod_drafts__batch },
   { key: 'drafts/[id]', handler: mod_drafts___id },
+
+  // Phase 4 Track C: Opportunity Intelligence Layer
+  { key: 'opportunities', handler: mod_opportunities },
+  { key: 'opportunities/batch', handler: mod_opportunities__batch },
+  { key: 'pursuits', handler: mod_pursuits },
+  { key: 'pursuits/[id]', handler: mod_pursuits },
   { key: 'replies', handler: mod_replies },
   { key: 'email-worker', handler: mod_email_worker },
   { key: 'tracking/click', handler: mod_tracking__click },

@@ -15,12 +15,24 @@ import { NextResponse } from 'next/server';
 
 type BatchAction = 'approve' | 'reject' | 'assign' | 'regenerate';
 
+const VALID_REJECTION_REASONS = [
+  'WRONG_TIMING',
+  'EXISTING_RELATIONSHIP',
+  'NOT_RELEVANT',
+  'LOW_CONFIDENCE',
+  'NO_BUDGET',
+  'OTHER',
+] as const;
+
+type RejectionReason = typeof VALID_REJECTION_REASONS[number];
+
 interface BatchRequestBody {
   action: BatchAction;
   draftIds: string[];
   assigneeId?: string;
   feedback?: string;
   scheduledAt?: string;
+  rejectionReason?: RejectionReason;  // Structured taxonomy (draft-level rejection)
 }
 
 interface BatchResult {
@@ -68,7 +80,7 @@ async function processApprove(draftId: string, scheduledAt?: string): Promise<Ba
   return { id: draftId, success: true };
 }
 
-async function processReject(draftId: string, feedback?: string): Promise<BatchResult> {
+async function processReject(draftId: string, feedback?: string, rejectionReason?: RejectionReason): Promise<BatchResult> {
   const draft = await db.draft.findUnique({
     where: { id: draftId },
     select: { id: true, contactId: true, status: true },
@@ -79,11 +91,17 @@ async function processReject(draftId: string, feedback?: string): Promise<BatchR
     return { id: draftId, success: false, error: `Draft status is "${draft.status}", expected "pending_review"` };
   }
 
+  // Store structured reason prefix + free-text feedback
+  const reason = rejectionReason || 'OTHER';
+  const rejectText = feedback
+    ? `[${reason}] ${feedback}`
+    : reason;
+
   await db.draft.update({
     where: { id: draft.id },
     data: {
       status: 'rejected',
-      rejectReason: feedback || null,
+      rejectReason: rejectText,
     },
   });
 
@@ -136,7 +154,7 @@ async function processRegenerate(draftId: string, feedback?: string): Promise<Ba
 export async function POST(request: Request) {
   try {
     const body: BatchRequestBody = await request.json();
-    const { action, draftIds, assigneeId, feedback, scheduledAt } = body;
+    const { action, draftIds, assigneeId, feedback, scheduledAt, rejectionReason } = body;
 
     // ── Validate required fields ──
     if (!action || !['approve', 'reject', 'assign', 'regenerate'].includes(action)) {
@@ -168,6 +186,14 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate rejection reason if provided
+    if (action === 'reject' && rejectionReason && !VALID_REJECTION_REASONS.includes(rejectionReason as RejectionReason)) {
+      return NextResponse.json(
+        { error: `rejectionReason must be one of: ${VALID_REJECTION_REASONS.join(', ')}` },
+        { status: 400 },
+      );
+    }
+
     // ── Process each draft ──
     const results: BatchResult[] = [];
     let processed = 0;
@@ -182,7 +208,7 @@ export async function POST(request: Request) {
             result = await processApprove(draftId, scheduledAt);
             break;
           case 'reject':
-            result = await processReject(draftId, feedback);
+            result = await processReject(draftId, feedback, rejectionReason);
             break;
           case 'assign':
             result = await processAssign(draftId, assigneeId!);

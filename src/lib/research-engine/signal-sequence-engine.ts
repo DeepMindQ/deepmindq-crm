@@ -1,14 +1,17 @@
 /**
  * Signal-Driven Sequence Engine (Phase 4 — Track C1)
  *
- * Generates a multi-step outreach sequence based on:
- *   - A buying signal (why now?)
- *   - A capability match (why this capability?)
- *   - Company research intelligence (why this company?)
- *   - Contact role relevance (why this person?)
+ * Generates a multi-step outreach sequence. Two entry points:
  *
- * The sequence answers the four "why" questions through AI-generated
- * email steps that are specific, timely, and relevant.
+ *   1. generateOpportunitySequence({ opportunityId, contactId })
+ *      — Primary path: consumes an OpportunityRecommendation record.
+ *      — The opportunity already contains whyNow, businessProblem,
+ *        suggestedConversation, and all intelligence context.
+ *      — This is the correct flow: Signal → Opportunity → Human Decision → Sequence.
+ *
+ *   2. generateSignalDrivenSequence({ companyId, signalId, capabilityMatchId, contactId })
+ *      — Legacy path: builds context from raw signal + match.
+ *      — Kept for backward compatibility only.
  *
  * Uses governedAICallAggregate for LLM calls (never calls callLLM directly).
  */
@@ -113,7 +116,132 @@ Return ONLY valid JSON (no markdown fences, no explanation):
   ]
 }`;
 
-// ── Main Function ──
+// ── Primary Path: Opportunity-Driven Sequence Generation ──
+// This is the correct flow: Opportunity (human-accepted) → Sequence.
+
+export async function generateOpportunitySequence(params: {
+  opportunityId: string;
+  contactId: string;
+}): Promise<SignalDrivenSequenceResult> {
+  const { opportunityId, contactId } = params;
+
+  // 1. Load the opportunity recommendation (the intelligence artifact)
+  const opportunity = await db.opportunityRecommendation.findUnique({
+    where: { id: opportunityId },
+  });
+  if (!opportunity) throw new Error(`Opportunity ${opportunityId} not found`);
+
+  // Validate opportunity is accepted (human has already decided to pursue)
+  if (opportunity.status !== 'accepted') {
+    throw new Error(
+      `Opportunity ${opportunityId} status is "${opportunity.status}", must be "accepted" before generating engagement sequence`,
+    );
+  }
+
+  // 2. Load underlying signal and match for LLM context
+  const match = await db.signalCapabilityMatch.findUnique({ where: { id: opportunity.capabilityMatchId } });
+  if (!match) throw new Error(`Capability match ${opportunity.capabilityMatchId} not found`);
+
+  const [signal, capability, company, contact] = await Promise.all([
+    db.companySignal.findUnique({ where: { id: opportunity.signalId } }),
+    db.capabilityAsset.findUnique({ where: { id: match.capabilityId } }),
+    db.company.findUnique({ where: { id: opportunity.companyId } }),
+    db.contact.findUnique({ where: { id: contactId }, include: { company: true } }),
+  ]);
+
+  if (!signal) throw new Error(`Signal ${opportunity.signalId} not found`);
+  if (!capability) throw new Error(`Capability asset not found`);
+  if (!company) throw new Error(`Company ${opportunity.companyId} not found`);
+  if (!contact) throw new Error(`Contact ${contactId} not found`);
+
+  // 3. Load research card
+  const researchCard = await db.companyResearchCard.findUnique({
+    where: { companyId: opportunity.companyId },
+  });
+
+  // 4. Build user prompt — enriched with opportunity intelligence
+  const userPrompt = buildOpportunityDrivenPrompt({
+    opportunity,
+    signal,
+    match,
+    capability,
+    researchCard,
+    contact,
+    company,
+  });
+
+  // 5. Call LLM via governance layer
+  const result = await governedAICallAggregate({
+    generationType: 'sequence_generation',
+    systemPrompt: SEQUENCE_GENERATION_SYSTEM_PROMPT,
+    userPrompt,
+    inputParams: {
+      companyId: opportunity.companyId,
+      opportunityId,
+      signalId: opportunity.signalId,
+      capabilityMatchId: opportunity.capabilityMatchId,
+      contactId,
+      signalType: signal.signalType,
+      capabilityTitle: capability.title,
+    },
+  });
+
+  if (!result.success || !result.response) {
+    throw new Error(
+      result.rejectionReason || 'Failed to generate opportunity-driven sequence via LLM',
+    );
+  }
+
+  // 6. Parse LLM response
+  const parsed = parseSequenceResponse(result.response);
+
+  // 7. Create EmailSequence record linked to the opportunity
+  const sequence = await db.emailSequence.create({
+    data: {
+      name: parsed.name,
+      description: parsed.description,
+      generatedBy: 'signal_driven',
+      companyId: opportunity.companyId,
+      triggerSignalId: opportunity.signalId,
+      triggerCapabilityMatchId: opportunity.capabilityMatchId,
+      triggerReason: parsed.triggerReason,
+      opportunityId: opportunity.id, // ← Link to OpportunityRecommendation
+      steps: {
+        create: parsed.steps.map((step) => ({
+          stepNumber: step.stepNumber,
+          subject: step.subject,
+          body: step.body,
+          cta: step.cta,
+          delayDays: step.delayDays,
+        })),
+      },
+    },
+    include: {
+      steps: { orderBy: { stepNumber: 'asc' } },
+    },
+  });
+
+  return {
+    sequence: {
+      id: sequence.id,
+      name: sequence.name,
+      description: sequence.description || '',
+      triggerReason: sequence.triggerReason || '',
+      steps: sequence.steps.map((s) => ({
+        stepNumber: s.stepNumber,
+        subject: s.subject,
+        body: s.body,
+        cta: s.cta || '',
+        delayDays: s.delayDays,
+        stepPurpose:
+          parsed.steps.find((p) => p.stepNumber === s.stepNumber)?.stepPurpose || '',
+      })),
+    },
+  };
+}
+
+// ── Legacy Path: Direct Signal-Driven Sequence (backward compatibility) ──
+// NOTE: New code should use generateOpportunitySequence() instead.
 
 export async function generateSignalDrivenSequence(params: {
   companyId: string;
@@ -187,7 +315,7 @@ export async function generateSignalDrivenSequence(params: {
   // 8. Parse LLM response
   const parsed = parseSequenceResponse(result.response);
 
-  // 9. Create the EmailSequence record
+  // 9. Create the EmailSequence record (legacy path — no opportunityId link)
   const sequence = await db.emailSequence.create({
     data: {
       name: parsed.name,
@@ -372,6 +500,135 @@ function buildUserPrompt(ctx: {
 - Company: {{company}} (use placeholder)
 
 Now generate the 3-step sequence as JSON.`;
+}
+
+// ── Opportunity-Driven Prompt Builder ──
+// Uses the OpportunityRecommendation's intelligence directly for richer context.
+
+function buildOpportunityDrivenPrompt(ctx: {
+  opportunity: {
+    opportunityTitle: string;
+    businessTrigger: string;
+    whyNow: string;
+    businessProblem: string;
+    recommendedCapability: string;
+    recommendedStakeholders: string;
+    suggestedConversation: string;
+    opportunityScore: number;
+  };
+  signal: {
+    signalType: string;
+    title: string;
+    description: string | null;
+    impact: string;
+    severity: string;
+    confidence: number;
+    buyingArea: string | null;
+    techRequirement: string | null;
+    serviceRequirement: string | null;
+  };
+  match: {
+    matchScore: number;
+    reason: string;
+    businessProblem: string | null;
+    expectedOutcome: string | null;
+    salesAngle: string | null;
+  };
+  capability: {
+    title: string;
+    summary: string;
+    category: string;
+    businessProblem: string | null;
+    customerOutcome: string | null;
+    differentiator: string | null;
+    caseStudyRef: string | null;
+    proofPointRef: string | null;
+  };
+  researchCard: {
+    businessOverview: string | null;
+    techLandscape: string | null;
+    strategicPriorities: string | null;
+    businessProblems: string | null;
+    revenue: string | null;
+    employeeCount: string | null;
+    technologyThemes: string | null;
+  } | null;
+  contact: {
+    normalizedName: string;
+    title: string | null;
+    role: string | null;
+    email: string;
+  };
+  company: {
+    normalizedName: string;
+    industry: string | null;
+    sizeRange: string | null;
+    domain: string | null;
+  };
+}): string {
+  const { opportunity, signal, match, capability, researchCard, contact, company } = ctx;
+
+  let strategicPriorities: string[] = [];
+  let businessProblems: string[] = [];
+  let technologyThemes: string[] = [];
+  let caseStudies: Array<{ title: string; url?: string; industry?: string; outcome?: string }> = [];
+  let proofPoints: Array<{ metric: string; value: string; context?: string }> = [];
+
+  if (researchCard) {
+    try { strategicPriorities = JSON.parse(researchCard.strategicPriorities || '[]'); } catch { /* empty */ }
+    try { businessProblems = JSON.parse(researchCard.businessProblems || '[]'); } catch { /* empty */ }
+    try { technologyThemes = JSON.parse(researchCard.technologyThemes || '[]'); } catch { /* empty */ }
+  }
+  if (capability.caseStudyRef) {
+    try { caseStudies = JSON.parse(capability.caseStudyRef); } catch { /* empty */ }
+  }
+  if (capability.proofPointRef) {
+    try { proofPoints = JSON.parse(capability.proofPointRef); } catch { /* empty */ }
+  }
+
+  let stakeholders: string[] = [];
+  try { stakeholders = JSON.parse(opportunity.recommendedStakeholders); } catch { /* empty */ }
+
+  return `Generate a 3-step outreach sequence based on an ACCEPTED opportunity recommendation:
+
+## OPPORTUNITY INTELLIGENCE
+- Opportunity: ${opportunity.opportunityTitle}
+- Opportunity Score: ${opportunity.opportunityScore}/100
+- Business Trigger: ${opportunity.businessTrigger}
+- Why Now: ${opportunity.whyNow}
+- Business Problem: ${opportunity.businessProblem}
+- Recommended Capability: ${opportunity.recommendedCapability}
+- Target Stakeholders: ${stakeholders.join(', ')}
+- Suggested Conversation Starters: ${opportunity.suggestedConversation}
+
+## COMPANY CONTEXT
+- Company: ${company.normalizedName}
+- Industry: ${company.industry || 'Unknown'}
+- Size: ${company.sizeRange || 'Unknown'}
+- Business Overview: ${researchCard?.businessOverview || 'Not available'}
+- Strategic Priorities: ${strategicPriorities.length > 0 ? strategicPriorities.map(p => typeof p === 'object' ? (p as any).description || (p as any).priority : p).join('; ') : 'Not identified'}
+- Known Problems: ${businessProblems.join('; ') || 'Not identified'}
+- Technology Themes: ${technologyThemes.join('; ') || 'Not available'}
+
+## SIGNAL CONTEXT
+- Signal: ${signal.title}
+- Type: ${signal.signalType} | Impact: ${signal.impact} | Confidence: ${(signal.confidence * 100).toFixed(0)}%
+- Buying Area: ${signal.buyingArea || 'Not specified'}
+
+## CAPABILITY ALIGNMENT
+- Capability: ${capability.title}
+- Summary: ${capability.summary}
+- Match Score: ${(match.matchScore * 100).toFixed(0)}%
+- Sales Angle: ${match.salesAngle || 'Not specified'}
+- Differentiator: ${capability.differentiator || 'Not specified'}
+- Case Studies: ${caseStudies.length > 0 ? caseStudies.map(c => `${c.title} (${c.industry || 'general'})`).join('; ') : 'None provided'}
+- Proof Points: ${proofPoints.length > 0 ? proofPoints.map(p => `${p.metric}: ${p.value}`).join('; ') : 'None provided'}
+
+## CONTACT
+- Role: ${contact.role || contact.title || 'Unknown'}
+- Use {{name}}, {{company}}, {{title}} placeholders.
+
+Generate the 3-step sequence as JSON.`;
 }
 
 function parseSequenceResponse(response: string): {

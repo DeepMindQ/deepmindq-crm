@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Inline imports for strategy routes (4 handlers)
+// Inline imports for strategy routes (7 handlers)
 import * as mod_playbooks from './playbooks.ts';
 import * as mod_playbooks___id from './playbooks___id.ts';
 import * as mod_strategy_room from './strategy-room.ts';
 import * as mod_strategy_room___id from './strategy-room___id.ts';
+import * as mod_account_rankings from './account-rankings.ts';
+import * as mod_companies___id__priority from './companies___id__priority.ts';
+import * as mod_icp_profile from './icp-profile.ts';
 
 // Route registry
 const ROUTES = [
@@ -12,6 +15,9 @@ const ROUTES = [
   { key: 'playbooks/[id]', handler: mod_playbooks___id },
   { key: 'strategy-room', handler: mod_strategy_room },
   { key: 'strategy-room/[id]', handler: mod_strategy_room___id },
+  { key: 'account-rankings', handler: mod_account_rankings },
+  { key: 'companies/[id]/priority', handler: mod_companies___id__priority },
+  { key: 'icp-profile', handler: mod_icp_profile },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';

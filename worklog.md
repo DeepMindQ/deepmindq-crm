@@ -1,23 +1,26 @@
+# DeepMindQ — Work Log
+
 ---
-Task ID: 3-c-enhancement
+Task ID: 1
 Agent: main
-Task: Track C Enhancement — Revenue Intelligence Execution Layer
+Task: Phase 5 Freeze, Push & Deploy, Closure Checklist, Track C Design Validation
 
 Work Log:
-- Read all existing files: schema (OpportunityRecommendation + Pursuit already exist), signal-sequence-engine, review-queue, drafts__batch, revenue-intelligence, route files
-- Created src/lib/research-engine/opportunity-recommendation.ts — the core engine transforming signal+evidence+capability match into OpportunityRecommendation with 5-dimension composite scoring
-- Refactored src/lib/research-engine/signal-sequence-engine.ts — added generateOpportunitySequence() as primary path (consumes OpportunityRecommendation, validates accepted status, links opportunityId to sequence)
-- Created src/app/api/g-outreach/[...slug]/opportunities.ts — GET (opportunity-level review queue) + POST (single/batch opportunity generation)
-- Created src/app/api/g-outreach/[...slug]/opportunities__batch.ts — Accept (creates Pursuit), Reject (structured taxonomy), Monitor, Assign actions
-- Created src/app/api/g-outreach/[...slug]/pursuits.ts — GET (list pursuits with filters) + PATCH (update pursuit stage)
-- Enhanced src/app/api/g-outreach/[...slug]/drafts__batch.ts with structured rejection taxonomy (WRONG_TIMING, EXISTING_RELATIONSHIP, NOT_RELEVANT, LOW_CONFIDENCE, NO_BUDGET, OTHER)
-- Registered new routes in g-outreach route.ts: opportunities, opportunities/batch, pursuits, pursuits/[id]
-- Prisma client generated successfully
-- TypeScript compilation: 0 errors in new/modified files (pre-existing errors in strategy-room.ts and opportunities-screen.tsx are unrelated)
+- Reviewed Phase 5 accepted implementation vs remote state
+- Found remote had DIFFERENT Phase 5: g-crm path, Int @default(0), old engine.ts directory
+- Fixed schema: accountPriorityScore Int @default(0) → Float?, priorityTier String @default("LOW") → String?
+- Fixed SystemSetting: added id @default(cuid), key @unique, removed @default("{}")
+- Removed old g-crm/account-priorities.ts and lib/account-prioritization/engine.ts
+- Restored accepted Phase 5 files from backup (1,117-line engine, 235-line ICP, 3 API routes)
+- Registered 3 new handlers in g-strategy route.ts (4 → 7 handlers)
+- Verified zero TypeScript errors in Phase 5 files
+- Pushed 2 commits to origin/main (7bf43aa, aaba97f) — Vercel auto-deploy triggered
+- Produced Phase 5 Closure Checklist
+- Produced Track C Design Validation
 
 Stage Summary:
-- New files: opportunity-recommendation.ts, opportunities.ts, opportunities__batch.ts, pursuits.ts
-- Modified files: signal-sequence-engine.ts, drafts__batch.ts, route.ts
-- The flow is now: Signal → OpportunityRecommendation → Human Decision (Accept/Reject/Monitor) → Pursuit (on Accept) → Optional Engagement Sequence
-- No SendQueue creation outside human approval flow
-- AI only creates recommendations (status=pending_review), never accepts/rejects/creates pursuits
+- Phase 5 is frozen and deployed
+- Track C models already exist in schema (OpportunityRecommendation, Pursuit, SignalCapabilityMatch)
+- Track C routes already exist (opportunities.ts, opportunities__review.ts, pursuits.ts)
+- Track C engine already exists (opportunity-recommendation-engine.ts, 455 lines)
+- Track C design validation identifies schema corrections needed

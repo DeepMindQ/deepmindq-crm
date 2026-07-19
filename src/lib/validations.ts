@@ -376,3 +376,30 @@ export const addTeamMemberSchema = z.object({
 export type CreateCommentInput = z.infer<typeof createCommentSchema>
 export type CreateTeamInput = z.infer<typeof createTeamSchema>
 export type AddTeamMemberInput = z.infer<typeof addTeamMemberSchema>
+
+// ── Phase 6: Intelligence Validation ────────────────────────────────
+export const VALIDATION_ARTIFACT_TYPES = [
+  'signal_meaning',
+  'capability_match',
+  'opportunity_recommendation',
+  'pursuit_intelligence',
+  'evidence_quality',
+] as const;
+
+export const ACCURACY_OPTIONS = ['accurate', 'partially_accurate', 'inaccurate', 'cannot_judge'] as const;
+export const RELEVANCE_OPTIONS = ['highly_relevant', 'somewhat_relevant', 'not_relevant'] as const;
+export const ACTIONABILITY_OPTIONS = ['actionable_now', 'actionable_with_research', 'not_actionable'] as const;
+
+export const submitValidationSchema = z.object({
+  artifactType: z.enum(VALIDATION_ARTIFACT_TYPES),
+  artifactId: z.string().min(1, 'Artifact ID is required'),
+  rating: z.number().int().min(1).max(5),
+  accuracy: z.enum(ACCURACY_OPTIONS).nullable().optional(),
+  relevance: z.enum(RELEVANCE_OPTIONS).nullable().optional(),
+  actionability: z.enum(ACTIONABILITY_OPTIONS).nullable().optional(),
+  feedback: z.string().max(2000).nullable().optional(),
+  validatorContext: z.record(z.string(), z.unknown()).nullable().optional(),
+  validatedBy: z.string().max(200).nullable().optional(),
+});
+
+export type SubmitValidationInput = z.infer<typeof submitValidationSchema>

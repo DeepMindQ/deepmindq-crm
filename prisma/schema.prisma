@@ -112,6 +112,7 @@ model Company {
   opportunityRecommendations OpportunityRecommendation[]
   pursuits                    Pursuit[]
   signalCapabilityMatches     SignalCapabilityMatch[]
+  intelligenceValidations      IntelligenceValidation[]
 
   @@index([domain])
   @@index([normalizedName])
@@ -1187,6 +1188,42 @@ model Pursuit {
   @@index([outcomeStage])
   @@index([createdAt])
   @@index([lastActivityAt])
+}
+
+// ── Phase 6: Intelligence Validation Layer ──
+// Human judgment against any intelligence artifact.
+// Enables quality measurement without changing frozen scoring formulas.
+// artifactType: "signal_meaning" | "capability_match" | "opportunity_recommendation"
+//              | "pursuit_intelligence" | "evidence_quality"
+
+model IntelligenceValidation {
+  id               String   @id @default(cuid())
+  companyId        String
+  validatedAt      DateTime @default(now())
+  validatedBy      String?
+
+  // What's being validated
+  artifactType     String                             // signal_meaning | capability_match | opportunity_recommendation | pursuit_intelligence | evidence_quality
+  artifactId       String                             // FK to the source record
+  artifactSnapshot Json?                              // Immutable snapshot of the artifact at validation time
+
+  // Human judgment
+  rating           Int                                // 1-5 scale (1=wrong, 3=partially useful, 5=highly accurate)
+  accuracy         String?                            // accurate | partially_accurate | inaccurate | cannot_judge
+  relevance        String?                            // highly_relevant | somewhat_relevant | not_relevant
+  actionability    String?                            // actionable_now | actionable_with_research | not_actionable
+  feedback         String?                            // Free-text correction or nuance
+
+  // Context at validation time
+  validatorContext Json?                              // e.g., { validatorRole: "SDR", dealStage: "discovery" }
+
+  company          Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([artifactType, artifactId])
+  @@index([companyId])
+  @@index([validatedAt])
+  @@index([accuracy])
+  @@index([companyId, artifactType])
 }
 
 // ── System Settings (lightweight key-value, Phase 5 ICP persistence) ──

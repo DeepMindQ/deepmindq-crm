@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --c-bg: #f6f6f5;
+    --c-accent: #8e7324;
+    --c-text: #21201e;
+    --c-muted: #78756f;
+    --c-mid: #726a52;
+    --c-surface: #eaeae7;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 794px; height: 1123px; background: var(--c-bg); font-family: 'Inter', sans-serif; }
+  .cover-page {
+    position: relative;
+    width: 794px;
+    height: 1123px;
+    background: var(--c-bg);
+    border: none;
+    outline: none;
+    box-shadow: none;
+  }
+
+  /* Layer 1 - Background */
+  .cover-bg-layer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 1;
+  }
+  .grid-pattern {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--c-muted) 0.5px, transparent 0.5px),
+      linear-gradient(90deg, var(--c-muted) 0.5px, transparent 0.5px);
+    background-size: 50px 50px;
+    opacity: 0.04;
+  }
+
+  /* Layer 2 - Structure */
+  .cover-structure {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+  }
+  .anchor-line {
+    position: absolute;
+    left: 95px;
+    top: 112px;
+    bottom: 112px;
+    width: 6px;
+    background: var(--c-accent);
+  }
+
+  /* Layer 3 - Content */
+  .cover-content {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+  }
+  .kicker {
+    position: absolute;
+    top: 169px;
+    left: 130px;
+    max-width: 580px;
+    font-size: 13pt;
+    font-weight: 400;
+    letter-spacing: 3pt;
+    text-transform: uppercase;
+    color: var(--c-muted);
+    line-height: 1.5;
+    opacity: 0.7;
+  }
+  .hero-title {
+    position: absolute;
+    top: 260px;
+    left: 130px;
+    max-width: 580px;
+    font-size: 42pt;
+    font-weight: 900;
+    color: var(--c-text);
+    line-height: 1.15;
+    letter-spacing: -0.5pt;
+  }
+  .hero-title br { display: block; }
+  .summary-block {
+    position: absolute;
+    top: 480px;
+    left: 130px;
+    max-width: 520px;
+    font-size: 13pt;
+    font-weight: 400;
+    color: var(--c-muted);
+    line-height: 1.7;
+    opacity: 0.85;
+  }
+  .meta-block {
+    position: absolute;
+    top: 640px;
+    left: 130px;
+    max-width: 520px;
+    font-size: 11pt;
+    font-weight: 400;
+    color: var(--c-muted);
+    line-height: 1.6;
+  }
+  .meta-label {
+    text-transform: uppercase;
+    letter-spacing: 1.5pt;
+    font-size: 9pt;
+    opacity: 0.6;
+    margin-bottom: 4px;
+  }
+  .footer-block {
+    position: absolute;
+    bottom: 50px;
+    left: 130px;
+    max-width: 580px;
+    font-size: 9pt;
+    font-weight: 400;
+    letter-spacing: 2pt;
+    text-transform: uppercase;
+    color: var(--c-muted);
+    opacity: 0.5;
+  }
+  .version-tag {
+    position: absolute;
+    top: 50px;
+    right: 60px;
+    font-size: 9pt;
+    font-weight: 500;
+    letter-spacing: 1pt;
+    text-transform: uppercase;
+    color: var(--c-accent);
+    opacity: 0.7;
+    border: 1px solid var(--c-accent);
+    padding: 4px 12px;
+    border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+<div class="cover-page">
+  <!-- Layer 1: Background -->
+  <div class="cover-bg-layer">
+    <div class="grid-pattern"></div>
+  </div>
+  <!-- Layer 2: Structure -->
+  <div class="cover-structure">
+    <div class="anchor-line"></div>
+  </div>
+  <!-- Layer 3: Content -->
+  <div class="cover-content">
+    <div class="version-tag">Validation Report</div>
+    <div class="kicker">Phase 0 through Phase 6 Closure Report</div>
+    <div class="hero-title">DeepMindQ<br>Revenue Intelligence<br>Platform</div>
+    <div class="summary-block">
+      Comprehensive validation of a dedicated-instance, IT Services and Consulting
+      vertical revenue intelligence platform. This report provides phase-by-phase
+      evidence of implementation completeness, functional correctness, business
+      intelligence value, and production readiness across all seven development phases.
+    </div>
+    <div class="meta-block">
+      <div class="meta-label">Prepared For</div>
+      Platform Validation Review Board
+      <br><br>
+      <div class="meta-label">Date</div>
+      July 20, 2026
+      <br><br>
+      <div class="meta-label">Classification</div>
+      Internal / Pre-Production
+    </div>
+    <div class="footer-block">DeepMindQ / Revenue Intelligence Platform / Version 0.2.0</div>
+  </div>
+</div>
+</body>
+</html>

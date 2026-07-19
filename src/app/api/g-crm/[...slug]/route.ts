@@ -55,6 +55,7 @@ import * as mod_freshness_overview from './freshness-overview.ts';
 import * as mod_opportunities from './opportunities.ts';
 import * as mod_opportunities__review from './opportunities__review.ts';
 import * as mod_pursuits from './pursuits.ts';
+import * as mod_account_priorities from './account-priorities.ts';
 
 // Route registry
 const ROUTES = [
@@ -113,6 +114,7 @@ const ROUTES = [
   { key: 'opportunities', handler: mod_opportunities },
   { key: 'opportunities/review', handler: mod_opportunities__review },
   { key: 'pursuits', handler: mod_pursuits },
+  { key: 'account-priorities', handler: mod_account_priorities },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';

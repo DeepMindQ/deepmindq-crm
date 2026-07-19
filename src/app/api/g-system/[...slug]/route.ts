@@ -4,12 +4,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as mod_settings from './settings.ts';
 import * as mod_seed from './seed.ts';
 import * as mod_dbsync from './db-sync.ts';
+import * as mod_icp_profile from './icp-profile.ts';
 
 // Route registry
 const ROUTES = [
   { key: 'settings', handler: mod_settings },
   { key: 'seed', handler: mod_seed },
   { key: 'db-sync', handler: mod_dbsync },
+  { key: 'icp-profile', handler: mod_icp_profile },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';

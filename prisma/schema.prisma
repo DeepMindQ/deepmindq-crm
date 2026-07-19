@@ -90,8 +90,12 @@ model Company {
   status            String   @default("prospect") // prospect, researching, active, engaged, paused, closed_won, closed_lost
   lifecycleStage    String   @default("discovery") // discovery, qualification, proposal, negotiation, closed
   assignedTo        String?
-  intelligenceScore Int      @default(0)         // 0-100 composite score
+  intelligenceScore Int      @default(0)         // 0-100 composite score (from intelligence-contract.ts)
   engagementScore   Int      @default(0)         // 0-100 based on email opens/replies/clicks
+  // Phase 5: Account Prioritization (separate from intelligenceScore)
+  accountPriorityScore Int    @default(0)         // 0-100 composite: Static Fit(40%) + Dynamic Intel(40%) + Timing(20%)
+  priorityTier        String  @default("LOW")     // HOT(>=90), ACTIVE(70-89), NURTURE(50-69), LOW(<50)
+  priorityComputedAt  DateTime?                   // When the priority score was last computed
   lastEnrichedAt    DateTime?
   lastActivityAt    DateTime?
   source            String   @default("import") // import, manual, crm, webhook
@@ -114,6 +118,8 @@ model Company {
   @@index([lifecycleStage])
   @@index([assignedTo])
   @@index([intelligenceScore])
+  @@index([accountPriorityScore])
+  @@index([priorityTier])
 }
 
 model ImportBatch {

@@ -17,7 +17,7 @@ import {
   LayoutTemplate, Layers, AlertTriangle, Loader2, Sparkles, Network,
   UserPlus, Target, FileBarChart, Code2, Copy, ClipboardList, Kanban, MailPlus,
   ChevronDown, ChevronRight, Radar, MessageSquare, Heart, Activity, Shield, Database,
-  BookOpen, Compass, Search, ExternalLink,
+  BookOpen, Compass, Search, ExternalLink, Crosshair,
 } from 'lucide-react';
 
 import LoginPage from '@/components/login-page';
@@ -72,6 +72,12 @@ const PlaybooksScreen = lazy(() => import('@/components/screens/playbooks-screen
 const ResearchAgentScreen = lazy(() => import('@/components/screens/research-agent-screen'));
 const StrategyRoomScreen = lazy(() => import('@/components/screens/strategy-room-screen'));
 
+// — Phase 5/7: Revenue Intelligence screens —
+const AccountRankingScreen = lazy(() => import('@/components/screens/account-ranking-screen'));
+const OpportunityWorkspaceScreen = lazy(() => import('@/components/screens/opportunity-workspace-screen'));
+const PursuitWorkspaceScreen = lazy(() => import('@/components/screens/pursuit-workspace-screen'));
+const ICPSettingsScreen = lazy(() => import('@/components/screens/icp-settings-screen'));
+
 /* ═══════════════════════════════════════════════════
    Navigation configuration
    ═══════════════════════════════════════════════════ */
@@ -90,39 +96,41 @@ interface NavSection {
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    heading: 'OVERVIEW',
+    heading: 'REVENUE INTELLIGENCE',
     defaultOpen: true,
     items: [
-      { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { key: 'dashboard', label: 'Command Center', icon: Sparkles },
+      { key: 'account-ranking', label: 'Account Ranking', icon: Target },
+      { key: 'opportunity-workspace', label: 'Opportunity Workspace', icon: Radar },
+      { key: 'pursuit-workspace', label: 'Pursuit Tracker', icon: Compass },
     ],
   },
   {
-    heading: 'INTELLIGENCE',
+    heading: 'INTELLIGENCE LAYER',
     defaultOpen: true,
     items: [
-      { key: 'command-center', label: 'Command Center', icon: Sparkles },
-      { key: 'signal-intelligence', label: 'Signal Intelligence', icon: Radar },
+      { key: 'signal-intelligence', label: 'Signal Intelligence', icon: Activity },
       { key: 'research-agent', label: 'Research Agent', icon: Brain },
+      { key: 'opportunity-radar', label: 'Opportunity Radar', icon: Target },
       { key: 'playbooks', label: 'Sales Playbooks', icon: BookOpen },
     ],
   },
   {
-    heading: 'ACCOUNTS',
-    defaultOpen: true,
+    heading: 'ACCOUNTS & CONTACTS',
+    defaultOpen: false,
     items: [
-      { key: 'leads', label: 'Account Intelligence', icon: Database },
       { key: 'companies', label: 'Companies', icon: Building2 },
-      { key: 'contacts', label: 'Stakeholder Network', icon: Network },
-      { key: 'opportunities', label: 'Opportunities', icon: Target },
+      { key: 'contacts', label: 'Stakeholders', icon: Network },
+      { key: 'leads', label: 'Leads', icon: Database },
+      { key: 'segments', label: 'Segments', icon: Kanban },
     ],
   },
   {
     heading: 'ENGAGEMENT',
-    defaultOpen: true,
+    defaultOpen: false,
     items: [
       { key: 'conversation-studio', label: 'Conversation Studio', icon: MessageSquare },
       { key: 'strategy-room', label: 'Strategy Room', icon: Compass },
-      { key: 'opportunity-radar', label: 'Opportunity Radar', icon: Target },
       { key: 'email-generation', label: 'Email Generator', icon: MailPlus },
       { key: 'drafts', label: 'Drafts', icon: FileText },
       { key: 'sequences', label: 'Sequences', icon: GitBranch },
@@ -154,17 +162,17 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: 'pipeline', label: 'Pipeline', icon: GitBranch },
       { key: 'import', label: 'Import', icon: Upload },
-      { key: 'segments', label: 'Segments', icon: Kanban },
       { key: 'analytics', label: 'Analytics', icon: BarChart3 },
       { key: 'reports', label: 'Reports', icon: FileBarChart },
     ],
   },
   {
-    heading: 'SYSTEM',
+    heading: 'CONFIGURE',
     defaultOpen: false,
     items: [
-      { key: 'relationship-memory', label: 'Relationship Memory', icon: Heart },
+      { key: 'icp-settings', label: 'ICP Configuration', icon: Crosshair },
       { key: 'data-health', label: 'Data Health', icon: Shield },
+      { key: 'relationship-memory', label: 'Relationship Memory', icon: Heart },
       { key: 'tasks', label: 'Tasks', icon: ClipboardList },
       { key: 'duplicates', label: 'Duplicates', icon: Copy },
       { key: 'audit', label: 'Audit Log', icon: ScrollText },
@@ -221,14 +229,20 @@ function DuplicatesBridge() {
 type ScreenComponent = React.LazyExoticComponent<React.ComponentType<any>> | React.FC<any>;
 
 const SCREEN_MAP: Record<string, ScreenComponent> = {
+  // Revenue Intelligence (Phase 5/7)
+  'account-ranking': AccountRankingScreen,
+  'opportunity-workspace': OpportunityWorkspaceScreen,
+  'pursuit-workspace': PursuitWorkspaceScreen,
+  'icp-settings': ICPSettingsScreen,
+  // Intelligence
   'command-center': CommandCenterScreen,
   'signal-intelligence': SignalIntelligenceScreen,
   'research-agent': ResearchAgentScreen,
   'playbooks': PlaybooksScreen,
+  'opportunity-radar': OpportunityRadarScreen,
   'conversation-studio': ConversationStudioScreen,
   'strategy-room': StrategyRoomScreen,
   'relationship-memory': RelationshipMemoryScreen,
-  'opportunity-radar': OpportunityRadarScreen,
   'data-health': DataHealthScreen,
   'mind-map': MindMapScreen,
   dashboard: DashboardScreen,

@@ -2,6 +2,9 @@ import { create } from 'zustand';
 
 export type ViewId =
   | 'dashboard'
+  | 'account-ranking'
+  | 'opportunity-workspace'
+  | 'pursuit-workspace'
   | 'leads'
   | 'companies'
   | 'import'
@@ -34,7 +37,8 @@ export type ViewId =
   | 'conversation-studio'
   | 'opportunity-radar'
   | 'relationship-memory'
-  | 'data-health';
+  | 'data-health'
+  | 'icp-settings';
 
 interface AppState {
   activeView: ViewId;

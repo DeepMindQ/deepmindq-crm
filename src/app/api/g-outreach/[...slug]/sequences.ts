@@ -16,24 +16,88 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
 
-    const enriched = sequences.map(seq => ({
-      id: seq.id,
-      name: seq.name,
-      description: seq.description,
-      serviceLine: seq.serviceLine,
-      isActive: seq.isActive,
-      stepCount: seq.steps.length,
-      enrollmentCount: seq._count.enrollments,
-      steps: seq.steps.map(s => ({
-        id: s.id,
-        stepNumber: s.stepNumber,
-        delayDays: s.delayDays,
-        subject: s.subject,
-        bodyPreview: s.body.slice(0, 120) + (s.body.length > 120 ? '...' : ''),
-        cta: s.cta,
-      })),
-      createdAt: seq.createdAt,
-    }));
+    // Collect IDs for signal and capability match lookups
+    const signalIds = sequences
+      .filter(seq => seq.triggerSignalId)
+      .map(seq => seq.triggerSignalId!);
+    const matchIds = sequences
+      .filter(seq => seq.triggerCapabilityMatchId)
+      .map(seq => seq.triggerCapabilityMatchId!);
+
+    // Batch-load signal and capability match data
+    const [signals, matches] = await Promise.all([
+      signalIds.length > 0
+        ? db.companySignal.findMany({ where: { id: { in: signalIds } } })
+        : [],
+      matchIds.length > 0
+        ? db.signalCapabilityMatch.findMany({
+            where: { id: { in: matchIds } },
+          })
+        : [],
+    ]);
+
+    const signalMap = new Map(signals.map(s => [s.id, s]));
+    const matchMap = new Map(matches.map(m => [m.id, m]));
+
+    // Load capability titles for matches
+    const capabilityIds = matches.map(m => m.capabilityId).filter(Boolean);
+    const capabilities = capabilityIds.length > 0
+      ? await db.capabilityAsset.findMany({
+          where: { id: { in: capabilityIds } },
+          select: { id: true, title: true },
+        })
+      : [];
+    const capabilityTitleMap = new Map(capabilities.map(c => [c.id, c.title]));
+
+    const enriched = sequences.map(seq => {
+      const result: Record<string, unknown> = {
+        id: seq.id,
+        name: seq.name,
+        description: seq.description,
+        serviceLine: seq.serviceLine,
+        isActive: seq.isActive,
+        stepCount: seq.steps.length,
+        enrollmentCount: seq._count.enrollments,
+        companyId: seq.companyId,
+        generatedBy: seq.generatedBy,
+        triggerReason: seq.triggerReason,
+        steps: seq.steps.map(s => ({
+          id: s.id,
+          stepNumber: s.stepNumber,
+          delayDays: s.delayDays,
+          subject: s.subject,
+          bodyPreview: s.body.slice(0, 120) + (s.body.length > 120 ? '...' : ''),
+          cta: s.cta,
+        })),
+        createdAt: seq.createdAt,
+      };
+
+      // Attach signal intelligence context
+      if (seq.triggerSignalId) {
+        const signal = signalMap.get(seq.triggerSignalId);
+        if (signal) {
+          result.signal = {
+            signalTitle: signal.title,
+            signalType: signal.signalType,
+            impact: signal.impact,
+          };
+        }
+      }
+
+      // Attach capability match intelligence context
+      if (seq.triggerCapabilityMatchId) {
+        const match = matchMap.get(seq.triggerCapabilityMatchId);
+        if (match) {
+          result.capabilityMatch = {
+            capabilityTitle: capabilityTitleMap.get(match.capabilityId) || null,
+            matchScore: match.matchScore,
+            businessProblem: match.businessProblem,
+          };
+        }
+      }
+
+      return result;
+    });
 
     return NextResponse.json(enriched);
   } catch (error) {

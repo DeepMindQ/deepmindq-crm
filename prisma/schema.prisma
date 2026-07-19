@@ -382,19 +382,29 @@ model EmailTemplate {
 // ── Email Sequences / Drip Campaigns (E-15) ──
 
 model EmailSequence {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  serviceLine String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                       String   @id @default(cuid())
+  name                     String
+  description              String?
+  serviceLine              String?
+  isActive                 Boolean  @default(true)
+
+  // Phase 4 C1: Signal-driven sequence intelligence
+  companyId                String?                         // Which company this sequence targets
+  triggerSignalId          String?                         // Which buying signal triggered this
+  triggerCapabilityMatchId String?                         // Which capability match drove the strategy
+  triggerReason            String?                         // AI-generated rationale: why this company, why now, why this capability
+  generatedBy              String   @default("manual")      // "signal_driven" | "manual"
+
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 
   steps       SequenceStep[]
   enrollments SequenceEnrollment[]
 
   @@index([serviceLine])
   @@index([isActive])
+  @@index([companyId])
+  @@index([generatedBy])
 }
 
 model SequenceStep {
@@ -464,6 +474,10 @@ model Draft {
   sequenceStepId    String?
   abTest            ABTest?  @relation(fields: [abTestId], references: [id])
 
+  // Phase 4 C2: Batch approval workflow
+  assigneeId        String?                         // Sales rep assigned to review/action this draft
+  governanceAuditId  String?                         // Link to AIGenerationAudit for governance score display
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -474,6 +488,7 @@ model Draft {
   @@index([status])
   @@index([abTestId])
   @@index([sequenceId])
+  @@index([assigneeId])
 }
 
 model SendQueue {

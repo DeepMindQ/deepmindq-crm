@@ -13,6 +13,10 @@ import * as mod_audit from './audit.ts';
 import * as mod_audit_logs from './audit-logs.ts';
 import * as mod_governance_dashboard from './governance-dashboard.ts';
 
+// Phase 4 Track C3: Revenue Intelligence
+import * as mod_revenue_intelligence from './revenue-intelligence.ts';
+import * as mod_sequence_analytics from './sequence-analytics.ts';
+
 // Data Intelligence Engine
 import * as mod_upload_analyze from './upload__analyze.ts';
 import * as mod_upload_create from './upload__create.ts';
@@ -168,6 +172,10 @@ const ROUTES = [
   { key: 'audit', handler: mod_audit },
   { key: 'audit-logs', handler: mod_audit_logs },
   { key: 'governance-dashboard', handler: mod_governance_dashboard },
+
+  // Phase 4 Track C3: Revenue Intelligence
+  { key: 'revenue-intelligence', handler: mod_revenue_intelligence },
+  { key: 'sequence-analytics', handler: mod_sequence_analytics },
 
   // Data Intelligence: Upload workflow
   { key: 'upload/analyze', handler: mod_upload_analyze },

@@ -209,3 +209,90 @@ Stage Summary:
 - Governance dashboard provides: summary stats, generation type breakdown, confidence/freshness distributions, recent blocked generations, company-level health
 - Company governance provides: per-company pass rate, per-type breakdown, recent 20 generations
 - No schema modifications, no UI changes, no ai-governance.ts modifications
+---
+Task ID: C3
+Agent: full-stack-developer
+Task: Revenue intelligence analytics
+
+Work Log:
+- Analyzed existing Prisma schema: CompanySignal, SignalCapabilityMatch, CapabilityAsset, Draft, SendQueue, EmailEvent, EmailSequence, SequenceEnrollment, SequenceStep, Company
+- Studied existing route registration pattern in `[...slug]/route.ts`
+- Created `/src/app/api/g-data/[...slug]/revenue-intelligence.ts` with GET handler
+  - Dimension 1: Signal Intelligence Funnel — groups by signalType, computes signalsDetected → capabilityMatched → engaged → replied → meetings → pipeline using set intersections
+  - Dimension 2: Capability Intelligence — per-capability metrics (companiesDetected, engagements, replies, meetings, deals)
+  - Dimension 3: Message Intelligence — THEME_KEYWORDS map for keyword-based theme extraction from draft subject/body, grouped performance metrics sorted by replyRate
+  - Period filtering via `?period=30d|90d|all` query param
+- Created `/src/app/api/g-data/[...slug]/sequence-analytics.ts` with GET handler
+  - Sequence overview: total, signalDriven vs manual, enrollment counts by status
+  - Sequence performance: per-sequence metrics with engagement aggregation from SendQueue and EmailEvent
+  - Step conversion: draft outcomes grouped by stepNumber with open/reply rates
+- Registered both routes in `[...slug]/route.ts` (imports + ROUTES entries)
+- All 6 validation checks passed:
+  1. `rg "revenue-intelligence"` — shows route.ts and revenue-intelligence.ts ✓
+  2. `rg "sequence-analytics"` — shows route.ts and sequence-analytics.ts ✓
+  3. `rg "THEME_KEYWORDS"` — shows theme map definition and usage ✓
+  4. `rg "signalDriven"` — shows signal_driven counting ✓
+  5. `rg "sendQueue.create"` — returns 0 results (read-only) ✓
+  6. ESLint — 0 errors on new files ✓
+
+Stage Summary:
+- Created 2 new read-only analytics API files
+- Registered both routes in the g-data router
+- Revenue Intelligence: 3-dimension analytics (signal funnel, capability, message themes) computed entirely from existing tables
+- Sequence Analytics: overview, per-sequence performance, step-level conversion rates
+- No schema changes, no UI changes, no write operations
+---
+Task ID: C2
+Agent: full-stack-developer
+Task: Batch approval workflow with governance scores
+
+Work Log:
+- Explored existing codebase: Prisma schema (Draft, SendQueue, AIGenerationAudit, SignalCapabilityMatch, CompanySignal, Company models), existing drafts.ts approval pattern (lines 586-597), route.ts router registry, sequences.ts handler pattern
+- Created `/src/app/api/g-outreach/[...slug]/review-queue.ts` — GET handler returning all pending_review drafts enriched with contact info, company info, governance audit data (from AIGenerationAudit), and priority classification based on intelligenceScore, signal impact, and researchConfidence
+- Created `/src/app/api/g-outreach/[...slug]/drafts__batch.ts` — POST handler supporting batch approve/reject/assign/regenerate actions with per-draft error handling and result reporting
+- Registered both routes in `[...slug]/route.ts` (review-queue before drafts, drafts/batch before drafts/[id] to prevent route shadowing)
+- Ran all 5 validation checks — all passed
+
+Stage Summary:
+- Created 2 new API files: review-queue.ts and drafts__batch.ts
+- Modified 1 file: route.ts (2 new imports, 2 new route entries)
+- Review queue: batch-fetches governance audits, active signals, and capability matches for efficient enrichment; supports priority/assigneeId/limit filtering
+- Batch actions: approve creates SendQueue + updates contact to queued; reject updates draft + sets contact to cleaned; assign updates assigneeId; regenerate stores feedback in reviewNotes
+- sendQueue.create appears exactly 1 time in drafts__batch.ts (inside approve action only)
+- Zero lint errors on new files
+
+---
+Task ID: C1
+Agent: full-stack-developer
+Task: Signal-driven sequence intelligence
+
+Work Log:
+- Read Prisma schema to understand EmailSequence (Phase 4 C1 fields), SequenceStep, SignalCapabilityMatch, CapabilityAsset, CompanySignal, Contact models
+- Read existing ai-governance.ts to understand governedAICallAggregate API (non-company advisory generation type)
+- Read existing sequences.ts, sequences__enroll.ts for route patterns
+- Read route.ts to understand router registry and route ordering
+- Read research-engine/index.ts for export patterns
+- Created src/lib/research-engine/signal-sequence-engine.ts with generateSignalDrivenSequence function
+  - Loads signal, capability match, capability asset, research card, and contact from DB
+  - Builds comprehensive LLM context covering 4 "why" questions (company, timing, capability, person)
+  - Uses governedAICallAggregate with generationType 'sequence_generation'
+  - LLM generates 3-step sequence: executive insight, value proof, conversation request
+  - Creates EmailSequence with companyId, triggerSignalId, triggerCapabilityMatchId, triggerReason, generatedBy='signal_driven'
+  - Creates 3 SequenceStep records with stepNumber, subject, body, cta, delayDays
+  - Parses LLM JSON response with validation and markdown fence stripping
+- Created src/app/api/g-outreach/[...slug]/sequences__signal-driven.ts API endpoint
+  - POST handler validates all 4 IDs, verifies entity existence and company ownership
+  - Calls generateSignalDrivenSequence and returns created sequence
+- Enhanced src/app/api/g-outreach/[...slug]/sequences.ts GET handler
+  - Batch-loads signals and capability matches for all sequences
+  - Loads capability titles separately (SignalCapabilityMatch has no Prisma relations)
+  - Returns companyId, generatedBy, triggerReason in response
+  - Attaches signal context (signalTitle, signalType, impact) when triggerSignalId exists
+  - Attaches capability match context (capabilityTitle, matchScore, businessProblem) when triggerCapabilityMatchId exists
+- Registered route in route.ts: import + route entry before sequences/[id]
+- Exported generateSignalDrivenSequence from research-engine/index.ts
+
+Stage Summary:
+- Files created: src/lib/research-engine/signal-sequence-engine.ts, src/app/api/g-outreach/[...slug]/sequences__signal-driven.ts
+- Files modified: src/app/api/g-outreach/[...slug]/sequences.ts (enhanced GET), src/app/api/g-outreach/[...slug]/route.ts (new route), src/lib/research-engine/index.ts (new export)
+- Validation: all 5 grep checks pass, ESLint shows only 1 pre-existing error (Function type in route.ts line 82), zero new errors

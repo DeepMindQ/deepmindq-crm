@@ -40,6 +40,7 @@ export {
 } from './freshness-indicators';
 export { transitionSignalLifecycles } from './signal-lifecycle';
 export { computeEvidenceQuality, type EvidenceQualityScore } from './evidence-quality';
+export { generateSignalDrivenSequence } from './signal-sequence-engine';
 
 /**
  * Convenience function: run full research pipeline for a company.

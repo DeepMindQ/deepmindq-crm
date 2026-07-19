@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Inline imports for outreach routes (22 handlers)
 import * as mod_sequences from './sequences.ts';
+import * as mod_sequences__signal_driven from './sequences__signal-driven.ts';
 import * as mod_sequences__enroll from './sequences__enroll.ts';
 import * as mod_sequences___id from './sequences___id.ts';
 import * as mod_sequences___id__steps___stepId from './sequences___id__steps___stepId.ts';
@@ -23,10 +24,13 @@ import * as mod_unsubscribe from './unsubscribe.ts';
 import * as mod_verify_email from './verify-email.ts';
 import * as mod_verify_queue from './verify-queue.ts';
 import * as mod_verify_queue__process from './verify-queue__process.ts';
+import * as mod_review_queue from './review-queue.ts';
+import * as mod_drafts__batch from './drafts__batch.ts';
 
 // Route registry
 const ROUTES = [
   { key: 'sequences', handler: mod_sequences },
+  { key: 'sequences/signal-driven', handler: mod_sequences__signal_driven },
   { key: 'sequences/enroll', handler: mod_sequences__enroll },
   { key: 'sequences/[id]', handler: mod_sequences___id },
   { key: 'sequences/[id]/steps/[stepId]', handler: mod_sequences___id__steps___stepId },
@@ -36,7 +40,9 @@ const ROUTES = [
   { key: 'prompt-templates', handler: mod_prompt_templates },
   { key: 'prompt-templates/[id]', handler: mod_prompt_templates___id },
   { key: 'queue', handler: mod_queue },
+  { key: 'review-queue', handler: mod_review_queue },
   { key: 'drafts', handler: mod_drafts },
+  { key: 'drafts/batch', handler: mod_drafts__batch },
   { key: 'drafts/[id]', handler: mod_drafts___id },
   { key: 'replies', handler: mod_replies },
   { key: 'email-worker', handler: mod_email_worker },

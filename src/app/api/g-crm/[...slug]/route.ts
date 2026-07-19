@@ -55,6 +55,10 @@ import * as mod_freshness_overview from './freshness-overview.ts';
 import * as mod_opportunities from './opportunities.ts';
 import * as mod_opportunities__review from './opportunities__review.ts';
 import * as mod_pursuits from './pursuits.ts';
+import * as mod_pursuits__health from './pursuits__health.ts';
+import * as mod_companies___id__capability_matches from './companies___id__capability-matches.ts';
+import * as mod_companies___id__signal_meaning from './companies___id__signal-meaning.ts';
+import * as mod_opportunities__rejection_insights from './opportunities__rejection-insights.ts';
 
 // Route registry
 const ROUTES = [
@@ -113,6 +117,10 @@ const ROUTES = [
   { key: 'opportunities', handler: mod_opportunities },
   { key: 'opportunities/review', handler: mod_opportunities__review },
   { key: 'pursuits', handler: mod_pursuits },
+  { key: 'pursuits/health', handler: mod_pursuits__health },
+  { key: 'companies/[id]/capability-matches', handler: mod_companies___id__capability_matches },
+  { key: 'companies/[id]/signal-meaning', handler: mod_companies___id__signal_meaning },
+  { key: 'opportunities/rejection-insights', handler: mod_opportunities__rejection_insights },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';

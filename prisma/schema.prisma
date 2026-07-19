@@ -111,6 +111,7 @@ model Company {
   timeline      CompanyTimelineEvent[]
   opportunityRecommendations OpportunityRecommendation[]
   pursuits                    Pursuit[]
+  signalCapabilityMatches     SignalCapabilityMatch[]
 
   @@index([domain])
   @@index([normalizedName])
@@ -232,12 +233,17 @@ model CompanySignal {
   matchingCapability String?                       // ID of matched CapabilityAsset
   sourceQuality    String   @default("standard")   // premium, standard, low
   evidenceIds String   @default("[]")        // JSON array of Evidence IDs supporting this signal
+  // Track C: Signal meaning — buying stage implication inferred from signal attributes
+  meaningCategory  String?                              // budget_available, leadership_openness, tech_dissatisfaction, growth_pressure, compliance_requirement, vendor_evaluation, unknown
   isRead      Boolean  @default(false)
   status           String   @default("detected") // detected, validated, active, aging, expired, archived
   createdAt   DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  signalCapabilityMatches SignalCapabilityMatch[]
   opportunityRecommendations OpportunityRecommendation[]
+
+  @@index([meaningCategory])
 
   @@index([companyId])
   @@index([signalType])
@@ -366,6 +372,8 @@ model CapabilityAsset {
   @@index([contentHash])
   @@index([technology])
   @@index([industry])
+
+  signalCapabilityMatches SignalCapabilityMatch[]
 }
 
 // ── Email Template System (E-14) ──
@@ -1088,6 +1096,11 @@ model SignalCapabilityMatch {
   salesAngle       String?                          // recommended sales angle
   createdAt        DateTime @default(now())
 
+  // Track C: FK relations for referential integrity + cascade deletes
+  company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  signal           CompanySignal   @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  capability       CapabilityAsset @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+
   @@index([companyId])
   @@index([signalId])
   @@index([capabilityId])
@@ -1160,6 +1173,7 @@ model Pursuit {
   outcome           String?                              // Free-text outcome description
   outcomeStage      String?                              // discovery, qualification, proposal, negotiation, closed_won, closed_lost
   notes             String?                              // Additional notes
+  lastActivityAt    DateTime?                            // Track C: last meaningful activity for stale detection
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -1172,6 +1186,7 @@ model Pursuit {
   @@index([status])
   @@index([outcomeStage])
   @@index([createdAt])
+  @@index([lastActivityAt])
 }
 
 // ── System Settings (lightweight key-value, Phase 5 ICP persistence) ──

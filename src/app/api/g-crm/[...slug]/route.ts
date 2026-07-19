@@ -52,6 +52,9 @@ import * as mod_companies___id__governance from './companies___id__governance.ts
 import * as mod_signals__metrics from './signals__metrics.ts';
 import * as mod_companies___id__freshness from './companies___id__freshness.ts';
 import * as mod_freshness_overview from './freshness-overview.ts';
+import * as mod_opportunities from './opportunities.ts';
+import * as mod_opportunities__review from './opportunities__review.ts';
+import * as mod_pursuits from './pursuits.ts';
 
 // Route registry
 const ROUTES = [
@@ -107,6 +110,9 @@ const ROUTES = [
   { key: 'signals/metrics', handler: mod_signals__metrics },
   { key: 'companies/[id]/freshness', handler: mod_companies___id__freshness },
   { key: 'freshness-overview', handler: mod_freshness_overview },
+  { key: 'opportunities', handler: mod_opportunities },
+  { key: 'opportunities/review', handler: mod_opportunities__review },
+  { key: 'pursuits', handler: mod_pursuits },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';

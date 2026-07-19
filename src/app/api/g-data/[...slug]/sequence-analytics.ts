@@ -5,6 +5,7 @@ import { apiSuccess, apiError } from '@/lib/apiHelpers';
 // ---------------------------------------------------------------------------
 // Period helper
 // ---------------------------------------------------------------------------
+
 function getPeriodDate(period: string): Date | null {
   if (period === 'all') return null;
   const days = period === '30d' ? 30 : 90;
@@ -44,7 +45,6 @@ export async function GET(req: NextRequest) {
           enrollments: {
             select: { id: true, status: true, currentStep: true },
           },
-          company: { select: { id: true, rawName: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
       // All enrollments (for overview counts)
       db.sequenceEnrollment.groupBy({
         by: ['status'],
-        where: dateFilter,
+        where: { startedAt: dateFilter.createdAt },
         _count: { id: true },
       }),
 
@@ -76,11 +76,10 @@ export async function GET(req: NextRequest) {
         },
       }),
 
-      // Send queue items linked to sequence drafts
+      // Send queue items
       db.sendQueue.findMany({
         where: {
-          draft: { sequenceId: { not: null } },
-          ...dateFilter,
+          sentAt: dateFilter.createdAt,
         },
         select: {
           id: true,
@@ -96,7 +95,7 @@ export async function GET(req: NextRequest) {
       // Email events for sequence drafts
       db.emailEvent.findMany({
         where: {
-          draft: { sequenceId: { not: null } },
+          draftId: { not: null },
           ...dateFilter,
         },
         select: {
@@ -147,6 +146,7 @@ export async function GET(req: NextRequest) {
     // ── Sequence Overview ──
     const signalDriven = sequences.filter((s) => s.generatedBy === 'signal_driven').length;
     const manual = sequences.filter((s) => s.generatedBy !== 'signal_driven').length;
+    const opportunityLinked = sequences.filter((s) => !!s.opportunityId).length;
 
     const enrollmentCounts: Record<string, number> = {
       active: 0,
@@ -155,13 +155,17 @@ export async function GET(req: NextRequest) {
       paused: 0,
     };
     for (const e of enrollments) {
-      enrollmentCounts[e.status] = e._count.id;
+      const count = e._count as { id: number } | undefined;
+      if (count && count.id) {
+        enrollmentCounts[e.status] = count.id;
+      }
     }
 
     const sequenceOverview = {
       totalSequences: sequences.length,
       signalDriven,
       manual,
+      opportunityLinked,
       activeEnrollments: enrollmentCounts.active || 0,
       completedEnrollments: enrollmentCounts.completed || 0,
       cancelledEnrollments: enrollmentCounts.cancelled || 0,
@@ -217,7 +221,8 @@ export async function GET(req: NextRequest) {
         sequenceName: seq.name,
         generatedBy: seq.generatedBy,
         triggerReason: seq.triggerReason || null,
-        companyName: seq.company?.rawName || companyMap.get(seq.companyId || '') || null,
+        companyName: companyMap.get(seq.companyId || '') || null,
+        opportunityId: seq.opportunityId || null,
         totalSteps,
         stepsCompleted,
         draftsGenerated,

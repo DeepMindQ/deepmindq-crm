@@ -104,6 +104,8 @@ model Company {
   signals       CompanySignal[]
   evidence      Evidence[]
   timeline      CompanyTimelineEvent[]
+  opportunityRecommendations OpportunityRecommendation[]
+  pursuits                    Pursuit[]
 
   @@index([domain])
   @@index([normalizedName])
@@ -229,6 +231,7 @@ model CompanySignal {
   createdAt   DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  opportunityRecommendations OpportunityRecommendation[]
 
   @@index([companyId])
   @@index([signalType])
@@ -395,16 +398,21 @@ model EmailSequence {
   triggerReason            String?                         // AI-generated rationale: why this company, why now, why this capability
   generatedBy              String   @default("manual")      // "signal_driven" | "manual"
 
+  // Phase 4 C1-integrate: Opportunity link
+  opportunityId            String?                         // Which OpportunityRecommendation this sequence fulfills
+
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 
   steps       SequenceStep[]
   enrollments SequenceEnrollment[]
+  opportunity OpportunityRecommendation?  @relation(fields: [opportunityId], references: [id])
 
   @@index([serviceLine])
   @@index([isActive])
   @@index([companyId])
   @@index([generatedBy])
+  @@index([opportunityId])
 }
 
 model SequenceStep {
@@ -1080,6 +1088,84 @@ model SignalCapabilityMatch {
   @@index([matchScore])
   @@index([companyId, signalId])
   @@index([companyId, capabilityId])
+  opportunityRecommendations OpportunityRecommendation[]
+}
+
+// ── Phase 4 Track C: Opportunity Intelligence Layer ──
+// Represents the strategic reason why a company should be pursued.
+// Created from intelligence: Signal + Evidence + Capability Match + Freshness + Confidence.
+
+model OpportunityRecommendation {
+  id                      String   @id @default(cuid())
+  companyId               String
+  signalId                String                               // Which buying signal triggered this
+  capabilityMatchId       String                               // Which capability match
+  opportunityTitle        String                               // Human-readable title for the opportunity
+  businessTrigger         String                               // What business event created this opportunity
+  whyNow                  String                               // Why this company should be pursued now
+  businessProblem         String                               // The identified business problem
+  recommendedCapability   String                               // Title of the recommended capability
+  recommendedStakeholders String   @default("[]")              // JSON: ["CTO", "Cloud Architecture Head"]
+  suggestedConversation   String                               // Strategic conversation topics to initiate
+  evidenceIds             String   @default("[]")              // JSON: evidence IDs backing this recommendation
+  confidenceScore         Float    @default(0)                 // 0-1 research confidence at creation time
+  freshnessScore          Int      @default(0)                 // 0-100 freshness at creation time
+  matchScore              Float    @default(0)                 // 0-1 capability match score
+  opportunityScore        Int      @default(0)                 // 0-100 composite score
+  priority                String   @default("medium")          // high, medium, low
+  status                  String   @default("pending_review")  // pending_review, accepted, rejected, monitored
+  rejectionReason         String?                              // WRONG_TIMING, EXISTING_RELATIONSHIP, NOT_RELEVANT, LOW_CONFIDENCE, NO_BUDGET, OTHER
+  rejectionFeedback       String?                              // Free-text feedback from sales
+  reviewedBy              String?
+  reviewedAt              DateTime?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  company                 Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  signal                  CompanySignal        @relation(fields: [signalId], references: [id])
+  capabilityMatch         SignalCapabilityMatch @relation(fields: [capabilityMatchId], references: [id])
+  pursuits                Pursuit[]
+  sequences               EmailSequence[]
+
+  @@index([companyId])
+  @@index([signalId])
+  @@index([capabilityMatchId])
+  @@index([status])
+  @@index([priority])
+  @@index([opportunityScore])
+  @@index([createdAt])
+  @@index([companyId, status])
+  @@index([status, priority])
+}
+
+// ── Phase 4 Track C: Sales Pursuit Tracking ──
+// Created when a salesperson ACCEPTS an OpportunityRecommendation.
+// Tracks the human-driven pursuit of the identified opportunity.
+
+model Pursuit {
+  id                String   @id @default(cuid())
+  opportunityId     String                               // Which OpportunityRecommendation this pursues
+  companyId         String
+  owner             String?                              // Sales rep assigned to pursue
+  priority          String   @default("medium")          // high, medium, low
+  status            String   @default("active")          // active, paused, won, lost
+  nextAction        String?                              // Next planned action
+  nextActionAt      DateTime?                            // When the next action is planned
+  outcome           String?                              // Free-text outcome description
+  outcomeStage      String?                              // discovery, qualification, proposal, negotiation, closed_won, closed_lost
+  notes             String?                              // Additional notes
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  opportunity       OpportunityRecommendation @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  company           Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([opportunityId])
+  @@index([companyId])
+  @@index([owner])
+  @@index([status])
+  @@index([outcomeStage])
+  @@index([createdAt])
 }
 
 // ── System Settings (persistent key-value store) ──

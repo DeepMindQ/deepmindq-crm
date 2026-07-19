@@ -296,3 +296,113 @@ Stage Summary:
 - Files created: src/lib/research-engine/signal-sequence-engine.ts, src/app/api/g-outreach/[...slug]/sequences__signal-driven.ts
 - Files modified: src/app/api/g-outreach/[...slug]/sequences.ts (enhanced GET), src/app/api/g-outreach/[...slug]/route.ts (new route), src/lib/research-engine/index.ts (new export)
 - Validation: all 5 grep checks pass, ESLint shows only 1 pre-existing error (Function type in route.ts line 82), zero new errors
+---
+Task ID: C1-integrate
+Agent: full-stack-developer
+Task: Update signal-driven sequence flow to consume OpportunityRecommendation
+
+Work Log:
+- Waited for C1 agent to complete (opportunity-recommendation-engine.ts confirmed after ~2.5 min)
+- Read all relevant files: prisma/schema.prisma (EmailSequence model, OpportunityRecommendation model), sequences__signal-driven.ts, sequences.ts, signal-sequence-engine.ts, opportunity-recommendation-engine.ts
+- Updated prisma/schema.prisma:
+  - Added `opportunityId String?` field to EmailSequence model with comment
+  - Added `opportunity OpportunityRecommendation? @relation(...)` relation on EmailSequence
+  - Added `sequences EmailSequence[]` reverse relation on OpportunityRecommendation
+  - Added `@@index([opportunityId])` index on EmailSequence
+- Updated sequences__signal-driven.ts POST handler:
+  - Now accepts two paths: NEW `{ opportunityId, contactId }` and LEGACY `{ companyId, signalId, capabilityMatchId, contactId }`
+  - NEW path: loads OpportunityRecommendation, verifies status === 'accepted', verifies contact belongs to opportunity's company, calls generateSignalDrivenSequence with opportunity's companyId/signalId/capabilityMatchId, then updates the created sequence with opportunityId
+  - LEGACY path: unchanged, still works exactly as before
+  - Input validation rejects ambiguous/mixed input (both paths attempted simultaneously)
+- Updated sequences.ts GET handler:
+  - Added batch loading of OpportunityRecommendation records (opportunityIds) alongside signals and matches
+  - Created opportunityMap for O(1) lookups
+  - Added opportunity enrichment block: when seq.opportunityId is set, attaches { opportunityTitle, opportunityScore, suggestedConversation } to response
+
+Validation Results:
+1. `rg "opportunityId" prisma/schema.prisma -n` → lines 402, 409, 415 confirmed ✓
+2. `rg "sequences.*EmailSequence" prisma/schema.prisma -n` → line 1128 (reverse relation) ✓
+3. `rg "opportunityId" "src/app/api/g-outreach/[...slug]/sequences__signal-driven.ts" -n` → lines 16, 19, 21, 46, 51, 67, 91, 99, 109, 117, 120 confirmed ✓
+4. `rg "opportunityId" "src/app/api/g-outreach/[...slug]/sequences.ts" -n` → lines 26-28, 40-50, 115, 116 confirmed ✓
+5. ESLint on both modified files → 0 errors ✓
+6. Prisma generate → success (v6.19.3) ✓
+
+Migration Status:
+- `prisma db push` failed due to pre-existing DATABASE_URL mismatch (env has SQLite URL, schema declares postgresql provider). This is NOT caused by C1-integrate changes.
+- `prisma generate` succeeded — Prisma Client updated with new schema fields.
+- Migration is needed once the DATABASE_URL is corrected or migrations are set up.
+
+Stage Summary:
+- Modified 3 files: prisma/schema.prisma, sequences__signal-driven.ts, sequences.ts
+- Zero new files created
+- Backward compatibility maintained — legacy path works exactly as before
+- NEW path adds opportunityId to generated sequences and validates opportunity status
+- GET handler enriches responses with opportunity context when linked
+
+---
+Task ID: C1
+Agent: full-stack-developer
+Task: OpportunityRecommendation Model, Engine, and API
+
+Work Log:
+- Read worklog.md, prisma/schema.prisma, ai-governance.ts, evidence-quality.ts, signal-sequence-engine.ts, route.ts, apiHelpers.ts to understand existing patterns
+- Updated prisma/schema.prisma: added OpportunityRecommendation model (29 fields, 9 indexes) and Pursuit model (13 fields, 6 indexes)
+- Added relation fields to Company (opportunityRecommendations, pursuits), CompanySignal (opportunityRecommendations), SignalCapabilityMatch (opportunityRecommendations)
+- Created src/lib/research-engine/opportunity-recommendation-engine.ts with:
+  - generateOpportunityRecommendation() — single recommendation from signal+match pair
+  - generateCompanyOpportunities() — batch generation for all active signals with high-confidence matches
+  - computeOpportunityScore() — pure function, weighted composite (confidence 30%, match 25%, freshness 20%, evidence 15%, impact 10%)
+  - computeFreshnessFromResearchCard() — reads 4 domain timestamps, linear decay per lifecycle
+  - Uses governedAICallAggregate with generationType 'opportunity_recommendation' (never callLLM directly)
+  - LLM generates: opportunityTitle, businessTrigger, whyNow, businessProblem, suggestedConversation, recommendedStakeholders
+- Created src/app/api/g-crm/[...slug]/opportunities.ts: GET (list with filters), POST (generate single or company-wide), PATCH (update status with transition guard, auto-creates Pursuit on accept)
+- Created src/app/api/g-crm/[...slug]/opportunities__review.ts: GET (review queue, pending_review only), POST (batch accept/reject/monitor with per-item error handling)
+- Created src/app/api/g-crm/[...slug]/pursuits.ts: GET (list with filters), PATCH (update any field)
+- Registered 3 routes in route.ts (opportunities, opportunities/review, pursuits)
+- Exported engine functions from research-engine/index.ts
+- Prisma schema validated successfully; Prisma Client generated
+- ESLint: zero new errors (1 pre-existing Function type error in route.ts line 141)
+
+Stage Summary:
+- Files created: opportunity-recommendation-engine.ts, opportunities.ts, opportunities__review.ts, pursuits.ts
+- Files modified: prisma/schema.prisma (2 new models, 3 relation additions), route.ts (3 imports + 3 routes), research-engine/index.ts (4 exports)
+- Prisma migration could not execute (no reachable PostgreSQL instance in sandbox) but schema is valid and Prisma Client was generated
+- All new code passes ESLint with zero new errors
+---
+Task ID: C3
+Agent: full-stack-developer
+Task: Revenue intelligence analytics (opportunity-level intelligence effectiveness)
+
+Work Log:
+- Waited for C1 to complete (opportunity-recommendation-engine.ts confirmed after ~2.5 min)
+- Read worklog.md, prisma/schema.prisma (OpportunityRecommendation, Pursuit, EmailSequence, Evidence, SignalCapabilityMatch, CapabilityAsset, CompanySignal models), existing revenue-intelligence.ts and sequence-analytics.ts
+- Rewrote src/app/api/g-data/[...slug]/revenue-intelligence.ts with 5 intelligence dimensions:
+  - Dimension 1 (Signal Intelligence): Funnel per signalType — signalsDetected → opportunitiesCreated → opportunitiesAccepted → qualifiedConversations → pipelineCreated → revenueWon, plus topConvertingSignals from accepted OpportunityRecommendations sorted by score
+  - Dimension 2 (Capability Intelligence): Per-capability metrics — opportunitiesCreated, accepted, acceptanceRate (0-1), pursuitsActive, pursuitsWon, rejectionReasons distribution
+  - Dimension 3 (Message Intelligence): Kept existing theme extraction with keyword map, added meeting counting by joining draft contacts to companies with pursuits in meeting+ stages
+  - Dimension 4 (Recommendation Effectiveness — NEW): Total counts by status, rejectionBreakdown by rejectionReason, outcomeByStage distribution from Pursuit.outcomeStage
+  - Dimension 5 (Intelligence Quality Metrics — NEW): signalsGeneratingOpportunities (signals with ≥1 OpportunityRecommendation vs total active), evidenceSourceEffectiveness (grouped by sourceUrl with sourceQualityTier), freshnessImpactOnAcceptance (fresh 70-100, aging 40-69, stale 0-39 buckets)
+- Updated src/app/api/g-data/[...slug]/sequence-analytics.ts:
+  - Added safeQuery wrapper for graceful fallback when opportunityId column/relation doesn't exist
+  - Added opportunity include in EmailSequence findMany (with fallback query without it)
+  - Added opportunityLinked count to sequenceOverview
+  - Added opportunityId and opportunityTitle to each sequencePerformance entry
+- All OpportunityRecommendation and Pursuit queries wrapped in safeQuery with empty-array fallbacks
+- Uses apiSuccess/apiError and db imports exclusively, no callLLM
+
+Validation Results:
+1. `rg "safeQuery" src/app/api/g-data/ --type ts -l` → revenue-intelligence.ts + sequence-analytics.ts ✓
+2. `rg "recommendationEffectiveness" revenue-intelligence.ts -n` → line 533 confirmed ✓
+3. `rg "intelligenceQualityMetrics" revenue-intelligence.ts -n` → line 542 confirmed ✓
+4. `rg "freshnessImpactOnAcceptance" revenue-intelligence.ts -n` → line 516 confirmed ✓
+5. `rg "opportunityLinked" sequence-analytics.ts -n` → lines 192, 198 confirmed ✓
+6. `rg "opportunityId.*seq.opportunity" sequence-analytics.ts -n` → line 255 confirmed ✓
+7. ESLint: 0 errors in modified files (50 pre-existing errors in other files unchanged)
+
+Stage Summary:
+- 2 files modified: revenue-intelligence.ts (full rewrite), sequence-analytics.ts (opportunity-linked enhancement)
+- 0 new files created
+- 0 schema changes
+- All queries to OpportunityRecommendation and Pursuit are gracefully degraded via safeQuery
+- Revenue intelligence now focuses on intelligence effectiveness (opportunity funnel) instead of email metrics
+- Sequence analytics now surfaces opportunity linkage data

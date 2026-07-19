@@ -41,6 +41,12 @@ export {
 export { transitionSignalLifecycles } from './signal-lifecycle';
 export { computeEvidenceQuality, type EvidenceQualityScore } from './evidence-quality';
 export { generateSignalDrivenSequence } from './signal-sequence-engine';
+export {
+  generateOpportunityRecommendation,
+  generateCompanyOpportunities,
+  computeOpportunityScore,
+  type OpportunityRecommendationResult,
+} from './opportunity-recommendation-engine';
 
 /**
  * Convenience function: run full research pipeline for a company.

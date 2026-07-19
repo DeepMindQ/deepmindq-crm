@@ -16,28 +16,43 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Collect IDs for signal and capability match lookups
+    // Collect IDs for signal, capability match, and opportunity lookups
     const signalIds = sequences
       .filter(seq => seq.triggerSignalId)
       .map(seq => seq.triggerSignalId!);
     const matchIds = sequences
       .filter(seq => seq.triggerCapabilityMatchId)
       .map(seq => seq.triggerCapabilityMatchId!);
+    const opportunityIds = sequences
+      .filter(seq => seq.opportunityId)
+      .map(seq => seq.opportunityId!);
 
-    // Batch-load signal and capability match data
-    const [signals, matches] = await Promise.all([
+    // Batch-load signal, capability match, and opportunity data
+    const [signals, matches, opportunities] = await Promise.all([
       signalIds.length > 0
         ? db.companySignal.findMany({ where: { id: { in: signalIds } } })
-        : [],
+        : Promise.resolve([] as never[]),
       matchIds.length > 0
         ? db.signalCapabilityMatch.findMany({
             where: { id: { in: matchIds } },
           })
-        : [],
+        : Promise.resolve([] as never[]),
+      opportunityIds.length > 0
+        ? db.opportunityRecommendation.findMany({
+            where: { id: { in: opportunityIds } },
+            select: {
+              id: true,
+              opportunityTitle: true,
+              opportunityScore: true,
+              suggestedConversation: true,
+            },
+          })
+        : Promise.resolve([] as { id: string; opportunityTitle: string; opportunityScore: number; suggestedConversation: string }[]),
     ]);
 
     const signalMap = new Map(signals.map(s => [s.id, s]));
     const matchMap = new Map(matches.map(m => [m.id, m]));
+    const opportunityMap = new Map(opportunities.map(o => [o.id, o]));
 
     // Load capability titles for matches
     const capabilityIds = matches.map(m => m.capabilityId).filter(Boolean);
@@ -92,6 +107,18 @@ export async function GET() {
             capabilityTitle: capabilityTitleMap.get(match.capabilityId) || null,
             matchScore: match.matchScore,
             businessProblem: match.businessProblem,
+          };
+        }
+      }
+
+      // Attach opportunity context when sequence fulfills an OpportunityRecommendation
+      if (seq.opportunityId) {
+        const opp = opportunityMap.get(seq.opportunityId);
+        if (opp) {
+          result.opportunity = {
+            opportunityTitle: opp.opportunityTitle,
+            opportunityScore: opp.opportunityScore,
+            suggestedConversation: opp.suggestedConversation,
           };
         }
       }

@@ -278,13 +278,25 @@ export default function ICPSettingsScreen() {
   const handleReset = async () => {
     setResetting(true);
     try {
-      const res = await fetch('/api/g-strategy/icp-profile', {
+      const res = await fetch('/api/g-system/icp-profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reset: true }),
       });
       if (!res.ok) throw new Error('Failed to reset ICP profile');
-      setProfile(DEFAULT_PROFILE);
+      const data: any = await res.json();
+      // Use the server-returned default profile (has pre-populated arrays)
+      setProfile({
+        targetIndustries: data.profile?.targetIndustries ?? [],
+        targetSizeRanges: data.profile?.targetSizeRanges ?? [],
+        targetRegions: data.profile?.targetRegions ?? data.profile?.targetCountries ?? [],
+        preferredTechKeywords: data.profile?.preferredTechKeywords ?? data.profile?.preferredTechnologies ?? [],
+        excludedIndustries: data.profile?.excludedIndustries ?? data.profile?.excludeIndustries ?? [],
+        minRevenue: data.profile?.minRevenue ?? '',
+        maxRevenue: data.profile?.maxRevenue ?? '',
+        minEmployeeCount: data.profile?.minEmployeeCount ?? data.profile?.minEmployees ?? undefined,
+        maxEmployeeCount: data.profile?.maxEmployeeCount ?? data.profile?.maxEmployees ?? undefined,
+      });
       toast.success('ICP configuration reset to defaults and persisted');
     } catch (err) {
       console.error('Failed to reset ICP profile:', err);

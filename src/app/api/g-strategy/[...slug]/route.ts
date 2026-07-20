@@ -9,6 +9,7 @@ import * as mod_account_rankings from './account-rankings.ts';
 import * as mod_companies___id__priority from './companies___id__priority.ts';
 import * as mod_icp_profile from './icp-profile.ts';
 import * as mod_scoring_config from './scoring-config.ts';
+import * as mod_priority_weights from './priority-weights.ts';
 
 // Route registry
 const ROUTES = [
@@ -20,6 +21,7 @@ const ROUTES = [
   { key: 'companies/[id]/priority', handler: mod_companies___id__priority },
   { key: 'icp-profile', handler: mod_icp_profile },
   { key: 'scoring-config', handler: mod_scoring_config },
+  { key: 'priority-weights', handler: mod_priority_weights },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';

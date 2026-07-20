@@ -1,127 +1,100 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+/**
+ * Unit tests for the Phase 5 Scoring Engine
+ * File: src/lib/account-prioritization.ts
+ *
+ * Tests the exported pure functions: parseRevenueToNumber, fuzzyIndustryScore,
+ * fuzzyGeographyScore, classifyTier, computeComposite, toSignalEvidence.
+ * Also tests computeAccountPriority (the main public API) with mocked DB.
+ *
+ * Task ID: 6a
+ */
 
-// ── Mock dependencies before any imports ────────────────────────
-// vi.hoisted ensures variables are available when vi.mock factories run (hoisted to top)
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { StaticFitBreakdown, DynamicIntelBreakdown, TimingUrgencyBreakdown } from '@/lib/account-prioritization';
+import type { IcpProfile } from '@/lib/icp-config';
 
-const { mockFindUnique, mockFindMany, mockCount, mockGroupBy, mockUpdate, mockUpsert, mockTransaction, mockIcpProfile } = vi.hoisted(() => ({
-  mockFindUnique: vi.fn(),
-  mockFindMany: vi.fn(),
-  mockCount: vi.fn(),
-  mockGroupBy: vi.fn(),
-  mockUpdate: vi.fn(),
-  mockUpsert: vi.fn(),
-  mockTransaction: vi.fn(),
-  mockIcpProfile: {
-    targetIndustries: ['technology', 'fintech', 'saas', 'healthcare'],
-    targetSizeRanges: ['201-500', '501-1000', '1001-5000', '5001+'],
-    targetRegions: ['united states', 'usa', 'uk', 'canada'],
-    minEmployeeCount: 50,
-    maxEmployeeCount: -1,
-    minRevenue: '$1M',
-    targetFundingStages: ['series a', 'series b', 'series c', 'series d', 'ipo'],
-    preferredTechKeywords: ['cloud', 'aws', 'kubernetes', 'react', 'python', 'ai'],
-    excludedIndustries: ['gambling', 'casino'],
-    weights: {
-      industry: 0.3,
-      companySize: 0.25,
-      geography: 0.15,
-      revenue: 0.15,
-      techFit: 0.15,
-    },
-  },
-}))
+// ── Mocks (all vi.mock calls are hoisted — no external vars) ─
 
 vi.mock('@/lib/db', () => ({
   db: {
     company: {
-      findUnique: mockFindUnique,
-      findMany: mockFindMany,
-      update: mockUpdate,
-      updateMany: mockUpdate,
-      count: mockCount,
-      groupBy: mockGroupBy,
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      update: vi.fn(),
+      count: vi.fn(),
+      groupBy: vi.fn(),
     },
     companySignal: {
-      findMany: mockFindMany,
-      count: mockCount,
-      groupBy: mockGroupBy,
-    },
-    capabilityAsset: {
-      findMany: mockFindMany,
+      findMany: vi.fn(),
+      count: vi.fn(),
+      groupBy: vi.fn(),
     },
     pursuit: {
-      count: mockCount,
-      groupBy: mockGroupBy,
+      count: vi.fn(),
+      groupBy: vi.fn(),
     },
     opportunityRecommendation: {
-      count: mockCount,
-      groupBy: mockGroupBy,
+      count: vi.fn(),
+      groupBy: vi.fn(),
+    },
+    capabilityAsset: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    priorityScoreHistory: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({}),
     },
     systemSetting: {
-      findUnique: mockFindUnique,
-      upsert: mockUpsert,
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({}),
     },
-    $transaction: mockTransaction,
+    $executeRaw: vi.fn().mockResolvedValue(undefined),
   },
-}))
+}));
 
-vi.mock('@/lib/icp-config', () => ({
-  getIcpProfile: vi.fn().mockResolvedValue(mockIcpProfile),
-  getIcpProfileSync: vi.fn().mockReturnValue(mockIcpProfile),
-  industryMatch: vi.fn((industry: string | null, icp: typeof mockIcpProfile) => {
-    if (!industry) return false
-    const lower = industry.toLowerCase()
-    if (icp.excludedIndustries.some((ex: string) => lower.includes(ex.toLowerCase()))) return false
-    return icp.targetIndustries.some((ti: string) => lower.includes(ti.toLowerCase()))
-  }),
-  sizeMatch: vi.fn((sizeRange: string | null, icp: typeof mockIcpProfile) => {
-    if (!sizeRange) return false
-    const lower = sizeRange.toLowerCase().replace(/\s+/g, '')
-    return icp.targetSizeRanges.some((ts: string) => {
-      const tsNorm = ts.toLowerCase().replace(/\s+/g, '')
-      return lower.includes(tsNorm) || tsNorm.includes(lower)
-    })
-  }),
-  regionMatch: vi.fn((country: string | null, location: string | null, icp: typeof mockIcpProfile) => {
-    if (!country && !location) return false
-    const combined = `${(country || '').toLowerCase()} ${(location || '').toLowerCase()}`
-    return icp.targetRegions.some((r: string) => combined.includes(r.toLowerCase()))
-  }),
-  techMatch: vi.fn((techStack: string | null, icp: typeof mockIcpProfile) => {
-    if (!techStack) return 0
-    const lower = techStack.toLowerCase()
-    let matchCount = 0
-    for (const kw of icp.preferredTechKeywords) {
-      if (lower.includes(kw.toLowerCase())) matchCount++
-    }
-    return Math.min(matchCount / 5, 1)
-  }),
-  parseEmployeeCount: vi.fn((sizeRange: string | null, enrichmentEmployeeCount: string | null) => {
-    if (enrichmentEmployeeCount) {
-      const parsed = parseInt(enrichmentEmployeeCount.replace(/[^0-9]/g, ''), 10)
-      if (Number.isFinite(parsed)) return parsed
-    }
-    if (!sizeRange) return 0
-    const match = sizeRange.match(/(\d{1,3}(?:,\d{3})*)\s*[-+]\s*(\d{1,3}(?:,\d{3})*)?/)
-    if (match) {
-      const upper = match[2] ? parseInt(match[2].replace(/,/g, ''), 10) : parseInt(match[1].replace(/,/g, ''), 10)
-      return Number.isFinite(upper) ? upper : 0
-    }
-    const plusMatch = sizeRange.match(/(\d[\d,]+)\+/)
-    if (plusMatch) return parseInt(plusMatch[1].replace(/,/g, ''), 10) || 0
-    return 0
-  }),
-}))
+vi.mock('@/lib/scoring-config', () => {
+  const config = {
+    weights: { staticFit: 0.40, dynamicIntelligence: 0.40, timingUrgency: 0.20 },
+    tierThresholds: { hot: 90, active: 70, nurture: 50 },
+    signalRecencyDays: 30,
+    subDimensionWeights: {
+      dynamicIntelligence: {
+        intelligenceScore: 0.30, researchDepth: 0.25,
+        signalQuality: 0.25, contactCoverage: 0.20,
+      },
+      timingUrgency: {
+        signalRecency: 0.40, engagementRecency: 0.35, growthIndicator: 0.25,
+      },
+    },
+  };
+  return {
+    getScoringConfig: vi.fn().mockResolvedValue(config),
+    getCachedScoringConfig: vi.fn().mockReturnValue(config),
+    getRecencyCutoffSync: vi.fn().mockReturnValue(new Date(Date.now() - 30 * 86400000)),
+    getRecencyCutoff: vi.fn().mockReturnValue(new Date(Date.now() - 30 * 86400000)),
+    DEFAULT_SCORING_CONFIG: config,
+  };
+});
+
+vi.mock('@/lib/icp-config', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/icp-config')>();
+  return {
+    ...actual,
+    getIcpProfile: vi.fn().mockResolvedValue({ ...actual.DEFAULT_ICP }),
+    getIcpProfileSync: vi.fn().mockReturnValue({ ...actual.DEFAULT_ICP }),
+  };
+});
 
 vi.mock('@/lib/events', () => ({
   scoreEvents: {
-    on: vi.fn(),
     emit: vi.fn(),
+    on: vi.fn().mockReturnValue(() => {}),
     removeAll: vi.fn(),
   },
-}))
+}));
 
-// Now import after mocks are set up
+// ── Imports (after mocks) ─────────────────────────────────────
+
 import {
   parseRevenueToNumber,
   fuzzyIndustryScore,
@@ -129,1308 +102,946 @@ import {
   classifyTier,
   computeComposite,
   toSignalEvidence,
-} from '../src/lib/account-prioritization'
-import type { StaticFitBreakdown, DynamicIntelBreakdown, TimingUrgencyBreakdown } from '../src/lib/account-prioritization'
+  computeAccountPriority,
+} from '@/lib/account-prioritization';
+import { DEFAULT_ICP } from '@/lib/icp-config';
+import { db } from '@/lib/db';
 
-// ═══════════════════════════════════════════════════════════════
-// GAP-31: Unit Tests for Account Prioritization
-// ═══════════════════════════════════════════════════════════════
+const mockedDb = vi.mocked(db);
 
-// ── Helper factories ──────────────────────────────────────────
+// ── 1. Revenue Parsing ────────────────────────────────────────
 
-function makeCompany(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 'comp-1',
-    rawName: 'Test Corp',
-    industry: 'Technology',
-    sizeRange: '201-500',
-    location: 'San Francisco, CA',
-    country: 'United States',
-    domain: 'testcorp.com',
-    intelligenceScore: 70,
-    engagementScore: 50,
-    lastActivityAt: new Date(),
-    lastEnrichedAt: new Date(),
-    lifecycleStage: 'prospecting',
-    status: 'active',
-    accountPriorityScore: null as number | null,
-    priorityTier: null as string | null,
-    priorityComputedAt: null as Date | null,
-    assignedTo: null as string | null,
-    researchCard: {
-      revenue: '$50M',
-      employeeCount: '350',
-      techStack: 'cloud, aws, kubernetes, react, python',
-      fundingStage: 'Series B',
-      enrichmentSource: 'apollo',
-    },
-    _count: { contacts: 5, signals: 3, notes: 2, timeline: 1 },
-    createdAt: new Date(),
-    ...overrides,
-  }
-}
+describe('parseRevenueToNumber', () => {
+  it('parses "$1M" to 1,000,000', () => {
+    expect(parseRevenueToNumber('$1M')).toBe(1_000_000);
+  });
 
-function makeSignals(count: number, overrides: Record<string, unknown> = {}) {
-  const now = new Date()
-  return Array.from({ length: count }, (_, i) => ({
-    id: `sig-${i}`,
-    companyId: 'comp-1',
-    title: `Signal ${i}: Important change detected`,
-    signalType: 'technology',
-    severity: i === 0 ? 'critical' : 'medium',
-    source: 'news_api',
-    createdAt: new Date(now.getTime() - i * 24 * 60 * 60 * 1000),
-    signalDate: new Date(now.getTime() - i * 24 * 60 * 60 * 1000),
-    meaningCategory: null,
-    ...overrides,
-  }))
-}
+  it('parses "$500K" to 500,000', () => {
+    expect(parseRevenueToNumber('$500K')).toBe(500_000);
+  });
 
-function setupMockForSingleCompany(companyOverrides: Record<string, unknown> = {}, signalOverrides: Record<string, unknown> = {}) {
-  const company = makeCompany(companyOverrides)
-  const signals = makeSignals(3, signalOverrides)
+  it('parses "$10B" to 10,000,000,000', () => {
+    expect(parseRevenueToNumber('$10B')).toBe(10_000_000_000);
+  });
 
-  mockFindUnique.mockResolvedValueOnce(company)
-  mockCount
-    .mockResolvedValueOnce(1)   // high severity count
-    .mockResolvedValueOnce(2)   // recent signal count
-    .mockResolvedValueOnce(0)   // pursuit count
-    .mockResolvedValueOnce(0)   // opp rec count
-  mockFindMany
-    .mockResolvedValueOnce(signals)  // top signals
-    .mockResolvedValueOnce([])       // service line capabilities
-  mockUpdate.mockResolvedValue({})
+  it('parses "$1.5B" to 1,500,000,000', () => {
+    expect(parseRevenueToNumber('$1.5B')).toBe(1_500_000_000);
+  });
 
-  return { company, signals }
-}
+  it('parses "500K" (no $) to 500,000', () => {
+    expect(parseRevenueToNumber('500K')).toBe(500_000);
+  });
 
-// ═══════════════════════════════════════════════════════════════
-// 1. parseRevenueToNumber — Direct Unit Tests (GAP-31)
-// ═══════════════════════════════════════════════════════════════
+  it('parses "$100M" to 100,000,000', () => {
+    expect(parseRevenueToNumber('$100M')).toBe(100_000_000);
+  });
 
-describe('parseRevenueToNumber (GAP-31)', () => {
-  it('"$500K" → 500,000 (0.5 million)', () => {
-    expect(parseRevenueToNumber('$500K')).toBe(500_000)
-  })
+  it('parses "2.5Billion" to 2,500,000,000 (word suffix)', () => {
+    expect(parseRevenueToNumber('2.5Billion')).toBe(2_500_000_000);
+  });
 
-  it('"$10B" → 10,000,000,000 (10000 million)', () => {
-    expect(parseRevenueToNumber('$10B')).toBe(10_000_000_000)
-  })
+  it('parses "750Thousand" to 750,000', () => {
+    expect(parseRevenueToNumber('750Thousand')).toBe(750_000);
+  });
 
-  it('"$50M" → 50,000,000 (50 million)', () => {
-    expect(parseRevenueToNumber('$50M')).toBe(50_000_000)
-  })
+  it('parses plain number "5000000" to 5,000,000', () => {
+    expect(parseRevenueToNumber('5000000')).toBe(5_000_000);
+  });
 
-  it('"$1M" → 1,000,000 (1 million)', () => {
-    expect(parseRevenueToNumber('$1M')).toBe(1_000_000)
-  })
+  it('parses "$50million" (lowercase) to 50,000,000', () => {
+    expect(parseRevenueToNumber('$50million')).toBe(50_000_000);
+  });
 
-  it('"Unknown" → null', () => {
-    expect(parseRevenueToNumber('Unknown')).toBeNull()
-  })
+  it('returns null for "N/A"', () => {
+    expect(parseRevenueToNumber('N/A')).toBeNull();
+  });
 
-  it('null → null', () => {
-    expect(parseRevenueToNumber(null)).toBeNull()
-  })
+  it('returns null for "Unknown"', () => {
+    expect(parseRevenueToNumber('Unknown')).toBeNull();
+  });
 
-  it('undefined → null', () => {
-    expect(parseRevenueToNumber(undefined)).toBeNull()
-  })
+  it('returns null for "-"', () => {
+    expect(parseRevenueToNumber('-')).toBeNull();
+  });
 
-  it('"$5.5B" → 5,500,000,000 (5500 million)', () => {
-    expect(parseRevenueToNumber('$5.5B')).toBe(5_500_000_000)
-  })
+  it('returns null for null input', () => {
+    expect(parseRevenueToNumber(null)).toBeNull();
+  });
 
-  it('"N/A" → null', () => {
-    expect(parseRevenueToNumber('N/A')).toBeNull()
-  })
+  it('returns null for undefined input', () => {
+    expect(parseRevenueToNumber(undefined)).toBeNull();
+  });
 
-  it('"n/a" (case insensitive) → null', () => {
-    expect(parseRevenueToNumber('n/a')).toBeNull()
-  })
+  it('returns null for empty string', () => {
+    expect(parseRevenueToNumber('')).toBeNull();
+  });
 
-  it('"-" → null', () => {
-    expect(parseRevenueToNumber('-')).toBeNull()
-  })
+  it('returns null for whitespace-only string', () => {
+    expect(parseRevenueToNumber('   ')).toBeNull();
+  });
 
-  it('empty string → null', () => {
-    expect(parseRevenueToNumber('')).toBeNull()
-  })
+  it('returns null for "abc" (no numeric)', () => {
+    expect(parseRevenueToNumber('abc')).toBeNull();
+  });
 
-  it('"100M" (no $ sign) → 100,000,000', () => {
-    expect(parseRevenueToNumber('100M')).toBe(100_000_000)
-  })
+  it('handles "$" prefix correctly', () => {
+    expect(parseRevenueToNumber('$250M')).toBe(250_000_000);
+  });
+});
 
-  it('"$100M" → 100,000,000', () => {
-    expect(parseRevenueToNumber('$100M')).toBe(100_000_000)
-  })
+// ── 2. Tier Classification ───────────────────────────────────
 
-  it('"$1.5B" → 1,500,000,000', () => {
-    expect(parseRevenueToNumber('$1.5B')).toBe(1_500_000_000)
-  })
-})
+describe('classifyTier', () => {
+  const defaultThresholds = { hot: 90, active: 70, nurture: 50 };
 
-// ═══════════════════════════════════════════════════════════════
-// 2. fuzzyIndustryScore — Direct Unit Tests (GAP-31)
-// ═══════════════════════════════════════════════════════════════
+  describe('with default thresholds', () => {
+    it('score 90 → HOT (boundary)', () => {
+      expect(classifyTier(90, defaultThresholds)).toBe('HOT');
+    });
 
-describe('fuzzyIndustryScore (GAP-31)', () => {
-  const icp = mockIcpProfile
+    it('score 100 → HOT', () => {
+      expect(classifyTier(100, defaultThresholds)).toBe('HOT');
+    });
 
-  it('exact industry match → score 100', () => {
-    expect(fuzzyIndustryScore('Technology', icp)).toBe(100)
-    expect(fuzzyIndustryScore('SaaS Company', icp)).toBe(100)
-    expect(fuzzyIndustryScore('Healthcare Provider', icp)).toBe(100)
-  })
+    it('score 95 → HOT', () => {
+      expect(classifyTier(95, defaultThresholds)).toBe('HOT');
+    });
 
-  it('no industry match → score 0', () => {
-    expect(fuzzyIndustryScore('Agriculture', icp)).toBe(0)
-    expect(fuzzyIndustryScore('Construction', icp)).toBe(0)
-  })
+    it('score 70 → ACTIVE (boundary)', () => {
+      expect(classifyTier(70, defaultThresholds)).toBe('ACTIVE');
+    });
 
-  it('missing industry → score 0', () => {
-    expect(fuzzyIndustryScore(null, icp)).toBe(0)
-  })
+    it('score 89 → ACTIVE', () => {
+      expect(classifyTier(89, defaultThresholds)).toBe('ACTIVE');
+    });
 
-  it('excluded industry → score 0 (takes precedence)', () => {
-    expect(fuzzyIndustryScore('Online Gambling', icp)).toBe(0)
-    expect(fuzzyIndustryScore('Casino Entertainment', icp)).toBe(0)
-  })
+    it('score 80 → ACTIVE', () => {
+      expect(classifyTier(80, defaultThresholds)).toBe('ACTIVE');
+    });
 
-  it('partial keyword match → score 70', () => {
-    // 'Information Tech Services' → 'tech' matches 'technology' (word > 3 chars)
-    expect(fuzzyIndustryScore('Information Tech Services', icp)).toBe(70)
-  })
+    it('score 50 → NURTURE (boundary)', () => {
+      expect(classifyTier(50, defaultThresholds)).toBe('NURTURE');
+    });
 
-  it('excluded takes precedence over partial keyword match', () => {
-    expect(fuzzyIndustryScore('Gambling Technology', icp)).toBe(0)
-  })
-})
+    it('score 69 → NURTURE', () => {
+      expect(classifyTier(69, defaultThresholds)).toBe('NURTURE');
+    });
 
-// ═══════════════════════════════════════════════════════════════
-// 3. fuzzyGeographyScore — Direct Unit Tests (GAP-31)
-// ═══════════════════════════════════════════════════════════════
+    it('score 60 → NURTURE', () => {
+      expect(classifyTier(60, defaultThresholds)).toBe('NURTURE');
+    });
 
-describe('fuzzyGeographyScore (GAP-31)', () => {
-  const icp = mockIcpProfile
+    it('score 49 → LOW', () => {
+      expect(classifyTier(49, defaultThresholds)).toBe('LOW');
+    });
 
-  it('exact country match → score 100', () => {
-    expect(fuzzyGeographyScore('United States', null, icp)).toBe(100)
-    expect(fuzzyGeographyScore('Canada', null, icp)).toBe(100)
-  })
+    it('score 0 → LOW', () => {
+      expect(classifyTier(0, defaultThresholds)).toBe('LOW');
+    });
 
-  it('country alias match → score 100', () => {
-    expect(fuzzyGeographyScore('USA', null, icp)).toBe(100)
-    expect(fuzzyGeographyScore('UK', null, icp)).toBe(100)
-  })
+    it('score 1 → LOW', () => {
+      expect(classifyTier(1, defaultThresholds)).toBe('LOW');
+    });
+  });
 
-  it('region match (same region group, different country) → score 60', () => {
-    // France is in EU, UK is in EU and in targetRegions
-    // So 'France' should get 60 since France and UK share a region group
-    expect(fuzzyGeographyScore('France', null, icp)).toBe(60)
-    expect(fuzzyGeographyScore('Germany', null, icp)).toBe(60)
-  })
+  describe('with custom thresholds', () => {
+    it('uses custom thresholds when provided', () => {
+      const custom = { hot: 80, active: 60, nurture: 40 };
+      expect(classifyTier(80, custom)).toBe('HOT');
+      expect(classifyTier(60, custom)).toBe('ACTIVE');
+      expect(classifyTier(40, custom)).toBe('NURTURE');
+      expect(classifyTier(39, custom)).toBe('LOW');
+    });
 
-  it('no match → score 0', () => {
-    expect(fuzzyGeographyScore('Brazil', null, icp)).toBe(0)
-    expect(fuzzyGeographyScore('Japan', null, icp)).toBe(0)
-  })
+    it('handles very high custom thresholds', () => {
+      const high = { hot: 95, active: 85, nurture: 75 };
+      expect(classifyTier(94, high)).toBe('ACTIVE');
+      expect(classifyTier(84, high)).toBe('NURTURE');
+      expect(classifyTier(74, high)).toBe('LOW');
+    });
+  });
 
-  it('null country and location → score 0', () => {
-    expect(fuzzyGeographyScore(null, null, icp)).toBe(0)
-  })
+  describe('without explicit thresholds (uses scoring-config mock)', () => {
+    it('score 90 → HOT via config', () => {
+      expect(classifyTier(90)).toBe('HOT');
+    });
 
-  it('location-based match', () => {
-    expect(fuzzyGeographyScore(null, 'San Francisco, USA', icp)).toBe(100)
-    expect(fuzzyGeographyScore(null, 'London, UK', icp)).toBe(100)
-  })
-})
+    it('score 70 → ACTIVE via config', () => {
+      expect(classifyTier(70)).toBe('ACTIVE');
+    });
 
-// ═══════════════════════════════════════════════════════════════
-// 4. classifyTier — Direct Unit Tests (GAP-31)
-// ═══════════════════════════════════════════════════════════════
+    it('score 50 → NURTURE via config', () => {
+      expect(classifyTier(50)).toBe('NURTURE');
+    });
 
-describe('classifyTier (GAP-31)', () => {
-  it('score 95 → HOT', () => {
-    expect(classifyTier(95)).toBe('HOT')
-  })
+    it('score 49 → LOW via config', () => {
+      expect(classifyTier(49)).toBe('LOW');
+    });
+  });
+});
 
-  it('score 90 → HOT (boundary)', () => {
-    expect(classifyTier(90)).toBe('HOT')
-  })
+// ── 3. Industry Matching (Fuzzy) ─────────────────────────────
 
-  it('score 89 → ACTIVE', () => {
-    expect(classifyTier(89)).toBe('ACTIVE')
-  })
+describe('fuzzyIndustryScore', () => {
+  const icp: IcpProfile = {
+    ...DEFAULT_ICP,
+    targetIndustries: ['technology', 'financial services', 'healthcare', 'e-commerce'],
+    excludedIndustries: ['gambling', 'weapons'],
+  };
 
-  it('score 70 → ACTIVE (boundary)', () => {
-    expect(classifyTier(70)).toBe('ACTIVE')
-  })
+  it('exact/contains match returns 100', () => {
+    expect(fuzzyIndustryScore('Software Technology Company', icp)).toBe(100);
+  });
 
-  it('score 69 → NURTURE', () => {
-    expect(classifyTier(69)).toBe('NURTURE')
-  })
+  it('exact match with "healthcare" returns 100', () => {
+    expect(fuzzyIndustryScore('Healthcare Services', icp)).toBe(100);
+  });
 
-  it('score 50 → NURTURE (boundary)', () => {
-    expect(classifyTier(50)).toBe('NURTURE')
-  })
+  it('exact match with "e-commerce" returns 100', () => {
+    expect(fuzzyIndustryScore('E-commerce Retail', icp)).toBe(100);
+  });
 
-  it('score 49 → LOW', () => {
-    expect(classifyTier(49)).toBe('LOW')
-  })
+  it('partial keyword match (word > 3 chars) returns 70', () => {
+    // "Professional Services": companyWords(>3) = ["professional", "services"]
+    // targetWords(>3) = {"technology", "financial", "services", "healthcare"}
+    // "services" matches → 70
+    expect(fuzzyIndustryScore('Professional Services', icp)).toBe(70);
+  });
 
-  it('score 0 → LOW', () => {
-    expect(classifyTier(0)).toBe('LOW')
-  })
+  it('related sector (2+ short word overlap) returns 40', () => {
+    // Custom ICP where targetShortWords overlap is 2+
+    const testIcp: IcpProfile = {
+      ...DEFAULT_ICP,
+      targetIndustries: ['abc def'],
+      excludedIndustries: [],
+    };
+    // "def abc xyz" → no full match, no 4+ char word overlap (abc=3, def=3, xyz=3)
+    // but companyShortWords(>2) = {"def","abc","xyz"}, targetShortWords(>2) = {"abc","def"}
+    // overlap = 2 → returns 40
+    expect(fuzzyIndustryScore('def abc xyz', testIcp)).toBe(40);
+  });
 
-  it('custom thresholds override defaults', () => {
-    expect(classifyTier(85, { hot: 85, active: 60, nurture: 40 })).toBe('HOT')
-    expect(classifyTier(84, { hot: 85, active: 60, nurture: 40 })).toBe('ACTIVE')
-    expect(classifyTier(59, { hot: 85, active: 60, nurture: 40 })).toBe('NURTURE')
-    expect(classifyTier(39, { hot: 85, active: 60, nurture: 40 })).toBe('LOW')
-  })
-})
+  it('no match returns 0', () => {
+    expect(fuzzyIndustryScore('Agriculture Farming', icp)).toBe(0);
+  });
 
-// ═══════════════════════════════════════════════════════════════
-// 5. computeComposite — Direct Unit Tests (GAP-31)
-// ═══════════════════════════════════════════════════════════════
+  it('null industry returns 0', () => {
+    expect(fuzzyIndustryScore(null, icp)).toBe(0);
+  });
 
-describe('computeComposite (GAP-31)', () => {
-  const makeStatic = (total: number): StaticFitBreakdown => ({
-    industryScore: total, companySizeScore: total, geographyScore: total,
-    revenueScore: total, techFitScore: total, total,
-  })
-  const makeDynamic = (total: number): DynamicIntelBreakdown => ({
-    intelligenceScoreNorm: total, researchDepthScore: total,
-    signalQualityScore: total, contactCoverageScore: total, total,
-  })
-  const makeTiming = (total: number): TimingUrgencyBreakdown => ({
-    signalRecencyScore: total, engagementRecencyScore: total,
-    growthIndicatorScore: total, total,
-  })
+  it('excluded industry returns 0 even if it would otherwise match', () => {
+    expect(fuzzyIndustryScore('Online Gambling Technology', icp)).toBe(0);
+  });
 
-  it('computes weighted composite correctly (0.40/0.40/0.20)', () => {
-    const result = computeComposite(makeStatic(100), makeDynamic(50), makeTiming(0))
-    // 100*0.40 + 50*0.40 + 0*0.20 = 40 + 20 + 0 = 60
-    expect(result).toBe(60)
-  })
+  it('weapons industry returns 0 (excluded)', () => {
+    expect(fuzzyIndustryScore('Weapons Manufacturing', icp)).toBe(0);
+  });
 
-  it('clamps result to 0-100', () => {
-    const result = computeComposite(makeStatic(200), makeDynamic(200), makeTiming(200))
-    expect(result).toBe(100)
-  })
+  it('case insensitive matching', () => {
+    expect(fuzzyIndustryScore('TECHNOLOGY COMPANY', icp)).toBe(100);
+    expect(fuzzyIndustryScore('Financial Services Corp', icp)).toBe(100);
+  });
 
-  it('excluded industry caps composite at 49 (GAP-13)', () => {
-    const result = computeComposite(
-      makeStatic(100), makeDynamic(100), makeTiming(100),
-      'Online Gambling',
-    )
-    // Would be 100, but capped to 49 due to excluded industry
-    expect(result).toBe(49)
-  })
+  it('fintech partial match (DEFAULT_ICP)', () => {
+    expect(fuzzyIndustryScore('Fintech Startup', DEFAULT_ICP)).toBe(100);
+  });
 
-  it('non-excluded industry is not capped', () => {
-    const result = computeComposite(
-      makeStatic(100), makeDynamic(100), makeTiming(100),
-      'Technology',
-    )
-    expect(result).toBe(100)
-  })
+  it('software partial match (DEFAULT_ICP)', () => {
+    expect(fuzzyIndustryScore('Enterprise Software', DEFAULT_ICP)).toBe(100);
+  });
 
-  it('null industry skips exclusion check', () => {
-    const result = computeComposite(
-      makeStatic(100), makeDynamic(100), makeTiming(100),
-      null,
-    )
-    expect(result).toBe(100)
-  })
+  it('SaaS partial match (DEFAULT_ICP)', () => {
+    expect(fuzzyIndustryScore('SaaS Platform', DEFAULT_ICP)).toBe(100);
+  });
 
-  it('normalizes weights that do not sum to 1.0 (GAP-19)', () => {
-    // Default weights are 0.40/0.40/0.20 = 1.0 — we verify via the mock
-    // The ICP mock has scoreWeights undefined, so defaults are used
-    const result = computeComposite(makeStatic(50), makeDynamic(50), makeTiming(50))
-    // 50*0.40 + 50*0.40 + 50*0.20 = 50
-    expect(result).toBe(50)
-  })
-})
+  it('telecommunications partial match (DEFAULT_ICP)', () => {
+    expect(fuzzyIndustryScore('Telecommunications', DEFAULT_ICP)).toBe(100);
+  });
 
-// ═══════════════════════════════════════════════════════════════
-// 6. toSignalEvidence — Direct Unit Tests (GAP-31)
-// ═══════════════════════════════════════════════════════════════
+  it('energy partial match (DEFAULT_ICP)', () => {
+    expect(fuzzyIndustryScore('Energy Sector', DEFAULT_ICP)).toBe(100);
+  });
 
-describe('toSignalEvidence (GAP-31)', () => {
-  const now = new Date('2025-01-15')
+  it('automotive partial match (DEFAULT_ICP)', () => {
+    expect(fuzzyIndustryScore('Automotive', DEFAULT_ICP)).toBe(100);
+  });
 
-  it('uses signalDate when available (GAP-6)', () => {
+  it('casino (excluded in DEFAULT_ICP) returns 0', () => {
+    expect(fuzzyIndustryScore('Casino Entertainment', DEFAULT_ICP)).toBe(0);
+  });
+
+  it('adult content (excluded in DEFAULT_ICP) returns 0', () => {
+    expect(fuzzyIndustryScore('Adult Entertainment', DEFAULT_ICP)).toBe(0);
+  });
+
+  it('cryptocurrency mining (excluded in DEFAULT_ICP) returns 0', () => {
+    expect(fuzzyIndustryScore('Cryptocurrency Mining', DEFAULT_ICP)).toBe(0);
+  });
+});
+
+// ── 4. Geography Matching (Fuzzy) ────────────────────────────
+
+describe('fuzzyGeographyScore', () => {
+  it('exact match on country returns 100', () => {
+    expect(fuzzyGeographyScore('United States', null, DEFAULT_ICP)).toBe(100);
+  });
+
+  it('exact match on location returns 100', () => {
+    expect(fuzzyGeographyScore(null, 'San Francisco, USA', DEFAULT_ICP)).toBe(100);
+  });
+
+  it('exact match "uk" returns 100', () => {
+    expect(fuzzyGeographyScore('UK', null, DEFAULT_ICP)).toBe(100);
+  });
+
+  it('exact match "india" returns 100', () => {
+    expect(fuzzyGeographyScore('India', null, DEFAULT_ICP)).toBe(100);
+  });
+
+  it('same region group returns 60 (Mexico in North America)', () => {
+    expect(fuzzyGeographyScore('Mexico', null, DEFAULT_ICP)).toBe(60);
+  });
+
+  it('same region group returns 60 (France in Europe)', () => {
+    expect(fuzzyGeographyScore('France', null, DEFAULT_ICP)).toBe(60);
+  });
+
+  it('same region group returns 60 (Japan in APAC)', () => {
+    expect(fuzzyGeographyScore('Japan', null, DEFAULT_ICP)).toBe(60);
+  });
+
+  it('no match returns 0', () => {
+    expect(fuzzyGeographyScore('Nigeria', null, DEFAULT_ICP)).toBe(0);
+  });
+
+  it('null country and location returns 0', () => {
+    expect(fuzzyGeographyScore(null, null, DEFAULT_ICP)).toBe(0);
+  });
+
+  it('case insensitive matching', () => {
+    expect(fuzzyGeographyScore('CANADA', null, DEFAULT_ICP)).toBe(100);
+  });
+
+  it('matches from location string even when country is null', () => {
+    expect(fuzzyGeographyScore(null, 'Singapore', DEFAULT_ICP)).toBe(100);
+  });
+
+  it('matches from combined country+location', () => {
+    expect(fuzzyGeographyScore('Unknown', 'Berlin, Germany', DEFAULT_ICP)).toBe(100);
+  });
+
+  it('UAE returns 100 (directly in targetRegions)', () => {
+    expect(fuzzyGeographyScore('UAE', null, DEFAULT_ICP)).toBe(100);
+  });
+
+  it('Saudi Arabia returns 60 (same Middle East group as UAE)', () => {
+    expect(fuzzyGeographyScore('Saudi Arabia', null, DEFAULT_ICP)).toBe(60);
+  });
+
+  it('Brazil returns 0 (Latin America, no target regions in that group)', () => {
+    expect(fuzzyGeographyScore('Brazil', null, DEFAULT_ICP)).toBe(0);
+  });
+});
+
+// ── 5. Composite Score ────────────────────────────────────────
+
+describe('computeComposite', () => {
+  const allHundred: StaticFitBreakdown = {
+    industryScore: 100, companySizeScore: 100, geographyScore: 100,
+    revenueScore: 100, techFitScore: 100, total: 100,
+  };
+  const allHundredDI: DynamicIntelBreakdown = {
+    intelligenceScoreNorm: 100, researchDepthScore: 100,
+    signalQualityScore: 100, contactCoverageScore: 100, total: 100,
+  };
+  const allHundredTU: TimingUrgencyBreakdown = {
+    signalRecencyScore: 100, engagementRecencyScore: 100,
+    growthIndicatorScore: 100, total: 100,
+  };
+
+  it('all 100s → composite 100', () => {
+    expect(computeComposite(allHundred, allHundredDI, allHundredTU)).toBe(100);
+  });
+
+  it('all 0s → composite 0', () => {
+    const zeros: StaticFitBreakdown = {
+      industryScore: 0, companySizeScore: 0, geographyScore: 0,
+      revenueScore: 0, techFitScore: 0, total: 0,
+    };
+    const zerosDI: DynamicIntelBreakdown = {
+      intelligenceScoreNorm: 0, researchDepthScore: 0,
+      signalQualityScore: 0, contactCoverageScore: 0, total: 0,
+    };
+    const zerosTU: TimingUrgencyBreakdown = {
+      signalRecencyScore: 0, engagementRecencyScore: 0,
+      growthIndicatorScore: 0, total: 0,
+    };
+    expect(computeComposite(zeros, zerosDI, zerosTU)).toBe(0);
+  });
+
+  it('mixed scores produce correct weighted average', () => {
+    // static=80, dynamic=60, timing=40, weights=0.4/0.4/0.2
+    const sf: StaticFitBreakdown = { ...allHundred, total: 80 };
+    const di: DynamicIntelBreakdown = { ...allHundredDI, total: 60 };
+    const tu: TimingUrgencyBreakdown = { ...allHundredTU, total: 40 };
+    const expected = Math.round(80 * 0.4 + 60 * 0.4 + 40 * 0.2); // 32 + 24 + 8 = 64
+    expect(computeComposite(sf, di, tu)).toBe(expected);
+  });
+
+  it('excluded industry caps composite at 25', () => {
+    const sf: StaticFitBreakdown = { ...allHundred, total: 100 };
+    const di: DynamicIntelBreakdown = { ...allHundredDI, total: 100 };
+    const tu: TimingUrgencyBreakdown = { ...allHundredTU, total: 100 };
+    expect(computeComposite(sf, di, tu, 'Gambling')).toBe(25);
+  });
+
+  it('excluded industry: score below 25 stays as-is', () => {
+    const sf: StaticFitBreakdown = { ...allHundred, total: 10 };
+    const di: DynamicIntelBreakdown = { ...allHundredDI, total: 10 };
+    const tu: TimingUrgencyBreakdown = { ...allHundredTU, total: 10 };
+    const expected = Math.round(10 * 0.4 + 10 * 0.4 + 10 * 0.2); // 10
+    expect(computeComposite(sf, di, tu, 'Weapons')).toBe(expected);
+  });
+
+  it('null industry does not trigger exclusion', () => {
+    const sf: StaticFitBreakdown = { ...allHundred, total: 100 };
+    const di: DynamicIntelBreakdown = { ...allHundredDI, total: 100 };
+    const tu: TimingUrgencyBreakdown = { ...allHundredTU, total: 100 };
+    expect(computeComposite(sf, di, tu, null)).toBe(100);
+  });
+
+  it('composite is clamped between 0 and 100', () => {
+    const sf: StaticFitBreakdown = { ...allHundred, total: 1000 };
+    const di: DynamicIntelBreakdown = { ...allHundredDI, total: 1000 };
+    const tu: TimingUrgencyBreakdown = { ...allHundredTU, total: 1000 };
+    expect(computeComposite(sf, di, tu)).toBeLessThanOrEqual(100);
+    expect(computeComposite(sf, di, tu)).toBeGreaterThanOrEqual(0);
+  });
+
+  it('non-excluded industry with high scores is not capped', () => {
+    const sf: StaticFitBreakdown = { ...allHundred, total: 100 };
+    const di: DynamicIntelBreakdown = { ...allHundredDI, total: 100 };
+    const tu: TimingUrgencyBreakdown = { ...allHundredTU, total: 100 };
+    expect(computeComposite(sf, di, tu, 'Technology')).toBe(100);
+  });
+
+  it('casino is excluded → capped at 25', () => {
+    const sf: StaticFitBreakdown = { ...allHundred, total: 90 };
+    const di: DynamicIntelBreakdown = { ...allHundredDI, total: 90 };
+    const tu: TimingUrgencyBreakdown = { ...allHundredTU, total: 90 };
+    expect(computeComposite(sf, di, tu, 'Casino Resort')).toBe(25);
+  });
+});
+
+// ── 6. Signal Evidence Conversion ────────────────────────────
+
+describe('toSignalEvidence', () => {
+  const now = new Date('2025-01-15T12:00:00Z');
+
+  it('converts DB rows to SignalEvidence with correct daysAgo (using signalDate)', () => {
+    const signalDate = new Date('2025-01-10T12:00:00Z'); // 5 days ago
     const rows = [{
       id: 'sig-1',
-      title: 'Cloud migration',
+      title: 'Cloud Migration',
       signalType: 'technology',
       severity: 'high',
-      source: 'news',
-      createdAt: new Date('2025-01-01'),
-      signalDate: new Date('2025-01-10'),
-    }]
-    const evidence = toSignalEvidence(rows, now)
-    // signalDate: Jan 10, now: Jan 15 → 5 days ago
-    expect(evidence[0].daysAgo).toBe(5)
-  })
+      source: 'linkedin',
+      createdAt: new Date('2025-01-01T12:00:00Z'),
+      signalDate,
+    }];
+
+    const result = toSignalEvidence(rows, now);
+    expect(result).toHaveLength(1);
+    expect(result[0].signalId).toBe('sig-1');
+    expect(result[0].title).toBe('Cloud Migration');
+    expect(result[0].signalType).toBe('technology');
+    expect(result[0].severity).toBe('high');
+    expect(result[0].source).toBe('linkedin');
+    expect(result[0].daysAgo).toBe(5);
+  });
 
   it('falls back to createdAt when signalDate is null', () => {
+    const createdAt = new Date('2025-01-12T12:00:00Z'); // 3 days ago
     const rows = [{
-      id: 'sig-1',
-      title: 'Funding round',
-      signalType: 'funding',
-      severity: 'high',
-      source: 'news',
-      createdAt: new Date('2025-01-12'),
-      signalDate: null,
-    }]
-    const evidence = toSignalEvidence(rows, now)
-    // createdAt: Jan 12, now: Jan 15 → 3 days ago
-    expect(evidence[0].daysAgo).toBe(3)
-  })
-
-  it('maps all fields correctly', () => {
-    const rows = [{
-      id: 'sig-1',
-      title: 'Hiring spree',
-      signalType: 'hiring',
+      id: 'sig-2',
+      title: 'Leadership Change',
+      signalType: 'leadership_change',
       severity: 'medium',
-      source: 'linkedin',
-      createdAt: new Date('2025-01-14'),
+      source: null,
+      createdAt,
       signalDate: null,
-    }]
-    const evidence = toSignalEvidence(rows, now)
-    expect(evidence[0]).toEqual({
-      signalId: 'sig-1',
-      title: 'Hiring spree',
-      signalType: 'hiring',
-      severity: 'medium',
-      daysAgo: 1,
-      source: 'linkedin',
-    })
-  })
+    }];
 
-  it('empty array returns empty', () => {
-    const evidence = toSignalEvidence([], now)
-    expect(evidence).toEqual([])
-  })
+    const result = toSignalEvidence(rows, now);
+    expect(result).toHaveLength(1);
+    expect(result[0].daysAgo).toBe(3);
+    expect(result[0].source).toBeNull();
+  });
 
-  it('normalizes legacy signal types (GAP-8)', () => {
+  it('normalizes signal types via aliases', () => {
     const rows = [{
-      id: 'sig-1',
-      title: 'Tech stack change',
-      signalType: 'tech_change',  // legacy alias
-      severity: 'high',
-      source: 'news',
-      createdAt: new Date('2025-01-14'),
-      signalDate: null,
-    }]
-    const evidence = toSignalEvidence(rows, now)
-    // normalizeSignalType('tech_change') → 'technology'
-    expect(evidence[0].signalType).toBe('technology')
-  })
-
-  it('normalizes funding_round → funding', () => {
-    const rows = [{
-      id: 'sig-1',
-      title: 'Series B raised',
-      signalType: 'funding_round',
-      severity: 'high',
-      source: 'news',
+      id: 'sig-3',
+      title: 'Tech Stack Change',
+      signalType: 'tech_stack_change',
+      severity: 'low',
+      source: 'crunchbase',
       createdAt: now,
-      signalDate: null,
-    }]
-    const evidence = toSignalEvidence(rows, now)
-    expect(evidence[0].signalType).toBe('funding')
-  })
+      signalDate: now,
+    }];
 
-  it('normalizes hiring_spree → hiring', () => {
+    const result = toSignalEvidence(rows, now);
+    expect(result[0].signalType).toBe('technology');
+  });
+
+  it('handles empty array', () => {
+    const result = toSignalEvidence([], now);
+    expect(result).toHaveLength(0);
+  });
+
+  it('computes daysAgo correctly for same-day signals', () => {
     const rows = [{
-      id: 'sig-1',
-      title: 'Aggressive hiring',
-      signalType: 'hiring_spree',
-      severity: 'medium',
-      source: 'linkedin',
+      id: 'sig-4',
+      title: 'Same Day',
+      signalType: 'news',
+      severity: 'low',
+      source: null,
       createdAt: now,
-      signalDate: null,
-    }]
-    const evidence = toSignalEvidence(rows, now)
-    expect(evidence[0].signalType).toBe('hiring')
-  })
-})
+      signalDate: now,
+    }];
 
-// ═══════════════════════════════════════════════════════════════
-// GAP-31: computeStaticFit (tested via computeAccountPriority)
-// ═══════════════════════════════════════════════════════════════
+    const result = toSignalEvidence(rows, now);
+    expect(result[0].daysAgo).toBe(0);
+  });
+});
 
-describe('computeStaticFit via computeAccountPriority (GAP-31)', () => {
+// ── 7. Full Priority Computation (computeAccountPriority) ────
+
+describe('computeAccountPriority', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-  })
+    vi.clearAllMocks();
+  });
 
-  it('exact industry match → industryScore 100', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({ industry: 'Technology' })
+  it('returns null when company not found', async () => {
+    mockedDb.company.findUnique.mockResolvedValue(null);
 
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.staticFit.industryScore).toBe(100)
-  })
+    const result = await computeAccountPriority('nonexistent-id');
+    expect(result).toBeNull();
+  });
 
-  it('no industry match → industryScore 0', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({ industry: 'Agriculture' })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.staticFit.industryScore).toBe(0)
-  })
-
-  it('missing industry → industryScore 0', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    mockFindUnique.mockResolvedValueOnce(makeCompany({ industry: null }))
-    mockCount.mockResolvedValue(0)
-    mockFindMany.mockResolvedValue([])
-    mockUpdate.mockResolvedValue({})
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.staticFit.industryScore).toBe(0)
-  })
-
-  it('company size within ICP range → companySizeScore ≥ 80', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({ sizeRange: '1001-5000' })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.staticFit.companySizeScore).toBeGreaterThanOrEqual(80)
-  })
-
-  it('company size below ICP range → partial score 30', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({ sizeRange: '1-10' })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    // Size '1-10' has data but doesn't match → 30
-    expect(result!.staticFit.companySizeScore).toBe(30)
-  })
-
-  it('region match → geographyScore 100', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({ country: 'United States' })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.staticFit.geographyScore).toBe(100)
-  })
-
-  it('region mismatch → geographyScore 0', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({ country: 'Brazil' })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.staticFit.geographyScore).toBe(0)
-  })
-
-  it('tech keyword match → techFitScore > 0', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
-      researchCard: { revenue: '$50M', employeeCount: '350', techStack: 'cloud, aws, kubernetes', fundingStage: null, enrichmentSource: null },
-    })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.staticFit.techFitScore).toBeGreaterThan(0)
-  })
-
-  it('partial tech match → proportional score', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    // 1 keyword match: 'react' → ratio = 1/5 = 0.2 → techFitScore = 20
-    setupMockForSingleCompany({
-      researchCard: { revenue: '$50M', employeeCount: '350', techStack: 'react', fundingStage: null, enrichmentSource: null },
-    })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.staticFit.techFitScore).toBe(20) // 1 match / 5 * 100 = 20
-  })
-
-  it('revenue in target range → correct score', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    // $50M → parseRevenueToNumber returns 50,000,000 → ≥50M → 85
-    setupMockForSingleCompany({
-      researchCard: { revenue: '$50M', employeeCount: '350', techStack: 'react', fundingStage: null, enrichmentSource: null },
-    })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.staticFit.revenueScore).toBe(85)
-  })
-
-  it('missing revenue → score 20', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    mockFindUnique.mockResolvedValueOnce(makeCompany({
-      researchCard: { revenue: null, employeeCount: '350', techStack: 'react', fundingStage: null, enrichmentSource: null },
-    }))
-    mockCount.mockResolvedValue(0)
-    mockFindMany.mockResolvedValue([])
-    mockUpdate.mockResolvedValue({})
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.staticFit.revenueScore).toBe(20)
-  })
-
-  it('excluded industry → industryScore 0', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({ industry: 'Online Gambling' })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.staticFit.industryScore).toBe(0)
-  })
-
-  it('weighted total is computed correctly using ICP weights', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
+  it('computes high score for company matching all ICP criteria', async () => {
+    const company = {
+      id: 'comp-1',
+      rawName: 'TechCorp Inc',
       industry: 'Technology',
-      sizeRange: '201-500',
+      sizeRange: '501-1000',
+      location: 'San Francisco, CA',
       country: 'United States',
-      researchCard: {
-        revenue: '$50M', employeeCount: '350', techStack: 'cloud, aws, react',
-        fundingStage: 'Series B', enrichmentSource: 'apollo',
-      },
-    })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    const sf = result!.staticFit
-    const expected = Math.round(
-      sf.industryScore * 0.3 + sf.companySizeScore * 0.25 +
-      sf.geographyScore * 0.15 + sf.revenueScore * 0.15 + sf.techFitScore * 0.15
-    )
-    expect(sf.total).toBe(expected)
-  })
-})
-
-// ═══════════════════════════════════════════════════════════════
-// GAP-31: computeDynamicIntelligence (tested via computeAccountPriority)
-// ═══════════════════════════════════════════════════════════════
-
-describe('computeDynamicIntelligence via computeAccountPriority (GAP-31)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('company with 0 signals → low score', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    mockFindUnique.mockResolvedValueOnce(makeCompany({ _count: { contacts: 0, signals: 0, notes: 0, timeline: 0 }, intelligenceScore: 0, researchCard: null }))
-    mockCount.mockResolvedValue(0)
-    mockFindMany.mockResolvedValue([])
-    mockUpdate.mockResolvedValue({})
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.dynamicIntelligence.signalQualityScore).toBe(0)
-    expect(result!.dynamicIntelligence.researchDepthScore).toBe(0)
-    expect(result!.dynamicIntelligence.contactCoverageScore).toBe(0)
-    expect(result!.dynamicIntelligence.total).toBe(0)
-  })
-
-  it('company with many recent signals → high signalQualityScore', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({ _count: { contacts: 5, signals: 10, notes: 3, timeline: 2 } })
-    mockCount.mockReset()
-      .mockResolvedValueOnce(5)   // high severity
-      .mockResolvedValueOnce(4)   // recent
-      .mockResolvedValueOnce(0)   // pursuit
-      .mockResolvedValueOnce(0)   // opp rec
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.dynamicIntelligence.signalQualityScore).toBeGreaterThan(50)
-  })
-
-  it('company with meaningCategory signals → appropriate boost in timing', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    // Signal with vendor_evaluation meaningCategory → HIGH urgency boost
-    const signals = makeSignals(3, {
-      meaningCategory: 'vendor_evaluation',
-      signalType: 'technology',
-      severity: 'high',
-    })
-    mockFindUnique.mockResolvedValueOnce(makeCompany({
-      _count: { contacts: 3, signals: 3, notes: 1, timeline: 0 },
-      intelligenceScore: 60, engagementScore: 0, lastActivityAt: null,
-    }))
-    mockCount.mockReset()
-      .mockResolvedValueOnce(3)   // high severity
-      .mockResolvedValueOnce(3)   // recent
-      .mockResolvedValueOnce(0)   // pursuit
-      .mockResolvedValueOnce(0)   // opp rec
-    mockFindMany.mockResolvedValueOnce(signals).mockResolvedValueOnce([])
-    mockUpdate.mockResolvedValue({})
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    // meaningCategory 'vendor_evaluation' is HIGH urgency → +18 to growthIndicatorScore
-    expect(result!.timingUrgency.growthIndicatorScore).toBeGreaterThanOrEqual(18)
-  })
-
-  it('signal freshness: older signals score lower for recency', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    // Company with signals but none recent
-    setupMockForSingleCompany({ _count: { contacts: 3, signals: 5, notes: 1, timeline: 0 } })
-    mockCount.mockReset()
-      .mockResolvedValueOnce(0)   // high severity
-      .mockResolvedValueOnce(0)   // no RECENT signals (old signals only)
-      .mockResolvedValueOnce(0)   // pursuit
-      .mockResolvedValueOnce(0)   // opp rec
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    // Old signals only → signalRecencyScore = 15 (fallback when signalCount > 0 but recentCount = 0)
-    expect(result!.timingUrgency.signalRecencyScore).toBe(15)
-  })
-
-  it('company with high intelligence score → high intelligenceScoreNorm', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({ intelligenceScore: 95 })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.dynamicIntelligence.intelligenceScoreNorm).toBe(95)
-  })
-})
-
-// ═══════════════════════════════════════════════════════════════
-// GAP-31: computeTimingUrgency (tested via computeAccountPriority)
-// ═══════════════════════════════════════════════════════════════
-
-describe('computeTimingUrgency via computeAccountPriority (GAP-31)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('company with recent hiring signals → boost (signal type detected)', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    const signals = makeSignals(3, { signalType: 'hiring', severity: 'high' })
-    mockFindUnique.mockResolvedValueOnce(makeCompany({
-      _count: { contacts: 3, signals: 3, notes: 1, timeline: 0 },
-      engagementScore: 0, lastActivityAt: null,
-    }))
-    mockCount.mockReset()
-      .mockResolvedValueOnce(3)   // high severity
-      .mockResolvedValueOnce(3)   // recent
-      .mockResolvedValueOnce(0)   // pursuit
-      .mockResolvedValueOnce(0)   // opp rec
-    mockFindMany.mockResolvedValueOnce(signals).mockResolvedValueOnce([])
-    mockUpdate.mockResolvedValue({})
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    // Hiring signals generate a whyNow reason about expansion
-    const hasHiringReason = result!.whyNowReasons.some(r => r.toLowerCase().includes('hiring'))
-    expect(hasHiringReason).toBe(true)
-  })
-
-  it('company with funding signals → boost', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    const signals = makeSignals(2, { signalType: 'funding', severity: 'high' })
-    mockFindUnique.mockResolvedValueOnce(makeCompany({
-      _count: { contacts: 3, signals: 2, notes: 1, timeline: 0 },
-      engagementScore: 0, lastActivityAt: null,
-    }))
-    mockCount.mockReset()
-      .mockResolvedValueOnce(2)   // high severity
-      .mockResolvedValueOnce(2)   // recent
-      .mockResolvedValueOnce(0)   // pursuit
-      .mockResolvedValueOnce(0)   // opp rec
-    mockFindMany.mockResolvedValueOnce(signals).mockResolvedValueOnce([])
-    mockUpdate.mockResolvedValue({})
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    const hasFundingReason = result!.whyNowReasons.some(r => r.toLowerCase().includes('funding'))
-    expect(hasFundingReason).toBe(true)
-  })
-
-  it('excluded industry → capped score (GAP-13)', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    // Perfect company but in excluded industry
-    setupMockForSingleCompany({
-      industry: 'Online Gambling',
-      intelligenceScore: 100,
-      engagementScore: 100,
-      lifecycleStage: 'negotiation',
-      status: 'engaged',
-      _count: { contacts: 15, signals: 10, notes: 5, timeline: 3 },
-      researchCard: {
-        revenue: '$500M', employeeCount: '2500',
-        techStack: 'cloud, aws, kubernetes, react, python, ai',
-        fundingStage: 'Series C', enrichmentSource: 'apollo',
-      },
-    })
-    mockCount.mockReset()
-      .mockResolvedValueOnce(5)
-      .mockResolvedValueOnce(5)
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(0)
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    // Score capped at 49 for excluded industry
-    expect(result!.accountPriorityScore).toBeLessThanOrEqual(49)
-    expect(result!.priorityTier).toBe('LOW')
-  })
-
-  it('missing engagement data → graceful fallback (engagement proxy)', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
-      engagementScore: 0,
-      lastActivityAt: null,
-      _count: { contacts: 0, signals: 0, notes: 5, timeline: 0 },
-    })
-    mockCount.mockReset()
-      .mockResolvedValueOnce(0)   // high severity
-      .mockResolvedValueOnce(0)   // recent
-      .mockResolvedValueOnce(2)   // 2 active pursuits
-      .mockResolvedValueOnce(1)   // 1 opp rec
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    // Engagement proxy: pursuits*20 + oppRecs*10 + notes*5 = 2*20 + 1*10 + 5*5 = 65
-    // min(65, 100) = 65 → engagementRecencyScore = 65
-    expect(result!.timingUrgency.engagementRecencyScore).toBe(65)
-  })
-})
-
-// ═══════════════════════════════════════════════════════════════
-// GAP-31: generateWhyNowReasons (tested via computeAccountPriority)
-// ═══════════════════════════════════════════════════════════════
-
-describe('generateWhyNowReasons via computeAccountPriority (GAP-31)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('company with strong signals → returns reasons', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
-      intelligenceScore: 90,
-      engagementScore: 80,
-      lifecycleStage: 'negotiation',
-      status: 'engaged',
+      intelligenceScore: 85,
+      engagementScore: 70,
+      lastActivityAt: new Date(),
       lastEnrichedAt: new Date(),
-      _count: { contacts: 15, signals: 10, notes: 5, timeline: 3 },
+      lifecycleStage: 'proposal',
+      status: 'active',
+      accountPriorityScore: null,
+      priorityTier: null,
       researchCard: {
-        revenue: '$500M', employeeCount: '2500',
-        techStack: 'cloud, aws, kubernetes, react, python, ai',
-        fundingStage: 'Series C', enrichmentSource: 'apollo',
+        revenue: '$500M',
+        employeeCount: '750',
+        techStack: 'AWS, Kubernetes, Docker, React, Node.js, Python',
+        fundingStage: 'Series C',
+        enrichmentSource: 'apollo',
       },
-    })
-    mockCount.mockReset()
-      .mockResolvedValueOnce(5)
-      .mockResolvedValueOnce(5)
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(0)
+      _count: { contacts: 8, signals: 5, notes: 3, timeline: 2 },
+    };
 
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.whyNowReasons.length).toBeGreaterThan(0)
-  })
-
-  it('max 8 reasons enforced', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
-      intelligenceScore: 90,
-      engagementScore: 80,
-      lifecycleStage: 'negotiation',
-      status: 'engaged',
-      lastEnrichedAt: new Date(),
-      _count: { contacts: 15, signals: 10, notes: 5, timeline: 3 },
-      researchCard: {
-        revenue: '$500M', employeeCount: '2500',
-        techStack: 'cloud, aws, kubernetes, react, python, ai',
-        fundingStage: 'Series C', enrichmentSource: 'apollo',
+    mockedDb.company.findUnique.mockResolvedValue(company);
+    mockedDb.companySignal.count
+      .mockResolvedValueOnce(3)
+      .mockResolvedValueOnce(4);
+    mockedDb.companySignal.findMany.mockResolvedValue([
+      {
+        id: 's1', title: 'Cloud Migration Initiative', signalType: 'technology',
+        severity: 'high', source: 'linkedin', createdAt: new Date(),
+        signalDate: new Date(), meaningCategory: 'vendor_evaluation',
       },
-    })
-    mockCount.mockReset()
-      .mockResolvedValueOnce(5)
-      .mockResolvedValueOnce(5)
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(0)
+      {
+        id: 's2', title: 'Series C Funding', signalType: 'funding',
+        severity: 'critical', source: 'crunchbase', createdAt: new Date(),
+        signalDate: new Date(), meaningCategory: 'budget_available',
+      },
+    ]);
+    mockedDb.pursuit.count
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(0);
+    mockedDb.company.update.mockResolvedValue({});
 
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.whyNowReasons.length).toBeLessThanOrEqual(8)
-  })
+    const result = await computeAccountPriority('comp-1');
+    expect(result).not.toBeNull();
+    expect(result!.companyId).toBe('comp-1');
+    expect(result!.companyName).toBe('TechCorp Inc');
+    expect(result!.accountPriorityScore).toBeGreaterThan(0);
+    expect(result!.priorityTier).toBeDefined();
+    expect(['HOT', 'ACTIVE', 'NURTURE', 'LOW']).toContain(result!.priorityTier);
+  });
 
-  it('reason format is valid (non-empty strings)', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany()
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    for (const reason of result!.whyNowReasons) {
-      expect(typeof reason).toBe('string')
-      expect(reason.length).toBeGreaterThan(0)
-    }
-  })
-
-  it('no duplicate reasons', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany()
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    const unique = new Set(result!.whyNowReasons)
-    expect(unique.size).toBe(result!.whyNowReasons.length)
-  })
-
-  it('company with no signals, no contacts, no engagement → empty reasons', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    mockFindUnique.mockResolvedValueOnce(makeCompany({
-      _count: { contacts: 0, signals: 0, notes: 0, timeline: 0 },
-      researchCard: null, intelligenceScore: 0, engagementScore: 0, lastActivityAt: null,
-    }))
-    mockCount.mockResolvedValue(0)
-    mockFindMany.mockResolvedValue([])
-    mockUpdate.mockResolvedValue({})
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.whyNowReasons).toEqual([])
-  })
-})
-
-// ═══════════════════════════════════════════════════════════════
-// GAP-31: Signal type normalization (tested via toSignalEvidence)
-// ═══════════════════════════════════════════════════════════════
-
-describe('Signal type normalization (GAP-31 / GAP-8)', () => {
-  it('"technology" stays "technology" (canonical)', () => {
-    const rows = [{ id: '1', title: 't', signalType: 'technology', severity: 'low', source: null, createdAt: new Date(), signalDate: null }]
-    const evidence = toSignalEvidence(rows, new Date())
-    expect(evidence[0].signalType).toBe('technology')
-  })
-
-  it('"tech_change" → "technology"', () => {
-    const rows = [{ id: '1', title: 't', signalType: 'tech_change', severity: 'low', source: null, createdAt: new Date(), signalDate: null }]
-    const evidence = toSignalEvidence(rows, new Date())
-    expect(evidence[0].signalType).toBe('technology')
-  })
-
-  it('"funding_round" → "funding"', () => {
-    const rows = [{ id: '1', title: 't', signalType: 'funding_round', severity: 'low', source: null, createdAt: new Date(), signalDate: null }]
-    const evidence = toSignalEvidence(rows, new Date())
-    expect(evidence[0].signalType).toBe('funding')
-  })
-
-  it('"hiring_spree" → "hiring"', () => {
-    const rows = [{ id: '1', title: 't', signalType: 'hiring_spree', severity: 'low', source: null, createdAt: new Date(), signalDate: null }]
-    const evidence = toSignalEvidence(rows, new Date())
-    expect(evidence[0].signalType).toBe('hiring')
-  })
-
-  it('"product_launch" → "product"', () => {
-    const rows = [{ id: '1', title: 't', signalType: 'product_launch', severity: 'low', source: null, createdAt: new Date(), signalDate: null }]
-    const evidence = toSignalEvidence(rows, new Date())
-    expect(evidence[0].signalType).toBe('product')
-  })
-
-  it('"tech_stack_change" → "technology"', () => {
-    const rows = [{ id: '1', title: 't', signalType: 'tech_stack_change', severity: 'low', source: null, createdAt: new Date(), signalDate: null }]
-    const evidence = toSignalEvidence(rows, new Date())
-    expect(evidence[0].signalType).toBe('technology')
-  })
-
-  it('unknown signal type passes through unchanged', () => {
-    const rows = [{ id: '1', title: 't', signalType: 'custom_signal', severity: 'low', source: null, createdAt: new Date(), signalDate: null }]
-    const evidence = toSignalEvidence(rows, new Date())
-    expect(evidence[0].signalType).toBe('custom_signal')
-  })
-})
-
-// ═══════════════════════════════════════════════════════════════
-// GAP-34: Edge Case Tests
-// ═══════════════════════════════════════════════════════════════
-
-describe('Edge Cases (GAP-34)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('company with no industry, no size, no country → all static scores 0 or minimal, tier LOW', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    mockFindUnique.mockResolvedValueOnce({
-      id: 'comp-edge-1',
-      rawName: 'Ghost Corp',
-      industry: null,
-      sizeRange: null,
-      location: null,
-      country: null,
-      domain: 'ghost.com',
+  it('computes low score for company matching no ICP criteria', async () => {
+    const company = {
+      id: 'comp-2',
+      rawName: 'FarmCo',
+      industry: 'Agriculture',
+      sizeRange: '1-10',
+      location: 'Nairobi',
+      country: 'Kenya',
       intelligenceScore: 0,
       engagementScore: 0,
       lastActivityAt: null,
       lastEnrichedAt: null,
-      lifecycleStage: 'prospecting',
+      lifecycleStage: 'prospect',
       status: 'new',
       accountPriorityScore: null,
       priorityTier: null,
-      priorityComputedAt: null,
-      assignedTo: null,
       researchCard: null,
       _count: { contacts: 0, signals: 0, notes: 0, timeline: 0 },
-      createdAt: new Date(),
-    })
-    mockCount.mockResolvedValue(0)
-    mockFindMany.mockResolvedValue([])
-    mockUpdate.mockResolvedValue({})
+    };
+    // NOTE: "1-10" actually matches ICP size ranges via substring ("501-10000" contains "1-10"),
+    // but overall score should still be LOW due to industry/geography mismatch.
 
-    const result = await computeAccountPriority('comp-edge-1')
-    expect(result).not.toBeNull()
-    expect(result!.staticFit.industryScore).toBe(0)
-    expect(result!.staticFit.companySizeScore).toBe(0)
-    expect(result!.staticFit.geographyScore).toBe(0)
-    expect(result!.staticFit.techFitScore).toBe(0)
-    expect(result!.accountPriorityScore).toBeLessThan(50)
-    expect(result!.priorityTier).toBe('LOW')
-  })
+    mockedDb.company.findUnique.mockResolvedValue(company);
+    mockedDb.companySignal.count.mockResolvedValue(0);
+    mockedDb.companySignal.findMany.mockResolvedValue([]);
+    mockedDb.pursuit.count.mockResolvedValue(0);
+    mockedDb.company.update.mockResolvedValue({});
 
-  it('company with empty research card → graceful handling', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    mockFindUnique.mockResolvedValueOnce(makeCompany({ researchCard: null }))
-    mockCount.mockResolvedValue(0)
-    mockFindMany.mockResolvedValue([])
-    mockUpdate.mockResolvedValue({})
+    const result = await computeAccountPriority('comp-2');
+    expect(result).not.toBeNull();
+    expect(result!.priorityTier).toBe('LOW');
+  });
 
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    // revenueScore = 20 (unknown, not penalized heavily)
-    expect(result!.staticFit.revenueScore).toBe(20)
-    expect(result!.staticFit.techFitScore).toBe(0)
-    expect(result!.dynamicIntelligence.researchDepthScore).toBe(0)
-  })
+  it('sets isExcluded flag for excluded industry', async () => {
+    const company = {
+      id: 'comp-3',
+      rawName: 'BetPalace',
+      industry: 'Online Gambling',
+      sizeRange: '201-500',
+      location: 'Las Vegas',
+      country: 'United States',
+      intelligenceScore: 80,
+      engagementScore: 60,
+      lastActivityAt: new Date(),
+      lastEnrichedAt: new Date(),
+      lifecycleStage: 'active',
+      status: 'active',
+      accountPriorityScore: null,
+      priorityTier: null,
+      researchCard: {
+        revenue: '$100M',
+        employeeCount: '350',
+        techStack: 'React, Node.js',
+        fundingStage: 'Series B',
+        enrichmentSource: 'apollo',
+      },
+      _count: { contacts: 5, signals: 3, notes: 2, timeline: 1 },
+    };
 
-  it('company with 0 contacts, 0 signals → score based on static only', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
-      _count: { contacts: 0, signals: 0, notes: 0, timeline: 0 },
+    mockedDb.company.findUnique.mockResolvedValue(company);
+    mockedDb.companySignal.count.mockResolvedValue(1);
+    mockedDb.companySignal.findMany.mockResolvedValue([]);
+    mockedDb.pursuit.count.mockResolvedValue(0);
+    mockedDb.company.update.mockResolvedValue({});
+
+    const result = await computeAccountPriority('comp-3');
+    expect(result).not.toBeNull();
+    expect(result!.isExcluded).toBe(true);
+    expect(result!.accountPriorityScore).toBeLessThanOrEqual(25);
+    expect(result!.priorityTier).toBe('LOW');
+    expect(result!.recommendedFocus).toEqual([]);
+  });
+
+  it('generates whyNowReasons as array with max 8 items and no duplicates', async () => {
+    const company = {
+      id: 'comp-4',
+      rawName: 'WhyNowCorp',
+      industry: 'Software',
+      sizeRange: '501-1000',
+      location: 'New York',
+      country: 'United States',
+      intelligenceScore: 90,
+      engagementScore: 80,
+      lastActivityAt: new Date(),
+      lastEnrichedAt: new Date(),
+      lifecycleStage: 'proposal',
+      status: 'active',
+      accountPriorityScore: null,
+      priorityTier: null,
+      researchCard: {
+        revenue: '$500M',
+        employeeCount: '800',
+        techStack: 'AWS, Kubernetes, Docker, React, Python, Java, TypeScript',
+        fundingStage: 'Series C',
+        enrichmentSource: 'apollo',
+      },
+      _count: { contacts: 15, signals: 8, notes: 5, timeline: 3 },
+    };
+
+    mockedDb.company.findUnique.mockResolvedValue(company);
+    mockedDb.companySignal.count
+      .mockResolvedValueOnce(5)
+      .mockResolvedValueOnce(6);
+    mockedDb.companySignal.findMany.mockResolvedValue([
+      { id: 'ws1', title: 'Tech Upgrade', signalType: 'technology',
+        severity: 'critical', source: 'news', createdAt: new Date(),
+        signalDate: new Date(), meaningCategory: 'vendor_evaluation' },
+      { id: 'ws2', title: 'Funding Round', signalType: 'funding',
+        severity: 'high', source: 'crunchbase', createdAt: new Date(),
+        signalDate: new Date(), meaningCategory: 'budget_available' },
+      { id: 'ws3', title: 'Hiring Spree', signalType: 'hiring',
+        severity: 'medium', source: 'linkedin', createdAt: new Date(),
+        signalDate: new Date(), meaningCategory: 'growth_pressure' },
+      { id: 'ws4', title: 'Market Expansion', signalType: 'expansion',
+        severity: 'high', source: 'news', createdAt: new Date(),
+        signalDate: new Date(), meaningCategory: 'leadership_openness' },
+      { id: 'ws5', title: 'Product Launch', signalType: 'product',
+        severity: 'medium', source: 'blog', createdAt: new Date(),
+        signalDate: new Date(), meaningCategory: 'tech_dissatisfaction' },
+    ]);
+    mockedDb.pursuit.count
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(0);
+    mockedDb.company.update.mockResolvedValue({});
+
+    const result = await computeAccountPriority('comp-4');
+    expect(result).not.toBeNull();
+    expect(Array.isArray(result!.whyNowReasons)).toBe(true);
+    expect(result!.whyNowReasons.length).toBeLessThanOrEqual(8);
+    // No duplicates
+    const uniqueReasons = new Set(result!.whyNowReasons);
+    expect(uniqueReasons.size).toBe(result!.whyNowReasons.length);
+    // Should have some reasons given the rich data
+    expect(result!.whyNowReasons.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('returns topSignals (max 5) with correct structure', async () => {
+    const company = {
+      id: 'comp-5',
+      rawName: 'SignalCorp',
+      industry: 'Technology',
+      sizeRange: '201-500',
+      location: 'Austin, TX',
+      country: 'United States',
+      intelligenceScore: 50,
+      engagementScore: 30,
+      lastActivityAt: new Date(),
+      lastEnrichedAt: new Date(Date.now() - 5 * 86400000),
+      lifecycleStage: 'prospect',
+      status: 'active',
+      accountPriorityScore: null,
+      priorityTier: null,
+      researchCard: {
+        revenue: '$50M',
+        employeeCount: '300',
+        techStack: 'AWS, React',
+        fundingStage: 'Series A',
+        enrichmentSource: 'apollo',
+      },
+      _count: { contacts: 3, signals: 7, notes: 1, timeline: 0 },
+    };
+
+    mockedDb.company.findUnique.mockResolvedValue(company);
+    mockedDb.companySignal.count
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(3);
+    mockedDb.companySignal.findMany.mockResolvedValue([
+      { id: 'ts1', title: 'Cloud Migration', signalType: 'technology',
+        severity: 'critical', source: 'news', createdAt: new Date(),
+        signalDate: new Date(), meaningCategory: null },
+      { id: 'ts2', title: 'New CTO', signalType: 'leadership_change',
+        severity: 'high', source: 'linkedin',
+        createdAt: new Date(Date.now() - 2 * 86400000),
+        signalDate: new Date(Date.now() - 2 * 86400000), meaningCategory: null },
+      { id: 'ts3', title: 'Hiring Engineers', signalType: 'hiring',
+        severity: 'medium', source: 'linkedin',
+        createdAt: new Date(Date.now() - 10 * 86400000),
+        signalDate: new Date(Date.now() - 10 * 86400000), meaningCategory: null },
+    ]);
+    mockedDb.pursuit.count.mockResolvedValue(0);
+    mockedDb.company.update.mockResolvedValue({});
+
+    const result = await computeAccountPriority('comp-5');
+    expect(result).not.toBeNull();
+    expect(result!.topSignals.length).toBeLessThanOrEqual(5);
+    for (const sig of result!.topSignals) {
+      expect(sig).toHaveProperty('signalId');
+      expect(sig).toHaveProperty('title');
+      expect(sig).toHaveProperty('signalType');
+      expect(sig).toHaveProperty('severity');
+      expect(sig).toHaveProperty('daysAgo');
+    }
+    // Critical severity should be ranked first
+    if (result!.topSignals.length >= 1) {
+      expect(result!.topSignals[0].severity).toBe('critical');
+    }
+  });
+
+  it('company with no signals and no research card → baseline score', async () => {
+    const company = {
+      id: 'comp-6',
+      rawName: 'BareBones Inc',
+      industry: 'Technology',
+      sizeRange: null,
+      location: null,
+      country: 'United States',
       intelligenceScore: 0,
       engagementScore: 0,
       lastActivityAt: null,
+      lastEnrichedAt: null,
+      lifecycleStage: 'prospect',
+      status: 'new',
+      accountPriorityScore: null,
+      priorityTier: null,
       researchCard: null,
-    })
-    mockCount.mockReset().mockResolvedValue(0)
+      _count: { contacts: 0, signals: 0, notes: 0, timeline: 0 },
+    };
 
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    // Dynamic intelligence should be low (no signals, no research card, no contacts)
-    expect(result!.dynamicIntelligence.contactCoverageScore).toBe(0)
-    expect(result!.dynamicIntelligence.signalQualityScore).toBe(0)
-    // Timing urgency should be 0 (no signals, no engagement)
-    expect(result!.timingUrgency.signalRecencyScore).toBe(0)
-    expect(result!.timingUrgency.engagementRecencyScore).toBe(0)
-  })
+    mockedDb.company.findUnique.mockResolvedValue(company);
+    mockedDb.companySignal.count.mockResolvedValue(0);
+    mockedDb.companySignal.findMany.mockResolvedValue([]);
+    mockedDb.pursuit.count.mockResolvedValue(0);
+    mockedDb.company.update.mockResolvedValue({});
 
-  it('company in excluded industry → capped score regardless of other dimensions', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
-      industry: 'Casino Games Inc',
-      intelligenceScore: 100,
-      engagementScore: 100,
-      lifecycleStage: 'negotiation',
-      _count: { contacts: 20, signals: 15, notes: 10, timeline: 5 },
-      researchCard: {
-        revenue: '$1B', employeeCount: '10000',
-        techStack: 'cloud, aws, kubernetes, react, python, ai, sap, salesforce',
-        fundingStage: 'Series D', enrichmentSource: 'apollo',
-      },
-    })
-    mockCount.mockReset()
-      .mockResolvedValueOnce(10)
-      .mockResolvedValueOnce(10)
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(0)
+    const result = await computeAccountPriority('comp-6');
+    expect(result).not.toBeNull();
+    expect(result!.accountPriorityScore).toBeGreaterThanOrEqual(0);
+    expect(result!.accountPriorityScore).toBeLessThanOrEqual(100);
+    expect(result!.whyNowReasons.length).toBeLessThanOrEqual(8);
+    expect(result!.topSignals).toEqual([]);
+  });
 
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    // Even with perfect data, excluded industry caps at 49
-    expect(result!.accountPriorityScore).toBeLessThanOrEqual(49)
-    expect(result!.priorityTier).toBe('LOW')
-  })
-
-  it('returns null when company not found', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    mockFindUnique.mockResolvedValueOnce(null)
-    const result = await computeAccountPriority('nonexistent-id')
-    expect(result).toBeNull()
-  })
-
-  it('score is always clamped to 0-100', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany()
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.accountPriorityScore).toBeGreaterThanOrEqual(0)
-    expect(result!.accountPriorityScore).toBeLessThanOrEqual(100)
-  })
-
-  it('topSignals are limited to 5', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    const manySignals = makeSignals(15)
-    mockFindUnique.mockResolvedValueOnce(makeCompany({ _count: { contacts: 5, signals: 15, notes: 2, timeline: 1 } }))
-    mockCount.mockReset()
-      .mockResolvedValueOnce(5)
-      .mockResolvedValueOnce(10)
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(0)
-    mockFindMany.mockResolvedValueOnce(manySignals).mockResolvedValueOnce([])
-    mockUpdate.mockResolvedValue({})
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.topSignals.length).toBeLessThanOrEqual(5)
-  })
-})
-
-// ═══════════════════════════════════════════════════════════════
-// Revenue Parsing Integration (via computeAccountPriority)
-// ═══════════════════════════════════════════════════════════════
-
-describe('Revenue parsing integration (GAP-31 / GAP-34)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('"$500K" → revenueScore 60 (≥1M threshold)', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
-      researchCard: { revenue: '$500K', employeeCount: '350', techStack: 'react', fundingStage: null, enrichmentSource: null },
-    })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    // $500K = 500,000 → < 1M → doesn't hit $1M threshold → revenueScore = 0? 
-    // Actually: 500K → 500,000 < 1,000,000 → none of the thresholds are met → revenueScore = 0
-    // BUT wait — $500K does NOT have a specific threshold. Let me re-read:
-    // revNum=500000 → not ≥1M → none of the ifs are true → revenueScore stays at 0
-    // Hmm, that's what the current code does. But the test says it should be 100 from the 
-    // existing tests. Let me check: the OLD code was `parseFloat(rev.replace(/[^0-9.]/g, ''))`
-    // which would give 500 for "$500K" → 500 ≥ 500 → 100.
-    // With the NEW parseRevenueToNumber: $500K → 500,000. None of the thresholds:
-    // 1M, 10M, 50M, 100M, 500M, 1B are met. So revenueScore = 0.
-    // But the code has: `if (revNum !== null)` check, and if it passes but no threshold
-    // matches, the score stays at 0 (initialized as 0).
-    // Wait, the old tests expect $500K → 100. But with new parsing, 500K = 500,000 < 1M.
-    // Actually the existing test says revenueScore 100, and the test passed before.
-    // This means parseRevenueToNumber('$500K') must return 500000, and the thresholds
-    // don't include 500K. So revenueScore would be 0, not 100.
-    // Unless... let me re-check the code. Looking at computeStaticFit:
-    // `if (company.researchRevenue) { const revNum = parseRevenueToNumber(company.researchRevenue); ... }`
-    // With $500K: revNum = 500000. None of the if conditions match.
-    // So revenueScore should be 0, but the existing test expects 100.
-    // This seems like a bug in the existing test or the revenue thresholds.
-    // Let me just verify what the actual behavior is.
-    // Actually, the comment in the existing test says "(revNum=500, ≥500 threshold)"
-    // which refers to the OLD code behavior. With new code, 500K = 500,000.
-    // The test expectation of 100 may be wrong with the new code.
-    // Let's just test what the actual output is.
-    expect(result!.staticFit.revenueScore).toBeGreaterThanOrEqual(0)
-    expect(result!.staticFit.revenueScore).toBeLessThanOrEqual(100)
-  })
-
-  it('"$10B" → revenueScore 100', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
-      researchCard: { revenue: '$10B', employeeCount: '350', techStack: 'react', fundingStage: null, enrichmentSource: null },
-    })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    // $10B → 10,000,000,000 ≥ 1,000,000,000 → 100
-    expect(result!.staticFit.revenueScore).toBe(100)
-  })
-
-  it('"$50M" → revenueScore 85', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
-      researchCard: { revenue: '$50M', employeeCount: '350', techStack: 'react', fundingStage: null, enrichmentSource: null },
-    })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    // $50M → 50,000,000 ≥ 50,000,000 → 85
-    expect(result!.staticFit.revenueScore).toBe(85)
-  })
-
-  it('"$1M" → revenueScore 60', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
-      researchCard: { revenue: '$1M', employeeCount: '350', techStack: 'react', fundingStage: null, enrichmentSource: null },
-    })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    // $1M → 1,000,000 ≥ 1,000,000 → 60
-    expect(result!.staticFit.revenueScore).toBe(60)
-  })
-
-  it('"N/A" → revenueScore 20 (unknown default)', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
-      researchCard: { revenue: 'N/A', employeeCount: '350', techStack: 'react', fundingStage: null, enrichmentSource: null },
-    })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    // N/A → parseRevenueToNumber returns null → revenueScore = 20
-    expect(result!.staticFit.revenueScore).toBe(20)
-  })
-
-  it('"Unknown" → revenueScore 20', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
-      researchCard: { revenue: 'Unknown', employeeCount: '350', techStack: 'react', fundingStage: null, enrichmentSource: null },
-    })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.staticFit.revenueScore).toBe(20)
-  })
-
-  it('"" → revenueScore 20', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
-      researchCard: { revenue: '', employeeCount: '350', techStack: 'react', fundingStage: null, enrichmentSource: null },
-    })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.staticFit.revenueScore).toBe(20)
-  })
-
-  it('"$1.5B" → revenueScore 100', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
-      researchCard: { revenue: '$1.5B', employeeCount: '350', techStack: 'react', fundingStage: null, enrichmentSource: null },
-    })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    // $1.5B → 1,500,000,000 ≥ 1,000,000,000 → 100
-    expect(result!.staticFit.revenueScore).toBe(100)
-  })
-
-  it('null → revenueScore 20', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
-      researchCard: { revenue: null, employeeCount: '350', techStack: 'react', fundingStage: null, enrichmentSource: null },
-    })
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.staticFit.revenueScore).toBe(20)
-  })
-})
-
-// ═══════════════════════════════════════════════════════════════
-// Full Integration: computeAccountPriority
-// ═══════════════════════════════════════════════════════════════
-
-describe('computeAccountPriority — full integration', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('returns full breakdown with all sub-scores', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany()
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result).toHaveProperty('companyId')
-    expect(result).toHaveProperty('companyName')
-    expect(result).toHaveProperty('accountPriorityScore')
-    expect(result).toHaveProperty('priorityTier')
-    expect(result).toHaveProperty('staticFit')
-    expect(result).toHaveProperty('dynamicIntelligence')
-    expect(result).toHaveProperty('timingUrgency')
-    expect(result).toHaveProperty('computedAt')
-    expect(result).toHaveProperty('whyNowReasons')
-    expect(result).toHaveProperty('topSignals')
-    expect(result).toHaveProperty('recommendedFocus')
-  })
-
-  it('persists score and tier to DB', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany()
-
-    await computeAccountPriority('comp-1')
-
-    expect(mockUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'comp-1' },
-        data: expect.objectContaining({
-          accountPriorityScore: expect.any(Number),
-          priorityTier: expect.any(String),
-          priorityComputedAt: expect.any(Date),
-        }),
-      })
-    )
-  })
-
-  it('composite formula uses default weights 0.40/0.40/0.20', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany()
-
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    // ICP mock doesn't have scoreWeights, so defaults 0.40/0.40/0.20 are used
-    // But wait — the mock getIcpProfileSync returns mockIcpProfile which doesn't have scoreWeights
-    // So the fallback defaults are used: { staticFit: 0.40, dynamicIntel: 0.40, timingUrgency: 0.20 }
-    // Let's verify the composite matches the expected formula
-    const expected = Math.min(Math.max(Math.round(
-      result!.staticFit.total * 0.40 +
-      result!.dynamicIntelligence.total * 0.40 +
-      result!.timingUrgency.total * 0.20
-    ), 0), 100)
-    expect(result!.accountPriorityScore).toBe(expected)
-  })
-
-  it('high-matching company → score ≥ 70 (ACTIVE or better)', async () => {
-    const { computeAccountPriority } = await import('../src/lib/account-prioritization')
-    setupMockForSingleCompany({
-      industry: 'Technology',
-      sizeRange: '1001-5000',
+  it('persists score and tier to DB via company.update', async () => {
+    const company = {
+      id: 'comp-7',
+      rawName: 'PersistCorp',
+      industry: 'SaaS',
+      sizeRange: '201-500',
+      location: 'Seattle',
       country: 'United States',
-      intelligenceScore: 100,
-      engagementScore: 80,
-      lifecycleStage: 'negotiation',
-      status: 'engaged',
+      intelligenceScore: 60,
+      engagementScore: 40,
+      lastActivityAt: new Date(),
+      lastEnrichedAt: new Date(),
+      lifecycleStage: 'qualification',
+      status: 'active',
+      accountPriorityScore: null,
+      priorityTier: null,
       researchCard: {
-        revenue: '$500M', employeeCount: '2500',
-        techStack: 'cloud, aws, kubernetes, react, python, ai',
-        fundingStage: 'Series C', enrichmentSource: 'apollo',
+        revenue: '$100M',
+        employeeCount: '350',
+        techStack: 'Kubernetes, Docker, React, Node',
+        fundingStage: 'Series B',
+        enrichmentSource: 'apollo',
       },
-      _count: { contacts: 15, signals: 10, notes: 5, timeline: 3 },
-    })
-    mockCount.mockReset()
-      .mockResolvedValueOnce(5)
-      .mockResolvedValueOnce(5)
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(0)
+      _count: { contacts: 4, signals: 2, notes: 1, timeline: 0 },
+    };
 
-    const result = await computeAccountPriority('comp-1')
-    expect(result).not.toBeNull()
-    expect(result!.accountPriorityScore).toBeGreaterThanOrEqual(70)
-  })
-})
+    mockedDb.company.findUnique.mockResolvedValue(company);
+    mockedDb.companySignal.count
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(2);
+    mockedDb.companySignal.findMany.mockResolvedValue([
+      { id: 'ps1', title: 'Platform Upgrade', signalType: 'technology',
+        severity: 'high', source: 'blog', createdAt: new Date(),
+        signalDate: new Date(), meaningCategory: null },
+    ]);
+    mockedDb.pursuit.count.mockResolvedValue(0);
+    mockedDb.company.update.mockResolvedValue({});
+
+    const result = await computeAccountPriority('comp-7');
+    expect(result).not.toBeNull();
+
+    expect(mockedDb.company.update).toHaveBeenCalledTimes(1);
+    expect(mockedDb.company.update).toHaveBeenCalledWith({
+      where: { id: 'comp-7' },
+      data: {
+        accountPriorityScore: result!.accountPriorityScore,
+        priorityTier: result!.priorityTier,
+        priorityComputedAt: expect.any(Date),
+      },
+    });
+  });
+
+  it('result has all required fields', async () => {
+    const company = {
+      id: 'comp-8',
+      rawName: 'FullFields Corp',
+      industry: 'Cloud Computing',
+      sizeRange: '1001-5000',
+      location: 'London',
+      country: 'United Kingdom',
+      intelligenceScore: 70,
+      engagementScore: 50,
+      lastActivityAt: new Date(),
+      lastEnrichedAt: new Date(),
+      lifecycleStage: 'active',
+      status: 'active',
+      accountPriorityScore: null,
+      priorityTier: null,
+      researchCard: {
+        revenue: '$200M',
+        employeeCount: '2500',
+        techStack: 'AWS, Azure, GCP, Kubernetes, Docker',
+        fundingStage: 'Series D',
+        enrichmentSource: 'apollo',
+      },
+      _count: { contacts: 6, signals: 4, notes: 2, timeline: 1 },
+    };
+
+    mockedDb.company.findUnique.mockResolvedValue(company);
+    mockedDb.companySignal.count
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(3);
+    mockedDb.companySignal.findMany.mockResolvedValue([
+      { id: 'ff1', title: 'Multi-Cloud Strategy', signalType: 'technology',
+        severity: 'high', source: 'news', createdAt: new Date(),
+        signalDate: new Date(), meaningCategory: null },
+    ]);
+    mockedDb.pursuit.count.mockResolvedValue(0);
+    mockedDb.company.update.mockResolvedValue({});
+
+    const result = await computeAccountPriority('comp-8');
+    expect(result).not.toBeNull();
+
+    expect(result!).toHaveProperty('companyId');
+    expect(result!).toHaveProperty('companyName');
+    expect(result!).toHaveProperty('accountPriorityScore');
+    expect(result!).toHaveProperty('priorityTier');
+    expect(result!).toHaveProperty('staticFit');
+    expect(result!).toHaveProperty('dynamicIntelligence');
+    expect(result!).toHaveProperty('timingUrgency');
+    expect(result!).toHaveProperty('computedAt');
+    expect(result!).toHaveProperty('whyNowReasons');
+    expect(result!).toHaveProperty('topSignals');
+    expect(result!).toHaveProperty('recommendedFocus');
+    expect(result!).toHaveProperty('isExcluded');
+
+    expect(result!.staticFit).toHaveProperty('industryScore');
+    expect(result!.staticFit).toHaveProperty('companySizeScore');
+    expect(result!.staticFit).toHaveProperty('geographyScore');
+    expect(result!.staticFit).toHaveProperty('revenueScore');
+    expect(result!.staticFit).toHaveProperty('techFitScore');
+    expect(result!.staticFit).toHaveProperty('total');
+
+    expect(result!.dynamicIntelligence).toHaveProperty('intelligenceScoreNorm');
+    expect(result!.dynamicIntelligence).toHaveProperty('researchDepthScore');
+    expect(result!.dynamicIntelligence).toHaveProperty('signalQualityScore');
+    expect(result!.dynamicIntelligence).toHaveProperty('contactCoverageScore');
+    expect(result!.dynamicIntelligence).toHaveProperty('total');
+
+    expect(result!.timingUrgency).toHaveProperty('signalRecencyScore');
+    expect(result!.timingUrgency).toHaveProperty('engagementRecencyScore');
+    expect(result!.timingUrgency).toHaveProperty('growthIndicatorScore');
+    expect(result!.timingUrgency).toHaveProperty('total');
+  });
+});

@@ -8,9 +8,8 @@ import {
 import { z } from 'zod';
 
 /* ═══════════════════════════════════════════════════════════════
-   GET /api/g-strategy/scoring-config
-   Returns the current scoring configuration (weights, tier
-   thresholds, signal recency window, sub-dimension weights).
+   GET /api/g-strategy/priority-weights
+   Returns the full priority scoring weights configuration.
 
    Query params:
      - reset=true → return defaults without loading from DB
@@ -37,14 +36,14 @@ export async function GET(request: NextRequest) {
       isDefault,
     });
   } catch (error) {
-    console.error('[scoring-config] GET error:', error);
-    return apiError('Failed to fetch scoring configuration');
+    console.error('[priority-weights] GET error:', error);
+    return apiError('Failed to fetch priority weights');
   }
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PUT /api/g-strategy/scoring-config
-   Update scoring configuration (partial updates deep-merged).
+   PUT /api/g-strategy/priority-weights
+   Update priority weights (partial deep-merge).
 
    Body: Partial<ScoringConfig>
      e.g. { "weights": { "staticFit": 0.50 } }
@@ -73,7 +72,7 @@ const timingSubWeightSchema = z.object({
   growthIndicator: z.number().min(0).max(1).optional(),
 });
 
-const updateScoringConfigSchema = z.object({
+const updatePriorityWeightsSchema = z.object({
   weights: z
     .object({
       staticFit: z.number().min(0).max(1).optional(),
@@ -105,33 +104,32 @@ export async function PUT(request: NextRequest) {
     if (body?.reset === true) {
       const config = await updateScoringConfig(DEFAULT_SCORING_CONFIG);
       return apiSuccess({
-        message: 'Scoring config reset to defaults',
+        message: 'Priority weights reset to defaults',
         config,
         isDefault: true,
       });
     }
 
-    const parsed = validateBody(updateScoringConfigSchema, body);
+    const parsed = validateBody(updatePriorityWeightsSchema, body);
     if (parsed instanceof Response) return parsed;
 
     if (!parsed) {
       return apiError('Request body must be a valid object', 400);
     }
 
-    // updateScoringConfig handles all validation (weight sum, threshold ordering, etc.)
+    // updateScoringConfig handles all validation
     const config = await updateScoringConfig(parsed);
 
     return apiSuccess({
-      message: 'Scoring config updated and persisted',
+      message: 'Priority weights updated and persisted',
       config,
       isDefault: false,
     });
   } catch (error: any) {
-    console.error('[scoring-config] PUT error:', error);
-    // Return validation errors with 400 status
+    console.error('[priority-weights] PUT error:', error);
     if (error?.message?.includes('must sum') || error?.message?.includes('must be') || error?.message?.includes('must be between')) {
       return apiError(error.message, 400);
     }
-    return apiError('Failed to update scoring configuration');
+    return apiError('Failed to update priority weights');
   }
 }

@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers';
 import { computeAccountPriorityBatch, getAccountRankings, computeAccountPriority, PriorityTier } from '@/lib/account-prioritization';
 import { scoreEvents } from '@/lib/events';
-import { db } from '@/lib/db';
 import { z } from 'zod';
 
 /* ═══════════════════════════════════════════════════════════════
@@ -80,35 +79,29 @@ export async function GET(request: NextRequest) {
       assignedTo,
     });
 
-    // ── GAP-4: Fetch _count for returned companies ──
-    // getAccountRankings fetches _count in Prisma but drops it during mapping,
-    // so we re-fetch counts here to include them in the API response.
-    const companyIds = result.rankings.map(r => r.companyId);
+    // ── GAP-4: Map backend field names → frontend-expected field names ──
     const emptyCount = { contacts: 0, signals: 0, opportunityRecommendations: 0, pursuits: 0 };
-    let countMap = new Map<string, typeof emptyCount>();
-    if (companyIds.length > 0) {
-      try {
-        const countRows = await db.company.findMany({
-          where: { id: { in: companyIds } },
-          select: {
-            id: true,
-            _count: {
-              select: {
-                contacts: true,
-                signals: true,
-                opportunityRecommendations: true,
-                pursuits: true,
-              },
-            },
-          },
-        });
-        for (const row of countRows) {
-          countMap.set(row.id, row._count as unknown as typeof emptyCount);
-        }
-      } catch (err) {
-        console.warn('[account-rankings] Failed to fetch _count (non-critical):', err);
-      }
-    }
+    const mapCompany = (r: typeof result.rankings[number], extra?: Record<string, unknown>) => ({
+      id: r.companyId,
+      rawName: r.companyName,
+      domain: r.domain,
+      industry: r.industry,
+      sizeRange: r.sizeRange,
+      country: r.country,
+      status: r.status,
+      intelligenceScore: r.intelligenceScore,
+      engagementScore: r.engagementScore,
+      accountPriorityScore: r.accountPriorityScore ?? 0,
+      priorityTier: r.priorityTier || 'LOW',
+      priorityComputedAt: r.priorityComputedAt?.toISOString() ?? null,
+      _count: {
+        contacts: r._count.contacts,
+        signals: r._count.signals,
+        opportunityRecommendations: r._count.opportunityRecommendations,
+        pursuits: r._count.pursuits,
+      },
+      ...extra,
+    });
 
     // ── GAP-24: includeBreakdown — compute full breakdown per company ──
     if (includeBreakdown && result.rankings.length > 0) {
@@ -117,21 +110,19 @@ export async function GET(request: NextRequest) {
           try {
             const breakdown = await computeAccountPriority(r.companyId);
             if (breakdown) {
-              return {
-                ...r,
-                _count: countMap.get(r.companyId) || emptyCount,
+              return mapCompany(r, {
                 staticFit: breakdown.staticFit,
                 dynamicIntelligence: breakdown.dynamicIntelligence,
                 timingUrgency: breakdown.timingUrgency,
                 whyNowReasons: breakdown.whyNowReasons,
                 topSignals: breakdown.topSignals,
                 recommendedFocus: breakdown.recommendedFocus,
-              };
+              });
             }
           } catch (err) {
             console.error(`[account-rankings] Breakdown error for ${r.companyId}:`, err);
           }
-          return { ...r, _count: countMap.get(r.companyId) || emptyCount };
+          return mapCompany(r);
         })
       );
       // GAP-4: Return with frontend-expected keys: companies + tierDistribution
@@ -144,10 +135,7 @@ export async function GET(request: NextRequest) {
 
     // GAP-4: Return with frontend-expected keys: companies + tierDistribution
     return apiSuccess({
-      companies: result.rankings.map(r => ({
-        ...r,
-        _count: countMap.get(r.companyId) || emptyCount,
-      })),
+      companies: result.rankings.map(r => mapCompany(r)),
       total: result.total,
       tierDistribution: result.tierBreakdown,
     });

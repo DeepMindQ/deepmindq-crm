@@ -1,44 +1,63 @@
 /* ═══════════════════════════════════════════════════════════════
    Scoring Configuration — centralized, configurable scoring weights,
-   tier thresholds, and signal recency window.
+   tier thresholds, signal recency window, and sub-dimension weights.
 
-   Fixes: GAP-19 (hardcoded 40/40/20 weights), GAP-20 (hardcoded
-   tier thresholds), GAP-21 (hardcoded 30-day recency), GAP-26
-   (score change event emitter).
+   Fixes: GAP-20 (hardcoded 40/40/20 dimension weights + sub-dim
+   weights), GAP-21 (hardcoded tier thresholds), GAP-22 (hardcoded
+   30-day recency), GAP-26 (score change event emitter).
 
    Config is persisted in the SystemSetting table under the key
    'scoring_config' as a JSON string. Falls back to defaults when
    no stored config exists.
 
-   NOTE: The account-prioritization.ts also reads weights/thresholds
-   from the ICP profile (icp.scoreWeights, icp.tierThresholds). This
-   module provides an independent, dedicated scoring config that can
-   be managed via its own API endpoint. When both exist, the ICP
-   profile values take precedence in the scoring engine (they are the
-   "customer-specific" overrides), while this module provides the
-   "system-level" defaults and management API.
+   This module is the single source of truth for ALL scoring weights
+   used by the account-prioritization engine. The scoring engine
+   calls `getScoringConfig()` (async) to load weights; for sync
+   contexts, `getCachedScoringConfig()` returns the last-loaded
+   config (initialised to defaults on first import).
    ═══════════════════════════════════════════════════════════════ */
 
 import { db } from '@/lib/db';
 
 // ── Types ──
 
+/** Top-level dimension weights (must sum to 1.0) */
 export interface ScoringWeights {
-  staticFit: number;          // default 0.40
-  dynamicIntelligence: number; // default 0.40
-  timingUrgency: number;      // default 0.20
+  staticFit: number;            // default 0.40
+  dynamicIntelligence: number;  // default 0.40
+  timingUrgency: number;        // default 0.20
 }
 
+/** Tier classification thresholds */
 export interface TierThresholds {
   hot: number;    // default 90
   active: number; // default 70
   nurture: number; // default 50
 }
 
+/** Sub-dimension weights for Dynamic Intelligence (must sum to 1.0) */
+export interface DynamicIntelSubWeights {
+  intelligenceScore: number;  // default 0.30
+  researchDepth: number;      // default 0.25
+  signalQuality: number;      // default 0.25
+  contactCoverage: number;    // default 0.20
+}
+
+/** Sub-dimension weights for Timing / Urgency (must sum to 1.0) */
+export interface TimingUrgencySubWeights {
+  signalRecency: number;       // default 0.40
+  engagementRecency: number;   // default 0.35
+  growthIndicator: number;     // default 0.25
+}
+
 export interface ScoringConfig {
   weights: ScoringWeights;
   tierThresholds: TierThresholds;
   signalRecencyDays: number; // default 30
+  subDimensionWeights: {
+    dynamicIntelligence: DynamicIntelSubWeights;
+    timingUrgency: TimingUrgencySubWeights;
+  };
 }
 
 // ── Defaults ──
@@ -55,9 +74,31 @@ export const DEFAULT_SCORING_CONFIG: ScoringConfig = {
     nurture: 50,
   },
   signalRecencyDays: 30,
+  subDimensionWeights: {
+    dynamicIntelligence: {
+      intelligenceScore: 0.30,
+      researchDepth: 0.25,
+      signalQuality: 0.25,
+      contactCoverage: 0.20,
+    },
+    timingUrgency: {
+      signalRecency: 0.40,
+      engagementRecency: 0.35,
+      growthIndicator: 0.25,
+    },
+  },
 };
 
 const CONFIG_KEY = 'scoring_config';
+
+// ── In-process cache (for sync access in scoring functions) ──
+
+let _cachedConfig: ScoringConfig = { ...DEFAULT_SCORING_CONFIG };
+
+/** Return the in-memory cached config (safe for sync contexts). */
+export function getCachedScoringConfig(): ScoringConfig {
+  return _cachedConfig;
+}
 
 // ── Config Accessors ──
 
@@ -68,16 +109,30 @@ export async function getScoringConfig(): Promise<ScoringConfig> {
     });
     if (stored?.value) {
       const parsed = JSON.parse(stored.value) as Partial<ScoringConfig>;
-      return {
+      const config: ScoringConfig = {
         weights: { ...DEFAULT_SCORING_CONFIG.weights, ...parsed.weights },
         tierThresholds: { ...DEFAULT_SCORING_CONFIG.tierThresholds, ...parsed.tierThresholds },
         signalRecencyDays: parsed.signalRecencyDays ?? DEFAULT_SCORING_CONFIG.signalRecencyDays,
+        subDimensionWeights: {
+          dynamicIntelligence: {
+            ...DEFAULT_SCORING_CONFIG.subDimensionWeights.dynamicIntelligence,
+            ...parsed.subDimensionWeights?.dynamicIntelligence,
+          },
+          timingUrgency: {
+            ...DEFAULT_SCORING_CONFIG.subDimensionWeights.timingUrgency,
+            ...parsed.subDimensionWeights?.timingUrgency,
+          },
+        },
       };
+      // Update in-process cache
+      _cachedConfig = config;
+      return config;
     }
   } catch (err) {
     console.error('[scoring-config] Failed to load config from DB, using defaults:', err);
   }
-  return { ...DEFAULT_SCORING_CONFIG };
+  _cachedConfig = { ...DEFAULT_SCORING_CONFIG };
+  return _cachedConfig;
 }
 
 export async function updateScoringConfig(
@@ -88,20 +143,54 @@ export async function updateScoringConfig(
     weights: { ...current.weights, ...partial.weights },
     tierThresholds: { ...current.tierThresholds, ...partial.tierThresholds },
     signalRecencyDays: partial.signalRecencyDays ?? current.signalRecencyDays,
+    subDimensionWeights: {
+      dynamicIntelligence: {
+        ...current.subDimensionWeights.dynamicIntelligence,
+        ...partial.subDimensionWeights?.dynamicIntelligence,
+      },
+      timingUrgency: {
+        ...current.subDimensionWeights.timingUrgency,
+        ...partial.subDimensionWeights?.timingUrgency,
+      },
+    },
   };
 
-  // Validate weights sum to ~1.0 (tolerance 0.01)
+  // Validate dimension weights sum to ~1.0 (tolerance 0.01)
   const weightSum = updated.weights.staticFit + updated.weights.dynamicIntelligence + updated.weights.timingUrgency;
   if (Math.abs(weightSum - 1.0) > 0.01) {
     throw new Error(
-      `Weights must sum to 1.0 (got ${weightSum.toFixed(4)}). ` +
+      `Dimension weights must sum to 1.0 (got ${weightSum.toFixed(4)}). ` +
       `Current: staticFit=${updated.weights.staticFit}, dynamicIntelligence=${updated.weights.dynamicIntelligence}, timingUrgency=${updated.weights.timingUrgency}`
     );
   }
 
-  // Validate each weight is non-negative
+  // Validate each dimension weight is non-negative
   if (updated.weights.staticFit < 0 || updated.weights.dynamicIntelligence < 0 || updated.weights.timingUrgency < 0) {
-    throw new Error('Weights must be non-negative.');
+    throw new Error('Dimension weights must be non-negative.');
+  }
+
+  // Validate sub-dimension weights: dynamic intelligence
+  const diW = updated.subDimensionWeights.dynamicIntelligence;
+  const diSum = diW.intelligenceScore + diW.researchDepth + diW.signalQuality + diW.contactCoverage;
+  if (Math.abs(diSum - 1.0) > 0.01) {
+    throw new Error(
+      `Dynamic Intelligence sub-weights must sum to 1.0 (got ${diSum.toFixed(4)}).`
+    );
+  }
+  if (diW.intelligenceScore < 0 || diW.researchDepth < 0 || diW.signalQuality < 0 || diW.contactCoverage < 0) {
+    throw new Error('Dynamic Intelligence sub-weights must be non-negative.');
+  }
+
+  // Validate sub-dimension weights: timing urgency
+  const tuW = updated.subDimensionWeights.timingUrgency;
+  const tuSum = tuW.signalRecency + tuW.engagementRecency + tuW.growthIndicator;
+  if (Math.abs(tuSum - 1.0) > 0.01) {
+    throw new Error(
+      `Timing Urgency sub-weights must sum to 1.0 (got ${tuSum.toFixed(4)}).`
+    );
+  }
+  if (tuW.signalRecency < 0 || tuW.engagementRecency < 0 || tuW.growthIndicator < 0) {
+    throw new Error('Timing Urgency sub-weights must be non-negative.');
   }
 
   // Validate thresholds are in 0–100 range and hot > active > nurture
@@ -127,6 +216,9 @@ export async function updateScoringConfig(
     create: { key: CONFIG_KEY, value: JSON.stringify(updated) },
   });
 
+  // Update in-process cache
+  _cachedConfig = updated;
+
   return updated;
 }
 
@@ -141,6 +233,13 @@ export function getRecencyCutoff(config: ScoringConfig): Date {
   const d = new Date();
   d.setDate(d.getDate() - config.signalRecencyDays);
   return d;
+}
+
+/**
+ * Convenience: get recency cutoff using the cached config (sync).
+ */
+export function getRecencyCutoffSync(): Date {
+  return getRecencyCutoff(_cachedConfig);
 }
 
 // ── Score Change Event Emitter (GAP-26) ──

@@ -65,6 +65,30 @@ export async function PUT(request: NextRequest) {
     // Check for reset request
     if (body?.reset === true) {
       const profile = await resetIcpProfile();
+
+      // GAP-32: Invalidate all priority scores on reset
+      try {
+        await db.company.updateMany({
+          data: {
+            accountPriorityScore: null,
+            priorityTier: null,
+            priorityComputedAt: null,
+          },
+        });
+        await db.systemSetting.upsert({
+          where: { key: 'priority_scores_stale' },
+          create: {
+            key: 'priority_scores_stale',
+            value: JSON.stringify({ stale: true, invalidatedAt: new Date().toISOString() }),
+          },
+          update: {
+            value: JSON.stringify({ stale: true, invalidatedAt: new Date().toISOString() }),
+          },
+        });
+      } catch (invalidateErr) {
+        console.warn('[icp-profile] Score invalidation failed on reset (non-blocking):', invalidateErr);
+      }
+
       return apiSuccess({
         message: 'ICP profile reset to defaults',
         profile,
@@ -90,6 +114,16 @@ export async function PUT(request: NextRequest) {
           400,
         );
       }
+    }
+
+    // GAP-31: Validate critical arrays are non-empty when saving
+    const targetIndustries = parsed.targetIndustries ?? parsed.targetCountries ?? [];
+    const targetRegions = parsed.targetRegions ?? [];
+    if (targetIndustries.length === 0) {
+      return apiError('targetIndustries must not be empty — define at least one target industry for the ICP to function.', 400);
+    }
+    if (targetRegions.length === 0) {
+      return apiError('targetRegions must not be empty — define at least one target region for the ICP to function.', 400);
     }
 
     // Normalise frontend field names → backend canonical names

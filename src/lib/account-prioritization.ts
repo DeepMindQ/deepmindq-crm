@@ -1,20 +1,27 @@
+import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import { getIcpProfile, getIcpProfileSync, sizeMatch, techMatch, parseEmployeeCount, type IcpProfile } from './icp-config';
 import { normalizeSignalType } from '@/lib/signal-types';
+import { getScoringConfig, getCachedScoringConfig, getRecencyCutoff, getRecencyCutoffSync, type ScoringConfig } from './scoring-config';
+import { scoreEvents } from './events';
 
 /* ═══════════════════════════════════════════════════════════════
    Account Prioritization Engine — Phase 5 (Gap Closures)
 
    Three nested scoring dimensions → composite 0-100 → tier:
-     1. Static Fit Score       (40% weight) — Company attributes vs ICP
-     2. Dynamic Intelligence   (40% weight) — Intelligence quality & depth
-     3. Timing / Urgency       (20% weight) — Signal recency & engagement
+     1. Static Fit Score       (configurable weight) — Company attributes vs ICP
+     2. Dynamic Intelligence   (configurable weight) — Intelligence quality & depth
+     3. Timing / Urgency       (configurable weight) — Signal recency & engagement
 
-   Tier classification:
-     HOT     ≥ 90
-     ACTIVE  70–89
-     NURTURE 50–69
-     LOW     < 50
+   All weights, tier thresholds, and recency window are loaded from
+   `scoring-config.ts` (persisted in SystemSetting 'scoring_config').
+   Falls back to defaults when no stored config exists.
+
+   Tier classification (configurable):
+     HOT     ≥ hot threshold (default 90)
+     ACTIVE  ≥ active threshold (default 70)
+     NURTURE ≥ nurture threshold (default 50)
+     LOW     < nurture
 
    Phase 5 Gap Closures add:
      - whyNowReasons:    Rule-based "Why this account now?" explanations
@@ -90,6 +97,8 @@ export interface AccountPriorityResult {
   topSignals: SignalEvidence[];
   /** Recommended service lines / capabilities to position */
   recommendedFocus: CapabilityRecommendation[];
+  /** GAP-11: True when company's industry is in ICP's excludedIndustries */
+  isExcluded: boolean;
 }
 
 // ── Company data shape needed for scoring ────────────────────
@@ -126,6 +135,33 @@ interface CompanyScoringData {
   // ── GAP-12, GAP-28: engagement proxy data ──
   _activePursuitCount: number;
   _activeOppRecCount: number;
+  // ── GAP-14: stage-specific pursuit data ──
+  /** Pursuits in proposal or negotiation outcomeStage (active buying cycle) */
+  _advancedPursuitCount: number;
+  /** Pursuits with status won/lost created in last 90 days (cooling-off) */
+  _recentlyClosedPursuitCount: number;
+  // ── GAP-26: previous score for event emission ──
+  _previousPriorityScore: number | null;
+  _previousPriorityTier: string | null;
+}
+
+// ── Priority Weights Accessor (GAP-20/21/22) ─────────────────
+
+/**
+ * Load priority weights from the scoring config (async).
+ * This ensures the in-process cache is populated from DB.
+ */
+export async function getPriorityWeights(): Promise<ScoringConfig> {
+  return getScoringConfig();
+}
+
+/**
+ * Get priority weights from the in-process cache (sync).
+ * Safe for use in sync scoring functions after `getScoringConfig()`
+ * has been called at least once (e.g. at the start of batch compute).
+ */
+export function getPriorityWeightsSync(): ScoringConfig {
+  return getCachedScoringConfig();
 }
 
 // ── Capability matching types ──
@@ -352,12 +388,13 @@ function computeDynamicIntelligence(company: CompanyScoringData): DynamicIntelBr
   if (company._contactCount >= 8) contactCoverageScore = 80;
   if (company._contactCount >= 12) contactCoverageScore = 100;
 
-  // Weighted total
+  // Weighted total — GAP-20: use configurable sub-dimension weights
+  const diWeights = getPriorityWeightsSync().subDimensionWeights.dynamicIntelligence;
   const total = Math.round(
-    intelligenceScoreNorm * 0.30 +
-    researchDepthScore * 0.25 +
-    signalQualityScore * 0.25 +
-    contactCoverageScore * 0.20
+    intelligenceScoreNorm * diWeights.intelligenceScore +
+    researchDepthScore * diWeights.researchDepth +
+    signalQualityScore * diWeights.signalQuality +
+    contactCoverageScore * diWeights.contactCoverage
   );
 
   return {
@@ -371,15 +408,25 @@ function computeDynamicIntelligence(company: CompanyScoringData): DynamicIntelBr
 
 // ── Dimension 3: Timing / Urgency Score (0-100) ──────────────
 
-/** Meaning category urgency tiers (GAP-10) */
+/** Meaning category urgency tiers (GAP-10)
+ *
+ * Maps meaningCategory values produced by signal-meaning.ts to urgency levels.
+ *   High   → +20 per signal, capped at 30 total (active buying signals)
+ *   Medium → +12 per signal, capped at 20 total (indirect buying readiness)
+ *   Low    → +2  per signal  (informational only)
+ *
+ * Categories produced by signal-meaning.ts:
+ *   budget_available, vendor_evaluation, tech_dissatisfaction,
+ *   leadership_openness, growth_pressure, compliance_requirement, unknown
+ */
 const HIGH_URGENCY_MEANINGS = new Set([
-  'vendor_evaluation', 'budget_available', 'tech_dissatisfaction', 'financial_pressure',
+  'vendor_evaluation', 'budget_available',
 ]);
 const MEDIUM_URGENCY_MEANINGS = new Set([
-  'growth_expansion', 'leadership_change_impact', 'compliance_requirement',
+  'tech_dissatisfaction', 'leadership_openness', 'growth_pressure', 'compliance_requirement',
 ]);
 const LOW_URGENCY_MEANINGS = new Set([
-  'informational', 'general_news',
+  'unknown', 'informational', 'general_news',
 ]);
 
 function computeTimingUrgency(company: CompanyScoringData): TimingUrgencyBreakdown {
@@ -394,7 +441,12 @@ function computeTimingUrgency(company: CompanyScoringData): TimingUrgencyBreakdo
     signalRecencyScore = 15;
   }
 
-  // 2. Engagement recency score (35% of dimension) — GAP-12: engagement proxy
+  // 2. Engagement recency score (35% of dimension)
+  //    NOTE: engagementScore is a placeholder field on Company. It currently
+  //    defaults to 0 with no background job updating it. It is reserved for
+  //    future CRM integration (e.g., email open rates, meeting counts, call
+  //    activity). When a CRM sync is implemented, this field should be
+  //    populated automatically and the fallback below will naturally be unused.
   let engagementRecencyScore = 0;
   if (company.engagementScore > 0) {
     engagementRecencyScore = Math.min(company.engagementScore, 100);
@@ -439,31 +491,42 @@ function computeTimingUrgency(company: CompanyScoringData): TimingUrgencyBreakdo
     }
   }
 
-  // GAP-28: Pursuit / Opportunity status boost
-  if (company._activePursuitCount > 0) {
-    growthIndicatorScore = Math.max(growthIndicatorScore, Math.min(70 + company._activePursuitCount * 5, 95));
+  // GAP-14: Stage-specific pursuit / opportunity boosts
+  // Active pursuit in proposal or negotiation stage → +25 (strong buying signal)
+  if (company._advancedPursuitCount > 0) {
+    growthIndicatorScore = Math.max(growthIndicatorScore, Math.min(75 + company._advancedPursuitCount * 5, 100));
   }
+  // Active opportunity recommendation → +15
   if (company._activeOppRecCount > 0) {
     growthIndicatorScore = Math.max(growthIndicatorScore, Math.min(50 + company._activeOppRecCount * 5, 85));
   }
+  // Recently closed pursuit (won/lost in last 90 days) → -10 cooling-off
+  if (company._recentlyClosedPursuitCount > 0) {
+    growthIndicatorScore = Math.max(growthIndicatorScore - 10, 0);
+  }
+  // Generic active pursuit boost (any stage) — lower weight than advanced stages
+  if (company._activePursuitCount > 0 && company._advancedPursuitCount === 0) {
+    growthIndicatorScore = Math.max(growthIndicatorScore, Math.min(60 + company._activePursuitCount * 5, 85));
+  }
 
-  // GAP-10: meaningCategory boost (applied to growth indicator)
+  // GAP-10: meaningCategory boost (applied to growth indicator, ~15-20% of timing score)
   let meaningBoost = 0;
   for (const mc of company._meaningCategories) {
     const cat = (mc || '').toLowerCase();
-    if (HIGH_URGENCY_MEANINGS.has(cat)) meaningBoost += 18;
-    else if (MEDIUM_URGENCY_MEANINGS.has(cat)) meaningBoost += 9;
+    if (HIGH_URGENCY_MEANINGS.has(cat)) meaningBoost += 20;
+    else if (MEDIUM_URGENCY_MEANINGS.has(cat)) meaningBoost += 12;
     else if (LOW_URGENCY_MEANINGS.has(cat)) meaningBoost += 2;
   }
-  // Cap total meaningCategory boost to avoid score inflation
-  meaningBoost = Math.min(meaningBoost, 30);
+  // Cap total meaningCategory boost to avoid score inflation (max 30 for high, 20 for medium)
+  if (meaningBoost > 30) meaningBoost = 30;
   growthIndicatorScore = Math.min(growthIndicatorScore + meaningBoost, 100);
 
-  // Weighted total
+  // Weighted total — GAP-20: use configurable sub-dimension weights
+  const tuWeights = getPriorityWeightsSync().subDimensionWeights.timingUrgency;
   const total = Math.round(
-    signalRecencyScore * 0.40 +
-    engagementRecencyScore * 0.35 +
-    growthIndicatorScore * 0.25
+    signalRecencyScore * tuWeights.signalRecency +
+    engagementRecencyScore * tuWeights.engagementRecency +
+    growthIndicatorScore * tuWeights.growthIndicator
   );
 
   return {
@@ -476,16 +539,16 @@ function computeTimingUrgency(company: CompanyScoringData): TimingUrgencyBreakdo
 
 // ── Composite & Tier ─────────────────────────────────────────
 
-// GAP-20: Configurable tier thresholds
+// GAP-20/21: Configurable tier thresholds from scoring-config
 function classifyTier(score: number, thresholds?: { hot: number; active: number; nurture: number }): PriorityTier {
-  const t = thresholds || getIcpProfileSync().tierThresholds || { hot: 90, active: 70, nurture: 50 };
+  const t = thresholds || getPriorityWeightsSync().tierThresholds || { hot: 90, active: 70, nurture: 50 };
   if (score >= t.hot) return 'HOT';
   if (score >= t.active) return 'ACTIVE';
   if (score >= t.nurture) return 'NURTURE';
   return 'LOW';
 }
 
-// GAP-19: Configurable dimension weights; GAP-13: Exclusion hard filter
+// GAP-20: Configurable dimension weights from scoring-config; GAP-13: Exclusion hard filter
 function computeComposite(
   staticFit: StaticFitBreakdown,
   dynamicIntelligence: DynamicIntelBreakdown,
@@ -494,21 +557,21 @@ function computeComposite(
 ): number {
   const icp = getIcpProfileSync();
 
-  // GAP-19: Use configurable weights with normalization
-  let weights = icp.scoreWeights || { staticFit: 0.40, dynamicIntel: 0.40, timingUrgency: 0.20 };
-  const weightSum = weights.staticFit + weights.dynamicIntel + weights.timingUrgency;
+  // GAP-20: Use configurable weights from scoring-config (source of truth)
+  let weights = getPriorityWeightsSync().weights;
+  const weightSum = weights.staticFit + weights.dynamicIntelligence + weights.timingUrgency;
   if (Math.abs(weightSum - 1.0) > 0.01) {
     // Normalize weights if they don't sum to ~1.0
     weights = {
       staticFit: weights.staticFit / weightSum,
-      dynamicIntel: weights.dynamicIntel / weightSum,
+      dynamicIntelligence: weights.dynamicIntelligence / weightSum,
       timingUrgency: weights.timingUrgency / weightSum,
     };
   }
 
   let composite = Math.round(
     staticFit.total * weights.staticFit +
-    dynamicIntelligence.total * weights.dynamicIntel +
+    dynamicIntelligence.total * weights.dynamicIntelligence +
     timingUrgency.total * weights.timingUrgency
   );
   composite = Math.min(Math.max(composite, 0), 100);
@@ -629,24 +692,10 @@ function generateWhyNowReasons(
     }
   }
 
-  // GAP-13: Add exclusion reason if company industry is excluded
+  // GAP-11: Add exclusion reason if company industry is excluded
   if (company.industry) {
-    const icp = getIcpProfileSync();
-    const isExcluded = icp.excludedIndustries?.some(ex =>
-      company.industry!.toLowerCase().includes(ex.toLowerCase())
-    );
-    if (isExcluded) {
-      reasons.push(`Industry "${company.industry}" is excluded from target ICP — score capped`);
-    }
-  }
-
-  // GAP-13: Add exclusion reason if company industry is excluded
-  if (company.industry) {
-    const icp = getIcpProfileSync();
-    const isExcluded = icp.excludedIndustries?.some(ex =>
-      company.industry!.toLowerCase().includes(ex.toLowerCase())
-    );
-    if (isExcluded) {
+    const excluded = isExcludedIndustry(company.industry);
+    if (excluded) {
       reasons.push(`Industry "${company.industry}" is excluded from target ICP — score capped`);
     }
   }
@@ -885,14 +934,15 @@ async function fetchCompanyScoringData(
 
   if (!company) return null;
 
-  // GAP-21: Configurable recency window
-  const recencyDays = getIcpProfileSync().signalRecencyDays || 30;
-  const recencyCutoff = new Date();
-  recencyCutoff.setDate(recencyCutoff.getDate() - recencyDays);
+  // GAP-22: Configurable recency window from scoring-config
+  const recencyCutoff = getRecencyCutoffSync();
 
   const now = new Date();
 
-  const [highSeverityCount, recentSignalCount, topSignalRows, activePursuitCount, activeOppRecCount] = await Promise.all([
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+  const [highSeverityCount, recentSignalCount, topSignalRows, activePursuitCount, activeOppRecCount, advancedPursuitCount, recentlyClosedPursuitCount] = await Promise.all([
     db.companySignal.count({
       where: { companyId, severity: { in: ['high', 'critical'] } },
     }),
@@ -907,8 +957,9 @@ async function fetchCompanyScoringData(
       },
     }),
     // GAP-2: Fetch actual signal objects — GAP-6: include signalDate, GAP-10: include meaningCategory
+    // FIX-GAP-16: Also filter out archived/expired signals from single-company fetch
     db.companySignal.findMany({
-      where: { companyId },
+      where: { companyId, status: { notIn: ['archived', 'expired'] } },
       orderBy: { signalDate: 'desc' },
       take: signalLimit,
       select: {
@@ -929,6 +980,14 @@ async function fetchCompanyScoringData(
     // GAP-12/28: Active opportunity recommendation count
     db.opportunityRecommendation.count({
       where: { companyId, status: { in: ['accepted', 'monitored', 'pending_review'] } },
+    }),
+    // GAP-14: Pursuits in proposal/negotiation stage (active buying cycle)
+    db.pursuit.count({
+      where: { companyId, status: { notIn: ['lost', 'won'] }, outcomeStage: { in: ['proposal', 'negotiation'] } },
+    }),
+    // GAP-14: Recently closed pursuits (won/lost in last 90 days) for cooling-off
+    db.pursuit.count({
+      where: { companyId, status: { in: ['won', 'lost'] }, createdAt: { gte: ninetyDaysAgo } },
     }),
   ]);
 
@@ -964,6 +1023,10 @@ async function fetchCompanyScoringData(
     _meaningCategories: meaningCategories,
     _activePursuitCount: activePursuitCount,
     _activeOppRecCount: activeOppRecCount,
+    _advancedPursuitCount: advancedPursuitCount,
+    _recentlyClosedPursuitCount: recentlyClosedPursuitCount,
+    _previousPriorityScore: company.accountPriorityScore,
+    _previousPriorityTier: company.priorityTier,
   };
 }
 
@@ -974,11 +1037,15 @@ async function fetchCompanyScoringData(
  * Returns the full breakdown + gap closure fields + persists score/tier to DB.
  */
 export async function computeAccountPriority(companyId: string): Promise<AccountPriorityResult | null> {
-  // Ensure ICP is loaded from DB
-  await getIcpProfile();
+  // Ensure ICP and scoring config are loaded from DB (populates caches)
+  await Promise.all([getIcpProfile(), getScoringConfig()]);
 
   const data = await fetchCompanyScoringData(companyId);
   if (!data) return null;
+
+  // GAP-26: Capture previous score for event emission
+  const previousScore = data._previousPriorityScore ?? null;
+  const previousTier = data._previousPriorityTier ?? null;
 
   const staticFit = computeStaticFit(data);
   const dynamicIntelligence = computeDynamicIntelligence(data);
@@ -1009,6 +1076,30 @@ export async function computeAccountPriority(companyId: string): Promise<Account
     },
   });
 
+  // GAP-26: Emit score change event
+  scoreEvents.emit('scoreUpdated', {
+    companyId,
+    score: accountPriorityScore,
+    tier: priorityTier,
+    breakdown: {
+      staticFit,
+      dynamicIntelligence,
+      timingUrgency,
+    },
+  });
+
+  // GAP-35: Save score history snapshot (fire-and-forget)
+  saveScoreHistory({
+    companyId: data.id,
+    score: accountPriorityScore,
+    tier: priorityTier,
+    staticFit,
+    dynamicIntelligence,
+    timingUrgency,
+    whyNowReasons,
+    triggerType: 'manual',
+  }).catch(() => { /* already handled inside */ });
+
   return {
     companyId: data.id,
     companyName: data.rawName,
@@ -1021,6 +1112,7 @@ export async function computeAccountPriority(companyId: string): Promise<Account
     whyNowReasons,
     topSignals,
     recommendedFocus,
+    isExcluded: isExcludedIndustry(data.industry),
   };
 }
 
@@ -1040,8 +1132,8 @@ export async function computeAccountPriorityBatch(
   totalComputed: number;
   tierBreakdown: Record<PriorityTier, number>;
 }> {
-  // Ensure ICP is loaded from DB
-  await getIcpProfile();
+  // Ensure ICP and scoring config are loaded from DB (populates caches)
+  await Promise.all([getIcpProfile(), getScoringConfig()]);
 
   // Build where clause
   const where: Record<string, unknown> = {};
@@ -1078,14 +1170,14 @@ export async function computeAccountPriorityBatch(
   }
 
   const companyIds = companies.map(c => c.id);
-  // GAP-21: Configurable recency window
-  const recencyDays = getIcpProfileSync().signalRecencyDays || 30;
-  const recencyCutoff = new Date();
-  recencyCutoff.setDate(recencyCutoff.getDate() - recencyDays);
+  // GAP-22: Configurable recency window from scoring-config
+  const recencyCutoff = getRecencyCutoffSync();
   const now = new Date();
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
   // Bulk fetch signal counts + pursuit/opp counts
-  const [highSeverityMap, recentSignalMap, pursuitCountMap, oppRecCountMap] = await Promise.all([
+  const [highSeverityMap, recentSignalMap, pursuitCountMap, oppRecCountMap, advancedPursuitMap, recentlyClosedPursuitMap] = await Promise.all([
     db.companySignal.groupBy({
       by: ['companyId'],
       where: { companyId: { in: companyIds }, severity: { in: ['high', 'critical'] } },
@@ -1131,6 +1223,26 @@ export async function computeAccountPriorityBatch(
       for (const row of rows) map.set(row.companyId, row._count.id);
       return map;
     }),
+    // GAP-14: Pursuits in proposal/negotiation stage
+    db.pursuit.groupBy({
+      by: ['companyId'],
+      where: { companyId: { in: companyIds }, status: { notIn: ['lost', 'won'] }, outcomeStage: { in: ['proposal', 'negotiation'] } },
+      _count: { id: true },
+    }).then(rows => {
+      const map = new Map<string, number>();
+      for (const row of rows) map.set(row.companyId, row._count.id);
+      return map;
+    }),
+    // GAP-14: Recently closed pursuits (won/lost in last 90 days)
+    db.pursuit.groupBy({
+      by: ['companyId'],
+      where: { companyId: { in: companyIds }, status: { in: ['won', 'lost'] }, createdAt: { gte: ninetyDaysAgo } },
+      _count: { id: true },
+    }).then(rows => {
+      const map = new Map<string, number>();
+      for (const row of rows) map.set(row.companyId, row._count.id);
+      return map;
+    }),
   ]);
 
   // GAP-16: Use per-company findMany with take:10 + signalDate ordering
@@ -1141,8 +1253,10 @@ export async function computeAccountPriorityBatch(
   const SIGNAL_BATCH_SIZE = 50;
   for (let i = 0; i < companyIds.length; i += SIGNAL_BATCH_SIZE) {
     const batchIds = companyIds.slice(i, i + SIGNAL_BATCH_SIZE);
+    // FIX-GAP-16: Filter out archived/expired signals — only active, validated, aging, detected signals
+    // contribute to scoring. Also limits to 10 signals per company to bound memory.
     const batchSignals = await db.companySignal.findMany({
-      where: { companyId: { in: batchIds } },
+      where: { companyId: { in: batchIds }, status: { notIn: ['archived', 'expired'] } },
       orderBy: { signalDate: 'desc' },
       take: batchIds.length * 10,
       select: {
@@ -1220,6 +1334,10 @@ export async function computeAccountPriorityBatch(
       _meaningCategories: meaningCategoriesByCompany.get(company.id) || [],
       _activePursuitCount: pursuitCountMap.get(company.id) || 0,
       _activeOppRecCount: oppRecCountMap.get(company.id) || 0,
+      _advancedPursuitCount: advancedPursuitMap.get(company.id) || 0,
+      _recentlyClosedPursuitCount: recentlyClosedPursuitMap.get(company.id) || 0,
+      _previousPriorityScore: company.accountPriorityScore,
+      _previousPriorityTier: company.priorityTier,
     };
 
     const staticFit = computeStaticFit(data);
@@ -1247,29 +1365,37 @@ export async function computeAccountPriorityBatch(
       whyNowReasons,
       topSignals,
       recommendedFocus,
+      isExcluded: isExcludedIndustry(data.industry),
     });
   }
 
   // Sort by score descending
   results.sort((a, b) => b.accountPriorityScore - a.accountPriorityScore);
 
-  // GAP-15: Batch persist to DB in chunks of 50
+  // FIX-GAP-15: Raw SQL CASE-based bulk UPDATE instead of N individual db.company.update calls.
+  // Each batch of up to 50 companies is updated in a single parameterized SQL statement (3 CASE columns).
   const persistNow = new Date();
-  const BATCH_SIZE = 50;
-  for (let i = 0; i < results.length; i += BATCH_SIZE) {
-    const batch = results.slice(i, i + BATCH_SIZE);
-    await db.$transaction(
-      batch.map(r =>
-        db.company.update({
-          where: { id: r.companyId },
-          data: {
-            accountPriorityScore: r.accountPriorityScore,
-            priorityTier: r.priorityTier,
-            priorityComputedAt: persistNow,
-          },
-        })
-      )
+  const PERSIST_BATCH = 50;
+  for (let i = 0; i < results.length; i += PERSIST_BATCH) {
+    const batch = results.slice(i, i + PERSIST_BATCH);
+    const ids = Prisma.join(batch.map(r => Prisma.sql`${r.companyId}`), Prisma.sql`, `);
+
+    const scoreCase = Prisma.join(
+      batch.map(r => Prisma.sql`WHEN id = ${r.companyId} THEN ${r.accountPriorityScore}`),
+      Prisma.sql` `,
     );
+    const tierCase = Prisma.join(
+      batch.map(r => Prisma.sql`WHEN id = ${r.companyId} THEN ${r.priorityTier}`),
+      Prisma.sql` `,
+    );
+
+    await db.$executeRaw`
+      UPDATE "Company" SET
+        "accountPriorityScore" = CASE ${scoreCase} ELSE "accountPriorityScore" END,
+        "priorityTier" = CASE ${tierCase} ELSE "priorityTier" END,
+        "priorityComputedAt" = ${persistNow}
+      WHERE id IN (${ids})
+    `;
   }
 
   // Tier breakdown
@@ -1302,6 +1428,8 @@ export async function getAccountRankings(options?: {
     domain: string | null;
     industry: string | null;
     sizeRange: string | null;
+    country: string | null;
+    status: string;
     accountPriorityScore: number | null;
     priorityTier: string | null;
     intelligenceScore: number;
@@ -1356,6 +1484,8 @@ export async function getAccountRankings(options?: {
       domain: true,
       industry: true,
       sizeRange: true,
+      country: true,
+      status: true,
       accountPriorityScore: true,
       priorityTier: true,
       intelligenceScore: true,
@@ -1384,6 +1514,8 @@ export async function getAccountRankings(options?: {
       domain: r.domain,
       industry: r.industry,
       sizeRange: r.sizeRange,
+      country: r.country,
+      status: r.status,
       accountPriorityScore: r.accountPriorityScore,
       priorityTier: r.priorityTier,
       intelligenceScore: r.intelligenceScore,
@@ -1426,6 +1558,61 @@ async function fetchServiceLineCapabilities(): Promise<CapabilityAssetRow[]> {
     });
   } catch {
     return [];
+  }
+}
+
+// ── GAP-35: Priority Score History ────────────────────────────
+
+export interface SaveScoreHistoryParams {
+  companyId: string;
+  score: number;
+  tier: PriorityTier;
+  staticFit: StaticFitBreakdown;
+  dynamicIntelligence: DynamicIntelBreakdown;
+  timingUrgency: TimingUrgencyBreakdown;
+  whyNowReasons: string[];
+  triggerType?: 'manual' | 'icp_change' | 'scheduled' | 'batch';
+  triggerDetails?: string;
+}
+
+/**
+ * Save a snapshot of the priority score to the PriorityScoreHistory table.
+ * This enables tracking score drift over time.
+ * Writes are fire-and-forget (errors are logged but not thrown).
+ */
+export async function saveScoreHistory(params: SaveScoreHistoryParams): Promise<void> {
+  try {
+    // Fetch the previous score to populate audit trail fields
+    const previous = await db.priorityScoreHistory.findFirst({
+      where: { companyId: params.companyId },
+      orderBy: { computedAt: 'desc' },
+    });
+
+    await db.priorityScoreHistory.create({
+      data: {
+        companyId: params.companyId,
+        accountPriorityScore: Math.round(params.score),
+        priorityTier: params.tier,
+        staticFitTotal: params.staticFit.total,
+        dynamicIntelTotal: params.dynamicIntelligence.total,
+        timingUrgencyTotal: params.timingUrgency.total,
+        previousScore: previous?.accountPriorityScore ? previous.accountPriorityScore : undefined,
+        previousTier: previous?.priorityTier ?? undefined,
+        newScore: params.score,
+        newTier: params.tier,
+        triggerType: params.triggerType || 'manual',
+        triggerDetails: params.triggerDetails || undefined,
+        staticFitScore: params.staticFit.total,
+        dynamicIntelScore: params.dynamicIntelligence.total,
+        timingUrgencyScore: params.timingUrgency.total,
+        whyNowReasons: params.whyNowReasons.length > 0
+          ? JSON.stringify(params.whyNowReasons)
+          : undefined,
+      },
+    });
+  } catch (err) {
+    // Fire-and-forget: log but don't throw
+    console.warn(`[saveScoreHistory] Failed to save history for ${params.companyId}:`, err);
   }
 }
 

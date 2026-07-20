@@ -79,10 +79,8 @@ interface TierDistribution {
 
 interface APIResponse {
   companies?: Company[];
-  rankings?: Company[];
   total: number;
   tierDistribution?: TierDistribution;
-  tierBreakdown?: TierDistribution;
 }
 
 type SortField = 'priorityScore' | 'intelligenceScore' | 'engagementScore' | 'rawName';
@@ -380,18 +378,13 @@ export default function AccountRankingScreen() {
       const res = await fetch(`/api/g-strategy/account-rankings?${params}`);
       if (!res.ok) throw new Error('Failed to fetch');
       const data: APIResponse = await res.json();
-      // Handle both old (companies/tierDistribution) and new (rankings/tierBreakdown) shapes
-      const mappedCompanies = (data.rankings || data.companies || []).map((c) => ({
+      const mappedCompanies = (data.companies || []).map((c) => ({
         ...c,
-        id: c.id || (c as any).companyId,
-        rawName: c.rawName || (c as any).companyName || '',
-        status: c.status || 'active',
-        country: c.country || null,
-        sizeRange: c.sizeRange || null,
         accountPriorityScore: c.accountPriorityScore ?? 0,
         intelligenceScore: c.intelligenceScore ?? 0,
         engagementScore: c.engagementScore ?? 0,
         priorityTier: c.priorityTier || 'LOW',
+        priorityComputedAt: c.priorityComputedAt || null,
         _count: {
           contacts: c._count?.contacts || 0,
           signals: c._count?.signals || 0,
@@ -401,7 +394,7 @@ export default function AccountRankingScreen() {
       }));
       setCompanies(mappedCompanies);
       setTotal(data.total);
-      setTierDistribution(data.tierBreakdown || data.tierDistribution || {});
+      setTierDistribution(data.tierDistribution || {});
     } catch {
       toast.error('Failed to load account rankings');
       setCompanies([]);

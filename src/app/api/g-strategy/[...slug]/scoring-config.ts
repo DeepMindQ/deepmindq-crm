@@ -119,7 +119,9 @@ export async function PUT(request: NextRequest) {
     }
 
     // updateScoringConfig handles all validation (weight sum, threshold ordering, etc.)
-    const config = await updateScoringConfig(parsed);
+    // Cast: Zod schema produces deeply-optional fields, but updateScoringConfig
+    // deep-merges with defaults so missing nested fields are safe.
+    const config = await updateScoringConfig(parsed as unknown as Partial<import('@/lib/scoring-config').ScoringConfig>);
 
     return apiSuccess({
       message: 'Scoring config updated and persisted',

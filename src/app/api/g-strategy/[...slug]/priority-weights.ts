@@ -118,7 +118,8 @@ export async function PUT(request: NextRequest) {
     }
 
     // updateScoringConfig handles all validation
-    const config = await updateScoringConfig(parsed);
+    // Cast: Zod schema produces deeply-optional fields, safe because updateScoringConfig deep-merges with defaults
+    const config = await updateScoringConfig(parsed as unknown as Partial<import('@/lib/scoring-config').ScoringConfig>);
 
     return apiSuccess({
       message: 'Priority weights updated and persisted',

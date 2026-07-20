@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers';
+import { db } from '@/lib/db';
 import { computeAccountPriorityBatch, getAccountRankings, computeAccountPriority, PriorityTier } from '@/lib/account-prioritization';
 import { scoreEvents } from '@/lib/events';
 import { z } from 'zod';

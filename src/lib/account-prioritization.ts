@@ -1378,15 +1378,15 @@ export async function computeAccountPriorityBatch(
   const PERSIST_BATCH = 50;
   for (let i = 0; i < results.length; i += PERSIST_BATCH) {
     const batch = results.slice(i, i + PERSIST_BATCH);
-    const ids = Prisma.join(batch.map(r => Prisma.sql`${r.companyId}`), Prisma.sql`, `);
+    const ids = Prisma.join(batch.map(r => r.companyId), ', ');
 
     const scoreCase = Prisma.join(
       batch.map(r => Prisma.sql`WHEN id = ${r.companyId} THEN ${r.accountPriorityScore}`),
-      Prisma.sql` `,
+      ' ',
     );
     const tierCase = Prisma.join(
       batch.map(r => Prisma.sql`WHEN id = ${r.companyId} THEN ${r.priorityTier}`),
-      Prisma.sql` `,
+      ' ',
     );
 
     await db.$executeRaw`

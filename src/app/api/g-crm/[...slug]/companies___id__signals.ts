@@ -62,7 +62,7 @@ export async function POST(
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    const validTypes = ['funding', 'hiring', 'leadership_change', 'tech_change', 'news', 'mention', 'partnership', 'expansion'];
+    const validTypes = ['funding', 'hiring', 'leadership_change', 'technology', 'news', 'mention', 'partnership', 'expansion', 'product', 'acquisition', 'regulatory', 'financial_pressure'];
     const validSeverities = ['low', 'medium', 'high', 'critical'];
 
     const signal = await db.companySignal.create({

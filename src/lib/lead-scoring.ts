@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { getIcpProfileSync } from '@/lib/icp-config';
 
 /* ═══════════════════════════════════════════════════
    L-02: Advanced Lead Scoring Model
@@ -88,20 +89,29 @@ function scoreEmailHealth(contact: ContactData): number {
 function scoreCompanyFit(contact: ContactData): number {
   let score = 0;
   const company = contact.company;
+  const icp = getIcpProfileSync();
 
-  // Industry match (+10) — assume "Technology", "Fintech", "SaaS" are target industries
-  const targetIndustries = ['technology', 'fintech', 'saas', 'software', 'it services', 'e-commerce', 'information technology'];
+  // Industry match (+10) — uses configurable ICP profile
   const industry = (company?.industry || '').toLowerCase();
-  if (industry && targetIndustries.some(ti => industry.includes(ti))) {
+  if (industry && icp.excludedIndustries.some(ex => industry.includes(ex.toLowerCase()))) {
+    // Excluded industry — 0 points for industry dimension
+  } else if (industry && icp.targetIndustries.some(ti => industry.includes(ti.toLowerCase()))) {
     score += 10;
   } else if (industry) {
     score += 5; // partial match for any known industry
   }
 
-  // Company size match (+5) — mid-market and enterprise preferred
+  // Company size match (+5) — uses configurable ICP size ranges
   const size = (company?.sizeRange || '').toLowerCase();
-  if (size && (/enterprise|10001\+|5001-10000/.test(size) || /501-1000|1001-5000/.test(size))) {
-    score += 5;
+  if (size) {
+    const sizeNormalized = size.replace(/\s+/g, '');
+    const sizeMatched = icp.targetSizeRanges.some(ts => {
+      const tsNorm = ts.toLowerCase().replace(/\s+/g, '');
+      return sizeNormalized.includes(tsNorm) || tsNorm.includes(sizeNormalized);
+    });
+    if (sizeMatched) {
+      score += 5;
+    }
   }
 
   // Has research data (+5)
@@ -171,10 +181,8 @@ export async function recalculateAllScores(): Promise<{ updated: number }> {
     },
   });
 
-  let updated = 0;
-
-  for (const contact of contacts as any[]) {
-    // Build engagement data from events
+  // Calculate all scores in memory first
+  const scoredContacts = (contacts as any[]).map(contact => {
     const eventTypes = new Set(contact.events?.map((e: any) => e.eventType) || []);
     const engagementData: EngagementData = {
       opened: eventTypes.has('open'),
@@ -184,20 +192,35 @@ export async function recalculateAllScores(): Promise<{ updated: number }> {
 
     const breakdown = calculateLeadScore(contact, engagementData);
 
-    await db.contact.update({
-      where: { id: contact.id },
-      data: {
-        leadScore: breakdown.total,
-        companyFitScore: breakdown.companyFit,
-        engagementScore: breakdown.engagement,
-        enrichmentScore: breakdown.enrichment,
-      },
-    });
+    return {
+      id: contact.id,
+      leadScore: breakdown.total,
+      companyFitScore: breakdown.companyFit,
+      engagementScore: breakdown.engagement,
+      enrichmentScore: breakdown.enrichment,
+    };
+  });
 
-    updated++;
+  // Batch DB updates (50 per transaction)
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < scoredContacts.length; i += BATCH_SIZE) {
+    const batch = scoredContacts.slice(i, i + BATCH_SIZE);
+    await db.$transaction(
+      batch.map(c =>
+        db.contact.update({
+          where: { id: c.id },
+          data: {
+            leadScore: c.leadScore,
+            companyFitScore: c.companyFitScore,
+            engagementScore: c.engagementScore,
+            enrichmentScore: c.enrichmentScore,
+          },
+        })
+      )
+    );
   }
 
-  return { updated };
+  return { updated: scoredContacts.length };
 }
 
 /* Get score breakdown for a single contact */

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers';
-import { getIcpProfile, updateIcpProfile, resetIcpProfile, DEFAULT_ICP } from '@/lib/icp-config';
+import { getIcpProfile, updateIcpProfile, resetIcpProfile, normalizeIcpProfile, DEFAULT_ICP } from '@/lib/icp-config';
+import { db } from '@/lib/db';
 import { z } from 'zod';
 
 /* ═══════════════════════════════════════════════════════════════
@@ -31,15 +32,23 @@ export async function GET() {
    ═══════════════════════════════════════════════════════════════ */
 
 const updateIcpSchema = z.object({
+  // Backend canonical names
   targetIndustries: z.array(z.string()).optional(),
   targetSizeRanges: z.array(z.string()).optional(),
   targetRegions: z.array(z.string()).optional(),
   minEmployeeCount: z.number().int().min(0).optional(),
   maxEmployeeCount: z.number().int().min(-1).optional(),
   minRevenue: z.string().optional(),
+  maxRevenue: z.string().optional(),
   targetFundingStages: z.array(z.string()).optional(),
   preferredTechKeywords: z.array(z.string()).optional(),
   excludedIndustries: z.array(z.string()).optional(),
+  // Frontend field names (will be normalised)
+  targetCountries: z.array(z.string()).optional(),
+  preferredTechnologies: z.array(z.string()).optional(),
+  excludeIndustries: z.array(z.string()).optional(),
+  minEmployees: z.number().int().min(0).optional(),
+  maxEmployees: z.number().int().min(-1).optional(),
   weights: z.object({
     industry: z.number().min(0).max(1).optional(),
     companySize: z.number().min(0).max(1).optional(),
@@ -83,7 +92,28 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    const profile = await updateIcpProfile(parsed as Partial<import('@/lib/icp-config').IcpProfile>);
+    // Normalise frontend field names → backend canonical names
+    const normalised = normalizeIcpProfile(parsed);
+    const profile = await updateIcpProfile(normalised as Partial<import('@/lib/icp-config').IcpProfile>);
+
+    // GAP-22: Invalidate stale priority scores so UI knows recomputation is needed
+    try {
+      await db.company.updateMany({
+        data: { priorityComputedAt: null },
+      });
+      await db.systemSetting.upsert({
+        where: { key: 'priority_scores_stale' },
+        create: {
+          key: 'priority_scores_stale',
+          value: JSON.stringify({ stale: true, invalidatedAt: new Date().toISOString() }),
+        },
+        update: {
+          value: JSON.stringify({ stale: true, invalidatedAt: new Date().toISOString() }),
+        },
+      });
+    } catch (invalidateErr) {
+      console.warn('[icp-profile] Score invalidation failed (non-blocking):', invalidateErr);
+    }
 
     return apiSuccess({
       message: 'ICP profile updated and persisted',

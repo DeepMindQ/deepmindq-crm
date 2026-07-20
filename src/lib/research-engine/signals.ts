@@ -18,6 +18,7 @@
 import { db } from '@/lib/db';
 import { extractJSON, type NewsSignal } from '@/lib/zai-helpers';
 import { governedAICallAggregate } from '@/lib/ai-governance';
+import { CANONICAL_SIGNAL_TYPE_LIST, normalizeSignalType } from '@/lib/signal-types';
 
 // ── Types ──
 
@@ -72,6 +73,9 @@ SIGNAL TYPES:
 - technology: Tech stack change, new platform adoption, cloud migration
 - product: New product launch, feature release, beta program
 - partnership: Strategic partnership, integration, channel partnership
+- acquisition: Company acquired another company, merger activity
+- regulatory: Regulatory compliance, audit, legal requirement
+- financial_pressure: Layoffs, cost cutting, restructuring, budget pressure
 
 IMPACT ASSESSMENT:
 - high: Direct buying signal (e.g., "raised $50M to expand", "hiring VP of Sales", "migrating to cloud")
@@ -83,7 +87,7 @@ The evidenceIndex must point to the source index in the input list.
 
 Return ONLY valid JSON array:
 [{
-  "signalType": "funding|hiring|leadership_change|expansion|technology|product|partnership",
+  "signalType": "funding|hiring|leadership_change|expansion|technology|product|partnership|acquisition|regulatory|financial_pressure",
   "title": "concise signal headline",
   "description": "1-2 sentence explanation of the signal and why it matters",
   "source": "source publication",
@@ -122,8 +126,10 @@ Maximum 10 signals. Only include signals clearly supported by the results. Empty
             : null;
 
           return {
-            signalType: (['funding', 'hiring', 'leadership_change', 'expansion', 'technology', 'product', 'partnership'].includes(String(s.signalType))
-              ? String(s.signalType) : 'expansion') as string,
+            signalType: normalizeSignalType(
+              CANONICAL_SIGNAL_TYPE_LIST.includes(String(s.signalType))
+                ? String(s.signalType) : 'expansion'
+            ) as string,
             title: String(s.title || ''),
             description: String(s.description || ''),
             source: String(s.source || sourceData?.source || 'web_search'),
@@ -311,7 +317,11 @@ function ruleBasedSignalDetection(
     { type: 'leadership_change', regex: /(new|appointed|named)\s+(CEO|CTO|CFO|COO|CMO|VP|president|head)/i, impact: 'high', description: 'Leadership change detected' },
     { type: 'expansion', regex: /(expand|opening|launch|new office|new market|new location)/i, impact: 'medium', description: 'Business expansion detected' },
     { type: 'technology', regex: /(migrat|adopt|implement|deploy|launch)\s+(cloud|AI|ML|data|platform|kubernetes|aws|azure)/i, impact: 'medium', description: 'Technology adoption signal' },
+    { type: 'product', regex: /(launch|release|announce)\s+(new\s+)?(product|feature|version|update|beta)/i, impact: 'medium', description: 'Product launch or update signal' },
     { type: 'partnership', regex: /(partner|integrat|collaborat)\s+(with|and)/i, impact: 'medium', description: 'Partnership signal detected' },
+    { type: 'acquisition', regex: /(acquir|merg|purchas|buyout|takeover)\s+(by|with|of)/i, impact: 'high', description: 'Acquisition or merger activity detected' },
+    { type: 'regulatory', regex: /(compliance|regulation|audit|gdpr|soc|hipaa|pci|sox)/i, impact: 'medium', description: 'Regulatory or compliance signal detected' },
+    { type: 'financial_pressure', regex: /(layoff|downsiz|cost.?cut|restructur|budget.?cut|redundanc)/i, impact: 'high', description: 'Financial pressure signal detected' },
   ];
 
   for (const s of snippets) {

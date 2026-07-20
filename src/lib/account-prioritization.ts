@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { getIcpProfile, getIcpProfileSync, industryMatch, sizeMatch, regionMatch, techMatch, parseEmployeeCount } from './icp-config';
+import { getIcpProfile, getIcpProfileSync, sizeMatch, techMatch, parseEmployeeCount, type IcpProfile } from './icp-config';
 
 /* ═══════════════════════════════════════════════════════════════
    Account Prioritization Engine — Phase 5 (Gap Closures)
@@ -110,7 +110,7 @@ interface CompanyScoringData {
   _contactCount: number;
   _signalCount: number;
   _highSeveritySignalCount: number;
-  _recentSignalCount: number;     // signals in last 30 days
+  _recentSignalCount: number;     // signals in recency window
   _noteCount: number;
   _hasResearchCard: boolean;
   // Enrichment data
@@ -120,6 +120,11 @@ interface CompanyScoringData {
   researchFundingStage: string | null;
   // ── Gap closure: actual signal objects ──
   _topSignals: SignalEvidence[];
+  // ── GAP-10: meaning categories from signals ──
+  _meaningCategories: string[];
+  // ── GAP-12, GAP-28: engagement proxy data ──
+  _activePursuitCount: number;
+  _activeOppRecCount: number;
 }
 
 // ── Capability matching types ──
@@ -146,23 +151,110 @@ const SEVERITY_WEIGHT: Record<string, number> = {
 // ── Signal-to-capability topic mapping ──
 
 const SIGNAL_CAPABILITY_TOPICS: Record<string, string[]> = {
-  tech_change: ['cloud', 'migration', 'modernization', 'engineering', 'devops', 'platform', 'infrastructure', 'digital transformation', 'data engineering'],
+  technology: ['cloud', 'migration', 'modernization', 'engineering', 'devops', 'platform', 'infrastructure', 'digital transformation', 'data engineering'],
   funding: ['digital transformation', 'cloud', 'engineering', 'analytics', 'ai', 'machine learning'],
   hiring: ['engineering', 'development', 'analytics', 'data', 'ai', 'cloud'],
   leadership_change: ['digital transformation', 'strategy', 'consulting', 'advisory'],
+  product: ['engineering', 'development', 'platform', 'analytics', 'automation', 'cloud'],
+  acquisition: ['integration', 'migration', 'data consolidation', 'cloud', 'engineering', 'infrastructure'],
+  regulatory: ['compliance', 'security', 'governance', 'audit', 'automation', 'data engineering'],
+  financial_pressure: ['optimization', 'automation', 'cost reduction', 'cloud', 'efficiency', 'platform'],
   news: ['transformation', 'modernization', 'platform', 'analytics', 'automation'],
   mention: ['consulting', 'advisory', 'strategy', 'implementation'],
   partnership: ['integration', 'implementation', 'engineering', 'cloud', 'platform'],
   expansion: ['scalability', 'cloud', 'engineering', 'infrastructure', 'digital transformation'],
 };
 
+// ── Revenue parsing helper (GAP-7) ───────────────────────────
+
+function parseRevenueToNumber(rev: string | null | undefined): number | null {
+  if (!rev) return null;
+  const cleaned = rev.trim().toLowerCase();
+  if (cleaned === 'n/a' || cleaned === 'unknown' || cleaned === '-') return null;
+
+  const match = cleaned.match(/([\d.]+)\s*(k|thousand|m|million|b|billion)?/);
+  if (!match) return null;
+
+  let num = parseFloat(match[1]);
+  const suffix = match[2];
+
+  if (suffix === 'k' || suffix === 'thousand') num *= 1_000;
+  else if (suffix === 'm' || suffix === 'million') num *= 1_000_000;
+  else if (suffix === 'b' || suffix === 'billion') num *= 1_000_000_000;
+
+  return num;
+}
+
+// ── Industry fuzzy scoring helper (GAP-29) ────────────────────
+
+const REGION_GROUPS: Record<string, string[]> = {
+  'north america': ['united states', 'usa', 'us', 'canada', 'mexico'],
+  'europe': ['united kingdom', 'uk', 'germany', 'france', 'spain', 'italy', 'netherlands', 'sweden', 'norway', 'denmark', 'finland', 'ireland', 'belgium', 'switzerland', 'austria', 'portugal', 'poland'],
+  'apac': ['india', 'australia', 'singapore', 'japan', 'china', 'south korea', 'new zealand', 'malaysia', 'thailand', 'philippines', 'indonesia', 'vietnam', 'hong kong', 'taiwan'],
+  'middle east': ['uae', 'saudi arabia', 'qatar', 'bahrain', 'kuwait', 'oman', 'israel'],
+  'latin america': ['brazil', 'argentina', 'colombia', 'chile', 'peru'],
+};
+
+/** Fuzzy industry score: 100 (exact), 70 (partial keyword), 40 (related sector), 0 (no match) */
+function fuzzyIndustryScore(companyIndustry: string | null, icp: IcpProfile): number {
+  if (!companyIndustry) return 0;
+  const lower = companyIndustry.toLowerCase();
+  // Check exclusions first
+  if (icp.excludedIndustries.some(ex => lower.includes(ex.toLowerCase()))) return 0;
+
+  // Exact or contains match
+  if (icp.targetIndustries.some(ti => lower.includes(ti.toLowerCase()))) return 100;
+
+  // Partial keyword match (any word in company industry that matches a target)
+  const companyWords = lower.split(/[\s,;&/()]+/).filter(w => w.length > 3);
+  const targetWords = new Set<string>();
+  for (const ti of icp.targetIndustries) {
+    for (const w of ti.toLowerCase().split(/\s+/)) {
+      if (w.length > 3) targetWords.add(w);
+    }
+  }
+  if (companyWords.some(cw => targetWords.has(cw))) return 70;
+
+  // Related sector overlap via common short words
+  const companyShortWords = new Set(lower.split(/[\s,;&/()]+/).filter(w => w.length > 2));
+  const targetShortWords = new Set<string>();
+  for (const ti of icp.targetIndustries) {
+    for (const w of ti.toLowerCase().split(/\s+/)) {
+      if (w.length > 2) targetShortWords.add(w);
+    }
+  }
+  const overlap = [...companyShortWords].filter(w => targetShortWords.has(w)).length;
+  if (overlap >= 2) return 40;
+
+  return 0;
+}
+
+/** Fuzzy geography score: 100 (exact), 60 (same region group), 0 (no match) */
+function fuzzyGeographyScore(country: string | null, location: string | null, icp: IcpProfile): number {
+  if (!country && !location) return 0;
+  const combined = `${(country || '').toLowerCase()} ${(location || '').toLowerCase()}`.trim();
+
+  // Exact match
+  if (icp.targetRegions.some(r => combined.includes(r.toLowerCase()))) return 100;
+
+  // Same region group
+  for (const [, members] of Object.entries(REGION_GROUPS)) {
+    const companyInGroup = members.some(m => combined.includes(m));
+    if (companyInGroup && members.some(m => icp.targetRegions.some(tr => tr.toLowerCase() === m))) {
+      return 60;
+    }
+  }
+
+  return 0;
+}
+
 // ── Dimension 1: Static Fit Score (0-100) ────────────────────
 
 function computeStaticFit(company: CompanyScoringData): StaticFitBreakdown {
   const icp = getIcpProfileSync();
 
-  // 1. Industry fit (weighted by icp.weights.industry, default 0.3)
-  const industryScore = industryMatch(company.industry, icp) ? 100 : 0;
+  // 1. Industry fit (weighted by icp.weights.industry, default 0.3) — GAP-29: fuzzy
+  const industryScore = fuzzyIndustryScore(company.industry, icp);
 
   // 2. Company size fit (weighted by icp.weights.companySize, default 0.25)
   let companySizeScore = 0;
@@ -177,22 +269,21 @@ function computeStaticFit(company: CompanyScoringData): StaticFitBreakdown {
     companySizeScore = 30;
   }
 
-  // 3. Geography fit (weighted by icp.weights.geography, default 0.15)
-  const geographyScore = regionMatch(company.country, company.location, icp) ? 100 : 0;
+  // 3. Geography fit (weighted by icp.weights.geography, default 0.15) — GAP-29: fuzzy
+  const geographyScore = fuzzyGeographyScore(company.country, company.location, icp);
 
-  // 4. Revenue fit (weighted by icp.weights.revenue, default 0.15)
+  // 4. Revenue fit (weighted by icp.weights.revenue, default 0.15) — GAP-7: proper parsing
   let revenueScore = 0;
   if (company.researchRevenue) {
-    // Simple heuristic: if we have revenue data at all, that's meaningful
-    const revLower = company.researchRevenue.toLowerCase();
-    const revNum = parseFloat(revLower.replace(/[^0-9.]/g, ''));
-    if (revNum >= 1) revenueScore = 60; // $1M+
-    if (revNum >= 10) revenueScore = 75; // $10M+
-    if (revNum >= 50) revenueScore = 85; // $50M+
-    if (revNum >= 100) revenueScore = 95; // $100M+
-    if (revNum >= 500) revenueScore = 100; // $500M+
-    // Handle "$" + "B" patterns
-    if (revLower.includes('b') && revNum >= 1) revenueScore = 100;
+    const revNum = parseRevenueToNumber(company.researchRevenue);
+    if (revNum !== null) {
+      if (revNum >= 1_000_000) revenueScore = 60;      // $1M+
+      if (revNum >= 10_000_000) revenueScore = 75;     // $10M+
+      if (revNum >= 50_000_000) revenueScore = 85;     // $50M+
+      if (revNum >= 100_000_000) revenueScore = 95;    // $100M+
+      if (revNum >= 500_000_000) revenueScore = 100;   // $500M+
+      if (revNum >= 1_000_000_000) revenueScore = 100; // $1B+
+    }
   } else {
     revenueScore = 20; // Unknown but not penalized heavily
   }
@@ -279,7 +370,19 @@ function computeDynamicIntelligence(company: CompanyScoringData): DynamicIntelBr
 
 // ── Dimension 3: Timing / Urgency Score (0-100) ──────────────
 
+/** Meaning category urgency tiers (GAP-10) */
+const HIGH_URGENCY_MEANINGS = new Set([
+  'vendor_evaluation', 'budget_available', 'tech_dissatisfaction', 'financial_pressure',
+]);
+const MEDIUM_URGENCY_MEANINGS = new Set([
+  'growth_expansion', 'leadership_change_impact', 'compliance_requirement',
+]);
+const LOW_URGENCY_MEANINGS = new Set([
+  'informational', 'general_news',
+]);
+
 function computeTimingUrgency(company: CompanyScoringData): TimingUrgencyBreakdown {
+  const icp = getIcpProfileSync();
   const now = new Date();
 
   // 1. Signal recency score (40% of dimension)
@@ -290,10 +393,19 @@ function computeTimingUrgency(company: CompanyScoringData): TimingUrgencyBreakdo
     signalRecencyScore = 15;
   }
 
-  // 2. Engagement recency score (35% of dimension)
+  // 2. Engagement recency score (35% of dimension) — GAP-12: engagement proxy
   let engagementRecencyScore = 0;
   if (company.engagementScore > 0) {
     engagementRecencyScore = Math.min(company.engagementScore, 100);
+  } else {
+    // GAP-12: Compute engagement proxy when engagementScore is 0
+    const effectiveEngagement = Math.min(
+      company._activePursuitCount * 20 + company._activeOppRecCount * 10 + company._noteCount * 5,
+      100,
+    );
+    if (effectiveEngagement > 0) {
+      engagementRecencyScore = effectiveEngagement;
+    }
   }
   if (company.lastActivityAt) {
     const daysSinceActivity = daysBetween(company.lastActivityAt, now);
@@ -314,13 +426,37 @@ function computeTimingUrgency(company: CompanyScoringData): TimingUrgencyBreakdo
   if (company.status === 'active' || company.status === 'engaged') {
     growthIndicatorScore = Math.max(growthIndicatorScore, 50);
   }
+
+  // GAP-11: Use ICP's targetFundingStages instead of hardcoded list
   if (company.researchFundingStage) {
     const fundingLower = company.researchFundingStage.toLowerCase();
-    if (fundingLower.includes('series b') || fundingLower.includes('series c') ||
-        fundingLower.includes('series d') || fundingLower.includes('late')) {
+    const targetStages = icp.targetFundingStages.length > 0
+      ? icp.targetFundingStages
+      : ['series b', 'series c', 'series d', 'late'];
+    if (targetStages.some(ts => fundingLower.includes(ts.toLowerCase()))) {
       growthIndicatorScore = Math.max(growthIndicatorScore, 60);
     }
   }
+
+  // GAP-28: Pursuit / Opportunity status boost
+  if (company._activePursuitCount > 0) {
+    growthIndicatorScore = Math.max(growthIndicatorScore, Math.min(70 + company._activePursuitCount * 5, 95));
+  }
+  if (company._activeOppRecCount > 0) {
+    growthIndicatorScore = Math.max(growthIndicatorScore, Math.min(50 + company._activeOppRecCount * 5, 85));
+  }
+
+  // GAP-10: meaningCategory boost (applied to growth indicator)
+  let meaningBoost = 0;
+  for (const mc of company._meaningCategories) {
+    const cat = (mc || '').toLowerCase();
+    if (HIGH_URGENCY_MEANINGS.has(cat)) meaningBoost += 18;
+    else if (MEDIUM_URGENCY_MEANINGS.has(cat)) meaningBoost += 9;
+    else if (LOW_URGENCY_MEANINGS.has(cat)) meaningBoost += 2;
+  }
+  // Cap total meaningCategory boost to avoid score inflation
+  meaningBoost = Math.min(meaningBoost, 30);
+  growthIndicatorScore = Math.min(growthIndicatorScore + meaningBoost, 100);
 
   // Weighted total
   const total = Math.round(
@@ -339,24 +475,54 @@ function computeTimingUrgency(company: CompanyScoringData): TimingUrgencyBreakdo
 
 // ── Composite & Tier ─────────────────────────────────────────
 
-function classifyTier(score: number): PriorityTier {
-  if (score >= 90) return 'HOT';
-  if (score >= 70) return 'ACTIVE';
-  if (score >= 50) return 'NURTURE';
+// GAP-20: Configurable tier thresholds
+function classifyTier(score: number, thresholds?: { hot: number; active: number; nurture: number }): PriorityTier {
+  const t = thresholds || getIcpProfileSync().tierThresholds || { hot: 90, active: 70, nurture: 50 };
+  if (score >= t.hot) return 'HOT';
+  if (score >= t.active) return 'ACTIVE';
+  if (score >= t.nurture) return 'NURTURE';
   return 'LOW';
 }
 
+// GAP-19: Configurable dimension weights; GAP-13: Exclusion hard filter
 function computeComposite(
   staticFit: StaticFitBreakdown,
   dynamicIntelligence: DynamicIntelBreakdown,
   timingUrgency: TimingUrgencyBreakdown,
+  companyIndustry?: string | null,
 ): number {
-  const composite = Math.round(
-    staticFit.total * 0.40 +
-    dynamicIntelligence.total * 0.40 +
-    timingUrgency.total * 0.20
+  const icp = getIcpProfileSync();
+
+  // GAP-19: Use configurable weights with normalization
+  let weights = icp.scoreWeights || { staticFit: 0.40, dynamicIntel: 0.40, timingUrgency: 0.20 };
+  const weightSum = weights.staticFit + weights.dynamicIntel + weights.timingUrgency;
+  if (Math.abs(weightSum - 1.0) > 0.01) {
+    // Normalize weights if they don't sum to ~1.0
+    weights = {
+      staticFit: weights.staticFit / weightSum,
+      dynamicIntel: weights.dynamicIntel / weightSum,
+      timingUrgency: weights.timingUrgency / weightSum,
+    };
+  }
+
+  let composite = Math.round(
+    staticFit.total * weights.staticFit +
+    dynamicIntelligence.total * weights.dynamicIntel +
+    timingUrgency.total * weights.timingUrgency
   );
-  return Math.min(Math.max(composite, 0), 100);
+  composite = Math.min(Math.max(composite, 0), 100);
+
+  // GAP-13: Exclusion hard filter — cap at 49 if industry is excluded
+  if (companyIndustry) {
+    const isExcluded = icp.excludedIndustries?.some(ex =>
+      companyIndustry!.toLowerCase().includes(ex.toLowerCase())
+    );
+    if (isExcluded) {
+      composite = Math.min(composite, 49);
+    }
+  }
+
+  return composite;
 }
 
 // ── Gap 1: "Why This Account Now?" Rule-Based Reasons ───────
@@ -405,7 +571,7 @@ function generateWhyNowReasons(
 
   // --- Capability alignment reasons (from topSignals) ---
   const signalTypes = new Set(company._topSignals.map(s => s.signalType));
-  if (signalTypes.has('tech_change')) {
+  if (signalTypes.has('technology')) {
     reasons.push('Technology transformation signal indicates active modernization or migration');
   }
   if (signalTypes.has('funding')) {
@@ -469,12 +635,16 @@ function generateWhyNowReasons(
 /** Format signal type into human-readable label */
 function formatSignalType(signalType: string): string {
   const labels: Record<string, string> = {
-    tech_change: 'technology change',
+    technology: 'technology change',
     leadership_change: 'leadership change',
     funding: 'funding',
     hiring: 'hiring',
     expansion: 'expansion',
     partnership: 'partnership',
+    product: 'product',
+    acquisition: 'acquisition',
+    regulatory: 'regulatory',
+    financial_pressure: 'financial pressure',
     news: 'news',
     mention: 'mention',
   };
@@ -491,7 +661,7 @@ function rankSignals(signals: SignalEvidence[]): SignalEvidence[] {
   });
 }
 
-/** Convert DB signal rows to SignalEvidence objects */
+/** Convert DB signal rows to SignalEvidence objects — GAP-6: uses signalDate over createdAt */
 function toSignalEvidence(rows: Array<{
   id: string;
   title: string;
@@ -499,13 +669,14 @@ function toSignalEvidence(rows: Array<{
   severity: string;
   source: string | null;
   createdAt: Date;
+  signalDate: Date | null;
 }>, now: Date): SignalEvidence[] {
   return rows.map(r => ({
     signalId: r.id,
     title: r.title,
     signalType: r.signalType,
     severity: r.severity,
-    daysAgo: daysBetween(r.createdAt, now),
+    daysAgo: daysBetween(r.signalDate || r.createdAt, now),
     source: r.source,
   }));
 }
@@ -682,22 +853,31 @@ async function fetchCompanyScoringData(
 
   if (!company) return null;
 
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  // GAP-21: Configurable recency window
+  const recencyDays = getIcpProfileSync().signalRecencyDays || 30;
+  const recencyCutoff = new Date();
+  recencyCutoff.setDate(recencyCutoff.getDate() - recencyDays);
 
   const now = new Date();
 
-  const [highSeverityCount, recentSignalCount, topSignalRows] = await Promise.all([
+  const [highSeverityCount, recentSignalCount, topSignalRows, activePursuitCount, activeOppRecCount] = await Promise.all([
     db.companySignal.count({
       where: { companyId, severity: { in: ['high', 'critical'] } },
     }),
+    // GAP-6: Use signalDate for recency window
     db.companySignal.count({
-      where: { companyId, createdAt: { gte: thirtyDaysAgo } },
+      where: {
+        companyId,
+        OR: [
+          { signalDate: { gte: recencyCutoff } },
+          { signalDate: null, createdAt: { gte: recencyCutoff } },
+        ],
+      },
     }),
-    // Gap 2: Fetch actual signal objects
+    // GAP-2: Fetch actual signal objects — GAP-6: include signalDate, GAP-10: include meaningCategory
     db.companySignal.findMany({
       where: { companyId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { signalDate: 'desc' },
       take: signalLimit,
       select: {
         id: true,
@@ -706,9 +886,24 @@ async function fetchCompanyScoringData(
         severity: true,
         source: true,
         createdAt: true,
+        signalDate: true,
+        meaningCategory: true,
       },
     }),
+    // GAP-12/28: Active pursuit count
+    db.pursuit.count({
+      where: { companyId, status: { notIn: ['closed_lost', 'lost'] } },
+    }),
+    // GAP-12/28: Active opportunity recommendation count
+    db.opportunityRecommendation.count({
+      where: { companyId, status: { in: ['accepted', 'monitored', 'pending_review'] } },
+    }),
   ]);
+
+  // GAP-10: Extract meaning categories from top signals
+  const meaningCategories = topSignalRows
+    .map(s => s.meaningCategory)
+    .filter((mc): mc is string => !!mc);
 
   return {
     id: company.id,
@@ -734,6 +929,9 @@ async function fetchCompanyScoringData(
     researchTechStack: company.researchCard?.techStack ?? null,
     researchFundingStage: company.researchCard?.fundingStage ?? null,
     _topSignals: rankSignals(toSignalEvidence(topSignalRows, now)),
+    _meaningCategories: meaningCategories,
+    _activePursuitCount: activePursuitCount,
+    _activeOppRecCount: activeOppRecCount,
   };
 }
 
@@ -754,7 +952,7 @@ export async function computeAccountPriority(companyId: string): Promise<Account
   const dynamicIntelligence = computeDynamicIntelligence(data);
   const timingUrgency = computeTimingUrgency(data);
 
-  const accountPriorityScore = computeComposite(staticFit, dynamicIntelligence, timingUrgency);
+  const accountPriorityScore = computeComposite(staticFit, dynamicIntelligence, timingUrgency, data.industry);
   const priorityTier = classifyTier(accountPriorityScore);
   const computedAt = new Date().toISOString();
 
@@ -847,12 +1045,14 @@ export async function computeAccountPriorityBatch(
   }
 
   const companyIds = companies.map(c => c.id);
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  // GAP-21: Configurable recency window
+  const recencyDays = getIcpProfileSync().signalRecencyDays || 30;
+  const recencyCutoff = new Date();
+  recencyCutoff.setDate(recencyCutoff.getDate() - recencyDays);
   const now = new Date();
 
-  // Bulk fetch signal counts
-  const [highSeverityMap, recentSignalMap] = await Promise.all([
+  // Bulk fetch signal counts + pursuit/opp counts
+  const [highSeverityMap, recentSignalMap, pursuitCountMap, oppRecCountMap] = await Promise.all([
     db.companySignal.groupBy({
       by: ['companyId'],
       where: { companyId: { in: companyIds }, severity: { in: ['high', 'critical'] } },
@@ -862,9 +1062,36 @@ export async function computeAccountPriorityBatch(
       for (const row of rows) map.set(row.companyId, row._count.id);
       return map;
     }),
+    // GAP-6: Use signalDate for recency window
     db.companySignal.groupBy({
       by: ['companyId'],
-      where: { companyId: { in: companyIds }, createdAt: { gte: thirtyDaysAgo } },
+      where: {
+        companyId: { in: companyIds },
+        OR: [
+          { signalDate: { gte: recencyCutoff } },
+          { signalDate: null, createdAt: { gte: recencyCutoff } },
+        ],
+      },
+      _count: { id: true },
+    }).then(rows => {
+      const map = new Map<string, number>();
+      for (const row of rows) map.set(row.companyId, row._count.id);
+      return map;
+    }),
+    // GAP-12/28: Active pursuit counts
+    db.pursuit.groupBy({
+      by: ['companyId'],
+      where: { companyId: { in: companyIds }, status: { notIn: ['closed_lost', 'lost'] } },
+      _count: { id: true },
+    }).then(rows => {
+      const map = new Map<string, number>();
+      for (const row of rows) map.set(row.companyId, row._count.id);
+      return map;
+    }),
+    // GAP-12/28: Active opp recommendation counts
+    db.opportunityRecommendation.groupBy({
+      by: ['companyId'],
+      where: { companyId: { in: companyIds }, status: { in: ['accepted', 'monitored', 'pending_review'] } },
       _count: { id: true },
     }).then(rows => {
       const map = new Map<string, number>();
@@ -873,34 +1100,45 @@ export async function computeAccountPriorityBatch(
     }),
   ]);
 
-  // Gap 2: Bulk fetch signals for all companies (single query, group in-memory)
-  const allSignals = await db.companySignal.findMany({
-    where: { companyId: { in: companyIds } },
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      companyId: true,
-      title: true,
-      signalType: true,
-      severity: true,
-      source: true,
-      createdAt: true,
-    },
-  });
-
-  // Group signals by companyId
-  const signalsByCompany = new Map<string, SignalEvidence[]>();
-  for (const sig of allSignals) {
-    const existing = signalsByCompany.get(sig.companyId) || [];
-    existing.push({
-      signalId: sig.id,
-      title: sig.title,
-      signalType: sig.signalType,
-      severity: sig.severity,
-      daysAgo: daysBetween(sig.createdAt, now),
-      source: sig.source,
+  // GAP-16: Use per-company findMany with take:10 + signalDate ordering
+  // instead of loading ALL signals. Fetch signals in sub-batches of 50 companies
+  // to avoid a single query with too many OR clauses.
+  const signalsByCompany = new Map<string, Array<{ id: string; companyId: string; title: string; signalType: string; severity: string; source: string | null; createdAt: Date; signalDate: Date | null; meaningCategory: string | null }>>();
+  const meaningCategoriesByCompany = new Map<string, string[]>();
+  const SIGNAL_BATCH_SIZE = 50;
+  for (let i = 0; i < companyIds.length; i += SIGNAL_BATCH_SIZE) {
+    const batchIds = companyIds.slice(i, i + SIGNAL_BATCH_SIZE);
+    const batchSignals = await db.companySignal.findMany({
+      where: { companyId: { in: batchIds } },
+      orderBy: { signalDate: 'desc' },
+      take: batchIds.length * 10,
+      select: {
+        id: true,
+        companyId: true,
+        title: true,
+        signalType: true,
+        severity: true,
+        source: true,
+        createdAt: true,
+        signalDate: true,
+        meaningCategory: true,
+      },
     });
-    signalsByCompany.set(sig.companyId, existing);
+    // Group and limit to 10 per company
+    const perCompanyCounts = new Map<string, number>();
+    for (const sig of batchSignals) {
+      const count = (perCompanyCounts.get(sig.companyId) || 0) + 1;
+      if (count > 10) continue;
+      perCompanyCounts.set(sig.companyId, count);
+      signalsByCompany.set(sig.companyId, [...(signalsByCompany.get(sig.companyId) || []), sig]);
+      // GAP-10: Collect meaning categories
+      if (sig.meaningCategory) {
+        meaningCategoriesByCompany.set(sig.companyId, [
+          ...(meaningCategoriesByCompany.get(sig.companyId) || []),
+          sig.meaningCategory,
+        ]);
+      }
+    }
   }
 
   // Gap 3: Fetch service line capabilities once
@@ -910,7 +1148,17 @@ export async function computeAccountPriorityBatch(
   const results: AccountPriorityResult[] = [];
 
   for (const company of companies) {
-    const topSignals = rankSignals(signalsByCompany.get(company.id) || []).slice(0, 5);
+    const rawSignals = signalsByCompany.get(company.id) || [];
+    const topSignals = rankSignals(
+      rawSignals.map(s => ({
+        signalId: s.id,
+        title: s.title,
+        signalType: s.signalType,
+        severity: s.severity,
+        daysAgo: daysBetween(s.signalDate || s.createdAt, now),
+        source: s.source,
+      }))
+    ).slice(0, 5);
 
     const data: CompanyScoringData = {
       id: company.id,
@@ -936,13 +1184,16 @@ export async function computeAccountPriorityBatch(
       researchTechStack: company.researchCard?.techStack ?? null,
       researchFundingStage: company.researchCard?.fundingStage ?? null,
       _topSignals: topSignals,
+      _meaningCategories: meaningCategoriesByCompany.get(company.id) || [],
+      _activePursuitCount: pursuitCountMap.get(company.id) || 0,
+      _activeOppRecCount: oppRecCountMap.get(company.id) || 0,
     };
 
     const staticFit = computeStaticFit(data);
     const dynamicIntelligence = computeDynamicIntelligence(data);
     const timingUrgency = computeTimingUrgency(data);
 
-    const accountPriorityScore = computeComposite(staticFit, dynamicIntelligence, timingUrgency);
+    const accountPriorityScore = computeComposite(staticFit, dynamicIntelligence, timingUrgency, data.industry);
     const priorityTier = classifyTier(accountPriorityScore);
 
     // Gap 1: Why now?
@@ -969,20 +1220,24 @@ export async function computeAccountPriorityBatch(
   // Sort by score descending
   results.sort((a, b) => b.accountPriorityScore - a.accountPriorityScore);
 
-  // Batch persist to DB
+  // GAP-15: Batch persist to DB in chunks of 50
   const persistNow = new Date();
-  await db.$transaction(
-    results.map(r =>
-      db.company.update({
-        where: { id: r.companyId },
-        data: {
-          accountPriorityScore: r.accountPriorityScore,
-          priorityTier: r.priorityTier,
-          priorityComputedAt: persistNow,
-        },
-      })
-    )
-  );
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < results.length; i += BATCH_SIZE) {
+    const batch = results.slice(i, i + BATCH_SIZE);
+    await db.$transaction(
+      batch.map(r =>
+        db.company.update({
+          where: { id: r.companyId },
+          data: {
+            accountPriorityScore: r.accountPriorityScore,
+            priorityTier: r.priorityTier,
+            priorityComputedAt: persistNow,
+          },
+        })
+      )
+    );
+  }
 
   // Tier breakdown
   const tierBreakdown: Record<PriorityTier, number> = { HOT: 0, ACTIVE: 0, NURTURE: 0, LOW: 0 };
@@ -1051,7 +1306,7 @@ export async function getAccountRankings(options?: {
     if (g.priorityTier) tierBreakdown[g.priorityTier] = g._count.id;
   }
 
-  // Get rankings
+  // Get rankings — GAP-37: Include _count for contacts, signals, oppRecs, pursuits, notes
   const rankings = await db.company.findMany({
     where,
     select: {
@@ -1066,6 +1321,15 @@ export async function getAccountRankings(options?: {
       engagementScore: true,
       assignedTo: true,
       priorityComputedAt: true,
+      _count: {
+        select: {
+          contacts: true,
+          signals: true,
+          opportunityRecommendations: true,
+          pursuits: true,
+          notes: true,
+        },
+      },
     },
     orderBy: { accountPriorityScore: 'desc' },
     take: options?.limit || 50,

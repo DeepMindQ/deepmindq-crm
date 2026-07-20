@@ -78,9 +78,11 @@ interface TierDistribution {
 }
 
 interface APIResponse {
-  companies: Company[];
+  companies?: Company[];
+  rankings?: Company[];
   total: number;
-  tierDistribution: TierDistribution;
+  tierDistribution?: TierDistribution;
+  tierBreakdown?: TierDistribution;
 }
 
 type SortField = 'priorityScore' | 'intelligenceScore' | 'engagementScore' | 'rawName';
@@ -375,12 +377,31 @@ export default function AccountRankingScreen() {
         sortBy: sortField,
         sortOrder,
       });
-      const res = await fetch(`/api/g-crm/account-priorities?${params}`);
+      const res = await fetch(`/api/g-strategy/account-rankings?${params}`);
       if (!res.ok) throw new Error('Failed to fetch');
       const data: APIResponse = await res.json();
-      setCompanies(data.companies);
+      // Handle both old (companies/tierDistribution) and new (rankings/tierBreakdown) shapes
+      const mappedCompanies = (data.rankings || data.companies || []).map((c) => ({
+        ...c,
+        id: c.id || (c as any).companyId,
+        rawName: c.rawName || (c as any).companyName || '',
+        status: c.status || 'active',
+        country: c.country || null,
+        sizeRange: c.sizeRange || null,
+        accountPriorityScore: c.accountPriorityScore ?? 0,
+        intelligenceScore: c.intelligenceScore ?? 0,
+        engagementScore: c.engagementScore ?? 0,
+        priorityTier: c.priorityTier || 'LOW',
+        _count: {
+          contacts: c._count?.contacts || 0,
+          signals: c._count?.signals || 0,
+          opportunityRecommendations: c._count?.opportunityRecommendations || 0,
+          pursuits: c._count?.pursuits || 0,
+        },
+      }));
+      setCompanies(mappedCompanies);
       setTotal(data.total);
-      setTierDistribution(data.tierDistribution);
+      setTierDistribution(data.tierBreakdown || data.tierDistribution || {});
     } catch {
       toast.error('Failed to load account rankings');
       setCompanies([]);
@@ -397,21 +418,55 @@ export default function AccountRankingScreen() {
   const handleRecompute = async () => {
     setRecomputing(true);
     try {
-      const res = await fetch('/api/g-crm/account-priorities', {
+      const res = await fetch('/api/g-strategy/account-rankings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ all: true }),
       });
       if (!res.ok) throw new Error('Recomputation failed');
-      toast.success('Priority scores are being recomputed. This may take a moment.');
-      // Re-fetch after a short delay
-      setTimeout(fetchData, 2000);
+      const postData = await res.json();
+      // If async job started (202), poll for completion
+      if (res.status === 202 && postData?.jobId) {
+        toast.info('Priority computation started. Processing in background…');
+        pollJobStatus(postData.jobId, fetchData);
+      } else {
+        toast.success(postData?.message || 'Priority scores recomputed successfully');
+        // Re-fetch after a short delay
+        setTimeout(fetchData, 2000);
+      }
     } catch {
       toast.error('Failed to trigger recomputation');
     } finally {
       setRecomputing(false);
     }
   };
+
+  /* ── Poll async job status ── */
+  const pollJobStatus = useCallback(
+    (jobId: string, onDone: () => void) => {
+      const interval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/g-strategy/account-rankings?jobId=${jobId}`);
+          if (!res.ok) return;
+          const job = await res.json();
+          if (job.status === 'completed') {
+            clearInterval(interval);
+            toast.success(`Computed priority scores for ${job.total ?? job.totalProcessed} companies`);
+            onDone();
+          } else if (job.status === 'failed') {
+            clearInterval(interval);
+            toast.error(job.error || 'Background computation failed');
+          }
+          // Still pending/running — keep polling
+        } catch {
+          // Ignore polling errors, will try again
+        }
+      }, 3000);
+      // Safety: stop polling after 5 minutes
+      setTimeout(() => clearInterval(interval), 5 * 60 * 1000);
+    },
+    []
+  );
 
   /* ── Filtered companies (client-side search) ── */
   const filteredCompanies = useMemo(() => {

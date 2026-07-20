@@ -53,7 +53,7 @@ const C = { bg: '#FAFAFA', card: 'rgba(255, 255, 255, 0.85)', border: 'rgba(0, 0
 const ENGINES = { company: { label: 'Company Engine', icon: Building2, color: '#A855F7' }, email: { label: 'Email Engine', icon: Mail, color: '#3B82F6' }, capability: { label: 'Capability Engine', icon: Archive, color: '#10B981' } } as const;
 const PRIORITY = { high: { color: C.red, bg: 'rgba(239,68,68,0.12)', label: 'Critical', icon: Shield }, medium: { color: C.amber, bg: 'rgba(245,158,11,0.12)', label: 'Warning', icon: AlertTriangle }, low: { color: C.blue, bg: 'rgba(59,130,246,0.12)', label: 'Info', icon: Eye } };
 const PIE_COLORS = [C.gold, '#A855F7', C.blue, C.green, C.amber, C.red, C.textMuted];
-const SIGNAL_ICONS: Record<string, string> = { funding: '💰', hiring: '👤', leadership_change: '👔', tech_change: '⚙️', news: '📰', mention: '💬' };
+const SIGNAL_ICONS: Record<string, string> = { funding: '💰', hiring: '👤', leadership_change: '👔', technology: '⚙️', news: '📰', mention: '💬', expansion: '🌍', partnership: '🤝', product: '📦', acquisition: '🔄', regulatory: '📋', financial_pressure: '📉' };
 // ENGAGEMENT and SPARK are now derived from real API data inside their respective components
 // COUNTRIES now comes from API (companiesByCountry)
 

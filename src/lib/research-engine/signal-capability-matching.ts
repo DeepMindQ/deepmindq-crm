@@ -9,6 +9,7 @@
  */
 
 import { db } from '@/lib/db';
+import { normalizeSignalType } from '@/lib/signal-types';
 
 // ── Types ──
 
@@ -43,19 +44,19 @@ const SIGNAL_CAPABILITY_MAP: Record<string, {
   salesAngles: string[];
   keywords: string[];
 }> = {
-  funding_round: {
+  funding: {
     capabilityCategories: ['cloud_migration', 'data_platform', 'digital_transformation', 'scalable_infrastructure'],
     businessProblems: ['scaling infrastructure', 'rapid growth management', 'data platform maturity'],
     salesAngles: ['New funding enables transformation investments', 'Scale-ready architecture for growth phase'],
     keywords: ['funding', 'investment', 'series', 'capital', 'growth', 'scale', 'expansion'],
   },
-  hiring_spree: {
+  hiring: {
     capabilityCategories: ['talent_acquisition', 'digital_workplace', 'cloud_migration', 'data_platform'],
     businessProblems: ['talent retention', 'onboarding efficiency', 'collaboration at scale'],
     salesAngles: ['Support rapid team scaling with modern tooling', 'Reduce time-to-productivity for new hires'],
     keywords: ['hiring', 'recruiting', 'job opening', 'position', 'talent', 'headcount', 'team growth'],
   },
-  product_launch: {
+  product: {
     capabilityCategories: ['cloud_migration', 'data_platform', 'customer_experience', 'application_modernization'],
     businessProblems: ['time-to-market pressure', 'reliability at launch', 'customer onboarding'],
     salesAngles: ['Ensure launch-day reliability and scalability', 'Accelerate go-to-market with proven patterns'],
@@ -73,7 +74,7 @@ const SIGNAL_CAPABILITY_MAP: Record<string, {
     salesAngles: ['Post-acquisition integration expertise', 'Unify technology stacks across organizations'],
     keywords: ['acquired', 'acquisition', 'merger', 'buy', 'purchase', 'combine', 'integration'],
   },
-  tech_stack_change: {
+  technology: {
     capabilityCategories: ['cloud_migration', 'data_platform', 'application_modernization', 'devops'],
     businessProblems: ['legacy modernization', 'skill gap in new technology', 'migration risk'],
     salesAngles: ['Proven migration methodology reduces risk', 'Accelerate adoption of new technology stack'],
@@ -162,6 +163,8 @@ function extractKeywords(text: string): string[] {
 
 /**
  * Score a single signal against a single capability asset.
+ * Normalizes the signal type so legacy names (e.g. funding_round → funding)
+ * still resolve to the correct capability mapping.
  */
 function scoreMatch(
   signal: { type: string; title: string; description: string | null; impact: string; keywords?: string[] },
@@ -180,7 +183,8 @@ function scoreMatch(
   },
   config: MatchConfig,
 ): SignalCapabilityMatchResult {
-  const signalMap = SIGNAL_CAPABILITY_MAP[signal.type];
+  const normalizedType = normalizeSignalType(signal.type);
+  const signalMap = SIGNAL_CAPABILITY_MAP[normalizedType];
   const capabilityProblems: string[] = capability.problems
     ? JSON.parse(capability.problems)
     : capability.businessProblem
@@ -304,7 +308,7 @@ export async function matchSignalsToCapabilities(
     for (const capability of capabilities) {
       const match = scoreMatch(
         {
-          type: signal.signalType,
+          type: normalizeSignalType(signal.signalType),
           title: signal.title,
           description: signal.description,
           impact: signal.impact,

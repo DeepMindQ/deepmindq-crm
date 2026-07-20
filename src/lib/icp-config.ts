@@ -22,6 +22,8 @@ export interface IcpProfile {
   maxEmployeeCount: number;
   /** Minimum revenue band (e.g. "$1M") — used for text matching */
   minRevenue: string;
+  /** Maximum revenue band (e.g. "$100M") — optional upper ceiling */
+  maxRevenue?: string;
   /** Target funding stages */
   targetFundingStages: string[];
   /** Technology keywords that indicate good fit */
@@ -36,6 +38,20 @@ export interface IcpProfile {
     revenue: number;       // 0-1, default 0.15
     techFit: number;       // 0-1, default 0.15
   };
+  /** Dimension weights for the three scoring dimensions */
+  scoreWeights?: {
+    staticFit: number;      // default 0.40
+    dynamicIntel: number;   // default 0.40
+    timingUrgency: number;  // default 0.20
+  };
+  /** Tier classification thresholds */
+  tierThresholds?: {
+    hot: number;     // default 90
+    active: number;  // default 70
+    nurture: number; // default 50
+  };
+  /** Signal recency window in days (default 30) */
+  signalRecencyDays?: number;
 }
 
 export const DEFAULT_ICP: IcpProfile = {
@@ -76,9 +92,20 @@ export const DEFAULT_ICP: IcpProfile = {
     revenue: 0.15,
     techFit: 0.15,
   },
+  scoreWeights: {
+    staticFit: 0.40,
+    dynamicIntel: 0.40,
+    timingUrgency: 0.20,
+  },
+  tierThresholds: {
+    hot: 90,
+    active: 70,
+    nurture: 50,
+  },
+  signalRecencyDays: 30,
 };
 
-const ICP_SETTING_KEY = 'icp_profile_v1';
+const ICP_SETTING_KEY = 'icp_profile';
 
 /* ── DB-backed store ── */
 
@@ -94,8 +121,9 @@ async function ensureLoaded(): Promise<void> {
       where: { key: ICP_SETTING_KEY },
     });
     if (row) {
-      const parsed = JSON.parse(row.value) as Partial<IcpProfile>;
-      currentIcp = deepMerge(DEFAULT_ICP, parsed) as IcpProfile;
+      const rawParsed = JSON.parse(row.value);
+      const normalized = normalizeIcpProfile(rawParsed);
+      currentIcp = deepMerge(DEFAULT_ICP, normalized) as IcpProfile;
     }
   } catch (err) {
     // DB not available yet (e.g. migration pending) — keep defaults
@@ -130,7 +158,7 @@ function deepMerge(target: any, source: any): any {
       !Array.isArray(srcVal) &&
       tgtVal !== null &&
       typeof tgtVal === 'object' &&
-      !Array.isArray(srcVal)
+      !Array.isArray(tgtVal)
     ) {
       result[key] = deepMerge(tgtVal, srcVal);
     } else if (srcVal !== undefined) {
@@ -140,7 +168,48 @@ function deepMerge(target: any, source: any): any {
   return result;
 }
 
-/* ═════════════════ Public API ═════════════════ */
+/* ── Field-name normalisation (frontend ↔ backend bridge) ── */
+
+/**
+ * Accepts a raw object that may use either frontend names or backend names
+ * and returns a canonical IcpProfile using backend names only.
+ *
+ * Frontend names → Backend names mapping:
+ *   targetCountries        → targetRegions
+ *   preferredTechnologies  → preferredTechKeywords
+ *   excludeIndustries      → excludedIndustries
+ *   minEmployees           → minEmployeeCount
+ *   maxEmployees           → maxEmployeeCount
+ *   maxRevenue             → maxRevenue  (already canonical)
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function normalizeIcpProfile(raw: any): Partial<IcpProfile> {
+  const out: Partial<IcpProfile> = { ...raw };
+  if (raw.targetCountries !== undefined) {
+    out.targetRegions = raw.targetCountries;
+    delete out.targetCountries;
+  }
+  if (raw.preferredTechnologies !== undefined) {
+    out.preferredTechKeywords = raw.preferredTechnologies;
+    delete out.preferredTechnologies;
+  }
+  if (raw.excludeIndustries !== undefined) {
+    out.excludedIndustries = raw.excludeIndustries;
+    delete out.excludeIndustries;
+  }
+  if (raw.minEmployees !== undefined) {
+    out.minEmployeeCount = Number(raw.minEmployees) || 0;
+    delete out.minEmployees;
+  }
+  if (raw.maxEmployees !== undefined) {
+    out.maxEmployeeCount = Number(raw.maxEmployees) || -1;
+    delete out.maxEmployees;
+  }
+  // maxRevenue is already canonical — just ensure it survives
+  return out;
+}
+
+/* ═══════════════ Public API ═════════════════ */
 
 /** Get the current ICP profile (loads from DB on first call) */
 export async function getIcpProfile(): Promise<IcpProfile> {

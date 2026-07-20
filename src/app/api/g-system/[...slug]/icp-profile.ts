@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { normalizeIcpProfile } from '@/lib/icp-config';
 
 /**
  * GET /api/g-system/icp-profile
@@ -42,17 +43,20 @@ export async function PUT(request: Request) {
   try {
     const body = await request.json();
 
-    // Validate structure
+    // Normalise frontend field names → backend canonical names
+    const normalised = normalizeIcpProfile(body);
+
+    // Build stored profile with canonical field names
     const profile = {
-      targetIndustries: Array.isArray(body.targetIndustries) ? body.targetIndustries : [],
-      targetSizeRanges: Array.isArray(body.targetSizeRanges) ? body.targetSizeRanges : [],
-      targetCountries: Array.isArray(body.targetCountries) ? body.targetCountries : [],
-      preferredTechnologies: Array.isArray(body.preferredTechnologies) ? body.preferredTechnologies : [],
-      excludeIndustries: Array.isArray(body.excludeIndustries) ? body.excludeIndustries : [],
-      minRevenue: body.minRevenue || undefined,
-      maxRevenue: body.maxRevenue || undefined,
-      minEmployees: body.minEmployees || undefined,
-      maxEmployees: body.maxEmployees || undefined,
+      targetIndustries: Array.isArray(normalised.targetIndustries) ? normalised.targetIndustries : [],
+      targetSizeRanges: Array.isArray(normalised.targetSizeRanges) ? normalised.targetSizeRanges : [],
+      targetRegions: Array.isArray(normalised.targetRegions) ? normalised.targetRegions : [],
+      preferredTechKeywords: Array.isArray(normalised.preferredTechKeywords) ? normalised.preferredTechKeywords : [],
+      excludedIndustries: Array.isArray(normalised.excludedIndustries) ? normalised.excludedIndustries : [],
+      minRevenue: normalised.minRevenue || undefined,
+      maxRevenue: normalised.maxRevenue || undefined,
+      minEmployeeCount: normalised.minEmployeeCount ?? undefined,
+      maxEmployeeCount: normalised.maxEmployeeCount ?? undefined,
     };
 
     await db.systemSetting.upsert({
@@ -60,6 +64,25 @@ export async function PUT(request: Request) {
       update: { value: JSON.stringify(profile) },
       create: { key: 'icp_profile', value: JSON.stringify(profile) },
     });
+
+    // GAP-22: Invalidate stale priority scores so UI knows recomputation is needed
+    try {
+      await db.company.updateMany({
+        data: { priorityComputedAt: null },
+      });
+      await db.systemSetting.upsert({
+        where: { key: 'priority_scores_stale' },
+        create: {
+          key: 'priority_scores_stale',
+          value: JSON.stringify({ stale: true, invalidatedAt: new Date().toISOString() }),
+        },
+        update: {
+          value: JSON.stringify({ stale: true, invalidatedAt: new Date().toISOString() }),
+        },
+      });
+    } catch (invalidateErr) {
+      console.warn('[icp-profile] Score invalidation failed (non-blocking):', invalidateErr);
+    }
 
     return NextResponse.json({ message: 'ICP profile updated', profile });
   } catch (error) {

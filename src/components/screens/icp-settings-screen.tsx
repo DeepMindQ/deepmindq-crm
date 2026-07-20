@@ -32,25 +32,25 @@ import {
 interface ICPProfile {
   targetIndustries: string[];
   targetSizeRanges: string[];
-  targetCountries: string[];
-  preferredTechnologies: string[];
-  excludeIndustries: string[];
+  targetRegions: string[];
+  preferredTechKeywords: string[];
+  excludedIndustries: string[];
   minRevenue?: string;
   maxRevenue?: string;
-  minEmployees?: number;
-  maxEmployees?: number;
+  minEmployeeCount?: number;
+  maxEmployeeCount?: number;
 }
 
 const DEFAULT_PROFILE: ICPProfile = {
   targetIndustries: [],
   targetSizeRanges: [],
-  targetCountries: [],
-  preferredTechnologies: [],
-  excludeIndustries: [],
+  targetRegions: [],
+  preferredTechKeywords: [],
+  excludedIndustries: [],
   minRevenue: '',
   maxRevenue: '',
-  minEmployees: undefined,
-  maxEmployees: undefined,
+  minEmployeeCount: undefined,
+  maxEmployeeCount: undefined,
 };
 
 /* ═══════════════════════════════════════════════════════════
@@ -207,17 +207,17 @@ export default function ICPSettingsScreen() {
       try {
         const res = await fetch('/api/g-system/icp-profile');
         if (!res.ok) throw new Error('Failed to load ICP profile');
-        const data: ICPProfile = await res.json();
+        const data: any = await res.json();
         setProfile({
           targetIndustries: data.targetIndustries ?? [],
           targetSizeRanges: data.targetSizeRanges ?? [],
-          targetCountries: data.targetCountries ?? [],
-          preferredTechnologies: data.preferredTechnologies ?? [],
-          excludeIndustries: data.excludeIndustries ?? [],
+          targetRegions: data.targetRegions ?? data.targetCountries ?? [],
+          preferredTechKeywords: data.preferredTechKeywords ?? data.preferredTechnologies ?? [],
+          excludedIndustries: data.excludedIndustries ?? data.excludeIndustries ?? [],
           minRevenue: data.minRevenue ?? '',
           maxRevenue: data.maxRevenue ?? '',
-          minEmployees: data.minEmployees ?? undefined,
-          maxEmployees: data.maxEmployees ?? undefined,
+          minEmployeeCount: data.minEmployeeCount ?? data.minEmployees ?? undefined,
+          maxEmployeeCount: data.maxEmployeeCount ?? data.maxEmployees ?? undefined,
         });
       } catch (err) {
         console.error('Failed to fetch ICP profile:', err);
@@ -274,9 +274,24 @@ export default function ICPSettingsScreen() {
   };
 
   /* ── Reset ── */
-  const handleReset = () => {
-    setProfile(DEFAULT_PROFILE);
-    toast.info('ICP configuration reset to defaults');
+  const [resetting, setResetting] = useState(false);
+  const handleReset = async () => {
+    setResetting(true);
+    try {
+      const res = await fetch('/api/g-strategy/icp-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reset: true }),
+      });
+      if (!res.ok) throw new Error('Failed to reset ICP profile');
+      setProfile(DEFAULT_PROFILE);
+      toast.success('ICP configuration reset to defaults and persisted');
+    } catch (err) {
+      console.error('Failed to reset ICP profile:', err);
+      toast.error('Failed to reset ICP configuration');
+    } finally {
+      setResetting(false);
+    }
   };
 
   /* ── Loading state ── */
@@ -385,9 +400,9 @@ export default function ICPSettingsScreen() {
           icon={Globe}
           title="Target Geography"
           subtitle="Countries or regions you want to focus on"
-          tags={profile.targetCountries}
-          onAdd={(v) => addTag('targetCountries', v)}
-          onRemove={(v) => removeTag('targetCountries', v)}
+          tags={profile.targetRegions}
+          onAdd={(v) => addTag('targetRegions', v)}
+          onRemove={(v) => removeTag('targetRegions', v)}
           placeholder="e.g. US, IN, GB, DE..."
           delay={0.25}
         />
@@ -397,9 +412,9 @@ export default function ICPSettingsScreen() {
           icon={Cpu}
           title="Technology Preferences"
           subtitle="Technologies your ideal customers are likely using"
-          tags={profile.preferredTechnologies}
-          onAdd={(v) => addTag('preferredTechnologies', v)}
-          onRemove={(v) => removeTag('preferredTechnologies', v)}
+          tags={profile.preferredTechKeywords}
+          onAdd={(v) => addTag('preferredTechKeywords', v)}
+          onRemove={(v) => removeTag('preferredTechKeywords', v)}
           placeholder="e.g. AWS, Azure, Snowflake, Python..."
           delay={0.3}
         />
@@ -409,9 +424,9 @@ export default function ICPSettingsScreen() {
           icon={Ban}
           title="Excluded Industries"
           subtitle="Industries to automatically deprioritize"
-          tags={profile.excludeIndustries}
-          onAdd={(v) => addTag('excludeIndustries', v)}
-          onRemove={(v) => removeTag('excludeIndustries', v)}
+          tags={profile.excludedIndustries}
+          onAdd={(v) => addTag('excludedIndustries', v)}
+          onRemove={(v) => removeTag('excludedIndustries', v)}
           placeholder="e.g. Retail, Hospitality..."
           badgeVariant="destructive"
           badgeClass="bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
@@ -486,11 +501,11 @@ export default function ICPSettingsScreen() {
                 id="min-employees"
                 type="number"
                 placeholder="e.g. 100"
-                value={profile.minEmployees ?? ''}
+                value={profile.minEmployeeCount ?? ''}
                 onChange={(e) =>
                   setProfile((p) => ({
                     ...p,
-                    minEmployees: e.target.value ? Number(e.target.value) : undefined,
+                    minEmployeeCount: e.target.value ? Number(e.target.value) : undefined,
                   }))
                 }
                 className="h-9"
@@ -509,11 +524,11 @@ export default function ICPSettingsScreen() {
                 id="max-employees"
                 type="number"
                 placeholder="e.g. 10000"
-                value={profile.maxEmployees ?? ''}
+                value={profile.maxEmployeeCount ?? ''}
                 onChange={(e) =>
                   setProfile((p) => ({
                     ...p,
-                    maxEmployees: e.target.value ? Number(e.target.value) : undefined,
+                    maxEmployeeCount: e.target.value ? Number(e.target.value) : undefined,
                   }))
                 }
                 className="h-9"
@@ -540,10 +555,14 @@ export default function ICPSettingsScreen() {
           <Button
             variant="outline"
             onClick={handleReset}
-            disabled={saving}
+            disabled={saving || resetting}
             className="gap-2 text-sm"
           >
-            <RotateCcw className="w-4 h-4" />
+            {resetting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RotateCcw className="w-4 h-4" />
+            )}
             Reset to Defaults
           </Button>
           <Button

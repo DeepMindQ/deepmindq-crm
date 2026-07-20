@@ -103,7 +103,7 @@ Available data sources and their filterable fields:
 
 5. **bounces** — filters: bounceType (hard|soft), contactId. orderBy: bouncedAt.
 
-6. **companySignals** — filters: signalType (funding|hiring|leadership_change|tech_change|news|mention|partnership|expansion), severity (low|medium|high|critical), isRead. orderBy: createdAt.
+6. **companySignals** — filters: signalType (funding|hiring|leadership_change|technology|news|mention|partnership|expansion|product|acquisition|regulatory|financial_pressure), severity (low|medium|high|critical), isRead. orderBy: createdAt.
 
 7. **companyResearchCards** — no specific filters, always fetched via company include. Has: revenue, employeeCount, fundingStage, techStack, businessOverview.
 

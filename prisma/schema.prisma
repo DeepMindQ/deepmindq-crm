@@ -113,6 +113,7 @@ model Company {
   pursuits                    Pursuit[]
   signalCapabilityMatches     SignalCapabilityMatch[]
   intelligenceValidations      IntelligenceValidation[]
+  priorityHistory              PriorityScoreHistory[]
 
   @@index([domain])
   @@index([normalizedName])
@@ -122,6 +123,7 @@ model Company {
   @@index([assignedTo])
   @@index([intelligenceScore])
   @@index([priorityTier])
+  @@index([accountPriorityScore(sort: Desc)])
 }
 
 model ImportBatch {
@@ -1236,4 +1238,22 @@ model SystemSetting {
   createdAt DateTime @default(now())
 
   @@index([key])
+}
+
+// ── Priority Score History (GAP-35: Audit Trail) ──
+
+model PriorityScoreHistory {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  score       Float
+  tier        String?
+  staticFit   Float?
+  dynamicInt  Float?
+  timingUrg   Float?
+  computedAt  DateTime @default(now())
+  icpVersion  String?  // hash or version of ICP config used
+
+  @@index([companyId, computedAt(sort: Desc)])
+  @@index([computedAt])
 }

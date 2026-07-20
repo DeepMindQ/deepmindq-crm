@@ -18,6 +18,8 @@
  *   unknown                — Cannot determine meaning from attributes
  */
 
+import { normalizeSignalType } from '@/lib/signal-types';
+
 // ── Types ──
 
 export type MeaningCategory =
@@ -90,7 +92,7 @@ const RULES: InferenceRule[] = [
 
   // ── Tech Dissatisfaction ──
   {
-    signalTypes: ['tech_change'],
+    signalTypes: ['technology'],
     severity: ['high', 'critical'],
     meaning: 'tech_dissatisfaction',
     confidence: 0.85,
@@ -98,11 +100,65 @@ const RULES: InferenceRule[] = [
     action: 'Position capabilities around migration/modernization. Reference similar transformation case studies.',
   },
   {
-    signalTypes: ['tech_change'],
+    signalTypes: ['technology'],
     meaning: 'tech_dissatisfaction',
     confidence: 0.6,
     implication: 'Technology change signals potential dissatisfaction or evolution needs.',
     action: 'Assess tech stack overlap with capabilities. Match to relevant solutions.',
+  },
+
+  // ── Acquisition → Tech Dissatisfaction / Growth Pressure ──
+  {
+    signalTypes: ['acquisition'],
+    severity: ['high', 'critical'],
+    impact: ['high'],
+    meaning: 'tech_dissatisfaction',
+    confidence: 0.8,
+    implication: 'Post-acquisition integration signals technology harmonization needs.',
+    action: 'Position integration and consolidation capabilities. Reference post-merger IT harmonization case studies.',
+  },
+  {
+    signalTypes: ['acquisition'],
+    meaning: 'tech_dissatisfaction',
+    confidence: 0.6,
+    implication: 'Acquisition activity may signal technology stack consolidation needs.',
+    action: 'Assess integration complexity. Match to system consolidation and migration capabilities.',
+  },
+
+  // ── Regulatory → Compliance Requirement ──
+  {
+    signalTypes: ['regulatory'],
+    severity: ['high', 'critical'],
+    impact: ['high'],
+    meaning: 'compliance_requirement',
+    confidence: 0.9,
+    implication: 'Regulatory signal with high impact indicates forced compliance action timeline.',
+    action: 'Lead with compliance expertise and certifications. Emphasize audit-readiness and risk mitigation.',
+  },
+  {
+    signalTypes: ['regulatory'],
+    meaning: 'compliance_requirement',
+    confidence: 0.7,
+    implication: 'Regulatory activity suggests compliance-driven purchasing requirements.',
+    action: 'Position compliance-as-code and automated audit capabilities.',
+  },
+
+  // ── Financial Pressure → Tech Dissatisfaction (cost optimization) ──
+  {
+    signalTypes: ['financial_pressure'],
+    severity: ['high', 'critical'],
+    impact: ['high'],
+    meaning: 'tech_dissatisfaction',
+    confidence: 0.75,
+    implication: 'Financial pressure signals need for cost optimization, often driving technology consolidation.',
+    action: 'Position cost-reduction and efficiency capabilities. Reference ROI-focused case studies.',
+  },
+  {
+    signalTypes: ['financial_pressure'],
+    meaning: 'tech_dissatisfaction',
+    confidence: 0.5,
+    implication: 'Financial pressure may create budget constraints but also urgency for efficiency gains.',
+    action: 'Monitor for follow-up signals. Financial pressure can accelerate or delay purchasing decisions.',
   },
 
   // ── Growth Pressure ──
@@ -212,7 +268,8 @@ export function inferSignalMeaning(params: {
   title?: string;
   description?: string | null;
 }): SignalMeaning {
-  const { signalType, severity, impact, opportunityType, title, description } = params;
+  const { signalType: rawType, severity, impact, opportunityType, title, description } = params;
+  const signalType = normalizeSignalType(rawType);
 
   // 1. Check opportunityType override first (highest priority)
   if (opportunityType) {

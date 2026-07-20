@@ -20,12 +20,6 @@ export async function transitionSignalLifecycles(): Promise<{
   transitioned: number;
   breakdown: Record<string, number>;
 }> {
-  // 1. Load all signals NOT already archived (no point re-checking archived)
-  const signals = await db.companySignal.findMany({
-    where: { status: { not: 'archived' } },
-    select: { id: true, signalDate: true, confidence: true, impact: true, status: true },
-  });
-
   const now = new Date();
   const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
   const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
@@ -34,45 +28,66 @@ export async function transitionSignalLifecycles(): Promise<{
   const breakdown: Record<string, number> = {};
   let transitioned = 0;
 
-  // Batch updates grouped by new status
-  const byNewStatus: Record<string, string[]> = {};
+  // Process signals in batches to avoid OOM at scale
+  const BATCH_SIZE = 200;
+  let cursor: string | undefined;
+  let hasMore = true;
 
-  for (const signal of signals) {
-    const signalAge = signal.signalDate
-      ? now.getTime() - new Date(signal.signalDate).getTime()
-      : now.getTime(); // no signalDate = treat as old
+  while (hasMore) {
+    const signals = await db.companySignal.findMany({
+      where: { status: { notIn: ['archived', 'expired'] } },
+      select: { id: true, signalDate: true, confidence: true, impact: true, status: true },
+      take: BATCH_SIZE,
+      orderBy: { id: 'asc' },
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+    });
 
-    let newStatus: string;
-    if (signalAge > ONE_YEAR_MS) {
-      newStatus = 'archived';
-    } else if (signalAge > NINETY_DAYS_MS) {
-      newStatus = 'expired';
-    } else if (signalAge > FOURTEEN_DAYS_MS) {
-      newStatus = 'aging';
-    } else if (signal.confidence >= 0.7 && signal.impact === 'high') {
-      newStatus = 'active';
-    } else if (signal.confidence >= 0.5) {
-      newStatus = 'validated';
-    } else {
-      newStatus = 'detected';
+    if (signals.length === 0) break;
+    hasMore = signals.length === BATCH_SIZE;
+
+    // Batch updates grouped by new status
+    const byNewStatus: Record<string, string[]> = {};
+
+    for (const signal of signals) {
+      const signalAge = signal.signalDate
+        ? now.getTime() - new Date(signal.signalDate).getTime()
+        : now.getTime(); // no signalDate = treat as old
+
+      let newStatus: string;
+      if (signalAge > ONE_YEAR_MS) {
+        newStatus = 'archived';
+      } else if (signalAge > NINETY_DAYS_MS) {
+        newStatus = 'expired';
+      } else if (signalAge > FOURTEEN_DAYS_MS) {
+        newStatus = 'aging';
+      } else if (signal.confidence >= 0.7 && signal.impact === 'high') {
+        newStatus = 'active';
+      } else if (signal.confidence >= 0.5) {
+        newStatus = 'validated';
+      } else {
+        newStatus = 'detected';
+      }
+
+      if (newStatus !== signal.status) {
+        if (!byNewStatus[newStatus]) byNewStatus[newStatus] = [];
+        byNewStatus[newStatus].push(signal.id);
+        breakdown[`${signal.status}→${newStatus}`] = (breakdown[`${signal.status}→${newStatus}`] || 0) + 1;
+        transitioned++;
+      }
     }
 
-    if (newStatus !== signal.status) {
-      if (!byNewStatus[newStatus]) byNewStatus[newStatus] = [];
-      byNewStatus[newStatus].push(signal.id);
-      breakdown[`${signal.status}→${newStatus}`] = (breakdown[`${signal.status}→${newStatus}`] || 0) + 1;
-      transitioned++;
+    // Execute batch updates for this page
+    for (const [status, ids] of Object.entries(byNewStatus)) {
+      if (ids.length > 0) {
+        await db.companySignal.updateMany({
+          where: { id: { in: ids } },
+          data: { status },
+        });
+      }
     }
-  }
 
-  // Execute batch updates
-  for (const [status, ids] of Object.entries(byNewStatus)) {
-    if (ids.length > 0) {
-      await db.companySignal.updateMany({
-        where: { id: { in: ids } },
-        data: { status },
-      });
-    }
+    // Advance cursor to the last signal's ID for next page
+    cursor = signals[signals.length - 1].id;
   }
 
   return { transitioned, breakdown };

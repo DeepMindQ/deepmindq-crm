@@ -17,11 +17,14 @@ const THEME_KEYWORDS: Record<string, string[]> = {
 
 // Signal type human-readable descriptions
 const SIGNAL_DESCRIPTIONS: Record<string, string> = {
-  technology: 'Tech stack changes & cloud migrations',
   funding: 'Funding rounds & investment activity',
   hiring: 'Key hiring & talent acquisition signals',
   leadership_change: 'Executive leadership changes',
-  tech_change: 'Technology adoption & infrastructure changes',
+  technology: 'Technology adoption & infrastructure changes',
+  product: 'Product launches & feature releases',
+  acquisition: 'Acquisitions & merger activity',
+  regulatory: 'Regulatory compliance & audit signals',
+  financial_pressure: 'Financial pressure & restructuring signals',
   news: 'Company news & announcements',
   mention: 'Industry mentions & press coverage',
   partnership: 'Strategic partnerships & alliances',

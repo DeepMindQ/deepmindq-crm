@@ -513,13 +513,13 @@ function computeComposite(
   );
   composite = Math.min(Math.max(composite, 0), 100);
 
-  // GAP-13: Exclusion hard filter — cap at 49 if industry is excluded
+  // GAP-13: Exclusion hard filter — cap at 25 if industry is excluded
   if (companyIndustry) {
     const isExcluded = icp.excludedIndustries?.some(ex =>
       companyIndustry!.toLowerCase().includes(ex.toLowerCase())
     );
     if (isExcluded) {
-      composite = Math.min(composite, 49);
+      composite = Math.min(composite, 25); // GAP-13: Cap at LOW tier max
     }
   }
 
@@ -626,6 +626,28 @@ function generateWhyNowReasons(
     const fl = company.researchFundingStage.toLowerCase();
     if (fl.includes('series b') || fl.includes('series c') || fl.includes('series d') || fl.includes('late')) {
       reasons.push(`Funding stage "${company.researchFundingStage}" indicates growth-phase investment appetite`);
+    }
+  }
+
+  // GAP-13: Add exclusion reason if company industry is excluded
+  if (company.industry) {
+    const icp = getIcpProfileSync();
+    const isExcluded = icp.excludedIndustries?.some(ex =>
+      company.industry!.toLowerCase().includes(ex.toLowerCase())
+    );
+    if (isExcluded) {
+      reasons.push(`Industry "${company.industry}" is excluded from target ICP — score capped`);
+    }
+  }
+
+  // GAP-13: Add exclusion reason if company industry is excluded
+  if (company.industry) {
+    const icp = getIcpProfileSync();
+    const isExcluded = icp.excludedIndustries?.some(ex =>
+      company.industry!.toLowerCase().includes(ex.toLowerCase())
+    );
+    if (isExcluded) {
+      reasons.push(`Industry "${company.industry}" is excluded from target ICP — score capped`);
     }
   }
 
@@ -823,6 +845,15 @@ function daysBetween(a: Date, b: Date): number {
   return Math.floor(ms / (1000 * 60 * 60 * 24));
 }
 
+// GAP-13: Helper to check if a company's industry is excluded by ICP
+function isExcludedIndustry(industry: string | null): boolean {
+  if (!industry) return false;
+  const icp = getIcpProfileSync();
+  return icp.excludedIndustries.some(ex =>
+    industry.toLowerCase().includes(ex.toLowerCase())
+  );
+}
+
 // ── Data Fetching ────────────────────────────────────────────
 
 async function fetchCompanyScoringData(
@@ -965,7 +996,8 @@ export async function computeAccountPriority(companyId: string): Promise<Account
 
   // Gap 3: Capability relevance matching
   const serviceLineCapabilities = await fetchServiceLineCapabilities();
-  const recommendedFocus = matchCapabilities(data, serviceLineCapabilities);
+  // GAP-13: Clear recommended focus for excluded industries
+  const recommendedFocus = isExcludedIndustry(data.industry) ? [] : matchCapabilities(data, serviceLineCapabilities);
 
   // Persist to DB (only score/tier, not the gap closure fields — those are computed on demand)
   await db.company.update({
@@ -1200,8 +1232,8 @@ export async function computeAccountPriorityBatch(
     // Gap 1: Why now?
     const whyNowReasons = generateWhyNowReasons(data, staticFit, dynamicIntelligence, timingUrgency);
 
-    // Gap 3: Capability relevance
-    const recommendedFocus = matchCapabilities(data, serviceLineCapabilities);
+    // Gap 3: Capability relevance — GAP-13: Clear for excluded industries
+    const recommendedFocus = isExcludedIndustry(data.industry) ? [] : matchCapabilities(data, serviceLineCapabilities);
 
     results.push({
       companyId: data.id,
@@ -1276,6 +1308,14 @@ export async function getAccountRankings(options?: {
     engagementScore: number;
     assignedTo: string | null;
     priorityComputedAt: Date | null;
+    // GAP-37: Expose relation counts for UI display
+    _count: {
+      contacts: number;
+      signals: number;
+      opportunityRecommendations: number;
+      pursuits: number;
+      notes: number;
+    };
   }>;
   total: number;
   tierBreakdown: Record<string, number>;
@@ -1350,6 +1390,14 @@ export async function getAccountRankings(options?: {
       engagementScore: r.engagementScore,
       assignedTo: r.assignedTo,
       priorityComputedAt: r.priorityComputedAt,
+      // GAP-37: Expose _count data already fetched by query
+      _count: {
+        contacts: r._count.contacts,
+        signals: r._count.signals,
+        opportunityRecommendations: r._count.opportunityRecommendations,
+        pursuits: r._count.pursuits,
+        notes: r._count.notes,
+      },
     })),
     total,
     tierBreakdown,

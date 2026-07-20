@@ -8,6 +8,7 @@ import * as mod_strategy_room___id from './strategy-room___id.ts';
 import * as mod_account_rankings from './account-rankings.ts';
 import * as mod_companies___id__priority from './companies___id__priority.ts';
 import * as mod_icp_profile from './icp-profile.ts';
+import * as mod_scoring_config from './scoring-config.ts';
 
 // Route registry
 const ROUTES = [
@@ -18,6 +19,7 @@ const ROUTES = [
   { key: 'account-rankings', handler: mod_account_rankings },
   { key: 'companies/[id]/priority', handler: mod_companies___id__priority },
   { key: 'icp-profile', handler: mod_icp_profile },
+  { key: 'scoring-config', handler: mod_scoring_config },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';

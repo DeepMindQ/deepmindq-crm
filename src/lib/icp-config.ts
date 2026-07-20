@@ -184,7 +184,9 @@ function deepMerge(target: any, source: any): any {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function normalizeIcpProfile(raw: any): Partial<IcpProfile> {
-  const out: Partial<IcpProfile> = { ...raw };
+  // Use `any` intermediate to delete frontend-only keys without TS complaints
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const out: Record<string, any> = { ...raw };
   if (raw.targetCountries !== undefined) {
     out.targetRegions = raw.targetCountries;
     delete out.targetCountries;

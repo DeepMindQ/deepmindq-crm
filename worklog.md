@@ -289,3 +289,152 @@ Stage Summary:
 - Schema updated with audit trail model (PriorityScoreHistory) and verified keywords field on CapabilityAsset
 - 45 new isolated unit tests pass; all pre-existing passing tests remain green
 - Total test file: 109 tests (98 pass, 11 pre-existing failures unrelated to changes)
+
+---
+Task ID: 1
+Agent: Frontend Screens Fix Agent
+Task: Fix GAP 1, 4, 5 in frontend screens
+
+Work Log:
+- Read worklog.md to understand previous agent work
+- Read account-ranking-screen.tsx (771 lines) completely
+- Read icp-settings-screen.tsx (587 lines) completely
+- GAP-1: Verified line 380 GET and line 421 POST both use `/api/g-strategy/account-rankings`. Grep for `g-crm/account-priorities` and `account-priorities` across all of src/ returned zero matches. ✅ ALREADY FIXED
+- GAP-4: Verified APIResponse interface (lines 80-86) accepts both shapes (`companies`/`tierDistribution` and `rankings`/`tierBreakdown`). Lines 384-404 map `data.rankings || data.companies` with `companyId→id`, `companyName→rawName` normalization, and `_count` fallbacks (`c._count?.contacts || 0`, etc.). Line 404 uses `data.tierBreakdown || data.tierDistribution`. ✅ ALREADY FIXED
+- GAP-5: Verified handleReset (lines 277-295) is async, calls PUT `/api/g-strategy/icp-profile` with `{ reset: true }`, has `resetting` state for loading indicator, shows success/error toasts, and sets local state after API success. ✅ ALREADY FIXED
+- Ran `bun run lint` — no errors in modified files (52 pre-existing errors in other files)
+
+Stage Summary:
+- All 3 gaps (GAP-1, GAP-4, GAP-5) were already fixed by previous agent (Task ID: 1, Frontend & API Routes)
+- No code changes required
+- Both frontend files compile cleanly with no new lint errors
+
+---
+Task ID: 4
+Agent: Signal Lifecycle + Lead Scoring Fix Agent
+Task: Fix GAP 14, 17, 18
+
+Work Log:
+- Read worklog.md to understand prior agent work (Task ID 5 had already applied initial fixes; verification agents confirmed)
+- Read src/lib/lead-scoring.ts, src/lib/research-engine/signal-lifecycle.ts, src/lib/icp-config.ts completely
+- Read prisma/schema.prisma to verify Contact model column names for raw SQL
+- Verified `Prisma.sql` and `Prisma.join` are available in the project's Prisma version (v6.19.3)
+- Confirmed `sql` is NOT available from `@prisma/client/runtime/library` but `Prisma.sql`/`Prisma.join` work from `@prisma/client`
+- GAP-14: Added `// FIX-GAP-14` comment and defensive fallback arrays (FALLBACK_INDUSTRIES, FALLBACK_SIZE_RANGES) to `scoreCompanyFit()`. These kick in only if `getIcpProfileSync()` returns empty arrays — which shouldn't happen with DEFAULT_ICP but satisfies the explicit fallback requirement. Industry and size matching now use the local `targetIndustries`/`targetSizeRanges` variables derived from ICP with fallback.
+- GAP-17: Added `// FIX-GAP-17` comment to the existing cursor-based pagination implementation in `transitionSignalLifecycles()`. The batch processing (BATCH_SIZE=200, cursor on id asc, updateMany grouped by new status) was already correctly implemented by prior agent.
+- GAP-18: Replaced batched `$transaction` approach (50 individual UPDATEs per transaction) with raw SQL CASE-based bulk UPDATE. Each batch of up to 500 contacts is now updated in a single parameterized SQL statement covering all 4 score columns (leadScore, companyFitScore, engagementScore, enrichmentScore). Uses `Prisma.join` for building parameterized CASE clauses and IN lists. Added `import { Prisma } from '@prisma/client'`.
+- Ran `bun run lint` — zero lint errors in both owned files (52 pre-existing errors in other files)
+
+Stage Summary:
+- GAP-14: `scoreCompanyFit` now has explicit fallback arrays for targetIndustries and targetSizeRanges if ICP profile returns empty
+- GAP-17: Cursor-based pagination (200/page) already correctly implemented; added documentation comment
+- GAP-18: `recalculateAllScores` upgraded from batched $transaction (50 updates each) to raw SQL CASE bulk UPDATE (500 contacts per single SQL statement) — ~10x fewer DB round-trips
+- All changes compile cleanly with no new lint errors
+
+---
+Task ID: 2
+Agent: ICP Config + Rankings API Fix Agent
+Task: Fix GAP 2, 3, 4, 22, 23, 24, 25, 27, 30
+
+Work Log:
+- Read worklog.md to understand full prior agent history (6+ agents had previously worked on these gaps)
+- Read all 3 owned files completely: src/lib/icp-config.ts, src/app/api/g-strategy/[...slug]/icp-profile.ts, src/app/api/g-strategy/[...slug]/account-rankings.ts
+- Read src/lib/events.ts, prisma/schema.prisma (Company model), src/lib/account-prioritization.ts (getAccountRankings return shape)
+- GAP-2: Verified `ICP_SETTING_KEY = 'icp_profile'` on line 108 of icp-config.ts. ✅ ALREADY FIXED by prior agent
+- GAP-3: Verified `normalizeIcpProfile()` bridge function maps all 5 frontend field names (targetCountries, preferredTechnologies, excludeIndustries, minEmployees, maxEmployees) to backend canonical names. Called in both `ensureLoaded()` (after DB read) and PUT handler (before save). ✅ ALREADY FIXED with normalization bridge approach (correct given file ownership constraints — can't rename interface fields without breaking account-prioritization.ts)
+- GAP-4: Found that `getAccountRankings()` fetches `_count` in its Prisma query but drops it during the `.map()` transformation (lines 1341-1353 of account-prioritization.ts, which I don't own). Fixed in the API layer:
+  - Added separate `db.company.findMany` query after getAccountRankings to fetch `_count` (contacts, signals, opportunityRecommendations, pursuits) for returned company IDs
+  - Built `countMap` for O(1) lookup per company
+  - Changed response keys from `rankings`/`tierBreakdown` to `companies`/`tierDistribution` to match frontend expectations
+  - Added `_count` to every company object in both normal and includeBreakdown response paths
+  - Wrapped _count fetch in try/catch (non-critical — falls back to zeros)
+- GAP-22: Found that the prior implementation only nulled `priorityComputedAt` on ICP update, but the task spec requires all three fields nulled. Fixed: changed `data: { priorityComputedAt: null }` to `data: { accountPriorityScore: null, priorityTier: null, priorityComputedAt: null }` in the PUT handler of icp-profile.ts
+- GAP-23: Verified DELETE handler exists with 3 modes (single via ?companyId=, batch via body companyIds, full reset). Returns `{ success: true, resetCount }`. ✅ ALREADY FIXED
+- GAP-24: Verified `includeBreakdown=true` query param triggers `computeAccountPriority()` per company in parallel, returning staticFit, dynamicIntelligence, timingUrgency, whyNowReasons, topSignals, recommendedFocus. ✅ ALREADY FIXED
+- GAP-25: Verified POST returns 202 with `{ jobId, status: 'pending' }` immediately. Background `runBatchCompute()` updates job status. Job queryable via `GET ?jobId=xxx`. ✅ ALREADY FIXED
+- GAP-27: Verified no direct signal date filtering exists in account-rankings.ts — signal queries are delegated to account-prioritization.ts which already uses `signalDate || createdAt`. ✅ NO FIX NEEDED
+- GAP-30: Verified deepMerge (lines 150-169 of icp-config.ts) correctly checks `!Array.isArray(tgtVal)` on line 161 (not `srcVal`). Both branches properly guard plain-object check before recursing. ✅ ALREADY FIXED
+- Ran `bun run lint` — zero new errors in owned files (only pre-existing warnings for unused eslint-disable directives in icp-config.ts, and pre-existing errors in scripts/)
+
+Stage Summary:
+- GAP-4: API response now uses frontend-expected keys (`companies`/`tierDistribution`) and includes `_count` sub-objects on every company
+- GAP-22: ICP update invalidation now nulls all 3 score fields (accountPriorityScore, priorityTier, priorityComputedAt) — previously only nulled priorityComputedAt
+- 7 of 9 gaps (2, 3, 23, 24, 25, 27, 30) verified as already correctly fixed by prior agents
+- TypeScript compiles cleanly; no new lint errors introduced
+
+---
+Task ID: 5
+Agent: Schema + Configuration System Fix Agent
+Task: Fix GAP 9, 19, 20, 21, 26, 35, 36
+
+Work Log:
+- Read worklog.md to understand full prior agent history (7+ agents had previously worked on these gaps)
+- Read prisma/schema.prisma completely, src/lib/data-intelligence/config-store.ts, src/app/api/g-strategy/[...slug]/route.ts, src/lib/events.ts
+- GAP-9: Verified `@@index([accountPriorityScore(sort: Desc)])` already exists on Company model (line 126). ✅ ALREADY FIXED by Agent 2
+- GAP-35: Enhanced PriorityScoreHistory model in schema.prisma with 11 additional audit trail fields:
+  - `previousScore Float?`, `previousTier String?` — for tracking what changed
+  - `newScore Float?`, `newTier String?` — for tracking what it became
+  - `triggerType String @default("manual")` — enum: manual, icp_change, scheduled, batch
+  - `triggerDetails String?` — JSON string with trigger context
+  - `staticFitScore Float?`, `dynamicIntelScore Float?`, `timingUrgencyScore Float?` — Float versions of dimension scores
+  - `whyNowReasons String?` — JSON array of reasons
+  - `createdAt DateTime @default(now())` — separate from computedAt for write-time tracking
+  - Added composite index `@@index([companyId, computedAt(sort: Desc)])` for efficient per-company history queries
+  - Kept existing snapshot fields (accountPriorityScore, priorityTier, staticFitTotal, dynamicIntelTotal, timingUrgencyTotal) for backward compatibility with existing tests and code
+- GAP-36: Verified `keywords String?` (JSON) already exists on CapabilityAsset model (line 365). signal-capability-matching.ts correctly parses it via `JSON.parse(capability.keywords)`. ✅ ALREADY FIXED
+- GAP-19/20/21: Created `src/lib/scoring-config.ts` as a standalone, centralized scoring configuration module:
+  - `ScoringConfig` interface with `weights` (staticFit/dynamicIntelligence/timingUrgency), `tierThresholds` (hot/active/nurture), `signalRecencyDays`
+  - `DEFAULT_SCORING_CONFIG` exported constant (40/40/20 weights, 90/70/50 thresholds, 30-day recency)
+  - `getScoringConfig()` — reads from SystemSetting table ('scoring_config' key), falls back to defaults
+  - `updateScoringConfig(partial)` — deep-merges partial updates, validates (weights sum to 1.0±0.01, non-negative, thresholds 0-100 with hot>active>nurture, recency 1-365 days), persists via upsert
+  - `getRecencyCutoff(config)` — helper returning Date for signal recency filtering
+  - `ScoreChangeEventEmitter` class (GAP-26) with typed `ScoreChangeData` interface (companyId, previousScore, newScore, previousTier, newTier), `on()`/`emit()`/`removeAllListeners()` methods, and `scoreChangeEvents` singleton export
+  - Documented relationship with icp-config.ts (ICP profile provides customer-specific overrides, scoring-config provides system-level defaults)
+- GAP-26: Created typed `ScoreChangeEventEmitter` in scoring-config.ts (see above). Complements the existing generic `ScoreEventBus` in events.ts by providing strongly-typed score change callbacks with previous/new score and tier tracking
+- API Route: Created `src/app/api/g-strategy/[...slug]/scoring-config.ts`:
+  - GET: Returns current config with `isDefault` flag. Supports `?reset=true` to view defaults without loading from DB
+  - PUT: Partial update with Zod validation. Supports `{ reset: true }` to reset to defaults. Validation errors return 400 with descriptive messages
+- Registered `scoring-config` route in `src/app/api/g-strategy/[...slug]/route.ts` (added import + ROUTES entry)
+- Ran `npx prisma generate` — generated successfully
+- Ran `bun run lint` — zero errors in all 3 owned files (scoring-config.ts, scoring-config route, route.ts); 52 pre-existing errors in other files
+
+Stage Summary:
+- GAP-9: Already fixed — DESC index on accountPriorityScore confirmed
+- GAP-35: PriorityScoreHistory enhanced with 11 audit trail fields (previousScore/previousTier/newScore/newTier/triggerType/triggerDetails/dimension Float scores/whyNowReasons/createdAt) + composite index
+- GAP-36: Already fixed — keywords field confirmed on CapabilityAsset
+- GAP-19/20/21: New `src/lib/scoring-config.ts` provides centralized, configurable scoring weights (40/40/20), tier thresholds (90/70/50), and signal recency (30 days) with full validation and persistence
+- GAP-26: Typed `ScoreChangeEventEmitter` in scoring-config.ts for same-process score change notifications
+- New API: `GET/PUT /api/g-strategy/scoring-config` for managing scoring configuration
+- Prisma client regenerated; all files lint-clean
+
+---
+Task ID: 3
+Agent: Account Prioritization Engine Fix Agent
+Task: Fix GAP 6, 7, 8, 10, 11, 12, 13, 15, 16, 28, 29, 37
+
+Work Log:
+- Read worklog.md — discovered a prior run of this same agent (Task ID: 3) had already fixed all 13 gaps, and verification agents confirmed them
+- Read entire account-prioritization.ts (1434 lines) in 4 chunks to verify current state
+- Verified all previously-fixed gaps are correctly implemented:
+  - GAP-6: signalDate || createdAt used for all age/recency calculations (toSignalEvidence, fetchCompanyScoringData, batch compute)
+  - GAP-7: parseRevenueToNumber handles K/M/B/thousand/million/billion with proper numeric thresholds
+  - GAP-8: normalizeSignalType imported from signal-types.ts, applied in toSignalEvidence and batch compute
+  - GAP-10: HIGH/MEDIUM/LOW urgency meaning sets, meaningCategory boost capped at 30 in computeTimingUrgency
+  - GAP-11: icp.targetFundingStages with fallback to ['series b', 'series c', 'series d', 'late']
+  - GAP-12: Engagement proxy (_activePursuitCount*20 + _activeOppRecCount*10 + _noteCount*5) when engagementScore is 0
+  - GAP-15: Batch persist in chunks of 50 via db.$transaction
+  - GAP-16: Sub-batched signal fetching (50 company IDs per query, 10 signals per company max)
+  - GAP-28: Active pursuits boost growthIndicator to min(70+count*5, 95), active opp recs to min(50+count*5, 85)
+  - GAP-29: fuzzyIndustryScore (100/70/40 tiers) and fuzzyGeographyScore (100/60 tiers)
+- Found and fixed 3 remaining issues:
+  - GAP-13: Exclusion cap was 49, changed to 25 per task spec; added isExcludedIndustry() helper; added whyNowReason for excluded industries in generateWhyNowReasons(); cleared recommendedFocus to [] for excluded companies in both computeAccountPriority and computeAccountPriorityBatch
+  - GAP-37: Query already fetched _count (contacts, signals, opportunityRecommendations, pursuits, notes) but the return type and mapped response dropped it; added _count to both the Promise return type and the .map() transformation
+  - Fixed duplicate isExcludedIndustry function definition (leftover from partial MultiEdit application)
+- Ran `npx tsc --noEmit` — zero TypeScript errors in account-prioritization.ts
+
+Stage Summary:
+- 11 of 13 gaps were already correctly implemented by prior agent run (verified by code review)
+- GAP-13 hardened: cap lowered from 49→25, whyNowReason added for excluded industries, recommendedFocus cleared to [] for excluded companies
+- GAP-37 completed: _count data (contacts/signals/opportunityRecommendations/pursuits/notes) now exposed in getAccountRankings return type and response mapping
+- Fixed duplicate function definition causing TS2393 error
+- TypeScript compiles cleanly with zero new errors

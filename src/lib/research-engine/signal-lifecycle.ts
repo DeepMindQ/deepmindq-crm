@@ -28,7 +28,8 @@ export async function transitionSignalLifecycles(): Promise<{
   const breakdown: Record<string, number> = {};
   let transitioned = 0;
 
-  // Process signals in batches to avoid OOM at scale
+  // FIX-GAP-17: Cursor-based pagination (200 per batch) instead of loading all non-archived signals at once.
+  // Prevents OOM risk at scale by only holding one page of signals in memory at a time.
   const BATCH_SIZE = 200;
   let cursor: string | undefined;
   let hasMore = true;

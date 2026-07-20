@@ -80,15 +80,46 @@ export async function GET(request: NextRequest) {
       assignedTo,
     });
 
+    // ── GAP-4: Fetch _count for returned companies ──
+    // getAccountRankings fetches _count in Prisma but drops it during mapping,
+    // so we re-fetch counts here to include them in the API response.
+    const companyIds = result.rankings.map(r => r.companyId);
+    const emptyCount = { contacts: 0, signals: 0, opportunityRecommendations: 0, pursuits: 0 };
+    let countMap = new Map<string, typeof emptyCount>();
+    if (companyIds.length > 0) {
+      try {
+        const countRows = await db.company.findMany({
+          where: { id: { in: companyIds } },
+          select: {
+            id: true,
+            _count: {
+              select: {
+                contacts: true,
+                signals: true,
+                opportunityRecommendations: true,
+                pursuits: true,
+              },
+            },
+          },
+        });
+        for (const row of countRows) {
+          countMap.set(row.id, row._count as unknown as typeof emptyCount);
+        }
+      } catch (err) {
+        console.warn('[account-rankings] Failed to fetch _count (non-critical):', err);
+      }
+    }
+
     // ── GAP-24: includeBreakdown — compute full breakdown per company ──
     if (includeBreakdown && result.rankings.length > 0) {
-      const enrichedRankings = await Promise.all(
+      const enrichedCompanies = await Promise.all(
         result.rankings.map(async (r) => {
           try {
             const breakdown = await computeAccountPriority(r.companyId);
             if (breakdown) {
               return {
                 ...r,
+                _count: countMap.get(r.companyId) || emptyCount,
                 staticFit: breakdown.staticFit,
                 dynamicIntelligence: breakdown.dynamicIntelligence,
                 timingUrgency: breakdown.timingUrgency,
@@ -100,17 +131,26 @@ export async function GET(request: NextRequest) {
           } catch (err) {
             console.error(`[account-rankings] Breakdown error for ${r.companyId}:`, err);
           }
-          return r;
+          return { ...r, _count: countMap.get(r.companyId) || emptyCount };
         })
       );
+      // GAP-4: Return with frontend-expected keys: companies + tierDistribution
       return apiSuccess({
-        rankings: enrichedRankings,
+        companies: enrichedCompanies,
         total: result.total,
-        tierBreakdown: result.tierBreakdown,
+        tierDistribution: result.tierBreakdown,
       });
     }
 
-    return apiSuccess(result);
+    // GAP-4: Return with frontend-expected keys: companies + tierDistribution
+    return apiSuccess({
+      companies: result.rankings.map(r => ({
+        ...r,
+        _count: countMap.get(r.companyId) || emptyCount,
+      })),
+      total: result.total,
+      tierDistribution: result.tierBreakdown,
+    });
   } catch (error) {
     console.error('[account-rankings] GET error:', error);
     return apiError('Failed to fetch account rankings');

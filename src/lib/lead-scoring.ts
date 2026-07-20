@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import { getIcpProfileSync } from '@/lib/icp-config';
 
@@ -91,11 +92,18 @@ function scoreCompanyFit(contact: ContactData): number {
   const company = contact.company;
   const icp = getIcpProfileSync();
 
+  // FIX-GAP-14: Use configurable ICP profile for industries/size instead of hardcoded list.
+  // Fallback to hardcoded defaults if ICP arrays are somehow empty.
+  const FALLBACK_INDUSTRIES = ['technology', 'fintech', 'saas', 'software', 'it services', 'e-commerce', 'information technology'];
+  const FALLBACK_SIZE_RANGES = ['201-500', '501-1000', '1001-5000', '5001+', '5001-10000', '10001+'];
+  const targetIndustries = icp.targetIndustries.length > 0 ? icp.targetIndustries : FALLBACK_INDUSTRIES;
+  const targetSizeRanges = icp.targetSizeRanges.length > 0 ? icp.targetSizeRanges : FALLBACK_SIZE_RANGES;
+
   // Industry match (+10) — uses configurable ICP profile
   const industry = (company?.industry || '').toLowerCase();
   if (industry && icp.excludedIndustries.some(ex => industry.includes(ex.toLowerCase()))) {
     // Excluded industry — 0 points for industry dimension
-  } else if (industry && icp.targetIndustries.some(ti => industry.includes(ti.toLowerCase()))) {
+  } else if (industry && targetIndustries.some(ti => industry.includes(ti.toLowerCase()))) {
     score += 10;
   } else if (industry) {
     score += 5; // partial match for any known industry
@@ -105,7 +113,7 @@ function scoreCompanyFit(contact: ContactData): number {
   const size = (company?.sizeRange || '').toLowerCase();
   if (size) {
     const sizeNormalized = size.replace(/\s+/g, '');
-    const sizeMatched = icp.targetSizeRanges.some(ts => {
+    const sizeMatched = targetSizeRanges.some(ts => {
       const tsNorm = ts.toLowerCase().replace(/\s+/g, '');
       return sizeNormalized.includes(tsNorm) || tsNorm.includes(sizeNormalized);
     });
@@ -201,23 +209,38 @@ export async function recalculateAllScores(): Promise<{ updated: number }> {
     };
   });
 
-  // Batch DB updates (50 per transaction)
-  const BATCH_SIZE = 50;
-  for (let i = 0; i < scoredContacts.length; i += BATCH_SIZE) {
-    const batch = scoredContacts.slice(i, i + BATCH_SIZE);
-    await db.$transaction(
-      batch.map(c =>
-        db.contact.update({
-          where: { id: c.id },
-          data: {
-            leadScore: c.leadScore,
-            companyFitScore: c.companyFitScore,
-            engagementScore: c.engagementScore,
-            enrichmentScore: c.enrichmentScore,
-          },
-        })
-      )
+  // FIX-GAP-18: Use raw SQL CASE statement for bulk UPDATE instead of N individual updates.
+  // Each batch of up to 500 contacts is updated in a single SQL statement (4 CASE columns).
+  const RAW_SQL_BATCH = 500;
+  for (let i = 0; i < scoredContacts.length; i += RAW_SQL_BATCH) {
+    const batch = scoredContacts.slice(i, i + RAW_SQL_BATCH);
+    const ids = Prisma.join(batch.map(c => Prisma.sql`${c.id}`), Prisma.sql`, `);
+
+    const leadScoreCase = Prisma.join(
+      batch.map(c => Prisma.sql`WHEN id = ${c.id} THEN ${c.leadScore}`),
+      Prisma.sql` `,
     );
+    const companyFitCase = Prisma.join(
+      batch.map(c => Prisma.sql`WHEN id = ${c.id} THEN ${c.companyFitScore}`),
+      Prisma.sql` `,
+    );
+    const engagementCase = Prisma.join(
+      batch.map(c => Prisma.sql`WHEN id = ${c.id} THEN ${c.engagementScore}`),
+      Prisma.sql` `,
+    );
+    const enrichmentCase = Prisma.join(
+      batch.map(c => Prisma.sql`WHEN id = ${c.id} THEN ${c.enrichmentScore}`),
+      Prisma.sql` `,
+    );
+
+    await db.$executeRaw`
+      UPDATE "Contact" SET
+        "leadScore" = CASE ${leadScoreCase} ELSE "leadScore" END,
+        "companyFitScore" = CASE ${companyFitCase} ELSE "companyFitScore" END,
+        "engagementScore" = CASE ${engagementCase} ELSE "engagementScore" END,
+        "enrichmentScore" = CASE ${enrichmentCase} ELSE "enrichmentScore" END
+      WHERE id IN (${ids})
+    `;
   }
 
   return { updated: scoredContacts.length };

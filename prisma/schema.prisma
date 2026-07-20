@@ -1242,16 +1242,33 @@ model SystemSetting {
 // ── Priority Score History (GAP-35: Audit Trail) ──
 
 model PriorityScoreHistory {
-  id                   String   @id @default(cuid())
+  id                   String    @id @default(cuid())
   companyId            String
-  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company              Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Snapshot fields (set at write time)
   accountPriorityScore Int
   priorityTier         String
   staticFitTotal       Int
   dynamicIntelTotal    Int
   timingUrgencyTotal   Int
-  computedAt           DateTime @default(now())
+
+  // Audit trail fields (GAP-35 enhancement)
+  previousScore        Float?
+  previousTier         String?
+  newScore             Float?
+  newTier              String?
+  triggerType          String    @default("manual")   // "manual", "icp_change", "scheduled", "batch"
+  triggerDetails       String?                             // JSON string with details about what triggered the change
+  staticFitScore       Float?
+  dynamicIntelScore    Float?
+  timingUrgencyScore   Float?
+  whyNowReasons        String?                             // JSON array
+
+  computedAt           DateTime  @default(now())
+  createdAt            DateTime  @default(now())
 
   @@index([companyId])
+  @@index([companyId, computedAt(sort: Desc)])
   @@index([computedAt])
 }

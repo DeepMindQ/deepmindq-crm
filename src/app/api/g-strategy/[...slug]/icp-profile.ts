@@ -96,10 +96,15 @@ export async function PUT(request: NextRequest) {
     const normalised = normalizeIcpProfile(parsed);
     const profile = await updateIcpProfile(normalised as Partial<import('@/lib/icp-config').IcpProfile>);
 
-    // GAP-22: Invalidate stale priority scores so UI knows recomputation is needed
+    // GAP-22: Invalidate stale priority scores so next ranking request triggers recomputation.
+    // Null all three score fields so the UI shows "needs recomputation" state.
     try {
       await db.company.updateMany({
-        data: { priorityComputedAt: null },
+        data: {
+          accountPriorityScore: null,
+          priorityTier: null,
+          priorityComputedAt: null,
+        },
       });
       await db.systemSetting.upsert({
         where: { key: 'priority_scores_stale' },

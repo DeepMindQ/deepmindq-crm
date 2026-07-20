@@ -214,23 +214,25 @@ export async function recalculateAllScores(): Promise<{ updated: number }> {
   const RAW_SQL_BATCH = 500;
   for (let i = 0; i < scoredContacts.length; i += RAW_SQL_BATCH) {
     const batch = scoredContacts.slice(i, i + RAW_SQL_BATCH);
-    const ids = Prisma.join(batch.map(c => Prisma.sql`${c.id}`), Prisma.sql`, `);
+    const ids = Prisma.join(batch.map(c => c.id));
 
-    const leadScoreCase = Prisma.join(
-      batch.map(c => Prisma.sql`WHEN id = ${c.id} THEN ${c.leadScore}`),
-      Prisma.sql` `,
+    // Build CASE fragments by chaining Sql pieces via template literals
+    // Prisma.join only accepts string separators, so we use reduce + interpolation
+    const leadScoreCase = batch.reduce<Prisma.Sql>(
+      (acc, c) => Prisma.sql`${acc} WHEN id = ${c.id} THEN ${c.leadScore}`,
+      Prisma.sql``,
     );
-    const companyFitCase = Prisma.join(
-      batch.map(c => Prisma.sql`WHEN id = ${c.id} THEN ${c.companyFitScore}`),
-      Prisma.sql` `,
+    const companyFitCase = batch.reduce<Prisma.Sql>(
+      (acc, c) => Prisma.sql`${acc} WHEN id = ${c.id} THEN ${c.companyFitScore}`,
+      Prisma.sql``,
     );
-    const engagementCase = Prisma.join(
-      batch.map(c => Prisma.sql`WHEN id = ${c.id} THEN ${c.engagementScore}`),
-      Prisma.sql` `,
+    const engagementCase = batch.reduce<Prisma.Sql>(
+      (acc, c) => Prisma.sql`${acc} WHEN id = ${c.id} THEN ${c.engagementScore}`,
+      Prisma.sql``,
     );
-    const enrichmentCase = Prisma.join(
-      batch.map(c => Prisma.sql`WHEN id = ${c.id} THEN ${c.enrichmentScore}`),
-      Prisma.sql` `,
+    const enrichmentCase = batch.reduce<Prisma.Sql>(
+      (acc, c) => Prisma.sql`${acc} WHEN id = ${c.id} THEN ${c.enrichmentScore}`,
+      Prisma.sql``,
     );
 
     await db.$executeRaw`

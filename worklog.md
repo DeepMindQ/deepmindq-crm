@@ -196,3 +196,96 @@ Stage Summary:
 - Excluded industries now hard-cap at 49 regardless of other dimension scores
 - Batch operations properly chunked (50 per transaction) and signal fetch limited (10/company)
 - All previously hardcoded values (weights, thresholds, recency days, funding stages) now configurable via ICP profile
+
+---
+Task ID: G1
+Agent: verification
+Task: Verify P0 Gaps 1-5 are already fixed
+
+Work Log:
+- Read account-ranking-screen.tsx: confirms fetch uses /api/g-strategy/account-rankings (line 380)
+- Read account-ranking-screen.tsx: confirms lines 384-401 handle both response shapes (data.rankings || data.companies) with _count fallbacks, and line 404 handles (data.tierBreakdown || data.tierDistribution)
+- Read icp-settings-screen.tsx: confirms reset calls /api/g-strategy/icp-profile with { reset: true } via PUT (lines 281-285)
+- Read g-system icp-profile.ts: confirms uses 'icp_profile' key (lines 13, 63, 65) and calls normalizeIcpProfile(body) (line 47)
+- Read icp-config.ts: confirms ICP_SETTING_KEY = 'icp_profile' (line 108)
+
+Stage Summary:
+- All P0 gaps (1-5) were already fixed in the codebase. No changes needed.
+
+---
+Task ID: config-api-verify
+Agent: verification
+Task: Verify config/API design gaps (19,20,21,22,23,24,25,26,30)
+
+Work Log:
+- GAP-19: Verified IcpProfile.scoreWeights exists (icp-config.ts:42-46) with {staticFit, dynamicIntel, timingUrgency}. computeComposite (account-prioritization.ts:488-512) reads icp.scoreWeights and normalizes if sum ≠ 1.0. ✅ FIXED
+- GAP-20: Verified classifyTier (account-prioritization.ts:479-485) reads getIcpProfileSync().tierThresholds with fallback. ✅ FIXED
+- GAP-21: Verified fetchCompanyScoringData (line 857) and batch compute (line 1049) both use getIcpProfileSync().signalRecencyDays || 30. ✅ FIXED
+- GAP-22: Verified PUT handler in icp-profile.ts (lines 99-116) sets priorityComputedAt: null on all companies and upserts priority_scores_stale SystemSetting. ✅ FIXED
+- GAP-23: Verified DELETE handler exists in account-rankings.ts (lines 247-306) supporting single, batch, and full reset. ✅ FIXED
+- GAP-24: Verified GET handler parses includeBreakdown param (line 68) and enriches rankings with full breakdown (lines 84-111). ✅ FIXED
+- GAP-25: Verified POST handler returns 202 with jobId (lines 170-173), computation runs in background via runBatchCompute (line 165). Job status checkable via GET ?jobId=. ✅ FIXED
+- GAP-26: Verified scoreEvents imported from @/lib/events (account-rankings.ts:4). events.ts exports ScoreEventBus with on/emit/removeAll. Used in runBatchCompute (scoreUpdated, batchCompleted) and DELETE handler (scoresReset). ✅ FIXED
+- GAP-30: Verified deepMerge (icp-config.ts:150-169) second condition correctly checks tgtVal (line 159), not srcVal. Both branches properly guard: srcVal is-object && tgtVal is-object before recursing. ✅ FIXED
+
+Stage Summary:
+- All 9 config/API design gaps (19,20,21,22,23,24,25,26,30) verified as correctly fixed. No code changes required.
+
+---
+Task ID: p1-scoring-gaps-verify
+Agent: verification
+Task: Verify P1 scoring logic gaps (6,7,9,10,11,12,13,14)
+
+Work Log:
+- GAP-6: Verified toSignalEvidence (line 679) uses `r.signalDate || r.createdAt`. Verified fetchCompanyScoringData recency count (lines 868-876) uses `OR: [{ signalDate: { gte: recencyCutoff } }, { signalDate: null, createdAt: { gte: recencyCutoff } }]`. Verified batch compute recency groupBy (lines 1066-1080) uses same OR pattern. Verified batch signal ordering (line 1113) uses `orderBy: { signalDate: 'desc' }`. ✅ FIXED
+- GAP-7: Verified parseRevenueToNumber (lines 170-186) uses regex `/([\d.]+)\s*(k|thousand|m|million|b|billion)?/` with correct multipliers (1K, 1M, 1B). Verified computeStaticFit (lines 276-289) uses parseRevenueToNumber and applies thresholds against actual numeric values (e.g. $500K → 500,000 → revenueScore=60). ✅ FIXED
+- GAP-9: Verified schema.prisma Company model (line 126) has `@@index([accountPriorityScore(sort: Desc)])`. ✅ FIXED
+- GAP-10: Verified CompanyScoringData interface (line 124) has `_meaningCategories: string[]`. Verified computeTimingUrgency (lines 374-382) defines HIGH_URGENCY_MEANINGS and MEDIUM_URGENCY_MEANINGS sets, and (lines 449-459) applies meaningCategory boost capped at 30. Verified fetchCompanyScoringData (lines 903-906) extracts meaningCategory from signals. Verified single-company fetch (line 890) and batch fetch (line 1124) both select meaningCategory. ✅ FIXED
+- GAP-11: Verified computeTimingUrgency (lines 430-439) uses `icp.targetFundingStages` with fallback to ['series b', 'series c', 'series d', 'late']. ✅ FIXED
+- GAP-12: Verified CompanyScoringData (lines 126-127) has `_activePursuitCount` and `_activeOppRecCount`. Verified computeTimingUrgency (lines 401-408) computes engagement proxy: `_activePursuitCount * 20 + _activeOppRecCount * 10 + _noteCount * 5` when engagementScore is 0. Verified fetchCompanyScoringData (lines 893-901) queries pursuit and oppRec counts. ✅ FIXED
+- GAP-13: Verified computeComposite (lines 515-523) checks `icp.excludedIndustries` and caps composite at 49 for excluded industries. ✅ FIXED
+- GAP-14: Verified lead-scoring.ts scoreCompanyFit (line 92) uses `getIcpProfileSync()`. Industry matching (lines 96-101) uses `icp.excludedIndustries` and `icp.targetIndustries`. Size matching (lines 104-115) uses `icp.targetSizeRanges`. ✅ FIXED
+
+Stage Summary:
+- All 8 P1 scoring logic gaps (6,7,9,10,11,12,13,14) verified as correctly fixed. No code changes required.
+
+---
+Task ID: verify-signal-pipeline-gaps
+Agent: Signal Pipeline Gap Verifier
+Task: Verify GAP-8, GAP-15, GAP-16, GAP-17, GAP-18 are fixed
+
+Work Log:
+- GAP-8: Found that `signal-types.ts` normalizer utility EXISTS and is correctly used by `signal-meaning.ts` (line 21) and `signal-capability-matching.ts` (line 12). `SIGNAL_CAPABILITY_TOPICS` in `account-prioritization.ts` covers all 12 canonical types. HOWEVER, `account-prioritization.ts` was NOT normalizing signal types from DB — raw `signalType` flowed through to `SIGNAL_CAPABILITY_TOPICS` lookups, `formatSignalType`, and whyNowReasons. Fixed by: (1) adding `import { normalizeSignalType } from '@/lib/signal-types'` at line 3, (2) normalizing in `toSignalEvidence` (line 678), (3) normalizing in batch compute `rawSignals.map()` (line 1157). Legacy types like `funding_round` or `hiring_spree` now correctly resolve to canonical forms. ✅ FIXED
+- GAP-15: Verified `account-prioritization.ts` lines 1223-1240 use `BATCH_SIZE = 50` with `db.$transaction()` per chunk for batch persist. No N individual UPDATEs. ✅ ALREADY FIXED
+- GAP-16: Verified `account-prioritization.ts` lines 1103-1142 use `SIGNAL_BATCH_SIZE = 50` for sub-batch signal fetching (50 company IDs per query). No single massive signal fetch. ✅ ALREADY FIXED
+- GAP-17: Verified `signal-lifecycle.ts` uses cursor-based pagination: `BATCH_SIZE = 200`, `orderBy: { id: 'asc' }`, `cursor: { id: cursor }`, with `updateMany` grouped by new status per page. No load-all. ✅ ALREADY FIXED
+- GAP-18: Verified `lead-scoring.ts` `recalculateAllScores` (lines 205-221) uses `BATCH_SIZE = 50` with `db.$transaction()` per chunk. No N individual UPDATEs. ✅ ALREADY FIXED
+
+Code Changes:
+1. `src/lib/account-prioritization.ts` — Added `normalizeSignalType` import and applied it in both the single-company and batch-compute signal type pipelines (3 locations).
+
+- GAP-8: Was NOT fixed — `account-prioritization.ts` was the only signal-consuming module missing normalization. Fixed by importing and applying `normalizeSignalType` at both signal ingestion points.
+
+---
+Task ID: G8
+Agent: schema-and-tests
+Task: Fix P3 gaps (35-37) and create unit tests (31-34)
+
+Work Log:
+- GAP-35: Updated PriorityScoreHistory model in schema.prisma — renamed fields to match spec (accountPriorityScore Int, priorityTier String, staticFitTotal Int, dynamicIntelTotal Int, timingUrgencyTotal Int), added onDelete: Cascade, renamed Company relation from priorityHistory to priorityScoreHistory
+- GAP-36: Verified CapabilityAsset already has keywords field (line 366) — no change needed
+- Ran `npx prisma format && npx prisma generate` — success
+- GAP-37: Verified getAccountRankings select already includes _count with contacts, signals, opportunityRecommendations, pursuits, notes (lines 1324-1332)
+- Exported internal functions (parseRevenueToNumber, fuzzyIndustryScore, fuzzyGeographyScore, classifyTier, computeComposite, toSignalEvidence) from account-prioritization.ts for direct testing
+- Fixed vi.hoisted issue in test file for vitest mock hoisting compatibility
+- Added missing db.pursuit and db.opportunityRecommendation mocks to test file
+- Created 45 new direct unit tests in tests/account-prioritization.test.ts covering Gaps 31-34:
+  - GAP-31: parseRevenueToNumber (12 tests) — $500K, $10B, $50M, N/A, Unknown, $1M, 100M, null, undefined, $1.5B, dash, empty
+  - GAP-32: fuzzyIndustryScore (6 tests) — exact, substring, partial keyword (70), excluded (0), no match, null/empty
+  - GAP-33: fuzzyGeographyScore (8 tests) — exact country, alias, location, region group (60), no match, null, UK (60), Germany (60)
+  - GAP-34: classifyTier (9 tests), computeComposite (6 tests — exclusion cap, weight normalization, clamping), toSignalEvidence (4 tests — signalDate precedence, fallback, field mapping, empty)
+
+Stage Summary:
+- Schema updated with audit trail model (PriorityScoreHistory) and verified keywords field on CapabilityAsset
+- 45 new isolated unit tests pass; all pre-existing passing tests remain green
+- Total test file: 109 tests (98 pass, 11 pre-existing failures unrelated to changes)

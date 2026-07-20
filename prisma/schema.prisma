@@ -10,60 +10,60 @@ datasource db {
 // ── Core Entities (per SDD Section 5) ──
 
 model Contact {
-  id               String   @id @default(cuid())
-  rawName          String
-  normalizedName   String
-  editedName       String?
-  email            String
-  linkedinUrl      String?
-  title            String?
-  role             String?
-  phone            String?
-  location         String?
-  companyId        String
-  batchId          String
-  consentStatus    String   @default("unknown") // unknown, opted_in, opted_out
-  emailHealth      String   @default("unknown") // unknown, valid, risky, invalid
-  emailHealthScore Int      @default(0)
-  status           String   @default("imported") // imported, cleaned, duplicate, drafted, queued, sent, replied, bounced, suppressed, archived
-  leadScore        Int      @default(0)
-  isSuppressed     Boolean  @default(false)
+  id                String    @id @default(cuid())
+  rawName           String
+  normalizedName    String
+  editedName        String?
+  email             String
+  linkedinUrl       String?
+  title             String?
+  role              String?
+  phone             String?
+  location          String?
+  companyId         String
+  batchId           String
+  consentStatus     String    @default("unknown") // unknown, opted_in, opted_out
+  emailHealth       String    @default("unknown") // unknown, valid, risky, invalid
+  emailHealthScore  Int       @default(0)
+  status            String    @default("imported") // imported, cleaned, duplicate, drafted, queued, sent, replied, bounced, suppressed, archived
+  leadScore         Int       @default(0)
+  isSuppressed      Boolean   @default(false)
   suppressionReason String?
-  lastCheckedAt    DateTime?
-  lastContactedAt  DateTime?
+  lastCheckedAt     DateTime?
+  lastContactedAt   DateTime?
 
   // L-02: Advanced lead scoring
-  companyFitScore    Int @default(0)
-  engagementScore    Int @default(0)
-  enrichmentScore    Int @default(0)
-  aiConversionScore  Float @default(0)
+  companyFitScore   Int   @default(0)
+  engagementScore   Int   @default(0)
+  enrichmentScore   Int   @default(0)
+  aiConversionScore Float @default(0)
 
   // L-03: Enrichment data (JSON string)
-  enrichmentData     String?
+  enrichmentData String?
 
   // L-12: GDPR consent tracking
-  consentSource      String?  // form, list_purchase, manual, double_opt_in
-  consentDate        DateTime?
-  consentIp          String?
+  consentSource String? // form, list_purchase, manual, double_opt_in
+  consentDate   DateTime?
+  consentIp     String?
 
   // L-14: Lead assignment
-  assignedTo         String?
+  assignedTo String?
 
   // L-15: Lead source tracking
-  source             String?  // linkedin, event, referral, cold_list, inbound, manual
+  source String? // linkedin, event, referral, cold_list, inbound, manual
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  batch        ImportBatch    @relation(fields: [batchId], references: [id])
-  drafts       Draft[]
-  replies      Reply[]
-  bounces      Bounce[]
-  suppression  Suppression?
-  notes        ContactNote[]
-  events       EmailEvent[]
-  segments     SegmentContact[]
+  company             Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  batch               ImportBatch          @relation(fields: [batchId], references: [id])
+  drafts              Draft[]
+  replies             Reply[]
+  bounces             Bounce[]
+  suppression         Suppression?
+  notes               ContactNote[]
+  events              EmailEvent[]
+  segments            SegmentContact[]
   sequenceEnrollments SequenceEnrollment[]
 
   @@index([email])
@@ -76,44 +76,44 @@ model Contact {
 }
 
 model Company {
-  id                String   @id @default(cuid())
-  rawName           String
-  normalizedName    String
-  domain            String?
-  industry          String?
-  sizeRange         String?
-  location          String?
-  country           String?
-  website           String?
-  internalSummary   String?
-  tags              String   @default("[]")   // JSON array of tag strings
-  status            String   @default("prospect") // prospect, researching, active, engaged, paused, closed_won, closed_lost
-  lifecycleStage    String   @default("discovery") // discovery, qualification, proposal, negotiation, closed
-  assignedTo        String?
-  intelligenceScore Int      @default(0)         // 0-100 composite score (from intelligence-contract.ts)
-  engagementScore   Int      @default(0)         // 0-100 based on email opens/replies/clicks
+  id                   String    @id @default(cuid())
+  rawName              String
+  normalizedName       String
+  domain               String?
+  industry             String?
+  sizeRange            String?
+  location             String?
+  country              String?
+  website              String?
+  internalSummary      String?
+  tags                 String    @default("[]") // JSON array of tag strings
+  status               String    @default("prospect") // prospect, researching, active, engaged, paused, closed_won, closed_lost
+  lifecycleStage       String    @default("discovery") // discovery, qualification, proposal, negotiation, closed
+  assignedTo           String?
+  intelligenceScore    Int       @default(0) // 0-100 composite score (from intelligence-contract.ts)
+  engagementScore      Int       @default(0) // 0-100 based on email opens/replies/clicks
   // Phase 5: Account Prioritization (separate from intelligenceScore)
   // Nullable: only set when explicitly computed. NOT same as intelligenceScore.
-  accountPriorityScore Float?                      // Phase 5: 0-100 sales priority score
-  priorityTier        String?                      // Phase 5: HOT | ACTIVE | NURTURE | LOW
-  priorityComputedAt  DateTime?                    // Phase 5: last computation timestamp
-  lastEnrichedAt    DateTime?
-  lastActivityAt    DateTime?
-  source            String   @default("import") // import, manual, crm, webhook
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  accountPriorityScore Float? // Phase 5: 0-100 sales priority score
+  priorityTier         String? // Phase 5: HOT | ACTIVE | NURTURE | LOW
+  priorityComputedAt   DateTime? // Phase 5: last computation timestamp
+  lastEnrichedAt       DateTime?
+  lastActivityAt       DateTime?
+  source               String    @default("import") // import, manual, crm, webhook
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  contacts      Contact[]
-  researchCard  CompanyResearchCard?
-  notes         CompanyNote[]
-  signals       CompanySignal[]
-  evidence      Evidence[]
-  timeline      CompanyTimelineEvent[]
+  contacts                   Contact[]
+  researchCard               CompanyResearchCard?
+  notes                      CompanyNote[]
+  signals                    CompanySignal[]
+  evidence                   Evidence[]
+  timeline                   CompanyTimelineEvent[]
   opportunityRecommendations OpportunityRecommendation[]
-  pursuits                    Pursuit[]
-  signalCapabilityMatches     SignalCapabilityMatch[]
-  intelligenceValidations      IntelligenceValidation[]
-  priorityHistory              PriorityScoreHistory[]
+  pursuits                   Pursuit[]
+  signalCapabilityMatches    SignalCapabilityMatch[]
+  intelligenceValidations    IntelligenceValidation[]
+  priorityScoreHistory       PriorityScoreHistory[]
 
   @@index([domain])
   @@index([normalizedName])
@@ -127,18 +127,18 @@ model Company {
 }
 
 model ImportBatch {
-  id            String   @id @default(cuid())
-  fileName      String
-  fileHash      String   @unique
-  totalRows     Int      @default(0)
-  acceptedRows  Int      @default(0)
-  duplicateRows Int      @default(0)
-  invalidRows   Int      @default(0)
-  questionableRows Int   @default(0)
-  status        String   @default("staged") // staged, processing, completed, archived
-  mappingProfile String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String   @id @default(cuid())
+  fileName         String
+  fileHash         String   @unique
+  totalRows        Int      @default(0)
+  acceptedRows     Int      @default(0)
+  duplicateRows    Int      @default(0)
+  invalidRows      Int      @default(0)
+  questionableRows Int      @default(0)
+  status           String   @default("staged") // staged, processing, completed, archived
+  mappingProfile   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   contacts Contact[]
 
@@ -147,51 +147,51 @@ model ImportBatch {
 }
 
 model CompanyResearchCard {
-  id              String   @id @default(cuid())
-  companyId       String   @unique
-  businessOverview    String?
-  techLandscape       String?
-  potentialChallenges String?
+  id                    String  @id @default(cuid())
+  companyId             String  @unique
+  businessOverview      String?
+  techLandscape         String?
+  potentialChallenges   String?
   possibleOpportunities String?
-  relevantServices    String?
-  keyDecisionMakers   String?
-  internalNotes       String?
+  relevantServices      String?
+  keyDecisionMakers     String?
+  internalNotes         String?
 
   // L-03: Enrichment fields
-  revenue           String?
-  employeeCount     String?
-  fundingStage      String?
-  techStack         String?   // JSON string
-  socialProfiles    String?   // JSON string
-  enrichmentSource  String?
-  enrichmentDate    DateTime?
-  fieldConfidence   String?   // JSON: {"revenue":0.9,"employeeCount":0.7,...} — per-field confidence from Phase 3
+  revenue          String?
+  employeeCount    String?
+  fundingStage     String?
+  techStack        String? // JSON string
+  socialProfiles   String? // JSON string
+  enrichmentSource String?
+  enrichmentDate   DateTime?
+  fieldConfidence  String? // JSON: {"revenue":0.9,"employeeCount":0.7,...} — per-field confidence from Phase 3
 
   // Phase 3: Research engine fields
-  industry         String?
-  website          String?
-  keyPeople        String?   @default("[]")        // JSON: [{name, title, department, linkedInUrl, source}]
-  recentNews       String?   @default("[]")        // JSON: [{title, snippet, source, url, signalType, impact}]
+  industry   String?
+  website    String?
+  keyPeople  String? @default("[]") // JSON: [{name, title, department, linkedInUrl, source}]
+  recentNews String? @default("[]") // JSON: [{title, snippet, source, url, signalType, impact}]
 
   // Phase 3 Hardening: Structured Technology Landscape
-  structuredTechLandscape String? @default("{}")  // JSON: {cloud:[], data:[], ai:[], applications:[]}
+  structuredTechLandscape String? @default("{}") // JSON: {cloud:[], data:[], ai:[], applications:[]}
 
   // Phase 3 Hardening: Strategic Priorities
-  strategicPriorities      String? @default("[]")   // JSON: [{priority, description, evidence, confidence}]
+  strategicPriorities String? @default("[]") // JSON: [{priority, description, evidence, confidence}]
 
   // Phase 3 Hardening: Capability Matching Inputs
-  businessProblems         String? @default("[]")   // JSON: ["problem1", "problem2"]
-  transformationAreas      String? @default("[]")   // JSON: ["area1", "area2"]
-  technologyThemes         String? @default("[]")   // JSON: ["theme1", "theme2"]
+  businessProblems    String? @default("[]") // JSON: ["problem1", "problem2"]
+  transformationAreas String? @default("[]") // JSON: ["area1", "area2"]
+  technologyThemes    String? @default("[]") // JSON: ["theme1", "theme2"]
 
   // Phase 3 Hardening: Category-specific Freshness Timestamps
-  profileFreshnessAt     DateTime?    // when company profile data was last verified
-  signalFreshnessAt      DateTime?    // when signals were last refreshed
-  contactFreshnessAt     DateTime?    // when key people/contacts were last verified
-  techFreshnessAt        DateTime?    // when technology landscape was last verified
+  profileFreshnessAt DateTime? // when company profile data was last verified
+  signalFreshnessAt  DateTime? // when signals were last refreshed
+  contactFreshnessAt DateTime? // when key people/contacts were last verified
+  techFreshnessAt    DateTime? // when technology landscape was last verified
 
-  lastResearchedAt    DateTime @updatedAt
-  createdAt           DateTime @default(now())
+  lastResearchedAt DateTime @updatedAt
+  createdAt        DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
@@ -200,7 +200,7 @@ model CompanyNote {
   id        String   @id @default(cuid())
   companyId String
   title     String   @default("")
-  category  String   @default("general")  // research, call, meeting, general, swot, competitive, discovery
+  category  String   @default("general") // research, call, meeting, general, swot, competitive, discovery
   body      String
   author    String?
   pinned    Boolean  @default(false)
@@ -214,40 +214,39 @@ model CompanyNote {
 }
 
 model CompanySignal {
-  id          String   @id @default(cuid())
-  companyId   String
-  signalType  String                        // funding, hiring, leadership_change, tech_change, news, mention, partnership, expansion
-  title       String
-  description String?
-  source      String?
-  sourceUrl   String?
-  severity    String   @default("medium")    // low, medium, high, critical
-  impact      String   @default("medium")    // high, medium, low — sales opportunity impact
-  signalDate  DateTime?                      // when the signal event occurred (not when we detected it)
-  extractedAt DateTime @default(now())       // when our system detected/stored it
-  confidence  Float    @default(0.5)         // 0-1 confidence score from research engine
+  id                 String    @id @default(cuid())
+  companyId          String
+  signalType         String // funding, hiring, leadership_change, tech_change, news, mention, partnership, expansion
+  title              String
+  description        String?
+  source             String?
+  sourceUrl          String?
+  severity           String    @default("medium") // low, medium, high, critical
+  impact             String    @default("medium") // high, medium, low — sales opportunity impact
+  signalDate         DateTime? // when the signal event occurred (not when we detected it)
+  extractedAt        DateTime  @default(now()) // when our system detected/stored it
+  confidence         Float     @default(0.5) // 0-1 confidence score from research engine
   // RFP/RFI/Tender Intelligence Architecture (Phase 3)
-  opportunityType  String?                           // rfp, rfi, tender, vendor_search, procurement, tech_transformation, partner_requirement
-  publicationDate  DateTime?                        // When the opportunity was published
-  deadline         DateTime?                        // Response deadline
-  buyingArea       String?                          // e.g. "Cloud Migration", "Data Analytics"
-  techRequirement  String?                          // e.g. "AWS, Python, Data Engineering"
-  serviceRequirement String?                        // e.g. "Implementation, Managed Services"
-  matchingCapability String?                       // ID of matched CapabilityAsset
-  sourceQuality    String   @default("standard")   // premium, standard, low
-  evidenceIds String   @default("[]")        // JSON array of Evidence IDs supporting this signal
+  opportunityType    String? // rfp, rfi, tender, vendor_search, procurement, tech_transformation, partner_requirement
+  publicationDate    DateTime? // When the opportunity was published
+  deadline           DateTime? // Response deadline
+  buyingArea         String? // e.g. "Cloud Migration", "Data Analytics"
+  techRequirement    String? // e.g. "AWS, Python, Data Engineering"
+  serviceRequirement String? // e.g. "Implementation, Managed Services"
+  matchingCapability String? // ID of matched CapabilityAsset
+  sourceQuality      String    @default("standard") // premium, standard, low
+  evidenceIds        String    @default("[]") // JSON array of Evidence IDs supporting this signal
   // Track C: Signal meaning — buying stage implication inferred from signal attributes
-  meaningCategory  String?                              // budget_available, leadership_openness, tech_dissatisfaction, growth_pressure, compliance_requirement, vendor_evaluation, unknown
-  isRead      Boolean  @default(false)
-  status           String   @default("detected") // detected, validated, active, aging, expired, archived
-  createdAt   DateTime @default(now())
+  meaningCategory    String? // budget_available, leadership_openness, tech_dissatisfaction, growth_pressure, compliance_requirement, vendor_evaluation, unknown
+  isRead             Boolean   @default(false)
+  status             String    @default("detected") // detected, validated, active, aging, expired, archived
+  createdAt          DateTime  @default(now())
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  signalCapabilityMatches SignalCapabilityMatch[]
+  company                    Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  signalCapabilityMatches    SignalCapabilityMatch[]
   opportunityRecommendations OpportunityRecommendation[]
 
   @@index([meaningCategory])
-
   @@index([companyId])
   @@index([signalType])
   @@index([severity])
@@ -264,22 +263,22 @@ model CompanySignal {
 // per-field confidence scoring, audit trail for AI extractions.
 
 model Evidence {
-  id            String   @id @default(cuid())
-  companyId     String
-  jobId         String?                              // which job produced this evidence
-  searchQuery   String?                              // what query found this
-  sourceUrl     String                               // URL of the source
-  sourceTitle   String?                              // title of the source page
-  sourceName    String?                              // publication / website name
-  snippet       String                               // relevant text excerpt
-  extractedField String?                             // which field this evidence supports (revenue, employeeCount, etc.)
-  extractedValue String?                             // the value extracted from this evidence
-  relevanceScore Float  @default(0.5)                // 0-1 how relevant this evidence is
-  confidence    Float    @default(0.5)               // 0-1 confidence in this evidence
-  sourceDate    DateTime?                           // when the source was published (for recency scoring)
-  sourceQualityTier String @default("standard")    // premium, standard, low — configurable via SystemSetting
-  status          String  @default("active")        // active, aging, superseded, expired — evidence lifecycle
-  createdAt       DateTime @default(now())
+  id                String    @id @default(cuid())
+  companyId         String
+  jobId             String? // which job produced this evidence
+  searchQuery       String? // what query found this
+  sourceUrl         String // URL of the source
+  sourceTitle       String? // title of the source page
+  sourceName        String? // publication / website name
+  snippet           String // relevant text excerpt
+  extractedField    String? // which field this evidence supports (revenue, employeeCount, etc.)
+  extractedValue    String? // the value extracted from this evidence
+  relevanceScore    Float     @default(0.5) // 0-1 how relevant this evidence is
+  confidence        Float     @default(0.5) // 0-1 confidence in this evidence
+  sourceDate        DateTime? // when the source was published (for recency scoring)
+  sourceQualityTier String    @default("standard") // premium, standard, low — configurable via SystemSetting
+  status            String    @default("active") // active, aging, superseded, expired — evidence lifecycle
+  createdAt         DateTime  @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -296,10 +295,10 @@ model Evidence {
 model CompanyTimelineEvent {
   id          String   @id @default(cuid())
   companyId   String
-  eventType   String                        // email_sent, email_opened, email_replied, email_bounced, note_added, enrichment, status_change, signal, contact_added, research_saved
+  eventType   String // email_sent, email_opened, email_replied, email_bounced, note_added, enrichment, status_change, signal, contact_added, research_saved
   title       String
   description String?
-  metadata    String?  @default("{}")     // JSON with event-specific data
+  metadata    String?  @default("{}") // JSON with event-specific data
   createdAt   DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -325,48 +324,50 @@ model ContactNote {
 // ── Capability Library (per SDD Section 10) ──
 
 model CapabilityAsset {
-  id          String   @id @default(cuid())
-  title       String
-  summary     String
-  category    String   // service_line, solution, accelerator, technology, case_study, proof_point, objection_response, cta
-  serviceLine String?
-  targetIndustries String?   // JSON: ["Financial Services", "Healthcare"]
-  targetRoles  String?
+  id                 String  @id @default(cuid())
+  title              String
+  summary            String
+  category           String // service_line, solution, accelerator, technology, case_study, proof_point, objection_response, cta
+  serviceLine        String?
+  targetIndustries   String? // JSON: ["Financial Services", "Healthcare"]
+  targetRoles        String?
   targetCompanySizes String?
-  problems    String?            // JSON: ["legacy system migration", "data silos"]
-  evidence    String?
-  content     String?
-  isActive    Boolean  @default(true)
-  version     Int      @default(1)
+  problems           String? // JSON: ["legacy system migration", "data silos"]
+  evidence           String?
+  content            String?
+  isActive           Boolean @default(true)
+  version            Int     @default(1)
 
   // C-08: Asset relationships
   parentAssetId String?
 
   // C-15: Tagging system
-  tags        String?
+  tags String?
 
   // C-09: Feedback scoring
-  upvotes     Int      @default(0)
-  downvotes   Int      @default(0)
-  usedInEmails Int     @default(0)
+  upvotes      Int @default(0)
+  downvotes    Int @default(0)
+  usedInEmails Int @default(0)
 
   // C-06: Deduplication
   contentHash String?
 
   // Phase 3 Hardening: Enhanced Capability Knowledge Base
-  solution         String?            // Solution name (e.g., "Cloud Migration Factory")
-  accelerator      String?            // Reusable accelerator/asset name
-  technology       String?            // Primary technology (e.g., "Azure", "Snowflake")
-  industry         String?            // Primary target industry
-   businessProblem  String?            // Core business problem this addresses
-   customerOutcome  String?            // Outcome the customer achieves
-  differentiator   String?            // What makes this different from alternatives
-  caseStudyRef     String?            // JSON: [{title, url, industry, outcome}]
-  proofPointRef    String?            // JSON: [{metric, value, context}]
-  keywords         String?            // JSON: ["keyword1", "keyword2"] for matching
+  solution        String? // Solution name (e.g., "Cloud Migration Factory")
+  accelerator     String? // Reusable accelerator/asset name
+  technology      String? // Primary technology (e.g., "Azure", "Snowflake")
+  industry        String? // Primary target industry
+  businessProblem String? // Core business problem this addresses
+  customerOutcome String? // Outcome the customer achieves
+  differentiator  String? // What makes this different from alternatives
+  caseStudyRef    String? // JSON: [{title, url, industry, outcome}]
+  proofPointRef   String? // JSON: [{metric, value, context}]
+  keywords        String? // JSON: ["keyword1", "keyword2"] for matching
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  signalCapabilityMatches SignalCapabilityMatch[]
 
   @@index([category])
   @@index([serviceLine])
@@ -375,8 +376,6 @@ model CapabilityAsset {
   @@index([contentHash])
   @@index([technology])
   @@index([industry])
-
-  signalCapabilityMatches SignalCapabilityMatch[]
 }
 
 // ── Email Template System (E-14) ──
@@ -389,8 +388,8 @@ model EmailTemplate {
   cta         String?
   serviceLine String?
   tone        String   @default("professional") // professional, casual, executive
-  category    String?  // intro, follow_up, case_study, cta, custom
-  variables   String?  // JSON array of placeholder names
+  category    String? // intro, follow_up, case_study, cta, custom
+  variables   String? // JSON array of placeholder names
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -402,28 +401,28 @@ model EmailTemplate {
 // ── Email Sequences / Drip Campaigns (E-15) ──
 
 model EmailSequence {
-  id                       String   @id @default(cuid())
-  name                     String
-  description              String?
-  serviceLine              String?
-  isActive                 Boolean  @default(true)
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  serviceLine String?
+  isActive    Boolean @default(true)
 
   // Phase 4 C1: Signal-driven sequence intelligence
-  companyId                String?                         // Which company this sequence targets
-  triggerSignalId          String?                         // Which buying signal triggered this
-  triggerCapabilityMatchId String?                         // Which capability match drove the strategy
-  triggerReason            String?                         // AI-generated rationale: why this company, why now, why this capability
-  generatedBy              String   @default("manual")      // "signal_driven" | "manual"
+  companyId                String? // Which company this sequence targets
+  triggerSignalId          String? // Which buying signal triggered this
+  triggerCapabilityMatchId String? // Which capability match drove the strategy
+  triggerReason            String? // AI-generated rationale: why this company, why now, why this capability
+  generatedBy              String  @default("manual") // "signal_driven" | "manual"
 
   // Phase 4 C1-integrate: Opportunity link
-  opportunityId            String?                         // Which OpportunityRecommendation this sequence fulfills
+  opportunityId String? // Which OpportunityRecommendation this sequence fulfills
 
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   steps       SequenceStep[]
   enrollments SequenceEnrollment[]
-  opportunity OpportunityRecommendation?  @relation(fields: [opportunityId], references: [id])
+  opportunity OpportunityRecommendation? @relation(fields: [opportunityId], references: [id])
 
   @@index([serviceLine])
   @@index([isActive])
@@ -433,33 +432,33 @@ model EmailSequence {
 }
 
 model SequenceStep {
-  id          String   @id @default(cuid())
-  sequenceId  String
-  stepNumber  Int
-  delayDays   Int      @default(3)
-  subject     String
-  body        String
-  cta         String?
-  templateId  String?
+  id         String  @id @default(cuid())
+  sequenceId String
+  stepNumber Int
+  delayDays  Int     @default(3)
+  subject    String
+  body       String
+  cta        String?
+  templateId String?
 
-  sequence    EmailSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  sequence EmailSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
 
-  @@index([sequenceId])
   @@unique([sequenceId, stepNumber])
+  @@index([sequenceId])
 }
 
 model SequenceEnrollment {
-  id           String   @id @default(cuid())
-  sequenceId   String
-  contactId    String
-  currentStep  Int      @default(1)
-  status       String   @default("active") // active, completed, paused, cancelled
-  startedAt    DateTime @default(now())
-  nextStepAt   DateTime?
-  completedAt  DateTime?
+  id          String    @id @default(cuid())
+  sequenceId  String
+  contactId   String
+  currentStep Int       @default(1)
+  status      String    @default("active") // active, completed, paused, cancelled
+  startedAt   DateTime  @default(now())
+  nextStepAt  DateTime?
+  completedAt DateTime?
 
-  sequence     EmailSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
-  contact      Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  sequence EmailSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  contact  Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@index([sequenceId])
   @@index([contactId])
@@ -470,43 +469,43 @@ model SequenceEnrollment {
 // ── Draft & Send (per SDD Sections 11-12) ──
 
 model Draft {
-  id                String   @id @default(cuid())
-  contactId         String
-  subject           String
-  body              String
-  cta               String?
-  confidenceScore   Int?
+  id                 String  @id @default(cuid())
+  contactId          String
+  subject            String
+  body               String
+  cta                String?
+  confidenceScore    Int?
   sourceSnippetsUsed String?
-  assumptionFlags   String?
-  reviewNotes       String?
-  status            String   @default("pending_review") // pending_review, approved, rejected, sent
-  rejectReason      String?
+  assumptionFlags    String?
+  reviewNotes        String?
+  status             String  @default("pending_review") // pending_review, approved, rejected, sent
+  rejectReason       String?
 
   // E-06: Email thread tracking
-  messageId         String?   // our Message-ID header
-  inReplyTo         String?   // In-Reply-To header
-  references        String?   // References header (JSON array string)
+  messageId  String? // our Message-ID header
+  inReplyTo  String? // In-Reply-To header
+  references String? // References header (JSON array string)
 
   // E-10: A/B testing
-  variantLabel      String?   // e.g. "variant_a", "variant_b", "control"
-  abTestId          String?
+  variantLabel String? // e.g. "variant_a", "variant_b", "control"
+  abTestId     String?
 
   // E-11: Tracking
-  trackingPixelId   String?
+  trackingPixelId String?
 
   // E-15: Sequence tracking
-  sequenceId        String?
-  sequenceStepId    String?
-  abTest            ABTest?  @relation(fields: [abTestId], references: [id])
+  sequenceId     String?
+  sequenceStepId String?
+  abTest         ABTest? @relation(fields: [abTestId], references: [id])
 
   // Phase 4 C2: Batch approval workflow
-  assigneeId        String?                         // Sales rep assigned to review/action this draft
-  governanceAuditId  String?                         // Link to AIGenerationAudit for governance score display
+  assigneeId        String? // Sales rep assigned to review/action this draft
+  governanceAuditId String? // Link to AIGenerationAudit for governance score display
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contact   Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
   queueItem SendQueue?
 
   @@index([contactId])
@@ -517,26 +516,26 @@ model Draft {
 }
 
 model SendQueue {
-  id            String   @id @default(cuid())
-  draftId       String   @unique
+  id            String    @id @default(cuid())
+  draftId       String    @unique
   scheduledAt   DateTime?
   sentAt        DateTime?
-  status        String   @default("pending") // pending, scheduled, sent, failed, paused
+  status        String    @default("pending") // pending, scheduled, sent, failed, paused
   failureReason String?
-  retryCount    Int      @default(0)
+  retryCount    Int       @default(0)
 
   // E-01: Provider tracking
-  providerId    String?   // ID returned by email provider (Resend, SendGrid, etc.)
-  provider      String?   // "resend", "sendgrid", "ses", "postmark"
+  providerId String? // ID returned by email provider (Resend, SendGrid, etc.)
+  provider   String? // "resend", "sendgrid", "ses", "postmark"
 
   // E-11: Engagement tracking
-  openCount     Int      @default(0)
-  clickCount    Int      @default(0)
-  replied       Boolean  @default(false)
-  bounced       Boolean  @default(false)
+  openCount  Int     @default(0)
+  clickCount Int     @default(0)
+  replied    Boolean @default(false)
+  bounced    Boolean @default(false)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   draft Draft @relation(fields: [draftId], references: [id], onDelete: Cascade)
 
@@ -547,15 +546,15 @@ model SendQueue {
 // ── Email Events (E-11) ──
 
 model EmailEvent {
-  id         String   @id @default(cuid())
-  queueId    String?
-  contactId  String
-  draftId    String?
-  eventType  String   // open, click, reply, bounce, unsubscribe, complaint
-  metadata   String?  // JSON string with event-specific data (URL for clicks, agent for opens, etc.)
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  queueId   String?
+  contactId String
+  draftId   String?
+  eventType String // open, click, reply, bounce, unsubscribe, complaint
+  metadata  String? // JSON string with event-specific data (URL for clicks, agent for opens, etc.)
+  createdAt DateTime @default(now())
 
-  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@index([queueId])
   @@index([contactId])
@@ -566,15 +565,15 @@ model EmailEvent {
 // ── A/B Tests (E-10) ──
 
 model ABTest {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String
-  status        String   @default("running") // running, completed, cancelled
+  status        String    @default("running") // running, completed, cancelled
   winnerVariant String?
-  totalSends    Int      @default(0)
-  createdAt     DateTime @default(now())
+  totalSends    Int       @default(0)
+  createdAt     DateTime  @default(now())
   completedAt   DateTime?
 
-  drafts        Draft[]
+  drafts Draft[]
 
   @@index([status])
   @@index([createdAt])
@@ -583,13 +582,13 @@ model ABTest {
 // ── Feedback (per SDD Section 13) ──
 
 model Reply {
-  id           String   @id @default(cuid())
-  contactId    String
-  draftId      String?   // E-06: link reply to specific draft
-  subject      String?
-  body         String?
-  category     String?  // positive, negative, out_of_office, unsubscribe, other
-  receivedAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  contactId  String
+  draftId    String? // E-06: link reply to specific draft
+  subject    String?
+  body       String?
+  category   String? // positive, negative, out_of_office, unsubscribe, other
+  receivedAt DateTime @default(now())
 
   contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
@@ -601,10 +600,10 @@ model Reply {
 model Bounce {
   id           String   @id @default(cuid())
   contactId    String
-  queueId      String?   // E-08: link bounce to specific send
-  bounceType   String?  // hard, soft
+  queueId      String? // E-08: link bounce to specific send
+  bounceType   String? // hard, soft
   reason       String?
-  providerData String?  // E-08: raw provider bounce data
+  providerData String? // E-08: raw provider bounce data
   bouncedAt    DateTime @default(now())
 
   contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
@@ -614,11 +613,11 @@ model Bounce {
 }
 
 model Suppression {
-  id            String   @id @default(cuid())
-  contactId     String   @unique
-  reason        String   // unsubscribe, bounce, manual, negative_reply
-  method        String?  // E-09: manual, auto_webhook, auto_bounce
-  createdAt     DateTime @default(now())
+  id            String    @id @default(cuid())
+  contactId     String    @unique
+  reason        String // unsubscribe, bounce, manual, negative_reply
+  method        String? // E-09: manual, auto_webhook, auto_bounce
+  createdAt     DateTime  @default(now())
   removedAt     DateTime?
   removedBy     String?
   removalReason String?
@@ -632,28 +631,28 @@ model Suppression {
 // ── Lead Segments (L-04) ──
 
 model Segment {
-  id            String   @id @default(cuid())
-  name          String
-  description   String?
-  filters       String   // JSON string: {industry: [...], status: [...], scoreRange: [min, max], ...}
-  contactCount  Int      @default(0)
-  isStatic      Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  filters      String // JSON string: {industry: [...], status: [...], scoreRange: [min, max], ...}
+  contactCount Int      @default(0)
+  isStatic     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  contacts      SegmentContact[]
+  contacts SegmentContact[]
 
   @@index([name])
 }
 
 model SegmentContact {
-  id         String   @id @default(cuid())
-  segmentId  String
-  contactId  String
-  addedAt    DateTime @default(now())
+  id        String   @id @default(cuid())
+  segmentId String
+  contactId String
+  addedAt   DateTime @default(now())
 
-  segment    Segment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
-  contact    Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  segment Segment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@unique([segmentId, contactId])
   @@index([segmentId])
@@ -676,17 +675,17 @@ model AuditLog {
 }
 
 model ConversationPlan {
-  id               String   @id @default(cuid())
-  companyName      String
-  executiveRole    String
-  executiveName    String?
-  industry         String?
-  context          String?
-  capabilities     String?
-  plan             String    // JSON string of the full ApiPlan object
-  generatedAt      DateTime @default(now())
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id            String   @id @default(cuid())
+  companyName   String
+  executiveRole String
+  executiveName String?
+  industry      String?
+  context       String?
+  capabilities  String?
+  plan          String // JSON string of the full ApiPlan object
+  generatedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([companyName])
   @@index([createdAt])
@@ -695,19 +694,19 @@ model ConversationPlan {
 // ── Phase 4: Playbooks ──
 
 model Playbook {
-  id              String   @id @default(cuid())
-  name            String
-  description     String?
-  category        String   @default("custom") // introduction, follow_up, discovery, proposal, negotiation, closing, objection_handling, custom
-  targetIndustry  String?
-  targetRole      String?
+  id                String   @id @default(cuid())
+  name              String
+  description       String?
+  category          String   @default("custom") // introduction, follow_up, discovery, proposal, negotiation, closing, objection_handling, custom
+  targetIndustry    String?
+  targetRole        String?
   targetCompanySize String?
-  steps           String   // JSON array: [{title, description, tips, order}]
-  aiTips          String?  // AI-generated engagement tips
-  isActive        Boolean  @default(true)
-  usageCount      Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  steps             String // JSON array: [{title, description, tips, order}]
+  aiTips            String? // AI-generated engagement tips
+  isActive          Boolean  @default(true)
+  usageCount        Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@index([category])
   @@index([isActive])
@@ -717,19 +716,19 @@ model Playbook {
 // ── Phase 4: Account Strategy Room ──
 
 model AccountStrategy {
-  id               String   @id @default(cuid())
-  companyId        String?
-  title            String
-  objective        String?
-  currentSituation String?
-  swotAnalysis     String?  // JSON: {strengths, weaknesses, opportunities, threats}
-  keyInitiatives   String?  // JSON array: [{title, owner, status, dueDate}]
-  stakeholderMap   String?  // JSON: {champions, influencers, blockers, decisionMakers}
+  id                  String   @id @default(cuid())
+  companyId           String?
+  title               String
+  objective           String?
+  currentSituation    String?
+  swotAnalysis        String? // JSON: {strengths, weaknesses, opportunities, threats}
+  keyInitiatives      String? // JSON array: [{title, owner, status, dueDate}]
+  stakeholderMap      String? // JSON: {champions, influencers, blockers, decisionMakers}
   competitivePosition String? // JSON
-  nextSteps        String?
-  status           String   @default("draft") // draft, active, review, completed, archived
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  nextSteps           String?
+  status              String   @default("draft") // draft, active, review, completed, archived
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@index([companyId])
   @@index([status])
@@ -739,41 +738,41 @@ model AccountStrategy {
 // ── Authentication & User Management ──
 
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  name          String?
-  phone         String?
-  company       String?
-  designation   String?
-  role          String   @default("admin") // admin, user
-  passwordHash  String?                          // null = first-time user (no password yet)
-  hasPassword   Boolean  @default(false)
-  avatarUrl     String?
-  isActive      Boolean  @default(true)
-  lastLoginAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  phone        String?
+  company      String?
+  designation  String?
+  role         String    @default("admin") // admin, user
+  passwordHash String? // null = first-time user (no password yet)
+  hasPassword  Boolean   @default(false)
+  avatarUrl    String?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  otpCodes      OtpCode[]
-  sessions      Session[]
+  otpCodes OtpCode[]
+  sessions Session[]
 
   @@index([email])
   @@index([isActive])
 }
 
 model OtpCode {
-  id          String   @id @default(cuid())
-  userId      String?
-  email       String                          // email this OTP was sent to
-  code        String                          // 6-digit code
-  purpose     String                          // login, set_password, change_email, change_password, update_profile
-  metadata    String?  @default("{}")         // JSON: e.g. { newEmail: "..." } for change_email
-  verified    Boolean  @default(false)
-  attempts    Int      @default(0)
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String?
+  email     String // email this OTP was sent to
+  code      String // 6-digit code
+  purpose   String // login, set_password, change_email, change_password, update_profile
+  metadata  String?  @default("{}") // JSON: e.g. { newEmail: "..." } for change_email
+  verified  Boolean  @default(false)
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
-  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([email])
   @@index([code])
@@ -783,15 +782,15 @@ model OtpCode {
 }
 
 model Session {
-  id          String   @id @default(cuid())
-  userId      String
-  token       String   @unique                  // opaque session token
-  userAgent   String?
-  ipAddress   String?
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique // opaque session token
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([token])
@@ -808,52 +807,52 @@ model Session {
 // ═══════════════════════════════════════════════════════════════
 
 model DataUpload {
-  id                String    @id @default(cuid())
-  fileName          String
-  totalRows         Int       @default(0)
-  processedRows     Int       @default(0)
-  acceptedRows      Int       @default(0)
-  warningRows       Int       @default(0)
-  failedRows        Int       @default(0)
-  duplicateRows     Int       @default(0)
-  dataQualityScore  Float     @default(0)
+  id               String    @id @default(cuid())
+  fileName         String
+  totalRows        Int       @default(0)
+  processedRows    Int       @default(0)
+  acceptedRows     Int       @default(0)
+  warningRows      Int       @default(0)
+  failedRows       Int       @default(0)
+  duplicateRows    Int       @default(0)
+  dataQualityScore Float     @default(0)
   // created → mapping_confirmed → processing → review_ready → committing → completed
   //                                                ↘ cancelled
   //                                                ↘ failed
-  status            String    @default("created")
-  columnMapping     String                          // JSON: {sourceHeader: targetField}
-  consentSource     String    @default("manual_upload")
-  leadSource        String    @default("manual")
-  errorMessage      String?
-  completedAt       DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  status           String    @default("created")
+  columnMapping    String // JSON: {sourceHeader: targetField}
+  consentSource    String    @default("manual_upload")
+  leadSource       String    @default("manual")
+  errorMessage     String?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  rows              UploadRow[]
+  rows UploadRow[]
 
   @@index([status])
   @@index([createdAt])
 }
 
 model UploadRow {
-  id                  String   @id @default(cuid())
-  uploadId            String
-  rowIndex            Int
-  rawData             String                           // JSON: original row
-  mappedData          String?                          // JSON: after column mapping
-  normalizedData      String?                          // JSON: after normalization
-  validationIssues    String?                          // JSON: [{field, ruleId, severity, message}]
-  suggestedCorrections String?                         // JSON: [{field, original, suggested, ruleId}]
-  appliedCorrections  String?                          // JSON: [{field, original, applied}]
+  id                   String   @id @default(cuid())
+  uploadId             String
+  rowIndex             Int
+  rawData              String // JSON: original row
+  mappedData           String? // JSON: after column mapping
+  normalizedData       String? // JSON: after normalization
+  validationIssues     String? // JSON: [{field, ruleId, severity, message}]
+  suggestedCorrections String? // JSON: [{field, original, suggested, ruleId}]
+  appliedCorrections   String? // JSON: [{field, original, applied}]
   // pending → accepted / warning / failed / duplicate
   // warning → corrected / rejected
-  status              String   @default("pending")
-  duplicateOfRow      Int?                             // rowIndex of the row this duplicates
-  qualityScore        Float    @default(0)
-  companyId           String?                          // populated after commit
-  createdAt           DateTime @default(now())
+  status               String   @default("pending")
+  duplicateOfRow       Int? // rowIndex of the row this duplicates
+  qualityScore         Float    @default(0)
+  companyId            String? // populated after commit
+  createdAt            DateTime @default(now())
 
-  upload              DataUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  upload DataUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
 
   @@index([uploadId])
   @@index([status])
@@ -866,10 +865,10 @@ model UploadRow {
 
 model ColumnMappingRule {
   id          String   @id @default(cuid())
-  name        String                            // human-readable name
-  pattern     String                            // regex pattern for column header
-  targetField String                            // internal field: name, email, company, etc.
-  priority    Int      @default(0)               // higher = checked first
+  name        String // human-readable name
+  pattern     String // regex pattern for column header
+  targetField String // internal field: name, email, company, etc.
+  priority    Int      @default(0) // higher = checked first
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -886,11 +885,11 @@ model ColumnMappingRule {
 model FieldValidationRule {
   id          String   @id @default(cuid())
   name        String
-  targetField String                            // which field to validate
-  ruleType    String                            // required | regex | format | range | uniqueness | custom
-  config      String    @default("{}")           // JSON: {pattern, minLength, maxLength, min, max, ...}
-  severity    String    @default("error")        // error | warning
-  message     String                            // human-readable error message
+  targetField String // which field to validate
+  ruleType    String // required | regex | format | range | uniqueness | custom
+  config      String   @default("{}") // JSON: {pattern, minLength, maxLength, min, max, ...}
+  severity    String   @default("error") // error | warning
+  message     String // human-readable error message
   isActive    Boolean  @default(true)
   priority    Int      @default(0)
   createdAt   DateTime @default(now())
@@ -906,9 +905,9 @@ model FieldValidationRule {
 
 model NormalizationMapping {
   id              String   @id @default(cuid())
-  category        String                            // industry | country | employee_size | title
-  sourceValue     String                            // the messy input
-  normalizedValue String                            // the clean output
+  category        String // industry | country | employee_size | title
+  sourceValue     String // the messy input
+  normalizedValue String // the clean output
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -924,12 +923,12 @@ model NormalizationMapping {
 
 model ScoringWeight {
   id          String   @id @default(cuid())
-  dimension   String                            // scoring dimension
-  field       String?                           // sub-field within dimension
-  key         String?                           // specific value (e.g., "Technology" for industry)
-  weight      Float                             // weight or score value
-  maxScore    Float     @default(100)           // max possible score for this dimension
-  description String?                           // human-readable
+  dimension   String // scoring dimension
+  field       String? // sub-field within dimension
+  key         String? // specific value (e.g., "Technology" for industry)
+  weight      Float // weight or score value
+  maxScore    Float    @default(100) // max possible score for this dimension
+  description String? // human-readable
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -945,16 +944,16 @@ model ScoringWeight {
 // "which rules fired most often", audit trail per row.
 
 model NormalizationLog {
-  id          String   @id @default(cuid())
-  uploadId    String                               // which upload batch
-  uploadRowId String?                              // specific row (null if batch-level)
-  rowIndex    Int?                                 // row index within upload
-  category    String                               // industry | country | employee_size | title | company_name | domain | website | name
-  field       String                               // target field name
-  originalValue  String                            // value before normalization
-  normalizedValue String                           // value after normalization
-  ruleApplied String?                              // which rule/mapping was applied (null = built-in logic)
-  createdAt   DateTime @default(now())
+  id              String   @id @default(cuid())
+  uploadId        String // which upload batch
+  uploadRowId     String? // specific row (null if batch-level)
+  rowIndex        Int? // row index within upload
+  category        String // industry | country | employee_size | title | company_name | domain | website | name
+  field           String // target field name
+  originalValue   String // value before normalization
+  normalizedValue String // value after normalization
+  ruleApplied     String? // which rule/mapping was applied (null = built-in logic)
+  createdAt       DateTime @default(now())
 
   @@index([uploadId])
   @@index([category])
@@ -967,17 +966,17 @@ model NormalizationLog {
 // "show all companies scored below 60" without scanning UploadRows.
 
 model DataQualityScore {
-  id              String   @id @default(cuid())
-  uploadId        String                               // source upload
-  uploadRowId     String?                              // specific row reference
-  rowIndex        Int?                                 // row index
-  companyId       String?                              // populated after commit — links to actual Company
-  totalScore      Int                                  // 0-100 overall
-  completenessScore Int                                // 0-100 data completeness dimension
-  validityScore   Int                                  // 0-100 validation health dimension
-  richnessScore   Int                                  // 0-100 data richness dimension
-  details         String    @default("[]")             // JSON: human-readable explanations
-  createdAt       DateTime @default(now())
+  id                String   @id @default(cuid())
+  uploadId          String // source upload
+  uploadRowId       String? // specific row reference
+  rowIndex          Int? // row index
+  companyId         String? // populated after commit — links to actual Company
+  totalScore        Int // 0-100 overall
+  completenessScore Int // 0-100 data completeness dimension
+  validityScore     Int // 0-100 validation health dimension
+  richnessScore     Int // 0-100 data richness dimension
+  details           String   @default("[]") // JSON: human-readable explanations
+  createdAt         DateTime @default(now())
 
   @@index([companyId])
   @@index([uploadId])
@@ -992,38 +991,38 @@ model DataQualityScore {
 // ── Phase 2: Workflow Automation Engine ──
 
 model Job {
-  id          String   @id @default(cuid())
-  type        String                               // enrichment, research, scoring, signal_detection, email_generation
-  status      String   @default("pending")          // pending, queued, running, completed, failed, cancelled
-  priority    Int      @default(5)                  // 1 (highest) – 10 (lowest)
-  companyId   String?                              // optional: entity this job operates on
-  contactId   String?                              // optional: for contact-level jobs
-  batchId     String?                              // optional: for batch operations
+  id        String  @id @default(cuid())
+  type      String // enrichment, research, scoring, signal_detection, email_generation
+  status    String  @default("pending") // pending, queued, running, completed, failed, cancelled
+  priority  Int     @default(5) // 1 (highest) – 10 (lowest)
+  companyId String? // optional: entity this job operates on
+  contactId String? // optional: for contact-level jobs
+  batchId   String? // optional: for batch operations
 
   // Progress tracking
-  progress    Int      @default(0)                  // 0-100 overall progress
-  currentStep String?                              // human-readable current step label
-  stepDetail  String?                              // JSON: { step, progress, message } for sub-step tracking
+  progress    Int     @default(0) // 0-100 overall progress
+  currentStep String? // human-readable current step label
+  stepDetail  String? // JSON: { step, progress, message } for sub-step tracking
 
   // Input / Output
-  payload     String?                              // JSON: job input parameters
-  result      String?                              // JSON: job output / result data
-  error       String?                              // error message if failed
-  errorCode   String?                              // machine-readable error code for retry classification
+  payload   String? // JSON: job input parameters
+  result    String? // JSON: job output / result data
+  error     String? // error message if failed
+  errorCode String? // machine-readable error code for retry classification
 
   // Retry tracking
-  attemptCount  Int      @default(0)
-  maxAttempts   Int      @default(3)
-  nextRetryAt   DateTime?                          // when to retry (null = not retryable or no retry needed)
+  attemptCount Int       @default(0)
+  maxAttempts  Int       @default(3)
+  nextRetryAt  DateTime? // when to retry (null = not retryable or no retry needed)
 
   // Timestamps
-  queuedAt     DateTime?
-  startedAt    DateTime?
-  completedAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  queuedAt    DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  logs         JobLog[]
+  logs JobLog[]
 
   @@index([type])
   @@index([status])
@@ -1038,13 +1037,13 @@ model Job {
 model JobLog {
   id        String   @id @default(cuid())
   jobId     String
-  level     String   @default("info")               // info, warn, error, debug
-  step      String?                              // current processing step
+  level     String   @default("info") // info, warn, error, debug
+  step      String? // current processing step
   message   String
-  metadata  String?                              // JSON: additional structured data
+  metadata  String? // JSON: additional structured data
   createdAt DateTime @default(now())
 
-  job       Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@index([jobId])
   @@index([jobId, level])
@@ -1056,23 +1055,23 @@ model JobLog {
 // WHY the output was generated and WHAT intelligence backed it.
 
 model AIGenerationAudit {
-  id                    String   @id @default(cuid())
-  generationType        String                           // email_draft, conversation_plan, account_brief, signal_analysis, suggested_contacts, enrichment, insights, opportunities, recommendations, score_leads
-  companyId             String?                          // linked company (if applicable)
-  contactId             String?                          // linked contact (if applicable)
-  researchContextVersion String?                          // snapshot of freshness.score at generation time
-  evidenceIdsUsed       String   @default("[]")          // JSON: ["evidence_id_1", "evidence_id_2"]
-  signalIdsUsed         String   @default("[]")          // JSON: ["signal_id_1"]
-  capabilityAssetIdsUsed String @default("[]")          // JSON: ["asset_id_1"]
-  researchConfidence    Float    @default(0)             // 0-1 average field confidence at generation time
-  freshnessScore        Int      @default(0)             // 0-100 freshness at generation time
-  governancePassed       Boolean  @default(true)          // did it pass confidence gates?
-  governanceChecks      String?  @default("{}")          // JSON: {email: {research: true, capability: true, freshness: true}, ...}
-  outputSummary         String?                          // brief summary of what was generated (not full output)
-  modelUsed             String?                          // which LLM model was used
-  promptVersion         String?                          // governance prompt version hash for reproducibility
-  inputParams           String?  @default("{}")          // JSON: the input parameters (sanitized, no PII)
-  createdAt             DateTime @default(now())
+  id                     String   @id @default(cuid())
+  generationType         String // email_draft, conversation_plan, account_brief, signal_analysis, suggested_contacts, enrichment, insights, opportunities, recommendations, score_leads
+  companyId              String? // linked company (if applicable)
+  contactId              String? // linked contact (if applicable)
+  researchContextVersion String? // snapshot of freshness.score at generation time
+  evidenceIdsUsed        String   @default("[]") // JSON: ["evidence_id_1", "evidence_id_2"]
+  signalIdsUsed          String   @default("[]") // JSON: ["signal_id_1"]
+  capabilityAssetIdsUsed String   @default("[]") // JSON: ["asset_id_1"]
+  researchConfidence     Float    @default(0) // 0-1 average field confidence at generation time
+  freshnessScore         Int      @default(0) // 0-100 freshness at generation time
+  governancePassed       Boolean  @default(true) // did it pass confidence gates?
+  governanceChecks       String?  @default("{}") // JSON: {email: {research: true, capability: true, freshness: true}, ...}
+  outputSummary          String? // brief summary of what was generated (not full output)
+  modelUsed              String? // which LLM model was used
+  promptVersion          String? // governance prompt version hash for reproducibility
+  inputParams            String?  @default("{}") // JSON: the input parameters (sanitized, no PII)
+  createdAt              DateTime @default(now())
 
   @@index([generationType])
   @@index([companyId])
@@ -1088,21 +1087,22 @@ model AIGenerationAudit {
 // Enables: "This hiring signal maps to our Cloud Migration capability"
 
 model SignalCapabilityMatch {
-  id               String   @id @default(cuid())
-  companyId        String
-  signalId         String                           // CompanySignal ID
-  capabilityId     String                           // CapabilityAsset ID
-  matchScore       Float    @default(0)             // 0-1 how relevant the match is
-  reason           String                           // why this capability matches this signal
-  businessProblem  String?                          // identified business problem
-  expectedOutcome  String?                          // expected outcome if engaged
-  salesAngle       String?                          // recommended sales angle
-  createdAt        DateTime @default(now())
+  id              String   @id @default(cuid())
+  companyId       String
+  signalId        String // CompanySignal ID
+  capabilityId    String // CapabilityAsset ID
+  matchScore      Float    @default(0) // 0-1 how relevant the match is
+  reason          String // why this capability matches this signal
+  businessProblem String? // identified business problem
+  expectedOutcome String? // expected outcome if engaged
+  salesAngle      String? // recommended sales angle
+  createdAt       DateTime @default(now())
 
   // Track C: FK relations for referential integrity + cascade deletes
-  company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  signal           CompanySignal   @relation(fields: [signalId], references: [id], onDelete: Cascade)
-  capability       CapabilityAsset @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+  company                    Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  signal                     CompanySignal               @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  capability                 CapabilityAsset             @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+  opportunityRecommendations OpportunityRecommendation[]
 
   @@index([companyId])
   @@index([signalId])
@@ -1110,7 +1110,6 @@ model SignalCapabilityMatch {
   @@index([matchScore])
   @@index([companyId, signalId])
   @@index([companyId, capabilityId])
-  opportunityRecommendations OpportunityRecommendation[]
 }
 
 // ── Phase 4 Track C: Opportunity Intelligence Layer ──
@@ -1118,36 +1117,36 @@ model SignalCapabilityMatch {
 // Created from intelligence: Signal + Evidence + Capability Match + Freshness + Confidence.
 
 model OpportunityRecommendation {
-  id                      String   @id @default(cuid())
+  id                      String    @id @default(cuid())
   companyId               String
-  signalId                String                               // Which buying signal triggered this
-  capabilityMatchId       String                               // Which capability match
-  opportunityTitle        String                               // Human-readable title for the opportunity
-  businessTrigger         String                               // What business event created this opportunity
-  whyNow                  String                               // Why this company should be pursued now
-  businessProblem         String                               // The identified business problem
-  recommendedCapability   String                               // Title of the recommended capability
-  recommendedStakeholders String   @default("[]")              // JSON: ["CTO", "Cloud Architecture Head"]
-  suggestedConversation   String                               // Strategic conversation topics to initiate
-  evidenceIds             String   @default("[]")              // JSON: evidence IDs backing this recommendation
-  confidenceScore         Float    @default(0)                 // 0-1 research confidence at creation time
-  freshnessScore          Int      @default(0)                 // 0-100 freshness at creation time
-  matchScore              Float    @default(0)                 // 0-1 capability match score
-  opportunityScore        Int      @default(0)                 // 0-100 composite score
-  priority                String   @default("medium")          // high, medium, low
-  status                  String   @default("pending_review")  // pending_review, accepted, rejected, monitored
-  rejectionReason         String?                              // WRONG_TIMING, EXISTING_RELATIONSHIP, NOT_RELEVANT, LOW_CONFIDENCE, NO_BUDGET, OTHER
-  rejectionFeedback       String?                              // Free-text feedback from sales
+  signalId                String // Which buying signal triggered this
+  capabilityMatchId       String // Which capability match
+  opportunityTitle        String // Human-readable title for the opportunity
+  businessTrigger         String // What business event created this opportunity
+  whyNow                  String // Why this company should be pursued now
+  businessProblem         String // The identified business problem
+  recommendedCapability   String // Title of the recommended capability
+  recommendedStakeholders String    @default("[]") // JSON: ["CTO", "Cloud Architecture Head"]
+  suggestedConversation   String // Strategic conversation topics to initiate
+  evidenceIds             String    @default("[]") // JSON: evidence IDs backing this recommendation
+  confidenceScore         Float     @default(0) // 0-1 research confidence at creation time
+  freshnessScore          Int       @default(0) // 0-100 freshness at creation time
+  matchScore              Float     @default(0) // 0-1 capability match score
+  opportunityScore        Int       @default(0) // 0-100 composite score
+  priority                String    @default("medium") // high, medium, low
+  status                  String    @default("pending_review") // pending_review, accepted, rejected, monitored
+  rejectionReason         String? // WRONG_TIMING, EXISTING_RELATIONSHIP, NOT_RELEVANT, LOW_CONFIDENCE, NO_BUDGET, OTHER
+  rejectionFeedback       String? // Free-text feedback from sales
   reviewedBy              String?
   reviewedAt              DateTime?
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
-  company                 Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  signal                  CompanySignal        @relation(fields: [signalId], references: [id])
-  capabilityMatch         SignalCapabilityMatch @relation(fields: [capabilityMatchId], references: [id])
-  pursuits                Pursuit[]
-  sequences               EmailSequence[]
+  company         Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  signal          CompanySignal         @relation(fields: [signalId], references: [id])
+  capabilityMatch SignalCapabilityMatch @relation(fields: [capabilityMatchId], references: [id])
+  pursuits        Pursuit[]
+  sequences       EmailSequence[]
 
   @@index([companyId])
   @@index([signalId])
@@ -1165,23 +1164,23 @@ model OpportunityRecommendation {
 // Tracks the human-driven pursuit of the identified opportunity.
 
 model Pursuit {
-  id                String   @id @default(cuid())
-  opportunityId     String                               // Which OpportunityRecommendation this pursues
-  companyId         String
-  owner             String?                              // Sales rep assigned to pursue
-  priority          String   @default("medium")          // high, medium, low
-  status            String   @default("active")          // active, paused, won, lost
-  nextAction        String?                              // Next planned action
-  nextActionAt      DateTime?                            // When the next action is planned
-  outcome           String?                              // Free-text outcome description
-  outcomeStage      String?                              // discovery, qualification, proposal, negotiation, closed_won, closed_lost
-  notes             String?                              // Additional notes
-  lastActivityAt    DateTime?                            // Track C: last meaningful activity for stale detection
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id             String    @id @default(cuid())
+  opportunityId  String // Which OpportunityRecommendation this pursues
+  companyId      String
+  owner          String? // Sales rep assigned to pursue
+  priority       String    @default("medium") // high, medium, low
+  status         String    @default("active") // active, paused, won, lost
+  nextAction     String? // Next planned action
+  nextActionAt   DateTime? // When the next action is planned
+  outcome        String? // Free-text outcome description
+  outcomeStage   String? // discovery, qualification, proposal, negotiation, closed_won, closed_lost
+  notes          String? // Additional notes
+  lastActivityAt DateTime? // Track C: last meaningful activity for stale detection
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  opportunity       OpportunityRecommendation @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
-  company           Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  opportunity OpportunityRecommendation @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  company     Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([opportunityId])
   @@index([companyId])
@@ -1199,27 +1198,27 @@ model Pursuit {
 //              | "pursuit_intelligence" | "evidence_quality"
 
 model IntelligenceValidation {
-  id               String   @id @default(cuid())
-  companyId        String
-  validatedAt      DateTime @default(now())
-  validatedBy      String?
+  id          String   @id @default(cuid())
+  companyId   String
+  validatedAt DateTime @default(now())
+  validatedBy String?
 
   // What's being validated
-  artifactType     String                             // signal_meaning | capability_match | opportunity_recommendation | pursuit_intelligence | evidence_quality
-  artifactId       String                             // FK to the source record
-  artifactSnapshot Json?                              // Immutable snapshot of the artifact at validation time
+  artifactType     String // signal_meaning | capability_match | opportunity_recommendation | pursuit_intelligence | evidence_quality
+  artifactId       String // FK to the source record
+  artifactSnapshot Json? // Immutable snapshot of the artifact at validation time
 
   // Human judgment
-  rating           Int                                // 1-5 scale (1=wrong, 3=partially useful, 5=highly accurate)
-  accuracy         String?                            // accurate | partially_accurate | inaccurate | cannot_judge
-  relevance        String?                            // highly_relevant | somewhat_relevant | not_relevant
-  actionability    String?                            // actionable_now | actionable_with_research | not_actionable
-  feedback         String?                            // Free-text correction or nuance
+  rating        Int // 1-5 scale (1=wrong, 3=partially useful, 5=highly accurate)
+  accuracy      String? // accurate | partially_accurate | inaccurate | cannot_judge
+  relevance     String? // highly_relevant | somewhat_relevant | not_relevant
+  actionability String? // actionable_now | actionable_with_research | not_actionable
+  feedback      String? // Free-text correction or nuance
 
   // Context at validation time
-  validatorContext Json?                              // e.g., { validatorRole: "SDR", dealStage: "discovery" }
+  validatorContext Json? // e.g., { validatorRole: "SDR", dealStage: "discovery" }
 
-  company          Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([artifactType, artifactId])
   @@index([companyId])
@@ -1233,7 +1232,7 @@ model IntelligenceValidation {
 model SystemSetting {
   id        String   @id @default(cuid())
   key       String   @unique
-  value     String   // JSON string — schema depends on key
+  value     String // JSON string — schema depends on key
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
 
@@ -1243,17 +1242,16 @@ model SystemSetting {
 // ── Priority Score History (GAP-35: Audit Trail) ──
 
 model PriorityScoreHistory {
-  id          String   @id @default(cuid())
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id])
-  score       Float
-  tier        String?
-  staticFit   Float?
-  dynamicInt  Float?
-  timingUrg   Float?
-  computedAt  DateTime @default(now())
-  icpVersion  String?  // hash or version of ICP config used
+  id                   String   @id @default(cuid())
+  companyId            String
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  accountPriorityScore Int
+  priorityTier         String
+  staticFitTotal       Int
+  dynamicIntelTotal    Int
+  timingUrgencyTotal   Int
+  computedAt           DateTime @default(now())
 
-  @@index([companyId, computedAt(sort: Desc)])
+  @@index([companyId])
   @@index([computedAt])
 }

@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { getIcpProfile, getIcpProfileSync, sizeMatch, techMatch, parseEmployeeCount, type IcpProfile } from './icp-config';
+import { normalizeSignalType } from '@/lib/signal-types';
 
 /* ═══════════════════════════════════════════════════════════════
    Account Prioritization Engine — Phase 5 (Gap Closures)
@@ -674,7 +675,7 @@ function toSignalEvidence(rows: Array<{
   return rows.map(r => ({
     signalId: r.id,
     title: r.title,
-    signalType: r.signalType,
+    signalType: normalizeSignalType(r.signalType),
     severity: r.severity,
     daysAgo: daysBetween(r.signalDate || r.createdAt, now),
     source: r.source,
@@ -1153,7 +1154,7 @@ export async function computeAccountPriorityBatch(
       rawSignals.map(s => ({
         signalId: s.id,
         title: s.title,
-        signalType: s.signalType,
+        signalType: normalizeSignalType(s.signalType),
         severity: s.severity,
         daysAgo: daysBetween(s.signalDate || s.createdAt, now),
         source: s.source,
@@ -1379,3 +1380,7 @@ async function fetchServiceLineCapabilities(): Promise<CapabilityAssetRow[]> {
     return [];
   }
 }
+
+// ── @internal exports for unit testing (Gaps 31-34) ──
+
+export { parseRevenueToNumber, fuzzyIndustryScore, fuzzyGeographyScore, classifyTier, computeComposite, toSignalEvidence };

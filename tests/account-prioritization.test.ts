@@ -1,14 +1,35 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ── Mock dependencies before any imports ────────────────────────
+// vi.hoisted ensures variables are available when vi.mock factories run (hoisted to top)
 
-const mockFindUnique = vi.fn()
-const mockFindMany = vi.fn()
-const mockCount = vi.fn()
-const mockGroupBy = vi.fn()
-const mockUpdate = vi.fn()
-const mockUpsert = vi.fn()
-const mockTransaction = vi.fn()
+const { mockFindUnique, mockFindMany, mockCount, mockGroupBy, mockUpdate, mockUpsert, mockTransaction, mockIcpProfile } = vi.hoisted(() => ({
+  mockFindUnique: vi.fn(),
+  mockFindMany: vi.fn(),
+  mockCount: vi.fn(),
+  mockGroupBy: vi.fn(),
+  mockUpdate: vi.fn(),
+  mockUpsert: vi.fn(),
+  mockTransaction: vi.fn(),
+  mockIcpProfile: {
+    targetIndustries: ['technology', 'fintech', 'saas', 'healthcare'],
+    targetSizeRanges: ['201-500', '501-1000', '1001-5000', '5001+'],
+    targetRegions: ['united states', 'usa', 'uk', 'canada'],
+    minEmployeeCount: 50,
+    maxEmployeeCount: -1,
+    minRevenue: '$1M',
+    targetFundingStages: ['series a', 'series b', 'series c', 'series d', 'ipo'],
+    preferredTechKeywords: ['cloud', 'aws', 'kubernetes', 'react', 'python', 'ai'],
+    excludedIndustries: ['gambling', 'casino'],
+    weights: {
+      industry: 0.3,
+      companySize: 0.25,
+      geography: 0.15,
+      revenue: 0.15,
+      techFit: 0.15,
+    },
+  },
+}))
 
 vi.mock('@/lib/db', () => ({
   db: {
@@ -27,6 +48,13 @@ vi.mock('@/lib/db', () => ({
     capabilityAsset: {
       findMany: mockFindMany,
     },
+    pursuit: {
+      count: mockCount,
+      groupBy: mockGroupBy,
+    },
+    opportunityRecommendation: {
+      count: mockCount,
+    },
     systemSetting: {
       findUnique: mockFindUnique,
       upsert: mockUpsert,
@@ -34,26 +62,6 @@ vi.mock('@/lib/db', () => ({
     $transaction: mockTransaction,
   },
 }))
-
-// Mock icp-config to provide controlled ICP profile
-const mockIcpProfile = {
-  targetIndustries: ['technology', 'fintech', 'saas', 'healthcare'],
-  targetSizeRanges: ['201-500', '501-1000', '1001-5000', '5001+'],
-  targetRegions: ['united states', 'usa', 'uk', 'canada'],
-  minEmployeeCount: 50,
-  maxEmployeeCount: -1,
-  minRevenue: '$1M',
-  targetFundingStages: ['series a', 'series b', 'series c', 'series d', 'ipo'],
-  preferredTechKeywords: ['cloud', 'aws', 'kubernetes', 'react', 'python', 'ai'],
-  excludedIndustries: ['gambling', 'casino'],
-  weights: {
-    industry: 0.3,
-    companySize: 0.25,
-    geography: 0.15,
-    revenue: 0.15,
-    techFit: 0.15,
-  },
-}
 
 vi.mock('@/lib/icp-config', () => ({
   getIcpProfile: vi.fn().mockResolvedValue(mockIcpProfile),
@@ -104,8 +112,18 @@ vi.mock('@/lib/icp-config', () => ({
 }))
 
 // Now import after mocks are set up
-import { computeAccountPriority, computeAccountPriorityBatch, getAccountRankings } from '../src/lib/account-prioritization'
-import type { AccountPriorityResult } from '../src/lib/account-prioritization'
+import {
+  computeAccountPriority,
+  computeAccountPriorityBatch,
+  getAccountRankings,
+  parseRevenueToNumber,
+  fuzzyIndustryScore,
+  fuzzyGeographyScore,
+  classifyTier,
+  computeComposite,
+  toSignalEvidence,
+} from '../src/lib/account-prioritization'
+import type { AccountPriorityResult, StaticFitBreakdown, DynamicIntelBreakdown, TimingUrgencyBreakdown } from '../src/lib/account-prioritization'
 
 // ── Helper factories ──────────────────────────────────────────
 
@@ -1287,5 +1305,312 @@ describe('getAccountRankings', () => {
     expect(result.rankings).toEqual([])
     expect(result.total).toBe(0)
     expect(result.tierBreakdown).toEqual({ HOT: 0, ACTIVE: 0, NURTURE: 0, LOW: 0 })
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════
+// GAP-31: Direct unit tests for parseRevenueToNumber
+// ══════════════════════════════════════════════════════════════════
+
+describe('parseRevenueToNumber', () => {
+  it('parses "$500K" → 500000', () => {
+    expect(parseRevenueToNumber('$500K')).toBe(500000)
+  })
+
+  it('parses "$10B" → 10000000000', () => {
+    expect(parseRevenueToNumber('$10B')).toBe(10000000000)
+  })
+
+  it('parses "$50M" → 50000000', () => {
+    expect(parseRevenueToNumber('$50M')).toBe(50000000)
+  })
+
+  it('parses "N/A" → null', () => {
+    expect(parseRevenueToNumber('N/A')).toBeNull()
+  })
+
+  it('parses "Unknown" → null', () => {
+    expect(parseRevenueToNumber('Unknown')).toBeNull()
+  })
+
+  it('parses "$1M" → 1000000', () => {
+    expect(parseRevenueToNumber('$1M')).toBe(1000000)
+  })
+
+  it('parses "100M" (no $) → 100000000', () => {
+    expect(parseRevenueToNumber('100M')).toBe(100000000)
+  })
+
+  it('parses null → null', () => {
+    expect(parseRevenueToNumber(null)).toBeNull()
+  })
+
+  it('parses undefined → null', () => {
+    expect(parseRevenueToNumber(undefined)).toBeNull()
+  })
+
+  it('parses "$1.5B" → 1500000000', () => {
+    expect(parseRevenueToNumber('$1.5B')).toBe(1500000000)
+  })
+
+  it('parses "-" → null', () => {
+    expect(parseRevenueToNumber('-')).toBeNull()
+  })
+
+  it('parses empty string → null', () => {
+    expect(parseRevenueToNumber('')).toBeNull()
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════
+// GAP-32: Direct unit tests for fuzzyIndustryScore
+// ══════════════════════════════════════════════════════════════════
+
+describe('fuzzyIndustryScore', () => {
+  it('exact match returns 100', () => {
+    expect(fuzzyIndustryScore('Technology', mockIcpProfile)).toBe(100)
+  })
+
+  it('substring match returns 100', () => {
+    expect(fuzzyIndustryScore('FinTech Solutions', mockIcpProfile)).toBe(100)
+  })
+
+  it('partial keyword match returns 70', () => {
+    // With single-word targets, partial match via word overlap requires a custom ICP.
+    // Target "financial technology" → targetWords (>3 chars): {"financial", "technology"}
+    // Company "Financial Services" → companyWords: {"financial", "services"}
+    // "financial" is in targetWords → 70 (and "financial services" doesn't include "financial technology")
+    const customIcp = { ...mockIcpProfile, targetIndustries: ['financial technology', 'healthcare'] }
+    expect(fuzzyIndustryScore('Financial Services', customIcp)).toBe(70)
+  })
+
+  it('excluded industry returns 0', () => {
+    expect(fuzzyIndustryScore('Gambling & Casino', mockIcpProfile)).toBe(0)
+    expect(fuzzyIndustryScore('Online Casino Games', mockIcpProfile)).toBe(0)
+  })
+
+  it('no match returns 0', () => {
+    expect(fuzzyIndustryScore('Retail', mockIcpProfile)).toBe(0)
+  })
+
+  it('null industry returns 0', () => {
+    expect(fuzzyIndustryScore(null, mockIcpProfile)).toBe(0)
+  })
+
+  it('empty string returns 0', () => {
+    expect(fuzzyIndustryScore('', mockIcpProfile)).toBe(0)
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════
+// GAP-33: Direct unit tests for fuzzyGeographyScore
+// ══════════════════════════════════════════════════════════════════
+
+describe('fuzzyGeographyScore', () => {
+  it('exact country match returns 100', () => {
+    expect(fuzzyGeographyScore('United States', null, mockIcpProfile)).toBe(100)
+  })
+
+  it('exact region alias match (USA) returns 100', () => {
+    expect(fuzzyGeographyScore('USA', null, mockIcpProfile)).toBe(100)
+  })
+
+  it('location contains target region returns 100', () => {
+    expect(fuzzyGeographyScore(null, 'San Francisco, USA', mockIcpProfile)).toBe(100)
+  })
+
+  it('same region group (mexico, north america) returns 60', () => {
+    // Mexico is in 'north america' group, USA is a target region also in that group
+    expect(fuzzyGeographyScore('Mexico', null, mockIcpProfile)).toBe(60)
+  })
+
+  it('no match returns 0', () => {
+    expect(fuzzyGeographyScore('Japan', 'Tokyo', mockIcpProfile)).toBe(0)
+  })
+
+  it('null country and location returns 0', () => {
+    expect(fuzzyGeographyScore(null, null, mockIcpProfile)).toBe(0)
+  })
+
+  it('UK (in europe region group with "uk" target) returns 60', () => {
+    // "United Kingdom" doesn't contain "uk" as a substring, so no exact match.
+    // But UK is in the europe REGION_GROUPS, and "uk" is a target region also in that group → 60
+    expect(fuzzyGeographyScore('United Kingdom', null, mockIcpProfile)).toBe(60)
+  })
+
+  it('country "uk" (exact alias) returns 100', () => {
+    expect(fuzzyGeographyScore('uk', null, mockIcpProfile)).toBe(100)
+  })
+
+  it('Germany (europe group, shares group with UK target) returns 60', () => {
+    // Germany and UK are both in europe REGION_GROUP. UK is a target region.
+    // companyInGroup=true (Germany in europe) AND group has a target (uk) → 60
+    expect(fuzzyGeographyScore('Germany', null, mockIcpProfile)).toBe(60)
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════
+// GAP-34a: Direct unit tests for classifyTier
+// ══════════════════════════════════════════════════════════════════
+
+describe('classifyTier', () => {
+  it('score 90 → HOT', () => {
+    expect(classifyTier(90)).toBe('HOT')
+  })
+
+  it('score 100 → HOT', () => {
+    expect(classifyTier(100)).toBe('HOT')
+  })
+
+  it('score 70 → ACTIVE', () => {
+    expect(classifyTier(70)).toBe('ACTIVE')
+  })
+
+  it('score 89 → ACTIVE', () => {
+    expect(classifyTier(89)).toBe('ACTIVE')
+  })
+
+  it('score 50 → NURTURE', () => {
+    expect(classifyTier(50)).toBe('NURTURE')
+  })
+
+  it('score 69 → NURTURE', () => {
+    expect(classifyTier(69)).toBe('NURTURE')
+  })
+
+  it('score 49 → LOW', () => {
+    expect(classifyTier(49)).toBe('LOW')
+  })
+
+  it('score 0 → LOW', () => {
+    expect(classifyTier(0)).toBe('LOW')
+  })
+
+  it('custom thresholds override defaults', () => {
+    expect(classifyTier(85, { hot: 85, active: 60, nurture: 40 })).toBe('HOT')
+    expect(classifyTier(60, { hot: 85, active: 60, nurture: 40 })).toBe('ACTIVE')
+    expect(classifyTier(40, { hot: 85, active: 60, nurture: 40 })).toBe('NURTURE')
+    expect(classifyTier(39, { hot: 85, active: 60, nurture: 40 })).toBe('LOW')
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════
+// GAP-34b: Direct unit tests for computeComposite
+// ══════════════════════════════════════════════════════════════════
+
+describe('computeComposite', () => {
+  const mkStatic = (total: number): StaticFitBreakdown => ({
+    industryScore: total, companySizeScore: total, geographyScore: total,
+    revenueScore: total, techFitScore: total, total,
+  })
+  const mkDynamic = (total: number): DynamicIntelBreakdown => ({
+    intelligenceScoreNorm: total, researchDepthScore: total,
+    signalQualityScore: total, contactCoverageScore: total, total,
+  })
+  const mkTiming = (total: number): TimingUrgencyBreakdown => ({
+    signalRecencyScore: total, engagementRecencyScore: total,
+    growthIndicatorScore: total, total,
+  })
+
+  it('exclusion industry caps composite at 49', () => {
+    // Even with perfect scores, excluded industry caps at 49
+    const score = computeComposite(mkStatic(100), mkDynamic(100), mkTiming(100), 'Gambling')
+    expect(score).toBe(49)
+  })
+
+  it('non-excluded industry is not capped', () => {
+    const score = computeComposite(mkStatic(100), mkDynamic(100), mkTiming(100), 'Technology')
+    expect(score).toBe(100)
+  })
+
+  it('null industry skips exclusion check', () => {
+    const score = computeComposite(mkStatic(100), mkDynamic(100), mkTiming(100), null)
+    expect(score).toBe(100)
+  })
+
+  it('weights are normalized if they do not sum to 1.0', () => {
+    // Default weights: staticFit=0.40, dynamicIntel=0.40, timingUrgency=0.20 → sum=1.0 → no normalization needed
+    // But if icp has custom weights like 1,1,1 → sum=3 → normalized to 1/3 each
+    // We use the mock ICP which has no scoreWeights, so defaults are used
+    const score1 = computeComposite(mkStatic(80), mkDynamic(60), mkTiming(50), 'Technology')
+    // 80*0.40 + 60*0.40 + 50*0.20 = 32 + 24 + 10 = 66
+    expect(score1).toBe(66)
+  })
+
+  it('composite is clamped to 0-100', () => {
+    const score = computeComposite(mkStatic(100), mkDynamic(100), mkTiming(100), 'Technology')
+    expect(score).toBeLessThanOrEqual(100)
+    expect(score).toBeGreaterThanOrEqual(0)
+  })
+
+  it('all-zero inputs yield 0', () => {
+    const score = computeComposite(mkStatic(0), mkDynamic(0), mkTiming(0), 'Technology')
+    expect(score).toBe(0)
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════
+// GAP-34c: Direct unit tests for toSignalEvidence
+// ══════════════════════════════════════════════════════════════════
+
+describe('toSignalEvidence', () => {
+  const now = new Date('2025-01-15T12:00:00Z')
+  const baseDate = new Date('2025-01-10T12:00:00Z') // 5 days ago
+  const olderDate = new Date('2025-01-01T12:00:00Z') // 14 days ago
+
+  it('uses signalDate over createdAt when signalDate is present', () => {
+    const rows = [{
+      id: 'sig-1',
+      title: 'Funding round',
+      signalType: 'funding',
+      severity: 'high',
+      source: 'news',
+      createdAt: olderDate,
+      signalDate: baseDate,
+    }]
+    const result = toSignalEvidence(rows, now)
+    // signalDate (Jan 10) is 5 days from now (Jan 15), not 14 days from createdAt (Jan 1)
+    expect(result[0].daysAgo).toBe(5)
+  })
+
+  it('falls back to createdAt when signalDate is null', () => {
+    const rows = [{
+      id: 'sig-2',
+      title: 'Hiring spree',
+      signalType: 'hiring',
+      severity: 'medium',
+      source: 'linkedin',
+      createdAt: olderDate,
+      signalDate: null,
+    }]
+    const result = toSignalEvidence(rows, now)
+    // createdAt (Jan 1) is 14 days from now (Jan 15)
+    expect(result[0].daysAgo).toBe(14)
+  })
+
+  it('maps all fields correctly', () => {
+    const rows = [{
+      id: 'sig-3',
+      title: 'Tech change',
+      signalType: 'technology',
+      severity: 'critical',
+      source: 'api',
+      createdAt: baseDate,
+      signalDate: baseDate,
+    }]
+    const result = toSignalEvidence(rows, now)
+    expect(result[0]).toEqual({
+      signalId: 'sig-3',
+      title: 'Tech change',
+      signalType: 'technology',
+      severity: 'critical',
+      daysAgo: 5,
+      source: 'api',
+    })
+  })
+
+  it('handles empty array', () => {
+    const result = toSignalEvidence([], now)
+    expect(result).toEqual([])
   })
 })

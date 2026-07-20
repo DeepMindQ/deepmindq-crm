@@ -47,7 +47,7 @@ function keyToRegex(key: string): { regex: RegExp; paramNames: string[] } {
   return { regex: new RegExp('^' + regexParts.join('/') + '$'), paramNames };
 }
 
-function matchRoute(slug: string[]): { handler: Record<string, Function>; params: Record<string, string> } | null {
+function matchRoute(slug: string[]): { handler: Record<string, (...args: any[]) => any>; params: Record<string, string> } | null {
   const path = slug.join('/');
   for (const route of ROUTES) {
     const { regex, paramNames } = keyToRegex(route.key);

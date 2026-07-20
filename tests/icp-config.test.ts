@@ -378,17 +378,16 @@ describe('parseEmployeeCount', () => {
       expect(parseEmployeeCount('201-500', null)).toBe(500);
     });
 
-    it('parses "501-1000" → 100 (regex caps digits at 3; use commas for 4+ digits)', () => {
-      // The regex \d{1,3} captures only first 3 digits of "1000" → "100"
-      expect(parseEmployeeCount('501-1000', null)).toBe(100);
+    it('parses "501-1000" → 1000 (upper bound)', () => {
+      expect(parseEmployeeCount('501-1000', null)).toBe(1000);
     });
 
-    it('parses "1001-5000" → 500 (same regex limitation)', () => {
-      expect(parseEmployeeCount('1001-5000', null)).toBe(500);
+    it('parses "1001-5000" → 5000 (upper bound)', () => {
+      expect(parseEmployeeCount('1001-5000', null)).toBe(5000);
     });
 
-    it('parses "5001-10000" → 100 (same regex limitation)', () => {
-      expect(parseEmployeeCount('5001-10000', null)).toBe(100);
+    it('parses "5001-10000" → 10000 (upper bound)', () => {
+      expect(parseEmployeeCount('5001-10000', null)).toBe(10000);
     });
 
     it('parses "10001+" → 10001 (plus-pattern regex handles 4+ digits)', () => {
@@ -442,9 +441,8 @@ describe('parseEmployeeCount', () => {
     });
 
     it('falls back to sizeRange when enrichment is empty', () => {
-      // "" is falsy, so sizeRange "501-1000" is used
-      // regex captures 3-digit upper bound → 100
-      expect(parseEmployeeCount('501-1000', '')).toBe(100);
+      // "" is falsy, so sizeRange "501-1000" is used → upper bound is 1000
+      expect(parseEmployeeCount('501-1000', '')).toBe(1000);
     });
   });
 });
@@ -585,7 +583,7 @@ describe('getIcpProfileSync', () => {
     // scoreWeights is optional but defined in DEFAULT_ICP
     expect(profile.scoreWeights).toBeDefined();
     const sw = profile.scoreWeights!;
-    const sum = sw.staticFit + sw.dynamicIntelligence + sw.timingUrgency;
+    const sum = sw.staticFit + sw.dynamicIntel + sw.timingUrgency;
     expect(Math.abs(sum - 1.0)).toBeLessThan(0.01);
   });
 

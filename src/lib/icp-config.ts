@@ -292,7 +292,10 @@ export function parseEmployeeCount(
   }
   if (!sizeRange) return 0;
   // Extract the upper bound of the range
-  const match = sizeRange.match(/(\d{1,3}(?:,\d{3})*)\s*[-+]\s*(\d{1,3}(?:,\d{3})*)?/);
+  // Supports: "1-10", "501-1,000", "1,001-5,000", "1001-5000", "5001+", "10001+"
+  // NOTE: \d{4,} must come before \d{1,3} in alternation so 4+ digit numbers match correctly
+  const rangeRe = /^(\d{1,3}(?:,\d{3})*|\d{4,})\s*[-+]\s*((\d{4,}|\d{1,3}(?:,\d{3})*))?/;
+  const match = sizeRange.match(rangeRe);
   if (match) {
     const upper = match[2] ? parseInt(match[2].replace(/,/g, ''), 10) : parseInt(match[1].replace(/,/g, ''), 10);
     return Number.isFinite(upper) ? upper : 0;

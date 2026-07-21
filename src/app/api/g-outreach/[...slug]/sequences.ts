@@ -2,21 +2,37 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { validateBody } from '@/lib/validate';
 import { z } from 'zod/v4';
+import { parsePagination, paginatedResponse } from '@/lib/pagination';
 
 /* ═══════════════════════════════════════════════════
    GET /api/sequences
    List sequences with step counts and enrollment counts
    ═══════════════════════════════════════════════════ */
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const sequences = await db.emailSequence.findMany({
-      where: { isActive: true },
-      include: {
-        steps: { orderBy: { stepNumber: 'asc' } },
-        _count: { select: { enrollments: true } },
-      },
-      orderBy: { createdAt: 'desc' },
+    const { searchParams } = new URL(request.url);
+    const { page, limit, skip, sortBy, sortOrder } = parsePagination({
+      page: searchParams.get('page') || '1',
+      limit: searchParams.get('limit') || '20',
+      sortBy: searchParams.get('sortBy') || 'createdAt',
+      sortOrder: (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc',
     });
+
+    const where = { isActive: true } as const;
+
+    const [sequences, total] = await Promise.all([
+      db.emailSequence.findMany({
+        where,
+        include: {
+          steps: { orderBy: { stepNumber: 'asc' } },
+          _count: { select: { enrollments: true } },
+        },
+        orderBy: { [sortBy]: sortOrder } as Record<string, 'asc' | 'desc'>,
+        skip,
+        take: limit,
+      }),
+      db.emailSequence.count({ where }),
+    ]);
 
     // Collect IDs for signal, capability match, and opportunity lookups
     const signalIds = sequences
@@ -120,10 +136,10 @@ export async function GET() {
       return result;
     });
 
-    return NextResponse.json(enriched);
+    return NextResponse.json(paginatedResponse(enriched, total, page, limit));
   } catch (error) {
     console.error('Sequences GET error:', error);
-    return NextResponse.json([]);
+    return NextResponse.json(paginatedResponse([], 0, 1, 20));
   }
 }
 

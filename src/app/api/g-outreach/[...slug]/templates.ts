@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { validateBody } from '@/lib/validate';
 import { z } from 'zod/v4';
+import { parsePagination, paginatedResponse } from '@/lib/pagination';
 
 /* ═══════════════════════════════════════════════════
    GET /api/templates
@@ -20,15 +21,27 @@ export async function GET(request: Request) {
     if (tone) where.tone = tone;
     if (category) where.category = category;
 
-    const templates = await db.emailTemplate.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
+    const { page, limit, skip, sortBy, sortOrder } = parsePagination({
+      page: searchParams.get('page') || '1',
+      limit: searchParams.get('limit') || '20',
+      sortBy: searchParams.get('sortBy') || 'createdAt',
+      sortOrder: (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc',
     });
 
-    return NextResponse.json(templates);
+    const [templates, total] = await Promise.all([
+      db.emailTemplate.findMany({
+        where,
+        orderBy: { [sortBy]: sortOrder } as Record<string, 'asc' | 'desc'>,
+        skip,
+        take: limit,
+      }),
+      db.emailTemplate.count({ where }),
+    ]);
+
+    return NextResponse.json(paginatedResponse(templates, total, page, limit));
   } catch (error) {
     console.error('Templates GET error:', error);
-    return NextResponse.json([]);
+    return NextResponse.json(paginatedResponse([], 0, 1, 20));
   }
 }
 

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { generateEmailDraft } from '@/lib/email-generation';
 import { generateMessageId, signQueueId } from '@/lib/email-tracking';
+import { parsePagination, paginatedResponse } from '@/lib/pagination';
 
 /* ═══════════════════════════════════════════════════
    Demo drafts — shown when no real DB data exists
@@ -66,36 +67,51 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || '';
 
+    const { page, limit, skip, sortBy, sortOrder } = parsePagination({
+      page: searchParams.get('page') || '1',
+      limit: searchParams.get('limit') || '20',
+      sortBy: searchParams.get('sortBy') || 'createdAt',
+      sortOrder: (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc',
+    });
+
     const where: Prisma.DraftWhereInput = {};
     if (status) {
       where.status = status;
     }
 
-    const drafts = await db.draft.findMany({
-      where,
-      include: {
-        contact: {
-          include: { company: { include: { researchCard: true } } },
+    const [drafts, total] = await Promise.all([
+      db.draft.findMany({
+        where,
+        include: {
+          contact: {
+            include: { company: { include: { researchCard: true } } },
+          },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { [sortBy]: sortOrder } as Record<string, 'asc' | 'desc'>,
+        skip,
+        take: limit,
+      }),
+      db.draft.count({ where }),
+    ]);
 
     // If no real data, return demo drafts
-    if (drafts.length === 0) {
+    if (drafts.length === 0 && total === 0) {
       let filtered = DEMO_DRAFTS;
       if (status) filtered = filtered.filter(d => d.status === status);
-      return NextResponse.json(filtered);
+      const demoTotal = filtered.length;
+      const start = (page - 1) * limit;
+      return NextResponse.json(paginatedResponse(filtered.slice(start, start + limit), demoTotal, page, limit));
     }
 
-    return NextResponse.json(drafts);
+    return NextResponse.json(paginatedResponse(drafts, total, page, limit));
   } catch (error) {
     console.error('Drafts GET error:', error);
+    const { page, limit } = parsePagination({ page: '1', limit: '20' });
     let filtered = DEMO_DRAFTS;
     const url = new URL(request.url);
     const status = url.searchParams.get('status') || '';
     if (status) filtered = filtered.filter(d => d.status === status);
-    return NextResponse.json(filtered);
+    return NextResponse.json(paginatedResponse(filtered, filtered.length, page, limit));
   }
 }
 

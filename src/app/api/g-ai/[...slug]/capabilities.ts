@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { getVectorIndex } from '@/lib/vector-index';
+import { parsePagination, paginatedResponse } from '@/lib/pagination';
 
 /* ── In-memory demo fallback ── */
 let demoStore: Record<string, unknown>[] = [];
@@ -65,10 +66,22 @@ export async function GET(request: Request) {
       where.tags = { contains: tag.toLowerCase() };
     }
 
-    const capabilities = await db.capabilityAsset.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
+    const { page, limit, skip, sortBy, sortOrder } = parsePagination({
+      page: searchParams.get('page') || '1',
+      limit: searchParams.get('limit') || '20',
+      sortBy: searchParams.get('sortBy') || 'createdAt',
+      sortOrder: (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc',
     });
+
+    const [capabilities, total] = await Promise.all([
+      db.capabilityAsset.findMany({
+        where,
+        orderBy: { [sortBy]: sortOrder } as Record<string, 'asc' | 'desc'>,
+        skip,
+        take: limit,
+      }),
+      db.capabilityAsset.count({ where }),
+    ]);
 
     // Parse tags for each capability in response
     const withTags = capabilities.map(c => ({
@@ -76,17 +89,21 @@ export async function GET(request: Request) {
       tags: parseTagsField(c.tags),
     }));
 
-    return NextResponse.json(withTags);
+    return NextResponse.json(paginatedResponse(withTags, total, page, limit));
   } catch (error) {
     console.error('Capabilities DB error, using demo data:', error);
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category') || '';
+    const { page, limit } = parsePagination({
+      page: searchParams.get('page') || '1',
+      limit: searchParams.get('limit') || '20',
+    });
     const data = getDemoCapabilities(category);
     const withTags = data.map(c => ({
       ...c,
       tags: parseTagsField((c as Record<string, unknown>).tags as string | null),
     }));
-    return NextResponse.json(withTags);
+    return NextResponse.json(paginatedResponse(withTags, withTags.length, page, limit));
   }
 }
 

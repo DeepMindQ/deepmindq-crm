@@ -117,6 +117,7 @@ model Company {
   signalValidations         SignalValidation[]
   intelligenceHealth        CompanyIntelligenceHealth?
   intelligenceConflicts     IntelligenceConflict[]
+  recommendationFeedbacks   RecommendationFeedback[]
 
   @@index([domain])
   @@index([normalizedName])
@@ -1146,12 +1147,14 @@ model OpportunityRecommendation {
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
   confidenceBreakdown     Json?
+  confidenceFactors      Json? // Phase 6.1: explainability factors { positiveFactors: [], negativeFactors: [] }
 
   company         Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   signal          CompanySignal         @relation(fields: [signalId], references: [id])
   capabilityMatch SignalCapabilityMatch @relation(fields: [capabilityMatchId], references: [id])
   pursuits        Pursuit[]
   sequences       EmailSequence[]
+  feedbacks       RecommendationFeedback[]
 
   @@index([companyId])
   @@index([signalId])
@@ -1358,4 +1361,37 @@ model PriorityScoreHistory {
   @@index([companyId])
   @@index([companyId, computedAt(sort: Desc)])
   @@index([computedAt])
+}
+
+// ── Phase 6.1 Hardening: Human Feedback Loop ──
+
+model RecommendationFeedback {
+  id              String   @id @default(cuid())
+  recommendationId String
+  companyId       String
+  userDecision    String   // confirmed_accurate | partially_accurate | incorrect | needs_more_evidence
+  feedbackReason  String?
+  createdAt       DateTime @default(now())
+
+  recommendation  OpportunityRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  company         Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([recommendationId])
+  @@index([companyId])
+  @@index([userDecision])
+}
+
+// ── Phase 6.1 Hardening: Source Reliability Model ──
+
+model EvidenceSourceReliability {
+  id                 String   @id @default(cuid())
+  domain             String   @unique
+  totalEvidence      Int      @default(0)
+  validatedCorrect   Int      @default(0)
+  validatedIncorrect Int      @default(0)
+  reliabilityScore   Float    @default(0.5) // 0-1
+  lastUpdated        DateTime @default(now())
+
+  @@index([domain])
+  @@index([reliabilityScore])
 }

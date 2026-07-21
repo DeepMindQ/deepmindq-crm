@@ -8,6 +8,9 @@ import * as mod_validate from './validate.ts';
 import * as mod_confidence from './confidence.ts';
 import * as mod_conflicts from './conflicts.ts';
 import * as mod_dashboard from './dashboard.ts';
+import * as mod_feedback from './feedback.ts';
+import * as mod_trust_report from './trust-report.ts';
+import * as mod_source_reliability from './source-reliability.ts';
 
 // Route registry
 const ROUTES = [
@@ -18,6 +21,9 @@ const ROUTES = [
   { key: 'companies/[id]/confidence', handler: mod_confidence },
   { key: 'conflicts', handler: mod_conflicts },
   { key: 'dashboard', handler: mod_dashboard },
+  { key: 'companies/[id]/feedback', handler: mod_feedback },
+  { key: 'recommendations/[id]/trust-report', handler: mod_trust_report },
+  { key: 'source-reliability', handler: mod_source_reliability },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

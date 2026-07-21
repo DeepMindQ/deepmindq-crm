@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { apiRateLimit } from '@/lib/rate-limit';
+import { validateCsrf } from '@/lib/csrf';
+import { apiError } from '@/lib/apiHelpers';
 
 // Inline imports for data routes (10 original + Data Intelligence handlers)
 import * as mod_stats from './stats.ts';
@@ -249,10 +252,32 @@ async function handle(method: HttpMethod, req: NextRequest, slug: string[]): Pro
   const matched = matchRoute(slug);
   if (!matched) return NextResponse.json({ error: 'Not found', path: slug.join('/') }, { status: 404 });
 
+  // Rate limiting
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || req.headers.get('x-real-ip') || 'unknown';
+  const rl = apiRateLimit(ip, slug.join('/'));
+  if (!rl.success) {
+    return apiError('Too many requests. Please try again later.', 429);
+  }
+
+  // CSRF protection for mutating methods
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    if (!validateCsrf(req)) {
+      return apiError('CSRF validation failed', 403);
+    }
+  }
+
+  // Helper to append rate-limit headers
+  const withRL = (res: Response) => {
+    const newRes = new Response(res.body, res);
+    newRes.headers.set('X-RateLimit-Remaining', String(rl.remaining));
+    newRes.headers.set('X-RateLimit-Reset', String(rl.resetAt));
+    return newRes;
+  };
+
   // Inline handler (no module import needed)
   if (matched.inlineHandler) {
     if (method !== 'POST') return NextResponse.json({ error: `${method} not allowed` }, { status: 405 });
-    try { return await matched.inlineHandler(req); }
+    try { return withRL(await matched.inlineHandler(req)); }
     catch (err: any) { console.error(`[router:data] ${method} /${slug.join('/')}:`, err.message); return NextResponse.json({ error: 'Internal error', detail: err.message }, { status: 500 }); }
   }
 
@@ -270,7 +295,7 @@ async function handle(method: HttpMethod, req: NextRequest, slug: string[]): Pro
   const fn = handler?.[method];
   if (typeof fn !== 'function') return NextResponse.json({ error: `${method} not allowed` }, { status: 405 });
   // Pass original slug array — handlers expect { params: { slug: string[] } }
-  try { return await fn(req, { params: Promise.resolve({ slug }) }); }
+  try { return withRL(await fn(req, { params: Promise.resolve({ slug }) })); }
   catch (err: any) { console.error(`[router:data] ${method} /${slug.join('/')}:`, err.message); return NextResponse.json({ error: 'Internal error', detail: err.message }, { status: 500 }); }
 }
 

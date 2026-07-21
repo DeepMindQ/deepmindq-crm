@@ -1,6 +1,8 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { validateBody } from '@/lib/validate';
+import { z } from 'zod/v4';
 
 /* ═══════════════════════════════════════════════════
    Demo companies — shown when DB has no real data
@@ -178,11 +180,20 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { rawName, domain, industry, sizeRange, location, country, website } = body;
-
-    if (!rawName || typeof rawName !== 'string' || rawName.trim().length === 0) {
-      return NextResponse.json({ error: 'rawName is required' }, { status: 400 });
+    const createCompanyBody = z.object({
+      rawName: z.string().min(1, 'rawName is required'),
+      domain: z.string().optional(),
+      industry: z.string().optional(),
+      sizeRange: z.string().optional(),
+      location: z.string().optional(),
+      country: z.string().optional(),
+      website: z.string().optional(),
+    });
+    const validated = validateBody(createCompanyBody, body);
+    if (!validated.success) {
+      return NextResponse.json({ error: 'Validation failed', details: validated.error }, { status: 400 });
     }
+    const { rawName, domain, industry, sizeRange, location, country, website } = validated.data;
 
     const normalizedName = rawName.trim().toLowerCase();
 

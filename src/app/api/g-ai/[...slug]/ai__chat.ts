@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
+import { validateBody } from '@/lib/validate'
+import { z } from 'zod/v4'
 // ── GOVERNANCE ENFORCEMENT ──
 // This route MUST go through the governance layer.
 // Direct access to callLLM / callChatLLM is FORBIDDEN.
@@ -213,11 +215,22 @@ function generateTemplateResponse(message: string): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { message, context, conversationHistory } = body
-
-    if (!message || typeof message !== 'string') {
-      return apiError('Message is required', 400)
+    const chatBody = z.object({
+      message: z.string().min(1, 'message is required'),
+      context: z.object({
+        companyId: z.string().optional(),
+        contactId: z.string().optional(),
+      }).optional(),
+      conversationHistory: z.array(z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string(),
+      })).optional(),
+    })
+    const validated = validateBody(chatBody, body)
+    if (!validated.success) {
+      return NextResponse.json({ error: 'Validation failed', details: validated.error }, { status: 400 })
     }
+    const { message, context, conversationHistory } = validated.data
 
     // 1. Build context string if context IDs provided
     let contextStr = ''

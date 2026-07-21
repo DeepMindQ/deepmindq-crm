@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { governedAICallAggregate } from '@/lib/ai-governance';
+import { validateBody } from '@/lib/validate';
+import { z } from 'zod/v4';
 
 function safeJsonParse(str: string | null | undefined, fallback: any) {
   if (!str) return fallback;
@@ -32,7 +34,21 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, description, category, targetIndustry, targetRole, aiGenerate, steps, aiTips } = body;
+    const createPlaybookBody = z.object({
+      name: z.string().min(1, 'name is required'),
+      description: z.string().optional(),
+      category: z.string().optional(),
+      targetIndustry: z.string().optional(),
+      targetRole: z.string().optional(),
+      aiGenerate: z.boolean().optional(),
+      steps: z.array(z.any()).optional(),
+      aiTips: z.string().optional(),
+    });
+    const validated = validateBody(createPlaybookBody, body);
+    if (!validated.success) {
+      return NextResponse.json({ error: 'Validation failed', details: validated.error }, { status: 400 });
+    }
+    const { name, description, category, targetIndustry, targetRole, aiGenerate, steps, aiTips } = validated.data;
 
     let finalSteps = steps || [];
     let finalAiTips = aiTips || null;

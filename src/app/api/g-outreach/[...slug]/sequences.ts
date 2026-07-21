@@ -1,5 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { validateBody } from '@/lib/validate';
+import { z } from 'zod/v4';
 
 /* ═══════════════════════════════════════════════════
    GET /api/sequences
@@ -134,11 +136,23 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, description, serviceLine, steps } = body;
-
-    if (!name || !steps || !Array.isArray(steps) || steps.length === 0) {
-      return NextResponse.json({ error: 'name and steps are required' }, { status: 400 });
+    const createSequenceBody = z.object({
+      name: z.string().min(1, 'name is required'),
+      description: z.string().optional(),
+      serviceLine: z.string().optional(),
+      steps: z.array(z.object({
+        stepNumber: z.number().int().positive(),
+        delayDays: z.number().optional(),
+        subject: z.string().min(1, 'step subject is required'),
+        body: z.string().min(1, 'step body is required'),
+        cta: z.string().optional(),
+      })).min(1, 'steps must be a non-empty array'),
+    });
+    const validated = validateBody(createSequenceBody, body);
+    if (!validated.success) {
+      return NextResponse.json({ error: 'Validation failed', details: validated.error }, { status: 400 });
     }
+    const { name, description, serviceLine, steps } = validated.data;
 
     const sequence = await db.emailSequence.create({
       data: {
@@ -146,7 +160,7 @@ export async function POST(request: Request) {
         description: description || null,
         serviceLine: serviceLine || null,
         steps: {
-          create: steps.map((step: { stepNumber: number; delayDays: number; subject: string; body: string; cta?: string }) => ({
+          create: steps.map((step) => ({
             stepNumber: step.stepNumber,
             delayDays: step.delayDays || 3,
             subject: step.subject,
@@ -178,11 +192,23 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, stepId, ...updates } = body;
-
-    if (!id) {
-      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    const updateSequenceBody = z.object({
+      id: z.string().min(1, 'id is required'),
+      stepId: z.string().optional(),
+      name: z.string().min(1).optional(),
+      description: z.string().optional(),
+      serviceLine: z.string().optional(),
+      isActive: z.boolean().optional(),
+      subject: z.string().min(1).optional(),
+      body: z.string().min(1).optional(),
+      cta: z.string().optional(),
+      delayDays: z.number().optional(),
+    });
+    const validated = validateBody(updateSequenceBody, body);
+    if (!validated.success) {
+      return NextResponse.json({ error: 'Validation failed', details: validated.error }, { status: 400 });
     }
+    const { id, stepId, ...updates } = validated.data;
 
     if (stepId) {
       // Update a specific step

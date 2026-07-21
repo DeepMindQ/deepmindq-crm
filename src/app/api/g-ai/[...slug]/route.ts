@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { apiRateLimit } from '@/lib/rate-limit';
+import { validateCsrf } from '@/lib/csrf';
+import { apiError } from '@/lib/apiHelpers';
 
 // Inline imports for ai routes (32 handlers)
 import * as mod_ai__suggested_contacts from './ai__suggested-contacts.ts';
@@ -116,7 +119,26 @@ async function handle(method: HttpMethod, req: NextRequest, slug: string[]): Pro
   if (!matched) return NextResponse.json({ error: 'Not found', path: slug.join('/') }, { status: 404 });
   const fn = matched.handler[method];
   if (typeof fn !== 'function') return NextResponse.json({ error: `${method} not allowed` }, { status: 405 });
-  try { return await fn(req, { params: Promise.resolve(matched.params) }); }
+  // Rate limiting
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || req.headers.get('x-real-ip') || 'unknown';
+  const rl = apiRateLimit(ip, slug.join('/'));
+  if (!rl.success) {
+    return apiError('Too many requests. Please try again later.', 429);
+  }
+  // CSRF protection for mutating methods
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    if (!validateCsrf(req)) {
+      return apiError('CSRF validation failed', 403);
+    }
+  }
+  try {
+    const res = await fn(req, { params: Promise.resolve(matched.params) });
+    // Append rate limit headers
+    const newRes = new Response(res.body, res);
+    newRes.headers.set('X-RateLimit-Remaining', String(rl.remaining));
+    newRes.headers.set('X-RateLimit-Reset', String(rl.resetAt));
+    return newRes;
+  }
   catch (err: any) { console.error(`[router:ai] ${method} /${slug.join('/')}:`, err.message); return NextResponse.json({ error: 'Internal error', detail: err.message }, { status: 500 }); }
 }
 

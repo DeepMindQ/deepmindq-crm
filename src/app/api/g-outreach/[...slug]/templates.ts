@@ -1,6 +1,8 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { validateBody } from '@/lib/validate';
+import { z } from 'zod/v4';
 
 /* ═══════════════════════════════════════════════════
    GET /api/templates
@@ -37,11 +39,20 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, subject, body: templateBody, cta, serviceLine, tone, category } = body;
-
-    if (!name || !subject || !templateBody) {
-      return NextResponse.json({ error: 'name, subject, and body are required' }, { status: 400 });
+    const createTemplateBody = z.object({
+      name: z.string().min(1, 'name is required'),
+      subject: z.string().min(1, 'subject is required'),
+      body: z.string().min(1, 'body is required'),
+      cta: z.string().optional(),
+      serviceLine: z.string().optional(),
+      tone: z.string().optional(),
+      category: z.string().optional(),
+    });
+    const validated = validateBody(createTemplateBody, body);
+    if (!validated.success) {
+      return NextResponse.json({ error: 'Validation failed', details: validated.error }, { status: 400 });
     }
+    const { name, subject, body: templateBody, cta, serviceLine, tone, category } = validated.data;
 
     // Extract {{variable}} placeholders from subject + body
     const placeholderRegex = /\{\{(\w+)\}\}/g;
@@ -82,11 +93,22 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, name, subject, body: templateBody, cta, serviceLine, tone, category, isActive } = body;
-
-    if (!id) {
-      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    const updateTemplateBody = z.object({
+      id: z.string().min(1, 'id is required'),
+      name: z.string().min(1).optional(),
+      subject: z.string().min(1).optional(),
+      body: z.string().min(1).optional(),
+      cta: z.string().optional(),
+      serviceLine: z.string().optional(),
+      tone: z.string().optional(),
+      category: z.string().optional(),
+      isActive: z.boolean().optional(),
+    });
+    const validated = validateBody(updateTemplateBody, body);
+    if (!validated.success) {
+      return NextResponse.json({ error: 'Validation failed', details: validated.error }, { status: 400 });
     }
+    const { id, name, subject, body: templateBody, cta, serviceLine, tone, category, isActive } = validated.data;
 
     const fullText = (subject || '') + ' ' + (templateBody || '') + ' ' + (cta || '');
     const placeholderRegex = /\{\{(\w+)\}\}/g;

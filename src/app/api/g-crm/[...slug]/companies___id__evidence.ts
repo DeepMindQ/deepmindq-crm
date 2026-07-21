@@ -1,6 +1,8 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { getCompanyEvidence, getEvidenceSummary, getEvidenceForField } from '@/lib/research-engine';
+// Security: intelligence guard available for future POST/PUT handlers
+import { withIntelligenceGuard } from '@/lib/intelligence-api-guard';
 
 /**
  * GET /api/g-crm/companies/[id]/evidence
@@ -76,7 +78,7 @@ export async function GET(
       };
 
       let fieldConfidence: Record<string, number> = {};
-      try { fieldConfidence = JSON.parse(researchCard.fieldConfidence || '{}'); } catch { /* ignore */ }
+      try { fieldConfidence = JSON.parse(researchCard.fieldConfidence || '{}'); } catch { /* ignore unparseable fieldConfidence — non-critical */ }
 
       for (const [field, value] of Object.entries(fieldMap)) {
         const fieldEvidence = await getEvidenceForField(companyId, field);

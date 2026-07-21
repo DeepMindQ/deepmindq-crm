@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @page { size: 794px 1123px; margin: 0; }
+  html, body { width: 794px; height: 1123px; margin: 0; padding: 0; background: #f1f1f0; font-family: 'Inter', sans-serif; }
+
+  .cover-page {
+    position: relative;
+    width: 794px;
+    height: 1123px;
+    overflow: hidden;
+    border: none;
+    outline: none;
+    box-shadow: none;
+  }
+
+  /* Layer 0 - Base */
+  .cover-base {
+    position: absolute; inset: 0; z-index: 0;
+    background: #ffffff;
+  }
+
+  /* Layer 1 - Background grid */
+  .cover-bg-layer {
+    position: absolute; inset: 0; overflow: hidden; z-index: 1;
+  }
+  .grid-overlay {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(87,80,61,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(87,80,61,0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+
+  /* Layer 2 - Structure */
+  .cover-structure {
+    position: absolute; inset: 0; z-index: 2;
+  }
+  .anchor-line {
+    position: absolute;
+    left: 0.12 * 794px; /* 95px */
+    top: 0.10 * 1123px; /* 112px */
+    width: 6px;
+    height: 0.80 * 1123px; /* 898px */
+    background: #57503d;
+  }
+
+  /* Layer 3 - Content */
+  .cover-content {
+    position: absolute; inset: 0; z-index: 3;
+  }
+  .content-area {
+    position: absolute;
+    left: 95px + 30px; /* 125px */
+    top: 0;
+    width: 794px - 125px - 80px; /* 589px */
+    height: 100%;
+  }
+
+  .kicker {
+    position: absolute;
+    top: 0.15 * 1123px; /* 168px */
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: rgba(33,32,30,0.55);
+    line-height: 1.4;
+  }
+
+  .hero-title {
+    position: absolute;
+    top: 0.28 * 1123px; /* 314px */
+    font-size: 48px;
+    font-weight: 900;
+    line-height: 1.1;
+    color: #21201e;
+    letter-spacing: -0.5px;
+  }
+  .hero-title .accent { color: #907421; }
+
+  .summary {
+    position: absolute;
+    top: 0.48 * 1123px; /* 539px */
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.65;
+    color: rgba(33,32,30,0.72);
+    width: 380px;
+  }
+
+  .meta {
+    position: absolute;
+    top: 0.74 * 1123px; /* 831px */
+    font-size: 14px;
+    font-weight: 400;
+    color: rgba(33,32,30,0.6);
+    line-height: 1.5;
+  }
+  .meta strong { color: #21201e; font-weight: 600; }
+
+  .footer-line {
+    position: absolute;
+    bottom: 0.06 * 1123px; /* 67px */
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(33,32,30,0.35);
+  }
+
+  /* Rating badge */
+  .rating-badge {
+    position: absolute;
+    right: 80px;
+    bottom: 0.12 * 1123px;
+    text-align: center;
+  }
+  .rating-number {
+    font-size: 72px;
+    font-weight: 900;
+    color: #907421;
+    line-height: 1;
+  }
+  .rating-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(33,32,30,0.45);
+    margin-top: 4px;
+  }
+  .rating-delta {
+    font-size: 12px;
+    font-weight: 600;
+    color: #3f8155;
+    margin-top: 2px;
+  }
+</style>
+</head>
+<body>
+<div class="cover-page">
+  <div class="cover-base"></div>
+  <div class="cover-bg-layer">
+    <div class="grid-overlay"></div>
+  </div>
+  <div class="cover-structure">
+    <div class="anchor-line"></div>
+  </div>
+  <div class="cover-content">
+    <div class="content-area">
+      <div class="kicker">DeepMindQ Intelligence Platform</div>
+      <div class="hero-title">Phase 7<br>Stabilisation<br><span class="accent">Evidence Report</span></div>
+      <div class="summary">
+        Comprehensive evidence log for all 13 stabilisation items (S1-S13), 
+        with TypeScript error analysis, test coverage metrics, and an honest 
+        assessment of platform readiness against enterprise production standards.
+      </div>
+      <div class="meta">
+        <strong>Scope:</strong> 13 S-Items | 770 Tests | 231 TS Errors<br>
+        <strong>Date:</strong> 22 July 2026<br>
+        <strong>Rating Method:</strong> 6-Dimension Weighted Assessment
+      </div>
+      <div class="footer-line">Z.ai Engineering Audit</div>
+    </div>
+    <div class="rating-badge">
+      <div class="rating-number">7.1</div>
+      <div class="rating-label">Readiness Score</div>
+      <div class="rating-delta">+0.2 from 6.9</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

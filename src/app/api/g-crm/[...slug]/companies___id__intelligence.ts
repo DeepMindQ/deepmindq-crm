@@ -1,6 +1,8 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { getCompanyEvidence, getEvidenceSummary } from '@/lib/research-engine';
+// Security: intelligence guard available for future POST/PUT handlers
+import { withIntelligenceGuard } from '@/lib/intelligence-api-guard';
 
 /**
  * GET /api/g-crm/companies/[id]/intelligence

@@ -62,8 +62,8 @@ function parseLLMJson(raw: string): ScoredOpportunity[] {
         }))
         .sort((a: ScoredOpportunity, b: ScoredOpportunity) => b.matchScore - a.matchScore)
     }
-  } catch {
-    // fall through to regex
+  } catch (e) {
+    console.debug('[ai-opportunities] AI scoring failed, falling through to regex:', e);
   }
 
   const opportunities: ScoredOpportunity[] = []

@@ -44,7 +44,7 @@ export async function POST(request: Request) {
           targetRoles: c.targetRoles || '', problems: c.problems || '', isActive: c.isActive,
         }));
       }
-    } catch { /* use demo */ }
+    } catch (e) { console.debug('[knowledge-engine] DB load failed, using demo:', e); }
 
     if (action === 'coverage') return analyzeCoverage(capabilities, body);
     if (action === 'coverage_v2') return analyzeCoverageV2(capabilities, body);

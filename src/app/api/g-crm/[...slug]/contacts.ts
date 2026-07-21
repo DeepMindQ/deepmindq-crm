@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { apiError, apiSuccess, validateBody, sanitizeFields, safeInt } from "@/lib/apiHelpers";
 import { createContactSchema } from "@/lib/validations";
+import { csrfMiddleware } from "@/lib/csrf";
 
 export async function GET(request: NextRequest) {
   try {
@@ -65,6 +66,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const csrf = csrfMiddleware(request)
+  if (!csrf.valid) return csrf.response!
   try {
     const body = await request.json();
     const data = validateBody(createContactSchema, body);

@@ -167,7 +167,7 @@ async function processEnrichmentJob(jobId: string, job: any): Promise<void> {
         step: `enrichment_${progress.step}`,
         progress: jobProgress,
         message: progress.message,
-      }).catch(() => {});
+      }).catch((err) => { console.error('[workflow-processor] non-blocking operation failed:', err) });
     },
   );
 
@@ -231,7 +231,7 @@ async function processResearchJob(jobId: string, job: any): Promise<void> {
         step: `research_${progress.step}`,
         progress: jobProgress,
         message: progress.message,
-      }).catch(() => {}); // non-blocking
+      }).catch((err) => { console.error('[workflow-processor] non-blocking operation failed:', err) });
     },
   );
 

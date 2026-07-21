@@ -35,26 +35,8 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Person",
-    name: "Ravi Shanker",
-    url: "https://deepmindq.com",
-    jobTitle: "Enterprise Growth Leader & Technology Strategist",
-    description: "Builder of DeepMindQ — a personal AI-powered intelligence workspace for enterprise growth.",
-    sameAs: ["https://www.linkedin.com/in/shankerpisupati/"],
-    email: "shanker001@gmail.com",
-    knowsAbout: ["Enterprise Sales", "Sales Intelligence", "AI", "Stakeholder Mapping", "Account Research", "Growth Strategy"],
-  };
-
   return (
     <html lang="en">
-      <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-      </head>
       <body className={`antialiased ${inter.variable}`}>
         <Providers>
           {children}

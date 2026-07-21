@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { validateBody } from '@/lib/validate';
 import { z } from 'zod/v4';
+import { csrfMiddleware } from '@/lib/csrf';
 
 /* ═══════════════════════════════════════════════════
    Demo companies — shown when DB has no real data
@@ -178,6 +179,8 @@ export async function GET(request: Request) {
    POST — Create a new company
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
+  const csrf = csrfMiddleware(request)
+  if (!csrf.valid) return csrf.response!
   try {
     const body = await request.json();
     const createCompanyBody = z.object({

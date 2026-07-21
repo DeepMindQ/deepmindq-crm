@@ -256,7 +256,7 @@ export async function POST(request: Request) {
     const customMappingStr = formData.get('mapping') as string | null;
     let customMapping: Record<string, string> | null = null;
     if (customMappingStr) {
-      try { customMapping = JSON.parse(customMappingStr); } catch { /* ignore invalid */ }
+      try { customMapping = JSON.parse(customMappingStr); } catch { /* ignore invalid custom mapping JSON */ }
     }
 
     if (!file) {

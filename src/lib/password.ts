@@ -10,8 +10,9 @@ const PBKDF2_ITERATIONS = 100_000;
 const HASH_LENGTH = 32; // 256 bits
 const SALT_LENGTH = 16; // 128 bits
 
-function toHex(buffer: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buffer))
+function toHex(buffer: ArrayBuffer | Uint8Array): string {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  return Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 }
@@ -45,7 +46,7 @@ async function deriveKey(password: string, salt: Uint8Array): Promise<string> {
     HASH_LENGTH * 8
   );
 
-  return toHex(derivedBits);
+  return toHex(new Uint8Array(derivedBits));
 }
 
 /**

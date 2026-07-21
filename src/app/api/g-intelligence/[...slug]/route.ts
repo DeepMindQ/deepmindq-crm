@@ -4,6 +4,10 @@ import { validateCsrf } from '@/lib/csrf';
 import { apiError } from '@/lib/apiHelpers';
 import { getCorrelationId } from '@/lib/correlation-id';
 
+// Security guards
+import { withIntelligenceGuard } from '@/lib/intelligence-api-guard';
+import { csrfMiddleware } from '@/lib/csrf';
+
 // Phase 6 intelligence validation API handlers
 import * as mod_health from './health.ts';
 import * as mod_evidence_quality from './evidence-quality.ts';
@@ -12,6 +16,9 @@ import * as mod_validate from './validate.ts';
 import * as mod_confidence from './confidence.ts';
 import * as mod_conflicts from './conflicts.ts';
 import * as mod_dashboard from './dashboard.ts';
+import * as mod_feedback from './feedback.ts';
+import * as mod_trust_report from './trust-report.ts';
+import * as mod_source_reliability from './source-reliability.ts';
 
 // Route registry
 const ROUTES = [
@@ -22,6 +29,9 @@ const ROUTES = [
   { key: 'companies/[id]/confidence', handler: mod_confidence },
   { key: 'conflicts', handler: mod_conflicts },
   { key: 'dashboard', handler: mod_dashboard },
+  { key: 'companies/[id]/feedback', handler: mod_feedback },
+  { key: 'recommendations/[id]/trust-report', handler: mod_trust_report },
+  { key: 'source-reliability', handler: mod_source_reliability },
 ];
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -95,10 +105,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
   return handle('GET', req, slug);
 }
 export async function POST(req: NextRequest, { params }: { params: Promise<{ slug: string[] }> }) {
+  // S10b: Intelligence API guard (Content-Type + body size + request ID)
+  const guard = await withIntelligenceGuard(req);
+  if (!guard.allowed) return guard.response!;
+
+  // S11: CSRF protection
+  const csrf = csrfMiddleware(guard.request as NextRequest);
+  if (!csrf.valid) return csrf.response!;
+
   const { slug } = await params;
-  return handle('POST', req, slug);
+  return handle('POST', guard.request as NextRequest, slug);
 }
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ slug: string[] }> }) {
+  // S10b: Intelligence API guard (Content-Type + body size + request ID)
+  const guard = await withIntelligenceGuard(req);
+  if (!guard.allowed) return guard.response!;
+
+  // S11: CSRF protection
+  const csrf = csrfMiddleware(guard.request as NextRequest);
+  if (!csrf.valid) return csrf.response!;
+
   const { slug } = await params;
-  return handle('PATCH', req, slug);
+  return handle('PATCH', guard.request as NextRequest, slug);
 }

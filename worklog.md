@@ -683,3 +683,23 @@ Stage Summary:
 - All 37 gaps (GAP-1 through GAP-37) have been fixed across multiple agent rounds
 - 151 new unit tests created specifically for Phase 5 functionality (109 + 20 + 42)
 - Zero regressions introduced — all pre-existing passing tests remain green
+
+---
+Task ID: phase6-design-doc
+Agent: Main Coordinator
+Task: Produce Phase 6 Design Document (Intelligence Validation & Trust Layer) before writing code
+
+Work Log:
+- Verified all 12 existing foundation components against design document claims
+- Confirmed: IntelligenceValidation model, computeEvidenceQuality(), getQualityReport(), submitValidation(), computeOpportunityScore(), signal lifecycle state machine all exist
+- Confirmed: 3 new Prisma models (SignalValidation, CompanyIntelligenceHealth, IntelligenceConflict) already in schema with relations wired
+- Confirmed: OpportunityRecommendation.confidenceBreakdown column exists but is never populated
+- Identified gaps: /api/g-intelligence/ route group missing, sidebar entry missing, company profile tab missing, no Phase 6 test files
+- Generated formal design document as .docx with R1 cover (DM-1 Deep Cyan palette), TOC, 9 sections
+- Document includes: Executive Summary, Architecture, Module Design (7 modules), Schema Changes, API Contracts, UI Screens, File Manifest, Acceptance Criteria (18 ACs + Demo Scenario), Scope Boundaries
+
+Stage Summary:
+- Produced: /home/z/my-project/download/Phase6-Design-Document-Intelligence-Validation-Trust-Layer.docx
+- Key finding: Schema is already 90% prepared — only runtime logic, API routes, and UI components need implementation
+- Calibration Engine explicitly deferred to prevent scope creep
+- Design document ready for user review before implementation begins

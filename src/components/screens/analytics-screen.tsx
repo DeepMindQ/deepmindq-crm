@@ -159,7 +159,7 @@ function DarkTooltip({ active, payload, label }: { active?: boolean; payload?: A
     <div
       className="rounded-lg border border-gray-200 px-3 py-2.5 shadow-2xl backdrop-blur-xl"
       style={{
-        background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+        background: '#FFFFFF', border: '1px solid #E5E7EB',
         boxShadow: '0 0 20px rgba(212, 175, 55, 0.08)',
       }}
     >
@@ -339,9 +339,9 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
   const topContent = sentItems
     .filter(q => q.draft?.contact)
     .map(q => ({
-      subject: q.draft.subject || '(No Subject)',
-      contact: [q.draft.contact.firstName, q.draft.contact.lastName].filter(Boolean).join(' ') || q.draft.contact.email,
-      company: q.draft.contact.company?.name || '—',
+      subject: q.draft!.subject || '(No Subject)',
+      contact: [q.draft!.contact!.firstName, q.draft!.contact!.lastName].filter(Boolean).join(' ') || q.draft!.contact!.email,
+      company: q.draft!.contact!.company?.name || '—',
       opens: q.openCount || 0,
       clicks: q.clickCount || 0,
       replied: q.replied,

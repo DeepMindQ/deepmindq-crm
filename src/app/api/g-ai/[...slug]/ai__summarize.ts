@@ -207,7 +207,7 @@ Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
             inputParams: { entityType: 'company', entityId },
           })
           const text = aiResult.success ? aiResult.response : null
-          result = parseSummaryResponse(text)
+          result = text ? parseSummaryResponse(text) : null
           if (result) usedLlm = true
         } catch (llmErr: unknown) {
           const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
@@ -233,7 +233,7 @@ Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
         include: {
           company: { select: { rawName: true } },
           drafts: { where: { status: 'draft' }, select: { id: true } },
-          _count: { select: { timeline: true } },
+          _count: { select: { notes: true } },
         },
       })
 
@@ -245,7 +245,7 @@ Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
         companyName: contact.company.rawName,
         emailHealth: contact.emailHealth,
         draftCount: contact.drafts.length,
-        timelineCount: contact._count.timeline,
+        timelineCount: contact._count.notes,
         lastContactedAt: contact.lastContactedAt?.toISOString() ?? null,
         role: contact.role,
       }
@@ -266,7 +266,7 @@ Contact data:
 - LinkedIn: ${contact.linkedinUrl ?? 'None'}
 - Last Contacted: ${contact.lastContactedAt ?? 'Never'}
 - Draft Emails: ${contact.drafts.length}
-- Timeline Events: ${contact._count.timeline}
+- Notes: ${contact._count.notes}
 
 Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
@@ -281,7 +281,7 @@ Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
             inputParams: { entityType: 'contact', entityId },
           })
           const text = aiResult.success ? aiResult.response : null
-          result = parseSummaryResponse(text)
+          result = text ? parseSummaryResponse(text) : null
           if (result) usedLlm = true
         } catch (llmErr: unknown) {
           const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)

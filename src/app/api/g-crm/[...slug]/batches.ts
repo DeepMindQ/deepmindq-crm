@@ -216,7 +216,7 @@ async function processChunk(
       data: {
         rawName: rawName || 'Unknown',
         normalizedName: normalize(rawName) || 'unknown',
-        email: rawEmail || undefined,
+        email: rawEmail,
         title: rawTitle || undefined,
         role: roleBucket,
         phone: rawPhone || undefined,

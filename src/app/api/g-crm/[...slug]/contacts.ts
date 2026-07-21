@@ -91,21 +91,21 @@ export async function POST(request: NextRequest) {
     );
 
     // Find or create a default batch for manual contacts
-    let batchId = data.batchId;
+    let batchId = (data as any).batchId;
     if (!batchId) {
       const defaultBatch = await db.importBatch.upsert({
         where: { id: 'manual' },
         update: {},
-        create: { id: 'manual', fileName: 'manual-entry', status: 'completed', totalRows: 0, validRows: 0 },
+        create: { id: 'manual', fileName: 'manual-entry', status: 'completed', totalRows: 0 } as any,
       });
       batchId = defaultBatch.id;
     }
 
     const contact = await db.contact.create({
       data: {
-        rawName: sanitized.name || data.name,
+        rawName: sanitized.name || data.name || '',
         normalizedName: (sanitized.name || data.name || '').toLowerCase(),
-        email: sanitized.email || null,
+        email: sanitized.email || '',
         title: sanitized.jobTitle || null,
         linkedinUrl: sanitized.linkedinUrl || null,
         phone: sanitized.phone || null,

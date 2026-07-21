@@ -52,12 +52,12 @@ export async function POST(req: NextRequest) {
     let objective = reqObjective || null;
     let currentSituation = reqSituation || null;
 
-    let swotAnalysis = null;
-    let keyInitiatives = null;
-    let stakeholderMap = null;
-    let competitivePosition = null;
-    let nextSteps = null;
-    let companyId = null;
+    let swotAnalysis: any = null;
+    let keyInitiatives: any = null;
+    let stakeholderMap: any = null;
+    let competitivePosition: string | null = null;
+    let nextSteps: string | null = null;
+    let companyId: string | null = null;
 
     // Try to find company in DB
     if (companyName) {

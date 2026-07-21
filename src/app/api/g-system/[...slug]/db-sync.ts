@@ -132,7 +132,7 @@ export async function POST() {
       tableChecks['JobLog'] = true;
     } catch { tableChecks['JobLog'] = false; }
 
-    results.tableIntegrity = tableChecks;
+    results.tableIntegrity = tableChecks as any;
 
     // ── Step 5: Count existing data ──
     try {

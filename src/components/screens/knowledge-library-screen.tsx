@@ -818,8 +818,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             </Pie>
                             <Tooltip
                               contentStyle={{
-                                background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                                border: '1px solid rgba(0, 0, 0, 0.06)',
+                                background: '#FFFFFF', border: '1px solid rgba(0, 0, 0, 0.06)', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
                                 borderRadius: '8px',
                                 fontSize: '12px',
                                 color: '#374151',
@@ -860,8 +859,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             />
                             <Tooltip
                               contentStyle={{
-                                background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                                border: '1px solid rgba(0, 0, 0, 0.06)',
+                                background: '#FFFFFF', border: '1px solid rgba(0, 0, 0, 0.06)', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
                                 borderRadius: '8px',
                                 fontSize: '12px',
                                 color: '#374151',
@@ -1568,8 +1566,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             </Pie>
                             <Tooltip
                               contentStyle={{
-                                background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                                border: '1px solid rgba(0, 0, 0, 0.06)',
+                                background: '#FFFFFF', border: '1px solid rgba(0, 0, 0, 0.06)', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
                                 borderRadius: '8px',
                                 fontSize: '12px',
                                 color: '#374151',
@@ -1605,7 +1602,6 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             tick={{ fill: 'rgba(0, 0, 0, 0.1)', fontSize: 11 }}
                             axisLine={{ stroke: 'rgba(0, 0, 0, 0.06)' }}
                             tickLine={false}
-                            gridLine={{ stroke: 'rgba(0, 0, 0, 0.04)' }}
                           />
                           <YAxis
                             type="category"
@@ -1617,8 +1613,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           />
                           <Tooltip
                             contentStyle={{
-                              background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                              border: '1px solid rgba(0, 0, 0, 0.06)',
+                              background: '#FFFFFF', border: '1px solid rgba(0, 0, 0, 0.06)', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
                               borderRadius: '8px',
                               fontSize: '12px',
                               color: '#374151',
@@ -1883,12 +1878,12 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                                 <Badge variant="outline" className={`text-[10px] ${config.badge}`}>
                                   {CATEGORY_LABELS[cat] || cat}
                                 </Badge>
-                                {asset.serviceLine && (
+                                {!!asset.serviceLine && (
                                   <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
                                     {String(asset.serviceLine)}
                                   </Badge>
                                 )}
-                                {asset.targetIndustries && (
+                                {!!asset.targetIndustries && (
                                   <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
                                     <Globe className="w-2.5 h-2.5 mr-0.5" />
                                     {String(asset.targetIndustries).split(',').slice(0, 2).join(', ')}

@@ -257,34 +257,44 @@ export async function GET(request: NextRequest) {
         where: {
           status: { in: ['cancelled', 'paused'] },
         },
-        include: {
-          contact: {
-            select: {
-              id: true,
-              rawName: true,
-              company: { select: { normalizedName: true } },
-            },
-          },
-          sequence: { select: { name: true } },
-        },
         take: 10,
-        orderBy: { updatedAt: 'desc' },
+        orderBy: { startedAt: 'desc' },
       });
 
-      for (const d of dropouts) {
-        signals.push({
-          id: `sequence-dropout-${d.id}`,
-          type: 'sequence_dropout',
-          title: `Sequence "${d.sequence.name}" — ${d.status}`,
-          description: `${d.contact.rawName} dropped out of the sequence`,
-          contactId: d.contact.id,
-          contactName: d.contact.rawName,
-          companyName: d.contact.company?.normalizedName,
-          severity: 'medium',
-          detectedAt: now.toISOString(),
-          metadata: { sequenceName: d.sequence.name, enrollmentStatus: d.status },
+      if (dropouts.length > 0) {
+        const contactIds = dropouts.map(d => d.contactId);
+        const sequenceIds = dropouts.map(d => d.sequenceId);
+
+        const contacts = await db.contact.findMany({
+          where: { id: { in: contactIds } },
+          select: { id: true, rawName: true, company: { select: { normalizedName: true } } },
         });
-        typeCounts['sequence_dropout'] = (typeCounts['sequence_dropout'] || 0) + 1;
+        const contactMap = new Map(contacts.map(c => [c.id, c]));
+
+        const sequences = await db.emailSequence.findMany({
+          where: { id: { in: sequenceIds } },
+          select: { id: true, name: true },
+        });
+        const sequenceMap = new Map(sequences.map(s => [s.id, s.name]));
+
+        for (const d of dropouts) {
+          const contact = contactMap.get(d.contactId);
+          const seqName = sequenceMap.get(d.sequenceId) ?? 'Unknown Sequence';
+          if (!contact) continue;
+          signals.push({
+            id: `sequence-dropout-${d.id}`,
+            type: 'sequence_dropout',
+            title: `Sequence "${seqName}" — ${d.status}`,
+            description: `${contact.rawName} dropped out of the sequence`,
+            contactId: contact.id,
+            contactName: contact.rawName,
+            companyName: contact.company?.normalizedName,
+            severity: 'medium',
+            detectedAt: now.toISOString(),
+            metadata: { sequenceName: seqName, enrollmentStatus: d.status },
+          });
+          typeCounts['sequence_dropout'] = (typeCounts['sequence_dropout'] || 0) + 1;
+        }
       }
     } catch { /* skip */ }
 

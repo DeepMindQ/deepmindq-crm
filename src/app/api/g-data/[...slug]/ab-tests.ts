@@ -96,7 +96,7 @@ export async function POST(request: Request) {
       ? {
           name: firstContact.rawName,
           company: firstContact.company?.rawName,
-          industry: firstContact.company?.industry,
+          industry: firstContact.company?.industry ?? undefined,
         }
       : { name: 'Prospect' };
 
@@ -156,7 +156,7 @@ Keep each subject line under 60 characters. Respond with JSON only: {"variant_a"
     }
 
     // Create a Draft for each contact × variant combination
-    const createdDrafts = [];
+    const createdDrafts: any[] = [];
     for (const contactId of contactIds) {
       const contact = await db.contact.findUnique({
         where: { id: contactId },

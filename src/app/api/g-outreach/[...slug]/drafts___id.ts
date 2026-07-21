@@ -23,7 +23,7 @@ export async function PATCH(
     const updated = await db.$transaction(async (tx) => {
       const existing = await tx.draft.findUnique({
         where: { id },
-        include: { contact: { select: { id: true, name: true, companyId: true } } },
+        include: { contact: { select: { id: true, rawName: true, editedName: true, companyId: true } } },
       });
       if (!existing) {
         throw new Error("NOT_FOUND");
@@ -50,17 +50,18 @@ export async function PATCH(
         const companyId = draft.contact?.companyId;
         if (companyId) {
           const action = newStatus === "sent" ? "email_sent" : "draft_updated";
+          const contactDisplayName = draft.contact?.editedName || draft.contact?.rawName || 'Unknown';
           const details =
             newStatus === "sent"
-              ? `Draft email "${draft.subject || "(no subject)"}" was sent to ${draft.contact?.name}`
-              : `Draft email "${draft.subject || "(no subject)"}" was rejected for ${draft.contact?.name}`;
+              ? `Draft email "${draft.subject || "(no subject)"}" was sent to ${contactDisplayName}`
+              : `Draft email "${draft.subject || "(no subject)"}" was rejected for ${contactDisplayName}`;
 
-          await tx.timelineEntry.create({
+          await tx.companyTimelineEvent.create({
             data: {
-              contactId: draft.contactId,
               companyId,
-              action,
-              details,
+              eventType: action,
+              title: details,
+              description: `Contact: ${draft.contactId}`,
             },
           });
         }

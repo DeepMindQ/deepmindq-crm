@@ -123,7 +123,6 @@ export async function GET() {
       db.contact.groupBy({
         by: ['batchId'],
         where: {
-          batchId: { not: null },
           status: 'replied',
         },
         _count: { id: true },
@@ -133,7 +132,6 @@ export async function GET() {
       db.contact.groupBy({
         by: ['batchId'],
         where: {
-          batchId: { not: null },
           status: 'bounced',
         },
         _count: { id: true },

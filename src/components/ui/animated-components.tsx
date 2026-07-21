@@ -130,7 +130,7 @@ export function StatCard({ label, value, icon: Icon, color = '#D4AF37', trend, d
                 className="w-10 h-10 rounded-lg flex items-center justify-center"
                 style={{ background: `${color}15` }}
               >
-                <Icon className="w-5 h-5" style={{ color }} />
+                <div style={{ color }}><Icon className="w-5 h-5" /></div>
               </div>
             )}
           </div>

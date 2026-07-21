@@ -174,7 +174,7 @@ ${researchContext ? `${researchContext}\n` : ''}${knowledgeContext ? `${knowledg
           generationType: 'email_draft',
           companyId: contact.companyId,
           contactId: contact.id,
-          researchContext: researchContext || null,
+          researchContext: (researchContext || null) as any,
           systemPrompt,
           userPrompt: 'Generate the email now.',
           enforceGovernance: false,

@@ -713,8 +713,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                               </Pie>
                               <Tooltip
                                 contentStyle={{
-                                  background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                                  border: '1px solid rgba(0, 0, 0, 0.06)',
+                                  background: '#FFFFFF', border: '1px solid rgba(0, 0, 0, 0.06)', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
                                   borderRadius: '8px',
                                   fontSize: '12px',
                                   color: '#e4e4e7',

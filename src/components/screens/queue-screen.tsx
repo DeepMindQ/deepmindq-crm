@@ -377,9 +377,9 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                             <XCircle className="w-3 h-3 inline mr-1" />{workerResult.failed} failed
                           </span>
                         )}
-                        {workerResult.provider && (
+                        {(workerResult as any).provider && (
                           <span className="text-muted-foreground">
-                            via <span className="text-primary font-medium">{workerResult.provider}</span>
+                            via <span className="text-primary font-medium">{(workerResult as any).provider}</span>
                           </span>
                         )}
                       </div>

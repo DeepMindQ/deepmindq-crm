@@ -134,7 +134,7 @@ export default function CapabilityLibraryScreen() {
         }))
         // Map document titles to snippets
         const docMap = new Map((data.data.documents || []).map((d: any) => [d.id, d.title]))
-        allSnippets.forEach(s => { s.documentTitle = docMap.get(s.documentId) || '' })
+        allSnippets.forEach(s => { s.documentTitle = (docMap.get(s.documentId) as string) || '' })
         setSnippets(allSnippets)
       }
     } catch {
@@ -446,8 +446,8 @@ export default function CapabilityLibraryScreen() {
                                     </div>
                                   </div>
                                   <div className="flex flex-col items-end gap-1 shrink-0">
-                                    <Badge className={cn('text-[10px] font-mono h-5', r.score >= 30 ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' : r.score >= 15 ? 'bg-amber-500/15 text-amber-600 border-amber-500/30' : 'bg-gray-200 text-gray-500 border-gray-300')} variant="outline">
-                                      {r.score}pts
+                                    <Badge className={cn('text-[10px] font-mono h-5', (r.score ?? 0) >= 30 ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' : (r.score ?? 0) >= 15 ? 'bg-amber-500/15 text-amber-600 border-amber-500/30' : 'bg-gray-200 text-gray-500 border-gray-300')} variant="outline">
+                                      {r.score ?? 0}pts
                                     </Badge>
                                     <span className={cn('text-[10px]', cfg.color)}>{TYPE_CONFIG[r.type]?.label}</span>
                                   </div>

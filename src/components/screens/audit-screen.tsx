@@ -356,7 +356,7 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
             </div>
 
             {/* Row 2: Date range tabs */}
-            <TabBar tabs={DATE_TABS} active={dateRange} onChange={setDateRange} />
+            <TabBar tabs={[...DATE_TABS]} active={dateRange} onChange={setDateRange} />
           </div>
         </GlassPanel>
 

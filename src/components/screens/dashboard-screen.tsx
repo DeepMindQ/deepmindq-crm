@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Building2, Users, FileText, Send, Mail, TrendingUp, TrendingDown, ChevronRight, Zap, UserPlus, Eye, MessageSquare, AlertTriangle, Inbox, Sparkles, Brain, RefreshCw } from 'lucide-react';
+import { Building2, Users, FileText, Send, Mail, TrendingUp, TrendingDown, ChevronRight, Zap, UserPlus, Eye, MessageSquare, AlertTriangle, Inbox, Sparkles, Brain, RefreshCw, Layers } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 
 const gold = '#B8860B', goldLight = '#D4A843';

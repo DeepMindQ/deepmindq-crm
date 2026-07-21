@@ -38,7 +38,10 @@ export type ViewId =
   | 'opportunity-radar'
   | 'relationship-memory'
   | 'data-health'
-  | 'icp-settings';
+  | 'icp-settings'
+  | 'company-profile'
+  | 'contact-profile'
+  | 'capability-library';
 
 interface AppState {
   activeView: ViewId;
@@ -46,11 +49,13 @@ interface AppState {
   selectedContactId: string | null;
   selectedCompanyId: string | null;
   selectedDraftId: string | null;
+  companyStatusFilter: string;
   setActiveView: (view: ViewId) => void;
   toggleSidebar: () => void;
   setSelectedContactId: (id: string | null) => void;
   setSelectedCompanyId: (id: string | null) => void;
   setSelectedDraftId: (id: string | null) => void;
+  setCompanyStatusFilter: (filter: string) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -59,10 +64,12 @@ export const useAppStore = create<AppState>((set) => ({
   selectedContactId: null,
   selectedCompanyId: null,
   selectedDraftId: null,
+  companyStatusFilter: 'all',
   setActiveView: (view) => set({ activeView: view }),
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setSelectedContactId: (id) => set({ selectedContactId: id }),
   setSelectedCompanyId: (id) => set({ selectedCompanyId: id }),
   setSelectedDraftId: (id) => set({ selectedDraftId: id }),
+  setCompanyStatusFilter: (filter) => set({ companyStatusFilter: filter }),
 }));

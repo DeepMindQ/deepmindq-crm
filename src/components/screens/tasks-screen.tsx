@@ -146,7 +146,7 @@ const cardVariants = {
    ═══════════════════════════════════════════════════════════════════════ */
 
 export default function TasksScreen() {
-  const { setActiveView, setSelectedCompanyId, setSelectedContactId, setTaskCount } = useAppStore()
+  const { setActiveView, setSelectedCompanyId, setSelectedContactId } = useAppStore()
   const qc = useQueryClient()
 
   // ── Filters ──
@@ -222,13 +222,6 @@ export default function TasksScreen() {
     }).then((cs: any[]) => cs.map((c: any) => ({ id: c.id, name: c.name, companyId: c.companyId }))),
     enabled: !!form.companyId,
   })
-
-  // Update store count
-  useMemo(() => {
-    if (allTasksData?.total !== undefined) {
-      setTaskCount(allTasksData.total)
-    }
-  }, [allTasksData?.total, setTaskCount])
 
   // ── Mutations ──
   const createMutation = useMutation({

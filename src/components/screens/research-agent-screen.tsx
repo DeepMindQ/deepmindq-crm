@@ -389,11 +389,11 @@ export default function ResearchAgentScreen() {
                         >
                           <div className="px-5 pb-4 border-t border-gray-100 pt-4">
                             <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{section.content}</p>
-                            {section.sources?.length > 0 && (
+                            {section.sources && section.sources.length > 0 && (
                               <div className="mt-4 pt-3 border-t border-gray-100">
                                 <h4 className="text-[11px] font-semibold text-foreground uppercase tracking-wider mb-2">Sources</h4>
                                 <div className="space-y-1.5">
-                                  {section.sources.map((src, j) => (
+                                  {section.sources?.map((src, j) => (
                                     <a
                                       key={j}
                                       href={src.url}

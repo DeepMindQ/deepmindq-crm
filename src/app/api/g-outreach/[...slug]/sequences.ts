@@ -29,25 +29,19 @@ export async function GET() {
 
     // Batch-load signal, capability match, and opportunity data
     const [signals, matches, opportunities] = await Promise.all([
-      signalIds.length > 0
-        ? db.companySignal.findMany({ where: { id: { in: signalIds } } })
-        : Promise.resolve([] as never[]),
-      matchIds.length > 0
-        ? db.signalCapabilityMatch.findMany({
-            where: { id: { in: matchIds } },
-          })
-        : Promise.resolve([] as never[]),
-      opportunityIds.length > 0
-        ? db.opportunityRecommendation.findMany({
-            where: { id: { in: opportunityIds } },
-            select: {
-              id: true,
-              opportunityTitle: true,
-              opportunityScore: true,
-              suggestedConversation: true,
-            },
-          })
-        : Promise.resolve([] as { id: string; opportunityTitle: string; opportunityScore: number; suggestedConversation: string }[]),
+      db.companySignal.findMany({ where: { id: { in: signalIds } } }),
+      db.signalCapabilityMatch.findMany({
+          where: { id: { in: matchIds } },
+        }),
+      db.opportunityRecommendation.findMany({
+          where: { id: { in: opportunityIds } },
+          select: {
+            id: true,
+            opportunityTitle: true,
+            opportunityScore: true,
+            suggestedConversation: true,
+          },
+        }),
     ]);
 
     const signalMap = new Map(signals.map(s => [s.id, s]));
@@ -56,12 +50,10 @@ export async function GET() {
 
     // Load capability titles for matches
     const capabilityIds = matches.map(m => m.capabilityId).filter(Boolean);
-    const capabilities = capabilityIds.length > 0
-      ? await db.capabilityAsset.findMany({
-          where: { id: { in: capabilityIds } },
-          select: { id: true, title: true },
-        })
-      : [];
+    const capabilities = await db.capabilityAsset.findMany({
+        where: { id: { in: capabilityIds } },
+        select: { id: true, title: true },
+      });
     const capabilityTitleMap = new Map(capabilities.map(c => [c.id, c.title]));
 
     const enriched = sequences.map(seq => {

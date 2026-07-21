@@ -401,7 +401,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
 
       {/* Engine sub-tabs */}
       <div className="px-6 pb-2">
-        <TabBar tabs={ENGINE_TABS} active={activeTab} onChange={setActiveTab} />
+        <TabBar tabs={ENGINE_TABS} active={activeTab} onChange={(v: string) => setActiveTab(v as typeof activeTab)} />
       </div>
 
       {/* Tab content */}
@@ -987,7 +987,6 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
           success: true,
           assetsGenerated: data.assetsGenerated,
           duplicates: data.duplicates,
-          wordCount: data.wordCount,
         }]);
       }
       fetchItems();
@@ -1010,7 +1009,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
     setForm({
       ...EMPTY_FORM,
       title: result.fileName.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
-      summary: `Uploaded from ${result.fileName} (${result.wordCount || ''} words)`,
+      summary: `Uploaded from ${result.fileName}`,
     });
     setShowForm(true);
   };
@@ -1874,7 +1873,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                     <p className="text-[11px] text-muted-foreground">
                       {r.error
                         ? r.error
-                        : `${r.wordCount || 0} words • ${r.assetsGenerated || 0} assets extracted${(r.duplicates?.length || 0) > 0 ? ` • ${r.duplicates.length} duplicate(s)` : ''}`}
+                        : `${r.assetsGenerated || 0} assets extracted${((r.duplicates as any[])?.length || 0) > 0 ? ` • ${(r.duplicates as any[]).length} duplicate(s)` : ''}`}
                     </p>
                   </div>
                   {r.success && (

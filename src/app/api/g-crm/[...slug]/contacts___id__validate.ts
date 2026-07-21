@@ -26,38 +26,24 @@ export async function POST(
     const email = contact.email
     if (!email) {
       // No email to validate
-      const check = await db.emailHealthCheck.create({
-        data: {
-          contactId: id,
-          status: 'invalid',
-          score: 0,
-          actionRecommendation: 'No email address on file',
-          syntaxOk: false,
-          domainOk: false,
-          mxOk: false,
-          disposableOk: false,
-        },
-      })
-
       await db.contact.update({
         where: { id },
-        data: { emailHealth: 'invalid', emailHealthScore: 0, lastValidatedAt: new Date() },
+        data: { emailHealth: 'invalid', emailHealthScore: 0 },
       })
 
-      await db.timelineEntry.create({
+      await db.companyTimelineEvent.create({
         data: {
-          companyId: contact.companyId,
-          contactId: id,
-          action: 'email_validated',
-          details: `Email validation for "${contact.name}": no email found`,
+          companyId: contact.companyId!,
+          eventType: 'signal',
+          title: 'Email Validated',
+          description: `Email validation for "${contact.rawName}": no email found`,
         },
       })
 
       return NextResponse.json({
         status: 'invalid',
         score: 0,
-        checkId: check.id,
-        contact: { id: contact.id, name: contact.name, email: contact.email },
+        contact: { id: contact.id, name: contact.rawName, email: contact.email },
       })
     }
 
@@ -67,50 +53,34 @@ export async function POST(
     // Map nullable DNS results to booleans for the DB schema (Boolean @default(false))
     const mxOk = result.mxOk ?? false
 
-    // Save health check
-    const check = await db.emailHealthCheck.create({
-      data: {
-        contactId: id,
-        status: result.status,
-        score: result.score,
-        actionRecommendation: result.recommendation,
-        syntaxOk: result.syntaxOk,
-        domainOk: result.domainOk,
-        mxOk,
-        disposableOk: result.disposableOk,
-      },
-    })
-
     // Update contact
     await db.contact.update({
       where: { id },
       data: {
         emailHealth: result.status,
         emailHealthScore: result.score,
-        lastValidatedAt: new Date(),
       },
     })
 
     // Timeline
-    await db.timelineEntry.create({
+    await db.companyTimelineEvent.create({
       data: {
-        companyId: contact.companyId,
-        contactId: id,
-        action: 'email_validated',
-        details: `Email validation for "${contact.name}" (${email}): ${result.status} (${result.score}/100)`,
+        companyId: contact.companyId!,
+        eventType: 'signal',
+        title: 'Email Validated',
+        description: `Email validation for "${contact.rawName}" (${email}): ${result.status} (${result.score}/100)`,
       },
     })
 
     return NextResponse.json({
       status: result.status,
       score: result.score,
-      checkId: check.id,
       actionRecommendation: result.recommendation,
       contact: {
         id: contact.id,
-        name: contact.name,
+        name: contact.rawName,
         email: contact.email,
-        company: contact.company?.name ?? null,
+        company: contact.company?.normalizedName ?? null,
       },
       details: {
         syntaxOk: result.syntaxOk,

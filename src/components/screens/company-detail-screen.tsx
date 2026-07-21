@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/animated-components';
 import { CompanyMindMap } from '@/components/company-mind-map';
 import {
-  ArrowLeft, Globe, MapPin, Users, Building2, ExternalLink, Edit3, Save,
+  ArrowLeft, ArrowRight, Globe, MapPin, Users, Building2, ExternalLink, Edit3, Save,
   X, Sparkles, Loader2, Pin, Trash2, Plus, FileText, Mail,
   Target, Brain, Activity, TrendingUp, Award, UserCircle, Eye,
   EyeOff, AlertTriangle, CheckCircle2, Clock, MessageSquare,
@@ -566,7 +566,8 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
      Render
      ═══════════════════════════════════════════════════ */
   return (
-    <PageTransition className="min-h-screen" style={{ background: '#FAFAFA' }}>
+    <div style={{ background: '#FAFAFA' }} className="min-h-screen">
+    <PageTransition className="min-h-screen">
       {/* ── Header ── */}
       <div className="sticky top-0 z-30 px-6 py-4 border-b border-gray-200" style={{ background: 'rgba(6,9,15,0.85)', backdropFilter: 'blur(20px)' }}>
         <div className="flex items-center justify-between max-w-[1400px] mx-auto">
@@ -1062,7 +1063,8 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
               <StaggerGrid className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {notes.map((note: any) => (
                   <StaggerItem key={note.id}>
-                    <GlassPanel className="p-4 hover:border-[#D4AF37]/20 transition-all cursor-pointer" onClick={() => setExpandedNote(expandedNote === note.id ? null : note.id)}>
+                    <div className="p-4 hover:border-[#D4AF37]/20 transition-all cursor-pointer" onClick={() => setExpandedNote(expandedNote === note.id ? null : note.id)}>
+                    <GlassPanel className="p-0 border-0 bg-transparent shadow-none" style={{ boxShadow: 'none' }}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1.5">
@@ -1107,6 +1109,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                         </span>
                       </div>
                     </GlassPanel>
+                    </div>
                   </StaggerItem>
                 ))}
               </StaggerGrid>
@@ -1580,5 +1583,6 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
         </DialogContent>
       </Dialog>
     </PageTransition>
+    </div>
   );
 }

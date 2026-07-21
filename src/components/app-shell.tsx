@@ -258,7 +258,6 @@ function Sidebar() {
 
 function Header() {
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
-  const setSidebarCollapsed = useAppStore((s) => s.setSidebarCollapsed);
 
   return (
     <header
@@ -272,7 +271,7 @@ function Header() {
     >
       {/* Mobile sidebar toggle */}
       <button
-        onClick={() => setSidebarCollapsed(false)}
+        onClick={() => useAppStore.setState({ sidebarCollapsed: false })}
         className="lg:hidden flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/[0.04] transition-colors"
         aria-label="Open sidebar"
       >

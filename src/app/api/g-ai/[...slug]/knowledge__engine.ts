@@ -167,7 +167,7 @@ function analyzeCoverage(capabilities: any[], body: any) {
   if (gapIndustries.length > 0) recommendations.push(`Add case studies for underserved industries: ${gapIndustries.map(g => g.industry).join(', ')}`);
   if (gapRoles.length > 0) recommendations.push(`Create content targeting underserved roles: ${gapRoles.map(g => g.role).join(', ')}`);
   Object.entries(slCompleteness).forEach(([sl, data]) => {
-    const missing = [];
+    const missing: string[] = [];
     if (!data.hasCaseStudy) missing.push('case study');
     if (!data.hasProofPoint) missing.push('proof point');
     if (!data.hasObjection) missing.push('objection response');

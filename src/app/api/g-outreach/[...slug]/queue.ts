@@ -60,10 +60,10 @@ export async function PATCH(request: Request) {
 
     if (action === 'pause') {
       const where = id
-        ? { id, status: { in: ['pending', 'scheduled'] } as string[] }
+        ? { id, status: { in: ['pending', 'scheduled'] } }
         : ids?.length
-          ? { id: { in: ids }, status: { in: ['pending', 'scheduled'] } as string[] }
-          : { status: { in: ['pending', 'scheduled'] } as string[] };
+          ? { id: { in: ids }, status: { in: ['pending', 'scheduled'] } }
+          : { status: { in: ['pending', 'scheduled'] } };
 
       const result = await db.sendQueue.updateMany({
         where,
@@ -106,10 +106,10 @@ export async function PATCH(request: Request) {
 
     if (action === 'cancel') {
       const where = id
-        ? { id, status: { in: ['pending', 'scheduled', 'paused'] } as string[] }
+        ? { id, status: { in: ['pending', 'scheduled', 'paused'] } }
         : ids?.length
-          ? { id: { in: ids }, status: { in: ['pending', 'scheduled', 'paused'] } as string[] }
-          : { status: { in: ['pending', 'scheduled', 'paused'] } as string[] };
+          ? { id: { in: ids }, status: { in: ['pending', 'scheduled', 'paused'] } }
+          : { status: { in: ['pending', 'scheduled', 'paused'] } };
 
       const result = await db.sendQueue.updateMany({
         where,

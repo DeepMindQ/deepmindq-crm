@@ -51,7 +51,7 @@ export async function GET(
       type: 'import',
       title: 'Contact Imported',
       description: `Imported via batch ${contact.batchId}`,
-      timestamp: contact.createdAt,
+      timestamp: contact.createdAt.toISOString(),
       metadata: {
         consentSource: contact.consentSource,
         source: contact.source,
@@ -65,7 +65,7 @@ export async function GET(
         type: 'verify',
         title: `Email Verified: ${contact.emailHealth}`,
         description: `Email health score: ${contact.emailHealthScore}/100`,
-        timestamp: contact.lastCheckedAt,
+        timestamp: contact.lastCheckedAt.toISOString(),
         metadata: { health: contact.emailHealth, score: contact.emailHealthScore },
       });
     }
@@ -83,7 +83,7 @@ export async function GET(
           type: 'draft_created',
           title: 'Draft Created',
           description: `Subject: ${draft.subject}`,
-          timestamp: draft.createdAt,
+          timestamp: draft.createdAt.toISOString(),
           metadata: { draftId: draft.id, confidenceScore: draft.confidenceScore },
         });
       }
@@ -92,7 +92,7 @@ export async function GET(
           type: 'draft_approved',
           title: 'Draft Approved',
           description: `Subject: ${draft.subject}`,
-          timestamp: draft.updatedAt,
+          timestamp: draft.updatedAt.toISOString(),
           metadata: { draftId: draft.id },
         });
       }
@@ -101,7 +101,7 @@ export async function GET(
           type: 'draft_created',
           title: 'Draft Rejected',
           description: `Subject: ${draft.subject}${draft.rejectReason ? ` — ${draft.rejectReason}` : ''}`,
-          timestamp: draft.updatedAt,
+          timestamp: draft.updatedAt.toISOString(),
           metadata: { draftId: draft.id, rejectReason: draft.rejectReason },
         });
       }
@@ -120,7 +120,7 @@ export async function GET(
           type: 'email_sent',
           title: 'Email Sent',
           description: `Via ${qi.provider || 'default'} provider`,
-          timestamp: qi.sentAt,
+          timestamp: qi.sentAt.toISOString(),
           metadata: { queueId: qi.id, provider: qi.provider },
         });
       }
@@ -170,7 +170,7 @@ export async function GET(
         type,
         title,
         description,
-        timestamp: event.createdAt,
+        timestamp: event.createdAt.toISOString(),
       });
     }
 
@@ -186,7 +186,7 @@ export async function GET(
         type: 'email_replied',
         title: `Reply Received${reply.category ? ` (${reply.category})` : ''}`,
         description: reply.body ? reply.body.slice(0, 100) + (reply.body.length > 100 ? '...' : '') : '',
-        timestamp: reply.receivedAt,
+        timestamp: reply.receivedAt.toISOString(),
         metadata: { replyId: reply.id, category: reply.category },
       });
     }
@@ -203,7 +203,7 @@ export async function GET(
         type: 'bounce',
         title: `Bounce (${bounce.bounceType || 'unknown'})`,
         description: bounce.reason || 'No reason provided',
-        timestamp: bounce.bouncedAt,
+        timestamp: bounce.bouncedAt.toISOString(),
         metadata: { bounceType: bounce.bounceType },
       });
     }
@@ -220,7 +220,7 @@ export async function GET(
         type: 'note_added',
         title: 'Note Added',
         description: note.body.slice(0, 120) + (note.body.length > 120 ? '...' : ''),
-        timestamp: note.createdAt,
+        timestamp: note.createdAt.toISOString(),
         metadata: { noteId: note.id },
       });
     }
@@ -245,7 +245,7 @@ export async function GET(
             type: 'status_change',
             title: `Status Updated: ${log.action}`,
             description: desc.slice(0, 120),
-            timestamp: log.createdAt,
+            timestamp: log.createdAt.toISOString(),
             metadata: { auditId: log.id },
           });
         }

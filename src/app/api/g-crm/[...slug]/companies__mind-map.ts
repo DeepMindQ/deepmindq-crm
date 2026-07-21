@@ -45,9 +45,9 @@ interface MindMapResponse {
 /* ── Shared: build graph nodes/edges for a list of companies ── */
 function buildCompanyNodes(
   companies: Array<Record<string, unknown>>,
-  contactsMap: Map<string, unknown[]>,
-  signalsMap: Map<string, unknown[]>,
-  notesMap: Map<string, unknown[]>,
+  contactsMap: Map<string, any[]>,
+  signalsMap: Map<string, any[]>,
+  notesMap: Map<string, any[]>,
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
@@ -217,12 +217,12 @@ async function buildFocusedView(companyId: string): Promise<MindMapResponse> {
     }),
   ]);
 
-  const contactsMap = new Map<string, unknown[]>();
-  const signalsMap = new Map<string, unknown[]>();
-  const notesMap = new Map<string, unknown[]>();
-  contactsMap.set(companyId, contacts as unknown[]);
-  signalsMap.set(companyId, signals as unknown[]);
-  notesMap.set(companyId, notes as unknown[]);
+  const contactsMap = new Map<string, any[]>();
+  const signalsMap = new Map<string, any[]>();
+  const notesMap = new Map<string, any[]>();
+  contactsMap.set(companyId, contacts as any[]);
+  signalsMap.set(companyId, signals as any[]);
+  notesMap.set(companyId, notes as any[]);
 
   const { nodes, edges } = buildCompanyNodes([company as unknown as Record<string, unknown>], contactsMap, signalsMap, notesMap);
 
@@ -272,7 +272,7 @@ async function buildSearchView(term: string): Promise<MindMapResponse> {
     select: { id: true, rawName: true, normalizedName: true, email: true, title: true, role: true, leadScore: true, status: true, companyId: true },
   });
 
-  const contactsMap = new Map<string, unknown[]>();
+  const contactsMap = new Map<string, any[]>();
   const perCompany = new Map<string, number>();
   for (const ct of contacts) {
     const cid = ct.companyId;
@@ -341,9 +341,9 @@ async function buildOverviewView(): Promise<MindMapResponse> {
     select: { id: true, companyId: true, title: true, category: true, pinned: true, createdAt: true },
   });
 
-  const contactsMap = new Map<string, unknown[]>();
-  const signalsMap = new Map<string, unknown[]>();
-  const notesMap = new Map<string, unknown[]>();
+  const contactsMap = new Map<string, any[]>();
+  const signalsMap = new Map<string, any[]>();
+  const notesMap = new Map<string, any[]>();
 
   // Top 3 contacts per company
   const perCompany = new Map<string, number>();

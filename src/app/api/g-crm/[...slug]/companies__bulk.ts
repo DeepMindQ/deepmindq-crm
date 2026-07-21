@@ -170,7 +170,7 @@ export async function POST(request: Request) {
           if (sr && !VALID_RANGES.includes(sr)) {
             // Try to parse as a number and map to range
             const num = parseInt(String(sr).replace(/[^0-9]/g, ''), 10);
-            let mapped = null;
+            let mapped: string | null = null;
             if (!isNaN(num)) {
               if (num <= 10) mapped = '1-10';
               else if (num <= 50) mapped = '11-50';

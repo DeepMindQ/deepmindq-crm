@@ -121,7 +121,7 @@ function HealthGauge({ score, insights }: { score: number; insights: Insights })
           <defs><linearGradient id="gG" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor={C.goldDim} /><stop offset="100%" stopColor={C.goldLight} /></linearGradient></defs>
         </svg>
         <div className="absolute flex flex-col items-center">
-          <AnimatedCounter value={score} className="text-4xl font-black" style={{ color }} />
+          <div style={{ color }}><AnimatedCounter value={score} className="text-4xl font-black" /></div>
           <span className="text-[10px] uppercase tracking-[0.2em] mt-1" style={{ color: C.textMuted }}>System Health</span>
         </div>
       </div>
@@ -157,8 +157,8 @@ function buildSparkline(total: number): number[] {
 }
 function EngineCard({ key_: k, insights }: { key_: 'company' | 'email' | 'capability'; insights: Insights }) {
   const cfg = ENGINES[k], Icon = cfg.icon;
-  const eng = k === 'company' ? insights.companyEngine : k === 'email' ? insights.emailEngine : insights.capabilityEngine;
-  const warn = k === 'company' ? eng.criticalSignalCount > 0 : k === 'email' ? (eng as any).pendingDrafts > 50 : eng.totalCapabilities < 5;
+  const eng: any = k === 'company' ? insights.companyEngine : k === 'email' ? insights.emailEngine : insights.capabilityEngine;
+  const warn = k === 'company' ? eng.criticalSignalCount > 0 : k === 'email' ? eng.pendingDrafts > 50 : eng.totalCapabilities < 5;
   const sparkData = useMemo(() => {
     const total = k === 'company' ? eng.totalCompanies : k === 'email' ? eng.totalContacts : eng.totalCapabilities;
     return buildSparkline(total);
@@ -166,7 +166,7 @@ function EngineCard({ key_: k, insights }: { key_: 'company' | 'email' | 'capabi
   const metrics = k === 'company'
     ? [{ l: 'Total Companies', v: eng.totalCompanies }, { l: 'Critical Signals', v: eng.criticalSignalCount }, { l: 'Unread Signals', v: eng.unreadSignalCount }, { l: 'Top Score', v: eng.topScoredCompanies[0]?.score || 0 }]
     : k === 'email'
-    ? [{ l: 'Total Contacts', v: eng.totalContacts }, { l: 'Pending Drafts', v: (eng as any).pendingDrafts }, { l: 'Reply Rate', v: `${(eng as any).replyRate}%` }, { l: 'Avg Lead Score', v: (eng as any).avgLeadScore }]
+    ? [{ l: 'Total Contacts', v: eng.totalContacts }, { l: 'Pending Drafts', v: eng.pendingDrafts }, { l: 'Reply Rate', v: `${eng.replyRate}%` }, { l: 'Avg Lead Score', v: eng.avgLeadScore }]
     : [{ l: 'Capabilities', v: eng.totalCapabilities }, { l: 'Categories', v: Object.keys(eng.capabilitiesByCategory).length }, { l: 'Top Used', v: eng.topCapabilities[0]?.usedInEmails || 0 }, { l: 'Service Lines', v: Object.keys(eng.capabilitiesByServiceLine).length }];
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
@@ -602,7 +602,7 @@ export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) 
   const fetchData = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [insRes, actRes, aiInsRes, aiRecRes, jobStatsRes, recentJobsRes] = await Promise.all([
+      const [insRes, actRes, aiInsRes, aiRecRes, jobStatsRes] = await Promise.all([
         fetch('/api/command-center/insights'), fetch('/api/audit?limit=15'),
         fetch('/api/ai/insights'), fetch('/api/ai/recommendations'),
         fetch('/api/g-data/jobs?stats=true&page=1&pageSize=5'),

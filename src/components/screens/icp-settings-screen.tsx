@@ -172,7 +172,7 @@ function TagSectionCard({
             className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
             style={{ background: 'rgba(212, 175, 55, 0.1)' }}
           >
-            <Icon className="w-4 h-4" style={{ color: '#D4AF37' }} />
+            <div style={{ color: '#D4AF37' }}><Icon className="w-4 h-4" /></div>
           </div>
           <div className="text-xs text-muted-foreground">
             {tags.length === 0

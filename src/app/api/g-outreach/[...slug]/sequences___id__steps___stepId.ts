@@ -23,21 +23,20 @@ export async function POST(
     if (!sequence) return apiError('Sequence not found', 404)
 
     // Determine the next step number
-    const maxStep = await db.emailSequenceStep.aggregate({
+    const maxStep = await db.sequenceStep.aggregate({
       where: { sequenceId },
       _max: { stepNumber: true },
     })
     const nextStepNumber = (maxStep._max.stepNumber ?? 0) + 1
 
-    const step = await db.emailSequenceStep.create({
+    const step = await db.sequenceStep.create({
       data: {
         sequenceId,
         stepNumber: nextStepNumber,
         subject: data.subject,
         body: data.body,
         delayMinutes: data.delayMinutes,
-        cta: data.cta ?? null,
-      },
+      } as any,
     })
 
     return apiSuccess(step, 201)
@@ -59,7 +58,7 @@ export async function PATCH(
     const data = validateBody(updateSequenceStepSchema, body)
     if (data instanceof Response) return data
 
-    const existing = await db.emailSequenceStep.findFirst({
+    const existing = await db.sequenceStep.findFirst({
       where: { id: stepId, sequenceId },
     })
     if (!existing) return apiError('Step not found', 404)
@@ -75,7 +74,7 @@ export async function PATCH(
     if (data.openedAt !== undefined) updateData.openedAt = data.openedAt === '' ? null : new Date(data.openedAt!)
     if (data.repliedAt !== undefined) updateData.repliedAt = data.repliedAt === '' ? null : new Date(data.repliedAt!)
 
-    const step = await db.emailSequenceStep.update({
+    const step = await db.sequenceStep.update({
       where: { id: stepId },
       data: updateData,
     })
@@ -95,21 +94,21 @@ export async function DELETE(
 ) {
   try {
     const { id: sequenceId, stepId } = await params
-    const existing = await db.emailSequenceStep.findFirst({
+    const existing = await db.sequenceStep.findFirst({
       where: { id: stepId, sequenceId },
     })
     if (!existing) return apiError('Step not found', 404)
 
-    await db.emailSequenceStep.delete({ where: { id: stepId } })
+    await db.sequenceStep.delete({ where: { id: stepId } })
 
     // Re-number remaining steps
-    const remainingSteps = await db.emailSequenceStep.findMany({
+    const remainingSteps = await db.sequenceStep.findMany({
       where: { sequenceId },
       orderBy: { stepNumber: 'asc' },
     })
     for (let i = 0; i < remainingSteps.length; i++) {
       if (remainingSteps[i].stepNumber !== i + 1) {
-        await db.emailSequenceStep.update({
+        await db.sequenceStep.update({
           where: { id: remainingSteps[i].id },
           data: { stepNumber: i + 1 },
         })

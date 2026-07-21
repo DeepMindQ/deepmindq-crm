@@ -937,7 +937,6 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                     className="group flex items-center gap-4 px-4 py-2.5 cursor-pointer border-l-2 border-l-transparent hover:border-l-[3px] transition-all duration-200"
                     style={{
                       background: isSelected ? 'rgba(212,175,55,0.06)' : (i % 2 === 0 ? '#F9FAFB' : 'transparent'),
-                      hoverBorderLeftColor: gold,
                     }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderLeftColor = gold; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderLeftColor = 'transparent'; }}

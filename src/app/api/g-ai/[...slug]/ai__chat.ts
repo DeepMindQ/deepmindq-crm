@@ -119,14 +119,14 @@ async function loadResearchContext(companyId: string): Promise<ResearchContext |
       where: { id: companyId },
       include: {
         researchCard: true,
-        evidences: {
-          where: { isActive: true },
+        evidence: {
+          where: { status: 'active' },
           orderBy: { createdAt: 'desc' },
           take: 10,
         },
         signals: {
-          where: { lifecycleStatus: { in: ['detected', 'validated', 'active'] } },
-          orderBy: { detectedAt: 'desc' },
+          where: { status: { in: ['detected', 'validated', 'active'] } },
+          orderBy: { createdAt: 'desc' },
           take: 5,
         },
       },
@@ -151,7 +151,7 @@ async function loadResearchContext(companyId: string): Promise<ResearchContext |
         intelligenceScore: company.intelligenceScore,
       },
       researchCard: company.researchCard,
-      evidences: company.evidences,
+      evidences: company.evidence,
       signals: company.signals,
       capabilityMatchCount,
     } as unknown as ResearchContext;
@@ -276,8 +276,8 @@ ${
             hasContactContext: !!context?.contactId,
             conversationTurns: (conversationHistory || []).length,
             messageLength: message.length,
-            researchConfidence: researchContext?.researchCard?.averageConfidence ?? null,
-            freshnessScore: researchContext?.researchCard?.freshnessScore ?? null,
+            researchConfidence: null,
+            freshnessScore: null,
           },
         });
       } else {

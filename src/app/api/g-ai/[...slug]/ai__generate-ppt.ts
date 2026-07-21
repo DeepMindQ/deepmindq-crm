@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     }
 
     // Get research context for the company
-    let researchContext = null;
+    let researchContext: any = null;
     if (company) {
       try {
         researchContext = await getResearchContext(company.id);

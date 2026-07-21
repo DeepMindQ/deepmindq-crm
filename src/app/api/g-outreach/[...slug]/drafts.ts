@@ -331,9 +331,8 @@ export async function POST(request: Request) {
       additionalContext: body.additionalContext,
       serviceLine: body.serviceLine,
       problems: body.problems,
-      researchCard,
       companyId: company?.id,
-      domain: company?.domain,
+      domain: company?.domain ?? undefined,
     });
 
     // E-06: Compute thread headers

@@ -315,19 +315,19 @@ function NodeDetailPanel({
         {node.type === 'company' && (
           <>
             <div className="grid grid-cols-2 gap-2">
-              {d.industry && (
+              {!!d.industry && (
                 <div className="text-[10px]">
                   <span style={{ color: '#9CA3AF' }}>Industry: </span>
                   <span className="text-foreground">{String(d.industry)}</span>
                 </div>
               )}
-              {d.location && (
+              {!!d.location && (
                 <div className="text-[10px]">
                   <span style={{ color: '#9CA3AF' }}>Location: </span>
                   <span className="text-foreground">{String(d.location)}</span>
                 </div>
               )}
-              {d.size && (
+              {!!d.size && (
                 <div className="text-[10px]">
                   <span style={{ color: '#9CA3AF' }}>Size: </span>
                   <span className="text-foreground">{String(d.size)}</span>
@@ -412,13 +412,13 @@ function NodeDetailPanel({
         {node.type === 'contact' && (
           <>
             <div className="space-y-1">
-              {d.email && (
+              {!!d.email && (
                 <div className="text-[10px]">
                   <span style={{ color: '#9CA3AF' }}>Email: </span>
                   <span className="text-foreground">{String(d.email)}</span>
                 </div>
               )}
-              {d.title && (
+              {!!d.title && (
                 <div className="text-[10px]">
                   <span style={{ color: '#9CA3AF' }}>Title: </span>
                   <span className="text-foreground">{String(d.title)}</span>

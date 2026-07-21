@@ -29,10 +29,10 @@ export async function POST(
       return apiError('Sequence has no steps', 400)
     }
 
-    // 3. Determine contact — from body, from sequence, or error
-    const targetContactId = contactId || sequence.contactId
+    // 3. Determine contact — from body
+    const targetContactId = contactId
     if (!targetContactId) {
-      return apiError('No contact specified. Provide a contactId or set one on the sequence.', 400)
+      return apiError('No contact specified. Provide a contactId in the request body.', 400)
     }
 
     // 4. Fetch contact with company
@@ -42,16 +42,16 @@ export async function POST(
     })
     if (!contact) return apiError('Contact not found', 404)
 
-    // 5. Find first pending step
-    const firstPendingStep = sequence.steps.find((s) => s.status === 'pending')
+    // 5. Get first step
+    const firstPendingStep = sequence.steps[0]
     if (!firstPendingStep) {
-      return apiError('No pending steps to execute', 400)
+      return apiError('No steps to execute', 400)
     }
 
     // 6. Create a draft from the first step content (personalized with contact info)
-    const companyName = contact.company?.name || 'your company'
-    const firstName = contact.name?.split(' ')[0] || 'there'
-    const jobTitle = contact.jobTitle || 'your role'
+    const companyName = contact.company?.rawName || contact.company?.normalizedName || 'your company'
+    const firstName = (contact.editedName || contact.rawName)?.split(' ')[0] || 'there'
+    const jobTitle = contact.title || 'your role'
 
     const personalizedSubject = firstPendingStep.subject
       .replace(/\{\{firstName\}\}/g, firstName)
@@ -75,11 +75,11 @@ export async function POST(
       },
     })
 
-    // 8. Update sequence status to active if draft
-    if (sequence.status === 'draft') {
+    // 8. Activate sequence if not already active
+    if (!sequence.isActive) {
       await db.emailSequence.update({
         where: { id: sequenceId },
-        data: { status: 'active' },
+        data: { isActive: true },
       })
     }
 

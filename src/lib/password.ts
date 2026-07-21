@@ -54,7 +54,7 @@ async function deriveKey(password: string, salt: Uint8Array): Promise<string> {
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
   const hash = await deriveKey(password, salt);
-  return `${toHex(salt)}$${hash}`;
+  return `${toHex(salt.buffer)}$${hash}`;
 }
 
 /**

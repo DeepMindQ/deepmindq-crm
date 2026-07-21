@@ -10,11 +10,6 @@ function num(val: unknown, fallback: number = 0): number {
   return typeof val === 'number' ? val : fallback;
 }
 
-// Helper: safely extract number from unknown JSON
-function num(val: unknown, fallback: number = 0): number {
-  return typeof val === 'number' ? val : fallback;
-}
-
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -39,17 +34,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }),
   ]);
 
-  // Get the best opportunity recommendation for confidence breakdown
-  let bestOpp = await db.opportunityRecommendation.findFirst({
-    where: { companyId: id },
-    orderBy: { opportunityScore: 'desc' },
-    select: { id: true, signalId: true, matchScore: true, confidenceBreakdown: true },
-  });
-
   let intelligenceConfidence = 0;
   let confidenceBreakdown: Record<string, number> | null = null;
 
-  // Load active conflicts
   if (bestOpp) {
     if (bestOpp.confidenceBreakdown && typeof bestOpp.confidenceBreakdown === 'object') {
       const cb = bestOpp.confidenceBreakdown as Record<string, unknown>;
@@ -80,17 +67,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     confidenceBreakdown,
     signalValidationSummary: signalSummary,
     topConflicts: topConflicts.map(c => ({
-      id: c.id,
-      conflictType: c.conflictType,
-      description: c.description,
-      severity: c.severity,
-      relatedSignals: c.relatedSignals,
-      detectedAt: c.detectedAt.toISOString(),
-    })),
-    intelligenceConfidence,
-    confidenceBreakdown,
-    signalValidationSummary: signalSummary,
-    topConflicts: (topConflicts || []).map(c => ({
       id: c.id,
       conflictType: c.conflictType,
       description: c.description,

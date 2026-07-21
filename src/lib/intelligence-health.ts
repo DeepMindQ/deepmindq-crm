@@ -69,7 +69,7 @@ function computeFieldCoverage(company: {
 }): FieldCoverageMap {
   const cov: FieldCoverageMap = {
     industry: !!company.industry && company.industry.trim().length > 0,
-    revenue: !!company.revenue && company.revenue.trim().length > 0,
+    revenue: !!company.revenue && String(company.revenue).trim().length > 0,
     employeeCount: company.employeeCount != null && Number(company.employeeCount || 0) > 0,
     techStack: !!company.techStack && company.techStack.trim().length > 0,
     fundingStage: !!company.fundingStage && company.fundingStage.trim().length > 0,
@@ -87,24 +87,44 @@ function computeFieldCoverage(company: {
 // ── Main computation ──
 
 export async function computeCompanyHealth(companyId: string): Promise<HealthScoreResult> {
-  // Load company
-  const company = await db.company.findUnique({
-    where: { id: companyId },
-    select: {
-      industry: true,
-      revenue: true,
-      employeeCount: true,
-      techStack: true,
-      fundingStage: true,
-      businessOverview: true,
-      website: true,
-      location: true,
-      country: true,
-      rawName: true,
-      normalizedName: true,
-    },
-  });
+  // Load company + research card
+  const [company, researchCard] = await Promise.all([
+    db.company.findUnique({
+      where: { id: companyId },
+      select: {
+        industry: true,
+        website: true,
+        location: true,
+        country: true,
+        rawName: true,
+        normalizedName: true,
+      },
+    }),
+    db.companyResearchCard.findUnique({
+      where: { companyId },
+      select: {
+        revenue: true,
+        employeeCount: true,
+        techStack: true,
+        fundingStage: true,
+        businessOverview: true,
+      },
+    }),
+  ]);
   if (!company) throw new Error(`Company ${companyId} not found`);
+
+  // Merge company + research card fields for coverage check
+  const mergedCompany = {
+    industry: company.industry,
+    revenue: researchCard?.revenue ?? null,
+    employeeCount: researchCard?.employeeCount ?? null,
+    techStack: researchCard?.techStack ?? null,
+    fundingStage: researchCard?.fundingStage ?? null,
+    businessOverview: researchCard?.businessOverview ?? null,
+    website: company.website,
+    location: company.location,
+    country: company.country,
+  };
 
   // Load counts in parallel
   const [signalCounts, evidenceCounts, contactCounts] = await Promise.all([
@@ -133,18 +153,9 @@ export async function computeCompanyHealth(companyId: string): Promise<HealthSco
 
   const totalContacts = contactCounts;
 
-  // Field coverage
-  const fieldCoverage = computeFieldCoverage(company as {
-    industry: company.industry as string | null;
-    revenue: company.revenue as string | number | null;
-    employeeCount: company.employeeCount as number | string | null;
-    techStack: company.techStack as string | null;
-    fundingStage: company.fundingStage as string | null;
-    businessOverview: company.businessOverview as string | null;
-    website: company.website as string | null;
-    location: company.location as string | null;
-    country: company.country as string | null;
-  });
+  // Field coverage — cast to the expected shape for computeFieldCoverage
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fieldCoverage = computeFieldCoverage(mergedCompany as any);
   fieldCoverage.contacts = totalContacts > 0;
   fieldCoverage.signals = totalSignals > 0;
   fieldCoverage.evidence = totalEvidence > 0;
@@ -170,18 +181,11 @@ export async function computeCompanyHealth(companyId: string): Promise<HealthSco
   if (activeEvidence >= 10) evidenceCoverageScore = Math.min(100, evidenceCoverageScore + 10);
   else if (activeEvidence >= 5) evidenceCoverageScore = Math.min(100, evidenceCoverageScore + 5);
 
-  // Evidence Coverage: active / total (with bonus for volume)
+  // Contact Coverage: presence-based scoring
   let contactCoverageScore = 0;
   if (totalContacts >= 5) contactCoverageScore = 100;
   else if (totalContacts >= 3) contactCoverageScore = 80;
   else if (totalContacts >= 1) contactCoverageScore = 50;
-
-  // Evidence Coverage: active / total (with bonus for volume)
-  let evidenceCoverageScore = totalEvidence > 0
-    ? Math.round((activeEvidence / totalEvidence) * 100)
-    : 0;
-  if (activeEvidence >= 10) evidenceCoverageScore = Math.min(100, evidenceCoverageScore + 10);
-  else if (activeEvidence >= 5) evidenceCoverageScore = Math.min(100, evidenceCoverageScore + 5);
 
   // Overall: weighted composite
   const overallHealthScore = Math.round(
@@ -189,7 +193,6 @@ export async function computeCompanyHealth(companyId: string): Promise<HealthSco
     signalCoverageScore * 0.25 +
     evidenceCoverageScore * 0.25 +
     contactCoverageScore * 0.20,
-  );
   );
 
   return {

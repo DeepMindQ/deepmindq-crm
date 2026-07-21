@@ -4,8 +4,6 @@ import { db } from '@/lib/db';
 import { computeFullConfidenceBreakdown } from '@/lib/intelligence-confidence';
 import { computeEvidenceQuality } from '@/lib/research-engine/evidence-quality';
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 

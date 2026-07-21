@@ -17,6 +17,7 @@
 import { db } from '@/lib/db';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { computeEvidenceQuality } from './evidence-quality';
+import type { Prisma as PrismaNS } from '@prisma/client';
 
 // ── Types ──
 
@@ -328,7 +329,29 @@ Generate the strategic opportunity assessment as JSON.`;
   // 9. Parse LLM response
   const llmOutput = parseLLMResponse(result.response);
 
-  // 10. Create the OpportunityRecommendation record
+  // 10. Compute confidence breakdown (Phase 6 trust layer)
+  let confidenceBreakdown: Record<string, unknown> | null = null;
+  try {
+    const { computeFullConfidenceBreakdown } = await import('@/lib/intelligence-confidence');
+    const breakdown = await computeFullConfidenceBreakdown(
+      companyId,
+      signalId,
+      match.matchScore,
+      evidenceQuality.overall,
+    );
+    confidenceBreakdown = {
+      signalQuality: breakdown.signalQuality,
+      evidenceQuality: breakdown.evidenceQuality,
+      capabilityFit: breakdown.capabilityFit,
+      dataCompleteness: breakdown.dataCompleteness,
+      overall: breakdown.overall,
+    };
+  } catch (err) {
+    // Non-blocking: confidence breakdown is informational, not critical
+    console.warn('[opportunity-engine] Failed to compute confidence breakdown:', err instanceof Error ? err.message : err);
+  }
+
+  // 11. Create the OpportunityRecommendation record
   const recommendation = await db.opportunityRecommendation.create({
     data: {
       companyId,
@@ -348,6 +371,7 @@ Generate the strategic opportunity assessment as JSON.`;
       opportunityScore,
       priority,
       status: 'pending_review',
+      ...(confidenceBreakdown ? { confidenceBreakdown: confidenceBreakdown as unknown as PrismaNS.InputJsonValue } : {}),
     },
   });
 

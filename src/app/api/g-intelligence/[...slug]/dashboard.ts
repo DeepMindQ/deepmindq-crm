@@ -4,9 +4,7 @@ import { getDashboardHealthStats } from '@/lib/intelligence-health';
 import { db } from '@/lib/db';
 
 export async function GET(_req: NextRequest) {
-
-export async function GET(req: NextRequest) {
-  const [healthStats, conflictCounts, recentConflicts, validationStats] = await Promise.all([
+  const [healthStats, conflictCounts, recentConflicts, validationStats, totalCompaniesInDb] = await Promise.all([
     getDashboardHealthStats(),
     db.intelligenceConflict.groupBy({
       by: ['status'],
@@ -21,6 +19,7 @@ export async function GET(req: NextRequest) {
       take: 10,
     }),
     db.companyIntelligenceHealth.count(),
+    db.company.count(),
   ]);
 
   const totalConflicts = conflictCounts.reduce((sum, g) => sum + g._count.id, 0);
@@ -29,7 +28,6 @@ export async function GET(req: NextRequest) {
     .reduce((sum, g) => sum + g._count.id, 0);
 
   // Validation rate: companies with health records / total companies
-  const totalCompaniesInDb = await db.company.count();
   const validationRate = totalCompaniesInDb > 0
     ? Math.round((validationStats / totalCompaniesInDb) * 100) / 100
     : 0;
@@ -45,8 +43,6 @@ export async function GET(req: NextRequest) {
     },
     lowestHealthCompanies: healthStats.lowestHealthCompanies,
     recentConflicts: recentConflicts.map(c => ({
-      id: c.id,
-      companyId: c.companyId,
       id: c.id,
       companyId: c.companyId,
       companyName: c.company.rawName || c.company.normalizedName || 'Unknown',

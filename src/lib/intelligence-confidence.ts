@@ -12,6 +12,7 @@
  */
 
 import { Prisma } from '@prisma/client';
+import type { Prisma as PrismaNS } from '@prisma/client';
 import { db } from '@/lib/db';
 
 export interface ConfidenceBreakdown {
@@ -140,7 +141,7 @@ export async function populateConfidenceBreakdown(
 
   await db.opportunityRecommendation.update({
     where: { id: recommendationId },
-    data: { confidenceBreakdown: breakdown as unknown as Record<string, unknown> },
+    data: { confidenceBreakdown: breakdown as unknown as PrismaNS.InputJsonValue },
   });
 }
 
@@ -150,7 +151,7 @@ export async function backfillConfidenceBreakdowns(): Promise<number> {
   const { computeEvidenceQuality } = await import('./research-engine/evidence-quality');
 
   const recs = await db.opportunityRecommendation.findMany({
-    where: { confidenceBreakdown: null },
+    where: { NOT: [{ confidenceBreakdown: { not: Prisma.DbNull } }] },
     select: { id: true, companyId: true, signalId: true, matchScore: true },
     take: 100,
   });
@@ -167,7 +168,7 @@ export async function backfillConfidenceBreakdowns(): Promise<number> {
       );
       await db.opportunityRecommendation.update({
         where: { id: rec.id },
-        data: { confidenceBreakdown: breakdown as unknown as Record<string, unknown> },
+        data: { confidenceBreakdown: breakdown as unknown as PrismaNS.InputJsonValue },
       });
       updated++;
     } catch (err) {

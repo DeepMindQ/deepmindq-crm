@@ -703,3 +703,32 @@ Stage Summary:
 - Key finding: Schema is already 90% prepared — only runtime logic, API routes, and UI components need implementation
 - Calibration Engine explicitly deferred to prevent scope creep
 - Design document ready for user review before implementation begins
+
+---
+Task ID: 1
+Agent: Main Coordinator
+Task: Phase 6 Implementation — Intelligence Validation & Trust Layer
+
+Work Log:
+- Discovered previous session created stub files with critical bugs: duplicate function declarations in all 7 API handlers, duplicate variable + syntax error in intelligence-health.ts
+- Fixed intelligence-health.ts: removed duplicate `let evidenceCoverageScore` block and extra `);`
+- Rewrote all 7 API handler files (health, evidence-quality, validate, confidence, conflicts, validation-report, dashboard) with clean, correct code
+- Fixed intelligence-health.ts to load revenue/employeeCount/techStack/fundingStage/businessOverview from CompanyResearchCard instead of non-existent Company fields
+- Wired confidenceBreakdown computation into opportunity-recommendation-engine.ts (non-blocking try/catch, computed at creation time)
+- Fixed Prisma JSON type errors in intelligence-confidence.ts (InputJsonValue cast, DbNull filter)
+- Created test setup file (src/test/setup.ts) that was missing
+- Created tests/intelligence-health.test.ts with 16 tests covering all 4 Phase 6 modules
+- All Phase 6 TypeScript errors: 0
+- Total TS errors: 225 → 219 (6 pre-existing errors also fixed)
+- Tests: 489 total (473 passed, 2 pre-existing failures, 14 skipped) + 16 new Phase 6 tests all passing
+- Production build: ✓ Compiled successfully
+
+Stage Summary:
+- 4 lib modules: intelligence-confidence.ts ✅, signal-validation.ts ✅, intelligence-health.ts ✅, contradiction-detection.ts ✅
+- 7 API route handlers: all clean and functional ✅
+- 1 new screen: intelligence-health-screen.tsx ✅ (created in previous session)
+- 1 modified screen: company-profile-screen.tsx Intelligence tab ✅ (created in previous session)
+- Sidebar nav + SCREEN_MAP: already wired ✅ (created in previous session)
+- confidenceBreakdown wired into opportunity-recommendation-engine.ts ✅
+- 16 new unit tests ✅
+- Production build passes ✅

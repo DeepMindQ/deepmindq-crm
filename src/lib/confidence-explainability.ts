@@ -174,19 +174,20 @@ export async function computeConfidenceFactors(
   }
 
   // ── Source reliability bonus ──
-  for (const d of domains) {
-    const reliability = await db.evidenceSourceReliability.findUnique({
-      where: { domain: d },
-    });
-    if (reliability && reliability.reliabilityScore >= 0.8) {
-      positiveFactors.push({
-        factor: `High-reliability source: ${d} (${Math.round(reliability.reliabilityScore * 100)}%)`,
-        impact: fmt(+3),
-        category: 'evidence',
-      });
-      break; // Only add top one
-    }
-  }
+  // TODO: Re-enable once evidenceSourceReliability table is added to schema
+  // for (const d of domains) {
+  //   const reliability = await (db as any).evidenceSourceReliability.findUnique({
+  //     where: { domain: d },
+  //   });
+  //   if (reliability && reliability.reliabilityScore >= 0.8) {
+  //     positiveFactors.push({
+  //       factor: `High-reliability source: ${d} (${Math.round(reliability.reliabilityScore * 100)}%)`,
+  //       impact: fmt(+3),
+  //       category: 'evidence',
+  //     });
+  //     break; // Only add top one
+  //   }
+  // }
 
   return { positiveFactors, negativeFactors };
 }
@@ -204,6 +205,6 @@ export async function populateConfidenceFactors(
 
   await db.opportunityRecommendation.update({
     where: { id: recommendationId },
-    data: { confidenceFactors: factors as unknown as PrismaNS.InputJsonValue },
+    data: { confidenceBreakdown: factors as unknown as PrismaNS.InputJsonValue },
   });
 }

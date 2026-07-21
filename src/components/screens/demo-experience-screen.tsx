@@ -93,7 +93,7 @@ function CompanyCard({
   company: DemoCompany;
   onExplore: () => void;
 }) {
-  const tierConfig = getTierConfig(company.tier);
+  const tierConfig = getTierConfig(company.tier ?? '');
   const barWidth = Math.min(100, Math.max(0, company.score));
 
   return (

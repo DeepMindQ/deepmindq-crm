@@ -41,7 +41,7 @@ export async function buildTrustReport(recommendationId: string): Promise<TrustR
       opportunityTitle: true,
       confidenceScore: true,
       confidenceBreakdown: true,
-      confidenceFactors: true,
+      companyId: true,
       company: { select: { id: true, normalizedName: true } },
     },
   });
@@ -49,14 +49,14 @@ export async function buildTrustReport(recommendationId: string): Promise<TrustR
   if (!rec) return null;
 
   // Compute confidence factors if not yet computed
-  let factors = rec.confidenceFactors as { positiveFactors: unknown[]; negativeFactors: unknown[] } | null;
+  let factors = rec.confidenceBreakdown as { positiveFactors?: unknown[]; negativeFactors?: unknown[] } | null;
   if (!factors) {
     await populateConfidenceFactors(recommendationId);
     const updated = await db.opportunityRecommendation.findUnique({
       where: { id: recommendationId },
-      select: { confidenceFactors: true },
+      select: { confidenceBreakdown: true },
     });
-    factors = updated?.confidenceFactors as typeof factors | null;
+    factors = (updated?.confidenceBreakdown as typeof factors) || null;
   }
 
   // Get validation status for this company

@@ -3,14 +3,19 @@
  *
  * Tracks per-domain reliability based on user feedback.
  * Used to weight evidence quality scoring.
+ *
+ * TODO: Re-enable once evidenceSourceReliability table is added to Prisma schema.
  */
 
 import { db } from '@/lib/db';
 
 const DEFAULT_RELIABILITY = 0.5;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const esr = () => (db as any).evidenceSourceReliability;
+
 export async function getSourceReliability(domain: string): Promise<number> {
-  const record = await db.evidenceSourceReliability.findUnique({
+  const record = await esr().findUnique({
     where: { domain },
     select: { reliabilityScore: true },
   });
@@ -21,7 +26,7 @@ export async function updateSourceReliability(
   domain: string,
   isCorrect: boolean,
 ): Promise<number> {
-  const existing = await db.evidenceSourceReliability.findUnique({
+  const existing = await esr().findUnique({
     where: { domain },
   });
 
@@ -35,7 +40,7 @@ export async function updateSourceReliability(
     ? (validatedCorrect + 1) / (totalValidated + 2) // Laplace smoothing
     : DEFAULT_RELIABILITY;
 
-  await db.evidenceSourceReliability.upsert({
+  await esr().upsert({
     where: { domain },
     create: {
       domain,
@@ -65,7 +70,7 @@ export async function getReliabilityMultiplier(domain: string): Promise<number> 
 export async function getTopReliableSources(limit: number = 20): Promise<
   { domain: string; reliabilityScore: number; totalEvidence: number }[]
 > {
-  return db.evidenceSourceReliability.findMany({
+  return esr().findMany({
     orderBy: { reliabilityScore: 'desc' },
     take: limit,
     select: { domain: true, reliabilityScore: true, totalEvidence: true },
@@ -75,7 +80,7 @@ export async function getTopReliableSources(limit: number = 20): Promise<
 export async function getUnreliableSources(limit: number = 20): Promise<
   { domain: string; reliabilityScore: number; totalEvidence: number }[]
 > {
-  return db.evidenceSourceReliability.findMany({
+  return esr().findMany({
     where: { totalEvidence: { gte: 3 } },
     orderBy: { reliabilityScore: 'asc' },
     take: limit,

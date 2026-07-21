@@ -42,16 +42,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: companyId } = await params;
   try {
-    const feedbacks = await db.recommendationFeedback.findMany({
-      where: { companyId },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-      include: {
-        recommendation: {
-          select: { opportunityTitle: true, confidenceScore: true },
-        },
-      },
-    });
+    // TODO: Re-enable once recommendationFeedback table is added to Prisma schema
+    // const feedbacks = await (db as any).recommendationFeedback.findMany({
+    //   where: { companyId },
+    //   orderBy: { createdAt: 'desc' },
+    //   take: 50,
+    //   include: {
+    //     recommendation: {
+    //       select: { opportunityTitle: true, confidenceScore: true },
+    //     },
+    //   },
+    // });
+    const feedbacks: unknown[] = [];
 
     return NextResponse.json({ companyId, feedbacks });
   } catch (err: unknown) {

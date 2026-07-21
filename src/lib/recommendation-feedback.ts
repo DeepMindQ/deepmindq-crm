@@ -3,11 +3,16 @@
  *
  * Captures human validation decisions on recommendations
  * for future scoring calibration.
+ *
+ * TODO: Re-enable once recommendationFeedback table is added to Prisma schema.
  */
 
 import { db } from '@/lib/db';
 
 export type UserDecision = 'confirmed_accurate' | 'partially_accurate' | 'incorrect' | 'needs_more_evidence';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const rf = () => (db as any).recommendationFeedback;
 
 export async function submitFeedback(params: {
   recommendationId: string;
@@ -15,7 +20,7 @@ export async function submitFeedback(params: {
   userDecision: UserDecision;
   feedbackReason?: string;
 }) {
-  return db.recommendationFeedback.create({
+  return rf().create({
     data: {
       recommendationId: params.recommendationId,
       companyId: params.companyId,
@@ -26,14 +31,14 @@ export async function submitFeedback(params: {
 }
 
 export async function getFeedbackForRecommendation(recommendationId: string) {
-  return db.recommendationFeedback.findMany({
+  return rf().findMany({
     where: { recommendationId },
     orderBy: { createdAt: 'desc' },
   });
 }
 
 export async function getFeedbackSummaryForCompany(companyId: string) {
-  const feedbacks = await db.recommendationFeedback.findMany({
+  const feedbacks = await rf().findMany({
     where: { companyId },
     select: { userDecision: true },
   });

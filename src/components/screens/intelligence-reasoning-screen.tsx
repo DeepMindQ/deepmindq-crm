@@ -28,6 +28,12 @@ import { DEMO_TRUST_REPORT as CANONICAL_TRUST, isDemoId, type DemoTrustReportDat
 
 type TrustReportData = DemoTrustReportData;
 
+interface MissingItem {
+  category: string;
+  description: string;
+  improvementHint?: string;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Demo Fallback — canonical source: lib/demo-data.ts                */
 /* ------------------------------------------------------------------ */

@@ -26,6 +26,23 @@ import { DEMO_BRIEF as CANONICAL_BRIEF, isDemoId, type DemoBriefData } from '@/l
 
 type BriefData = DemoBriefData;
 
+interface Factor {
+  factor: string;
+  impact: string;
+}
+
+interface TimelineEntry {
+  date: string;
+  event: string;
+  type: string;
+}
+
+interface Conflict {
+  type: string;
+  severity: string;
+  description: string;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Demo Fallback — canonical source: lib/demo-data.ts                */
 /* ------------------------------------------------------------------ */

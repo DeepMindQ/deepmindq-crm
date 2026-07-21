@@ -15,6 +15,7 @@ export interface IntelligenceGuardResult {
   allowed: boolean;
   reason?: string;
   response?: Response;
+  request?: Request;
 }
 
 /**
@@ -83,5 +84,5 @@ export async function withIntelligenceGuard(
   return {
     allowed: true,
     request: new Request(request, { headers }),
-  } as IntelligenceGuardResult & { request: Request };
+  };
 }

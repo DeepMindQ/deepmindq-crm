@@ -1,12 +1,12 @@
 import { db } from '@/lib/db';
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
-import { parsePagination, buildPaginationMeta } from '@/lib/pagination';
+import { parsePaginationFromUrl, buildPaginationMeta } from '@/lib/pagination';
 import {
   generateOpportunityRecommendation,
   generateCompanyOpportunities,
 } from '@/lib/research-engine/opportunity-recommendation-engine';
-import { csrfMiddleware } from '@/lib/csrf';
+import { validateCsrf } from '@/lib/csrf';
 
 /* ═══════════════════════════════════════════════════════════════
    GET /api/g-crm/opportunities
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status');
     const priority = searchParams.get('priority');
     const companyId = searchParams.get('companyId');
-    const pagination = parsePagination(req.url);
+    const pagination = parsePaginationFromUrl(req.url);
 
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
           { opportunityScore: 'desc' },
           { createdAt: 'desc' },
         ],
-        take: pagination.take,
+        take: pagination.limit,
         skip: pagination.skip,
       }),
       db.opportunityRecommendation.count({ where }),
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
 
     return apiSuccess({
       data: enriched,
-      pagination: buildPaginationMeta(total, pagination),
+      pagination: buildPaginationMeta(total, pagination.page, pagination.limit),
     });
   } catch (err) {
     console.error('[opportunities GET]', err);
@@ -99,8 +99,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const csrf = csrfMiddleware(req);
-    if (!csrf.valid) return csrf.response!;
+    if (!validateCsrf(req)) return apiError('CSRF validation failed', 403);
 
     const body = await req.json();
     const { companyId, signalId, capabilityMatchId } = body;
@@ -138,8 +137,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const csrf = csrfMiddleware(req);
-    if (!csrf.valid) return csrf.response!;
+    if (!validateCsrf(req)) return apiError('CSRF validation failed', 403);
 
     const body = await req.json();
     const { id, status, rejectionReason, rejectionFeedback, reviewedBy } = body;

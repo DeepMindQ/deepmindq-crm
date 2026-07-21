@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { csrfMiddleware } from '@/lib/csrf';
 
 /* ═══════════════════════════════════════════════════
    Demo companies — shown when DB has no real data
@@ -176,6 +177,8 @@ export async function GET(request: Request) {
    POST — Create a new company
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
+  const csrf = csrfMiddleware(request)
+  if (!csrf.valid) return csrf.response!
   try {
     const body = await request.json();
     const { rawName, domain, industry, sizeRange, location, country, website } = body;

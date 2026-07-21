@@ -1,16 +1,18 @@
 import { db } from '@/lib/db';
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
+import { parsePagination, buildPaginationMeta } from '@/lib/pagination';
 import {
   generateOpportunityRecommendation,
   generateCompanyOpportunities,
 } from '@/lib/research-engine/opportunity-recommendation-engine';
+import { csrfMiddleware } from '@/lib/csrf';
 
-/* ═══════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    GET /api/g-crm/opportunities
    List all opportunity recommendations with filters.
-   Query params: ?status, ?priority, ?companyId, ?limit
-   ═══════════════════════════════════════════════════ */
+   Query params: ?status, ?priority, ?companyId, ?page, ?limit
+   ═══════════════════════════════════════════════════════════════ */
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,30 +20,34 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status');
     const priority = searchParams.get('priority');
     const companyId = searchParams.get('companyId');
-    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10) || 50));
+    const pagination = parsePagination(req.url);
 
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
     if (priority) where.priority = priority;
     if (companyId) where.companyId = companyId;
 
-    const opportunities = await db.opportunityRecommendation.findMany({
-      where,
-      include: {
-        company: { select: { id: true, rawName: true, normalizedName: true, industry: true } },
-        signal: { select: { id: true, title: true, signalType: true, impact: true } },
-        capabilityMatch: { select: { id: true, matchScore: true, reason: true } },
-        pursuits: {
-          select: { id: true, status: true, owner: true, outcomeStage: true },
-          take: 1,
+    const [opportunities, total] = await Promise.all([
+      db.opportunityRecommendation.findMany({
+        where,
+        include: {
+          company: { select: { id: true, rawName: true, normalizedName: true, industry: true } },
+          signal: { select: { id: true, title: true, signalType: true, impact: true } },
+          capabilityMatch: { select: { id: true, matchScore: true, reason: true } },
+          pursuits: {
+            select: { id: true, status: true, owner: true, outcomeStage: true },
+            take: 1,
+          },
         },
-      },
-      orderBy: [
-        { opportunityScore: 'desc' },
-        { createdAt: 'desc' },
-      ],
-      take: limit,
-    });
+        orderBy: [
+          { opportunityScore: 'desc' },
+          { createdAt: 'desc' },
+        ],
+        take: pagination.take,
+        skip: pagination.skip,
+      }),
+      db.opportunityRecommendation.count({ where }),
+    ]);
 
     // Enrich with capability title (SignalCapabilityMatch doesn't have direct Prisma relation to CapabilityAsset)
     const matchIds = [...new Set(opportunities.map(o => o.capabilityMatchId))];
@@ -75,21 +81,27 @@ export async function GET(req: NextRequest) {
       pursuits: undefined,
     }));
 
-    return apiSuccess(enriched);
+    return apiSuccess({
+      data: enriched,
+      pagination: buildPaginationMeta(total, pagination),
+    });
   } catch (err) {
     console.error('[opportunities GET]', err);
     return apiError('Failed to list opportunities');
   }
 }
 
-/* ═══════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    POST /api/g-crm/opportunities
    Generate opportunity recommendations.
    Body: { companyId } or { companyId, signalId, capabilityMatchId }
-   ═══════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 
 export async function POST(req: NextRequest) {
   try {
+    const csrf = csrfMiddleware(req);
+    if (!csrf.valid) return csrf.response!;
+
     const body = await req.json();
     const { companyId, signalId, capabilityMatchId } = body;
 
@@ -116,16 +128,19 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/* ═══════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    PATCH /api/g-crm/opportunities
    Update a single opportunity status.
    Body: { id, status, rejectionReason?, rejectionFeedback?, reviewedBy? }
    Only allows: pending_review → accepted/rejected/monitored
    If status === 'accepted', also create a Pursuit record automatically.
-   ═══════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 
 export async function PATCH(req: NextRequest) {
   try {
+    const csrf = csrfMiddleware(req);
+    if (!csrf.valid) return csrf.response!;
+
     const body = await req.json();
     const { id, status, rejectionReason, rejectionFeedback, reviewedBy } = body;
 

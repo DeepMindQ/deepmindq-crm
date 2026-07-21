@@ -527,7 +527,7 @@ export async function generateEmailDraft(params: {
       governanceResult: governanceResult!,
       outputSummary: `${result.subject} — ${result.body.substring(0, 100)}...`,
       inputParams: { company, industry, tone, hasResearchContext: !!researchContext },
-    }).catch(() => {}); // fire-and-forget
+    }).catch((err) => { console.error('[email-generation] non-blocking operation failed:', err) });
   }
 
   return result;

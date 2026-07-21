@@ -111,7 +111,7 @@ export async function computeEvidenceQuality(companyId: string): Promise<Evidenc
 
   return {
     overall, coverage, freshness, sourceQuality, corroboration, volume,
-    totalEvidence, activeEvidence,
+    totalEvidence, activeEvidence: activeEvidence.length,
     fieldsCovered: fieldsWithEvidence.size,
     totalFields: KEY_FIELDS.length,
     premiumSourceCount: premiumCount,

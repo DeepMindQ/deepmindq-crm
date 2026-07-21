@@ -290,7 +290,7 @@ export async function storeSignals(
       await db.companySignal.update({
         where: { id: signal.id },
         data: { status: newStatus },
-      }).catch(() => {}); // non-blocking
+      }).catch((err) => { console.error('[research-signals] non-blocking operation failed:', err) });
     }
   }
 

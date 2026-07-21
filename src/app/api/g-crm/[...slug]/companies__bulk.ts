@@ -1,11 +1,14 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { csrfMiddleware } from '@/lib/csrf';
 
 /* ═══════════════════════════════════════════════════
    POST — Bulk operations on companies
    Actions: updateStatus, addTag, removeTag, delete, assign
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
+  const csrf = csrfMiddleware(request)
+  if (!csrf.valid) return csrf.response!
   try {
     const body = await request.json();
     const { action, companyIds } = body as { action: string; companyIds?: string[] };

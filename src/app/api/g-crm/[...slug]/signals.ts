@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { csrfMiddleware } from '@/lib/csrf';
 
 /* ═══════════════════════════════════════════════════════════════
    Types
@@ -353,6 +354,8 @@ export async function GET(request: NextRequest) {
    POST /api/signals — Dismiss a signal (in-memory)
    ═══════════════════════════════════════════════════════════════ */
 export async function POST(request: NextRequest) {
+  const csrf = csrfMiddleware(request)
+  if (!csrf.valid) return csrf.response!
   try {
     const body = await request.json();
     const { id, action } = body;

@@ -142,7 +142,7 @@ export async function computeConfidenceFactors(
   // ── Data completeness dimension ──
   const health = await db.companyIntelligenceHealth.findUnique({
     where: { companyId },
-    select: { dataCompletenessScore: true, signalQualityScore: true },
+    select: { dataCompletenessScore: true },
   });
 
   const completeness = health?.dataCompletenessScore ?? 0;
@@ -162,7 +162,7 @@ export async function computeConfidenceFactors(
 
   // ── Conflicts penalty ──
   const conflictCount = await db.intelligenceConflict.count({
-    where: { companyId, resolutionStatus: 'open' },
+    where: { companyId, status: 'open' },
   });
 
   if (conflictCount > 0) {

@@ -464,6 +464,7 @@ describe('buildEvidenceGroundingNote', () => {
   it('should warn about no buying signals', () => {
     const ctx = makeResearchContext({
       signals: [],
+      freshness: { ...makeResearchContext().freshness, signalCount: 0 },
     });
 
     const note = buildEvidenceGroundingNote(ctx);
@@ -659,7 +660,7 @@ describe('buildGovernancePromptAddon', () => {
     const result = {
       passed: true,
       checks: {
-        capability_match: { passed: true, message: 'Not required', value: 0 },
+        capability_match: { passed: false, message: 'No capability assets matched. At least one is required for this generation type.', value: 0 },
         research_exists: { passed: true, message: 'OK', value: true },
         research_confidence: { passed: true, message: 'OK', value: 0.8 },
         freshness_score: { passed: true, message: 'OK', value: 70 },
@@ -789,10 +790,21 @@ describe('governedAICall', () => {
     mockCallLLM.mockResolvedValue('Result');
 
     const staleContext = makeResearchContext({
+      freshness: {
+        ...makeResearchContext().freshness,
+        score: 10,
+        status: 'stale' as const,
+        categories: {
+          profile: { score: 5, status: 'stale' as const, lastVerifiedAt: null, daysSinceVerification: 200 },
+          signal: { score: 0, status: 'stale' as const, lastVerifiedAt: null, daysSinceVerification: 40 },
+          contact: { score: 100, status: 'fresh' as const, lastVerifiedAt: new Date().toISOString(), daysSinceVerification: 1 },
+          technology: { score: 100, status: 'fresh' as const, lastVerifiedAt: new Date().toISOString(), daysSinceVerification: 1 },
+        },
+      },
       researchCard: {
         ...makeResearchContext().researchCard!,
-        profileFreshnessAt: new Date(Date.now() - 200 * 86400000), // way past 2x 90
-        signalFreshnessAt: new Date(Date.now() - 40 * 86400000),  // past 2x 14
+        profileFreshnessAt: new Date(Date.now() - 200 * 86400000),
+        signalFreshnessAt: new Date(Date.now() - 40 * 86400000),
         techFreshnessAt: new Date(),
         contactFreshnessAt: new Date(),
       },
@@ -805,9 +817,9 @@ describe('governedAICall', () => {
       userPrompt: 'Acme',
     });
 
-    const userPrompt = mockCallLLM.mock.calls[0][1] as string;
-    // Should include staleness modifier warning
-    expect(userPrompt).toContain('staleness');
+    const sysPrompt = mockCallLLM.mock.calls[0][0] as string;
+    // Should include staleness modifier warning in system prompt
+    expect(sysPrompt).toContain('staleness');
   });
 });
 

@@ -17,7 +17,7 @@ import {
   LayoutTemplate, Layers, AlertTriangle, Loader2, Sparkles, Network,
   UserPlus, Target, FileBarChart, Code2, Copy, ClipboardList, Kanban, MailPlus,
   ChevronDown, ChevronRight, Radar, MessageSquare, Heart, Activity, Shield, Database,
-  BookOpen, Compass, Search, ExternalLink, Crosshair,
+  BookOpen, Compass, Search, ExternalLink, Crosshair, Play,
 } from 'lucide-react';
 
 import LoginPage from '@/components/login-page';
@@ -75,6 +75,13 @@ const StrategyRoomScreen = lazy(() => import('@/components/screens/strategy-room
 // — Phase 6: Intelligence Governance —
 const IntelligenceHealthScreen = lazy(() => import('@/components/screens/intelligence-health-screen'));
 
+// — Phase 7: Revenue Intelligence Experience Layer —
+const RevenueIntelligenceScreen = lazy(() => import('@/components/screens/revenue-intelligence-screen'));
+const RevenueIntelligenceBriefScreen = lazy(() => import('@/components/screens/revenue-intelligence-brief-screen'));
+const IntelligenceReasoningScreen = lazy(() => import('@/components/screens/intelligence-reasoning-screen'));
+const IntelligenceReportScreen = lazy(() => import('@/components/screens/intelligence-report-screen'));
+const DemoExperienceScreen = lazy(() => import('@/components/screens/demo-experience-screen'));
+
 // — Phase 5/7: Revenue Intelligence screens —
 const AccountRankingScreen = lazy(() => import('@/components/screens/account-ranking-screen'));
 const OpportunityWorkspaceScreen = lazy(() => import('@/components/screens/opportunity-workspace-screen'));
@@ -102,7 +109,11 @@ const NAV_SECTIONS: NavSection[] = [
     heading: 'REVENUE INTELLIGENCE',
     defaultOpen: true,
     items: [
-      { key: 'dashboard', label: 'Command Center', icon: Sparkles },
+      { key: 'revenue-intelligence', label: 'Revenue Intelligence', icon: Sparkles },
+      { key: 'revenue-intelligence-brief', label: 'Company Brief', icon: Target },
+      { key: 'intelligence-reasoning', label: 'AI Reasoning', icon: Brain },
+      { key: 'intelligence-report', label: 'Intelligence Report', icon: FileText },
+      { key: 'demo-experience', label: 'Demo Mode', icon: Play },
       { key: 'account-ranking', label: 'Account Ranking', icon: Target },
       { key: 'opportunity-workspace', label: 'Opportunity Workspace', icon: Radar },
       { key: 'pursuit-workspace', label: 'Pursuit Tracker', icon: Compass },
@@ -233,6 +244,12 @@ function DuplicatesBridge() {
 type ScreenComponent = React.LazyExoticComponent<React.ComponentType<any>> | React.FC<any>;
 
 const SCREEN_MAP: Record<string, ScreenComponent> = {
+  // Phase 7: Revenue Intelligence Experience Layer
+  'revenue-intelligence': RevenueIntelligenceScreen,
+  'revenue-intelligence-brief': RevenueIntelligenceBriefScreen,
+  'intelligence-reasoning': IntelligenceReasoningScreen,
+  'intelligence-report': IntelligenceReportScreen,
+  'demo-experience': DemoExperienceScreen,
   // Revenue Intelligence (Phase 5/7)
   'account-ranking': AccountRankingScreen,
   'opportunity-workspace': OpportunityWorkspaceScreen,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import {
   ArrowRight,
   TrendingUp,
@@ -284,8 +285,8 @@ export default function RevenueIntelligenceScreen({
             (Array.isArray(conflictData) ? conflictData.length : 0);
           setActiveConflicts(typeof openConflicts === 'number' ? openConflicts : 0);
         }
-      } catch {
-        // Silently fall back to demo data
+      } catch (err) {
+        console.error('[RevenueIntelligence] Failed to fetch dashboard data:', err);
       } finally {
         setLoading(false);
       }

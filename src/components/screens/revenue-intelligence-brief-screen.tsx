@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -383,7 +384,8 @@ export default function RevenueIntelligenceBriefScreen({
         };
 
         setBrief(mapped);
-      } catch {
+      } catch (err) {
+        console.error('[IntelligenceBrief] Failed to fetch brief data:', err);
         setBrief(DEMO_BRIEF);
       } finally {
         setLoading(false);

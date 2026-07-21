@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { apiRateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
 import { apiError } from '@/lib/apiHelpers';
+import { getCorrelationId } from '@/lib/correlation-id';
 
 // Inline imports for system routes (2 handlers)
 import * as mod_settings from './settings.ts';
@@ -71,12 +72,14 @@ async function handle(method: HttpMethod, req: NextRequest, slug: string[]): Pro
       return apiError('CSRF validation failed', 403);
     }
   }
+  const correlationId = getCorrelationId(req);
   try {
     const res = await fn(req, { params: Promise.resolve(matched.params) });
     // Append rate limit headers
     const newRes = new Response(res.body, res);
     newRes.headers.set('X-RateLimit-Remaining', String(rl.remaining));
     newRes.headers.set('X-RateLimit-Reset', String(rl.resetAt));
+    newRes.headers.set('X-Correlation-Id', correlationId);
     return newRes;
   }
   catch (err: any) { console.error(`[router:system] ${method} /${slug.join('/')}:`, err.message); return NextResponse.json({ error: 'Internal error', detail: err.message }, { status: 500 }); }

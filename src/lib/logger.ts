@@ -48,7 +48,7 @@ export const logger = {
 }
 
 // Request logger middleware helper
-export function logRequest(method: string, path: string, status: number, durationMs: number, ip?: string) {
+export function logRequest(method: string, path: string, status: number, durationMs: number, ip?: string, correlationId?: string) {
   const level = status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info'
   logger[level](`${method} ${path} ${status}`, {
     method,
@@ -56,6 +56,16 @@ export function logRequest(method: string, path: string, status: number, duratio
     status,
     durationMs,
     ip,
-    userAgent: 'request',
+    correlationId,
   })
+}
+
+export function childLogger(context: Record<string, unknown>) {
+  return {
+    debug: (message: string, meta?: Record<string, unknown>) => log('debug', message, { ...context, ...meta }),
+    info: (message: string, meta?: Record<string, unknown>) => log('info', message, { ...context, ...meta }),
+    warn: (message: string, meta?: Record<string, unknown>) => log('warn', message, { ...context, ...meta }),
+    error: (message: string, meta?: Record<string, unknown>) => log('error', message, { ...context, ...meta }),
+    fatal: (message: string, meta?: Record<string, unknown>) => log('fatal', message, { ...context, ...meta }),
+  }
 }

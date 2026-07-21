@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { apiRateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
 import { apiError } from '@/lib/apiHelpers';
+import { getCorrelationId } from '@/lib/correlation-id';
 
 // Inline imports for data routes (10 original + Data Intelligence handlers)
 import * as mod_stats from './stats.ts';
@@ -266,11 +267,14 @@ async function handle(method: HttpMethod, req: NextRequest, slug: string[]): Pro
     }
   }
 
+  const correlationId = getCorrelationId(req);
+
   // Helper to append rate-limit headers
   const withRL = (res: Response) => {
     const newRes = new Response(res.body, res);
     newRes.headers.set('X-RateLimit-Remaining', String(rl.remaining));
     newRes.headers.set('X-RateLimit-Reset', String(rl.resetAt));
+    newRes.headers.set('X-Correlation-Id', correlationId);
     return newRes;
   };
 

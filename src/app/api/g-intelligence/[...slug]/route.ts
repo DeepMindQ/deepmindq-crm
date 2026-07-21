@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { apiRateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
 import { apiError } from '@/lib/apiHelpers';
+import { getCorrelationId } from '@/lib/correlation-id';
 
 // Phase 6 intelligence validation API handlers
 import * as mod_health from './health.ts';
@@ -72,12 +73,14 @@ async function handle(method: HttpMethod, req: NextRequest, slug: string[]): Pro
       return apiError('CSRF validation failed', 403);
     }
   }
+  const correlationId = getCorrelationId(req);
   try {
     const res = await fn(req, { params: Promise.resolve(matched.params) });
     // Append rate limit headers
     const newRes = new Response(res.body, res);
     newRes.headers.set('X-RateLimit-Remaining', String(rl.remaining));
     newRes.headers.set('X-RateLimit-Reset', String(rl.resetAt));
+    newRes.headers.set('X-Correlation-Id', correlationId);
     return newRes;
   }
   catch (err: unknown) {

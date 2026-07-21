@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase 1-7 Product Readiness Audit</title>
+<style>
+  :root {
+    --header: #766b4b;
+    --accent: #a98826;
+    --accent2: #4a96af;
+    --text: #1e1d1b;
+    --muted: #87847d;
+    --border: #d2ccbb;
+    --card: #f8f8f5;
+    --stripe: #f1f1ee;
+    --success: #397c4f;
+    --warning: #9c7f45;
+    --error: #94433b;
+    --info: #446b93;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--text); line-height:1.6; background:#fff; }
+  .page { max-width:900px; margin:0 auto; padding:40px 48px; }
+
+  /* COVER */
+  .cover { text-align:center; padding:80px 0 60px; border-top:4px solid var(--accent); border-bottom:4px solid var(--accent); margin-bottom:40px; }
+  .cover-phase { font-size:13px; letter-spacing:4px; color:var(--muted); text-transform:uppercase; margin-bottom:8px; }
+  .cover-title { font-size:42px; font-weight:800; color:var(--header); line-height:1.1; margin-bottom:12px; }
+  .cover-sub { font-size:16px; color:var(--accent); margin-bottom:4px; font-weight:600; }
+  .cover-desc { font-size:13px; color:var(--muted); }
+  .cover-meta { text-align:left; max-width:500px; margin:40px auto 0; }
+  .cover-meta table { width:100%; border-collapse:collapse; }
+  .cover-meta td { padding:5px 0; font-size:12px; border-bottom:1px solid var(--border); }
+  .cover-meta td:first-child { color:var(--muted); font-weight:600; width:160px; }
+
+  /* SECTION BAR */
+  .section-bar { background:var(--header); color:#fff; padding:8px 14px; border-radius:4px; font-size:13px; font-weight:700; letter-spacing:0.5px; margin:36px 0 16px; }
+
+  /* TYPOGRAPHY */
+  h2 { font-size:16px; color:var(--accent); margin:24px 0 8px; font-weight:700; }
+  h3 { font-size:13px; color:var(--text); margin:18px 0 6px; font-weight:700; }
+  p { font-size:13px; margin-bottom:8px; text-align:justify; }
+  .small { font-size:11px; color:var(--muted); }
+
+  /* TABLES */
+  table.data { width:100%; border-collapse:collapse; margin:12px 0 16px; font-size:12px; }
+  table.data th { background:var(--header); color:#fff; padding:7px 8px; text-align:left; font-weight:600; font-size:11px; }
+  table.data td { padding:6px 8px; border-bottom:1px solid var(--border); vertical-align:top; }
+  table.data tr:nth-child(even) td { background:var(--stripe); }
+  table.data .red { color:var(--error); font-weight:700; }
+  table.data .warn { color:var(--warning); font-weight:700; }
+  table.data .green { color:var(--success); font-weight:700; }
+
+  /* BADGES */
+  .badge { display:inline-block; padding:2px 10px; border-radius:10px; color:#fff; font-size:10px; font-weight:700; text-align:center; min-width:48px; }
+  .badge-pass { background:var(--success); }
+  .badge-warn { background:var(--warning); }
+  .badge-fail { background:var(--error); }
+
+  /* VERDICT BOX */
+  .verdict-box { display:flex; border-radius:6px; overflow:hidden; margin:16px 0; }
+  .verdict-label { background:var(--warning); color:#fff; padding:14px 18px; font-weight:800; font-size:13px; display:flex; align-items:center; }
+  .verdict-text { background:#3d3520; color:#f0e6c8; padding:14px 18px; font-size:13px; flex:1; display:flex; align-items:center; }
+  .verdict-pass .verdict-label { background:var(--success); }
+  .verdict-pass .verdict-text { background:#1e3524; color:#c8e6d0; }
+  .verdict-fail .verdict-label { background:var(--error); }
+  .verdict-fail .verdict-text { background:#351e1e; color:#e6c8c8; }
+
+  /* KPI ROW */
+  .kpi-row { display:flex; gap:0; margin:16px 0; border:1px solid var(--border); border-radius:6px; overflow:hidden; }
+  .kpi-item { flex:1; text-align:center; padding:16px 8px; background:var(--card); border-right:1px solid var(--border); }
+  .kpi-item:last-child { border-right:none; }
+  .kpi-num { font-size:30px; font-weight:800; color:var(--accent); line-height:1.2; }
+  .kpi-label { font-size:10px; color:var(--muted); margin-top:2px; }
+
+  /* BULLETS */
+  ul { margin:8px 0 12px 20px; }
+  ul li { font-size:13px; margin-bottom:4px; }
+
+  /* RED ROW HIGHLIGHT */
+  tr.row-red td { background:#fdf2f2 !important; }
+
+  /* TOC */
+  .toc-item { display:flex; padding:6px 0; border-bottom:1px solid var(--border); font-size:13px; }
+  .toc-item .sec { width:80px; font-weight:700; color:var(--muted); }
+  .toc-item .title { flex:1; }
+  .toc-item .pg { width:30px; text-align:right; color:var(--muted); }
+
+  /* SCORE TABLE */
+  .score-highlight td:first-child { font-weight:600; }
+
+  /* PRINT */
+  @media print {
+    .page { padding:20px 30px; }
+    .cover { padding:40px 0 30px; }
+    .section-bar { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .badge, .verdict-box, .verdict-label, .verdict-text, .kpi-item, table.data th { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .no-print { display:none; }
+  }
+
+  /* PRINT BUTTON */
+  .print-btn { position:fixed; top:20px; right:20px; background:var(--header); color:#fff; border:none; padding:10px 20px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; z-index:999; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+  .print-btn:hover { background:var(--accent); }
+</style>
+</head>
+<body>
+<button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
+
+<div class="page">
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-phase">PHASE 1-7</div>
+  <div class="cover-title">PRODUCT READINESS<br>AUDIT</div>
+  <div class="cover-sub">DeepMindQ Intelligence Platform</div>
+  <div class="cover-desc">Comprehensive Validation, Architecture &amp; Stability Assessment</div>
+  <div class="cover-meta">
+    <table>
+      <tr><td>AUDIT SCOPE</td><td>13 Sections</td></tr>
+      <tr><td>BOUNDARY</td><td>No new features / No logic changes</td></tr>
+      <tr><td>SCREENS REVIEWED</td><td>5 Phase 7 Screens (2,862 lines)</td></tr>
+      <tr><td>DATABASE MODELS</td><td>35+ Prisma Models (1,398 lines)</td></tr>
+      <tr><td>API ENDPOINTS</td><td>150+ Routes across 7 API groups</td></tr>
+      <tr><td>TEST FILES</td><td>8 test suites (~180 tests)</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- TOC -->
+<h1 style="font-size:20px;color:var(--header);margin-bottom:8px;">TABLE OF CONTENTS</h1>
+<hr style="border:none;border-top:1px solid var(--border);margin-bottom:12px;">
+<div class="toc-item"><span class="sec">Section 1</span><span class="title">Executive Summary &amp; Verdict</span></div>
+<div class="toc-item"><span class="sec">Section 2</span><span class="title">End-to-End Product Flow Validation</span></div>
+<div class="toc-item"><span class="sec">Section 3</span><span class="title">Information Architecture Review</span></div>
+<div class="toc-item"><span class="sec">Section 4</span><span class="title">Data Consistency Audit (Phase 7 Screens)</span></div>
+<div class="toc-item"><span class="sec">Section 5</span><span class="title">Architecture &amp; Layer Separation Review</span></div>
+<div class="toc-item"><span class="sec">Section 6</span><span class="title">Database &amp; API Readiness</span></div>
+<div class="toc-item"><span class="sec">Section 7</span><span class="title">Demo Data vs Real Data Separation</span></div>
+<div class="toc-item"><span class="sec">Section 8</span><span class="title">Empty State &amp; Error Handling Review</span></div>
+<div class="toc-item"><span class="sec">Section 9</span><span class="title">Search &amp; Discovery Readiness</span></div>
+<div class="toc-item"><span class="sec">Section 10</span><span class="title">Testing &amp; Quality Report</span></div>
+<div class="toc-item"><span class="sec">Section 11</span><span class="title">Performance Baseline</span></div>
+<div class="toc-item"><span class="sec">Section 12</span><span class="title">Security &amp; Deployment Baseline</span></div>
+<div class="toc-item"><span class="sec">Section 13</span><span class="title">Final Recommendation</span></div>
+
+<!-- ═══════════ SECTION 1 ═══════════ -->
+<div class="section-bar">SECTION 1: EXECUTIVE SUMMARY &amp; VERDICT</div>
+
+<p>This audit examines the DeepMindQ Intelligence Platform across all seven completed development phases. The platform implements a multi-layered intelligence pipeline that transforms raw company data into actionable revenue insights through signal detection, evidence aggregation, confidence scoring, and human-validated trust assessments. The system comprises 45 screen components, 35+ database models, 150+ API endpoints, and a comprehensive library of intelligence processing modules spanning data quality, workflow automation, research engines, and AI governance.</p>
+
+<div class="verdict-box">
+  <div class="verdict-label">READINESS VERDICT</div>
+  <div class="verdict-text">CONDITIONAL PASS &mdash; Requires 5 Critical Fixes Before Phase 8</div>
+</div>
+
+<p>The platform demonstrates strong architectural foundations with a well-structured intelligence pipeline, mature data models, and comprehensive AI governance. However, five critical issues must be resolved before proceeding to Phase 8 (UI/UX refinement, testing, and demo readiness). These issues center around demo data navigation creating dead-end user experiences, suppressed type errors masking potential bugs, missing test coverage for critical intelligence modules, silent API error handling hiding failures from users, and exposed personal information in the application layout.</p>
+
+<div class="kpi-row">
+  <div class="kpi-item"><div class="kpi-num">45</div><div class="kpi-label">Screen Components</div></div>
+  <div class="kpi-item"><div class="kpi-num">35+</div><div class="kpi-label">DB Models</div></div>
+  <div class="kpi-item"><div class="kpi-num">150+</div><div class="kpi-label">API Endpoints</div></div>
+  <div class="kpi-item"><div class="kpi-num">8</div><div class="kpi-label">Test Suites</div></div>
+  <div class="kpi-item"><div class="kpi-num">~180</div><div class="kpi-label">Test Cases</div></div>
+</div>
+
+<h3>5 Critical Issues Requiring Resolution</h3>
+<table class="data">
+  <tr><th>#</th><th>Issue</th><th>Severity</th><th>Impact</th><th>Effort</th></tr>
+  <tr class="row-red"><td>1</td><td>Demo navigation creates dead-end UX (fake company IDs lead to empty screens)</td><td class="red">CRITICAL</td><td>Users clicking demo companies see blank screens</td><td>2h</td></tr>
+  <tr><td>2</td><td>368 TypeScript errors suppressed via ignoreBuildErrors: true</td><td class="red">CRITICAL</td><td>Hidden bugs can accumulate undetected</td><td>1-2 days</td></tr>
+  <tr><td>3</td><td>Zero test coverage for intelligence-contract.ts (single source of truth), research engine, AI governance</td><td class="warn">HIGH</td><td>Core intelligence pipeline unverified</td><td>2-3 days</td></tr>
+  <tr><td>4</td><td>Silent error catching in revenue-intelligence-screen (catch {})</td><td class="warn">HIGH</td><td>API failures invisible to users</td><td>30min</td></tr>
+  <tr><td>5</td><td>Personal information (email, LinkedIn, name) exposed in JSON-LD structured data</td><td class="warn">MEDIUM</td><td>Privacy and security risk</td><td>15min</td></tr>
+</table>
+
+<!-- ═══════════ SECTION 2 ═══════════ -->
+<div class="section-bar">SECTION 2: END-TO-END PRODUCT FLOW VALIDATION</div>
+
+<p>The intelligence pipeline implements a ten-stage processing chain: Company Ingestion, Signal Detection, Evidence Aggregation, Interpretation, Capability Matching, Recommendation Generation, Trust/Validation, Confidence Scoring, Revenue Intelligence Assembly, and Executive Report Generation. This section validates that data flows correctly through each stage without loss, transformation errors, or dead ends.</p>
+
+<h2>2.1 Pipeline Flow Validation</h2>
+<p>The pipeline begins when a company enters the system through the CRM module (g-crm API group). Raw company data is stored in the Company model with 20+ fields including normalized name, domain, industry, and intelligence score. The research engine (src/lib/research-engine/) then orchestrates signal detection through signal detection modules, which create CompanySignal records linked to the company. Each signal is classified using canonical type constants defined in signal-types.ts (funding, hiring, leadership_change, technology_adoption, etc.) with alias resolution for consistency.</p>
+<p>Evidence extraction follows signal detection, with the evidence.ts module creating Evidence records that track source URLs, snippets, relevance scores, and confidence ratings. The signal-meaning.ts module then infers buying stage from signal patterns, and signal-capability-matching.ts maps detected signals to the CapabilityAsset library. This produces SignalCapabilityMatch records with match scores and sales angles.</p>
+<p>The opportunity-recommendation-engine.ts assembles the final recommendation by combining signal data, capability matches, and confidence metrics. The output OpportunityRecommendation records include confidence breakdowns across four dimensions (Signal 30%, Evidence 30%, Capability 25%, Data 15%) and are presented through the Phase 7 revenue intelligence screens.</p>
+
+<h2>2.2 Data Flow Integrity Assessment</h2>
+<table class="data">
+  <tr><th>Stage</th><th>Input</th><th>Output</th><th>Status</th></tr>
+  <tr><td>Company Ingestion</td><td>CRM Import / Manual</td><td>Company + ResearchCard</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Signal Detection</td><td>Company + ResearchCard</td><td>CompanySignal[]</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Evidence Aggregation</td><td>CompanySignal[]</td><td>Evidence[]</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Interpretation</td><td>CompanySignal[] + Evidence[]</td><td>SignalMeaning</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Capability Matching</td><td>SignalMeaning + CapabilityAsset</td><td>SignalCapabilityMatch[]</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Recommendation</td><td>SignalCapabilityMatch[] + Confidence</td><td>OpportunityRecommendation</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Trust/Validation</td><td>OpportunityRecommendation</td><td>IntelligenceValidation</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Confidence Scoring</td><td>All artifacts</td><td>4-dimension score</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Revenue Intelligence</td><td>All artifacts</td><td>Executive Dashboard</td><td><span class="badge badge-warn">WARN</span></td></tr>
+  <tr><td>Executive Report</td><td>Validation data</td><td>Exportable brief</td><td><span class="badge badge-pass">PASS</span></td></tr>
+</table>
+<p class="small">Note: Revenue Intelligence stage marked WARN due to silent error handling in the dashboard screen (empty catch block on API failure). The pipeline itself functions correctly, but users may see stale demo data when the API fails without any notification.</p>
+
+<h2>2.3 Navigation Flow Validation</h2>
+<p>The application implements a single-page architecture (SPA) where all 45 screens are lazy-loaded through a central page.tsx controller. Navigation is managed via a Zustand store with a single activeView field. The Phase 7 navigation flow follows this path: Demo Experience Screen (5 clickable companies) &rarr; Revenue Intelligence Brief (drill-down) &rarr; Intelligence Reasoning (trust analysis) &rarr; Intelligence Report (validation detail). Each transition correctly passes the selectedCompanyId through the store, ensuring context is maintained between screens.</p>
+<p>However, a critical flow break was identified: the Demo Experience Screen uses fake company IDs (demo-aramco.com, demo-adnoc.ae, etc.) that do not exist in the database. When a user clicks "Explore Intelligence" on a demo company, the Revenue Intelligence Brief screen receives this fake ID and attempts API calls that will return 404 or empty responses, resulting in an empty loading state. This creates a dead-end user experience that must be fixed before any demo or stakeholder presentation.</p>
+
+<!-- ═══════════ SECTION 3 ═══════════ -->
+<div class="section-bar">SECTION 3: INFORMATION ARCHITECTURE REVIEW</div>
+
+<p>The information architecture organizes the platform into five functional layers: Core CRM (companies, contacts, leads, pipeline), Data Intelligence (import, quality, rules), Intelligence Engine (signals, evidence, confidence, health), Revenue Intelligence (dashboard, brief, reasoning, report), and System (settings, audit, auth). Each layer is represented as a distinct navigation section in the sidebar with 5-12 screens per section.</p>
+
+<h2>3.1 Navigation Taxonomy</h2>
+<table class="data">
+  <tr><th>Section</th><th>Screens</th><th>Phase</th><th>Status</th></tr>
+  <tr><td>Overview</td><td>Dashboard, Command Center</td><td>Core</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Revenue Intelligence</td><td>5 screens (Dashboard, Brief, Reasoning, Report, Demo)</td><td>Phase 7</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Intelligence</td><td>Signal Intelligence, Intelligence Health, Account Ranking, Opportunity Radar/Workspace, Pursuit Workspace</td><td>Phase 3-6</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>CRM</td><td>Companies, Contacts, Leads, Segments, Duplicates, Pipeline, Opportunities</td><td>Core</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Outreach</td><td>Sequences, Templates, Drafts, Queue, Replies, Bounces, Email Generation</td><td>Core</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Data</td><td>Import, Data Health, Analytics, Reports, Audit</td><td>Phase 1</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>AI</td><td>Knowledge Library, Research Agent, Conversation Studio, Relationship Memory</td><td>Core</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Settings</td><td>Settings, Data Rules, ICP Settings, Tasks</td><td>Core/5</td><td><span class="badge badge-pass">PASS</span></td></tr>
+</table>
+
+<h2>3.2 Screen Component Architecture</h2>
+<p>All 45 screens follow a consistent architectural pattern: each screen is a standalone React component that manages its own data fetching via useEffect hooks, local state via useState, and renders using shadcn/ui components with Tailwind CSS styling. The screens do not share state through the Zustand store beyond the activeView and selectedCompanyId fields. This means each screen independently fetches its data from the API, resulting in no shared caching or data coherency between screens viewing the same entity.</p>
+
+<h2>3.3 Intelligence Contract Pattern</h2>
+<p>The intelligence-contract.ts file serves as the single source of truth for intelligence data consumption. It provides four canonical functions: getResearchContext() for assembling a company's complete research profile, getAccountIntelligence() for aggregated intelligence metrics, getResearchFreshness() for staleness detection, and getSignalMetrics() for signal statistics. All intelligence-consuming components and API routes are expected to use these functions rather than querying the database directly. However, this critical module has zero test coverage, which is a significant risk given its role as the single source of truth.</p>
+
+<!-- ═══════════ SECTION 4 ═══════════ -->
+<div class="section-bar">SECTION 4: DATA CONSISTENCY AUDIT (PHASE 7 SCREENS)</div>
+
+<p>This section audits data consistency across all five Phase 7 screens, focusing on the five demo companies (Saudi Aramco, ADNOC, STC, Emirates NBD, NEOM) that serve as the primary data set for the Revenue Intelligence experience.</p>
+
+<h2>4.1 Company Identity Consistency</h2>
+<p>All five Phase 7 screens reference the same set of demo companies. The revenue-intelligence-screen.tsx and demo-experience-screen.tsx both define a DEMO_COMPANIES array containing identical company objects with consistent fields. The revenue-intelligence-brief-screen.tsx has a separate DEMO_DATA constant with equivalent but independently defined data for its fallback state. This dual definition creates a maintenance risk: changes to company attributes in one screen will not automatically propagate to the other.</p>
+
+<h2>4.2 Score Consistency Analysis</h2>
+<p>The demo data assigns intelligence scores and confidence values to each company. These values are used across multiple screens and must remain consistent. The current implementation uses hardcoded values that are consistent within each screen but defined independently across screens. The confidence scoring system uses a weighted four-dimension model: Signal Quality (30%), Evidence Strength (30%), Capability Match (25%), and Data Completeness (15%). In the demo data, these individual dimension scores are not explicitly provided; only the aggregate score is shown.</p>
+
+<h2>4.3 Screen-Level Data Audit</h2>
+<table class="data">
+  <tr><th>Screen</th><th>Lines</th><th>Data Source</th><th>Demo Fallback</th><th>Issues</th></tr>
+  <tr><td>Revenue Intelligence</td><td>417</td><td>API: /g-intelligence/dashboard</td><td>DEMO_COMPANIES[]</td><td>Silent catch {}</td></tr>
+  <tr><td>Revenue Intelligence Brief</td><td>697</td><td>API: /g-intelligence/companies/[id]/validation-report</td><td>DEMO_DATA (separate)</td><td>Independent demo data</td></tr>
+  <tr><td>Intelligence Reasoning</td><td>661</td><td>API: /g-intelligence/recommendations/[id]/trust-report</td><td>No fallback</td><td>No demo path</td></tr>
+  <tr><td>Intelligence Report</td><td>764</td><td>API: /g-intelligence/companies/[id]/validation-report</td><td>No fallback</td><td>Shares endpoint with Brief</td></tr>
+  <tr><td>Demo Experience</td><td>299</td><td>100% hardcoded</td><td>N/A (is demo)</td><td>Fake IDs cause dead-ends</td></tr>
+</table>
+
+<h2>4.4 CSS Custom Class Consistency</h2>
+<p>A significant consistency issue: the Phase 7 screens reference CSS classes bg-gold and text-gold that are not defined in tailwind.config.ts. These would need to be in globals.css. If not defined anywhere, gold-colored elements (priority indicators, confidence badges) will render without their intended styling, appearing as plain text. This could confuse users during demo presentations.</p>
+
+<!-- ═══════════ SECTION 5 ═══════════ -->
+<div class="section-bar">SECTION 5: ARCHITECTURE &amp; LAYER SEPARATION REVIEW</div>
+
+<p>The platform follows a four-layer architecture: Data Foundation Layer (Prisma ORM, SQLite/PostgreSQL, database models), Intelligence Engine Layer (signal processing, evidence aggregation, confidence scoring, trust validation), Trust/Validation Layer (human feedback, source reliability, contradiction detection), and Revenue Intelligence Experience Layer (React components, API routes, state management).</p>
+
+<h2>5.1 Layer Separation Assessment</h2>
+<table class="data">
+  <tr><th>Layer</th><th>Components</th><th>Dependency Direction</th><th>Status</th></tr>
+  <tr><td>Data Foundation</td><td>Prisma, SQLite, 35+ models</td><td>One-way: upward only</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Intelligence Engine</td><td>12 modules (signals, evidence, confidence, health, research)</td><td>Reads DB, no UI dependency</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Trust/Validation</td><td>6 modules (validation, source reliability, contradiction, feedback)</td><td>Reads/writes intelligence artifacts</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Experience Layer</td><td>45 screens, 7 API groups, Zustand store</td><td>Consumes all lower layers</td><td><span class="badge badge-warn">WARN</span></td></tr>
+</table>
+<p class="small">Experience Layer marked WARN: API route handlers contain both routing logic and business logic. Recommended: routes delegate to pure business logic functions in lib/, serving only as HTTP adapters.</p>
+
+<h2>5.2 API Dispatcher Pattern</h2>
+<p>All API groups use a dynamic [...slug] route pattern where a single route.ts file contains a regex-based dispatcher that maps URL slugs to handler functions. Each API group has its own dispatcher with 4-50+ routes. The g-crm dispatcher alone handles 50+ routes in a single file. The intelligence API group (g-intelligence) is well-scoped with 10 focused routes.</p>
+
+<h2>5.3 State Management Assessment</h2>
+<p>The Zustand store (store.ts) is minimal with only six fields: activeView, sidebarCollapsed, selectedContactId, selectedCompanyId, selectedDraftId, and activeFilters. Server state is managed through local useState hooks within each screen component. The application includes @tanstack/react-query as a dependency but the majority of screens do not use it for data fetching. This means there is no shared caching, no automatic background refetching, and no optimistic updates.</p>
+
+<!-- ═══════════ SECTION 6 ═══════════ -->
+<div class="section-bar">SECTION 6: DATABASE &amp; API READINESS</div>
+
+<p>The database layer uses Prisma ORM with SQLite for development and Neon PostgreSQL for production. The schema contains 35+ models spanning 1,398 lines with comprehensive indexing, relations, and JSON fields.</p>
+
+<h2>6.1 Database Schema Completeness</h2>
+<p>The schema covers all functional domains: core CRM (Company, Contact, ImportBatch), signals and evidence (CompanySignal, Evidence, CompanyTimelineEvent), email outreach (EmailTemplate, EmailSequence, SequenceStep, SequenceEnrollment, Draft, SendQueue, EmailEvent, ABTest, Reply, Bounce, Suppression, Segment), intelligence trust (SignalValidation, CompanyIntelligenceHealth, IntelligenceConflict, IntelligenceValidation, RecommendationFeedback, EvidenceSourceReliability), strategy and pursuit (CapabilityAsset, SignalCapabilityMatch, OpportunityRecommendation, Pursuit, Playbook, AccountStrategy), data intelligence (DataUpload, UploadRow, ColumnMappingRule, FieldValidationRule, NormalizationMapping, ScoringWeight, DataQualityScore), and workflow/auth (Job, JobLog, AIGenerationAudit, User, OtpCode, Session, SystemSetting, PriorityScoreHistory, ConversationPlan, AuditLog).</p>
+
+<h2>6.2 API Endpoint Inventory</h2>
+<table class="data">
+  <tr><th>API Group</th><th>Routes</th><th>Auth</th><th>Rate Limited</th><th>Audit Logged</th></tr>
+  <tr><td>/api/g-intelligence/</td><td>10</td><td>Partial</td><td>No</td><td>No</td></tr>
+  <tr><td>/api/g-crm/</td><td>50+</td><td>Partial</td><td>No</td><td>Partial</td></tr>
+  <tr><td>/api/g-ai/</td><td>32</td><td>Partial</td><td>No</td><td>Partial</td></tr>
+  <tr><td>/api/g-data/</td><td>24</td><td>Partial</td><td>No</td><td>No</td></tr>
+  <tr><td>/api/g-outreach/</td><td>26</td><td>Partial</td><td>No</td><td>No</td></tr>
+  <tr><td>/api/g-strategy/</td><td>9</td><td>Partial</td><td>No</td><td>No</td></tr>
+  <tr><td>/api/g-auth/</td><td>10</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+  <tr><td>/api/g-system/</td><td>4</td><td>Partial</td><td>No</td><td>No</td></tr>
+</table>
+<p class="small">Critical: withApiMiddleware exists but is NOT consistently applied. 155+ endpoints lack rate limiting and consistent audit logging.</p>
+
+<h2>6.3 Intelligence API Deep Dive</h2>
+<p>The g-intelligence API group provides the backbone for Phase 7 screens. All 10 routes are functional and correctly mapped. The dashboard route aggregates health scores. The confidence route returns the four-dimension weighted breakdown. The trust-report route assembles explainability. The source-reliability route provides per-domain scores using Bayesian-inspired Laplace smoothing. All routes correctly use the Prisma client through the centralized db.ts singleton.</p>
+
+<!-- ═══════════ SECTION 7 ═══════════ -->
+<div class="section-bar">SECTION 7: DEMO DATA VS REAL DATA SEPARATION</div>
+
+<p>The platform uses a hybrid approach: the Demo Experience Screen is 100% hardcoded, while the Revenue Intelligence Dashboard uses a fallback pattern attempting real API calls first.</p>
+
+<h2>7.1 Demo Data Patterns</h2>
+<table class="data">
+  <tr><th>Pattern</th><th>Screens</th><th>Risk</th><th>Assessment</th></tr>
+  <tr><td>Fully Hardcoded</td><td>Demo Experience (299 lines)</td><td>Low - no data path conflicts</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Hybrid (API + Fallback)</td><td>Revenue Intelligence (417 lines)</td><td>Medium - stale data risk</td><td><span class="badge badge-warn">WARN</span></td></tr>
+  <tr><td>Hybrid (API + Fallback)</td><td>Revenue Intelligence Brief (697 lines)</td><td>Medium - separate fallback data</td><td><span class="badge badge-warn">WARN</span></td></tr>
+  <tr><td>API Only (No Fallback)</td><td>Intelligence Reasoning (661 lines)</td><td>High - no demo path</td><td><span class="badge badge-warn">WARN</span></td></tr>
+  <tr><td>API Only (No Fallback)</td><td>Intelligence Report (764 lines)</td><td>High - no demo path</td><td><span class="badge badge-warn">WARN</span></td></tr>
+</table>
+
+<h2>7.2 Dead-End Navigation Issue (Critical)</h2>
+<p>The most significant demo data issue is the navigation dead-end. When a user clicks "Explore Intelligence" on a demo company, the screen calls navigateTo('revenue-intelligence-brief', companyId) where companyId is a fake identifier like 'demo-aramco.com'. The Brief screen then attempts to fetch from /api/g-intelligence/companies/demo-aramco.com/validation-report, which returns 404. Fix options: (a) seed demo companies in DB via seed script, or (b) add explicit demo mode detection in the brief screen.</p>
+
+<h2>7.3 Mock Data Module</h2>
+<p>The mock-data.ts file (~3,500 lines) contains comprehensive mock data but is NOT imported by Phase 7 screens. Phase 7 screens define their own inline demo constants, creating duplication and divergence risk.</p>
+
+<!-- ═══════════ SECTION 8 ═══════════ -->
+<div class="section-bar">SECTION 8: EMPTY STATE &amp; ERROR HANDLING REVIEW</div>
+
+<p>Robust empty state and error handling is critical for user experience, especially in demo context where the database may be empty.</p>
+
+<h2>8.1 Empty State Coverage</h2>
+<p>The Revenue Intelligence Dashboard handles empty state well: displays "No accounts analyzed yet" with a TrendingUp icon. The Brief screen includes loading skeletons and empty states. The Reasoning and Report screens follow similar patterns. The Demo Screen includes a footer note: "Demo data is simulated for demonstration purposes".</p>
+
+<h2>8.2 Error Handling Assessment</h2>
+<table class="data">
+  <tr><th>Screen</th><th>Loading State</th><th>Empty State</th><th>Error Handling</th><th>Status</th></tr>
+  <tr class="row-red"><td>Revenue Intelligence</td><td>Yes (skeleton)</td><td>Yes</td><td>Silent catch {}</td><td><span class="badge badge-fail">FAIL</span></td></tr>
+  <tr><td>Revenue Intelligence Brief</td><td>Yes (skeleton)</td><td>Yes</td><td>try/catch with error state</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Intelligence Reasoning</td><td>Yes</td><td>Yes</td><td>try/catch with error state</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Intelligence Report</td><td>Yes</td><td>Yes</td><td>try/catch with error state</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Demo Experience</td><td>N/A</td><td>N/A</td><td>No API calls</td><td><span class="badge badge-pass">PASS</span></td></tr>
+</table>
+<p class="small">Revenue Intelligence Dashboard: empty catch block swallows all API errors. Users see stale demo data without realizing it is not live. Fix: add toast notification or inline error message.</p>
+
+<h2>8.3 Global Error Boundary</h2>
+<p>The application includes an ErrorBoundary component but React strict mode is disabled (reactStrictMode: false). 368 TypeScript errors are suppressed via ignoreBuildErrors: true. This combination creates elevated risk of unhandled runtime errors.</p>
+
+<!-- ═══════════ SECTION 9 ═══════════ -->
+<div class="section-bar">SECTION 9: SEARCH &amp; DISCOVERY READINESS</div>
+
+<h2>9.1 Existing Search Capabilities</h2>
+<p>The platform includes knowledge-search.tsx, command-palette.tsx (Cmd+K), CRM-level filtering, and a /search API endpoint. However, there is no unified full-text search across all entity types. For Phase 8 demo readiness, the existing CRM-level search and command palette are sufficient since the demo flow is guided (users click through predefined screens).</p>
+
+<h2>9.2 Vector Search Infrastructure</h2>
+<p>vector-index.ts and embeddings.ts modules exist but integration with Phase 7 screens is not established. Not a blocker for demo readiness.</p>
+
+<h2>9.3 Discovery Readiness Assessment</h2>
+<p>The current discovery mechanisms are adequate for the guided demo experience. For post-Phase 8 production use, a unified search experience would be valuable but is not a blocker.</p>
+
+<!-- ═══════════ SECTION 10 ═══════════ -->
+<div class="section-bar">SECTION 10: TESTING &amp; QUALITY REPORT</div>
+
+<p>The test suite uses Vitest with @testing-library/react. This section provides a comprehensive coverage analysis.</p>
+
+<h2>10.1 Test Coverage Summary</h2>
+<table class="data">
+  <tr><th>Module</th><th>Test File</th><th>Tests</th><th>Coverage</th><th>Status</th></tr>
+  <tr><td>Account Prioritization</td><td>account-prioritization.test.ts</td><td>40+</td><td>Comprehensive</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>ICP Configuration</td><td>icp-config.test.ts</td><td>40+</td><td>Comprehensive</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>API Routes (Email)</td><td>api-routes.test.ts</td><td>25</td><td>Good</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Scoring Edge Cases</td><td>scoring-edge-cases.test.ts</td><td>20</td><td>Good</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Intelligence Health</td><td>intelligence-health.test.ts</td><td>12</td><td>Basic</td><td><span class="badge badge-warn">WARN</span></td></tr>
+  <tr><td>API Priority Routes</td><td>api-priority-routes.test.ts</td><td>15</td><td>Good</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr><td>Utilities</td><td>utils.test.ts</td><td>20</td><td>Good</td><td><span class="badge badge-pass">PASS</span></td></tr>
+  <tr class="row-red"><td>Intelligence Contract</td><td>NONE</td><td>0</td><td>ZERO</td><td><span class="badge badge-fail">FAIL</span></td></tr>
+  <tr class="row-red"><td>Research Engine (12 modules)</td><td>NONE</td><td>0</td><td>ZERO</td><td><span class="badge badge-fail">FAIL</span></td></tr>
+  <tr class="row-red"><td>AI Governance</td><td>NONE</td><td>0</td><td>ZERO</td><td><span class="badge badge-fail">FAIL</span></td></tr>
+  <tr class="row-red"><td>Data Intelligence (8 modules)</td><td>NONE</td><td>0</td><td>ZERO</td><td><span class="badge badge-fail">FAIL</span></td></tr>
+  <tr class="row-red"><td>All 45 Screen Components</td><td>NONE</td><td>0</td><td>ZERO</td><td><span class="badge badge-fail">FAIL</span></td></tr>
+</table>
+
+<h2>10.2 Critical Test Gaps</h2>
+<p>The intelligence-contract.ts module (single source of truth) has zero test coverage. Any bug here affects every intelligence-consuming component. The research engine modules collectively implement the core pipeline but have no automated tests. The AI governance layer (ai-governance.ts), which prevents low-confidence output, is completely untested. A bug here could allow unreliable intelligence to be presented as high-confidence.</p>
+
+<!-- ═══════════ SECTION 11 ═══════════ -->
+<div class="section-bar">SECTION 11: PERFORMANCE BASELINE</div>
+
+<h2>11.1 Bundle &amp; Loading Performance</h2>
+<p>All 45 screen components use React.lazy() for code splitting. The initial page load only includes the controller, Zustand store, and app shell. Phase 7 screens load on demand when users navigate to Revenue Intelligence. This keeps the initial bundle small despite the large total codebase.</p>
+
+<h2>11.2 API Response Patterns</h2>
+<p>Intelligence API routes query the database directly using Prisma. No N+1 protections visible. The dashboard route loads all CompanyIntelligenceHealth records without pagination. No response caching exists - each request hits the database directly.</p>
+
+<h2>11.3 Performance Summary</h2>
+<table class="data">
+  <tr><th>Area</th><th>Current State</th><th>Risk</th><th>Phase 8 Impact</th></tr>
+  <tr><td>Code Splitting</td><td>React.lazy() on all 45 screens</td><td>Low</td><td>None - well optimized</td></tr>
+  <tr><td>Initial Bundle</td><td>Small (controller + shell only)</td><td>Low</td><td>Fast first load</td></tr>
+  <tr><td>API Caching</td><td>None (react-query unused)</td><td>Medium</td><td>Duplicate API calls on navigation</td></tr>
+  <tr><td>DB Pagination</td><td>Not implemented on dashboard</td><td>Medium</td><td>Slow with 1000+ companies</td></tr>
+  <tr><td>N+1 Queries</td><td>No includes/select optimization</td><td>Medium</td><td>Slow related data loading</td></tr>
+  <tr><td>In-Memory State</td><td>Rate limiting, event bus</td><td>Low (dev)</td><td>Must migrate for production</td></tr>
+</table>
+
+<!-- ═══════════ SECTION 12 ═══════════ -->
+<div class="section-bar">SECTION 12: SECURITY &amp; DEPLOYMENT BASELINE</div>
+
+<h2>12.1 Security Strengths</h2>
+<ul>
+  <li>Session-based authentication with opaque tokens (more secure than JWTs for token theft)</li>
+  <li>OTP-based login with 6-digit codes, expiration, and attempt limiting</li>
+  <li>RBAC system with 4 roles (admin, manager, sales_rep, viewer) and 8 resource types</li>
+  <li>AI governance layer with confidence gates preventing low-quality output</li>
+  <li>Input sanitization module (sanitize.ts) available for API input cleaning</li>
+  <li>GDPR consent tracking on contacts (consentSource, consentDate, consentIp)</li>
+  <li>AI Generation Audit model tracks all LLM outputs with evidence provenance</li>
+  <li>Password hashing and session management with expiration</li>
+  <li>Suppression/unsubscribe system with method tracking for email compliance</li>
+</ul>
+
+<h2>12.2 Security Concerns</h2>
+<table class="data">
+  <tr><th>Concern</th><th>Severity</th><th>Details</th></tr>
+  <tr><td>Personal info in JSON-LD</td><td class="red">HIGH</td><td>layout.tsx JSON-LD exposes email, LinkedIn URL, full name</td></tr>
+  <tr><td>In-memory rate limiting</td><td class="warn">MEDIUM</td><td>Resets on server restart; ineffective in serverless deployments</td></tr>
+  <tr><td>No CSRF protection</td><td class="warn">MEDIUM</td><td>No anti-CSRF tokens on state-changing endpoints</td></tr>
+  <tr><td>Inconsistent auth enforcement</td><td class="warn">MEDIUM</td><td>withApiMiddleware not applied to 155+ endpoints</td></tr>
+  <tr><td>No Content-Security-Policy</td><td style="color:var(--info);">LOW</td><td>Missing CSP headers in next.config.ts</td></tr>
+  <tr><td>368 suppressed TS errors</td><td class="warn">MEDIUM</td><td>Type-related security issues may be hidden</td></tr>
+</table>
+
+<h2>12.3 Deployment Configuration</h2>
+<p>Configured for standalone output (output: 'standalone') for Docker/containerized deployments. URL rewrites map clean API paths. poweredByHeader is false (removes Next.js fingerprinting). .env contains only DATABASE_URL for development. Production env vars expected via hosting platform.</p>
+
+<!-- ═══════════ SECTION 13 ═══════════ -->
+<div class="section-bar">SECTION 13: FINAL RECOMMENDATION</div>
+
+<div class="verdict-box">
+  <div class="verdict-label">VERDICT</div>
+  <div class="verdict-text">CONDITIONAL PASS &mdash; Phase 8 can begin after resolving 5 critical items</div>
+</div>
+
+<p>The DeepMindQ Intelligence Platform has achieved a solid foundation across seven development phases. The intelligence pipeline architecture is sound, the data model is comprehensive, and the Phase 7 screens deliver a compelling revenue intelligence experience. The platform is architecturally ready for Phase 8, but five specific issues must be resolved.</p>
+
+<h2>13.1 Mandatory Fixes Before Phase 8</h2>
+<table class="data">
+  <tr><th>Priority</th><th>Fix</th><th>File</th><th>Effort</th></tr>
+  <tr class="row-red"><td class="red">P0</td><td>Fix demo navigation dead-end: add demo ID detection in brief screen, or seed demo companies in DB</td><td>demo-experience-screen.tsx + revenue-intelligence-brief-screen.tsx</td><td>2h</td></tr>
+  <tr class="row-red"><td class="red">P0</td><td>Add error notification in revenue-intelligence-screen catch block (replace silent catch {})</td><td>revenue-intelligence-screen.tsx:287</td><td>30min</td></tr>
+  <tr class="row-red"><td class="red">P0</td><td>Remove personal information from JSON-LD in layout.tsx</td><td>src/app/layout.tsx</td><td>15min</td></tr>
+  <tr><td class="warn">P1</td><td>Begin reducing 368 TypeScript errors (target: fix top 50, enable strict checks)</td><td>Multiple files</td><td>1-2 days</td></tr>
+  <tr><td class="warn">P1</td><td>Add test coverage for intelligence-contract.ts (single source of truth)</td><td>New: tests/intelligence-contract.test.ts</td><td>4h</td></tr>
+</table>
+
+<h2>13.2 Phase 8 Scope Recommendations</h2>
+<ol style="margin:8px 0 12px 24px; font-size:13px;">
+  <li style="margin-bottom:6px;"><strong>UI/UX refinement</strong> of the five Phase 7 screens (visual consistency, spacing, responsive behavior)</li>
+  <li style="margin-bottom:6px;"><strong>Test coverage</strong> for intelligence pipeline modules (research engine, AI governance, intelligence contract)</li>
+  <li style="margin-bottom:6px;"><strong>Demo data seeding</strong> to ensure demo flow works end-to-end without API failures</li>
+  <li style="margin-bottom:6px;"><strong>Performance optimization</strong> including React Query integration, DB pagination, eager loading</li>
+  <li style="margin-bottom:6px;"><strong>Security hardening</strong> including consistent middleware, CSRF protection, CSP headers</li>
+</ol>
+
+<h2>13.3 Out-of-Scope Items (Explicitly Excluded)</h2>
+<ul>
+  <li>No new features will be added as part of this audit or the recommended fixes</li>
+  <li>No modifications to intelligence scoring algorithms or AI/LLM pipeline logic</li>
+  <li>No CRM, SaaS, RBAC enhancement, multi-tenancy, or billing system changes</li>
+  <li>No database schema migrations or model additions</li>
+  <li>No new API endpoints beyond those needed for demo data seeding</li>
+</ul>
+
+<h2>13.4 Section Scores Summary</h2>
+<table class="data score-highlight">
+  <tr><th>Section</th><th>Score</th><th>Notes</th></tr>
+  <tr><td>1. Executive Summary</td><td>7.0 / 10</td><td>Strong foundation with 5 critical issues</td></tr>
+  <tr><td>2. E2E Flow Validation</td><td>8.0 / 10</td><td>Pipeline complete, demo flow has dead-end</td></tr>
+  <tr><td>3. Information Architecture</td><td>8.5 / 10</td><td>Well-organized, consistent patterns</td></tr>
+  <tr><td>4. Data Consistency</td><td>6.5 / 10</td><td>Dual demo data definitions, CSS class gaps</td></tr>
+  <tr><td>5. Architecture Review</td><td>8.0 / 10</td><td>Clean layers, API routes mix concerns</td></tr>
+  <tr><td>6. DB &amp; API Readiness</td><td>7.5 / 10</td><td>Comprehensive schema, inconsistent middleware</td></tr>
+  <tr><td>7. Demo vs Real Data</td><td>5.5 / 10</td><td>Navigation dead-end is critical blocker</td></tr>
+  <tr><td>8. Empty/Error Handling</td><td>6.0 / 10</td><td>Silent catch, suppressed TS errors</td></tr>
+  <tr><td>9. Search &amp; Discovery</td><td>7.0 / 10</td><td>Adequate for demo, needs unification later</td></tr>
+  <tr><td>10. Testing &amp; Quality</td><td>4.5 / 10</td><td>Core intelligence modules untested</td></tr>
+  <tr><td>11. Performance Baseline</td><td>7.5 / 10</td><td>Good code splitting, no caching/pagination</td></tr>
+  <tr><td>12. Security &amp; Deployment</td><td>6.5 / 10</td><td>Strong auth, gaps in enforcement</td></tr>
+</table>
+
+<div style="text-align:center; margin:24px 0; padding:12px; background:#fff8ee; border:2px solid var(--warning); border-radius:8px;">
+  <div style="font-size:16px; font-weight:800; color:var(--warning);">Overall Platform Readiness: 6.9 / 10</div>
+  <div style="font-size:13px; color:var(--text); margin-top:4px;">CONDITIONAL PASS for Phase 8</div>
+</div>
+
+</div>
+</body>
+</html>

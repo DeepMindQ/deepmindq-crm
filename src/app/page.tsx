@@ -72,6 +72,9 @@ const PlaybooksScreen = lazy(() => import('@/components/screens/playbooks-screen
 const ResearchAgentScreen = lazy(() => import('@/components/screens/research-agent-screen'));
 const StrategyRoomScreen = lazy(() => import('@/components/screens/strategy-room-screen'));
 
+// — Phase 6: Intelligence Governance —
+const IntelligenceHealthScreen = lazy(() => import('@/components/screens/intelligence-health-screen'));
+
 // — Phase 5/7: Revenue Intelligence screens —
 const AccountRankingScreen = lazy(() => import('@/components/screens/account-ranking-screen'));
 const OpportunityWorkspaceScreen = lazy(() => import('@/components/screens/opportunity-workspace-screen'));
@@ -170,6 +173,7 @@ const NAV_SECTIONS: NavSection[] = [
     heading: 'CONFIGURE',
     defaultOpen: false,
     items: [
+      { key: 'intelligence-health', label: 'Intelligence Health', icon: Shield },
       { key: 'icp-settings', label: 'ICP Configuration', icon: Crosshair },
       { key: 'data-health', label: 'Data Health', icon: Shield },
       { key: 'relationship-memory', label: 'Relationship Memory', icon: Heart },
@@ -233,6 +237,7 @@ const SCREEN_MAP: Record<string, ScreenComponent> = {
   'account-ranking': AccountRankingScreen,
   'opportunity-workspace': OpportunityWorkspaceScreen,
   'pursuit-workspace': PursuitWorkspaceScreen,
+  'intelligence-health': IntelligenceHealthScreen,
   'icp-settings': ICPSettingsScreen,
   // Intelligence
   'command-center': CommandCenterScreen,

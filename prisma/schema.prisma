@@ -114,6 +114,9 @@ model Company {
   signalCapabilityMatches    SignalCapabilityMatch[]
   intelligenceValidations    IntelligenceValidation[]
   priorityScoreHistory       PriorityScoreHistory[]
+  signalValidations         SignalValidation[]
+  intelligenceHealth        CompanyIntelligenceHealth?
+  intelligenceConflicts     IntelligenceConflict[]
 
   @@index([domain])
   @@index([normalizedName])
@@ -245,6 +248,7 @@ model CompanySignal {
   company                    Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   signalCapabilityMatches    SignalCapabilityMatch[]
   opportunityRecommendations OpportunityRecommendation[]
+  signalValidation           SignalValidation?
 
   @@index([meaningCategory])
   @@index([companyId])
@@ -1141,6 +1145,7 @@ model OpportunityRecommendation {
   reviewedAt              DateTime?
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
+  confidenceBreakdown     Json?
 
   company         Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   signal          CompanySignal         @relation(fields: [signalId], references: [id])
@@ -1225,6 +1230,88 @@ model IntelligenceValidation {
   @@index([validatedAt])
   @@index([accuracy])
   @@index([companyId, artifactType])
+}
+
+// ── Phase 6: Signal Validation ──
+// Classifies each signal's trustworthiness based on evidence support,
+// confidence thresholds, and contradiction detection.
+
+model SignalValidation {
+  id              String   @id @default(cuid())
+  companyId       String
+  signalId        String   @unique
+  validationStatus String  @default("WEAK") // VALID | WEAK | CONFLICTING | EXPIRED
+  confidenceScore Float    @default(0)
+  reason          String?
+  evidenceCount     Int      @default(0)
+  sourceDomainCount Int      @default(0)
+  signalAge         Int      @default(0)      // days since signalDate
+  validatedAt      DateTime @default(now())
+
+  company Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  signal  CompanySignal @relation(fields: [signalId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([signalId])
+  @@index([validationStatus])
+  @@index([companyId, validationStatus])
+}
+
+// ── Phase 6: Company Intelligence Health ──
+// Per-company field coverage tracking across data, signals, evidence, and contacts.
+
+model CompanyIntelligenceHealth {
+  id                     String   @id @default(cuid())
+  companyId              String   @unique
+  company                Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  dataCompletenessScore  Int      @default(0)   // 0-100
+  signalCoverageScore    Int      @default(0)   // 0-100
+  evidenceCoverageScore  Int      @default(0)   // 0-100
+  contactCoverageScore   Int      @default(0)   // 0-100
+  overallHealthScore     Int      @default(0)   // 0-100
+
+  // Per-field breakdown (JSON)
+  fieldCoverage          Json?    // { "industry": true, "revenue": false, ... }
+
+  // Scoring inputs
+  totalSignals           Int      @default(0)
+  activeSignals          Int      @default(0)
+  totalEvidence          Int      @default(0)
+  activeEvidence         Int      @default(0)
+  totalContacts          Int      @default(0)
+  filledFields           Int      @default(0)
+  totalTrackedFields     Int      @default(12)
+
+  lastCalculatedAt       DateTime @default(now())
+
+  @@index([overallHealthScore(sort: Desc)])
+  @@index([companyId])
+}
+
+// ── Phase 6: Intelligence Conflict Detection ──
+// Detects conflicting signals for the same company.
+
+model IntelligenceConflict {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  conflictType    String   // SIGNAL_CONTRADICTION | TECHNOLOGY_CONFLICT | FUNDING_CONFLICT | EVIDENCE_CONTRADICTION
+  description     String   // Human-readable conflict explanation
+  relatedSignals  Json     // ["signalId1", "signalId2", ...]
+  severity        String   @default("medium")  // low | medium | high | critical
+  status          String   @default("open")    // open | acknowledged | resolved | dismissed
+
+  detectedAt      DateTime  @default(now())
+  resolvedAt      DateTime?
+  resolvedBy      String?
+  resolutionNotes String?
+
+  @@index([companyId])
+  @@index([status])
+  @@index([severity])
+  @@index([companyId, status])
 }
 
 // ── System Settings (lightweight key-value, Phase 5 ICP persistence) ──

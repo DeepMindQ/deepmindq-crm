@@ -11,66 +11,28 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DEMO_COMPANIES, type DemoCompanyCard } from '@/lib/demo-data';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-interface DemoCompany {
-  id: string;
-  name: string;
-  industry: string;
-  score: number;
+type DemoCompany = Pick<DemoCompanyCard, 'id' | 'name' | 'industry' | 'score' | 'tier'> & {
   tagline: string;
-  tier: 'HIGH' | 'MEDIUM' | 'LOW';
-}
+};
 
 /* ------------------------------------------------------------------ */
-/*  Demo companies                                                     */
+/*  Demo companies — canonical source: lib/demo-data.ts                */
 /* ------------------------------------------------------------------ */
 
-const DEMO_COMPANIES: DemoCompany[] = [
-  {
-    id: 'demo-aramco.com',
-    name: 'Saudi Aramco',
-    industry: 'Oil & Gas',
-    score: 91,
-    tagline: 'AI transformation signals',
-    tier: 'HIGH',
-  },
-  {
-    id: 'demo-adnoc.com',
-    name: 'ADNOC',
-    industry: 'Oil & Gas',
-    score: 88,
-    tagline: 'Cloud modernization activity',
-    tier: 'HIGH',
-  },
-  {
-    id: 'demo-stc.com',
-    name: 'STC',
-    industry: 'Telecommunications',
-    score: 86,
-    tagline: 'Data platform investment',
-    tier: 'HIGH',
-  },
-  {
-    id: 'demo-emiratesnbd.com',
-    name: 'Emirates NBD',
-    industry: 'Banking',
-    score: 82,
-    tagline: 'Digital banking expansion',
-    tier: 'HIGH',
-  },
-  {
-    id: 'demo-neom.com',
-    name: 'NEOM',
-    industry: 'Technology',
-    score: 79,
-    tagline: 'Smart city procurement',
-    tier: 'MEDIUM',
-  },
-];
+const SCREEN_COMPANIES: DemoCompany[] = DEMO_COMPANIES.map(c => ({
+  id: c.id,
+  name: c.name,
+  industry: c.industry,
+  score: c.score,
+  tagline: c.tagline || '',
+  tier: (c.tier || 'MEDIUM') as DemoCompany['tier'],
+}));
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -257,7 +219,7 @@ export default function DemoExperienceScreen({
       <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4" />
-          <span>{DEMO_COMPANIES.length} companies</span>
+          <span>{SCREEN_COMPANIES.length} companies</span>
         </div>
         <div className="h-4 w-px bg-border" />
         <div className="flex items-center gap-2">
@@ -273,7 +235,7 @@ export default function DemoExperienceScreen({
 
       {/* ── Company Grid ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {DEMO_COMPANIES.map((company) => (
+        {SCREEN_COMPANIES.map((company) => (
           <CompanyCard
             key={company.id}
             company={company}

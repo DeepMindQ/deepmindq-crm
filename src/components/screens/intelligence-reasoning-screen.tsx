@@ -19,132 +19,20 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+// @ts-ignore — demo-data.ts is excluded from TS compilation
+import { DEMO_TRUST_REPORT as CANONICAL_TRUST, isDemoId, type DemoTrustReportData } from '@/lib/demo-data';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-interface Factor {
-  factor: string;
-  impact: string;
-  category?: string;
-}
-
-interface EvidenceRow {
-  source: string;
-  date: string;
-  quality: string;
-  impact: string;
-}
-
-interface Conflict {
-  conflictType: string;
-  severity: string;
-  description: string;
-}
-
-interface MissingItem {
-  category: string;
-  description: string;
-  improvementHint: string;
-}
-
-interface TrustReportData {
-  recommendation: {
-    id: string;
-    title: string;
-    company: string;
-    confidenceScore: number;
-  };
-  overallConfidence: number;
-  breakdown: {
-    signalQuality: number;
-    evidenceQuality: number;
-    capabilityFit: number;
-    dataCompleteness: number;
-    overall: number;
-  } | null;
-  factors: {
-    positiveFactors: Factor[];
-    negativeFactors: Factor[];
-  } | null;
-  supportingEvidence: {
-    total: number;
-    avgRelevance: number;
-    validatedSignals: number;
-    weakSignals: number;
-  };
-  evidenceRows?: EvidenceRow[];
-  conflicts: Conflict[];
-  missingIntelligence: string[] | MissingItem[];
-  aiReasoning?: string;
-}
+type TrustReportData = DemoTrustReportData;
 
 /* ------------------------------------------------------------------ */
-/*  Demo Fallback                                                      */
+/*  Demo Fallback — canonical source: lib/demo-data.ts                */
 /* ------------------------------------------------------------------ */
 
-const DEMO_DATA: TrustReportData = {
-  recommendation: {
-    id: 'demo-001',
-    title: 'AI Transformation Platform Opportunity',
-    company: 'Saudi Aramco',
-    confidenceScore: 87,
-  },
-  overallConfidence: 87,
-  breakdown: {
-    signalQuality: 92,
-    evidenceQuality: 85,
-    capabilityFit: 94,
-    dataCompleteness: 78,
-    overall: 87,
-  },
-  factors: {
-    positiveFactors: [
-      { factor: 'Cloud modernization initiative publicly announced', impact: '+12', category: 'Signal' },
-      { factor: 'AI/ML hiring activity increased 40% over 6 months', impact: '+10', category: 'Signal' },
-      { factor: 'Technology investment signals confirmed by 3 independent sources', impact: '+8', category: 'Evidence' },
-      { factor: 'Strong capability alignment score (94%)', impact: '+8', category: 'Fit' },
-      { factor: 'Executive digital transformation mandate detected', impact: '+7', category: 'Signal' },
-      { factor: 'Multiple validated signals from diverse sources (8 domains)', impact: '+5', category: 'Evidence' },
-    ],
-    negativeFactors: [
-      { factor: 'Limited executive contact intelligence available', impact: '-8', category: 'Data' },
-      { factor: 'One conflicting on-premise technology signal detected', impact: '-5', category: 'Conflict' },
-    ],
-  },
-  aiReasoning: 'Multiple independent signals indicate active digital transformation investment. The company has publicly announced cloud modernization initiatives, shown a 40% increase in AI/ML hiring over the past 6 months, and has technology investment signals confirmed by at least 3 independent sources. Executive-level digital transformation mandates further strengthen confidence. The primary data gaps relate to executive contact intelligence and a minor conflicting on-premise signal that requires human verification.',
-  supportingEvidence: {
-    total: 12,
-    avgRelevance: 84,
-    validatedSignals: 9,
-    weakSignals: 3,
-  },
-  evidenceRows: [
-    { source: 'LinkedIn Job Postings', date: 'Jun 2026', quality: 'High', impact: '+10' },
-    { source: 'Press Release (Official)', date: 'May 2026', quality: 'High', impact: '+12' },
-    { source: 'Industry Analyst Report', date: 'Jun 2026', quality: 'High', impact: '+8' },
-    { source: 'Technology News Outlet', date: 'Jul 2026', quality: 'Medium', impact: '+5' },
-    { source: 'Conference Proceedings', date: 'May 2026', quality: 'Medium', impact: '+4' },
-  ],
-  conflicts: [
-    {
-      conflictType: 'SIGNAL_CONTRADICTION',
-      severity: 'MEDIUM',
-      description: 'Conflicting signals detected between on-premise infrastructure investment and cloud migration narrative. One source indicates continued data center expansion while three others point to cloud-first strategy.',
-    },
-    {
-      conflictType: 'TIMELINE_INCONSISTENCY',
-      severity: 'LOW',
-      description: 'Hiring data suggests acceleration started Q1 2026, but official announcements reference Q2 2026 as the start date.',
-    },
-  ],
-  missingIntelligence: [
-    { category: 'Executive Contacts', description: 'Missing CIO/CDO contact information and decision-making hierarchy', improvementHint: 'Adding executive contacts would improve data completeness by ~15%' },
-    { category: 'Financial Signals', description: 'No recent financial signals or budget allocation data', improvementHint: 'Recent financial signals would strengthen evidence quality' },
-    { category: 'Technology Confirmation', description: 'Direct technology stack confirmation not yet available', improvementHint: 'A direct technology confirmation would eliminate the on-premise conflict' },
-  ],
-};
+const DEMO_DATA = CANONICAL_TRUST;
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -309,6 +197,12 @@ export default function IntelligenceReasoningScreen({
     let cancelled = false;
 
     async function load() {
+      if (isDemoId(companyId)) {
+        setData(DEMO_DATA);
+        setLoading(false);
+        return;
+      }
+
       try {
         if (recommendationId) {
           const res = await fetch(
@@ -328,7 +222,8 @@ export default function IntelligenceReasoningScreen({
           setData(DEMO_DATA);
           setLoading(false);
         }
-      } catch {
+      } catch (e) {
+        console.error('[intelligence-reasoning] Failed to load data, using demo fallback:', e);
         if (!cancelled) {
           setData(DEMO_DATA);
           setLoading(false);
@@ -338,7 +233,7 @@ export default function IntelligenceReasoningScreen({
 
     load();
     return () => { cancelled = true; };
-  }, [recommendationId]);
+  }, [companyId, recommendationId]);
 
   /* ── Loading ── */
   if (loading) return <LoadingSkeleton />;

@@ -26,7 +26,7 @@ export async function GET() {
         try {
           const company = await db.company.findUnique({ where: { id: s.companyId }, select: { rawName: true } });
           companyName = company?.rawName || undefined;
-        } catch { /* company not found */ }
+        } catch (e) { console.debug('[strategy-room] Company lookup failed:', e); }
       }
       return {
         ...s,
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
           where: { normalizedName: { contains: companyName.toLowerCase().replace(/[^a-z0-9]/g, '') } },
         });
         if (company) companyId = company.id;
-      } catch { /* skip */ }
+      } catch (e) { console.debug('[strategy-room] Company search failed:', e); }
     }
 
     // AI generation
@@ -168,7 +168,7 @@ Be specific and actionable. Make stakeholder names realistic but mark them as [T
       try {
         const company = await db.company.findUnique({ where: { id: companyId! }, select: { rawName: true } });
         respCompanyName = company?.rawName || undefined;
-      } catch { /* skip */ }
+      } catch (e) { console.debug('[strategy-room] Company name lookup failed:', e); }
     }
 
     return NextResponse.json({

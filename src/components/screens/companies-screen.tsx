@@ -19,6 +19,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { PageTransition, AnimatedCounter } from '@/components/ui/animated-components';
 import { useAppStore } from '@/lib/store';
+import { DEMO_INDUSTRIES, DEMO_COUNTRIES } from '@/lib/demo-data';
 
 /* ═══════════════════════════════════════════════════════════════
    Design Tokens
@@ -69,8 +70,6 @@ interface CompaniesScreenProps {
 /* ═══════════════════════════════════════════════════════════════
    Helpers
    ═══════════════════════════════════════════════════════════════ */
-const DEMO_INDUSTRIES = ['Technology','Financial Services','Healthcare','IT Services','E-commerce','Manufacturing','Fintech','Aerospace'];
-const DEMO_COUNTRIES  = ['US','IN','GB','CA','DE','KR','NG'];
 
 function scoreColor(s: number | null): string {
   if (!s || s < 40) return '#9CA3AF';
@@ -357,7 +356,8 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
         const cos = data.data?.countries || data.countries || [];
         setIndustries(inds.length > 0 ? inds.slice(0, 10) : DEMO_INDUSTRIES);
         setCountries(cos.length > 0 ? cos.slice(0, 10) : DEMO_COUNTRIES);
-      } catch {
+      } catch (e) {
+        console.error('[companies] Failed to load metadata, using demo fallback:', e);
         setIndustries(DEMO_INDUSTRIES);
         setCountries(DEMO_COUNTRIES);
       } finally {

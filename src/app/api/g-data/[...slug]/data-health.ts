@@ -85,9 +85,7 @@ function parseJSONArray<T>(text: string): T[] {
     while ((match = objRegex.exec(cleaned)) !== null) {
       try {
         results.push(JSON.parse(match[0]) as T)
-      } catch {
-        // skip malformed objects
-      }
+      } catch { /* skip malformed JSON object — expected during extraction */ }
     }
     return results
   }

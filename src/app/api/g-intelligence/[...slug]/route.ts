@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Security guards
+import { withIntelligenceGuard } from '@/lib/intelligence-api-guard';
+import { csrfMiddleware } from '@/lib/csrf';
+
 // Phase 6 intelligence validation API handlers
 import * as mod_health from './health.ts';
 import * as mod_evidence_quality from './evidence-quality.ts';
@@ -76,10 +80,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
   return handle('GET', req, slug);
 }
 export async function POST(req: NextRequest, { params }: { params: Promise<{ slug: string[] }> }) {
+  // S10b: Intelligence API guard (Content-Type + body size + request ID)
+  const guard = await withIntelligenceGuard(req);
+  if (!guard.allowed) return guard.response!;
+
+  // S11: CSRF protection
+  const csrf = csrfMiddleware(guard.request as NextRequest);
+  if (!csrf.valid) return csrf.response!;
+
   const { slug } = await params;
-  return handle('POST', req, slug);
+  return handle('POST', guard.request as NextRequest, slug);
 }
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ slug: string[] }> }) {
+  // S10b: Intelligence API guard (Content-Type + body size + request ID)
+  const guard = await withIntelligenceGuard(req);
+  if (!guard.allowed) return guard.response!;
+
+  // S11: CSRF protection
+  const csrf = csrfMiddleware(guard.request as NextRequest);
+  if (!csrf.valid) return csrf.response!;
+
   const { slug } = await params;
-  return handle('PATCH', req, slug);
+  return handle('PATCH', guard.request as NextRequest, slug);
 }

@@ -12,24 +12,13 @@ import {
   Activity,
   ChevronRight,
 } from 'lucide-react';
+import { DEMO_COMPANIES as CANONICAL_DEMO, type DemoCompanyCard } from '@/lib/demo-data';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-interface CompanyCard {
-  id: string;
-  name: string;
-  industry: string;
-  country: string;
-  score: number;
-  health: number;
-  signals: number;
-  sources: number;
-  reason: string;
-  action: string;
-  confidence: 'high' | 'medium' | 'low';
-}
+type CompanyCard = DemoCompanyCard;
 
 interface DashboardSummary {
   companies: CompanyCard[];
@@ -38,76 +27,10 @@ interface DashboardSummary {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Demo fallback data                                                 */
+/*  Demo fallback — canonical source: lib/demo-data.ts                */
 /* ------------------------------------------------------------------ */
 
-const DEMO_COMPANIES: CompanyCard[] = [
-  {
-    id: 'demo-aramco.com',
-    name: 'Saudi Aramco',
-    industry: 'Oil & Gas',
-    country: 'Saudi Arabia',
-    score: 91,
-    health: 78,
-    signals: 12,
-    sources: 8,
-    reason: 'AI transformation signals increased 45% in last 60 days',
-    action: 'Engage CIO office for AI transformation discussion',
-    confidence: 'high',
-  },
-  {
-    id: 'demo-adnoc.ae',
-    name: 'ADNOC',
-    industry: 'Oil & Gas',
-    country: 'UAE',
-    score: 88,
-    health: 75,
-    signals: 10,
-    sources: 7,
-    reason: 'Cloud modernization activity detected across multiple sources',
-    action: 'Target CIO office for cloud strategy conversation',
-    confidence: 'high',
-  },
-  {
-    id: 'demo-stc.com.sa',
-    name: 'STC',
-    industry: 'Telecommunications',
-    country: 'Saudi Arabia',
-    score: 86,
-    health: 72,
-    signals: 9,
-    sources: 6,
-    reason: 'Data platform investment signals with executive alignment',
-    action: 'Engage Digital Transformation team',
-    confidence: 'high',
-  },
-  {
-    id: 'demo-emiratesnbd.com',
-    name: 'Emirates NBD',
-    industry: 'Banking & Finance',
-    country: 'UAE',
-    score: 82,
-    health: 70,
-    signals: 8,
-    sources: 5,
-    reason: 'Digital banking expansion with AI integration focus',
-    action: 'Connect with Chief Digital Officer',
-    confidence: 'medium',
-  },
-  {
-    id: 'demo-neom.com',
-    name: 'NEOM',
-    industry: 'Technology & Innovation',
-    country: 'Saudi Arabia',
-    score: 79,
-    health: 68,
-    signals: 7,
-    sources: 5,
-    reason: 'Smart city technology procurement signals',
-    action: 'Explore partnership through innovation office',
-    confidence: 'medium',
-  },
-];
+const DEMO_COMPANIES = CANONICAL_DEMO;
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */

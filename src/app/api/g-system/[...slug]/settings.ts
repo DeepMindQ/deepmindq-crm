@@ -131,8 +131,8 @@ async function loadSettings(): Promise<SettingsObject> {
     if (setting?.value) {
       return deepMerge(DEFAULT_SETTINGS, JSON.parse(setting.value));
     }
-  } catch {
-    // DB not available yet
+  } catch (e) {
+    console.debug('[settings] DB not available yet, using defaults:', e);
   }
   return DEFAULT_SETTINGS;
 }

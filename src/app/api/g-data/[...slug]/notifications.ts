@@ -32,7 +32,7 @@ export async function GET() {
           link: s.companyId ? `#companies` : null,
         });
       });
-    } catch { /* skip */ }
+    } catch (e) { console.debug('[notifications] Failed to load signals:', e); }
 
     // Recent replies
     try {
@@ -52,7 +52,7 @@ export async function GET() {
           link: '#replies',
         });
       });
-    } catch { /* skip */ }
+    } catch (e) { console.debug('[notifications] Failed to load replies:', e); }
 
     // Recent audit entries (system notifications)
     try {
@@ -71,13 +71,14 @@ export async function GET() {
           link: '#audit',
         });
       });
-    } catch { /* skip */ }
+    } catch (e) { console.debug('[notifications] Failed to load audit logs:', e); }
 
     // Sort by date
     notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return NextResponse.json(notifications.slice(0, 20));
-  } catch {
+  } catch (e) {
+    console.error('[notifications] Unexpected error:', e);
     return NextResponse.json([]);
   }
 }

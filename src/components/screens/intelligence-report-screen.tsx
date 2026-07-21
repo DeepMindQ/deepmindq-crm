@@ -17,128 +17,20 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+// @ts-ignore — demo-data.ts is excluded from TS compilation
+import { DEMO_BRIEF as CANONICAL_BRIEF, isDemoId, type DemoBriefData } from '@/lib/demo-data';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-interface BriefCompany {
-  name: string;
-  industry: string;
-  location: string;
-  sizeRange: string;
-  website: string;
-}
-
-interface Factor {
-  factor: string;
-  impact: string;
-}
-
-interface Breakdown {
-  signalQuality: number;
-  evidenceQuality: number;
-  capabilityFit: number;
-  dataCompleteness: number;
-}
-
-interface TimelineEntry {
-  date: string;
-  event: string;
-  type: 'signal' | 'evidence';
-}
-
-interface Recommendation {
-  target: string;
-  conversation: string;
-  entryPoint: string;
-  reason: string;
-}
-
-interface Conflict {
-  type: string;
-  severity: string;
-  description: string;
-}
-
-interface EvidenceStats {
-  total: number;
-  highQuality: number;
-  sources: number;
-  avgRelevance: number;
-}
-
-interface BriefData {
-  company: BriefCompany;
-  overallScore: number;
-  confidence: string;
-  summary: string;
-  positiveFactors: Factor[];
-  negativeFactors: Factor[];
-  breakdown: Breakdown;
-  evidenceTimeline: TimelineEntry[];
-  recommendation: Recommendation;
-  conflicts: Conflict[];
-  evidenceStats: EvidenceStats;
-  capabilityMatch?: { matchPercent: number; recommendedCapability: string };
-}
+type BriefData = DemoBriefData;
 
 /* ------------------------------------------------------------------ */
-/*  Demo Fallback                                                      */
+/*  Demo Fallback — canonical source: lib/demo-data.ts                */
 /* ------------------------------------------------------------------ */
 
-const DEMO_BRIEF: BriefData = {
-  company: {
-    name: 'Saudi Aramco',
-    industry: 'Oil & Gas',
-    location: 'Dhahran, Saudi Arabia',
-    sizeRange: '10000+',
-    website: 'aramco.com',
-  },
-  overallScore: 91,
-  confidence: 'High',
-  summary:
-    'Large enterprise showing multiple digital transformation signals with strong alignment to AI modernization capabilities. The organization has publicly committed to cloud-first strategy and is actively building AI/ML teams.',
-  positiveFactors: [
-    { factor: 'Cloud modernization initiative detected', impact: '+12' },
-    { factor: 'AI/ML hiring activity increased 40%', impact: '+10' },
-    { factor: 'Technology investment signals confirmed', impact: '+8' },
-    { factor: 'Strong capability alignment (94%)', impact: '+8' },
-    { factor: 'Multiple independent sources (8 domains)', impact: '+5' },
-  ],
-  negativeFactors: [
-    { factor: 'Limited executive contact intelligence', impact: '-8' },
-    { factor: 'One conflicting technology signal detected', impact: '-5' },
-  ],
-  breakdown: {
-    signalQuality: 92,
-    evidenceQuality: 89,
-    capabilityFit: 94,
-    dataCompleteness: 87,
-  },
-  evidenceTimeline: [
-    { date: 'May 2026', event: 'AI transformation announcement detected', type: 'signal' },
-    { date: 'Jun 2026', event: 'Cloud engineering hiring increased 40%', type: 'signal' },
-    { date: 'Jun 2026', event: 'Technology modernization confirmed by 3 sources', type: 'evidence' },
-    { date: 'Jul 2026', event: 'Executive alignment signals detected', type: 'signal' },
-    { date: 'Jul 2026', event: 'Vendor evaluation signals identified', type: 'signal' },
-  ],
-  recommendation: {
-    target: 'Chief Digital Officer / CIO',
-    conversation: 'AI-led operational transformation assessment',
-    entryPoint: 'Digital transformation workshop',
-    reason: 'Active cloud transformation signals with executive buy-in indicators',
-  },
-  conflicts: [
-    {
-      type: 'SIGNAL_CONTRADICTION',
-      severity: 'MEDIUM',
-      description: 'Conflicting on-premise and cloud migration signals detected',
-    },
-  ],
-  evidenceStats: { total: 12, highQuality: 8, sources: 8, avgRelevance: 82 },
-  capabilityMatch: { matchPercent: 94, recommendedCapability: 'AI Transformation Platform' },
-};
+const DEMO_BRIEF = CANONICAL_BRIEF;
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -252,6 +144,12 @@ export default function IntelligenceReportScreen({
   useEffect(() => {
     async function fetchBrief() {
       if (!companyId) {
+        setBrief(DEMO_BRIEF);
+        setLoading(false);
+        return;
+      }
+
+      if (isDemoId(companyId)) {
         setBrief(DEMO_BRIEF);
         setLoading(false);
         return;
@@ -371,7 +269,8 @@ export default function IntelligenceReportScreen({
         };
 
         setBrief(briefData);
-      } catch {
+      } catch (e) {
+        console.error('[intelligence-report] Failed to load brief, using demo fallback:', e);
         setBrief(DEMO_BRIEF);
       }
       setLoading(false);

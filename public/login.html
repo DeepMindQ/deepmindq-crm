@@ -179,7 +179,7 @@
         </a>
 
         <h1>Sign in</h1>
-        <p class="subtitle">Enter your credentials to access the platform.</p>
+        <p class="subtitle">Enter your email to receive a verification code.</p>
 
         <div id="error" class="error"></div>
 
@@ -187,13 +187,9 @@
         <form id="emailForm" onsubmit="handleEmailSubmit(event)">
             <div class="form-group">
                 <label for="email">Email</label>
-                <input type="email" id="email" placeholder="you@company.com" required autocomplete="email" />
+                <input type="email" id="email" placeholder="shanker001@gmail.com" required autocomplete="email" />
             </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" placeholder="Enter your password" required autocomplete="current-password" />
-            </div>
-            <button type="submit" class="btn-primary" id="submitBtn">Sign In</button>
+            <button type="submit" class="btn-primary" id="submitBtn">Send Verification Code</button>
         </form>
 
         <!-- OTP step -->
@@ -233,47 +229,38 @@
             hideError();
 
             var email = document.getElementById('email').value.trim();
-            var password = document.getElementById('password').value;
             var btn = document.getElementById('submitBtn');
 
-            if (!email || !password) {
-                showError('Please enter both email and password.');
+            if (!email) {
+                showError('Please enter your email.');
                 return;
             }
 
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span>Signing in...';
+            btn.innerHTML = '<span class="spinner"></span>Sending code...';
 
             try {
-                var res = await fetch('/api/auth/login', {
+                var res = await fetch('/api/auth/request-otp', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: email, password: password })
+                    body: JSON.stringify({ email: email, purpose: 'login' })
                 });
 
                 var data = await res.json();
 
                 if (res.ok) {
-                    // Login successful — check if OTP is needed
-                    if (data.requiresOtp || data.requiresVerification) {
-                        userEmail = email;
-                        document.getElementById('emailForm').style.display = 'none';
-                        document.getElementById('otpSection').classList.add('visible');
-                        btn.disabled = false;
-                        btn.innerHTML = 'Sign In';
-                    } else {
-                        // Direct login — redirect to dashboard
-                        window.location.replace('/');
-                    }
+                    userEmail = email;
+                    document.getElementById('emailForm').style.display = 'none';
+                    document.getElementById('otpSection').classList.add('visible');
                 } else {
-                    showError(data.error || 'Invalid credentials. Please try again.');
+                    showError(data.error || 'Access denied. Please try again.');
                     btn.disabled = false;
-                    btn.innerHTML = 'Sign In';
+                    btn.innerHTML = 'Send Verification Code';
                 }
             } catch (err) {
                 showError('Network error. Please check your connection and try again.');
                 btn.disabled = false;
-                btn.innerHTML = 'Sign In';
+                btn.innerHTML = 'Send Verification Code';
             }
         }
 

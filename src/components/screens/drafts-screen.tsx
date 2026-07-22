@@ -185,7 +185,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
           } : undefined,
         })));
       })
-      .catch(() => {})
+      .catch((err) => { console.error("[DraftsScreen] Error:", err) })
       .finally(() => { setLoading(false); });
   }, [tab, refreshKey]);
 

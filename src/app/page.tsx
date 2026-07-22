@@ -9,6 +9,7 @@ import { AiChatButton } from '@/components/shared/ai-chat-button';
 import { CommandPalette } from '@/components/shared/command-palette';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { QueryProvider } from '@/providers/query-provider';
+import { OnboardingFlow } from '@/components/onboarding-flow';
 
 import {
   RefreshCw, Menu, X, LogOut, Bell, Search, ExternalLink,
@@ -196,7 +197,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
             bounces: data.bounceCount ?? 0,
           });
         })
-        .catch(() => {});
+        .catch((err) => { console.error('[Page] Error:', err) });
     };
     fetchCounts();
     const interval = setInterval(fetchCounts, 30000); // refresh every 30s
@@ -209,7 +210,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
       fetch('/api/notifications')
         .then(res => res.json())
         .then((data) => { if (Array.isArray(data)) setNotifications(data.slice(0, 8)); })
-        .catch(() => {});
+        .catch((err) => { console.error('[Page] Error:', err) });
     };
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 60000);
@@ -270,6 +271,9 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
 
       {/* Command Palette (⌘K) */}
       <CommandPalette />
+
+      {/* Onboarding Flow — first-time user wizard */}
+      <OnboardingFlow />
 
       {/* AI Chat Sidebar */}
       <AiChatSidebar isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} />
@@ -619,7 +623,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                       bounces: data.bounceCount ?? 0,
                     });
                   })
-                  .catch(() => {});
+                  .catch((err) => { console.error('[Page] Error:', err) });
               }}
             >
               <RefreshCw className="w-4 h-4" />

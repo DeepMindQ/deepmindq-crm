@@ -78,8 +78,8 @@ export async function POST(request: Request) {
 
         const tagToAdd = tag.trim().toLowerCase();
 
-        // Update each company's tags individually since we need to read-modify-write JSON
-        let updatedCount = 0;
+        // Batch update tags using $transaction to avoid N individual writes
+        const updates: { id: string; newTags: string }[] = [];
         for (const company of existingCompanies) {
           let currentTags: string[] = [];
           try {
@@ -87,16 +87,17 @@ export async function POST(request: Request) {
           } catch {
             currentTags = [];
           }
-
           if (!currentTags.includes(tagToAdd)) {
             currentTags.push(tagToAdd);
-            await db.company.update({
-              where: { id: (company as any).id },
-              data: { tags: JSON.stringify(currentTags) },
-            });
-            updatedCount++;
+            updates.push({ id: (company as any).id, newTags: JSON.stringify(currentTags) });
           }
         }
+        if (updates.length > 0) {
+          await db.$transaction(
+            updates.map(u => db.company.update({ where: { id: u.id }, data: { tags: u.newTags } }))
+          );
+        }
+        const updatedCount = updates.length;
 
         result = { updated: updatedCount, action: 'addTag', tag: tagToAdd };
         break;
@@ -111,7 +112,8 @@ export async function POST(request: Request) {
 
         const tagToRemove = tag.trim().toLowerCase();
 
-        let updatedCount = 0;
+        // Batch update tags using $transaction to avoid N individual writes
+        const updates: { id: string; newTags: string }[] = [];
         for (const company of existingCompanies) {
           let currentTags: string[] = [];
           try {
@@ -119,16 +121,17 @@ export async function POST(request: Request) {
           } catch {
             currentTags = [];
           }
-
           const filtered = currentTags.filter((t: string) => t !== tagToRemove);
           if (filtered.length !== currentTags.length) {
-            await db.company.update({
-              where: { id: (company as any).id },
-              data: { tags: JSON.stringify(filtered) },
-            });
-            updatedCount++;
+            updates.push({ id: (company as any).id, newTags: JSON.stringify(filtered) });
           }
         }
+        if (updates.length > 0) {
+          await db.$transaction(
+            updates.map(u => db.company.update({ where: { id: u.id }, data: { tags: u.newTags } }))
+          );
+        }
+        const updatedCount = updates.length;
 
         result = { updated: updatedCount, action: 'removeTag', tag: tagToRemove };
         break;

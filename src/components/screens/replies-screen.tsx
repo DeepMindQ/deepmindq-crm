@@ -121,7 +121,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
         setAllReplies(mapped);
         setReplies(mapped);
       })
-      .catch(() => {})
+      .catch((err) => { console.error("[RepliesScreen] Error:", err) })
       .finally(() => { setLoading(false); });
   }, []);
 

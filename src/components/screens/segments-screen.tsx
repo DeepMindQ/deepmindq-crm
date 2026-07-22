@@ -20,6 +20,7 @@ import {
   Send, Filter, ArrowLeft, Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { z } from 'zod';
 
 /* ══════════════════════════════ Types ══════════════════════════════ */
 
@@ -68,6 +69,14 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
     setLoading(false);
   };
 
+  /* ── Zod schema for create form ── */
+  const segmentSchema = z.object({
+    name: z.string().min(1, 'Segment name is required').max(100, 'Name must be 100 characters or less'),
+    description: z.string().max(500, 'Description must be 500 characters or less').optional(),
+    scoreMin: z.coerce.number().min(0, 'Min score must be at least 0').max(100, 'Min score must be at most 100'),
+    scoreMax: z.coerce.number().min(0, 'Max score must be at least 0').max(100, 'Max score must be at most 100'),
+  }).refine(d => d.scoreMin <= d.scoreMax, { message: 'Min score cannot exceed max score', path: ['scoreMax'] });
+
   /* ── Create form state ── */
   const [segName, setSegName] = useState('');
   const [segDesc, setSegDesc] = useState('');
@@ -87,7 +96,17 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
 
   /* ── Create segment ── */
   const handleCreate = async () => {
-    if (!segName.trim()) { toast.error('Segment name is required'); return; }
+    const result = segmentSchema.safeParse({
+      name: segName,
+      description: segDesc || undefined,
+      scoreMin: segScoreMin,
+      scoreMax: segScoreMax,
+    });
+    if (!result.success) {
+      const firstError = result.error.issues[0];
+      toast.error(firstError.message);
+      return;
+    }
     setCreating(true);
     try {
       const filters: any = {};

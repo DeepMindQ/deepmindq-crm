@@ -72,7 +72,7 @@ export function TagManager({
             onTagsChange(synced)
           }
         })
-        .catch(() => {})
+        .catch((err) => { console.error("[TagManager] Error:", err) })
         .finally(() => setLoading(false))
     },
     [entityType, entityId, onTagsChange],
@@ -90,7 +90,7 @@ export function TagManager({
           .then((json) => {
             if (json.data) setAllTags(json.data)
           })
-          .catch(() => {})
+          .catch((err) => { console.error("[TagManager] Error:", err) })
       }
     },
     [],

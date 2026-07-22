@@ -402,7 +402,6 @@ export async function autoGenerateAlerts(companyId?: string): Promise<{
   created: number;
   alerts: IntelligenceAlert[];
 }> {
-  const createdAlerts: IntelligenceAlert[] = [];
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   // Determine which connectors to scan
@@ -453,6 +452,9 @@ export async function autoGenerateAlerts(companyId?: string): Promise<{
   const alertExists = (alertType: string, connectorId?: string | null, companyId?: string | null) =>
     existingKeys.has(`${alertType}:${connectorId || ''}:${companyId || ''}`);
 
+  // Collect all new alerts, then batch insert
+  const newAlertsData: Prisma.IntelligenceAlertCreateManyInput[] = [];
+
   for (const sh of degradedHealths) {
     if (alertExists('health_degraded', sh.connectorId)) continue;
 
@@ -463,26 +465,22 @@ export async function autoGenerateAlerts(companyId?: string): Promise<{
           ? 'high'
           : 'medium';
 
-    const alert = await db.intelligenceAlert.create({
-      data: {
-        connectorId: sh.connectorId,
-        severity,
-        alertType: 'health_degraded',
-        title: `Health degraded: ${sh.connector.name}`,
-        description: `Connector "${sh.connector.name}" has a health score of ${sh.healthScore.toFixed(2)} (threshold < 0.5). Success rate: ${sh.successRate.toFixed(2)}, quality: ${sh.qualityScore.toFixed(2)}, freshness: ${sh.freshnessScore.toFixed(2)}.`,
-        metadata: JSON.stringify({
-          healthScore: sh.healthScore,
-          successRate: sh.successRate,
-          qualityScore: sh.qualityScore,
-          freshnessScore: sh.freshnessScore,
-          consecutiveFailures: sh.consecutiveFailures,
-          connectorName: sh.connector.name,
-        }),
-        status: 'active',
-      },
+    newAlertsData.push({
+      connectorId: sh.connectorId,
+      severity,
+      alertType: 'health_degraded',
+      title: `Health degraded: ${sh.connector.name}`,
+      description: `Connector "${sh.connector.name}" has a health score of ${sh.healthScore.toFixed(2)} (threshold < 0.5). Success rate: ${sh.successRate.toFixed(2)}, quality: ${sh.qualityScore.toFixed(2)}, freshness: ${sh.freshnessScore.toFixed(2)}.`,
+      metadata: JSON.stringify({
+        healthScore: sh.healthScore,
+        successRate: sh.successRate,
+        qualityScore: sh.qualityScore,
+        freshnessScore: sh.freshnessScore,
+        consecutiveFailures: sh.consecutiveFailures,
+        connectorName: sh.connector.name,
+      }),
+      status: 'active',
     });
-
-    createdAlerts.push(alert as unknown as IntelligenceAlert);
   }
 
   // ── b) source_stale: SourceHealth.freshnessScore < 0.3 ──
@@ -509,23 +507,19 @@ export async function autoGenerateAlerts(companyId?: string): Promise<{
           ? 'high'
           : 'medium';
 
-    const alert = await db.intelligenceAlert.create({
-      data: {
-        connectorId: sh.connectorId,
-        severity,
-        alertType: 'source_stale',
-        title: `Stale source: ${sh.connector.name}`,
-        description: `Connector "${sh.connector.name}" has a freshness score of ${sh.freshnessScore.toFixed(2)} (threshold < 0.3). Data may be outdated and should be refreshed.`,
-        metadata: JSON.stringify({
-          freshnessScore: sh.freshnessScore,
-          connectorName: sh.connector.name,
-          lastSuccessAt: sh.lastSuccessAt,
-        }),
-        status: 'active',
-      },
+    newAlertsData.push({
+      connectorId: sh.connectorId,
+      severity,
+      alertType: 'source_stale',
+      title: `Stale source: ${sh.connector.name}`,
+      description: `Connector "${sh.connector.name}" has a freshness score of ${sh.freshnessScore.toFixed(2)} (threshold < 0.3). Data may be outdated and should be refreshed.`,
+      metadata: JSON.stringify({
+        freshnessScore: sh.freshnessScore,
+        connectorName: sh.connector.name,
+        lastSuccessAt: sh.lastSuccessAt,
+      }),
+      status: 'active',
     });
-
-    createdAlerts.push(alert as unknown as IntelligenceAlert);
   }
 
   // ── c) conflict_detected: Unresolved contradicts associations ──
@@ -554,22 +548,18 @@ export async function autoGenerateAlerts(companyId?: string): Promise<{
           ? 'high'
           : 'medium';
 
-    const alert = await db.intelligenceAlert.create({
-      data: {
+    newAlertsData.push({
+      companyId: group.companyId,
+      severity,
+      alertType: 'conflict_detected',
+      title: `Unresolved contradictions detected`,
+      description: `${group._count.id} unresolved contradiction(s) found for company ${group.companyId}. Review and resolve these conflicts to maintain data integrity.`,
+      metadata: JSON.stringify({
+        conflictCount: group._count.id,
         companyId: group.companyId,
-        severity,
-        alertType: 'conflict_detected',
-        title: `Unresolved contradictions detected`,
-        description: `${group._count.id} unresolved contradiction(s) found for company ${group.companyId}. Review and resolve these conflicts to maintain data integrity.`,
-        metadata: JSON.stringify({
-          conflictCount: group._count.id,
-          companyId: group.companyId,
-        }),
-        status: 'active',
-      },
+      }),
+      status: 'active',
     });
-
-    createdAlerts.push(alert as unknown as IntelligenceAlert);
   }
 
   // ── d) ingestion_failure: Failed ConnectorRuns in last 24h ──
@@ -606,24 +596,27 @@ export async function autoGenerateAlerts(companyId?: string): Promise<{
             ? 'medium'
             : 'low';
 
-    const alert = await db.intelligenceAlert.create({
-      data: {
-        connectorId: group.connectorId,
-        severity,
-        alertType: 'ingestion_failure',
-        title: `Ingestion failures: ${connector?.name ?? group.connectorId}`,
-        description: `${group._count.id} connector run(s) failed in the last 24 hours for "${connector?.name ?? group.connectorId}". Last failure at ${group._max.createdAt?.toISOString() ?? 'unknown'}.`,
-        metadata: JSON.stringify({
-          failedRunCount: group._count.id,
-          lastFailureAt: group._max.createdAt,
-          connectorName: connector?.name,
-        }),
-        status: 'active',
-      },
+    newAlertsData.push({
+      connectorId: group.connectorId,
+      severity,
+      alertType: 'ingestion_failure',
+      title: `Ingestion failures: ${connector?.name ?? group.connectorId}`,
+      description: `${group._count.id} connector run(s) failed in the last 24 hours for "${connector?.name ?? group.connectorId}". Last failure at ${group._max.createdAt?.toISOString() ?? 'unknown'}.`,
+      metadata: JSON.stringify({
+        failedRunCount: group._count.id,
+        lastFailureAt: group._max.createdAt,
+        connectorName: connector?.name,
+      }),
+      status: 'active',
     });
-
-    createdAlerts.push(alert as unknown as IntelligenceAlert);
   }
 
-  return { created: createdAlerts.length, alerts: createdAlerts };
+  // Batch insert all new alerts in a single query
+  let createdCount = 0;
+  if (newAlertsData.length > 0) {
+    const result = await db.intelligenceAlert.createMany({ data: newAlertsData });
+    createdCount = result.count;
+  }
+
+  return { created: createdCount, alerts: [] };
 }

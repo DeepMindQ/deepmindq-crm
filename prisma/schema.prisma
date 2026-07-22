@@ -14,7 +14,7 @@ model Contact {
   rawName           String
   normalizedName    String
   editedName        String?
-  email             String
+  email             String  // TODO: add @unique — requires migration with dedup first (may have duplicate emails in existing data)
   linkedinUrl       String?
   title             String?
   role              String?
@@ -1842,3 +1842,32 @@ model AIUsageLog {
   @@index([generatedAt(sort: Desc)])
   @@index([feature, generatedAt(sort: Desc)])
 }
+
+// ═══════════════════════════════════════════════════════════════
+// SCHEMA REVIEW NOTES — onDelete: Cascade audit
+// Reviewed: All Cascade relations assessed for data safety
+// ═══════════════════════════════════════════════════════════════
+//
+// APPROPRIATE Cascades (kept as-is):
+// - Company -> most child records: Company is the central entity;
+//   company-specific data should be cleaned up when company is removed.
+// - Contact -> ContactNote, EmailEvent, etc.: Notes/events are
+//   contact-specific and meaningless without the contact.
+// - IntelligenceObject -> IntelligenceAssociation: Associations
+//   reference two specific objects and are meaningless without them.
+// - KnowledgeEntry -> KnowledgeVersion: Versions are history of
+//   a specific entry; removing the entry should remove its versions.
+// - EmailSequence -> SequenceStep/SequenceEnrollment: Steps are
+//   part of the sequence; enrollments track progress within it.
+// - Connector -> SourceHealth: 1:1 relation; health is specific to
+//   the connector.
+//
+// NOTED FOR FUTURE REVIEW (require FK field to be optional first):
+// - PursuitIntelligence -> OpportunityRecommendation (Cascade):
+//   Contains human-entered notes/outcomes. If recommendations are
+//   regenerated, pursuit data could be lost. Changing to SetNull
+//   would require making opportunityId optional (needs migration).
+// - CapabilityMatchScore -> CompanySignal/CapabilityAsset (Cascade):
+//   Computed scores could be lost if signals/capabilities are
+//   refreshed. Scores can be recomputed, so acceptable for now.
+// ═══════════════════════════════════════════════════════════════

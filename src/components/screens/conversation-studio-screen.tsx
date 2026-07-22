@@ -85,7 +85,7 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
           })));
         }
       })
-      .catch(() => {});
+      .catch((err) => { console.error("[ConversationStudioScreen] Error:", err) });
   }, []);
 
   useEffect(() => {
@@ -164,7 +164,7 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
           setPlans(prev => prev.map(p => p.id === newPlan.id ? { ...p, id: saved.id } : p));
           if (selectedId === newPlan.id) setSelectedId(saved.id);
         }
-      }).catch(() => {});
+      }).catch((err) => { console.error("[ConversationStudioScreen] Error:", err) });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to generate plan');
     } finally {

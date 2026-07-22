@@ -90,7 +90,7 @@ export function CustomFieldRenderer({
           setValues(filled)
         }
       })
-      .catch(() => {})
+      .catch((err) => { console.error('[CustomFieldRenderer] Error:', err) })
       .finally(() => {
         if (!cancelled) setLoading(false)
       })

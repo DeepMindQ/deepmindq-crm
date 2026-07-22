@@ -399,13 +399,13 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
       fetch(`/api/contacts/${lead.id}/timeline`)
         .then(r => r.json())
         .then(d => { if (d.timeline) setTimeline(d.timeline); })
-        .catch(() => {})
+        .catch((err) => { console.error("[LeadsScreen] Error:", err) })
         .finally(() => setTimelineLoading(false));
 
       fetch(`/api/contacts/${lead.id}/notes`)
         .then(r => r.json())
         .then(d => { if (Array.isArray(d)) setNotes(d); })
-        .catch(() => {})
+        .catch((err) => { console.error("[LeadsScreen] Error:", err) })
         .finally(() => setNotesLoading(false));
     }
   };

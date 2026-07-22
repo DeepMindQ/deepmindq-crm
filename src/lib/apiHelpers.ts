@@ -7,11 +7,17 @@ import { sanitizeString } from './sanitize'
 // ---------------------------------------------------------------------------
 
 export function apiError(message: string, status = 500) {
-  return NextResponse.json({ error: message }, { status })
+  return NextResponse.json(
+    { success: false, error: message, timestamp: new Date().toISOString() },
+    { status }
+  )
 }
 
 export function apiSuccess(data: unknown, status = 200) {
-  return NextResponse.json(data, { status })
+  return NextResponse.json(
+    { success: true, data, timestamp: new Date().toISOString() },
+    { status }
+  )
 }
 
 // ---------------------------------------------------------------------------

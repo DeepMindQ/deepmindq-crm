@@ -14,7 +14,7 @@ model Contact {
   rawName           String
   normalizedName    String
   editedName        String?
-  email             String
+  email             String    @unique
   linkedinUrl       String?
   title             String?
   role              String?

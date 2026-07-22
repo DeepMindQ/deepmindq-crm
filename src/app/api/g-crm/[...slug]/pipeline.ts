@@ -1,61 +1,42 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-/* ═══════════════════════════════════════════════════
-   Demo pipeline data — shown when DB is unavailable
-   ═══════════════════════════════════════════════════ */
-const DEMO_PIPELINE = {
+const EMPTY_PIPELINE = {
   stages: [
-    { key: 'imported', label: 'Imported', count: 355, color: '#71717a' },
-    { key: 'verified', label: 'Verified', count: 280, color: '#60a5fa' },
-    { key: 'drafted', label: 'Drafted', count: 45, color: '#fbbf24' },
-    { key: 'approved', label: 'Approved', count: 12, color: '#c084fc' },
-    { key: 'queued', label: 'Queued', count: 8, color: '#818cf8' },
-    { key: 'sent', label: 'Sent', count: 67, color: '#34d399' },
-    { key: 'replied', label: 'Replied', count: 23, color: '#22c55e' },
-    { key: 'bounced', label: 'Bounced', count: 5, color: '#f87171' },
-    { key: 'suppressed', label: 'Suppressed', count: 12, color: '#94a3b8' },
+    { key: 'imported', label: 'Imported', count: 0, color: '#71717a' },
+    { key: 'verified', label: 'Verified', count: 0, color: '#60a5fa' },
+    { key: 'drafted', label: 'Drafted', count: 0, color: '#fbbf24' },
+    { key: 'approved', label: 'Approved', count: 0, color: '#c084fc' },
+    { key: 'queued', label: 'Queued', count: 0, color: '#818cf8' },
+    { key: 'sent', label: 'Sent', count: 0, color: '#34d399' },
+    { key: 'replied', label: 'Replied', count: 0, color: '#22c55e' },
+    { key: 'bounced', label: 'Bounced', count: 0, color: '#f87171' },
+    { key: 'suppressed', label: 'Suppressed', count: 0, color: '#94a3b8' },
   ],
-  totalLeads: 355,
-  conversionRate: 6.5,
-  deliveryRate: 93.1,
-  replyRate: 34.3,
-  bounceRate: 7.0,
-};
-
-// Map of DB status values to pipeline stage keys
-const STAGE_STATUS_MAP: Record<string, string> = {
-  imported: 'imported',
-  cleaned: 'verified',
-  drafted: 'drafted',
-  queued: 'queued',
-  sent: 'sent',
-  replied: 'replied',
-  bounced: 'bounced',
-  suppressed: 'suppressed',
+  totalLeads: 0,
+  conversionRate: 0,
+  deliveryRate: 0,
+  replyRate: 0,
+  bounceRate: 0,
 };
 
 export async function GET() {
   try {
-    // Fetch status counts from the database
     const statusGroups = await db.contact.groupBy({
       by: ['status'],
       _count: { status: true },
     });
 
-    // Also fetch approval counts from drafts
     const draftStatusGroups = await db.draft.groupBy({
       by: ['status'],
       _count: { status: true },
     });
 
-    // Build status count map from contacts
     const statusCounts: Record<string, number> = {};
     for (const group of statusGroups as { status: string; _count: { status: number } }[]) {
       statusCounts[group.status] = group._count.status;
     }
 
-    // Build draft status map
     const draftCounts: Record<string, number> = {};
     for (const group of draftStatusGroups as { status: string; _count: { status: number } }[]) {
       draftCounts[group.status] = group._count.status;
@@ -63,12 +44,10 @@ export async function GET() {
 
     const totalLeads = Object.values(statusCounts).reduce((a, b) => a + b, 0);
 
-    // If no real data, return demo data
     if (totalLeads === 0) {
-      return NextResponse.json({ ...DEMO_PIPELINE, _demo: true });
+      return NextResponse.json(EMPTY_PIPELINE);
     }
 
-    // Build pipeline stages from DB data
     const imported = statusCounts['imported'] || 0;
     const verified = statusCounts['cleaned'] || 0;
     const drafted = statusCounts['drafted'] || 0;

@@ -217,15 +217,15 @@ export default function IntelligenceReasoningScreen({
             }
           }
         }
-        // Fallback to demo
+        // No data available
         if (!cancelled) {
-          setData(DEMO_DATA);
+          setData(null);
           setLoading(false);
         }
       } catch (e) {
-        console.error('[intelligence-reasoning] Failed to load data, using demo fallback:', e);
+        console.error('[intelligence-reasoning] Failed to load data:', e);
         if (!cancelled) {
-          setData(DEMO_DATA);
+          setError('Failed to load trust report data');
           setLoading(false);
         }
       }

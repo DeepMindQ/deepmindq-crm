@@ -161,7 +161,7 @@ export async function GET() {
     return NextResponse.json({ settings, aiProviders });
   } catch (error) {
     console.error('Settings GET error:', error);
-    return NextResponse.json({ settings: DEFAULT_SETTINGS, _demo: true });
+    return NextResponse.json({ error: 'Failed to load settings' }, { status: 500 });
   }
 }
 

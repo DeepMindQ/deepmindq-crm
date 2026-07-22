@@ -31,7 +31,6 @@ interface DashboardData {
   bouncesCount: number;
   suppressionsCount: number;
   emailHealthDistribution: { valid: number; risky: number; invalid: number; unknown: number };
-  _demo?: boolean;
 }
 
 interface PipelineStage {
@@ -367,11 +366,6 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
             </div>
 
             <div className="hidden sm:flex flex-col items-end gap-2">
-              {dashData._demo && (
-                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/25 text-[10px] uppercase tracking-wider px-3 py-1">
-                  Demo Data
-                </Badge>
-              )}
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500" style={{ boxShadow: '0 0 8px rgba(52, 211, 153, 0.5)' }} />

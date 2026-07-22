@@ -56,7 +56,7 @@ model Contact {
   updatedAt DateTime @updatedAt
 
   company             Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  batch               ImportBatch          @relation(fields: [batchId], references: [id])
+  batch               ImportBatch          @relation(fields: [batchId], references: [id], onDelete: SetNull)
   drafts              Draft[]
   replies             Reply[]
   bounces             Bounce[]
@@ -519,7 +519,7 @@ model Draft {
   // E-15: Sequence tracking
   sequenceId     String?
   sequenceStepId String?
-  abTest         ABTest? @relation(fields: [abTestId], references: [id])
+  abTest         ABTest? @relation(fields: [abTestId], references: [id], onDelete: SetNull)
 
   // Phase 4 C2: Batch approval workflow
   assigneeId        String? // Sales rep assigned to review/action this draft
@@ -1799,7 +1799,7 @@ model AIEngagementStrategy {
   id                    String   @id @default(cuid())
   companyId             String
   strategicInsightId    String
-  strategicInsight      StrategicInsight @relation(fields: [strategicInsightId], references: [id])
+  strategicInsight      StrategicInsight @relation(fields: [strategicInsightId], references: [id], onDelete: SetNull)
   situationAssessment   String   @default("{}") // JSON: {currentPhase, keyDrivers, maturityLevel}
   recommendedEntry      String   @default("{}") // JSON: {role, rationale, department}
   firstMeetingObjective String   @default("discovery") // discovery | technical | executive_alignment

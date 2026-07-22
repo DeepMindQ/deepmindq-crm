@@ -207,9 +207,13 @@ export async function requestOtp(
     console.log(`[OTP] DEV — Code for ${normalizedEmail}: ${code}`);
   }
 
-  // If email was NOT sent, return the code so the user can still log in
+  // If email was NOT sent
   if (!emailSent) {
-    console.error(`[OTP] EMAIL_API_KEY not configured. Cannot send OTP to ${normalizedEmail}.`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[OTP] FALLBACK — Code for ${normalizedEmail}: ${code}`);
+      return { success: true, devCode: code };
+    }
+    console.error(`[OTP] Email service not configured and not in dev mode. Cannot send OTP to ${normalizedEmail}.`);
     return { success: false, error: 'Email service not configured. Please contact support.' };
   }
 

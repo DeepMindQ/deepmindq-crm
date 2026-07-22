@@ -61,8 +61,9 @@ export async function withApiMiddleware(
 
         logRequest(request.method, path, 200, Date.now() - startTime, ip)
         return { authorized: true, userId: session.id, rateLimited: false }
-      } catch (error) {
-        console.error('Session validation error:', error)
+      } catch {
+        console.error('[API Middleware] Session validation error - denying access')
+        logRequest(request.method, path, 401, Date.now() - startTime, ip)
         return { authorized: false, rateLimited: false, response: apiError('Authentication required', 401) }
       }
     }

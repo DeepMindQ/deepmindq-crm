@@ -30,13 +30,11 @@ export function getEnv(): EnvConfig {
   const result = envSchema.safeParse(process.env)
 
   if (!result.success) {
-    console.error('[ENV] Invalid environment configuration:')
-    for (const issue of result.error.issues) {
-      console.error(`  - ${issue.path.join('.')}: ${issue.message}`)
+    const missing = result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ')
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`Missing required env vars: ${missing}`)
     }
-    // In development, use defaults where possible
-    _env = envSchema.parse(process.env)
-    return _env
+    console.error(`[ENV] Missing env vars (dev mode): ${missing}`)
   }
 
   _env = result.data
@@ -47,8 +45,11 @@ export function getEnv(): EnvConfig {
 export function validateEnv() {
   const env = getEnv()
   if (process.env.NODE_ENV === 'production') {
-    if (!process.env.NEXTAUTH_SECRET) {
-      throw new Error('NEXTAUTH_SECRET must be set in production environment')
+    if (!process.env.NEXTAUTH_SECRET || process.env.NEXTAUTH_SECRET.length < 32) {
+      throw new Error('NEXTAUTH_SECRET must be set and at least 32 characters in production')
+    }
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL must be set in production')
     }
   }
   return env

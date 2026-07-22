@@ -281,7 +281,7 @@
                 var res = await fetch('/api/auth/verify-otp', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: userEmail, otp: otp })
+                    body: JSON.stringify({ email: userEmail, code: otp, purpose: 'login' })
                 });
 
                 if (res.ok) {

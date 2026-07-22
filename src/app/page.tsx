@@ -86,7 +86,6 @@ const IntelligenceKnowledgeScreen = lazy(() => import('@/components/screens/inte
 const RevenueIntelligenceBriefScreen = lazy(() => import('@/components/screens/revenue-intelligence-brief-screen'));
 const IntelligenceReasoningScreen = lazy(() => import('@/components/screens/intelligence-reasoning-screen'));
 const IntelligenceReportScreen = lazy(() => import('@/components/screens/intelligence-report-screen'));
-const DemoExperienceScreen = lazy(() => import('@/components/screens/demo-experience-screen'));
 
 // — Phase 5/7: Revenue Intelligence screens —
 const AccountRankingScreen = lazy(() => import('@/components/screens/account-ranking-screen'));
@@ -121,7 +120,6 @@ const NAV_SECTIONS: NavSection[] = [
       { key: 'revenue-intelligence-brief', label: 'Company Brief', icon: Target },
       { key: 'intelligence-reasoning', label: 'AI Reasoning', icon: Brain },
       { key: 'intelligence-report', label: 'Intelligence Report', icon: FileText },
-      { key: 'demo-experience', label: 'Demo Mode', icon: Play },
       { key: 'account-ranking', label: 'Account Ranking', icon: Target },
       { key: 'opportunity-workspace', label: 'Opportunity Workspace', icon: Radar },
       { key: 'pursuit-workspace', label: 'Pursuit Tracker', icon: Compass },
@@ -259,7 +257,6 @@ const SCREEN_MAP: Record<string, ScreenComponent> = {
   'revenue-intelligence-recommendations': RevenueIntelligenceRecommendationsScreen,
   'intelligence-reasoning': IntelligenceReasoningScreen,
   'intelligence-report': IntelligenceReportScreen,
-  'demo-experience': DemoExperienceScreen,
   // Revenue Intelligence (Phase 5/7)
   'account-ranking': AccountRankingScreen,
   'opportunity-workspace': OpportunityWorkspaceScreen,

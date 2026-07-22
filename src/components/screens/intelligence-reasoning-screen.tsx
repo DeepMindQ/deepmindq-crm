@@ -19,26 +19,26 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-// @ts-ignore — demo-data.ts is excluded from TS compilation
-import { DEMO_TRUST_REPORT as CANONICAL_TRUST, isDemoId, type DemoTrustReportData } from '@/lib/demo-data';
-
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-type TrustReportData = DemoTrustReportData;
+type TrustReportData = {
+  overallScore: number;
+  sourceReliability: number;
+  evidenceQuality: number;
+  temporalFreshness: number;
+  crossValidation: number;
+  confidenceExplanation: string;
+  sources: Array<{ name: string; type: string; reliability: number; lastUpdated: string }>;
+  gaps: Array<{ area: string; severity: string; description: string; improvementHint?: string }>;
+};
 
 interface MissingItem {
   category: string;
   description: string;
   improvementHint?: string;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Demo Fallback — canonical source: lib/demo-data.ts                */
-/* ------------------------------------------------------------------ */
-
-const DEMO_DATA = CANONICAL_TRUST;
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -203,12 +203,6 @@ export default function IntelligenceReasoningScreen({
     let cancelled = false;
 
     async function load() {
-      if (isDemoId(companyId)) {
-        setData(DEMO_DATA);
-        setLoading(false);
-        return;
-      }
-
       try {
         if (recommendationId) {
           const res = await fetch(

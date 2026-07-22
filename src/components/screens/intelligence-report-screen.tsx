@@ -17,14 +17,23 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-// @ts-ignore — demo-data.ts is excluded from TS compilation
-import { DEMO_BRIEF as CANONICAL_BRIEF, isDemoId, type DemoBriefData } from '@/lib/demo-data';
-
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-type BriefData = DemoBriefData;
+type BriefData = {
+  company: { name: string; domain: string; industry: string; size: string };
+  overview: string;
+  keyThemes: string[];
+  risks: string[];
+  recommendation: {
+    priority: string;
+    entryPoint: string;
+    reason: string;
+  };
+  conflicts: Array<{ type: string; description: string; severity: string }>; // eslint-disable-line
+  evidenceStats: { total: number; highQuality: number; mediumQuality: number; lowQuality: number };
+};
 
 interface Factor {
   factor: string;
@@ -42,12 +51,6 @@ interface Conflict {
   severity: string;
   description: string;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Demo Fallback — canonical source: lib/demo-data.ts                */
-/* ------------------------------------------------------------------ */
-
-const DEMO_BRIEF = CANONICAL_BRIEF;
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -161,13 +164,6 @@ export default function IntelligenceReportScreen({
   useEffect(() => {
     async function fetchBrief() {
       if (!companyId) {
-        setBrief(DEMO_BRIEF);
-        setLoading(false);
-        return;
-      }
-
-      if (isDemoId(companyId)) {
-        setBrief(DEMO_BRIEF);
         setLoading(false);
         return;
       }
@@ -187,7 +183,6 @@ export default function IntelligenceReportScreen({
           ]);
 
         if (healthRes.status === 'rejected' || !healthRes.value) {
-          setBrief(DEMO_BRIEF);
           setLoading(false);
           return;
         }
@@ -273,7 +268,7 @@ export default function IntelligenceReportScreen({
                   'Direct outreach',
                 reason: confidence.recommendedAction.reasoning || 'Signals aligned',
               }
-            : DEMO_BRIEF.recommendation,
+            : { priority: 'Normal', entryPoint: 'Direct outreach', reason: 'Signals aligned' },
           conflicts,
           evidenceStats: evidence
             ? {
@@ -287,8 +282,7 @@ export default function IntelligenceReportScreen({
 
         setBrief(briefData);
       } catch (e) {
-        console.error('[intelligence-report] Failed to load brief, using demo fallback:', e);
-        setBrief(DEMO_BRIEF);
+        console.error('[intelligence-report] Failed to load brief:', e);
       }
       setLoading(false);
     }

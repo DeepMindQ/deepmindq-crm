@@ -19,7 +19,6 @@ import {
 import { Label } from '@/components/ui/label';
 import { PageTransition, AnimatedCounter } from '@/components/ui/animated-components';
 import { useAppStore } from '@/lib/store';
-import { DEMO_INDUSTRIES, DEMO_COUNTRIES } from '@/lib/demo-data';
 
 /* ═══════════════════════════════════════════════════════════════
    Design Tokens
@@ -354,12 +353,12 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
         const data = await res.json();
         const inds = data.data?.industries || data.industries || [];
         const cos = data.data?.countries || data.countries || [];
-        setIndustries(inds.length > 0 ? inds.slice(0, 10) : DEMO_INDUSTRIES);
-        setCountries(cos.length > 0 ? cos.slice(0, 10) : DEMO_COUNTRIES);
+        setIndustries(inds.length > 0 ? inds.slice(0, 10) : []);
+        setCountries(cos.length > 0 ? cos.slice(0, 10) : []);
       } catch (e) {
-        console.error('[companies] Failed to load metadata, using demo fallback:', e);
-        setIndustries(DEMO_INDUSTRIES);
-        setCountries(DEMO_COUNTRIES);
+        console.error('[companies] Failed to load metadata:', e);
+        setIndustries([]);
+        setCountries([]);
       } finally {
         setMetaLoading(false);
       }

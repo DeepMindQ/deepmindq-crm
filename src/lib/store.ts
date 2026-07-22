@@ -41,7 +41,13 @@ export type ViewId =
   | 'icp-settings'
   | 'company-profile'
   | 'contact-profile'
-  | 'capability-library';
+  | 'capability-library'
+  // Phase 7.5: Intelligence Fabric
+  | 'intelligence-sources'
+  | 'intelligence-knowledge'
+  | 'intelligence-health'
+  | 'intelligence-timeline'
+  | 'intelligence-human';
 
 interface AppState {
   activeView: ViewId;

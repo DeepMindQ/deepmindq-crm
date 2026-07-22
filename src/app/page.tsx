@@ -77,6 +77,10 @@ const IntelligenceHealthScreen = lazy(() => import('@/components/screens/intelli
 
 // — Phase 7: Revenue Intelligence Experience Layer —
 const RevenueIntelligenceScreen = lazy(() => import('@/components/screens/revenue-intelligence-screen'));
+
+// — Phase 7.5: Intelligence Acquisition & Fabric —
+const IntelligenceSourcesScreen = lazy(() => import('@/components/screens/intelligence-sources-screen'));
+const IntelligenceKnowledgeScreen = lazy(() => import('@/components/screens/intelligence-knowledge-screen'));
 const RevenueIntelligenceBriefScreen = lazy(() => import('@/components/screens/revenue-intelligence-brief-screen'));
 const IntelligenceReasoningScreen = lazy(() => import('@/components/screens/intelligence-reasoning-screen'));
 const IntelligenceReportScreen = lazy(() => import('@/components/screens/intelligence-report-screen'));
@@ -291,6 +295,9 @@ const SCREEN_MAP: Record<string, ScreenComponent> = {
   'prompt-templates': PromptTemplatesBridge,
   audit: AuditScreen,
   settings: SettingsScreen,
+  // Phase 7.5: Intelligence Fabric
+  'intelligence-sources': IntelligenceSourcesScreen,
+  'intelligence-knowledge': IntelligenceKnowledgeScreen,
 };
 
 const SCREEN_LABELS: Record<string, string> = {};

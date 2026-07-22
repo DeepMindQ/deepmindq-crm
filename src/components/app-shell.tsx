@@ -14,6 +14,7 @@ import {
   Shield,
   Settings,
   Brain,
+  Database,
   Search,
   Bell,
   ChevronLeft,
@@ -44,6 +45,7 @@ interface NavItem {
   badge?: string;
   badgeCount?: number;
   isHeart?: boolean;
+  isSectionDivider?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -58,6 +60,13 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Duplicates', view: 'duplicates', icon: Copy },
   { label: 'Audit Log', view: 'audit', icon: Shield },
   { label: 'Settings', view: 'settings', icon: Settings },
+  // Phase 7.5: Intelligence Fabric
+  { label: 'Intelligence Sources', view: 'intelligence-sources', icon: Database, isSectionDivider: true },
+];
+
+const INTELLIGENCE_FABRIC_ITEMS: NavItem[] = [
+  { label: 'Intelligence Sources', view: 'intelligence-sources', icon: Database },
+  { label: 'Knowledge Fabric', view: 'intelligence-knowledge', icon: Brain },
 ];
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -196,19 +205,38 @@ function Sidebar() {
       {/* ── Navigation ── */}
       <ScrollArea className="flex-1 py-3">
         <nav className="flex flex-col gap-0.5" role="navigation" aria-label="Main navigation">
-          {NAV_ITEMS.map((item) => (
-            <div
-              key={item.view}
-              className={sidebarCollapsed ? 'px-2' : 'px-3'}
-            >
-              <NavButton
-                item={item}
-                active={activeView === item.view}
-                collapsed={sidebarCollapsed}
-                onClick={() => handleNavClick(item.view)}
-              />
-            </div>
-          ))}
+          {NAV_ITEMS.map((item) =>
+            item.isSectionDivider ? (
+              <div
+                key={item.view}
+                className={`${sidebarCollapsed ? 'px-2 my-2' : 'px-3 my-2'}`}
+              >
+                <div className="border-t border-border/50 mb-2" />
+                {INTELLIGENCE_FABRIC_ITEMS.map((fi) => (
+                  <div key={fi.view} className={sidebarCollapsed ? 'px-2 mt-0.5' : 'mt-0.5'}>
+                    <NavButton
+                      item={fi}
+                      active={activeView === fi.view}
+                      collapsed={sidebarCollapsed}
+                      onClick={() => handleNavClick(fi.view)}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div
+                key={item.view}
+                className={sidebarCollapsed ? 'px-2' : 'px-3'}
+              >
+                <NavButton
+                  item={item}
+                  active={activeView === item.view}
+                  collapsed={sidebarCollapsed}
+                  onClick={() => handleNavClick(item.view)}
+                />
+              </div>
+            )
+          )}
         </nav>
       </ScrollArea>
 

@@ -119,6 +119,11 @@ model Company {
   intelligenceConflicts     IntelligenceConflict[]
   recommendationFeedbacks   RecommendationFeedback[]
 
+  // Phase 7.5: Intelligence Acquisition & Fabric
+  aliases                   CompanyAlias[]
+  knowledgeEntries          KnowledgeEntry[]
+  intelligenceObjects       IntelligenceObject[]
+
   @@index([domain])
   @@index([normalizedName])
   @@index([industry])
@@ -1394,4 +1399,119 @@ model EvidenceSourceReliability {
 
   @@index([domain])
   @@index([reliabilityScore])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Phase 7.5: Intelligence Acquisition & Fabric Layer
+// ═══════════════════════════════════════════════════════════════════════
+
+model Connector {
+  id                String   @id @default(cuid())
+  name              String
+  sourceType        String   // csv, excel, website, rss, document, human
+  status            String   @default("active") // active, paused, disabled, failed
+  config            String   @default("{}") // JSON: connector-specific configuration
+  scheduleFrequency String?  // manual, hourly, daily, weekly
+  lastRunAt         DateTime?
+  lastSuccessAt     DateTime?
+  recordsAcquired   Int      @default(0)
+  totalRuns         Int      @default(0)
+  failureCount      Int      @default(0)
+  errorMessage      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  runs              ConnectorRun[]
+
+  @@index([sourceType])
+  @@index([status])
+  @@index([lastRunAt])
+}
+
+model ConnectorRun {
+  id              String   @id @default(cuid())
+  connectorId     String
+  connector       Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+  status          String   @default("pending") // pending, running, completed, failed, cancelled
+  startedAt       DateTime?
+  completedAt     DateTime?
+  recordsAcquired Int      @default(0)
+  errorsCount     Int      @default(0)
+  errorMessage    String?
+  metadata        String   @default("{}") // JSON: run-specific data (URLs fetched, rows processed, etc.)
+  createdAt       DateTime @default(now())
+
+  @@index([connectorId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model IntelligenceObject {
+  id                  String   @id @default(cuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  connectorId         String?
+  connectorRunId      String?
+  sourceType          String   // csv, excel, website, rss, document, human
+  sourceName          String?  // human-readable source identifier
+  origin              String   // csv_upload, excel_upload, website_scrape, rss_feed, human_submission
+  content             String   // full intelligence content
+  summary             String?  // abbreviated summary
+  metadata            String   @default("{}") // JSON: category, title, tags, custom fields
+  sourceUrl           String?
+  capturedAt          DateTime? // when the source was published/captured
+  originalConfidence  Float    @default(0.5) // 0-1 initial confidence from acquisition
+  confidenceBreakdown String?  @default("{}") // JSON: {sourceQuality, freshness, validation, evidenceAgreement}
+  status              String   @default("new") // new, processing, active, stale, superseded, archived, rejected, pending_evidence_mapping
+  evidenceId          String?  // reference to downstream Evidence record (upstream lineage)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([sourceType])
+  @@index([status])
+  @@index([capturedAt])
+  @@index([originalConfidence])
+  @@index([companyId, status, createdAt])
+  @@index([connectorId])
+  @@index([connectorRunId])
+  @@index([evidenceId])
+}
+
+model CompanyAlias {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  alias      String
+  source     String   @default("manual") // manual, resolution, import
+  confidence Float    @default(1.0) // 0-1
+  createdAt  DateTime @default(now())
+
+  @@unique([companyId, alias])
+  @@index([alias])
+  @@index([companyId])
+}
+
+model KnowledgeEntry {
+  id              String   @id @default(cuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category        String   // Strategy, Products, Technology, Leadership, Opportunities, Stakeholders, Conversations, Platforms, Architecture, Patents, Competitors, Partnerships, Market
+  subCategory     String?  // finer classification within category
+  content         String   // the knowledge content
+  source          String?  // traceability: where this knowledge came from
+  intelligenceObjectId String? // link to originating IntelligenceObject
+  confidence      Float    @default(0.5) // 0-1
+  version         Int      @default(1)
+  previousValue   String?  // for versioning: previous content
+  changeReason    String?  // why the knowledge was updated
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([category])
+  @@index([companyId, category])
+  @@index([intelligenceObjectId])
+  @@index([confidence])
+  @@index([updatedAt])
 }

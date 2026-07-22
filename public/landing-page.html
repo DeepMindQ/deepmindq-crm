@@ -24,6 +24,8 @@
     <script async src="https://cdn.tailwindcss.com"></script>
     <script async src="https://unpkg.com/lucide@latest"></script>
     <script>
+        // Guard: ensure tailwind object exists before setting config
+        window.tailwind = window.tailwind || {};
         tailwind.config = {
             theme: {
                 extend: {
@@ -697,6 +699,47 @@
         <div class="lr"></div>
         <div class="lt">Loading DeepMindQ</div>
     </div>
+    <!-- Self-dismiss: runs immediately after loader is in DOM -->
+    <script>
+        (function(){
+            var ld = document.getElementById('ld');
+            if(!ld) return;
+            // Wait for Tailwind CDN to process, then dismiss
+            function check(){
+                if(typeof tailwind !== 'undefined' && tailwind.css){
+                    ld.classList.add('go');
+                } else {
+                    setTimeout(check, 100);
+                }
+            }
+            // Try to dismiss after DOMContentLoaded
+            if(document.readyState==='loading'){
+                document.addEventListener('DOMContentLoaded', function(){
+                    // Give Tailwind up to 2s to process
+                    var waited = 0;
+                    var timer = setInterval(function(){
+                        waited += 200;
+                        if(typeof tailwind !== 'undefined' || waited >= 2000){
+                            clearInterval(timer);
+                            ld.classList.add('go');
+                        }
+                    }, 200);
+                });
+            } else {
+                // DOM already loaded, start checking
+                var waited = 0;
+                var timer = setInterval(function(){
+                    waited += 200;
+                    if(typeof tailwind !== 'undefined' || waited >= 2000){
+                        clearInterval(timer);
+                        ld.classList.add('go');
+                    }
+                }, 200);
+            }
+            // Absolute fallback - force dismiss after 4s
+            setTimeout(function(){ ld.classList.add('go'); }, 4000);
+        })();
+    </script>
 
     <div class="noise"></div>
     <style>@media(pointer:coarse){.noise{display:none!important}}</style>

@@ -123,6 +123,7 @@ model Company {
   aliases                   CompanyAlias[]
   knowledgeEntries          KnowledgeEntry[]
   intelligenceObjects       IntelligenceObject[]
+  intelligenceAssociations  IntelligenceAssociation[]
 
   @@index([domain])
   @@index([normalizedName])
@@ -1422,6 +1423,7 @@ model Connector {
   updatedAt         DateTime @updatedAt
 
   runs              ConnectorRun[]
+  sourceHealth       SourceHealth?
 
   @@index([sourceType])
   @@index([status])
@@ -1473,6 +1475,10 @@ model IntelligenceObject {
   @@index([capturedAt])
   @@index([originalConfidence])
   @@index([companyId, status, createdAt])
+  // Sprint 2: Association relations
+  assocSources     IntelligenceAssociation[] @relation("AssocSource")
+  assocTargets     IntelligenceAssociation[] @relation("AssocTarget")
+
   @@index([connectorId])
   @@index([connectorRunId])
   @@index([evidenceId])
@@ -1514,4 +1520,75 @@ model KnowledgeEntry {
   @@index([intelligenceObjectId])
   @@index([confidence])
   @@index([updatedAt])
+
+  // Sprint 2: Version history
+  versions KnowledgeVersion[]
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SPRINT 2: INTELLIGENCE FABRIC LAYER
+// ═══════════════════════════════════════════════════════════════
+
+model IntelligenceAssociation {
+  id              String   @id @default(cuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sourceId        String                        // FK → IntelligenceObject (the source assertion)
+  source          IntelligenceObject @relation("AssocSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  targetId        String                        // FK → IntelligenceObject (the related assertion)
+  target          IntelligenceObject @relation("AssocTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  associationType String                        // duplicate, contradicts, supports, extends, mentions_same_entity
+  confidence      Float    @default(0.5)        // 0-1, how confident the association is
+  metadata        String   @default("{}")        // JSON: {reason, field, overlap, ...}
+  resolved        Boolean  @default(false)       // has this association been reviewed/resolved?
+  resolvedAt      DateTime?
+  resolvedAction  String?                       // merged, dismissed, superseded, manual
+  createdAt       DateTime @default(now())
+
+  @@index([companyId])
+  @@index([sourceId])
+  @@index([targetId])
+  @@index([associationType])
+  @@index([resolved])
+  @@unique([sourceId, targetId, associationType])
+}
+
+model KnowledgeVersion {
+  id                String   @id @default(cuid())
+  knowledgeEntryId  String
+  knowledgeEntry    KnowledgeEntry @relation(fields: [knowledgeEntryId], references: [id], onDelete: Cascade)
+  version           Int                            // monotonically increasing
+  content           String                         // snapshot of the content at this version
+  changedFields     String   @default("{}")         // JSON: {content, subCategory, confidence, ...}
+  changeReason      String                         // why the change occurred
+  changedBy         String   @default("system")     // system, user:{id}, connector:{id}
+  createdAt         DateTime @default(now())
+
+  @@index([knowledgeEntryId])
+  @@index([knowledgeEntryId, version])
+  @@unique([knowledgeEntryId, version])
+}
+
+model SourceHealth {
+  id                    String   @id @default(cuid())
+  connectorId           String   @unique
+  connector             Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+  healthScore           Float    @default(1.0)      // 0-1 composite score
+  successRate           Float    @default(1.0)      // completed / total runs
+  avgRecordsPerRun      Float    @default(0)
+  lastSuccessAt         DateTime?
+  lastFailureAt         DateTime?
+  consecutiveSuccesses  Int      @default(0)
+  consecutiveFailures   Int      @default(0)
+  totalRuns             Int      @default(0)
+  totalSuccesses        Int      @default(0)
+  totalFailures         Int      @default(0)
+  qualityScore          Float    @default(0.5)      // based on confidence of ingested objects
+  freshnessScore        Float    @default(1.0)      // based on recency of data
+  metrics               String   @default("{}")      // JSON: extended metrics
+  updatedAt             DateTime @updatedAt
+  createdAt             DateTime @default(now())
+
+  @@index([connectorId])
+  @@index([healthScore])
 }

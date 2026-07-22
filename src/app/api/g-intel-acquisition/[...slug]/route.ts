@@ -29,6 +29,34 @@ import {
 import type { IConnector, SourceType, ColumnMapping } from '@/lib/intelligence-sources';
 import type { AcquisitionContext } from '@/lib/intelligence-sources/acquisition-engine';
 import type { QueuedJob } from '@/lib/intelligence-sources/job-queue';
+import {
+  detectDuplicates,
+  createAssociation,
+  detectConflicts,
+  mergeDuplicates,
+  resolveAssociation as resolveAssociationAction,
+  getAssociations,
+} from '@/lib/intelligence-sources/association-engine';
+import {
+  recalculateObjectConfidence,
+  recalculateCompanyConfidence,
+  calculateConfidence,
+  generateConfidenceExplanation,
+} from '@/lib/intelligence-sources/confidence-engine';
+import type { ConfidenceResult } from '@/lib/intelligence-sources/confidence-engine';
+import {
+  getVersionHistory,
+  compareVersions,
+  restoreVersion,
+  createVersionSnapshot,
+} from '@/lib/intelligence-sources/knowledge-versioning';
+import {
+  calculateSourceHealth,
+  getAllSourceHealth,
+  getGovernanceReport,
+  flagStaleSources,
+  recalculateAllHealth,
+} from '@/lib/intelligence-sources/source-governance';
 
 // ─── Module-scope connector factories ────────────────────────────
 
@@ -208,6 +236,22 @@ const ROUTES: Array<{ key: string; handler: (method: HttpMethod, req: NextReques
   { key: 'knowledge', handler: handleKnowledge },
   { key: 'knowledge/[id]', handler: handleKnowledgeById },
   { key: 'stats', handler: handleStats },
+  // Sprint 2: Association & Dedup
+  { key: 'associations', handler: handleAssociations },
+  { key: 'associations/detect-duplicates', handler: handleDetectDuplicates },
+  { key: 'associations/detect-conflicts', handler: handleDetectConflicts },
+  { key: 'associations/merge', handler: handleMergeDuplicates },
+  { key: 'associations/resolve', handler: handleResolveAssociation },
+  // Sprint 2: Confidence
+  { key: 'confidence/recalculate', handler: handleRecalculateConfidence },
+  { key: 'intelligence-objects/[id]/confidence', handler: handleObjectConfidence },
+  // Sprint 2: Knowledge Versioning
+  { key: 'knowledge/[id]/versions', handler: handleKnowledgeVersions },
+  { key: 'knowledge/[id]/versions/compare', handler: handleCompareVersions },
+  { key: 'knowledge/[id]/versions/restore', handler: handleRestoreVersion },
+  // Sprint 2: Source Governance
+  { key: 'source-health', handler: handleSourceHealth },
+  { key: 'governance', handler: handleGovernance },
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -839,6 +883,263 @@ async function getStats(): Promise<Response> {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json({ error: 'Failed to get stats', detail: message }, { status: 500 });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SPRINT 2: ASSOCIATIONS & DEDUPLICATION
+// ═══════════════════════════════════════════════════════════════
+
+async function handleAssociations(method: HttpMethod, req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method === 'GET') return queryAssociations(req);
+  if (method === 'POST') return createAssociationHandler(req);
+  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+}
+
+// GET /api/g-intel-acquisition/associations?companyId=[id]&type=[type]&unresolvedOnly=[bool]
+async function queryAssociations(req: NextRequest): Promise<Response> {
+  try {
+    const { searchParams } = new URL(req.url);
+    const companyId = searchParams.get('companyId');
+    const type = searchParams.get('type') || undefined;
+    const unresolvedOnly = searchParams.get('unresolvedOnly') === 'true';
+
+    if (!companyId) {
+      return NextResponse.json({ error: 'companyId query parameter is required' }, { status: 400 });
+    }
+
+    const associations = await getAssociations(companyId, { type, unresolvedOnly });
+    return NextResponse.json({ companyId, associations });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to query associations', detail: message }, { status: 500 });
+  }
+}
+
+// POST /api/g-intel-acquisition/associations { sourceId, targetId, associationType, confidence?, metadata? }
+async function createAssociationHandler(req: NextRequest): Promise<Response> {
+  try {
+    const body = await req.json();
+    const { sourceId, targetId, associationType, confidence, metadata } = body;
+
+    if (!sourceId || !targetId || !associationType) {
+      return NextResponse.json({ error: 'sourceId, targetId, and associationType are required' }, { status: 400 });
+    }
+
+    const validTypes = ['duplicate', 'contradicts', 'supports', 'extends', 'mentions_same_entity'];
+    if (!validTypes.includes(associationType)) {
+      return NextResponse.json({ error: `associationType must be one of: ${validTypes.join(', ')}` }, { status: 400 });
+    }
+
+    const association = await createAssociation({ sourceId, targetId, associationType, confidence, metadata });
+    return NextResponse.json({ association }, { status: 201 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to create association', detail: message }, { status: 500 });
+  }
+}
+
+async function handleDetectDuplicates(method: HttpMethod, req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'POST') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const { companyId } = await req.json();
+    if (!companyId) {
+      return NextResponse.json({ error: 'companyId is required' }, { status: 400 });
+    }
+    const duplicates = await detectDuplicates(companyId);
+    return NextResponse.json({ companyId, duplicates, totalGroups: duplicates.length });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to detect duplicates', detail: message }, { status: 500 });
+  }
+}
+
+async function handleDetectConflicts(method: HttpMethod, req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'POST') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const { companyId } = await req.json();
+    if (!companyId) {
+      return NextResponse.json({ error: 'companyId is required' }, { status: 400 });
+    }
+    const conflicts = await detectConflicts(companyId);
+    return NextResponse.json({ companyId, conflicts, totalConflicts: conflicts.length });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to detect conflicts', detail: message }, { status: 500 });
+  }
+}
+
+async function handleMergeDuplicates(method: HttpMethod, req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'POST') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const { sourceId, targetId, keepTarget } = await req.json();
+    if (!sourceId || !targetId) {
+      return NextResponse.json({ error: 'sourceId and targetId are required' }, { status: 400 });
+    }
+    const result = await mergeDuplicates(sourceId, targetId, keepTarget ?? true);
+    return NextResponse.json({ ...result, merged: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to merge duplicates', detail: message }, { status: 500 });
+  }
+}
+
+async function handleResolveAssociation(method: HttpMethod, req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'POST') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const { associationId, action } = await req.json();
+    if (!associationId || !action) {
+      return NextResponse.json({ error: 'associationId and action are required' }, { status: 400 });
+    }
+    const validActions = ['merged', 'dismissed', 'superseded', 'manual'];
+    if (!validActions.includes(action)) {
+      return NextResponse.json({ error: `action must be one of: ${validActions.join(', ')}` }, { status: 400 });
+    }
+    const association = await resolveAssociationAction(associationId, action);
+    return NextResponse.json({ association });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to resolve association', detail: message }, { status: 500 });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SPRINT 2: CONFIDENCE ENGINE
+// ═══════════════════════════════════════════════════════════════
+
+async function handleRecalculateConfidence(method: HttpMethod, req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'POST') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const { companyId, objectId } = await req.json();
+    if (objectId) {
+      const result = await recalculateObjectConfidence(objectId);
+      return NextResponse.json(result);
+    }
+    if (companyId) {
+      const result = await recalculateCompanyConfidence(companyId);
+      return NextResponse.json(result);
+    }
+    return NextResponse.json({ error: 'companyId or objectId is required' }, { status: 400 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to recalculate confidence', detail: message }, { status: 500 });
+  }
+}
+
+async function handleObjectConfidence(method: HttpMethod, req: NextRequest, params: Record<string, string>): Promise<Response> {
+  if (method !== 'GET') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const obj = await db.intelligenceObject.findUnique({ where: { id: params.id } });
+    if (!obj) {
+      return NextResponse.json({ error: 'Intelligence object not found' }, { status: 404 });
+    }
+    const result = calculateConfidence(obj as any);
+    const explanation = generateConfidenceExplanation(result);
+    return NextResponse.json({ objectId: obj.id, result, explanation });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get confidence', detail: message }, { status: 500 });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SPRINT 2: KNOWLEDGE VERSIONING
+// ═══════════════════════════════════════════════════════════════
+
+async function handleKnowledgeVersions(method: HttpMethod, _req: NextRequest, params: Record<string, string>): Promise<Response> {
+  if (method !== 'GET') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const versions = await getVersionHistory(params.id);
+    return NextResponse.json({ knowledgeEntryId: params.id, versions });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get version history', detail: message }, { status: 500 });
+  }
+}
+
+async function handleCompareVersions(method: HttpMethod, req: NextRequest, params: Record<string, string>): Promise<Response> {
+  if (method !== 'POST') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const { versionId1, versionId2 } = await req.json();
+    if (!versionId1 || !versionId2) {
+      return NextResponse.json({ error: 'versionId1 and versionId2 are required' }, { status: 400 });
+    }
+    const diff = await compareVersions(versionId1, versionId2);
+    return NextResponse.json(diff);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to compare versions', detail: message }, { status: 500 });
+  }
+}
+
+async function handleRestoreVersion(method: HttpMethod, req: NextRequest, params: Record<string, string>): Promise<Response> {
+  if (method !== 'POST') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const { versionId, reason } = await req.json();
+    if (!versionId) {
+      return NextResponse.json({ error: 'versionId is required' }, { status: 400 });
+    }
+    const result = await restoreVersion(versionId, reason || 'Restored via API');
+    return NextResponse.json({ restored: true, ...result });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to restore version', detail: message }, { status: 500 });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SPRINT 2: SOURCE GOVERNANCE
+// ═══════════════════════════════════════════════════════════════
+
+async function handleSourceHealth(method: HttpMethod, req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method === 'GET') return getSourceHealthHandler(req);
+  if (method === 'POST') return refreshSourceHealth(req);
+  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+}
+
+// GET /api/g-intel-acquisition/source-health?connectorId=[id]
+async function getSourceHealthHandler(req: NextRequest): Promise<Response> {
+  try {
+    const { searchParams } = new URL(req.url);
+    const connectorId = searchParams.get('connectorId');
+
+    if (connectorId) {
+      const health = await calculateSourceHealth(connectorId);
+      return NextResponse.json({ health });
+    }
+
+    const allHealth = await getAllSourceHealth();
+    return NextResponse.json({ sourceHealth: allHealth });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get source health', detail: message }, { status: 500 });
+  }
+}
+
+// POST /api/g-intel-acquisition/source-health { connectorId? } — recalculate
+async function refreshSourceHealth(req: NextRequest): Promise<Response> {
+  try {
+    const body = await req.json().catch(() => ({}));
+    if (body.connectorId) {
+      const health = await calculateSourceHealth(body.connectorId);
+      return NextResponse.json({ health });
+    }
+    const result = await recalculateAllHealth();
+    return NextResponse.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to refresh source health', detail: message }, { status: 500 });
+  }
+}
+
+async function handleGovernance(method: HttpMethod, _req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'GET') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const report = await getGovernanceReport();
+    return NextResponse.json(report);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get governance report', detail: message }, { status: 500 });
   }
 }
 

@@ -18,3 +18,8 @@ export { adaptToEvidence } from './evidence-adapter';
 export * from './job-queue';
 export * from './knowledge-fabric';
 export * from './acquisition-engine';
+// Sprint 2: Intelligence Fabric Layer
+export * from './association-engine';
+export * from './confidence-engine';
+export * from './knowledge-versioning';
+export * from './source-governance';

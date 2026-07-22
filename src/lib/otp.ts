@@ -187,7 +187,7 @@ export async function requestOtp(
   if (config.hasKey) {
     const emailResult = await sendEmail({
       to: normalizedEmail,
-      subject: `${purposeLabel(purpose)} - ${code}`,
+      subject: `DeepMindQ - ${purposeLabel(purpose)} - Your verification code is ready`,
       html: htmlContent,
       from: process.env.EMAIL_FROM || 'noreply@deepmindq.com',
     });
@@ -209,8 +209,8 @@ export async function requestOtp(
 
   // If email was NOT sent, return the code so the user can still log in
   if (!emailSent) {
-    console.log(`[OTP] FALLBACK — Code for ${normalizedEmail}: ${code}`);
-    return { success: true, devCode: code };
+    console.error(`[OTP] EMAIL_API_KEY not configured. Cannot send OTP to ${normalizedEmail}.`);
+    return { success: false, error: 'Email service not configured. Please contact support.' };
   }
 
   return { success: true };

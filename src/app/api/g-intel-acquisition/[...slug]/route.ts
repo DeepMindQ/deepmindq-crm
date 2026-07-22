@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logAction } from '@/lib/audit';
+import { checkApiAuth } from '@/lib/api-auth';
 import {
   CsvConnector,
   ExcelConnector,
@@ -1538,6 +1539,10 @@ async function dispatch(method: HttpMethod, req: NextRequest, slug: string[]): P
   if (!matched) {
     return NextResponse.json({ error: 'Not found', path: slug.join('/') }, { status: 404 });
   }
+
+  // Authentication check
+  const auth = await checkApiAuth();
+  if (auth.errorResponse) return auth.errorResponse;
 
   try {
     return await matched.handler(method, req, matched.params);

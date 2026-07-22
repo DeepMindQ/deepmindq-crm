@@ -14,13 +14,6 @@ export function validateCsrf(req: Request): boolean {
   const method = req.method.toUpperCase()
   if (['GET', 'HEAD', 'OPTIONS'].includes(method)) return true
 
-  // Skip in development if no token present (convenience)
-  if (process.env.NODE_ENV !== 'production') {
-    const headerToken = req.headers.get(CSRF_TOKEN_HEADER)
-    const cookieToken = getCsrfCookie(req)
-    if (!headerToken && !cookieToken) return true
-  }
-
   const headerToken = req.headers.get(CSRF_TOKEN_HEADER)
   const cookieToken = getCsrfCookie(req)
 

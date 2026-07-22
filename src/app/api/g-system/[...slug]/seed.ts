@@ -1,7 +1,16 @@
 import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
+import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  // Admin-only endpoint
+  const auth = await checkApiAuth();
+  if (auth.errorResponse) return auth.errorResponse;
+  if (auth.session) {
+    const adminCheck = requireAdminRole(auth.session);
+    if (adminCheck) return adminCheck;
+  }
+
   try {
     const existingCount = await db.contact.count();
     if (existingCount > 0) {

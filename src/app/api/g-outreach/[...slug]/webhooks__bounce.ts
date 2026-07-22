@@ -136,20 +136,23 @@ export async function POST(request: Request) {
   try {
     const rawBody = await request.text();
 
-    // Verify webhook signature if RESEND_WEBHOOK_SECRET is set
+    // Verify webhook signature — REQUIRED
     const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
-    if (webhookSecret) {
-      const signature = request.headers.get('resend-signature') || request.headers.get('x-webhook-signature');
-      if (signature) {
-        const expected = crypto
-          .createHmac('sha256', webhookSecret)
-          .update(rawBody)
-          .digest('hex');
-        if (signature !== expected) {
-          console.warn('[Webhook:Bounce] Invalid signature');
-          return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-        }
-      }
+    if (!webhookSecret) {
+      console.error('[Webhook:Bounce] RESEND_WEBHOOK_SECRET not configured');
+      return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 500 });
+    }
+    const signature = request.headers.get('resend-signature') || request.headers.get('x-webhook-signature');
+    if (!signature) {
+      return NextResponse.json({ error: 'Missing signature header' }, { status: 401 });
+    }
+    const expected = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(rawBody)
+      .digest('hex');
+    if (signature !== expected) {
+      console.warn('[Webhook:Bounce] Invalid signature');
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
     let body: any;

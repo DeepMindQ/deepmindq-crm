@@ -61,13 +61,8 @@ export async function withApiMiddleware(
 
         logRequest(request.method, path, 200, Date.now() - startTime, ip)
         return { authorized: true, userId: session.id, rateLimited: false }
-      } catch {
-        // Auth not configured yet - allow through in development
-        if (process.env.NODE_ENV !== 'production') {
-          logRequest(request.method, path, 200, Date.now() - startTime, ip)
-          return { authorized: true, userId: 'dev-user', rateLimited: false }
-        }
-        logRequest(request.method, path, 401, Date.now() - startTime, ip)
+      } catch (error) {
+        console.error('Session validation error:', error)
         return { authorized: false, rateLimited: false, response: apiError('Authentication required', 401) }
       }
     }

@@ -5,6 +5,7 @@ import { generateStrategicInsight, getLatestInsight, getInsightHistory, gatherRe
 import { generateEngagementStrategy, getLatestStrategy } from '@/lib/ai-copilot/strategy-generator';
 import { enhanceBrief, getEnhancedBrief } from '@/lib/ai-copilot/brief-enhancer';
 import { getUsageStats } from '@/lib/ai-copilot/usage-tracker';
+import { checkApiAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import type { StrategicInsightOutput } from '@/lib/ai-copilot/types';
 
@@ -52,6 +53,9 @@ function matchRoute(slug: string[]): { handler: RouteHandler; params: Record<str
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string[] }> }) {
   const { slug } = await params;
+  // Authentication check
+  const auth = await checkApiAuth();
+  if (auth.errorResponse) return auth.errorResponse;
   const matched = matchRoute(slug);
   if (!matched) return NextResponse.json({ error: 'Not found', path: slug.join('/') }, { status: 404 });
   if (!matched.handler.GET) return NextResponse.json({ error: 'GET not allowed' }, { status: 405 });
@@ -60,6 +64,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ slug: string[] }> }) {
   const { slug } = await params;
+  // Authentication check
+  const auth = await checkApiAuth();
+  if (auth.errorResponse) return auth.errorResponse;
   const matched = matchRoute(slug);
   if (!matched) return NextResponse.json({ error: 'Not found', path: slug.join('/') }, { status: 404 });
   if (!matched.handler.POST) return NextResponse.json({ error: 'POST not allowed' }, { status: 405 });

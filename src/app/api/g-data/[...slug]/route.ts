@@ -3,6 +3,7 @@ import { apiRateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
 import { apiError } from '@/lib/apiHelpers';
 import { getCorrelationId } from '@/lib/correlation-id';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // Inline imports for data routes (10 original + Data Intelligence handlers)
 import * as mod_stats from './stats.ts';
@@ -252,6 +253,10 @@ function matchRoute(slug: string[]): { handler?: Record<string, Function>; loade
 async function handle(method: HttpMethod, req: NextRequest, slug: string[]): Promise<Response> {
   const matched = matchRoute(slug);
   if (!matched) return NextResponse.json({ error: 'Not found', path: slug.join('/') }, { status: 404 });
+
+  // Authentication check
+  const auth = await checkApiAuth();
+  if (auth.errorResponse) return auth.errorResponse;
 
   // Rate limiting
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || req.headers.get('x-real-ip') || 'unknown';

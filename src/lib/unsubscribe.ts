@@ -8,7 +8,15 @@ import crypto from 'crypto';
    constructing List-Unsubscribe headers.
    ═══════════════════════════════════════════════════ */
 
-const UNSUBSCRIBE_SECRET = process.env.UNSUBSCRIBE_SECRET || 'deepmindq-unsubscribe-secret-key';
+const UNSUBSCRIBE_SECRET = (() => {
+  if (!process.env.UNSUBSCRIBE_SECRET) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('UNSUBSCRIBE_SECRET must be set in production environment');
+    }
+    return 'dev-only-unsafe-key';
+  }
+  return process.env.UNSUBSCRIBE_SECRET;
+})();
 const COMPANY_NAME = process.env.COMPANY_NAME || 'DeepMindQ';
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || '';
 

@@ -4,6 +4,7 @@ import { verifyOtp } from '@/lib/otp';
 import { hashPassword } from '@/lib/password';
 import { requireAuth, AuthError } from '@/lib/session';
 import { db } from '@/lib/db';
+import { cookies } from 'next/headers';
 
 const schema = z.object({
   email: z.string().email(),
@@ -39,6 +40,10 @@ export async function POST(request: NextRequest) {
     // Hash new password and update
     const passwordHash = await hashPassword(newPassword);
 
+    // Get current session token to preserve it
+    const cookieStore = await cookies();
+    const currentToken = cookieStore.get('dmq_session')?.value;
+
     await db.user.update({
       where: { id: user.id },
       data: {
@@ -47,11 +52,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Destroy all other sessions (force re-login on other devices)
+    // Destroy all sessions EXCEPT current one
     await db.session.deleteMany({
       where: {
         userId: user.id,
-        // Don't delete current session — it'll be refreshed
+        ...(currentToken ? { token: { not: currentToken } } : {}),
       },
     });
 

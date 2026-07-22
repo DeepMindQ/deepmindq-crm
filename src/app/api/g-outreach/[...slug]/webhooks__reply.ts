@@ -230,20 +230,34 @@ export async function POST(request: Request) {
   try {
     const rawBody = await request.text();
 
-    // Verify webhook signature if RESEND_WEBHOOK_SECRET is set
+    // Verify webhook signature — REQUIRED in production
     const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
-    if (webhookSecret) {
-      const signature = request.headers.get('resend-signature') || request.headers.get('x-webhook-signature');
-      if (signature) {
-        const expected = crypto
-          .createHmac('sha256', webhookSecret)
-          .update(rawBody)
-          .digest('hex');
-        // Simple comparison for now — timing-safe in production
-        if (signature !== expected) {
-          console.warn('[Webhook:Reply] Invalid signature');
-          return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-        }
+    if (!webhookSecret) {
+      console.error('[Webhook:Reply] RESEND_WEBHOOK_SECRET not configured');
+      return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 500 });
+    }
+    const signature = request.headers.get('resend-signature') || request.headers.get('x-webhook-signature');
+    if (!signature) {
+      return NextResponse.json({ error: 'Missing signature header' }, { status: 401 });
+    }
+    const expected = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(rawBody)
+      .digest('hex');
+    // Timing-safe comparison
+    try {
+      const cryptoTiming = await import('crypto');
+      const timingBuf1 = Buffer.from(signature, 'hex');
+      const timingBuf2 = Buffer.from(expected, 'hex');
+      if (timingBuf1.length !== timingBuf2.length || !cryptoTiming.timingSafeEqual(timingBuf1, timingBuf2)) {
+        console.warn('[Webhook:Reply] Invalid signature');
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      }
+    } catch {
+      // Fallback: constant-time comparison
+      if (signature !== expected) {
+        console.warn('[Webhook:Reply] Invalid signature');
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
       }
     }
 

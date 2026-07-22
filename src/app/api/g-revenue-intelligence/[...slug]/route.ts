@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { csrfMiddleware } from '@/lib/csrf';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // Route handlers
 import * as mod_accounts_brief_get from './accounts___id__brief.ts';
@@ -58,6 +59,9 @@ async function handle(method: HttpMethod, req: NextRequest, slug: string[]): Pro
   if (!matched) return NextResponse.json({ error: 'Not found', path: slug.join('/') }, { status: 404 });
   const fn = matched.handler[method];
   if (typeof fn !== 'function') return NextResponse.json({ error: `${method} not allowed` }, { status: 405 });
+  // Authentication check
+  const auth = await checkApiAuth();
+  if (auth.errorResponse) return auth.errorResponse;
   try { return await fn(req, { params: Promise.resolve(matched.params) }); }
   catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';

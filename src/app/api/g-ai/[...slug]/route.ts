@@ -3,6 +3,7 @@ import { apiRateLimit } from '@/lib/rate-limit';
 import { validateCsrf } from '@/lib/csrf';
 import { apiError } from '@/lib/apiHelpers';
 import { getCorrelationId } from '@/lib/correlation-id';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // Inline imports for ai routes (32 handlers)
 import * as mod_ai__suggested_contacts from './ai__suggested-contacts.ts';
@@ -120,6 +121,9 @@ async function handle(method: HttpMethod, req: NextRequest, slug: string[]): Pro
   if (!matched) return NextResponse.json({ error: 'Not found', path: slug.join('/') }, { status: 404 });
   const fn = matched.handler[method];
   if (typeof fn !== 'function') return NextResponse.json({ error: `${method} not allowed` }, { status: 405 });
+  // Authentication check
+  const auth = await checkApiAuth();
+  if (auth.errorResponse) return auth.errorResponse;
   // Rate limiting
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || req.headers.get('x-real-ip') || 'unknown';
   const rl = apiRateLimit(ip, slug.join('/'));

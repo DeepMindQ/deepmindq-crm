@@ -9,10 +9,20 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="preconnect" href="https://unpkg.com" />
-    <script src="https://cdn.tailwindcss.com">
-    </script>
-    <script src="https://unpkg.com/lucide@latest">
-    </script>
+    <link rel="preload" href="https://cdn.tailwindcss.com" as="script" />
+    <style>
+        /* CRITICAL: Loader + base styles - MUST render before external scripts */
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{background:#000;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;cursor:none}
+        @media(pointer:coarse){body{cursor:auto}}
+        #ld{position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .8s,visibility .8s}
+        #ld.go{opacity:0;visibility:hidden}
+        .lr{width:44px;height:44px;border:2px solid rgba(99,102,241,.1);border-top-color:#6366f1;border-radius:50%;animation:spin .7s linear infinite}
+        .lt{font-size:11px;color:rgba(255,255,255,.3);letter-spacing:.15em;text-transform:uppercase}
+        @keyframes spin{to{transform:rotate(360deg)}}
+    </style>
+    <script async src="https://cdn.tailwindcss.com"></script>
+    <script async src="https://unpkg.com/lucide@latest"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -1375,18 +1385,32 @@
 
     <script>
         // ============================================================
-        //  Lucide Icons
+        //  Lucide Icons (safe - already loaded async above)
         // ============================================================
-        lucide.createIcons();
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        } else {
+            document.addEventListener('DOMContentLoaded', function() {
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            });
+        }
 
         // ============================================================
-        //  Loader
+        //  Loader - dismiss on DOMContentLoaded + fallback timeout
         // ============================================================
-        window.addEventListener('load', function() {
-            setTimeout(function() {
-                document.getElementById('ld').classList.add('go');
-            }, 200);
-        });
+        function dismissLoader() {
+            var ld = document.getElementById('ld');
+            if (ld) ld.classList.add('go');
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(dismissLoader, 200);
+            });
+        } else {
+            setTimeout(dismissLoader, 200);
+        }
+        // Fallback: force dismiss after 5s no matter what
+        setTimeout(dismissLoader, 5000);
 
         // ============================================================
         //  Particles Canvas

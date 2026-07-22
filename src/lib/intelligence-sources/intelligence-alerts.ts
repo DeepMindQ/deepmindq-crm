@@ -453,26 +453,7 @@ export async function autoGenerateAlerts(companyId?: string): Promise<{
     include: { connector: true },
   });
 
-  // Batch: pre-fetch existing alerts for all types to avoid N+1 findFirst
-  const existingAlerts = await db.intelligenceAlert.findMany({
-    where: {
-      status: 'active',
-      createdAt: { gte: twentyFourHoursAgo },
-      alertType: { in: ['health_degraded', 'source_stale', 'conflict_detected', 'ingestion_failure'] },
-      ...(companyId ? { companyId } : {}),
-    },
-    select: { alertType: true, connectorId: true, companyId: true },
-  });
-
-  const existingKeys = new Set(
-    existingAlerts.map(a => `${a.alertType}:${a.connectorId || ''}:${a.companyId || ''}`)
-  );
-
-  const alertExists = (alertType: string, connectorId?: string | null, companyId?: string | null) =>
-    existingKeys.has(`${alertType}:${connectorId || ''}:${companyId || ''}`);
-
-  // Collect all new alerts, then batch insert
-  const newAlertsData: Prisma.IntelligenceAlertCreateManyInput[] = [];
+  // (existingAlerts, existingKeys, alertExists, newAlertsData already declared above)
 
   for (const sh of degradedHealths) {
     if (alertExists('health_degraded', sh.connectorId)) continue;

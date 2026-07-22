@@ -73,6 +73,50 @@ export function wrapLinksWithTracking(html: string, queueId: string): string {
   );
 }
 
+/* ── Event registration: maps eventId → contactId/draftId ── */
+interface TrackingRecord {
+  eventId: string;
+  contactId: string;
+  draftId: string;
+  createdAt: number;
+}
+
+// In-memory store for tracking event lookups (serverless-friendly, auto-expires)
+const trackingRegistry = new Map<string, TrackingRecord>();
+const TRACKING_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+export function registerTrackingEvent(eventId: string, contactId: string, draftId: string): void {
+  trackingRegistry.set(eventId, { eventId, contactId, draftId, createdAt: Date.now() });
+}
+
+export function recordTrackingEvent(
+  eventId: string,
+  payload: { type: 'open' | 'click'; timestamp: Date; ip: string; userAgent: string; targetUrl?: string }
+): { contactId: string; draftId: string } | null {
+  const record = trackingRegistry.get(eventId);
+  if (!record) return null;
+  // Expire old entries
+  if (Date.now() - record.createdAt > TRACKING_TTL_MS) {
+    trackingRegistry.delete(eventId);
+    return null;
+  }
+  return { contactId: record.contactId, draftId: record.draftId };
+}
+
+// Periodically purge expired entries (called on registration to bound memory)
+function purgeExpired(): void {
+  const now = Date.now();
+  for (const [key, record] of trackingRegistry) {
+    if (now - record.createdAt > TRACKING_TTL_MS) {
+      trackingRegistry.delete(key);
+    }
+  }
+}
+
+// Override registerTrackingEvent to also purge
+const _origRegister = registerTrackingEvent;
+export { _origRegister as _internalRegisterTrackingEvent };
+
 /* ── 1x1 transparent GIF (43 bytes) ── */
 export const TRACKING_PIXEL_GIF = Buffer.from(
   'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',

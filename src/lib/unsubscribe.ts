@@ -9,13 +9,13 @@ import crypto from 'crypto';
    ═══════════════════════════════════════════════════ */
 
 const UNSUBSCRIBE_SECRET = (() => {
-  if (!process.env.UNSUBSCRIBE_SECRET) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('UNSUBSCRIBE_SECRET must be set in production environment');
-    }
-    return 'dev-only-unsafe-key';
+  // During build time (next build), use a placeholder — validated at runtime
+  if (typeof window !== 'undefined') return 'client-side-irrelevant';
+  const secret = process.env.UNSUBSCRIBE_SECRET;
+  if (!secret && process.env.NODE_ENV === 'production' && process.env.NEXT_PHASE !== 'phase-production-build') {
+    throw new Error('UNSUBSCRIBE_SECRET must be set in production environment');
   }
-  return process.env.UNSUBSCRIBE_SECRET;
+  return secret || 'dev-only-unsafe-key';
 })();
 const COMPANY_NAME = process.env.COMPANY_NAME || 'DeepMindQ';
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || '';

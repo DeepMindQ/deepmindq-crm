@@ -1,27 +1,23 @@
 ---
-Task ID: S1-S13
-Agent: Main Agent
-Task: Phase 7 Stabilization Sprint — All 13 items
+Task ID: 1
+Agent: Super Z (main)
+Task: Phase 7.5 Sprint 1 — Complete all remaining work
 
 Work Log:
-- S1: Verified no JSON-LD or personal info exposure exists in codebase. Already clean.
-- S2: Fixed 4 silent catch blocks in signals.ts, email-generation.ts, workflow-engine/processor.ts (2 locations).
-- S3: Verified demo-data.ts exists as canonical source, imported by all 6 screen components.
-- S4: Verified isDemoId() exists in demo-data.ts, imported by brief/report/reasoning screens.
-- S5: Verified bg-gold/text-gold and related classes already defined in globals.css lines 396-413.
-- S6: Fixed 6 production-impacting TS errors in: confidence-explainability.ts (2), intelligence-validation.ts (2), evidence-quality.ts (1), password.ts (1).
-- S7: Verified 79 intelligence-contract tests passing.
-- S8: Fixed 10 test bugs in research-engine.test.ts (evidence-quality section used wrong variable). 238/265 passing.
-- S9: Fixed 3 test bugs in ai-governance.test.ts (signalCount override, capability_match.passed, staleness prompt target). 53/53 passing.
-- S10: Verified security headers middleware already active in src/middleware.ts.
-- S11: Wired CSRF protection into 4 CRM API routes (companies, companies__bulk, signals, contacts) + opportunities.
-- S12: Created /src/lib/pagination.ts with parsePagination/buildPaginationMeta. Applied to opportunities API (added skip/count/page metadata).
-- S13: Extracted trust-report business logic from API route into /src/lib/trust-report-builder.ts.
+- Assessed existing codebase: 5 Prisma models, 4 connectors, company resolution, evidence adapter, job queue, knowledge fabric, acquisition engine — all already written
+- Created 15 API endpoints in `src/app/api/g-intel-acquisition/[...slug]/route.ts` (Connector CRUD, Upload Preview/Acquire, Runs, Company Resolution, Knowledge, Stats)
+- Created `company-resolution-modal.tsx` component with dark theme, framer-motion animations, confidence bars, match-type badges
+- Created `intelligence-knowledge-screen.tsx` stub (Sprint 2 will flesh out)
+- Wrote 6 test suites (114 tests total, all passing): csv-connector, company-resolution, evidence-adapter, knowledge-fabric, acquisition-engine, job-queue
+- Fixed duplicate route files (removed 7 stray .ts files), renamed conflicting function, fixed missing `Industry` icon → `Briefcase`, fixed framer-motion Variants type, fixed SectionHeader props
+- Wired intelligence-sources-screen.tsx to correct API endpoints (upload/preview, upload/acquire, confirm-resolution, runs)
+- Added `runs` list endpoint to route.ts for recent runs across all connectors
+- Fixed confirm-resolution payload to match API contract (companyId + alias)
+- Fixed connectors list response unwrapping ({ connectors: [...] })
 
 Stage Summary:
-- 6 of 13 items were already done (S1, S3, S4, S5, S10 partial)
-- All 13 items completed
-- New files created: src/lib/pagination.ts, src/lib/trust-report-builder.ts
-- Files modified: ~15 across lib/, api routes, and tests
-- Test results: 265 intelligence tests, 238 passing (27 pre-existing detectSignals/storeSignals mock issues)
-- TypeScript errors reduced from 233 to 227 (6 core lib/ errors fixed)
+- 0 TypeScript errors
+- 114/114 tests passing
+- Prisma generate successful
+- Sprint 1 code-complete: schema ✅, connectors ✅, resolution ✅, evidence adapter ✅, job queue ✅, knowledge fabric ✅, API endpoints ✅, UI ✅, tests ✅
+- Sprint 2 ready to start: correlation engine, dedup, freshness, confidence explainability, conflict detection, knowledge versioning, health score, source governance

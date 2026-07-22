@@ -93,11 +93,12 @@ function splitRecords(content: string): string[] {
       if (ch === '"') {
         if (next === '"') {
           // Escaped quote — keep one quote
-          current += '"';
+          current += '""';
           i++; // skip next char
         } else {
-          // Closing quote
+          // Closing quote — preserve it so parseFields can see it
           inQuotes = false;
+          current += '"';
         }
       } else {
         current += ch;
@@ -105,6 +106,7 @@ function splitRecords(content: string): string[] {
     } else {
       if (ch === '"') {
         inQuotes = true;
+        current += '"'; // preserve opening quote for parseFields
       } else if (ch === '\r' && next === '\n') {
         // CRLF line ending
         records.push(current);
@@ -234,7 +236,7 @@ export class CsvConnector extends BaseConnector {
   } {
     const errors: string[] = [];
 
-    if (!config.fileContent || typeof config.fileContent !== 'string') {
+    if (typeof config.fileContent !== 'string') {
       errors.push('fileContent is required and must be a string');
       return { valid: false, errors };
     }

@@ -163,7 +163,7 @@ export default function IntelligenceSourcesScreen({ navigateTo }: IntelligenceSo
       const res = await fetch('/api/g-intel-acquisition/connectors');
       if (res.ok) {
         const data = await res.json();
-        setConnectors(Array.isArray(data) ? data : []);
+        setConnectors(Array.isArray(data.connectors) ? data.connectors : Array.isArray(data) ? data : []);
       }
     } catch {
       // silent — connectors may not be configured yet
@@ -229,7 +229,7 @@ export default function IntelligenceSourcesScreen({ navigateTo }: IntelligenceSo
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const res = await fetch('/api/g-intel-acquisition/upload', {
+      const res = await fetch('/api/g-intel-acquisition/upload/preview', {
         method: 'POST',
         body: formData,
       });
@@ -262,16 +262,15 @@ export default function IntelligenceSourcesScreen({ navigateTo }: IntelligenceSo
     if (!uploadPreview) return;
     setAcquiring(true);
     try {
-      const res = await fetch('/api/g-intel-acquisition/acquire', {
+      const formData = new FormData();
+      formData.append('file', file!);
+      formData.append('defaultCategory', selectedCategory);
+      if (uploadPreview.detectedCompanyColumn) {
+        formData.append('companyColumn', uploadPreview.detectedCompanyColumn);
+      }
+      const res = await fetch('/api/g-intel-acquisition/upload/acquire', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          columns: uploadPreview.columns,
-          rowCount: uploadPreview.rowCount,
-          preview: uploadPreview.preview,
-          detectedCompanyColumn: uploadPreview.detectedCompanyColumn,
-          category: selectedCategory,
-        }),
+        body: formData,
       });
 
       if (!res.ok) {
@@ -344,13 +343,13 @@ export default function IntelligenceSourcesScreen({ navigateTo }: IntelligenceSo
   const handleConfirmResolution = async (candidate: CompanyResolutionCandidate) => {
     setResolutionModal(prev => ({ ...prev, resolving: true }));
     try {
-      const res = await fetch('/api/g-intel-acquisition/resolve-company/confirm', {
+      const res = await fetch('/api/g-intel-acquisition/confirm-resolution', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          runId: resolutionModal.runId,
-          companyName: resolutionModal.companyName,
-          selectedCompanyId: candidate.companyId,
+          companyId: candidate.companyId,
+          alias: resolutionModal.companyName,
+          runId: resolutionModal.runId || undefined,
         }),
       });
       if (!res.ok) {

@@ -57,6 +57,12 @@ import {
   flagStaleSources,
   recalculateAllHealth,
 } from '@/lib/intelligence-sources/source-governance';
+// Sprint 3: Human Intelligence, Timeline, Scheduler, Alerts, Analytics
+import { submitToIntelligenceInbox, reviewInboxItem, convertApprovedItem, getInboxItems, getInboxItem, getInboxStats, updateInboxItem } from '@/lib/intelligence-sources/human-intelligence';
+import { logTimelineEvent, getCompanyTimeline, getRecentEvents } from '@/lib/intelligence-sources/intelligence-timeline';
+import { getScheduledConnectors, getDueConnectors, triggerScheduledRun, runAllDueConnectors, getScheduleOverview, updateScheduleFrequency } from '@/lib/intelligence-sources/connector-scheduler';
+import { createAlert, acknowledgeAlert, resolveAlert as resolveAlertAction, dismissAlert as dismissAlertAction, getAlerts, getAlertSummary, autoGenerateAlerts } from '@/lib/intelligence-sources/intelligence-alerts';
+import { getIntelligenceOverview, getAcquisitionTrends, getConfidenceDistribution, getKnowledgeCoverage, getSourcePerformance, getActivityFeed } from '@/lib/intelligence-sources/analytics-dashboard';
 
 // ─── Module-scope connector factories ────────────────────────────
 
@@ -252,6 +258,32 @@ const ROUTES: Array<{ key: string; handler: (method: HttpMethod, req: NextReques
   // Sprint 2: Source Governance
   { key: 'source-health', handler: handleSourceHealth },
   { key: 'governance', handler: handleGovernance },
+  // Sprint 3: Human Intelligence Inbox
+  { key: 'inbox', handler: handleInbox },
+  { key: 'inbox/[id]', handler: handleInboxById },
+  { key: 'inbox/[id]/review', handler: handleInboxReview },
+  { key: 'inbox/[id]/convert', handler: handleInboxConvert },
+  { key: 'inbox/stats', handler: handleInboxStats },
+  // Sprint 3: Timeline
+  { key: 'timeline', handler: handleTimeline },
+  { key: 'timeline/recent', handler: handleRecentTimeline },
+  // Sprint 3: Scheduler
+  { key: 'scheduler/overview', handler: handleSchedulerOverview },
+  { key: 'scheduler/due', handler: handleSchedulerDue },
+  { key: 'scheduler/trigger/[id]', handler: handleSchedulerTrigger },
+  { key: 'scheduler/run-all-due', handler: handleSchedulerRunAllDue },
+  // Sprint 3: Alerts
+  { key: 'alerts', handler: handleAlerts },
+  { key: 'alerts/summary', handler: handleAlertSummary },
+  { key: 'alerts/[id]/acknowledge', handler: handleAlertAcknowledge },
+  { key: 'alerts/[id]/resolve', handler: handleAlertResolve },
+  // Sprint 3: Analytics
+  { key: 'analytics/overview', handler: handleAnalyticsOverview },
+  { key: 'analytics/trends', handler: handleAnalyticsTrends },
+  { key: 'analytics/confidence-distribution', handler: handleAnalyticsConfidenceDistribution },
+  { key: 'analytics/knowledge-coverage', handler: handleAnalyticsKnowledgeCoverage },
+  { key: 'analytics/source-performance', handler: handleAnalyticsSourcePerformance },
+  { key: 'analytics/activity-feed', handler: handleAnalyticsActivityFeed },
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -1140,6 +1172,360 @@ async function handleGovernance(method: HttpMethod, _req: NextRequest, _params: 
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json({ error: 'Failed to get governance report', detail: message }, { status: 500 });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SPRINT 3: HUMAN INTELLIGENCE INBOX
+// ═══════════════════════════════════════════════════════════════
+async function handleInbox(method: HttpMethod, req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method === 'GET') return listInboxItems(req);
+  if (method === 'POST') return submitInboxHandler(req);
+  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+}
+
+async function listInboxItems(req: NextRequest): Promise<Response> {
+  try {
+    const { searchParams } = new URL(req.url);
+    const result = await getInboxItems({
+      companyId: searchParams.get('companyId') || undefined,
+      status: searchParams.get('status') || undefined,
+      submittedBy: searchParams.get('submittedBy') || undefined,
+      priority: searchParams.get('priority') || undefined,
+      search: searchParams.get('search') || undefined,
+      page: searchParams.get('page') ? Number(searchParams.get('page')) : 1,
+      limit: searchParams.get('limit') ? Number(searchParams.get('limit')) : 20,
+    });
+    return NextResponse.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to list inbox items', detail: message }, { status: 500 });
+  }
+}
+
+async function submitInboxHandler(req: NextRequest): Promise<Response> {
+  try {
+    const body = await req.json();
+    const { companyId, submittedBy, content, summary, category, source, sourceUrl, priority, tags } = body;
+    if (!companyId || !submittedBy || !content) {
+      return NextResponse.json({ error: 'companyId, submittedBy, and content are required' }, { status: 400 });
+    }
+    const item = await submitToIntelligenceInbox({ companyId, submittedBy, content, summary, category, source, sourceUrl, priority, tags });
+    return NextResponse.json({ item }, { status: 201 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to submit intelligence', detail: message }, { status: 500 });
+  }
+}
+
+async function handleInboxById(method: HttpMethod, req: NextRequest, params: Record<string, string>): Promise<Response> {
+  if (method === 'GET') return getSingleInboxItem(params.id);
+  if (method === 'PATCH') return updateInboxItemHandler(params.id, req);
+  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+}
+
+async function getSingleInboxItem(id: string): Promise<Response> {
+  try {
+    const item = await getInboxItem(id);
+    return NextResponse.json({ item });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get inbox item', detail: message }, { status: 500 });
+  }
+}
+
+async function updateInboxItemHandler(id: string, req: NextRequest): Promise<Response> {
+  try {
+    const body = await req.json();
+    const item = await updateInboxItem(id, body);
+    return NextResponse.json({ item });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to update inbox item', detail: message }, { status: 500 });
+  }
+}
+
+async function handleInboxReview(method: HttpMethod, req: NextRequest, params: Record<string, string>): Promise<Response> {
+  if (method !== 'POST') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const { action, reviewerId, notes } = await req.json();
+    if (!action || !reviewerId) {
+      return NextResponse.json({ error: 'action and reviewerId are required' }, { status: 400 });
+    }
+    if (!['approve', 'reject'].includes(action)) {
+      return NextResponse.json({ error: 'action must be approve or reject' }, { status: 400 });
+    }
+    const item = await reviewInboxItem(params.id, action, reviewerId, notes);
+    return NextResponse.json({ item });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to review inbox item', detail: message }, { status: 500 });
+  }
+}
+
+async function handleInboxConvert(method: HttpMethod, _req: NextRequest, params: Record<string, string>): Promise<Response> {
+  if (method !== 'POST') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const result = await convertApprovedItem(params.id);
+    return NextResponse.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to convert inbox item', detail: message }, { status: 500 });
+  }
+}
+
+async function handleInboxStats(method: HttpMethod, _req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'GET') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const stats = await getInboxStats();
+    return NextResponse.json(stats);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get inbox stats', detail: message }, { status: 500 });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SPRINT 3: TIMELINE
+// ═══════════════════════════════════════════════════════════════
+async function handleTimeline(method: HttpMethod, req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'GET') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const { searchParams } = new URL(req.url);
+    const companyId = searchParams.get('companyId');
+    if (!companyId) {
+      return NextResponse.json({ error: 'companyId is required' }, { status: 400 });
+    }
+    const result = await getCompanyTimeline(companyId, {
+      eventType: searchParams.get('eventType') || undefined,
+      entityType: searchParams.get('entityType') || undefined,
+      actor: searchParams.get('actor') || undefined,
+      limit: searchParams.get('limit') ? Number(searchParams.get('limit')) : 30,
+    });
+    return NextResponse.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get timeline', detail: message }, { status: 500 });
+  }
+}
+
+async function handleRecentTimeline(method: HttpMethod, req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'GET') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const { searchParams } = new URL(req.url);
+    const limit = searchParams.get('limit') ? Number(searchParams.get('limit')) : 20;
+    const events = await getRecentEvents(limit);
+    return NextResponse.json({ events });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get recent timeline', detail: message }, { status: 500 });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SPRINT 3: CONNECTOR SCHEDULER
+// ═══════════════════════════════════════════════════════════════
+async function handleSchedulerOverview(method: HttpMethod, _req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'GET') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const overview = await getScheduleOverview();
+    return NextResponse.json(overview);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get schedule overview', detail: message }, { status: 500 });
+  }
+}
+
+async function handleSchedulerDue(method: HttpMethod, _req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'GET') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const due = await getDueConnectors();
+    return NextResponse.json({ due, count: due.length });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get due connectors', detail: message }, { status: 500 });
+  }
+}
+
+async function handleSchedulerTrigger(method: HttpMethod, _req: NextRequest, params: Record<string, string>): Promise<Response> {
+  if (method !== 'POST') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const result = await triggerScheduledRun(params.id);
+    return NextResponse.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to trigger connector', detail: message }, { status: 500 });
+  }
+}
+
+async function handleSchedulerRunAllDue(method: HttpMethod, _req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'POST') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const result = await runAllDueConnectors();
+    return NextResponse.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to run due connectors', detail: message }, { status: 500 });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SPRINT 3: ALERTS
+// ═══════════════════════════════════════════════════════════════
+async function handleAlerts(method: HttpMethod, req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method === 'GET') return listAlerts(req);
+  if (method === 'POST') return createAlertHandler(req);
+  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+}
+
+async function listAlerts(req: NextRequest): Promise<Response> {
+  try {
+    const { searchParams } = new URL(req.url);
+    const result = await getAlerts({
+      companyId: searchParams.get('companyId') || undefined,
+      connectorId: searchParams.get('connectorId') || undefined,
+      severity: searchParams.get('severity') || undefined,
+      alertType: searchParams.get('alertType') || undefined,
+      status: searchParams.get('status') || undefined,
+      page: searchParams.get('page') ? Number(searchParams.get('page')) : 1,
+      limit: searchParams.get('limit') ? Number(searchParams.get('limit')) : 20,
+    });
+    return NextResponse.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to list alerts', detail: message }, { status: 500 });
+  }
+}
+
+async function createAlertHandler(req: NextRequest): Promise<Response> {
+  try {
+    const body = await req.json();
+    const validSeverities = ['low', 'medium', 'high', 'critical'];
+    const validTypes = ['health_degraded', 'source_stale', 'conflict_detected', 'duplicate_cluster', 'confidence_drop', 'ingestion_failure', 'schedule_missed'];
+    if (!validSeverities.includes(body.severity) || !validTypes.includes(body.alertType) || !body.title || !body.description) {
+      return NextResponse.json({ error: 'severity, alertType, title, and description are required with valid values' }, { status: 400 });
+    }
+    const alert = await createAlert(body);
+    return NextResponse.json({ alert }, { status: 201 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to create alert', detail: message }, { status: 500 });
+  }
+}
+
+async function handleAlertSummary(method: HttpMethod, _req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'GET') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const summary = await getAlertSummary();
+    return NextResponse.json(summary);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get alert summary', detail: message }, { status: 500 });
+  }
+}
+
+async function handleAlertAcknowledge(method: HttpMethod, req: NextRequest, params: Record<string, string>): Promise<Response> {
+  if (method !== 'POST') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const { userId } = await req.json();
+    if (!userId) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    }
+    const alert = await acknowledgeAlert(params.id, userId);
+    return NextResponse.json({ alert });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to acknowledge alert', detail: message }, { status: 500 });
+  }
+}
+
+async function handleAlertResolve(method: HttpMethod, req: NextRequest, params: Record<string, string>): Promise<Response> {
+  if (method !== 'POST') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const { userId, notes } = await req.json();
+    if (!userId) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    }
+    const alert = await resolveAlertAction(params.id, userId, notes);
+    return NextResponse.json({ alert });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to resolve alert', detail: message }, { status: 500 });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SPRINT 3: ANALYTICS DASHBOARD
+// ═══════════════════════════════════════════════════════════════
+async function handleAnalyticsOverview(method: HttpMethod, _req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'GET') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const overview = await getIntelligenceOverview();
+    return NextResponse.json(overview);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get analytics overview', detail: message }, { status: 500 });
+  }
+}
+
+async function handleAnalyticsTrends(method: HttpMethod, req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'GET') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const { searchParams } = new URL(req.url);
+    const days = searchParams.get('days') ? Number(searchParams.get('days')) : 30;
+    const trends = await getAcquisitionTrends(days);
+    return NextResponse.json({ trends });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get acquisition trends', detail: message }, { status: 500 });
+  }
+}
+
+async function handleAnalyticsConfidenceDistribution(method: HttpMethod, _req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'GET') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const dist = await getConfidenceDistribution();
+    return NextResponse.json(dist);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get confidence distribution', detail: message }, { status: 500 });
+  }
+}
+
+async function handleAnalyticsKnowledgeCoverage(method: HttpMethod, req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'GET') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const { searchParams } = new URL(req.url);
+    const companyId = searchParams.get('companyId') || undefined;
+    const coverage = await getKnowledgeCoverage(companyId);
+    return NextResponse.json(coverage);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get knowledge coverage', detail: message }, { status: 500 });
+  }
+}
+
+async function handleAnalyticsSourcePerformance(method: HttpMethod, _req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'GET') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const perf = await getSourcePerformance();
+    return NextResponse.json({ sources: perf });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get source performance', detail: message }, { status: 500 });
+  }
+}
+
+async function handleAnalyticsActivityFeed(method: HttpMethod, req: NextRequest, _params: Record<string, string>): Promise<Response> {
+  if (method !== 'GET') return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+  try {
+    const { searchParams } = new URL(req.url);
+    const limit = searchParams.get('limit') ? Number(searchParams.get('limit')) : 20;
+    const feed = await getActivityFeed(limit);
+    return NextResponse.json({ feed });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to get activity feed', detail: message }, { status: 500 });
   }
 }
 

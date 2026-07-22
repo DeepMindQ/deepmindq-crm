@@ -23,3 +23,9 @@ export * from './association-engine';
 export * from './confidence-engine';
 export * from './knowledge-versioning';
 export * from './source-governance';
+// Sprint 3: Human Intelligence, Timeline, Scheduler, Alerts, Analytics
+export * from './human-intelligence';
+export * from './intelligence-timeline';
+export * from './connector-scheduler';
+export * from './intelligence-alerts';
+export * from './analytics-dashboard';

@@ -124,6 +124,9 @@ model Company {
   knowledgeEntries          KnowledgeEntry[]
   intelligenceObjects       IntelligenceObject[]
   intelligenceAssociations  IntelligenceAssociation[]
+  humanInboxItems           HumanIntelligenceInbox[]
+  timelineEvents            IntelligenceTimeline[]
+  alerts                    IntelligenceAlert[]
 
   @@index([domain])
   @@index([normalizedName])
@@ -1591,4 +1594,84 @@ model SourceHealth {
 
   @@index([connectorId])
   @@index([healthScore])
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SPRINT 3: HUMAN INTELLIGENCE, TIMELINE, ALERTS
+// ═══════════════════════════════════════════════════════════════
+
+model HumanIntelligenceInbox {
+  id                   String   @id @default(cuid())
+  companyId            String
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  submittedBy          String                        // userId who submitted
+  content              String                        // the intelligence text
+  summary              String?                       // optional short summary
+  category             String?                       // KnowledgeCategory if known
+  source               String   @default("manual")    // where this came from
+  sourceUrl            String?                       // optional URL reference
+  status               String   @default("pending")   // pending, reviewed, approved, rejected, converted
+  reviewedBy           String?                       // userId who reviewed
+  reviewedAt           DateTime?
+  reviewNotes          String?                       // reviewer comments
+  intelligenceObjectId String?                       // FK → IntelligenceObject after conversion
+  priority             String   @default("normal")    // low, normal, high, critical
+  tags                 String   @default("[]")        // JSON array of string tags
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([submittedBy])
+  @@index([priority])
+  @@index([createdAt])
+  @@index([companyId, status])
+}
+
+model IntelligenceTimeline {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  eventType   String                        // acquired, merged, conflict_detected, conflict_resolved, confidence_updated, knowledge_updated, knowledge_restored, source_health_changed, human_submitted, human_approved, human_rejected, connector_created, connector_run, alert_triggered, alert_resolved
+  entityType  String?                       // IntelligenceObject, KnowledgeEntry, Connector, HumanIntelligenceInbox, IntelligenceAlert
+  entityId    String?                       // FK to the related entity
+  title       String                        // short event title
+  description String?                       // longer description
+  metadata    String   @default("{}")        // JSON: event-specific data
+  actor       String?                       // userId or 'system'
+  createdAt   DateTime @default(now())
+
+  @@index([companyId])
+  @@index([eventType])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([companyId, createdAt])
+  @@index([actor])
+}
+
+model IntelligenceAlert {
+  id              String   @id @default(cuid())
+  companyId       String?
+  company         Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  connectorId     String?
+  severity        String   @default("medium")   // low, medium, high, critical
+  alertType       String                       // health_degraded, source_stale, conflict_detected, duplicate_cluster, confidence_drop, ingestion_failure, schedule_missed
+  title           String                       // short alert title
+  description     String                       // detailed description
+  status          String   @default("active")   // active, acknowledged, resolved, dismissed
+  acknowledgedBy  String?
+  acknowledgedAt  DateTime?
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  resolutionNotes String?
+  metadata        String   @default("{}")       // JSON: event-specific data
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([connectorId])
+  @@index([severity])
+  @@index([alertType])
+  @@index([status])
+  @@index([createdAt])
 }

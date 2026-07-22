@@ -106,20 +106,20 @@ function toScheduledConnector(
     name: string;
     sourceType: string;
     status: string;
-    scheduleFrequency: string;
+    scheduleFrequency: string | null;
     lastRunAt: Date | null;
     lastSuccessAt: Date | null;
     sourceHealth?: { healthScore: number } | null;
   },
   now: Date,
 ): ScheduledConnector {
-  const nextRunAt = calculateNextRun(row.scheduleFrequency, row.lastRunAt);
+  const nextRunAt = calculateNextRun(row.scheduleFrequency ?? 'manual', row.lastRunAt);
   return {
     id: row.id,
     name: row.name,
     sourceType: row.sourceType,
     status: row.status,
-    scheduleFrequency: row.scheduleFrequency,
+    scheduleFrequency: row.scheduleFrequency ?? 'manual',
     lastRunAt: row.lastRunAt,
     lastSuccessAt: row.lastSuccessAt,
     nextRunAt,

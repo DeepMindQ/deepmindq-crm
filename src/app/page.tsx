@@ -17,7 +17,7 @@ import {
   LayoutTemplate, Layers, AlertTriangle, Loader2, Sparkles, Network,
   UserPlus, Target, FileBarChart, Code2, Copy, ClipboardList, Kanban, MailPlus,
   ChevronDown, ChevronRight, Radar, MessageSquare, Heart, Activity, Shield, Database,
-  BookOpen, Compass, Search, ExternalLink, Crosshair, Play,
+  BookOpen, Compass, Search, ExternalLink, Crosshair, Play, Lightbulb,
 } from 'lucide-react';
 
 import LoginPage from '@/components/login-page';
@@ -77,6 +77,8 @@ const IntelligenceHealthScreen = lazy(() => import('@/components/screens/intelli
 
 // — Phase 7: Revenue Intelligence Experience Layer —
 const RevenueIntelligenceScreen = lazy(() => import('@/components/screens/revenue-intelligence-screen'));
+const RevenueIntelligenceOpportunitiesScreen = lazy(() => import('@/components/screens/revenue-intelligence-opportunities-screen'));
+const RevenueIntelligenceRecommendationsScreen = lazy(() => import('@/components/screens/revenue-intelligence-recommendations-screen'));
 
 // — Phase 7.5: Intelligence Acquisition & Fabric —
 const IntelligenceSourcesScreen = lazy(() => import('@/components/screens/intelligence-sources-screen'));
@@ -114,6 +116,8 @@ const NAV_SECTIONS: NavSection[] = [
     defaultOpen: true,
     items: [
       { key: 'revenue-intelligence', label: 'Revenue Intelligence', icon: Sparkles },
+      { key: 'revenue-intelligence-opportunities', label: 'Opportunity Radar', icon: Radar },
+      { key: 'revenue-intelligence-recommendations', label: 'Exec Recommendations', icon: Lightbulb },
       { key: 'revenue-intelligence-brief', label: 'Company Brief', icon: Target },
       { key: 'intelligence-reasoning', label: 'AI Reasoning', icon: Brain },
       { key: 'intelligence-report', label: 'Intelligence Report', icon: FileText },
@@ -251,6 +255,8 @@ const SCREEN_MAP: Record<string, ScreenComponent> = {
   // Phase 7: Revenue Intelligence Experience Layer
   'revenue-intelligence': RevenueIntelligenceScreen,
   'revenue-intelligence-brief': RevenueIntelligenceBriefScreen,
+  'revenue-intelligence-opportunities': RevenueIntelligenceOpportunitiesScreen,
+  'revenue-intelligence-recommendations': RevenueIntelligenceRecommendationsScreen,
   'intelligence-reasoning': IntelligenceReasoningScreen,
   'intelligence-report': IntelligenceReportScreen,
   'demo-experience': DemoExperienceScreen,

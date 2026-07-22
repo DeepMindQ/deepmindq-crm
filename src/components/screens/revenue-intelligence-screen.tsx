@@ -1,339 +1,141 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { toast } from 'sonner';
+import { useState, useEffect, useCallback } from 'react';
 import {
-  ArrowRight,
-  TrendingUp,
-  Shield,
-  AlertCircle,
-  Sparkles,
-  Target,
-  Activity,
-  ChevronRight,
+  TrendingUp, Target, Activity, Sparkles, ChevronRight, RefreshCw,
+  Flame, Sun, Sprout, AlertTriangle, BarChart3, Zap, Radar,
 } from 'lucide-react';
-import { DEMO_COMPANIES as CANONICAL_DEMO, type DemoCompanyCard } from '@/lib/demo-data';
-
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
-
-type CompanyCard = DemoCompanyCard;
 
 interface DashboardSummary {
-  companies: CompanyCard[];
-  avgHealthScore: number;
-  totalCompanies: number;
+  totalAccounts: number; accountsWithScores: number; accountsWithoutScores: number;
+  averageScore: number; totalOpportunitySignals: number; signalsNew: number;
+  signalsValidated: number; briefsGenerated: number; averageBriefConfidence: number;
 }
+interface CategoryDist { HOT_ACCOUNT: number; WARM_ACCOUNT: number; NURTURE: number; AT_RISK: number; }
+interface TopAccount { accountId: string; accountName: string; industry: string | null; score: number; category: string; calculatedAt: string; }
+interface DashboardData { summary: DashboardSummary; categoryDistribution: CategoryDist; topScoredAccounts: TopAccount[]; signalTypeDistribution: Record<string, number>; }
 
-/* ------------------------------------------------------------------ */
-/*  Demo fallback — canonical source: lib/demo-data.ts                */
-/* ------------------------------------------------------------------ */
+function categoryIcon(cat: string) { switch (cat) { case 'HOT_ACCOUNT': return Flame; case 'WARM_ACCOUNT': return Sun; case 'NURTURE': return Sprout; case 'AT_RISK': return AlertTriangle; default: return BarChart3; } }
+function categoryColor(cat: string) { switch (cat) { case 'HOT_ACCOUNT': return 'bg-red-50 border-red-200 text-red-700'; case 'WARM_ACCOUNT': return 'bg-amber-50 border-amber-200 text-amber-700'; case 'NURTURE': return 'bg-emerald-50 border-emerald-200 text-emerald-700'; case 'AT_RISK': return 'bg-gray-100 border-gray-200 text-gray-700'; default: return 'bg-gray-50 border-gray-200 text-gray-600'; } }
+function categoryLabel(cat: string) { return cat.replace(/_/g, ' '); }
+function scoreColor(score: number) { if (score >= 80) return 'bg-emerald-500 text-white'; if (score >= 60) return 'bg-amber-500 text-white'; return 'bg-red-500 text-white'; }
 
-const DEMO_COMPANIES = CANONICAL_DEMO;
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-function scoreColor(score: number) {
-  if (score >= 80) return 'bg-emerald-500 text-white';
-  if (score >= 60) return 'bg-amber-500 text-white';
-  return 'bg-red-500 text-white';
-}
-
-function confidenceVariant(c: string) {
-  switch (c) {
-    case 'high':
-      return 'border-emerald-500/40 text-emerald-700 bg-emerald-50';
-    case 'medium':
-      return 'border-amber-500/40 text-amber-700 bg-amber-50';
-    default:
-      return 'border-red-500/40 text-red-700 bg-red-50';
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/*  KPI Card                                                           */
-/* ------------------------------------------------------------------ */
-
-function KpiCard({
-  icon: Icon,
-  label,
-  value,
-  context,
-  accent,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string | number;
-  context: string;
-  accent?: boolean;
-}) {
+function KpiCard({ icon: Icon, label, value, context, accent }: { icon: React.ElementType; label: string; value: string | number; context: string; accent?: boolean }) {
   return (
     <div className="bg-white border border-border rounded-xl p-5 flex flex-col gap-2 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center gap-2">
-        <div
-          className={`w-8 h-8 rounded-lg flex items-center justify-center ${accent ? 'bg-gold-subtle' : 'bg-muted'}`}
-        >
-          <Icon className={`w-4 h-4 ${accent ? 'text-gold' : 'text-muted-foreground'}`} />
-        </div>
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          {label}
-        </span>
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${accent ? 'bg-gold-subtle' : 'bg-muted'}`}><Icon className={`w-4 h-4 ${accent ? 'text-gold' : 'text-muted-foreground'}`} /></div>
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
       </div>
-      <p className={`text-3xl font-bold tracking-tight ${accent ? 'text-gold' : 'text-foreground'}`}>
-        {value}
-      </p>
+      <p className={`text-3xl font-bold tracking-tight ${accent ? 'text-gold' : 'text-foreground'}`}>{value}</p>
       <p className="text-sm text-muted-foreground leading-snug">{context}</p>
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Account Card                                                       */
-/* ------------------------------------------------------------------ */
-
-function AccountCard({
-  rank,
-  company,
-  onView,
-}: {
-  rank: number;
-  company: CompanyCard;
-  onView: (id: string) => void;
-}) {
+function AccountCard({ rank, account, onView }: { rank: number; account: TopAccount; onView: (id: string) => void }) {
+  const CatIcon = categoryIcon(account.category);
   return (
     <div className="bg-white border border-border rounded-xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow group">
-      {/* Top row: rank + score + confidence */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <span className="w-7 h-7 rounded-full bg-gold-subtle text-gold text-xs font-bold flex items-center justify-center">
-            #{rank}
-          </span>
-          <div>
-            <h3 className="text-base font-semibold text-foreground leading-tight">
-              {company.name}
-            </h3>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {company.industry} · {company.country}
-            </p>
-          </div>
+          <span className="w-7 h-7 rounded-full bg-gold-subtle text-gold text-xs font-bold flex items-center justify-center">#{rank}</span>
+          <div><h3 className="text-base font-semibold text-foreground leading-tight">{account.accountName}</h3><p className="text-sm text-muted-foreground mt-0.5">{account.industry || 'Unknown industry'}</p></div>
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <span
-            className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${confidenceVariant(company.confidence)}`}
-          >
-            {company.confidence}
-          </span>
-          <div
-            className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold ${scoreColor(company.score)}`}
-          >
-            {company.score}
-          </div>
+          <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${categoryColor(account.category)}`}><CatIcon className="w-3 h-3" />{categoryLabel(account.category)}</span>
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold ${scoreColor(account.score)}`}>{account.score}</div>
         </div>
       </div>
-
-      {/* AI Insight — the "why" */}
-      <div className="bg-muted/40 rounded-lg p-3 border-l-3 border-gold/50">
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          {company.reason}
-        </p>
-      </div>
-
-      {/* Recommended Action — the "what" */}
-      <div className="flex items-start gap-2">
-        <Target className="w-4 h-4 text-gold mt-0.5 shrink-0" />
-        <p className="text-sm text-foreground font-medium leading-snug">
-          Recommended: {company.action}
-        </p>
-      </div>
-
-      {/* Evidence footer */}
       <div className="flex items-center justify-between mt-auto pt-1 border-t border-border/50">
-        <span className="text-xs text-muted-foreground">
-          Evidence: {company.signals} signals · {company.sources} sources
-        </span>
-        <button
-          onClick={() => onView(company.id)}
-          className="inline-flex items-center gap-1 text-sm font-medium text-gold hover:text-gold-bright transition-colors group/btn"
-        >
-          View Intelligence
-          <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-0.5 transition-transform" />
-        </button>
+        <span className="text-xs text-muted-foreground">Scored {new Date(account.calculatedAt).toLocaleDateString()}</span>
+        <button onClick={() => onView(account.accountId)} className="inline-flex items-center gap-1 text-sm font-medium text-gold hover:text-gold-bright transition-colors group/btn">View Brief<ChevronRight className="w-4 h-4 group-hover/btn:translate-x-0.5 transition-transform" /></button>
       </div>
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main Screen                                                        */
-/* ------------------------------------------------------------------ */
+function SignalDistBar({ distribution }: { distribution: Record<string, number> }) {
+  const types = Object.entries(distribution).sort((a, b) => b[1] - a[1]);
+  const total = types.reduce((sum, [, c]) => sum + c, 0);
+  if (total === 0) return null;
+  const colors: Record<string, string> = { TECHNOLOGY: 'bg-blue-500', GROWTH: 'bg-emerald-500', PARTNERSHIP: 'bg-purple-500', PAIN: 'bg-red-500', LEADERSHIP: 'bg-amber-500' };
+  return (
+    <div className="space-y-3">
+      <div className="flex h-4 rounded-full overflow-hidden bg-muted/40">{types.map(([type, count]) => (<div key={type} className={`${colors[type] || 'bg-gray-400'} transition-all duration-500`} style={{ width: `${(count / total) * 100}%` }} title={`${type}: ${count}`} />))}</div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">{types.map(([type, count]) => (<div key={type} className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className={`w-2.5 h-2.5 rounded-full ${colors[type] || 'bg-gray-400'}`} />{type}: {count}</div>))}</div>
+    </div>
+  );
+}
 
-export default function RevenueIntelligenceScreen({
-  navigateTo,
-}: {
-  navigateTo?: (screen: string, companyId?: string) => void;
-}) {
-  const [companies, setCompanies] = useState<CompanyCard[]>(DEMO_COMPANIES);
-  const [avgHealth, setAvgHealth] = useState(78);
-  const [activeConflicts, setActiveConflicts] = useState(0);
+export default function RevenueIntelligenceScreen({ navigateTo }: { navigateTo?: (screen: string, companyId?: string) => void }) {
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [dashRes, conflictRes] = await Promise.allSettled([
-          fetch('/api/g-intelligence/dashboard'),
-          fetch('/api/g-intelligence/conflicts'),
-        ]);
-
-        // Dashboard
-        if (dashRes.status === 'fulfilled' && dashRes.value.ok) {
-          const data: DashboardSummary = await dashRes.value.json();
-          if (data.companies && data.companies.length > 0) {
-            setCompanies(data.companies);
-          }
-          if (data.avgHealthScore != null) {
-            setAvgHealth(Math.round(data.avgHealthScore));
-          }
-        }
-
-        // Conflicts
-        if (conflictRes.status === 'fulfilled' && conflictRes.value.ok) {
-          const conflictData = await conflictRes.value.json();
-          const openConflicts =
-            conflictData?.openConflicts ??
-            conflictData?.totalOpen ??
-            (Array.isArray(conflictData) ? conflictData.length : 0);
-          setActiveConflicts(typeof openConflicts === 'number' ? openConflicts : 0);
-        }
-      } catch (err) {
-        console.error('[RevenueIntelligence] Failed to fetch dashboard data:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
+  const fetchDashboard = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const res = await fetch('/api/g-revenue-intelligence/dashboard?period=90d');
+      if (!res.ok) throw new Error(`${res.status}`);
+      const json = await res.json();
+      setData(json.data ?? json);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Failed'); } finally { setLoading(false); }
   }, []);
 
-  /* Derived KPIs */
-  const accountsNeedingAttention = companies.filter(
-    (c) => c.signals >= 8
-  ).length;
-  const highConfidenceOpps = companies.filter(
-    (c) => c.score >= 80 && c.confidence === 'high'
-  ).length;
-  const activeAlerts = companies.reduce(
-    (sum, c) => sum + Math.min(c.signals, 3),
-    0
-  ) + activeConflicts;
+  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
-  /* Loading skeleton */
-  if (loading) {
-    return (
-      <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6 animate-pulse">
-        <div className="h-8 w-72 bg-muted rounded" />
-        <div className="h-4 w-[480px] bg-muted rounded" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-32 bg-muted rounded-xl" />
-          ))}
-        </div>
-        <div className="h-6 w-48 bg-muted rounded" />
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-64 bg-muted rounded-xl" />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  if (loading) return (<div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6 animate-pulse"><div className="h-8 w-72 bg-muted rounded" /><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">{[...Array(4)].map((_, i) => (<div key={i} className="h-32 bg-muted rounded-xl" />))}</div><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{[...Array(6)].map((_, i) => (<div key={i} className="h-52 bg-muted rounded-xl" />))}</div></div>);
 
-  const topCompanies = companies.slice(0, 8);
+  if (error || !data) return (<div className="p-6 md:p-8 max-w-7xl mx-auto"><div className="bg-white border border-border rounded-xl p-12 text-center"><Activity className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" /><p className="text-sm text-muted-foreground mb-4">{error || 'No data available.'}</p><button onClick={fetchDashboard} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"><RefreshCw className="w-4 h-4" />Retry</button></div></div>);
+
+  const { summary, categoryDistribution, topScoredAccounts, signalTypeDistribution } = data;
+  const entries = Object.entries(categoryDistribution) as [string, number][];
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
-      {/* ── Header ── */}
       <header className="space-y-1">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-lg bg-gold-subtle flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-gold" />
-          </div>
-          <h1 className="text-2xl font-semibold text-foreground">
-            Revenue Intelligence
-          </h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5"><div className="w-9 h-9 rounded-lg bg-gold-subtle flex items-center justify-center"><Sparkles className="w-5 h-5 text-gold" /></div><h1 className="text-2xl font-semibold text-foreground">Revenue Intelligence</h1></div>
+          <button onClick={fetchDashboard} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-black/[0.04] transition-colors"><RefreshCw className="w-3.5 h-3.5" />Refresh</button>
         </div>
-        <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
-          AI-powered account prioritization based on signals, evidence,
-          capability fit and confidence.
-        </p>
+        <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">Account scoring, signal detection, and executive intelligence briefs powered by the Intelligence Fabric.</p>
       </header>
 
-      {/* ── Decision-Oriented KPI Row ── */}
+      <div className="flex flex-wrap gap-2">
+        {[
+          { label: 'Dashboard', view: 'revenue-intelligence', active: true },
+          { label: 'Opportunity Radar', view: 'revenue-intelligence-opportunities' },
+          { label: 'Executive Recommendations', view: 'revenue-intelligence-recommendations' },
+        ].map((item) => (<button key={item.view} onClick={() => !item.active && navigateTo?.(item.view as any)} disabled={item.active} className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${item.active ? 'bg-primary text-primary-foreground' : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'}`}>{item.label}</button>))}
+      </div>
+
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          icon={AlertCircle}
-          label="Accounts Requiring Attention"
-          value={accountsNeedingAttention}
-          context="with active buying signals"
-          accent
-        />
-        <KpiCard
-          icon={Target}
-          label="High-Confidence Opportunities"
-          value={highConfidenceOpps}
-          context="90+ intelligence score"
-        />
-        <KpiCard
-          icon={Shield}
-          label="Average Intelligence Health"
-          value={`${avgHealth}%`}
-          context="across analyzed accounts"
-          accent
-        />
-        <KpiCard
-          icon={Activity}
-          label="Active Intelligence Alerts"
-          value={activeAlerts}
-          context="new buying signals detected"
-        />
+        <KpiCard icon={Target} label="Accounts Scored" value={summary.accountsWithScores} context={`of ${summary.totalAccounts} total`} accent />
+        <KpiCard icon={TrendingUp} label="Average Score" value={summary.averageScore} context="composite intelligence score" />
+        <KpiCard icon={Zap} label="Active Signals" value={summary.totalOpportunitySignals} context={`${summary.signalsNew} new, ${summary.signalsValidated} validated`} accent />
+        <KpiCard icon={Activity} label="Briefs Generated" value={summary.briefsGenerated} context={`avg confidence: ${Math.round(summary.averageBriefConfidence * 100)}%`} />
       </section>
 
-      {/* ── Priority Accounts ── */}
       <section className="space-y-4">
-        <div className="flex items-end justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">
-              Priority Accounts
-            </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Accounts ranked by intelligence score and confidence
-            </p>
-          </div>
-          <span className="text-xs text-muted-foreground">
-            Showing top {topCompanies.length}
-          </span>
+        <h2 className="text-lg font-semibold text-foreground">Account Categories</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {entries.map(([cat, count]) => { const Icon = categoryIcon(cat); const total = entries.reduce((s, [, c]) => s + c, 0); return (<div key={cat} className={`rounded-xl border p-4 flex flex-col gap-2 ${categoryColor(cat)}`}><div className="flex items-center gap-2"><Icon className="w-4 h-4" /><span className="text-xs font-semibold uppercase tracking-wider">{categoryLabel(cat)}</span></div><p className="text-2xl font-bold">{count}</p><p className="text-xs opacity-75">{total > 0 ? Math.round((count / total) * 100) : 0}% of scored</p></div>); })}
         </div>
+      </section>
 
-        {topCompanies.length === 0 ? (
-          <div className="bg-white border border-border rounded-xl p-12 text-center">
-            <TrendingUp className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">
-              No accounts analyzed yet. Intelligence data will appear here once
-              accounts are enriched.
-            </p>
-          </div>
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Signal Distribution</h2>
+        <div className="bg-white rounded-xl border p-5"><SignalDistBar distribution={signalTypeDistribution} /></div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Top Scored Accounts</h2>
+        {topScoredAccounts.length === 0 ? (
+          <div className="bg-white border border-border rounded-xl p-12 text-center"><TrendingUp className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" /><p className="text-sm text-muted-foreground">No accounts scored yet.</p></div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {topCompanies.map((company, idx) => (
-              <AccountCard
-                key={company.id}
-                rank={idx + 1}
-                company={company}
-                onView={(id) => navigateTo?.('revenue-intelligence-brief', id)}
-              />
-            ))}
+            {topScoredAccounts.map((account, idx) => (<AccountCard key={account.accountId} rank={idx + 1} account={account} onView={(id) => navigateTo?.('revenue-intelligence-brief' as any, id)} />))}
           </div>
         )}
       </section>

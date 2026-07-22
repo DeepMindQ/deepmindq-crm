@@ -47,7 +47,12 @@ export type ViewId =
   | 'intelligence-knowledge'
   | 'intelligence-health'
   | 'intelligence-timeline'
-  | 'intelligence-human';
+  | 'intelligence-human'
+  // Phase 7.6: Revenue Intelligence
+  | 'revenue-intelligence'
+  | 'revenue-intelligence-brief'
+  | 'revenue-intelligence-opportunities'
+  | 'revenue-intelligence-recommendations';
 
 interface AppState {
   activeView: ViewId;

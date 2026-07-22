@@ -320,7 +320,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <PulseDot color="#D4AF37" />
+                  <PulseDot color="var(--color-gold)" />
                   <Button
                     size="sm"
                     className="h-8 text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 gap-1.5"
@@ -489,7 +489,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                             style={{ borderLeft: `3px solid ${borderLeftColor}` }}
                             onMouseEnter={(e) => {
                               if (item.status !== 'failed') {
-                                (e.currentTarget as HTMLElement).style.borderLeftColor = '#D4AF37';
+                                (e.currentTarget as HTMLElement).style.borderLeftColor = 'var(--color-gold)';
                               }
                             }}
                             onMouseLeave={(e) => {

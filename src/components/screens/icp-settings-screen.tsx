@@ -172,7 +172,7 @@ function TagSectionCard({
             className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
             style={{ background: 'rgba(212, 175, 55, 0.1)' }}
           >
-            <div style={{ color: '#D4AF37' }}><Icon className="w-4 h-4" /></div>
+            <div style={{ color: 'var(--color-gold)' }}><Icon className="w-4 h-4" /></div>
           </div>
           <div className="text-xs text-muted-foreground">
             {tags.length === 0
@@ -315,7 +315,7 @@ export default function ICPSettingsScreen() {
           animate={{ opacity: 1 }}
           className="flex flex-col items-center gap-4"
         >
-          <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#D4AF37' }} />
+          <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--color-gold)' }} />
           <p className="text-sm text-muted-foreground">Loading ICP configuration...</p>
         </motion.div>
       </div>
@@ -335,7 +335,7 @@ export default function ICPSettingsScreen() {
               border: '1px solid rgba(212, 175, 55, 0.2)',
             }}
           >
-            <Target className="w-5 h-5" style={{ color: '#D4AF37' }} />
+            <Target className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">
@@ -360,7 +360,7 @@ export default function ICPSettingsScreen() {
               className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
               style={{ background: 'rgba(212, 175, 55, 0.08)' }}
             >
-              <Sparkles className="w-5 h-5" style={{ color: '#D4AF37' }} />
+              <Sparkles className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
             </div>
             <div className="space-y-1">
               <h3 className="text-sm font-semibold text-foreground">
@@ -466,7 +466,7 @@ export default function ICPSettingsScreen() {
                 htmlFor="min-revenue"
                 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"
               >
-                <DollarSign className="w-3.5 h-3.5" style={{ color: '#D4AF37' }} />
+                <DollarSign className="w-3.5 h-3.5" style={{ color: 'var(--color-gold)' }} />
                 Minimum Revenue
               </Label>
               <Input
@@ -486,7 +486,7 @@ export default function ICPSettingsScreen() {
                 htmlFor="max-revenue"
                 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"
               >
-                <DollarSign className="w-3.5 h-3.5" style={{ color: '#D4AF37' }} />
+                <DollarSign className="w-3.5 h-3.5" style={{ color: 'var(--color-gold)' }} />
                 Maximum Revenue
               </Label>
               <Input
@@ -506,7 +506,7 @@ export default function ICPSettingsScreen() {
                 htmlFor="min-employees"
                 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"
               >
-                <Users className="w-3.5 h-3.5" style={{ color: '#D4AF37' }} />
+                <Users className="w-3.5 h-3.5" style={{ color: 'var(--color-gold)' }} />
                 Minimum Employees
               </Label>
               <Input
@@ -529,7 +529,7 @@ export default function ICPSettingsScreen() {
                 htmlFor="max-employees"
                 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"
               >
-                <Users className="w-3.5 h-3.5" style={{ color: '#D4AF37' }} />
+                <Users className="w-3.5 h-3.5" style={{ color: 'var(--color-gold)' }} />
                 Maximum Employees
               </Label>
               <Input

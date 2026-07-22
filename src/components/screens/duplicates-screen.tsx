@@ -132,7 +132,7 @@ function ScanningAnimation({ totalScanned }: { totalScanned: number }) {
           className="w-10 h-10 rounded-xl flex items-center justify-center"
           style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05))' }}
         >
-          <Brain className="w-5 h-5" style={{ color: '#D4AF37' }} />
+          <Brain className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
         </motion.div>
         <div>
           <p className="text-sm font-semibold text-foreground">AI Scanning for Duplicates</p>
@@ -157,7 +157,7 @@ function ScanningAnimation({ totalScanned }: { totalScanned: number }) {
 
       <div className="flex items-center justify-between text-[11px] text-muted-foreground">
         <span>Analyzing name similarity, email domains, LinkedIn profiles</span>
-        <span className="tabular-nums font-medium" style={{ color: '#D4AF37' }}>
+        <span className="tabular-nums font-medium" style={{ color: 'var(--color-gold)' }}>
           {Math.round(progress)}%
         </span>
       </div>

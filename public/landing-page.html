@@ -758,7 +758,7 @@
                 <a href="#faq" class="it px-3.5 py-2 text-sm text-dm-muted hover:text-white transition-colors rounded-lg hover:bg-white/5">FAQ</a>
             </div>
             <div class="hidden md:flex items-center gap-3">
-                <button onclick="showT('Redirecting to sign in...');setTimeout(function(){window.location.href='/login.html'},300)" class="it px-4 py-2 text-sm text-dm-muted hover:text-white transition-colors rounded-lg hover:bg-white/5" aria-label="Sign in">Sign In</button>
+                <button onclick="showT('Redirecting to sign in...');setTimeout(function(){window.location.href='/login.html?returnTo=/dashboard'},300)" class="it px-4 py-2 text-sm text-dm-muted hover:text-white transition-colors rounded-lg hover:bg-white/5" aria-label="Sign in">Sign In</button>
                 <button onclick="document.getElementById('req').scrollIntoView({behavior:'smooth'})" class="it bp px-5 py-2.5 text-sm font-medium text-white rounded-xl mg" aria-label="Request access">Request Access</button>
             </div>
             <button class="md:hidden p-2 text-dm-muted hover:text-white" onclick="togM()" aria-label="Menu"><i data-lucide="menu" class="w-5 h-5"></i></button>
@@ -781,7 +781,7 @@
             <a href="#faq" onclick="togM()" class="py-4 text-2xl font-semibold text-dm-muted hover:text-white border-b border-white/5">FAQ</a>
         </div>
         <div class="mt-auto px-6 pb-8 flex flex-col gap-3">
-            <button onclick="showT('Redirecting to sign in...');togM();setTimeout(function(){window.location.href='/login.html'},300)" class="w-full py-3.5 text-sm text-dm-muted border border-dm-border rounded-xl hover:bg-white/5">Sign In</button>
+            <button onclick="showT('Redirecting to sign in...');togM();setTimeout(function(){window.location.href='/login.html?returnTo=/dashboard'},300)" class="w-full py-3.5 text-sm text-dm-muted border border-dm-border rounded-xl hover:bg-white/5">Sign In</button>
             <button onclick="document.getElementById('req').scrollIntoView({behavior:'smooth'});togM()" class="w-full py-3.5 text-sm font-medium text-white bp rounded-xl">Request Access</button>
         </div>
     </div>

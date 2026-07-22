@@ -92,7 +92,7 @@ const TABS = [
 ];
 
 const GRAPH_CATEGORY_COLORS: Record<string, string> = {
-  service_line: '#D4AF37',
+  service_line: 'var(--color-gold)',
   case_study: '#10b981',
   proof_point: '#3b82f6',
   objection_response: '#f59e0b',
@@ -490,8 +490,8 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
     return acc;
   }, {});
 
-  const gold = '#B8860B';
-  const goldLight = '#D4A843';
+  const gold = 'var(--color-gold-dim)';
+  const goldLight = 'var(--color-gold)';
 
   return (
     <PageTransition>
@@ -812,7 +812,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                               {Object.entries(graphData.categories || {}).map(([name]) => (
                                 <Cell
                                   key={name}
-                                  fill={GRAPH_CATEGORY_COLORS[name] || '#D4AF37'}
+                                  fill={GRAPH_CATEGORY_COLORS[name] || 'var(--color-gold)'}
                                 />
                               ))}
                             </Pie>
@@ -1964,7 +1964,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
             {/* How it works — pipeline flow */}
             <StaggerGrid className="grid grid-cols-1 md:grid-cols-4 gap-3" stagger={0.08} delay={0.2}>
               {[
-                { icon: Upload, title: '1. Upload', desc: 'Drop a .txt, .md, .pdf, or .docx file (max 5MB)', color: '#D4AF37' },
+                { icon: Upload, title: '1. Upload', desc: 'Drop a .txt, .md, .pdf, or .docx file (max 5MB)', color: 'var(--color-gold)' },
                 { icon: FileText, title: '2. Extract', desc: 'Text is automatically extracted from the document content', color: '#3B82F6' },
                 { icon: Sparkles, title: '3. AI Analyze', desc: 'AI identifies service lines, case studies, proof points, and more', color: '#10B981' },
                 { icon: Database, title: '4. Auto-Save', desc: 'Structured assets are saved to the knowledge base for RAG retrieval', color: '#8B5CF6' },
@@ -2338,7 +2338,7 @@ function CustomTreemapContent(props: any) {
   }
 
   // Leaf node (asset)
-  const color = GRAPH_CATEGORY_COLORS[category] || '#D4AF37';
+  const color = GRAPH_CATEGORY_COLORS[category] || 'var(--color-gold)';
   const opacity = 0.7 + (Math.min((node?.score || 1) / 10, 1)) * 0.3;
   const isTooSmall = width < 60 || height < 36;
 

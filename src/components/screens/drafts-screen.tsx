@@ -514,7 +514,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
             label="Total Drafts"
             value={stats.total}
             icon={FileText}
-            color="#D4AF37"
+            color="var(--color-gold)"
             delay={0}
           />
         </StaggerItem>
@@ -1055,7 +1055,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                         {/* Contact avatar placeholder */}
                         <div
                           className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-sm font-bold"
-                          style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05))', color: '#D4AF37' }}
+                          style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05))', color: 'var(--color-gold)' }}
                         >
                           {(contact.name || 'U').charAt(0).toUpperCase()}
                         </div>

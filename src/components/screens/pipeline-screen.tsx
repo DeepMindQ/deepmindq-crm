@@ -426,7 +426,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
               label="Conversion"
               value={importedCount > 0 ? rate(repliedCount, importedCount) : '0%'}
               icon={TrendingUp}
-              color="#D4AF37"
+              color="var(--color-gold)"
               delay={0.24}
             />
           </StaggerItem>

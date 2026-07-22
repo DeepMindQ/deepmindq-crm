@@ -187,14 +187,19 @@ async function findOriginalItem(inReplyTo: string | null, references: string | n
     messageIds.push(...refs.split(' ').map((r: string) => r.replace(/^<|>$/g, '').trim()).filter(Boolean));
   }
 
-  // Search drafts by messageId
-  for (const mid of messageIds) {
-    if (!mid) continue;
-    const draft = await db.draft.findFirst({
-      where: { messageId: mid },
+  // Batch lookup: find any draft matching one of the message IDs
+  if (messageIds.length > 0) {
+    // Batch query instead of N+1 loop
+    const drafts = await db.draft.findMany({
+      where: {
+        messageId: { in: messageIds },
+      },
       include: { queueItem: true },
+      take: 1,
     });
-    if (draft) {
+
+    if (drafts.length > 0) {
+      const draft = drafts[0];
       return {
         draftId: draft.id,
         queueId: draft.queueItem?.id || null,

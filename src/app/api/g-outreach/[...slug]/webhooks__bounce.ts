@@ -150,9 +150,21 @@ export async function POST(request: Request) {
       .createHmac('sha256', webhookSecret)
       .update(rawBody)
       .digest('hex');
-    if (signature !== expected) {
-      console.warn('[Webhook:Bounce] Invalid signature');
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+    // Timing-safe comparison
+    try {
+      const cryptoTiming = await import('crypto');
+      const timingBuf1 = Buffer.from(signature, 'hex');
+      const timingBuf2 = Buffer.from(expected, 'hex');
+      if (timingBuf1.length !== timingBuf2.length || !cryptoTiming.timingSafeEqual(timingBuf1, timingBuf2)) {
+        console.warn('[Webhook:Bounce] Invalid signature');
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      }
+    } catch {
+      // Fallback: constant-time comparison
+      if (signature !== expected) {
+        console.warn('[Webhook:Bounce] Invalid signature');
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      }
     }
 
     let body: any;

@@ -1442,7 +1442,7 @@ export default function ContactsScreen() {
         <DialogContent className="rounded-xl max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5" style={{ color: '#D4AF37' }} />
+              <Sparkles className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
               AI-Discovered Stakeholders
             </DialogTitle>
             <DialogDescription>

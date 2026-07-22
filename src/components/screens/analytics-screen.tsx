@@ -138,7 +138,7 @@ interface SourceStats {
 // ---------------------------------------------------------------------------
 
 const COLORS = {
-  gold: '#D4AF37',
+  gold: 'var(--color-gold)',
   green: '#10b981',
   red: '#ef4444',
   amber: '#f59e0b',
@@ -390,7 +390,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
               label="Total Sent"
               value={totalSent}
               icon={Send}
-              color="#D4AF37"
+              color="var(--color-gold)"
               delay={0}
               trend={{ value: '12.4%', up: true }}
             />

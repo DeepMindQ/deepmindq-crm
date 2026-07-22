@@ -435,16 +435,26 @@ export async function autoGenerateAlerts(companyId?: string): Promise<{
     include: { connector: true },
   });
 
+  // Batch: pre-fetch existing alerts for all types to avoid N+1 findFirst
+  const existingAlerts = await db.intelligenceAlert.findMany({
+    where: {
+      status: 'active',
+      createdAt: { gte: twentyFourHoursAgo },
+      alertType: { in: ['health_degraded', 'source_stale', 'conflict_detected', 'ingestion_failure'] },
+      ...(companyId ? { companyId } : {}),
+    },
+    select: { alertType: true, connectorId: true, companyId: true },
+  });
+
+  const existingKeys = new Set(
+    existingAlerts.map(a => `${a.alertType}:${a.connectorId || ''}:${a.companyId || ''}`)
+  );
+
+  const alertExists = (alertType: string, connectorId?: string | null, companyId?: string | null) =>
+    existingKeys.has(`${alertType}:${connectorId || ''}:${companyId || ''}`);
+
   for (const sh of degradedHealths) {
-    const exists = await db.intelligenceAlert.findFirst({
-      where: {
-        alertType: 'health_degraded',
-        connectorId: sh.connectorId,
-        status: 'active',
-        createdAt: { gte: twentyFourHoursAgo },
-      },
-    });
-    if (exists) continue;
+    if (alertExists('health_degraded', sh.connectorId)) continue;
 
     const severity: AlertSeverity =
       sh.healthScore < 0.2
@@ -490,15 +500,7 @@ export async function autoGenerateAlerts(companyId?: string): Promise<{
   });
 
   for (const sh of staleHealths) {
-    const exists = await db.intelligenceAlert.findFirst({
-      where: {
-        alertType: 'source_stale',
-        connectorId: sh.connectorId,
-        status: 'active',
-        createdAt: { gte: twentyFourHoursAgo },
-      },
-    });
-    if (exists) continue;
+    if (alertExists('source_stale', sh.connectorId)) continue;
 
     const severity: AlertSeverity =
       sh.freshnessScore < 0.1
@@ -543,15 +545,7 @@ export async function autoGenerateAlerts(companyId?: string): Promise<{
   });
 
   for (const group of conflicts) {
-    const exists = await db.intelligenceAlert.findFirst({
-      where: {
-        alertType: 'conflict_detected',
-        companyId: group.companyId,
-        status: 'active',
-        createdAt: { gte: twentyFourHoursAgo },
-      },
-    });
-    if (exists) continue;
+    if (alertExists('conflict_detected', null, group.companyId)) continue;
 
     const severity: AlertSeverity =
       group._count.id >= 5
@@ -596,15 +590,7 @@ export async function autoGenerateAlerts(companyId?: string): Promise<{
   });
 
   for (const group of failedRuns) {
-    const exists = await db.intelligenceAlert.findFirst({
-      where: {
-        alertType: 'ingestion_failure',
-        connectorId: group.connectorId,
-        status: 'active',
-        createdAt: { gte: twentyFourHoursAgo },
-      },
-    });
-    if (exists) continue;
+    if (alertExists('ingestion_failure', group.connectorId)) continue;
 
     const connector = await db.connector.findUnique({
       where: { id: group.connectorId },

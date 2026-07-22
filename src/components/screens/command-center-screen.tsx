@@ -49,7 +49,7 @@ interface Insights {
 }
 interface AuditItem { id: string; action: string; entity: string; entityId?: string; details?: string; createdAt: string }
 
-const C = { bg: '#FAFAFA', card: 'rgba(255, 255, 255, 0.85)', border: 'rgba(0, 0, 0, 0.08)', gold: '#B8860B', goldLight: '#D4A843', goldDim: '#8B6914', text: '#111827', textMuted: '#6B7280', textDim: '#9CA3AF', green: '#059669', red: '#DC2626', blue: '#2563EB', amber: '#D97706' };
+const C = { bg: '#FAFAFA', card: 'rgba(255, 255, 255, 0.85)', border: 'rgba(0, 0, 0, 0.08)', gold: 'var(--color-gold-dim)', goldLight: 'var(--color-gold)', goldDim: 'var(--color-gold-dim)', text: '#111827', textMuted: '#6B7280', textDim: '#9CA3AF', green: '#059669', red: '#DC2626', blue: '#2563EB', amber: '#D97706' };
 const ENGINES = { company: { label: 'Company Engine', icon: Building2, color: '#A855F7' }, email: { label: 'Email Engine', icon: Mail, color: '#3B82F6' }, capability: { label: 'Capability Engine', icon: Archive, color: '#10B981' } } as const;
 const PRIORITY = { high: { color: C.red, bg: 'rgba(239,68,68,0.12)', label: 'Critical', icon: Shield }, medium: { color: C.amber, bg: 'rgba(245,158,11,0.12)', label: 'Warning', icon: AlertTriangle }, low: { color: C.blue, bg: 'rgba(59,130,246,0.12)', label: 'Info', icon: Eye } };
 const PIE_COLORS = [C.gold, '#A855F7', C.blue, C.green, C.amber, C.red, C.textMuted];

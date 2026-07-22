@@ -167,11 +167,10 @@ export async function POST(request: Request) {
           where: { id: { in: validIds } },
           select: { id: true, sizeRange: true },
         });
-        let cleaned = 0;
+        const updates: { id: string; mapped: string | null }[] = [];
         for (const c of garbageCompanies) {
           const sr = (c as any).sizeRange;
           if (sr && !VALID_RANGES.includes(sr)) {
-            // Try to parse as a number and map to range
             const num = parseInt(String(sr).replace(/[^0-9]/g, ''), 10);
             let mapped: string | null = null;
             if (!isNaN(num)) {
@@ -184,9 +183,16 @@ export async function POST(request: Request) {
               else if (num <= 10000) mapped = '5,001-10,000';
               else mapped = '10,001+';
             }
-            await db.company.update({ where: { id: c.id }, data: { sizeRange: mapped } });
-            cleaned++;
+            if (mapped) updates.push({ id: c.id, mapped });
           }
+        }
+        // Batch update using $executeRaw or sequential within transaction
+        let cleaned = 0;
+        if (updates.length > 0) {
+          await db.$transaction(
+            updates.map(u => db.company.update({ where: { id: u.id }, data: { sizeRange: u.mapped } }))
+          );
+          cleaned = updates.length;
         }
         result = { cleaned, action: 'cleanupSizeRange' };
         break;

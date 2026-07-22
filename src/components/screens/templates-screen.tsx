@@ -209,7 +209,7 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
     }
   };
 
-  const gold = '#D4AF37';
+  const gold = 'var(--color-gold)';
 
   return (
     <PageTransition>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, lazy, Suspense, Component, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, Suspense, Component, useCallback, type ReactNode } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PageTransition } from '@/components/ui/animated-components';
@@ -11,13 +11,8 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { QueryProvider } from '@/providers/query-provider';
 
 import {
-  LayoutDashboard, Upload, Users, Building2, FileText, Send,
-  Archive, Mail, XCircle, RefreshCw, Menu, X,
-  Brain, GitBranch, ScrollText, Settings, LogOut, BarChart3, Bell,
-  LayoutTemplate, Layers, AlertTriangle, Loader2, Sparkles, Network,
-  UserPlus, Target, FileBarChart, Code2, Copy, ClipboardList, Kanban, MailPlus,
-  ChevronDown, ChevronRight, Radar, MessageSquare, Heart, Activity, Shield, Database,
-  BookOpen, Compass, Search, ExternalLink, Crosshair, Play, Lightbulb,
+  RefreshCw, Menu, X, LogOut, Bell, Search, ExternalLink,
+  ChevronDown, ChevronRight, Loader2, AlertTriangle,
 } from 'lucide-react';
 
 import LoginPage from '@/components/login-page';
@@ -25,283 +20,10 @@ import LandingPage from '@/app/landing-page';
 import { useAppStore } from '@/lib/store';
 
 /* ═════════════════════════════════════════════════════
-   Lazy-loaded screen components
+   Navigation and screen config — extracted modules
    ═══════════════════════════════════════════════════ */
-
-// — Originally active screens (accept navigateTo prop) —
-const DashboardScreen = lazy(() => import('@/components/screens/dashboard-screen'));
-const CommandCenterScreen = lazy(() => import('@/components/screens/command-center-screen'));
-const MindMapScreen = lazy(() => import('@/components/screens/mind-map-screen'));
-const ImportScreen = lazy(() => import('@/components/screens/import-screen'));
-const LeadsScreen = lazy(() => import('@/components/screens/leads-screen'));
-const CompaniesScreen = lazy(() => import('@/components/screens/companies-screen'));
-const CompanyDetailScreen = lazy(() => import('@/components/screens/company-detail-screen'));
-const SegmentsScreen = lazy(() => import('@/components/screens/segments-screen'));
-const DraftsScreen = lazy(() => import('@/components/screens/drafts-screen'));
-const QueueScreen = lazy(() => import('@/components/screens/queue-screen'));
-const CapabilityScreen = lazy(() => import('@/components/screens/capability-screen'));
-const KnowledgeLibraryScreen = lazy(() => import('@/components/screens/knowledge-library-screen'));
-const RepliesScreen = lazy(() => import('@/components/screens/replies-screen'));
-const BouncesScreen = lazy(() => import('@/components/screens/bounces-screen'));
-const PipelineScreen = lazy(() => import('@/components/screens/pipeline-screen'));
-const AnalyticsScreen = lazy(() => import('@/components/screens/analytics-screen'));
-const AuditScreen = lazy(() => import('@/components/screens/audit-screen'));
-const SettingsScreen = lazy(() => import('@/components/screens/settings-screen'));
-const TemplatesScreen = lazy(() => import('@/components/screens/templates-screen'));
-const SequencesScreen = lazy(() => import('@/components/screens/sequences-screen'));
-
-// — Previously dormant screens (now wired in) —
-const ContactsScreen = lazy(() => import('@/components/screens/contacts-screen'));
-const ContactDetailScreen = lazy(() => import('@/components/screens/contact-detail-screen'));
-const TasksScreen = lazy(() => import('@/components/screens/tasks-screen'));
-const OpportunitiesScreen = lazy(() => import('@/components/screens/opportunities-screen'));
-const ReportsScreen = lazy(() => import('@/components/screens/reports-screen'));
-const EmailGenerationScreen = lazy(() => import('@/components/screens/email-generation-screen'));
-const PromptTemplatesScreen = lazy(() => import('@/components/screens/prompt-templates-screen'));
-const DuplicatesScreen = lazy(() => import('@/components/screens/duplicates-screen'));
-
-// — New Intelligence Platform screens —
-const SignalIntelligenceScreen = lazy(() => import('@/components/screens/signal-intelligence-screen'));
-const ConversationStudioScreen = lazy(() => import('@/components/screens/conversation-studio-screen'));
-const RelationshipMemoryScreen = lazy(() => import('@/components/screens/relationship-memory-screen'));
-const OpportunityRadarScreen = lazy(() => import('@/components/screens/opportunity-radar-screen'));
-const DataHealthScreen = lazy(() => import('@/components/screens/data-health-screen'));
-
-// — Phase 4 screens —
-const PlaybooksScreen = lazy(() => import('@/components/screens/playbooks-screen'));
-const ResearchAgentScreen = lazy(() => import('@/components/screens/research-agent-screen'));
-const StrategyRoomScreen = lazy(() => import('@/components/screens/strategy-room-screen'));
-
-// — Phase 6: Intelligence Governance —
-const IntelligenceHealthScreen = lazy(() => import('@/components/screens/intelligence-health-screen'));
-
-// — Phase 7: Revenue Intelligence Experience Layer —
-const RevenueIntelligenceScreen = lazy(() => import('@/components/screens/revenue-intelligence-screen'));
-const RevenueIntelligenceOpportunitiesScreen = lazy(() => import('@/components/screens/revenue-intelligence-opportunities-screen'));
-const RevenueIntelligenceRecommendationsScreen = lazy(() => import('@/components/screens/revenue-intelligence-recommendations-screen'));
-
-// — Phase 7.5: Intelligence Acquisition & Fabric —
-const IntelligenceSourcesScreen = lazy(() => import('@/components/screens/intelligence-sources-screen'));
-const IntelligenceKnowledgeScreen = lazy(() => import('@/components/screens/intelligence-knowledge-screen'));
-const RevenueIntelligenceBriefScreen = lazy(() => import('@/components/screens/revenue-intelligence-brief-screen'));
-const IntelligenceReasoningScreen = lazy(() => import('@/components/screens/intelligence-reasoning-screen'));
-const IntelligenceReportScreen = lazy(() => import('@/components/screens/intelligence-report-screen'));
-
-// — Phase 5/7: Revenue Intelligence screens —
-const AccountRankingScreen = lazy(() => import('@/components/screens/account-ranking-screen'));
-const OpportunityWorkspaceScreen = lazy(() => import('@/components/screens/opportunity-workspace-screen'));
-const PursuitWorkspaceScreen = lazy(() => import('@/components/screens/pursuit-workspace-screen'));
-const ICPSettingsScreen = lazy(() => import('@/components/screens/icp-settings-screen'));
-
-/* ═══════════════════════════════════════════════════
-   Navigation configuration
-   ═══════════════════════════════════════════════════ */
-
-interface NavItem {
-  key: string;
-  label: string;
-  icon: React.ElementType;
-}
-
-interface NavSection {
-  heading: string;
-  items: NavItem[];
-  defaultOpen?: boolean;
-}
-
-const NAV_SECTIONS: NavSection[] = [
-  {
-    heading: 'REVENUE INTELLIGENCE',
-    defaultOpen: true,
-    items: [
-      { key: 'revenue-intelligence', label: 'Revenue Intelligence', icon: Sparkles },
-      { key: 'revenue-intelligence-opportunities', label: 'Opportunity Radar', icon: Radar },
-      { key: 'revenue-intelligence-recommendations', label: 'Exec Recommendations', icon: Lightbulb },
-      { key: 'revenue-intelligence-brief', label: 'Company Brief', icon: Target },
-      { key: 'intelligence-reasoning', label: 'AI Reasoning', icon: Brain },
-      { key: 'intelligence-report', label: 'Intelligence Report', icon: FileText },
-      { key: 'account-ranking', label: 'Account Ranking', icon: Target },
-      { key: 'opportunity-workspace', label: 'Opportunity Workspace', icon: Radar },
-      { key: 'pursuit-workspace', label: 'Pursuit Tracker', icon: Compass },
-    ],
-  },
-  {
-    heading: 'INTELLIGENCE LAYER',
-    defaultOpen: true,
-    items: [
-      { key: 'signal-intelligence', label: 'Signal Intelligence', icon: Activity },
-      { key: 'research-agent', label: 'Research Agent', icon: Brain },
-      { key: 'opportunity-radar', label: 'Opportunity Radar', icon: Target },
-      { key: 'playbooks', label: 'Sales Playbooks', icon: BookOpen },
-    ],
-  },
-  {
-    heading: 'ACCOUNTS & CONTACTS',
-    defaultOpen: false,
-    items: [
-      { key: 'companies', label: 'Companies', icon: Building2 },
-      { key: 'contacts', label: 'Stakeholders', icon: Network },
-      { key: 'leads', label: 'Leads', icon: Database },
-      { key: 'segments', label: 'Segments', icon: Kanban },
-    ],
-  },
-  {
-    heading: 'ENGAGEMENT',
-    defaultOpen: false,
-    items: [
-      { key: 'conversation-studio', label: 'Conversation Studio', icon: MessageSquare },
-      { key: 'strategy-room', label: 'Strategy Room', icon: Compass },
-      { key: 'email-generation', label: 'Email Generator', icon: MailPlus },
-      { key: 'drafts', label: 'Drafts', icon: FileText },
-      { key: 'sequences', label: 'Sequences', icon: GitBranch },
-      { key: 'queue', label: 'Send Queue', icon: Send },
-      { key: 'templates', label: 'Templates', icon: LayoutTemplate },
-    ],
-  },
-  {
-    heading: 'INBOX',
-    defaultOpen: false,
-    items: [
-      { key: 'replies', label: 'Replies', icon: Mail },
-      { key: 'bounces', label: 'Bounces & Suppressions', icon: XCircle },
-    ],
-  },
-  {
-    heading: 'KNOWLEDGE',
-    defaultOpen: false,
-    items: [
-      { key: 'knowledge', label: 'Solution Intelligence', icon: Brain },
-      { key: 'capabilities', label: 'Capability Library', icon: Archive },
-      { key: 'mind-map', label: 'Mind Map', icon: Network },
-      { key: 'prompt-templates', label: 'AI Prompts', icon: Code2 },
-    ],
-  },
-  {
-    heading: 'OPERATIONS',
-    defaultOpen: false,
-    items: [
-      { key: 'pipeline', label: 'Pipeline', icon: GitBranch },
-      { key: 'import', label: 'Import', icon: Upload },
-      { key: 'analytics', label: 'Analytics', icon: BarChart3 },
-      { key: 'reports', label: 'Reports', icon: FileBarChart },
-    ],
-  },
-  {
-    heading: 'CONFIGURE',
-    defaultOpen: false,
-    items: [
-      { key: 'intelligence-health', label: 'Intelligence Health', icon: Shield },
-      { key: 'icp-settings', label: 'ICP Configuration', icon: Crosshair },
-      { key: 'data-health', label: 'Data Health', icon: Shield },
-      { key: 'relationship-memory', label: 'Relationship Memory', icon: Heart },
-      { key: 'tasks', label: 'Tasks', icon: ClipboardList },
-      { key: 'duplicates', label: 'Duplicates', icon: Copy },
-      { key: 'audit', label: 'Audit Log', icon: ScrollText },
-      { key: 'settings', label: 'Settings', icon: Settings },
-    ],
-  },
-];
-
-/* ═══════════════════════════════════════════════════
-   Bridge wrappers for dormant screens
-   These translate navigateTo prop → useAppStore actions
-   ═══════════════════════════════════════════════════ */
-
-function ContactsBridge({ navigateTo }: { navigateTo?: (screen: string, companyId?: string) => void }) {
-  // Contacts screen uses useAppStore internally for sub-navigation (contact-detail, company-profile, email-generation)
-  // We sync the active screen to the store so it works
-  return <ContactsScreen />;
-}
-
-function ContactDetailBridge({ contactId, navigateTo }: { contactId: string; navigateTo?: (screen: string) => void }) {
-  // contact-detail-screen reads selectedContactId from store
-  useEffect(() => { useAppStore.getState().setSelectedContactId(contactId); }, [contactId]);
-  return <ContactDetailScreen />;
-}
-
-function TasksBridge() {
-  return <TasksScreen />;
-}
-
-function OpportunitiesBridge() {
-  return <OpportunitiesScreen />;
-}
-
-function ReportsBridge() {
-  return <ReportsScreen />;
-}
-
-function EmailGenBridge() {
-  return <EmailGenerationScreen />;
-}
-
-function PromptTemplatesBridge() {
-  return <PromptTemplatesScreen />;
-}
-
-function DuplicatesBridge() {
-  return <DuplicatesScreen />;
-}
-
-/* ═══════════════════════════════════════════════════
-   Screen map — unified registry
-   ═══════════════════════════════════════════════════ */
-
-type ScreenComponent = React.LazyExoticComponent<React.ComponentType<any>> | React.FC<any>;
-
-const SCREEN_MAP: Record<string, ScreenComponent> = {
-  // Phase 7: Revenue Intelligence Experience Layer
-  'revenue-intelligence': RevenueIntelligenceScreen,
-  'revenue-intelligence-brief': RevenueIntelligenceBriefScreen,
-  'revenue-intelligence-opportunities': RevenueIntelligenceOpportunitiesScreen,
-  'revenue-intelligence-recommendations': RevenueIntelligenceRecommendationsScreen,
-  'intelligence-reasoning': IntelligenceReasoningScreen,
-  'intelligence-report': IntelligenceReportScreen,
-  // Revenue Intelligence (Phase 5/7)
-  'account-ranking': AccountRankingScreen,
-  'opportunity-workspace': OpportunityWorkspaceScreen,
-  'pursuit-workspace': PursuitWorkspaceScreen,
-  'intelligence-health': IntelligenceHealthScreen,
-  'icp-settings': ICPSettingsScreen,
-  // Intelligence
-  'command-center': CommandCenterScreen,
-  'signal-intelligence': SignalIntelligenceScreen,
-  'research-agent': ResearchAgentScreen,
-  'playbooks': PlaybooksScreen,
-  'opportunity-radar': OpportunityRadarScreen,
-  'conversation-studio': ConversationStudioScreen,
-  'strategy-room': StrategyRoomScreen,
-  'relationship-memory': RelationshipMemoryScreen,
-  'data-health': DataHealthScreen,
-  'mind-map': MindMapScreen,
-  dashboard: DashboardScreen,
-  pipeline: PipelineScreen,
-  analytics: AnalyticsScreen,
-  contacts: ContactsBridge,
-  companies: CompaniesScreen,
-  opportunities: OpportunitiesBridge,
-  import: ImportScreen,
-  leads: LeadsScreen,
-  segments: SegmentsScreen,
-  duplicates: DuplicatesBridge,
-  capabilities: CapabilityScreen,
-  knowledge: KnowledgeLibraryScreen,
-  'email-generation': EmailGenBridge,
-  drafts: DraftsScreen,
-  queue: QueueScreen,
-  templates: TemplatesScreen,
-  sequences: SequencesScreen,
-  replies: RepliesScreen,
-  bounces: BouncesScreen,
-  reports: ReportsBridge,
-  tasks: TasksBridge,
-  'prompt-templates': PromptTemplatesBridge,
-  audit: AuditScreen,
-  settings: SettingsScreen,
-  // Phase 7.5: Intelligence Fabric
-  'intelligence-sources': IntelligenceSourcesScreen,
-  'intelligence-knowledge': IntelligenceKnowledgeScreen,
-};
+import { NAV_SECTIONS } from '@/lib/nav-config';
+import { SCREEN_MAP } from '@/lib/screen-map';
 
 const SCREEN_LABELS: Record<string, string> = {};
 NAV_SECTIONS.forEach(s => s.items.forEach(i => { SCREEN_LABELS[i.key] = i.label; }));
@@ -517,7 +239,8 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
     setCollapsedSections(prev => ({ ...prev, [heading]: !prev[heading] }));
   };
 
-  const LazyComponent = SCREEN_MAP[activeScreen] || DashboardScreen;
+  const LazyComponent = SCREEN_MAP[activeScreen] || SCREEN_MAP['dashboard'];
+
   const activeLabel = SCREEN_LABELS[activeScreen] || 'DeepMindQ';
 
   // Breadcrumb trail

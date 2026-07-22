@@ -7,7 +7,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { Building2, Users, FileText, Send, Mail, TrendingUp, TrendingDown, ChevronRight, Zap, UserPlus, Eye, MessageSquare, AlertTriangle, Inbox, Sparkles, Brain, RefreshCw, Layers } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 
-const gold = '#B8860B', goldLight = '#D4A843';
+const gold = 'var(--color-gold-dim)', goldLight = 'var(--color-gold)';
 const card = 'rgba(255, 255, 255, 0.85)', border = 'rgba(0, 0, 0, 0.08)';
 
 interface DashboardData {
@@ -251,7 +251,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           className="rounded-xl overflow-hidden" style={{ ...glassPanel, border: '1px solid rgba(212,175,55,0.3)' }}>
           <div className="flex items-center gap-3 px-5 py-3.5">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.12)' }}>
-              <Brain className="w-4 h-4 animate-pulse" style={{ color: '#D4AF37' }} />
+              <Brain className="w-4 h-4 animate-pulse" style={{ color: 'var(--color-gold)' }} />
             </div>
             <span className="text-sm text-muted-foreground">Analyzing your pipeline intelligence<span className="inline-flex gap-0.5 ml-1"><span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span><span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span><span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span></span></span>
           </div>
@@ -276,7 +276,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.12)' }}>
-                  <Brain className="w-4 h-4" style={{ color: '#D4AF37' }} />
+                  <Brain className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-foreground tracking-tight">Daily AI Briefing</h2>
@@ -294,7 +294,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Key Insights</p>
                   {aiBriefing.keyInsights.slice(0, 3).map((ins: any, i: number) => (
                     <div key={i} className="flex items-start gap-1.5">
-                      <ChevronRight className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: '#D4AF37' }} />
+                      <ChevronRight className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: 'var(--color-gold)' }} />
                       <div className="min-w-0">
                         <span className="text-xs font-semibold text-foreground">{ins.title}</span>
                         <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{ins.description}</p>
@@ -328,7 +328,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
 
       {/* 1. STATS ROW */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <StatCard icon={Building2} label="Total Companies" value={data.totalCompanies || 0} bc="#D4AF37" delay={0} />
+        <StatCard icon={Building2} label="Total Companies" value={data.totalCompanies || 0} bc="var(--color-gold)" delay={0} />
         <StatCard icon={Users} label="Active Contacts" value={totalLeads} bc="#3B82F6" delay={0.06} />
         <StatCard icon={FileText} label="Pending Drafts" value={drafts} bc="#F59E0B" delay={0.12} />
         <StatCard icon={Send} label="In Queue" value={queued} bc="#10B981" delay={0.18} />
@@ -428,7 +428,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                   className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
                   style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
                 >
-                  <Brain className="w-6 h-6" style={{ color: '#D4AF37' }} />
+                  <Brain className="w-6 h-6" style={{ color: 'var(--color-gold)' }} />
                 </motion.div>
                 <p className="text-sm font-medium text-foreground">No companies yet</p>
                 <p className="text-xs text-muted-foreground mt-1">Import companies to see your top accounts by engagement</p>
@@ -480,7 +480,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                   className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
                   style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
                 >
-                  <Brain className="w-6 h-6" style={{ color: '#D4AF37' }} />
+                  <Brain className="w-6 h-6" style={{ color: 'var(--color-gold)' }} />
                 </motion.div>
                 <p className="text-sm font-medium text-foreground">No activity recorded</p>
                 <p className="text-xs text-muted-foreground/60 mt-1">Start engaging with your contacts to see pipeline activity here</p>

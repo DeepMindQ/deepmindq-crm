@@ -77,7 +77,7 @@ interface InternalResponse {
 const externalTypeConfig: Record<ExternalType, { color: string; bg: string; icon: React.ComponentType<{ className?: string }>; label: string }> = {
   hiring:     { color: '#2563EB', bg: 'rgba(37,99,235,0.08)',  icon: Briefcase, label: 'Hiring' },
   leadership: { color: '#7C3AED', bg: 'rgba(124,58,237,0.08)', icon: Crown,     label: 'Leadership' },
-  investment: { color: '#D4AF37', bg: 'rgba(212,175,55,0.08)',  icon: DollarSign, label: 'Investment' },
+  investment: { color: 'var(--color-gold)', bg: 'rgba(212,175,55,0.08)',  icon: DollarSign, label: 'Investment' },
   technology: { color: '#0891B2', bg: 'rgba(8,145,178,0.08)',  icon: Cpu,       label: 'Technology' },
   expansion:  { color: '#059669', bg: 'rgba(5,150,105,0.08)',  icon: Globe,     label: 'Expansion' },
 };
@@ -198,7 +198,7 @@ function AIScanningAnimation() {
             key={i}
             className="absolute w-1 h-1 rounded-full"
             style={{
-              background: '#D4AF37',
+              background: 'var(--color-gold)',
               left: `${8 + (i * 7.5) % 85}%`,
               top: `${15 + (i * 13) % 70}%`,
             }}
@@ -259,7 +259,7 @@ function AIScanningAnimation() {
             }}
             transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
           >
-            <Brain className="w-9 h-9" style={{ color: '#D4AF37' }} />
+            <Brain className="w-9 h-9" style={{ color: 'var(--color-gold)' }} />
           </motion.div>
         </div>
 
@@ -391,7 +391,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
   const summaryCards = [
     { label: 'Total Signals', value: meta.totalSignalsFound, icon: Radar, color: '#2563EB', bg: 'rgba(37,99,235,0.08)' },
     { label: 'High Priority', value: meta.highPriority, icon: AlertTriangle, color: '#DC2626', bg: 'rgba(220,38,38,0.08)' },
-    { label: 'Companies Scanned', value: meta.scannedCompanies, icon: Eye, color: '#D4AF37', bg: 'rgba(212,175,55,0.08)' },
+    { label: 'Companies Scanned', value: meta.scannedCompanies, icon: Eye, color: 'var(--color-gold)', bg: 'rgba(212,175,55,0.08)' },
     { label: 'Internal Alerts', value: meta.internalCount, icon: Database, color: '#059669', bg: 'rgba(5,150,105,0.08)' },
   ];
 
@@ -485,7 +485,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.1)' }}>
-                    <Newspaper className="w-4.5 h-4.5" style={{ color: '#D4AF37' }} />
+                    <Newspaper className="w-4.5 h-4.5" style={{ color: 'var(--color-gold)' }} />
                   </div>
                   <div className="text-left">
                     <h3 className="text-sm font-bold text-foreground">Live News Sources</h3>
@@ -737,7 +737,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
                               <TrendingUp className="w-3 h-3" />
                               <span className="font-medium">{signal.confidence}%</span>
                               <span className="w-16 h-1.5 rounded-full bg-gray-100 inline-block overflow-hidden">
-                                <span className="block h-full rounded-full" style={{ width: `${signal.confidence}%`, background: signal.confidence >= 80 ? '#059669' : signal.confidence >= 60 ? '#D4AF37' : '#DC2626', transition: 'width 0.8s ease' }} />
+                                <span className="block h-full rounded-full" style={{ width: `${signal.confidence}%`, background: signal.confidence >= 80 ? '#059669' : signal.confidence >= 60 ? 'var(--color-gold)' : '#DC2626', transition: 'width 0.8s ease' }} />
                               </span>
                             </span>
                           )}
@@ -749,7 +749,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
                             </div>
                             {isExternal && (
                               <span className="inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-px rounded-full"
-                                style={{ color: '#D4AF37', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
+                                style={{ color: 'var(--color-gold)', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
                                 <Brain className="w-2.5 h-2.5" /> AI
                               </span>
                             )}
@@ -762,7 +762,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: 
                           {formatTimeAgo(signal.detectedAt)}
                           {isExternal && (
                             <span className="inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-px rounded-full"
-                              style={{ color: '#D4AF37', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
+                              style={{ color: 'var(--color-gold)', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
                               <Brain className="w-2.5 h-2.5" /> AI
                             </span>
                           )}

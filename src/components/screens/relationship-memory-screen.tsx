@@ -215,7 +215,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
   /* ── Derived data ─────────────────────────────── */
   const stats = data
     ? [
-        { label: 'Active Relationships', value: data.stats.activeRelationships, icon: Users, color: '#D4AF37', trend: { value: `${data.stats.activeRelationships} accounts`, up: true } },
+        { label: 'Active Relationships', value: data.stats.activeRelationships, icon: Users, color: 'var(--color-gold)', trend: { value: `${data.stats.activeRelationships} accounts`, up: true } },
         { label: 'Strong Connections', value: data.stats.strongConnections, icon: Heart, color: '#10B981', trend: { value: `${data.stats.strongConnections} connections`, up: true } },
         { label: 'Need Attention', value: data.stats.needAttention, icon: AlertTriangle, color: '#F59E0B', trend: { value: `${data.stats.needAttention} accounts`, up: false } },
         { label: 'Total Interactions', value: data.stats.totalInteractions, icon: Activity, color: '#6366F1', trend: { value: `${data.weeklyActivity.emailsSent + data.weeklyActivity.meetings + data.weeklyActivity.calls + data.weeklyActivity.notesAdded} this week`, up: true } },
@@ -265,7 +265,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
             className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
             style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
           >
-            <Brain className="w-7 h-7" style={{ color: '#D4AF37' }} />
+            <Brain className="w-7 h-7" style={{ color: 'var(--color-gold)' }} />
           </motion.div>
           <h2 className="text-lg font-semibold text-foreground">No Relationship Intelligence Yet</h2>
           <p className="text-sm text-muted-foreground max-w-md text-center">
@@ -284,7 +284,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                 transition={{ delay: 0.3 + i * 0.15, duration: 0.4 }}
                 className="flex items-center gap-2 text-xs text-muted-foreground"
               >
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#D4AF37' }} />
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--color-gold)' }} />
                 {text}
               </motion.p>
             ))}
@@ -292,9 +292,9 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
           <Button
             onClick={() => navigateTo?.('companies')}
             className="gap-2 mt-3 font-medium shadow-sm"
-            style={{ background: '#D4AF37', color: '#fff' }}
+            style={{ background: 'var(--color-gold)', color: '#fff' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#C5A030'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#D4AF37'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-gold)'; }}
           >
             <Plus className="w-4 h-4" /> Add Your First Interaction
           </Button>
@@ -325,7 +325,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
           <Button
             onClick={() => navigateTo?.('companies')}
             className="gap-2 font-medium shadow-sm"
-            style={{ background: '#D4AF37', color: '#fff' }}
+            style={{ background: 'var(--color-gold)', color: '#fff' }}
           >
             <Plus className="w-4 h-4" /> Explore Companies
           </Button>
@@ -357,12 +357,12 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
           >
             <div className="flex items-center gap-2.5 mb-3">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(184, 134, 11, 0.12)' }}>
-                <Sparkles className="w-4 h-4" style={{ color: '#B8860B' }} />
+                <Sparkles className="w-4 h-4" style={{ color: 'var(--color-gold-dim)' }} />
               </div>
-              <h3 className="text-sm font-semibold" style={{ color: '#8B6914' }}>AI Relationship Summary</h3>
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--color-gold-dim)' }}>AI Relationship Summary</h3>
               <span
                 className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                style={{ background: 'rgba(184, 134, 11, 0.12)', color: '#B8860B' }}
+                style={{ background: 'rgba(184, 134, 11, 0.12)', color: 'var(--color-gold-dim)' }}
               >
                 Live AI
               </span>
@@ -401,7 +401,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                     <HealthBar pct={company.health} color={healthBarColor(company.healthColor)} />
                     {company.aiHealthReasoning && (
                       <p className="text-[11px] leading-relaxed" style={{ color: '#9CA3AF' }}>
-                        <Sparkles className="w-3 h-3 inline-block mr-1 -mt-0.5" style={{ color: '#D4AF37' }} />
+                        <Sparkles className="w-3 h-3 inline-block mr-1 -mt-0.5" style={{ color: 'var(--color-gold)' }} />
                         {company.aiHealthReasoning}
                       </p>
                     )}
@@ -432,7 +432,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                       style={{ background: 'rgba(184, 134, 11, 0.05)', borderLeft: '3px solid #D4AF37' }}
                     >
                       <p className="text-sm leading-relaxed italic" style={{ color: '#6B7280' }}>
-                        <Sparkles className="w-3 h-3 inline-block mr-1 -mt-0.5" style={{ color: '#D4AF37' }} />
+                        <Sparkles className="w-3 h-3 inline-block mr-1 -mt-0.5" style={{ color: 'var(--color-gold)' }} />
                         {company.aiNarrative}
                       </p>
                     </motion.div>
@@ -493,7 +493,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
             {/* Panel header accent */}
             <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(212, 175, 55, 0.12)' }}>
-                <Sparkles className="w-4 h-4" style={{ color: '#D4AF37' }} />
+                <Sparkles className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">Smart Suggestions</p>
@@ -554,8 +554,8 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                 style={{ borderColor: 'rgba(184, 134, 11, 0.2)' }}
               >
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5" style={{ color: '#D4AF37' }} />
-                  <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8B6914' }}>AI Trend Insight</p>
+                  <Sparkles className="w-3.5 h-3.5" style={{ color: 'var(--color-gold)' }} />
+                  <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-gold-dim)' }}>AI Trend Insight</p>
                 </div>
                 <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>{data.aiTrendAnalysis}</p>
               </GlassPanel>
@@ -571,7 +571,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                   { label: 'Emails Sent', value: String(weeklyActivity.emailsSent), color: '#6366F1' },
                   { label: 'Meetings', value: String(weeklyActivity.meetings), color: '#10B981' },
                   { label: 'Calls Made', value: String(weeklyActivity.calls), color: '#0EA5E9' },
-                  { label: 'Notes Added', value: String(weeklyActivity.notesAdded), color: '#D4AF37' },
+                  { label: 'Notes Added', value: String(weeklyActivity.notesAdded), color: 'var(--color-gold)' },
                 ].map((item) => (
                   <div key={item.label} className="text-center p-2 rounded-lg bg-gray-50">
                     <p className="text-lg font-bold tabular-nums" style={{ color: item.color }}>{item.value}</p>

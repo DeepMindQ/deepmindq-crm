@@ -106,7 +106,7 @@ const TIER_CONFIG: Record<string, {
   },
   ACTIVE: {
     label: 'Active',
-    color: '#D4AF37',
+    color: 'var(--color-gold)',
     bgClass: 'bg-amber-50',
     textClass: 'text-amber-700',
     icon: Zap,
@@ -151,7 +151,7 @@ function getTierConfig(tier: string) {
 
 function scoreBarColor(score: number): string {
   if (score >= 75) return '#059669';
-  if (score >= 50) return '#D4AF37';
+  if (score >= 50) return 'var(--color-gold)';
   if (score >= 25) return '#D97706';
   return '#EF4444';
 }
@@ -502,7 +502,7 @@ export default function AccountRankingScreen() {
         label: 'Active Accounts',
         count: tierDistribution.ACTIVE ?? 0,
         icon: Zap,
-        color: '#D4AF37',
+        color: 'var(--color-gold)',
       },
       {
         tier: 'NURTURE' as const,

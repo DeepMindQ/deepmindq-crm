@@ -25,7 +25,7 @@ const C = {
   textBright:   '#F9FAFB',
   textSub:      '#9CA3AF',
   textDim:      '#6B7280',
-  gold:         '#c9a84c',
+  gold:         'var(--color-gold)',
   goldBright:   '#e2c565',
   goldDim:      'rgba(201,168,76,0.1)',
   goldGlow:     'rgba(201,168,76,0.04)',

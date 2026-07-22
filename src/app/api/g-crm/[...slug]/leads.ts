@@ -278,49 +278,35 @@ async function fetchLeadsFromStatic(params: {
 
 /* ── DB metadata builder (for filter dropdowns) ── */
 async function fetchDBMeta() {
-  const [allContacts, allCompanies] = await Promise.all([
-    db.contact.findMany({ select: { role: true, status: true, location: true, consentStatus: true, assignedTo: true, source: true } }),
-    db.company.findMany({ select: { industry: true, sizeRange: true, location: true } }),
+  const [roleAgg, industryAgg, sizeAgg, consentAgg, assigneeAgg, sourceAgg] = await Promise.all([
+    db.contact.groupBy({ by: ['role'], where: { role: { not: null } }, _count: { id: true } }),
+    db.company.groupBy({ by: ['industry'], where: { industry: { not: null } }, _count: { id: true } }),
+    db.company.groupBy({ by: ['sizeRange'], where: { sizeRange: { not: null } }, _count: { id: true } }),
+    db.contact.groupBy({ by: ['consentStatus'], _count: { id: true } }),
+    db.contact.groupBy({ by: ['assignedTo'], where: { assignedTo: { not: null } }, _count: { id: true } }),
+    db.contact.groupBy({ by: ['source'], where: { source: { not: null } }, _count: { id: true } }),
   ]);
 
-  // Count by field values
-  const countBy = (arr: any[], field: string) => {
-    const map: Record<string, number> = {};
-    for (const item of arr) {
-      const val = item[field];
-      if (val) map[val] = (map[val] || 0) + 1;
-    }
-    return Object.entries(map)
-      .map(([v, c]) => ({ v, c }))
-      .sort((a, b) => b.c - a.c);
-  };
+  const totalRecords = await db.contact.count();
 
-  // Build country/city/state from location
-  const countries: Record<string, number> = {};
-  const cities: Record<string, number> = {};
-  const states: Record<string, number> = {};
-  for (const c of allContacts) {
-    if (c.location) {
-      const parts = c.location.split(',').map((s: string) => s.trim());
-      if (parts[0]) cities[parts[0]] = (cities[parts[0]] || 0) + 1;
-      if (parts[1]) states[parts[1]] = (states[parts[1]] || 0) + 1;
-      if (parts[2]) countries[parts[2]] = (countries[parts[2]] || 0) + 1;
-      else if (parts[1]) countries[parts[1]] = (countries[parts[1]] || 0) + 1;
-    }
-  }
+  const aggToOptions = (arr: { [key: string]: any }[]) =>
+    arr.map(item => {
+      const key = Object.keys(item).find(k => k !== '_count')!;
+      return { v: item[key] || '', c: item._count.id };
+    }).filter(item => item.v).sort((a, b) => b.c - a.c);
 
   return {
-    countries: Object.entries(countries).map(([v, c]) => ({ v, c })).sort((a, b) => b.c - a.c),
-    industries: countBy(allCompanies, 'industry'),
-    departments: countBy(allContacts, 'role'),
-    employeeCategories: countBy(allCompanies, 'sizeRange'),
-    titles: [], // DB doesn't have separate title metadata
-    cities: Object.entries(cities).map(([v, c]) => ({ v, c })).sort((a, b) => b.c - a.c),
-    states: Object.entries(states).map(([v, c]) => ({ v, c })).sort((a, b) => b.c - a.c),
-    consentStatuses: countBy(allContacts, 'consentStatus'),
-    assignees: countBy(allContacts, 'assignedTo'),
-    sources: countBy(allContacts, 'source'),
-    totalRecords: allContacts.length,
+    countries: [],
+    industries: aggToOptions(industryAgg),
+    departments: aggToOptions(roleAgg),
+    employeeCategories: aggToOptions(sizeAgg),
+    titles: [],
+    cities: [],
+    states: [],
+    consentStatuses: aggToOptions(consentAgg),
+    assignees: aggToOptions(assigneeAgg),
+    sources: aggToOptions(sourceAgg),
+    totalRecords,
   };
 }
 

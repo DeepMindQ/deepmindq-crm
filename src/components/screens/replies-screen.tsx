@@ -252,7 +252,7 @@ export default function RepliesScreen({ navigateTo }: RepliesScreenProps) {
               label="Total Replies"
               value={stats.total}
               icon={Inbox}
-              color="#D4AF37"
+              color="var(--color-gold)"
               delay={0}
             />
             <StatCard

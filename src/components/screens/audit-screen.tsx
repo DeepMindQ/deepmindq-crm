@@ -196,14 +196,14 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
 
   // ── Derived: stats ─────────────────────────────────────────────────────
   const stats = useMemo(() => {
-    if (!data) return { total: 0, topAction: 'N/A', topActionColor: '#D4AF37', uniqueEntities: 0 };
+    if (!data) return { total: 0, topAction: 'N/A', topActionColor: 'var(--color-gold)', uniqueEntities: 0 };
 
     const total = data.length;
 
     const actionCounts: Record<string, number> = {};
     data.forEach(e => { actionCounts[e.action] = (actionCounts[e.action] || 0) + 1; });
     const topAction = Object.entries(actionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
-    const topActionColor = ACTION_ACCENT_COLORS[topAction] || '#D4AF37';
+    const topActionColor = ACTION_ACCENT_COLORS[topAction] || 'var(--color-gold)';
 
     const entitySet = new Set(data.map(e => e.entityType));
 
@@ -302,7 +302,7 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
               label="Total Actions"
               value={stats.total}
               icon={BarChart3}
-              color="#D4AF37"
+              color="var(--color-gold)"
               delay={0}
             />
           </StaggerItem>

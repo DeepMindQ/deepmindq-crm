@@ -90,7 +90,7 @@ const REJECTION_REASONS = [
 ] as const;
 
 const SCORING_DIMENSIONS = [
-  { key: 'signalConfidence' as const, label: 'Signal Confidence', color: '#D4AF37' },
+  { key: 'signalConfidence' as const, label: 'Signal Confidence', color: 'var(--color-gold)' },
   { key: 'capabilityMatch' as const, label: 'Capability Match', color: '#059669' },
   { key: 'freshnessScore' as const, label: 'Freshness', color: '#2563EB' },
   { key: 'evidenceQuality' as const, label: 'Evidence Quality', color: '#9333EA' },
@@ -581,7 +581,7 @@ export default function OpportunityWorkspaceScreen() {
             label="Pending Review"
             value={counts.pending_review}
             icon={Clock}
-            color="#D4AF37"
+            color="var(--color-gold)"
             delay={0}
           />
           <StatCard

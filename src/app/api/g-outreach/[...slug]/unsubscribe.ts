@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
    ═══════════════════════════════════════════════════ */
 
 const COMPANY_NAME = process.env.COMPANY_NAME || 'DeepMindQ';
-const BRAND_COLOR = '#D4AF37';
+const BRAND_COLOR = 'var(--color-gold)';
 
 function escapeHtml(str: string): string {
   return str

@@ -171,7 +171,7 @@ const STATUS_COLORS: Record<string, string> = {
   cleaned: '#8b5cf6',
   drafted: '#3b82f6',
   queued: '#f59e0b',
-  sent: '#D4AF37',
+  sent: 'var(--color-gold)',
   replied: '#10b981',
   bounced: '#ef4444',
 };
@@ -283,7 +283,7 @@ function TeamPerformanceSection() {
                 className="w-9 h-9 rounded-lg flex items-center justify-center"
                 style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.06))' }}
               >
-                <Users className="size-4.5" style={{ color: '#D4AF37' }} />
+                <Users className="size-4.5" style={{ color: 'var(--color-gold)' }} />
               </div>
               <div>
                 <h3 className="text-base font-bold text-foreground tracking-tight">
@@ -323,7 +323,7 @@ function TeamPerformanceSection() {
           <div className="p-6 space-y-6">
             {/* ── Summary Cards ────────────────────────────── */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard label="Team Size" value={totalTeamSize} icon={Users} color="#D4AF37" delay={0} />
+              <StatCard label="Team Size" value={totalTeamSize} icon={Users} color="var(--color-gold)" delay={0} />
               <StatCard label="Total Assigned" value={totalContacts} icon={Target} color="#3b82f6" delay={0.05} />
               <StatCard
                 label="Avg Reply Rate"
@@ -547,7 +547,7 @@ interface ComplianceData {
 
 const CONSENT_COLORS: Record<string, string> = {
   opted_in: '#10B981',
-  unknown: '#D4AF37',
+  unknown: 'var(--color-gold)',
   opted_out: '#EF4444',
 };
 
@@ -1290,7 +1290,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <div className="px-6 py-4 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.06), transparent)', borderBottom: '1px solid rgba(212, 175, 55, 0.1)' }}>
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.06))' }}>
-                      <UserCircle className="size-4.5" style={{ color: '#D4AF37' }} />
+                      <UserCircle className="size-4.5" style={{ color: 'var(--color-gold)' }} />
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-foreground tracking-tight">Personal Information</h3>
@@ -1372,7 +1372,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
               <GlassPanel className="p-0 overflow-hidden">
                 <div className="px-6 py-4 flex items-center gap-3" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.06), transparent)', borderBottom: '1px solid rgba(212, 175, 55, 0.1)' }}>
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.06))' }}>
-                    <Mail className="size-4.5" style={{ color: '#D4AF37' }} />
+                    <Mail className="size-4.5" style={{ color: 'var(--color-gold)' }} />
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-foreground tracking-tight">Change Email</h3>
@@ -1427,7 +1427,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
               <GlassPanel className="p-0 overflow-hidden">
                 <div className="px-6 py-4 flex items-center gap-3" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.06), transparent)', borderBottom: '1px solid rgba(212, 175, 55, 0.1)' }}>
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.06))' }}>
-                    <Lock className="size-4.5" style={{ color: '#D4AF37' }} />
+                    <Lock className="size-4.5" style={{ color: 'var(--color-gold)' }} />
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-foreground tracking-tight">Change Password</h3>
@@ -1507,7 +1507,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <div className="px-6 py-4 flex items-center justify-between flex-wrap gap-3" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.06), transparent)', borderBottom: '1px solid rgba(212, 175, 55, 0.1)' }}>
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.06))' }}>
-                      <Plug className="size-4.5" style={{ color: '#D4AF37' }} />
+                      <Plug className="size-4.5" style={{ color: 'var(--color-gold)' }} />
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-foreground tracking-tight">
@@ -1683,7 +1683,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                     className="w-9 h-9 rounded-lg flex items-center justify-center"
                     style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.06))' }}
                   >
-                    <Mail className="size-4.5" style={{ color: '#D4AF37' }} />
+                    <Mail className="size-4.5" style={{ color: 'var(--color-gold)' }} />
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-foreground tracking-tight">
@@ -2104,7 +2104,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                     className="w-9 h-9 rounded-lg flex items-center justify-center"
                     style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.06))' }}
                   >
-                    <Star className="size-4.5" style={{ color: '#D4AF37' }} />
+                    <Star className="size-4.5" style={{ color: 'var(--color-gold)' }} />
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-foreground tracking-tight">
@@ -2124,7 +2124,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                         <div className="flex items-center gap-2">
                           <span
                             className="text-xs font-semibold"
-                            style={{ color: '#D4AF37' }}
+                            style={{ color: 'var(--color-gold)' }}
                           >
                             +
                           </span>
@@ -2160,7 +2160,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                     className="font-bold text-sm px-3 py-1"
                     style={{
                       background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05))',
-                      color: '#D4AF37',
+                      color: 'var(--color-gold)',
                       border: '1px solid rgba(212, 175, 55, 0.3)',
                     }}
                   >

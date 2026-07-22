@@ -19,9 +19,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  // If authenticated and trying to access login, redirect to dashboard
+  // If authenticated and trying to access login, redirect to dashboard (or returnTo)
   if (pathname === '/login' && sessionCookie?.value) {
-    return NextResponse.redirect(new URL('/', request.url));
+    const returnTo = request.nextUrl.searchParams.get('returnTo') || '/';
+    return NextResponse.redirect(new URL(returnTo, request.url));
   }
 
   // Build response with security headers

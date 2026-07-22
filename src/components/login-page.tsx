@@ -20,8 +20,8 @@ import {
    Design Tokens (matching landing page)
    ═══════════════════════════════════════════════════ */
 const C = {
-  gold: '#B8860B',
-  goldLight: '#D4A843',
+  gold: 'var(--color-gold-dim)',
+  goldLight: 'var(--color-gold)',
   text: '#111827',
   textMuted: '#6B7280',
 };

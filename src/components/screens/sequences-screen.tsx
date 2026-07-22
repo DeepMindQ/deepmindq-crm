@@ -220,7 +220,7 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
     setFormSteps(updated.map((s, i) => ({ ...s, stepNumber: i + 1 })));
   };
 
-  const gold = '#D4AF37';
+  const gold = 'var(--color-gold)';
 
   return (
     <PageTransition>

@@ -154,7 +154,7 @@ function StagePipeline({ stage, onAdvance }: { stage: string | null; onAdvance?:
                         boxShadow: '0 0 10px rgba(212, 175, 55, 0.35)',
                       }
                     : isReached && !isClosedWon && !isClosedLost
-                    ? { background: '#D4AF37' }
+                    ? { background: 'var(--color-gold)' }
                     : undefined
                 }
                 initial={false}
@@ -439,7 +439,7 @@ function AdvanceStageDialogInner({
             className="w-8 h-8 rounded-lg flex items-center justify-center"
             style={{ background: 'rgba(212, 175, 55, 0.12)' }}
           >
-            <ArrowRight className="w-4 h-4" style={{ color: '#D4AF37' }} />
+            <ArrowRight className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />
           </div>
           Advance Stage
         </DialogTitle>
@@ -479,7 +479,7 @@ function AdvanceStageDialogInner({
                   <div className="flex items-center gap-2">
                     <div
                       className="w-2 h-2 rounded-full"
-                      style={{ background: '#D4AF37' }}
+                      style={{ background: 'var(--color-gold)' }}
                     />
                     {STAGE_LABELS[s]}
                   </div>
@@ -578,7 +578,7 @@ function AddNoteDialogInner({
             className="w-8 h-8 rounded-lg flex items-center justify-center"
             style={{ background: 'rgba(212, 175, 55, 0.12)' }}
           >
-            <MessageSquare className="w-4 h-4" style={{ color: '#D4AF37' }} />
+            <MessageSquare className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />
           </div>
           Pursuit Notes
         </DialogTitle>
@@ -949,7 +949,7 @@ export default function PursuitWorkspaceScreen() {
             label="Active"
             value={counts.active}
             icon={Crosshair}
-            color="#D4AF37"
+            color="var(--color-gold)"
             delay={0}
           />
           <StatCard

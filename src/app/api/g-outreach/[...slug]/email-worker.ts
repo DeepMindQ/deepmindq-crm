@@ -120,24 +120,26 @@ export async function POST() {
       });
 
       if (result.success) {
-        // Success
-        await db.sendQueue.update({
-          where: { id: item.id },
-          data: {
-            status: 'sent',
-            sentAt: new Date(),
-            providerId: result.providerId || null,
-            provider: result.provider,
-          },
-        });
-        await db.draft.update({
-          where: { id: item.draftId },
-          data: { status: 'sent' },
-        });
-        await db.contact.update({
-          where: { id: contact.id },
-          data: { status: 'sent', lastContactedAt: new Date() },
-        });
+        // Success — wrap multi-step writes in transaction
+        await db.$transaction([
+          db.sendQueue.update({
+            where: { id: item.id },
+            data: {
+              status: 'sent',
+              sentAt: new Date(),
+              providerId: result.providerId || null,
+              provider: result.provider,
+            },
+          }),
+          db.draft.update({
+            where: { id: item.draftId },
+            data: { status: 'sent' },
+          }),
+          db.contact.update({
+            where: { id: contact.id },
+            data: { status: 'sent', lastContactedAt: new Date() },
+          }),
+        ]);
         summary.sent++;
       } else {
         // Failure — apply retry logic (E-04)

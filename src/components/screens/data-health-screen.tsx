@@ -113,7 +113,7 @@ const CATEGORY_META: Record<
 /** Score color based on 0-100 threshold */
 function scoreColor(score: number): string {
   if (score >= 80) return '#16a34a';
-  if (score >= 60) return '#D4AF37';
+  if (score >= 60) return 'var(--color-gold)';
   if (score >= 40) return '#f59e0b';
   return '#ef4444';
 }
@@ -411,7 +411,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
             className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
             style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
           >
-            <Brain className="w-7 h-7" style={{ color: '#D4AF37' }} />
+            <Brain className="w-7 h-7" style={{ color: 'var(--color-gold)' }} />
           </motion.div>
           <p className="text-sm font-semibold text-foreground">No Health Data Available</p>
           <p className="text-xs text-muted-foreground max-w-sm mt-1">
@@ -420,9 +420,9 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
           <button
             onClick={() => navigateTo?.('companies')}
             className="mt-4 px-4 py-2 rounded-lg text-xs font-semibold text-white shadow-sm transition-colors"
-            style={{ background: '#D4AF37' }}
+            style={{ background: 'var(--color-gold)' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#C5A030'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#D4AF37'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-gold)'; }}
           >
             Go to Companies
           </button>
@@ -491,7 +491,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
             {/* Quick Stats */}
             <div className="shrink-0 grid grid-cols-2 gap-3 lg:w-48">
               {[
-                { label: 'Total Records', value: data.totalRecords, icon: Users, color: '#D4AF37' },
+                { label: 'Total Records', value: data.totalRecords, icon: Users, color: 'var(--color-gold)' },
                 { label: 'Healthy', value: data.healthyRecords, icon: CheckCircle2, color: '#16a34a' },
                 { label: 'Needs Attention', value: data.needsAttention, icon: AlertTriangle, color: '#f59e0b' },
                 { label: 'Critical', value: data.criticalRecords, icon: TrendingUp, color: '#ef4444' },
@@ -525,12 +525,12 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
               <div className="flex items-center gap-2.5 mb-3">
                 <div
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                  style={{ background: 'rgba(184,134,11,0.15)', color: '#B8860B' }}
+                  style={{ background: 'rgba(184,134,11,0.15)', color: 'var(--color-gold-dim)' }}
                 >
                   <Sparkles className="w-3 h-3" />
                   Live AI
                 </div>
-                <span className="text-sm font-semibold" style={{ color: '#8B6914' }}>
+                <span className="text-sm font-semibold" style={{ color: 'var(--color-gold-dim)' }}>
                   AI Health Diagnosis
                 </span>
               </div>
@@ -617,7 +617,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                           className="w-8 h-8 rounded-lg flex items-center justify-center"
                           style={{ background: 'rgba(184,134,11,0.10)' }}
                         >
-                          <Sparkles className="w-4 h-4" style={{ color: '#B8860B' }} />
+                          <Sparkles className="w-4 h-4" style={{ color: 'var(--color-gold-dim)' }} />
                         </div>
                         <span
                           className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
@@ -637,7 +637,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                           {item.priority}
                         </span>
                       </div>
-                      <span className="text-lg font-bold tabular-nums" style={{ color: '#D4AF37' }}>
+                      <span className="text-lg font-bold tabular-nums" style={{ color: 'var(--color-gold)' }}>
                         #{idx + 1}
                       </span>
                     </div>
@@ -649,7 +649,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                     </p>
                     <div
                       className="text-[11px] font-medium px-2.5 py-1.5 rounded-lg"
-                      style={{ background: 'rgba(212,175,55,0.08)', color: '#8B6914' }}
+                      style={{ background: 'rgba(212,175,55,0.08)', color: 'var(--color-gold-dim)' }}
                     >
                       Estimated impact: {item.estimatedImpact}
                     </div>
@@ -669,7 +669,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0"
-                style={{ background: 'rgba(184,134,11,0.12)', color: '#B8860B', border: '1px solid rgba(184,134,11,0.25)' }}
+                style={{ background: 'rgba(184,134,11,0.12)', color: 'var(--color-gold-dim)', border: '1px solid rgba(184,134,11,0.25)' }}
               >
                 <Sparkles className="w-3 h-3" />
                 AI Plan Ready
@@ -725,7 +725,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                     {data.aiEnrichmentPlan && (
                       <span
                         className="w-2 h-2 rounded-full shrink-0"
-                        style={{ background: '#D4AF37', boxShadow: '0 0 6px rgba(212,175,55,0.5)' }}
+                        style={{ background: 'var(--color-gold)', boxShadow: '0 0 6px rgba(212,175,55,0.5)' }}
                       />
                     )}
                     <Button
@@ -828,14 +828,14 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                   className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
                   style={{ background: 'rgba(184,134,11,0.10)' }}
                 >
-                  <TrendingUp className="w-4.5 h-4.5" style={{ color: '#B8860B' }} />
+                  <TrendingUp className="w-4.5 h-4.5" style={{ color: 'var(--color-gold-dim)' }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1.5">
                     <p className="text-sm font-semibold text-foreground">AI Quality Trajectory</p>
                     <span
                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                      style={{ background: 'rgba(184,134,11,0.10)', color: '#B8860B' }}
+                      style={{ background: 'rgba(184,134,11,0.10)', color: 'var(--color-gold-dim)' }}
                     >
                       <Sparkles className="w-2.5 h-2.5" />
                       Prediction

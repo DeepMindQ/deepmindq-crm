@@ -86,7 +86,7 @@ export function AnimatedCard({ children, className = '', delay = 0, hover = true
 /* ═══════════════════════════════════════════════════
    Stat Card - premium gradient border stat display
    ═══════════════════════════════════════════════════ */
-export function StatCard({ label, value, icon: Icon, color = '#D4AF37', trend, delay = 0 }: {
+export function StatCard({ label, value, icon: Icon, color = 'var(--color-gold)', trend, delay = 0 }: {
   label: string; value: number | string; icon?: React.ComponentType<{ className?: string }>;
   color?: string; trend?: { value: string; up: boolean }; delay?: number;
 }) {
@@ -205,7 +205,7 @@ export function SectionHeader({ title, subtitle, className = '' }: {
 /* ═══════════════════════════════════════════════════
    Animated Progress Bar - with glow effect
    ═══════════════════════════════════════════════════ */
-export function AnimatedBar({ value, max, color = '#D4AF37', className = '', delay = 0 }: {
+export function AnimatedBar({ value, max, color = 'var(--color-gold)', className = '', delay = 0 }: {
   value: number; max: number; color?: string; className?: string; delay?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -239,7 +239,7 @@ export function StatValue({ value, className = '' }: { value: string | number; c
 /* ═══════════════════════════════════════════════════
    Pulse Dot - for alerts/notifications
    ═══════════════════════════════════════════════════ */
-export function PulseDot({ color = '#D4AF37' }: { color?: string }) {
+export function PulseDot({ color = 'var(--color-gold)' }: { color?: string }) {
   return (
     <span className="relative flex h-2.5 w-2.5">
       <span

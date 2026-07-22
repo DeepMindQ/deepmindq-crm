@@ -857,7 +857,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                       label="File"
                       value={analysis.fileName}
                       icon={FileSpreadsheet}
-                      color="#D4AF37"
+                      color="var(--color-gold)"
                     />
                   </StaggerItem>
                   <StaggerItem>
@@ -865,7 +865,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                       label="Total Rows"
                       value={analysis.totalRows.toLocaleString()}
                       icon={Database}
-                      color="#D4AF37"
+                      color="var(--color-gold)"
                     />
                   </StaggerItem>
                   <StaggerItem>
@@ -873,7 +873,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                       label="Columns Found"
                       value={analysis.headers.length}
                       icon={BarChart3}
-                      color="#D4AF37"
+                      color="var(--color-gold)"
                     />
                   </StaggerItem>
                   <StaggerItem>
@@ -1098,14 +1098,14 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Progress</span>
-                    <span className="font-bold tabular-nums" style={{ color: '#D4AF37' }}>
+                    <span className="font-bold tabular-nums" style={{ color: 'var(--color-gold)' }}>
                       {progress?.percentComplete || 0}%
                     </span>
                   </div>
                   <AnimatedBar
                     value={progress?.processedRows || 0}
                     max={progress?.totalRows || 1}
-                    color="#D4AF37"
+                    color="var(--color-gold)"
                   />
                 </div>
 
@@ -1154,7 +1154,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                     </StaggerItem>
                     <StaggerItem>
                       <div className="text-center p-3 rounded-lg bg-[#D4AF37]/5 border border-[#D4AF37]/10">
-                        <p className="text-2xl font-bold tabular-nums" style={{ color: '#D4AF37' }}>
+                        <p className="text-2xl font-bold tabular-nums" style={{ color: 'var(--color-gold)' }}>
                           {progress.dataQualityScore != null ? Math.round(progress.dataQualityScore) : '—'}
                         </p>
                         <p className="text-[10px] font-medium uppercase tracking-wider mt-1" style={{ color: 'rgba(212,175,55,0.7)' }}>
@@ -1619,7 +1619,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
                   </StaggerItem>
                   <StaggerItem>
                     <div className="p-4 rounded-xl border" style={{ background: 'rgba(212,175,55,0.05)', borderColor: 'rgba(212,175,55,0.1)' }}>
-                      <p className="text-3xl font-bold tabular-nums" style={{ color: '#D4AF37' }}>
+                      <p className="text-3xl font-bold tabular-nums" style={{ color: 'var(--color-gold)' }}>
                         {commitResult.batchId.slice(0, 8)}
                       </p>
                       <p className="text-xs font-medium mt-1" style={{ color: 'rgba(212,175,55,0.7)' }}>Batch ID</p>

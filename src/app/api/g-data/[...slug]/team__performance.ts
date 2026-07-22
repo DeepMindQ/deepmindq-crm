@@ -12,7 +12,7 @@ const STATUS_COLORS: Record<string, string> = {
   cleaned: '#8b5cf6',
   drafted: '#3b82f6',
   queued: '#f59e0b',
-  sent: '#D4AF37',
+  sent: 'var(--color-gold)',
   replied: '#10b981',
   bounced: '#ef4444',
 };

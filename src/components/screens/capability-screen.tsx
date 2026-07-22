@@ -348,7 +348,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
               className="w-11 h-11 rounded-xl flex items-center justify-center shadow-lg"
               style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.3), rgba(212,175,55,0.08))', boxShadow: '0 0 20px rgba(212,175,55,0.15)' }}
             >
-              <Brain className="w-5 h-5" style={{ color: '#D4AF37' }} />
+              <Brain className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -378,7 +378,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
         {/* Stats row */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
-            { icon: Database, label: 'Total Assets', value: items.length, color: '#D4AF37' },
+            { icon: Database, label: 'Total Assets', value: items.length, color: 'var(--color-gold)' },
             { icon: Layers, label: 'Service Lines', value: slCount, color: '#3B82F6' },
             { icon: BookOpen, label: 'Case Studies', value: csCount, color: '#10B981' },
             { icon: Trophy, label: 'Proof Points', value: ppCount, color: '#8B5CF6' },
@@ -474,7 +474,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                         {ragResults.length} results in {ragInsight.resultCategories?.length || 0} categories
                       </span>
                       {ragInsight.avgRelevanceScore > 0 && (
-                        <span className="text-[10px] font-medium" style={{ color: '#D4AF37' }}>
+                        <span className="text-[10px] font-medium" style={{ color: 'var(--color-gold)' }}>
                           Avg score: {ragInsight.avgRelevanceScore}%
                         </span>
                       )}
@@ -633,7 +633,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                   {[
                     { step: 1, icon: Upload, title: 'Contact Imported', desc: 'Name, title, company, industry parsed from CSV/Excel', color: '#3B82F6', detail: 'Lead data flows into the CRM with email verification' },
                     { step: 2, icon: Target, title: 'Query Constructed', desc: 'Industry + role + company size + problems form the search query', color: '#8B5CF6', detail: 'Hybrid mode: keyword matching + TF-IDF semantic similarity' },
-                    { step: 3, icon: Brain, title: 'Knowledge Retrieved', desc: `Top ${items.length > 0 ? Math.min(8, items.length) : 8} relevant assets scored and ranked by relevance`, color: '#D4AF37', detail: 'Service lines, case studies, proof points, objections, CTAs' },
+                    { step: 3, icon: Brain, title: 'Knowledge Retrieved', desc: `Top ${items.length > 0 ? Math.min(8, items.length) : 8} relevant assets scored and ranked by relevance`, color: 'var(--color-gold)', detail: 'Service lines, case studies, proof points, objections, CTAs' },
                     { step: 4, icon: Sparkles, title: 'Email Generated', desc: 'Retrieved knowledge injected into AI prompt with contact context', color: '#10B981', detail: 'Personalized subject, body, and CTA based on matched knowledge' },
                     { step: 5, icon: Mail, title: 'Draft Ready for Review', desc: 'Draft appears in Drafts screen with source snippets and confidence scores', color: '#F59E0B', detail: 'You can edit, approve, or regenerate before sending' },
                   ].map((item, idx) => (
@@ -1193,7 +1193,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
           label="Total Capabilities"
           value={items.length}
           icon={Database}
-          color="#D4AF37"
+          color="var(--color-gold)"
           delay={0}
         />
         <StatCard
@@ -1848,7 +1848,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                   className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center transition-transform duration-300 group-hover/drop:scale-110"
                   style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.03))' }}
                 >
-                  <Upload className="w-6 h-6" style={{ color: '#D4AF37' }} />
+                  <Upload className="w-6 h-6" style={{ color: 'var(--color-gold)' }} />
                 </div>
                 <p className="text-sm font-medium text-foreground">Drag and drop or click to upload</p>
                 <p className="text-xs text-muted-foreground mt-1.5">.txt, .md, .pdf, .docx — multiple files supported</p>

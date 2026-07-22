@@ -95,15 +95,15 @@ const TIMELINE_ICONS: Record<string, React.ReactNode> = {
   email_opened: <MailOpen size={14} className="text-emerald-600" />,
   email_replied: <MessageSquare size={14} className="text-purple-600" />,
   email_bounced: <RotateCcw size={14} className="text-red-600" />,
-  note_added: <FileText size={14} style={{ color: '#D4AF37' }} />,
-  enrichment: <Sparkles size={14} style={{ color: '#D4AF37' }} />,
+  note_added: <FileText size={14} style={{ color: 'var(--color-gold)' }} />,
+  enrichment: <Sparkles size={14} style={{ color: 'var(--color-gold)' }} />,
   status_change: <Activity size={14} className="text-amber-600" />,
   signal: <Bell size={14} className="text-orange-600" />,
   contact_added: <UserCircle size={14} className="text-cyan-600" />,
-  research_saved: <BookOpen size={14} style={{ color: '#D4AF37' }} />,
+  research_saved: <BookOpen size={14} style={{ color: 'var(--color-gold)' }} />,
 };
 
-const GOLD = '#D4AF37';
+const GOLD = 'var(--color-gold)';
 
 /* ═══════════════════════════════════════════════════
    Score Bar Component
@@ -767,7 +767,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
 
                   {/* Scores */}
                   <div className="space-y-3 pt-3 border-t border-gray-200">
-                    <ScoreBar label="Intelligence Score" value={company?.intelligenceScore || 0} color="#D4AF37" />
+                    <ScoreBar label="Intelligence Score" value={company?.intelligenceScore || 0} color="var(--color-gold)" />
                     <ScoreBar label="Engagement Score" value={company?.engagementScore || 0} color="#3b82f6" />
                   </div>
 
@@ -1394,7 +1394,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                   <div className="lg:col-span-2">
                     <AnimatedCard delay={0.5}>
                       <div className="p-5 space-y-3">
-                        <h4 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2" style={{ color: '#D4AF37' }}>
+                        <h4 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--color-gold)' }}>
                           <Globe size={14} /> Research Sources ({briefSources.length})
                         </h4>
                         <div className="space-y-2 max-h-48 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>

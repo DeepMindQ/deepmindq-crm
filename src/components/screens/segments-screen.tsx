@@ -147,7 +147,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard label="Total Segments" value={loading ? '-' : segments.length} icon={Layers} color="#D4AF37" delay={0} />
+          <StatCard label="Total Segments" value={loading ? '-' : segments.length} icon={Layers} color="var(--color-gold)" delay={0} />
           <StatCard label="Total Contacts" value={loading ? '-' : segments.reduce((s, seg) => s + seg.contactCount, 0)} icon={Users} color="#10B981" delay={0.08} />
           <StatCard label="Dynamic Lists" value={loading ? '-' : segments.filter(s => !s.isStatic).length} icon={Filter} color="#6366F1" delay={0.16} />
         </div>

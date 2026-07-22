@@ -12,7 +12,7 @@ interface CompanyMindMapProps {
   researchCard: any;
 }
 
-const GOLD = '#D4AF37';
+const GOLD = 'var(--color-gold)';
 const GOLD_DIM = 'rgba(212,175,55,0.25)';
 const GOLD_LINE = 'rgba(212,175,55,0.35)';
 const BG_DARK = '#FAFAFA';

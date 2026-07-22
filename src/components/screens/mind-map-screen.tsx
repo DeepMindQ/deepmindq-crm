@@ -54,7 +54,7 @@ interface MindMapData {
 /* ═══════════════════════════════════════════════════
    Constants
    ═══════════════════════════════════════════════════ */
-const GOLD = '#D4AF37';
+const GOLD = 'var(--color-gold)';
 
 const NODE_STYLES: Record<string, { color: string; glow: string; radius: number; label: string }> = {
   company:  { color: '#A855F7', glow: 'rgba(168,85,247,0.3)',  radius: 28, label: 'Company' },

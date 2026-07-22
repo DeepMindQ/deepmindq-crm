@@ -5,7 +5,7 @@ import { Sparkles, ArrowLeft } from 'lucide-react';
 
 const C = {
   bg: '#0A0E1A',
-  gold: '#c9a84c',
+  gold: 'var(--color-gold)',
   goldBorder: 'rgba(201,168,76,0.18)',
   goldDim: 'rgba(201,168,76,0.1)',
   textDim: '#6B7280',

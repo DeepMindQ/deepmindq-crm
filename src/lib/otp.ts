@@ -187,7 +187,7 @@ export async function requestOtp(
   if (config.hasKey) {
     const emailResult = await sendEmail({
       to: normalizedEmail,
-      subject: `DeepMindQ - ${purposeLabel(purpose)} - Your verification code is ready`,
+      subject: `DeepMindQ - ${purposeLabel(purpose)}`,
       html: htmlContent,
       from: process.env.EMAIL_FROM || 'noreply@deepmindq.com',
     });

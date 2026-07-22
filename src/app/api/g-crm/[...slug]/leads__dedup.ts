@@ -24,43 +24,56 @@ function jaccard(a: string, b: string): number {
 /* ── GET: Find Duplicates ── */
 export async function GET() {
   try {
-    const contacts = await db.contact.findMany({
-      include: {
-        company: { select: { id: true, rawName: true, domain: true } },
+    const groups: { contacts: any[]; matchType: string }[] = [];
+
+    // Phase 1: Find exact email duplicates via groupBy (efficient DB-level)
+    const emailGroups = await db.contact.groupBy({
+      by: ['email'],
+      where: {
+        email: { not: '' },
+        status: { not: 'duplicate' },
+      },
+      having: {
+        email: { _count: { gt: 1 } },
       },
     });
 
-    const groups: { contacts: any[]; matchType: string }[] = [];
-    const processed = new Set<string>();
+    for (const group of emailGroups) {
+      const contacts = await db.contact.findMany({
+        where: { email: group.email, status: { not: 'duplicate' } },
+        include: { company: { select: { id: true, rawName: true, domain: true } } },
+      });
+      if (contacts.length > 1) {
+        groups.push({ contacts: contacts as any[], matchType: 'exact' });
+      }
+    }
 
-    for (const contact of contacts as any[]) {
+    // Phase 2: Fuzzy name+company matches (limited scan to avoid O(n²))
+    const recentContacts = await db.contact.findMany({
+      where: { status: { not: 'duplicate' } },
+      include: { company: { select: { id: true, rawName: true, domain: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 500, // Limit scan to recent 500 contacts
+    });
+
+    const processed = new Set<string>();
+    for (const group of groups) {
+      for (const c of group.contacts) processed.add(c.id);
+    }
+
+    for (const contact of recentContacts as any[]) {
       if (processed.has(contact.id)) continue;
 
-      // Skip already-duplicated contacts
-      if (contact.status === 'duplicate') {
-        processed.add(contact.id);
-        continue;
-      }
-
       const duplicates: any[] = [];
-      const email = contact.email?.toLowerCase() || '';
       const name = contact.rawName?.toLowerCase() || '';
       const companyId = contact.companyId;
-      const domain = email.split('@')[1] || '';
+      const domain = contact.email?.split('@')[1]?.toLowerCase() || '';
 
-      for (const other of contacts as any[]) {
+      for (const other of recentContacts as any[]) {
         if (other.id === contact.id || processed.has(other.id)) continue;
-        if (other.status === 'duplicate') continue;
 
-        const otherEmail = other.email?.toLowerCase() || '';
         const otherName = other.rawName?.toLowerCase() || '';
-        const otherDomain = otherEmail.split('@')[1] || '';
-
-        // Exact email match
-        if (email && email === otherEmail) {
-          duplicates.push(other);
-          continue;
-        }
+        const otherDomain = other.email?.split('@')[1]?.toLowerCase() || '';
 
         // Similar name + same company (likely)
         if (companyId === other.companyId && jaccard(name, otherName) >= 0.7) {
@@ -75,20 +88,13 @@ export async function GET() {
       }
 
       if (duplicates.length > 0) {
-        // Determine match type
-        let matchType = 'possible';
-        const hasExact = duplicates.some((d: any) => d.email?.toLowerCase() === email);
-        if (hasExact) matchType = 'exact';
-        else if (duplicates.some((d: any) => d.companyId === companyId)) matchType = 'likely';
-
+        const hasSameCompany = duplicates.some((d: any) => d.companyId === companyId);
         groups.push({
           contacts: [contact, ...duplicates],
-          matchType,
+          matchType: hasSameCompany ? 'likely' : 'possible',
         });
 
-        for (const d of duplicates) {
-          processed.add(d.id);
-        }
+        for (const d of duplicates) processed.add(d.id);
         processed.add(contact.id);
       }
     }
@@ -119,15 +125,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Primary contact not found' }, { status: 404 });
     }
 
+    const secondaries = await db.contact.findMany({
+      where: { id: { in: secondaryIds } },
+      include: { drafts: { select: { id: true } }, replies: { select: { id: true } } },
+    });
+
     let mergedCount = 0;
 
-    for (const secId of secondaryIds) {
-      const secondary = await db.contact.findUnique({
-        where: { id: secId },
-        include: { drafts: true, replies: true },
-      });
-
-      if (!secondary || secondary.status === 'duplicate') continue;
+    for (const secondary of secondaries) {
+      if (secondary.status === 'duplicate') continue;
 
       // Merge data: fill empty fields on primary from secondary
       const updateData: any = {};
@@ -136,7 +142,6 @@ export async function POST(request: Request) {
         const pVal = (primary as any)[field];
         const sVal = (secondary as any)[field];
         if (!pVal && sVal) {
-          // Check field overrides
           const override = fieldOverrides?.[field];
           if (override === 'keep_secondary' || !override) {
             updateData[field] = sVal;
@@ -144,25 +149,27 @@ export async function POST(request: Request) {
         }
       }
 
-      // Move drafts from secondary to primary
-      for (const draft of (secondary.drafts || []) as any[]) {
-        await db.draft.update({
-          where: { id: draft.id },
+      // Batch move drafts from secondary to primary
+      const draftIds = secondary.drafts.map(d => d.id);
+      if (draftIds.length > 0) {
+        await db.draft.updateMany({
+          where: { id: { in: draftIds } },
           data: { contactId: primaryId },
         });
       }
 
-      // Move replies from secondary to primary
-      for (const reply of (secondary.replies || []) as any[]) {
-        await db.reply.update({
-          where: { id: reply.id },
+      // Batch move replies from secondary to primary
+      const replyIds = secondary.replies.map(r => r.id);
+      if (replyIds.length > 0) {
+        await db.reply.updateMany({
+          where: { id: { in: replyIds } },
           data: { contactId: primaryId },
         });
       }
 
       // Mark secondary as duplicate
       await db.contact.update({
-        where: { id: secId },
+        where: { id: secondary.id },
         data: {
           status: 'duplicate',
           suppressionReason: `Merged into ${primaryId}`,

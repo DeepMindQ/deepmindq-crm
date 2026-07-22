@@ -23,7 +23,7 @@ import { useAppStore } from '@/lib/store';
 /* ═══════════════════════════════════════════════════════════════
    Design Tokens
    ═══════════════════════════════════════════════════════════════ */
-const gold = '#D4AF37';
+const gold = 'var(--color-gold)';
 const card = 'rgba(255, 255, 255, 0.85)';
 const border = 'rgba(0, 0, 0, 0.05)';
 const textMuted = '#6B7280';
@@ -136,7 +136,7 @@ function ScoreBar({ score }: { score: number | null }) {
           {isAi && (
             <span
               className="text-[8px] font-bold leading-none px-1 py-px rounded-sm"
-              style={{ color: '#D4AF37', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.25)' }}
+              style={{ color: 'var(--color-gold)', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.25)' }}
             >
               AI
             </span>
@@ -871,7 +871,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
               {/* AI-Ready badge */}
               <span
                 className="absolute top-0 right-8 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full"
-                style={{ background: 'rgba(212,175,55,0.1)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.2)' }}
+                style={{ background: 'rgba(212,175,55,0.1)', color: 'var(--color-gold)', border: '1px solid rgba(212,175,55,0.2)' }}
               >
                 AI-Ready
               </span>
@@ -882,7 +882,7 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
                 className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
                 style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
               >
-                <Brain className="w-7 h-7" style={{ color: '#D4AF37' }} />
+                <Brain className="w-7 h-7" style={{ color: 'var(--color-gold)' }} />
               </motion.div>
 
               <p className="text-sm font-semibold text-foreground">
@@ -898,10 +898,10 @@ export default function CompaniesScreen({ navigateTo }: CompaniesScreenProps) {
               <Button
                 size="sm"
                 className="mt-3 text-xs font-semibold shadow-sm"
-                style={{ background: '#D4AF37', color: '#fff', border: 'none' }}
+                style={{ background: 'var(--color-gold)', color: '#fff', border: 'none' }}
                 onClick={() => navigateTo?.('import')}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#C5A030'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#D4AF37'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-gold)'; }}
               >
                 Import Companies
               </Button>

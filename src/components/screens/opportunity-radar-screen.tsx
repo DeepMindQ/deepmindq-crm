@@ -224,7 +224,7 @@ export default function OpportunityRadarScreen({ navigateTo }: { navigateTo?: (s
         <div>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))' }}>
-              <Radar className="w-5 h-5" style={{ color: '#D4AF37' }} />
+              <Radar className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
             </div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">Opportunity Radar</h1>
           </div>
@@ -307,7 +307,7 @@ export default function OpportunityRadarScreen({ navigateTo }: { navigateTo?: (s
       {/* ── 3. Top Opportunities Grid ── */}
       <div>
         <div className="flex items-center gap-2 mb-4">
-          <Crosshair className="w-4 h-4" style={{ color: '#D4AF37' }} />
+          <Crosshair className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />
           <h2 className="text-sm font-semibold text-foreground">Top Opportunities</h2>
           <Badge variant="outline" className="ml-2 text-[10px]">{filtered.length} shown</Badge>
         </div>
@@ -325,7 +325,7 @@ export default function OpportunityRadarScreen({ navigateTo }: { navigateTo?: (s
                 className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
                 style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
               >
-                <Brain className="w-7 h-7" style={{ color: '#D4AF37' }} />
+                <Brain className="w-7 h-7" style={{ color: 'var(--color-gold)' }} />
               </motion.div>
               <p className="text-sm font-semibold text-foreground">
                 {totalOpps === 0 ? 'Opportunity Radar Active — Awaiting Signals' : 'No opportunities match this filter'}
@@ -348,7 +348,7 @@ export default function OpportunityRadarScreen({ navigateTo }: { navigateTo?: (s
                         transition={{ delay: 0.3 + i * 0.15, duration: 0.4 }}
                         className="flex items-center gap-2 text-xs text-muted-foreground"
                       >
-                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#D4AF37' }} />
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--color-gold)' }} />
                         {text}
                       </motion.p>
                     ))}
@@ -356,9 +356,9 @@ export default function OpportunityRadarScreen({ navigateTo }: { navigateTo?: (s
                   <button
                     onClick={() => navigateTo?.('signal-intelligence')}
                     className="mt-4 px-4 py-2 rounded-lg text-xs font-semibold text-white shadow-sm transition-colors"
-                    style={{ background: '#D4AF37' }}
+                    style={{ background: 'var(--color-gold)' }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#C5A030'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#D4AF37'; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-gold)'; }}
                   >
                     Run Signal Scan
                   </button>
@@ -463,7 +463,7 @@ export default function OpportunityRadarScreen({ navigateTo }: { navigateTo?: (s
                         className="w-full flex items-center justify-between px-5 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-gray-50/50 transition-colors rounded-b-xl"
                       >
                         <div className="flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5" style={{ color: '#D4AF37' }} />
+                          <Sparkles className="w-3.5 h-3.5" style={{ color: 'var(--color-gold)' }} />
                           <span>AI Reasoning</span>
                         </div>
                         {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}

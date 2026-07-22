@@ -763,7 +763,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
 
       {/* Stat Cards */}
       <StaggerGrid className="grid grid-cols-2 lg:grid-cols-5 gap-4" stagger={0.06}>
-        <StaggerItem><StatCard label="Total Leads" value={meta?.totalRecords ?? 0} icon={Database} color="#D4AF37" delay={0} /></StaggerItem>
+        <StaggerItem><StatCard label="Total Leads" value={meta?.totalRecords ?? 0} icon={Database} color="var(--color-gold)" delay={0} /></StaggerItem>
         <StaggerItem><StatCard label="Verified" value={leads.filter(l => l._dbFields?.emailHealth && l._dbFields.emailHealth !== 'unknown').length} icon={MailCheck} color="#10B981" delay={0.06} /></StaggerItem>
         <StaggerItem><StatCard label="Results" value={total} icon={FileEdit} color="#6366F1" delay={0.12} /></StaggerItem>
         <StaggerItem><StatCard label="Filters" value={activeFilterCount} icon={Filter} color="#F59E0B" delay={0.18} /></StaggerItem>

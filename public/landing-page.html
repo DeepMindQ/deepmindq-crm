@@ -9,9 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="preconnect" href="https://unpkg.com" />
-    <link rel="preload" href="https://cdn.tailwindcss.com" as="script" />
     <style>
-        /* CRITICAL: Loader + base styles - MUST render before external scripts */
+        /* CRITICAL: Loader + base styles - renders BEFORE Tailwind CDN downloads */
         *{margin:0;padding:0;box-sizing:border-box}
         body{background:#000;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;cursor:none}
         @media(pointer:coarse){body{cursor:auto}}
@@ -21,11 +20,9 @@
         .lt{font-size:11px;color:rgba(255,255,255,.3);letter-spacing:.15em;text-transform:uppercase}
         @keyframes spin{to{transform:rotate(360deg)}}
     </style>
-    <script async src="https://cdn.tailwindcss.com"></script>
-    <script async src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script>
-        // Guard: ensure tailwind object exists before setting config
-        window.tailwind = window.tailwind || {};
         tailwind.config = {
             theme: {
                 extend: {
@@ -699,46 +696,19 @@
         <div class="lr"></div>
         <div class="lt">Loading DeepMindQ</div>
     </div>
-    <!-- Self-dismiss: runs immediately after loader is in DOM -->
+    <!-- Loader dismiss: Tailwind is sync, so it's loaded by now. Dismiss on load. -->
     <script>
-        (function(){
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                var ld = document.getElementById('ld');
+                if (ld) ld.classList.add('go');
+            }, 300);
+        });
+        // Fallback: force dismiss after 6s
+        setTimeout(function() {
             var ld = document.getElementById('ld');
-            if(!ld) return;
-            // Wait for Tailwind CDN to process, then dismiss
-            function check(){
-                if(typeof tailwind !== 'undefined' && tailwind.css){
-                    ld.classList.add('go');
-                } else {
-                    setTimeout(check, 100);
-                }
-            }
-            // Try to dismiss after DOMContentLoaded
-            if(document.readyState==='loading'){
-                document.addEventListener('DOMContentLoaded', function(){
-                    // Give Tailwind up to 2s to process
-                    var waited = 0;
-                    var timer = setInterval(function(){
-                        waited += 200;
-                        if(typeof tailwind !== 'undefined' || waited >= 2000){
-                            clearInterval(timer);
-                            ld.classList.add('go');
-                        }
-                    }, 200);
-                });
-            } else {
-                // DOM already loaded, start checking
-                var waited = 0;
-                var timer = setInterval(function(){
-                    waited += 200;
-                    if(typeof tailwind !== 'undefined' || waited >= 2000){
-                        clearInterval(timer);
-                        ld.classList.add('go');
-                    }
-                }, 200);
-            }
-            // Absolute fallback - force dismiss after 4s
-            setTimeout(function(){ ld.classList.add('go'); }, 4000);
-        })();
+            if (ld) ld.classList.add('go');
+        }, 6000);
     </script>
 
     <div class="noise"></div>

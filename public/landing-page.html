@@ -8,20 +8,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="preconnect" href="https://unpkg.com" />
-    <style>
-        /* CRITICAL: Loader + base styles - renders BEFORE Tailwind CDN downloads */
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{background:#000;color:#e0e0e0;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;cursor:none}
-        @media(pointer:coarse){body{cursor:auto}}
-        #ld{position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .8s,visibility .8s}
-        #ld.go{opacity:0;visibility:hidden}
-        .lr{width:44px;height:44px;border:2px solid rgba(99,102,241,.1);border-top-color:#6366f1;border-radius:50%;animation:spin .7s linear infinite}
-        .lt{font-size:11px;color:rgba(255,255,255,.3);letter-spacing:.15em;text-transform:uppercase}
-        @keyframes spin{to{transform:rotate(360deg)}}
-    </style>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+    <script src="https://unpkg.com/lucide@latest">
+    </script>
     <script>
         tailwind.config = {
             theme: {
@@ -696,23 +686,8 @@
         <div class="lr"></div>
         <div class="lt">Loading DeepMindQ</div>
     </div>
-    <!-- Loader dismiss: Tailwind is sync, so it's loaded by now. Dismiss on load. -->
-    <script>
-        window.addEventListener('load', function() {
-            setTimeout(function() {
-                var ld = document.getElementById('ld');
-                if (ld) ld.classList.add('go');
-            }, 300);
-        });
-        // Fallback: force dismiss after 6s
-        setTimeout(function() {
-            var ld = document.getElementById('ld');
-            if (ld) ld.classList.add('go');
-        }, 6000);
-    </script>
 
     <div class="noise"></div>
-    <style>@media(pointer:coarse){.noise{display:none!important}}</style>
     <canvas id="pt"></canvas>
     <div id="sp"></div>
     <div id="cd"></div>
@@ -776,14 +751,6 @@
                             <div class="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center"><i data-lucide="file-text" class="w-4 h-4 text-amber-400"></i></div>
                             <div><div class="text-sm text-white font-medium">Executive Briefings</div><div class="text-xs text-dm-muted mt-0.5">AI-crafted narratives</div></div>
                         </a>
-                        <a href="#cap" class="it flex items-center gap-3.5 p-3.5 rounded-xl hover:bg-white/5">
-                            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center"><i data-lucide="brain" class="w-4 h-4 text-indigo-400"></i></div>
-                            <div><div class="text-sm text-white font-medium">AI Revenue Copilot</div><div class="text-xs text-dm-muted mt-0.5">Reasoning-powered strategies</div></div>
-                        </a>
-                        <a href="#cap" class="it flex items-center gap-3.5 p-3.5 rounded-xl hover:bg-white/5">
-                            <div class="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center"><i data-lucide="target" class="w-4 h-4 text-cyan-400"></i></div>
-                            <div><div class="text-sm text-white font-medium">Account Scoring</div><div class="text-xs text-dm-muted mt-0.5">ICP fit & prioritization</div></div>
-                        </a>
                     </div>
                 </div>
                 <a href="#cap" class="it px-3.5 py-2 text-sm text-dm-muted hover:text-white transition-colors rounded-lg hover:bg-white/5">Capabilities</a>
@@ -791,7 +758,7 @@
                 <a href="#faq" class="it px-3.5 py-2 text-sm text-dm-muted hover:text-white transition-colors rounded-lg hover:bg-white/5">FAQ</a>
             </div>
             <div class="hidden md:flex items-center gap-3">
-                <button href="/login.html" class="it px-4 py-2 text-sm text-dm-muted hover:text-white transition-colors rounded-lg hover:bg-white/5" aria-label="Sign in">Sign In</button>
+                <button onclick="showT('Opening sign in...')" class="it px-4 py-2 text-sm text-dm-muted hover:text-white transition-colors rounded-lg hover:bg-white/5" aria-label="Sign in">Sign In</button>
                 <button onclick="document.getElementById('req').scrollIntoView({behavior:'smooth'})" class="it bp px-5 py-2.5 text-sm font-medium text-white rounded-xl mg" aria-label="Request access">Request Access</button>
             </div>
             <button class="md:hidden p-2 text-dm-muted hover:text-white" onclick="togM()" aria-label="Menu"><i data-lucide="menu" class="w-5 h-5"></i></button>
@@ -814,7 +781,7 @@
             <a href="#faq" onclick="togM()" class="py-4 text-2xl font-semibold text-dm-muted hover:text-white border-b border-white/5">FAQ</a>
         </div>
         <div class="mt-auto px-6 pb-8 flex flex-col gap-3">
-            <button href="/login.html" class="w-full py-3.5 text-sm text-dm-muted border border-dm-border rounded-xl hover:bg-white/5">Sign In</button>
+            <button onclick="showT('Opening sign in...');togM()" class="w-full py-3.5 text-sm text-dm-muted border border-dm-border rounded-xl hover:bg-white/5">Sign In</button>
             <button onclick="document.getElementById('req').scrollIntoView({behavior:'smooth'});togM()" class="w-full py-3.5 text-sm font-medium text-white bp rounded-xl">Request Access</button>
         </div>
     </div>
@@ -1097,81 +1064,117 @@
         </div>
     </section>
 
-
-    <!-- ===== AI REVENUE COPILOT ===== -->
-    <section id="cap" class="relative py-28 md:py-36 border-t border-white/[.04]">
-        <div class="hg bg-purple-600 w-[700px] h-[700px] top-[20%] right-[10%] opacity-[.05] animate-glow-p" style="animation-delay:1s"></div>
+    <!-- ===== SCORING ENGINE ===== -->
+    <section class="relative py-28 md:py-36 border-t border-white/[.04]">
+        <div class="hg bg-emerald-500 w-[600px] h-[600px] top-[20%] right-[-10%] opacity-[.04] animate-glow-p" style="animation-delay:1s"></div>
         <div class="relative z-10 max-w-7xl mx-auto px-6">
             <div class="text-center mb-16">
-                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/[.08] border border-purple-500/15 mb-6 sr2"><i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-400"></i><span class="text-xs font-medium text-purple-300">AI Revenue Copilot</span></div>
-                <h2 class="text-3xl md:text-5xl font-bold text-white tracking-tight sr2 sd1">AI that <span class="gradient-text">reasons</span> about your accounts.</h2>
-                <p class="mt-5 text-dm-muted text-lg max-w-2xl mx-auto sr2 sd2">Not generic AI suggestions. Structured reasoning that synthesizes 200+ intelligence points into evidence-grounded strategies — with confidence scores you can audit.</p>
+                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/[.08] border border-emerald-500/15 mb-6 sr2"><i data-lucide="target" class="w-3.5 h-3.5 text-emerald-400"></i><span class="text-xs font-medium text-emerald-300">Phase 3 — Scoring Engine</span></div>
+                <h2 class="text-3xl md:text-5xl font-bold text-white tracking-tight sr2 sd1">AI-Powered Account <span class="gradient-text-green">Scoring.</span></h2>
+                <p class="mt-5 text-dm-muted text-lg max-w-2xl mx-auto sr2 sd2">Stop guessing which accounts to prioritize. Our multi-signal scoring engine ranks every account with surgical precision using 12+ intelligence signals.</p>
             </div>
-            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="gb p-7 sr2">
-                    <div class="w-11 h-11 rounded-2xl bg-indigo-500/[.12] border border-indigo-500/20 flex items-center justify-center mb-5"><i data-lucide="brain" class="w-5 h-5 text-indigo-400"></i></div>
-                    <h3 class="text-base font-semibold text-white mb-2">Strategic Insights</h3>
-                    <p class="text-sm text-dm-muted leading-relaxed">AI identifies strategic shifts, emerging opportunities, and hidden risks — every insight backed by specific evidence with traceable sources.</p>
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="gb p-8 sr2">
+                    <div class="w-11 h-11 rounded-2xl bg-emerald-500/[.12] border border-emerald-500/20 flex items-center justify-center mb-5"><i data-lucide="bar-chart-3" class="w-5 h-5 text-emerald-400"></i></div>
+                    <h3 class="text-lg font-semibold text-white mb-2.5">Multi-Signal Scoring</h3>
+                    <p class="text-sm text-dm-muted leading-relaxed">Combines intent data, firmographics, technographic signals, engagement patterns, and financial health into a single prioritization score.</p>
                 </div>
-                <div class="gb p-7 sr2 sd1">
-                    <div class="w-11 h-11 rounded-2xl bg-cyan-500/[.12] border border-cyan-500/20 flex items-center justify-center mb-5"><i data-lucide="crosshair" class="w-5 h-5 text-cyan-400"></i></div>
-                    <h3 class="text-base font-semibold text-white mb-2">Engagement Strategy</h3>
-                    <p class="text-sm text-dm-muted leading-relaxed">Who to approach, which department, what to discuss first. AI generates conversation angles with tailored talking points for every meeting.</p>
+                <div class="gb p-8 sr2 sd1">
+                    <div class="w-11 h-11 rounded-2xl bg-emerald-500/[.12] border border-emerald-500/20 flex items-center justify-center mb-5"><i data-lucide="sliders-horizontal" class="w-5 h-5 text-emerald-400"></i></div>
+                    <h3 class="text-lg font-semibold text-white mb-2.5">Custom Scoring Models</h3>
+                    <p class="text-sm text-dm-muted leading-relaxed">Define your own ICP scoring criteria. Weight signals by what matters most to your business — technology stack, revenue, headcount growth, or buying stage.</p>
                 </div>
-                <div class="gb p-7 sr2 sd2">
-                    <div class="w-11 h-11 rounded-2xl bg-purple-500/[.12] border border-purple-500/20 flex items-center justify-center mb-5"><i data-lucide="shield-check" class="w-5 h-5 text-purple-400"></i></div>
-                    <h3 class="text-base font-semibold text-white mb-2">Hallucination Guard</h3>
-                    <p class="text-sm text-dm-muted leading-relaxed">Every AI output is validated against real intelligence data. Confidence calibration ensures you never act on low-confidence insights.</p>
-                </div>
-                <div class="gb p-7 sr2 sd3">
-                    <div class="w-11 h-11 rounded-2xl bg-amber-500/[.12] border border-amber-500/20 flex items-center justify-center mb-5"><i data-lucide="activity" class="w-5 h-5 text-amber-400"></i></div>
-                    <h3 class="text-base font-semibold text-white mb-2">Usage Tracking</h3>
-                    <p class="text-sm text-dm-muted leading-relaxed">Every LLM call is tracked — tokens, cost per account, per feature. Full visibility into AI spend at 10,000+ company scale.</p>
-                </div>
-            </div>
-
-            <!-- AI Confidence Visual -->
-            <div class="mt-12 max-w-3xl mx-auto sr2 sd4">
-                <div class="bg-dm-surface border border-white/[.04] rounded-2xl p-6 md:p-8">
-                    <div class="flex items-center gap-2 mb-6"><i data-lucide="brain" class="w-4 h-4 text-purple-400"></i><span class="text-sm font-semibold text-white">AI Reasoning — Salesforce Inc.</span></div>
-                    <div class="space-y-4">
-                        <div class="flex items-center justify-between"><span class="text-xs text-dm-muted">Evidence Coverage</span><span class="text-xs font-bold text-indigo-400">94%</span></div>
-                        <div class="hb"><div class="hf" style="--w:94%; background: linear-gradient(90deg, #6366f1, #818cf8)"></div></div>
-                        <div class="flex items-center justify-between"><span class="text-xs text-dm-muted">Confidence Calibration</span><span class="text-xs font-bold text-emerald-400">91%</span></div>
-                        <div class="hb"><div class="hf" style="--w:91%; background: linear-gradient(90deg, #34d399, #06b6d4)"></div></div>
-                        <div class="flex items-center justify-between"><span class="text-xs text-dm-muted">Strategy Quality</span><span class="text-xs font-bold text-purple-400">89%</span></div>
-                        <div class="hb"><div class="hf" style="--w:89%; background: linear-gradient(90deg, #a78bfa, #818cf8)"></div></div>
-                    </div>
+                <div class="gb p-8 sr2 sd2">
+                    <div class="w-11 h-11 rounded-2xl bg-emerald-500/[.12] border border-emerald-500/20 flex items-center justify-center mb-5"><i data-lucide="trending-up" class="w-5 h-5 text-emerald-400"></i></div>
+                    <h3 class="text-lg font-semibold text-white mb-2.5">Dynamic Re-Ranking</h3>
+                    <p class="text-sm text-dm-muted leading-relaxed">Scores update in real-time as new intelligence flows in. A dormant account suddenly hiring 50 engineers? Watch it jump to the top of your list.</p>
                 </div>
             </div>
         </div>
     </section>
 
-
-    <!-- ===== ACCOUNT SCORING ===== -->
+    <!-- ===== STRATEGY ENGINE ===== -->
     <section class="relative py-28 md:py-36 border-t border-white/[.04]">
-        <div class="hg bg-amber-500 w-[500px] h-[500px] top-[30%] left-[5%] opacity-[.04] animate-glow-p" style="animation-delay:2.5s"></div>
+        <div class="hg bg-violet-500 w-[600px] h-[600px] top-[10%] left-[-5%] opacity-[.05] animate-glow-p"></div>
         <div class="relative z-10 max-w-7xl mx-auto px-6">
             <div class="text-center mb-16">
-                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/[.08] border border-amber-500/15 mb-6 sr2"><i data-lucide="target" class="w-3.5 h-3.5 text-amber-400"></i><span class="text-xs font-medium text-amber-300">Account Intelligence Scoring</span></div>
-                <h2 class="text-3xl md:text-5xl font-bold text-white tracking-tight sr2 sd1">Know <span class="gradient-text-warm">who to prioritize</span> and why.</h2>
-                <p class="mt-5 text-dm-muted text-lg max-w-2xl mx-auto sr2 sd2">Multi-dimensional scoring based on ICP fit, signal strength, engagement readiness, and intelligence depth — so your team focuses on the accounts most likely to convert.</p>
+                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-500/[.08] border border-violet-500/15 mb-6 sr2"><i data-lucide="compass" class="w-3.5 h-3.5 text-violet-400"></i><span class="text-xs font-medium text-violet-300">Phase 4 — Strategy Engine</span></div>
+                <h2 class="text-3xl md:text-5xl font-bold text-white tracking-tight sr2 sd1">AI-Crafted Go-To-Market <span class="gradient-text">Strategy.</span></h2>
+                <p class="mt-5 text-dm-muted text-lg max-w-2xl mx-auto sr2 sd2">Every high-value account gets a personalized engagement strategy generated by AI — not a template, but a tactical battle plan.</p>
             </div>
             <div class="grid md:grid-cols-3 gap-6">
                 <div class="gb p-8 sr2">
-                    <div class="w-11 h-11 rounded-2xl bg-amber-500/[.12] border border-amber-500/20 flex items-center justify-center mb-5"><i data-lucide="sliders-horizontal" class="w-5 h-5 text-amber-400"></i></div>
-                    <h3 class="text-lg font-semibold text-white mb-2.5">ICP Fit Scoring</h3>
-                    <p class="text-sm text-dm-muted leading-relaxed">Configure your Ideal Customer Profile once. Every account is scored against industry, company size, technology stack, growth signals, and buying intent — automatically.</p>
+                    <div class="w-11 h-11 rounded-2xl bg-violet-500/[.12] border border-violet-500/20 flex items-center justify-center mb-5"><i data-lucide="map" class="w-5 h-5 text-violet-400"></i></div>
+                    <h3 class="text-lg font-semibold text-white mb-2.5">Personalized Battle Plans</h3>
+                    <p class="text-sm text-dm-muted leading-relaxed">AI generates account-specific strategies including entry points, champion identification, competitive positioning, and recommended engagement sequences.</p>
+                </div>
+                <div class="gb p-8 sr2 sd1">
+                    <div class="w-11 h-11 rounded-2xl bg-violet-500/[.12] border border-violet-500/20 flex items-center justify-center mb-5"><i data-lucide="users" class="w-5 h-5 text-violet-400"></i></div>
+                    <h3 class="text-lg font-semibold text-white mb-2.5">Buying Committee Mapping</h3>
+                    <p class="text-sm text-dm-muted leading-relaxed">Automatically identifies and maps every decision-maker, influencer, and blocker. Understand who holds power and who needs convincing.</p>
                 </div>
                 <div class="gb p-8 sr2 sd2">
-                    <div class="w-11 h-11 rounded-2xl bg-emerald-500/[.12] border border-emerald-500/20 flex items-center justify-center mb-5"><i data-lucide="trending-up" class="w-5 h-5 text-emerald-400"></i></div>
-                    <h3 class="text-lg font-semibold text-white mb-2.5">Account Prioritization</h3>
-                    <p class="text-sm text-dm-muted leading-relaxed">Dynamic ranking that adjusts as new signals arrive. High-intent accounts surface automatically — your team never misses a window of opportunity.</p>
+                    <div class="w-11 h-11 rounded-2xl bg-violet-500/[.12] border border-violet-500/20 flex items-center justify-center mb-5"><i data-lucide="git-branch" class="w-5 h-5 text-violet-400"></i></div>
+                    <h3 class="text-lg font-semibold text-white mb-2.5">Multi-Thread Campaigns</h3>
+                    <p class="text-sm text-dm-muted leading-relaxed">Orchestrate outreach across multiple stakeholders simultaneously. Coordinate messaging across sales, marketing, and leadership touchpoints.</p>
                 </div>
-                <div class="gb p-8 sr2 sd4">
-                    <div class="w-11 h-11 rounded-2xl bg-indigo-500/[.12] border border-indigo-500/20 flex items-center justify-center mb-5"><i data-lucide="bar-chart-3" class="w-5 h-5 text-indigo-400"></i></div>
-                    <h3 class="text-lg font-semibold text-white mb-2.5">Revenue Intelligence</h3>
-                    <p class="text-sm text-dm-muted leading-relaxed">Opportunity radar detects buying signals across your pipeline. Account briefs compile everything into executive-ready narratives with clear next steps.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== OUTREACH ===== -->
+    <section class="relative py-28 md:py-36 border-t border-white/[.04]">
+        <div class="hg bg-amber-500 w-[500px] h-[500px] bottom-0 right-[10%] opacity-[.04] animate-glow-p" style="animation-delay:3s"></div>
+        <div class="relative z-10 max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/[.08] border border-amber-500/15 mb-6 sr2"><i data-lucide="send" class="w-3.5 h-3.5 text-amber-400"></i><span class="text-xs font-medium text-amber-300">Phase 5 — AI Outreach</span></div>
+                <h2 class="text-3xl md:text-5xl font-bold text-white tracking-tight sr2 sd1">Personalized Outreach <span class="gradient-text-warm">at Scale.</span></h2>
+                <p class="mt-5 text-dm-muted text-lg max-w-2xl mx-auto sr2 sd2">Generate hyper-personalized emails, LinkedIn messages, and talking points for every stakeholder — powered by deep account intelligence.</p>
+            </div>
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="gb p-8 sr2">
+                    <div class="w-11 h-11 rounded-2xl bg-amber-500/[.12] border border-amber-500/20 flex items-center justify-center mb-5"><i data-lucide="mail" class="w-5 h-5 text-amber-400"></i></div>
+                    <h3 class="text-lg font-semibold text-white mb-2.5">AI Email Composer</h3>
+                    <p class="text-sm text-dm-muted leading-relaxed">Generate context-rich emails referencing specific company events, pain points, and priorities. Every message feels handcrafted, not automated.</p>
+                </div>
+                <div class="gb p-8 sr2 sd1">
+                    <div class="w-11 h-11 rounded-2xl bg-amber-500/[.12] border border-amber-500/20 flex items-center justify-center mb-5"><i data-lucide="message-square" class="w-5 h-5 text-amber-400"></i></div>
+                    <h3 class="text-lg font-semibold text-white mb-2.5">LinkedIn & Social Playbooks</h3>
+                    <p class="text-sm text-dm-muted leading-relaxed">Craft connection requests, InMail messages, and social engagement plans tailored to each prospect's role, seniority, and recent activity.</p>
+                </div>
+                <div class="gb p-8 sr2 sd2">
+                    <div class="w-11 h-11 rounded-2xl bg-amber-500/[.12] border border-amber-500/20 flex items-center justify-center mb-5"><i data-lucide="mic" class="w-5 h-5 text-amber-400"></i></div>
+                    <h3 class="text-lg font-semibold text-white mb-2.5">Meeting Prep Decks</h3>
+                    <p class="text-sm text-dm-muted leading-relaxed">Auto-generated executive briefings with key talking points, competitive intelligence, stakeholder profiles, and recommended questions for every meeting.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== AI COPILOT ===== -->
+    <section class="relative py-28 md:py-36 border-t border-white/[.04]">
+        <div class="hg bg-indigo-500 w-[800px] h-[800px] top-[10%] left-[30%] opacity-[.06] animate-glow-p"></div>
+        <div class="relative z-10 max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/[.08] border border-indigo-500/15 mb-6 sr2"><i data-lucide="brain" class="w-3.5 h-3.5 text-indigo-400"></i><span class="text-xs font-medium text-indigo-300">Phase 8 — AI Revenue Copilot</span></div>
+                <h2 class="text-3xl md:text-5xl font-bold text-white tracking-tight sr2 sd1">Your AI Revenue <span class="gradient-text">Copilot.</span></h2>
+                <p class="mt-5 text-dm-muted text-lg max-w-2xl mx-auto sr2 sd2">An intelligent assistant that understands your entire pipeline, answers questions in natural language, and proactively suggests next-best-actions.</p>
+            </div>
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="gb p-8 sr2">
+                    <div class="w-11 h-11 rounded-2xl bg-indigo-500/[.12] border border-indigo-500/20 flex items-center justify-center mb-5"><i data-lucide="message-circle" class="w-5 h-5 text-indigo-400"></i></div>
+                    <h3 class="text-lg font-semibold text-white mb-2.5">Natural Language Q&A</h3>
+                    <p class="text-sm text-dm-muted leading-relaxed">Ask anything in plain English: "Which accounts are at risk?" or "What should I focus on this week?" Get instant, data-backed answers.</p>
+                </div>
+                <div class="gb p-8 sr2 sd1">
+                    <div class="w-11 h-11 rounded-2xl bg-indigo-500/[.12] border border-indigo-500/20 flex items-center justify-center mb-5"><i data-lucide="sparkles" class="w-5 h-5 text-indigo-400"></i></div>
+                    <h3 class="text-lg font-semibold text-white mb-2.5">Proactive Suggestions</h3>
+                    <p class="text-sm text-dm-muted leading-relaxed">AI detects opportunities and risks in real-time. Get alerted when a champion changes roles, a competitor wins a deal, or an account shows buying intent.</p>
+                </div>
+                <div class="gb p-8 sr2 sd2">
+                    <div class="w-11 h-11 rounded-2xl bg-indigo-500/[.12] border border-indigo-500/20 flex items-center justify-center mb-5"><i data-lucide="shield-check" class="w-5 h-5 text-indigo-400"></i></div>
+                    <h3 class="text-lg font-semibold text-white mb-2.5">Enterprise-Grade AI</h3>
+                    <p class="text-sm text-dm-muted leading-relaxed">SOC 2 compliant with full audit trails. AI usage is logged, guardrails are enforced, and every recommendation is traceable to its data source.</p>
                 </div>
             </div>
         </div>
@@ -1195,57 +1198,21 @@
         </div>
     </section>
 
-
     <!-- ===== WORKFLOW ===== -->
     <section id="wf" class="relative py-28 md:py-36 border-t border-white/[.04]">
         <div class="hg bg-cyan-500 w-[500px] h-[500px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[.04] animate-glow-p" style="animation-delay:2s"></div>
         <div class="relative z-10 max-w-7xl mx-auto px-6">
             <div class="text-center mb-16">
-                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/[.08] border border-emerald-500/15 mb-6 sr2"><i data-lucide="zap" class="w-3.5 h-3.5 text-emerald-400"></i><span class="text-xs font-medium text-emerald-300">Full Pipeline</span></div>
-                <h2 class="text-3xl md:text-5xl font-bold text-white tracking-tight sr2 sd1">From raw data to <span class="gradient-text-green">closed deals.</span></h2>
-                <p class="mt-5 text-dm-muted text-lg max-w-2xl mx-auto sr2 sd2">One platform. Six capabilities. Zero context switching.</p>
+                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/[.08] border border-emerald-500/15 mb-6 sr2"><i data-lucide="zap" class="w-3.5 h-3.5 text-emerald-400"></i><span class="text-xs font-medium text-emerald-300">Frictionless Workflow</span></div>
+                <h2 class="text-3xl md:text-5xl font-bold text-white tracking-tight sr2 sd1">Deep Account Intelligence.<br><span class="gradient-text-green">In seconds.</span></h2>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="ab p-8 sr2 tc"><div class="w-11 h-11 rounded-2xl bg-indigo-500/[.12] border border-indigo-500/20 flex items-center justify-center mb-6"><span class="text-sm font-extrabold text-indigo-300">01</span></div><h3 class="text-lg font-semibold text-white mb-2.5">Import & Score</h3><p class="text-sm text-dm-muted leading-relaxed">Drop your CSV or connect your CRM. Accounts are instantly scored by ICP fit, signal strength, and revenue potential.</p></div>
-                <div class="ab p-8 sr2 sd1 tc"><div class="w-11 h-11 rounded-2xl bg-cyan-500/[.12] border border-cyan-500/20 flex items-center justify-center mb-6"><span class="text-sm font-extrabold text-cyan-300">02</span></div><h3 class="text-lg font-semibold text-white mb-2.5">Enrich & Detect</h3><p class="text-sm text-dm-muted leading-relaxed">Intelligence fabric activates. Signals from 10,000+ sources flow in automatically — leadership changes, budgets, expansions.</p></div>
-                <div class="ab p-8 sr2 sd2 tc"><div class="w-11 h-11 rounded-2xl bg-purple-500/[.12] border border-purple-500/20 flex items-center justify-center mb-6"><span class="text-sm font-extrabold text-purple-300">03</span></div><h3 class="text-lg font-semibold text-white mb-2.5">AI Reasoning</h3><p class="text-sm text-dm-muted leading-relaxed">AI synthesizes 200+ signals into strategic insights — every conclusion evidence-grounded, every confidence score auditable.</p></div>
-                <div class="ab p-8 sr2 sd3 tc"><div class="w-11 h-11 rounded-2xl bg-amber-500/[.12] border border-amber-500/20 flex items-center justify-center mb-6"><span class="text-sm font-extrabold text-amber-300">04</span></div><h3 class="text-lg font-semibold text-white mb-2.5">Strategy & Brief</h3><p class="text-sm text-dm-muted leading-relaxed">AI generates engagement strategies with conversation angles, talking points, and executive briefings — ready before the first call.</p></div>
-                <div class="ab p-8 sr2 sd4 tc"><div class="w-11 h-11 rounded-2xl bg-rose-500/[.12] border border-rose-500/20 flex items-center justify-center mb-6"><span class="text-sm font-extrabold text-rose-300">05</span></div><h3 class="text-lg font-semibold text-white mb-2.5">Outreach & Close</h3><p class="text-sm text-dm-muted leading-relaxed">AI-crafted emails, multi-step sequences, engagement tracking. Every touchpoint feeds intelligence back into the loop.</p></div>
-                <div class="ab p-8 sr2 sd4 tc"><div class="w-11 h-11 rounded-2xl bg-emerald-500/[.12] border border-emerald-500/20 flex items-center justify-center mb-6"><i data-lucide="trending-up" class="w-5 h-5 text-emerald-400"></i></div><h3 class="text-lg font-semibold text-white mb-2.5">Win</h3><p class="text-sm text-dm-muted leading-relaxed">Enter every meeting knowing more than anyone in the room. That is the DeepMindQ advantage.</p></div>
+                <div class="ab p-8 sr2 tc"><div class="w-11 h-11 rounded-2xl bg-indigo-500/[.12] border-indigo-500/20 flex items-center justify-center mb-6"><span class="text-sm font-extrabold text-indigo-300">01</span></div><h3 class="text-lg font-semibold text-white mb-2.5">Input your target account</h3><p class="text-sm text-dm-muted leading-relaxed">Enter any company name. The intelligence engine instantly gathers data across thousands of sources.</p></div>
+                <div class="ab p-8 sr2 sd2 tc"><div class="w-11 h-11 rounded-2xl bg-cyan-500/[.12] border-cyan-500/20 flex items-center justify-center mb-6"><span class="text-sm font-extrabold text-cyan-300">02</span></div><h3 class="text-lg font-semibold text-white mb-2.5">Explore deep insights</h3><p class="text-sm text-dm-muted leading-relaxed">Everything surfaces in a tailored workspace automatically.</p></div>
+                <div class="ab p-8 sr2 sd4 tc"><div class="w-11 h-11 rounded-2xl bg-emerald-500/[.12] border-emerald-500/20 flex items-center justify-center mb-6"><span class="text-sm font-extrabold text-emerald-300">03</span></div><h3 class="text-lg font-semibold text-white mb-2.5">Enter with confidence</h3><p class="text-sm text-dm-muted leading-relaxed">Use AI-crafted talking points to lead executive discussions.</p></div>
             </div>
         </div>
     </section>
-
-
-    <!-- ===== OUTREACH ENGINE ===== -->
-    <section class="relative py-28 md:py-36 border-t border-white/[.04]">
-        <div class="hg bg-indigo-500 w-[600px] h-[600px] top-[20%] right-[10%] opacity-[.05] animate-glow-p" style="animation-delay:1.5s"></div>
-        <div class="relative z-10 max-w-7xl mx-auto px-6">
-            <div class="text-center mb-16">
-                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/[.08] border border-indigo-500/15 mb-6 sr2"><i data-lucide="send" class="w-3.5 h-3.5 text-indigo-400"></i><span class="text-xs font-medium text-indigo-300">Outreach Engine</span></div>
-                <h2 class="text-3xl md:text-5xl font-bold text-white tracking-tight sr2 sd1">From intelligence to <span class="gradient-text">action</span> in one click.</h2>
-                <p class="mt-5 text-dm-muted text-lg max-w-2xl mx-auto sr2 sd2">AI-generated email drafts tied to real account intelligence. Multi-step sequences, send queues, open and click tracking — the full execution layer.</p>
-            </div>
-            <div class="grid md:grid-cols-3 gap-6">
-                <div class="ab p-8 sr2">
-                    <div class="w-11 h-11 rounded-2xl bg-indigo-500/[.12] border border-indigo-500/20 flex items-center justify-center mb-6"><i data-lucide="mail" class="w-5 h-5 text-indigo-400"></i></div>
-                    <h3 class="text-lg font-semibold text-white mb-2.5">AI Draft Generation</h3>
-                    <p class="text-sm text-dm-muted leading-relaxed">Emails crafted from account intelligence, not templates. Every reference is grounded in real data — earnings mentions, leadership changes, growth signals.</p>
-                </div>
-                <div class="ab p-8 sr2 sd2">
-                    <div class="w-11 h-11 rounded-2xl bg-cyan-500/[.12] border border-cyan-500/20 flex items-center justify-center mb-6"><i data-lucide="git-branch" class="w-5 h-5 text-cyan-400"></i></div>
-                    <h3 class="text-lg font-semibold text-white mb-2.5">Multi-Step Sequences</h3>
-                    <p class="text-sm text-dm-muted leading-relaxed">Build outreach sequences with conditional steps, signal-driven triggers, and automated follow-ups. Enroll accounts directly from intelligence alerts.</p>
-                </div>
-                <div class="ab p-8 sr2 sd4">
-                    <div class="w-11 h-11 rounded-2xl bg-emerald-500/[.12] border border-emerald-500/20 flex items-center justify-center mb-6"><i data-lucide="eye" class="w-5 h-5 text-emerald-400"></i></div>
-                    <h3 class="text-lg font-semibold text-white mb-2.5">Engagement Tracking</h3>
-                    <p class="text-sm text-dm-muted leading-relaxed">Open rates, click tracking, reply detection, bounce handling. Every interaction feeds back into the intelligence loop.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
 
     <!-- ===== BEFORE / AFTER ===== -->
     <section class="relative py-28 md:py-36 border-t border-white/[.04]">
@@ -1254,39 +1221,35 @@
             <div class="grid md:grid-cols-2 gap-6 cg2">
                 <div class="cc bg-dm-surface border border-white/[.04] rounded-3xl p-8 sr2">
                     <div class="flex items-center gap-3 mb-7"><div class="w-9 h-9 rounded-xl bg-white/[.04] flex items-center justify-center"><i data-lucide="x" class="w-4 h-4 text-dm-muted/50"></i></div><span class="text-sm font-semibold text-dm-muted">Without DeepMindQ</span></div>
-                    <ul class="space-y-4">
+                    <ul class="space-y-5">
                         <li class="flex items-start gap-3.5"><i data-lucide="minus" class="w-4 h-4 text-white/[.08] mt-0.5 flex-shrink-0"></i><span class="text-sm text-dm-muted">Hours of manual research per account</span></li>
-                        <li class="flex items-start gap-3.5"><i data-lucide="minus" class="w-4 h-4 text-white/[.08] mt-0.5 flex-shrink-0"></i><span class="text-sm text-dm-muted">No way to prioritize thousands of accounts</span></li>
+                        <li class="flex items-start gap-3.5"><i data-lucide="minus" class="w-4 h-4 text-white/[.08] mt-0.5 flex-shrink-0"></i><span class="text-sm text-dm-muted">Outdated CRM data and info gaps</span></li>
                         <li class="flex items-start gap-3.5"><i data-lucide="minus" class="w-4 h-4 text-white/[.08] mt-0.5 flex-shrink-0"></i><span class="text-sm text-dm-muted">Generic pitches that miss the mark</span></li>
                         <li class="flex items-start gap-3.5"><i data-lucide="minus" class="w-4 h-4 text-white/[.08] mt-0.5 flex-shrink-0"></i><span class="text-sm text-dm-muted">No visibility into buying committee</span></li>
-                        <li class="flex items-start gap-3.5"><i data-lucide="minus" class="w-4 h-4 text-white/[.08] mt-0.5 flex-shrink-0"></i><span class="text-sm text-dm-muted">No AI reasoning — gut-feel strategies only</span></li>
                         <li class="flex items-start gap-3.5"><i data-lucide="minus" class="w-4 h-4 text-white/[.08] mt-0.5 flex-shrink-0"></i><span class="text-sm text-dm-muted">Sunday night prep sessions</span></li>
                     </ul>
                 </div>
                 <div class="cc bg-dm-card border-indigo-500/15 rounded-3xl p-8 sr2 sd2" style="box-shadow:0 20px 60px -15px rgba(99,102,241,.12)">
-                    <div class="flex items-center gap-3 mb-7"><div class="w-9 h-9 rounded-xl bg-indigo-500/[.12] border border-indigo-500/15 flex items-center justify-center"><i data-lucide="check" class="w-4 h-4 text-indigo-400"></i></div><span class="text-sm font-semibold text-white">With DeepMindQ</span></div>
-                    <ul class="space-y-4">
+                    <div class="flex items-center gap-3 mb-7"><div class="w-9 h-9 rounded-xl bg-indigo-500/[.12] border-indigo-500/15 flex items-center justify-center"><i data-lucide="check" class="w-4 h-4 text-indigo-400"></i></div><span class="text-sm font-semibold text-white">With DeepMindQ</span></div>
+                    <ul class="space-y-5">
                         <li class="flex items-start gap-3.5"><i data-lucide="check" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i><span class="text-sm text-dm-text">Deep intelligence in <span class="text-white font-medium">30 seconds</span></span></li>
-                        <li class="flex items-start gap-3.5"><i data-lucide="check" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i><span class="text-sm text-dm-text">ICP-fit <span class="text-white font-medium">scoring and prioritization</span></span></li>
-                        <li class="flex items-start gap-3.5"><i data-lucide="check" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i><span class="text-sm text-dm-text"><span class="text-white font-medium">AI reasoning</span> with evidence-grounded insights</span></li>
-                        <li class="flex items-start gap-3.5"><i data-lucide="check" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i><span class="text-sm text-dm-text"><span class="text-white font-medium">Engagement strategies</span> with conversation angles</span></li>
+                        <li class="flex items-start gap-3.5"><i data-lucide="check" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i><span class="text-sm text-dm-text"><span class="text-white font-medium">100% coverage</span>, zero info gaps</span></li>
+                        <li class="flex items-start gap-3.5"><i data-lucide="check" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i><span class="text-sm text-dm-text">Complete <span class="text-white font-medium">stakeholder mapping</span> with influence scores</span></li>
                         <li class="flex items-start gap-3.5"><i data-lucide="check" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i><span class="text-sm text-dm-text">Executive briefings <span class="text-white font-medium">auto-generated</span></span></li>
-                        <li class="flex items-start gap-3.5"><i data-lucide="check" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i><span class="text-sm text-dm-text">AI-crafted emails + <span class="text-white font-medium">sequence automation</span></span></li>
                     </ul>
                 </div>
             </div>
         </div>
     </section>
 
-
     <!-- ===== STATS ===== -->
     <section class="relative py-24 border-t border-b border-white/[.04]">
         <div class="max-w-5xl mx-auto px-6">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
                 <div class="sr2"><div class="text-4xl md:text-6xl font-extrabold gradient-text sn ctr" data-to="15" data-s="+">15+</div><p class="text-sm text-dm-muted mt-3">Years Experience</p></div>
-                <div class="sr2 sd1"><div class="text-4xl md:text-6xl font-extrabold gradient-text-green sn ctr" data-to="8" data-s="">8</div><p class="text-sm text-dm-muted mt-3">Product Layers</p></div>
-                <div class="sr2 sd2"><div class="text-4xl md:text-6xl font-extrabold gradient-text sn ctr" data-to="10" data-s="K+">10K+</div><p class="text-sm text-dm-muted mt-3">Intelligence Sources</p></div>
-                <div class="sr2 sd3"><div class="text-4xl md:text-6xl font-extrabold gradient-text-green sn ctr" data-to="30" data-s="s">30s</div><p class="text-sm text-dm-muted mt-3">To Full Intelligence</p></div>
+                <div class="sr2 sd1"><div class="text-4xl md:text-6xl font-extrabold gradient-text-green sn ctr" data-to="6" data-s="">6</div><p class="text-sm text-dm-muted mt-3">Intelligence Layers</p></div>
+                <div class="sr2 sd2"><div class="text-4xl md:text-6xl font-extrabold gradient-text sn ctr" data-to="100" data-s="%">100%</div><p class="text-sm text-dm-muted mt-3">Account Coverage</p></div>
+                <div class="sr2 sd3"><div class="text-4xl md:text-6xl font-extrabold gradient-text-green sn ctr" data-to="0" data-s="">0</div><p class="text-sm text-dm-muted mt-3">Info Gaps</p></div>
             </div>
         </div>
     </section>
@@ -1322,10 +1285,6 @@
                 <div class="fi sr2 sd2"><button class="it w-full flex items-center justify-between p-6 text-left" onclick="togFaq(this)"><span class="text-sm font-semibold text-white pr-4">What is Human Intelligence Capture?</span><i data-lucide="chevron-down" class="w-4 h-4 text-dm-muted fc flex-shrink-0"></i></button><div class="fa px-6 pb-0"><p class="text-sm text-dm-muted leading-relaxed pb-6">Your salespeople know things no algorithm can detect. DeepMindQ captures human intelligence — meeting notes, observations, field intelligence — a competitive moat competitors can't replicate.</p></div></div>
                 <div class="fi sr2 sd3"><button class="it w-full flex items-center justify-between p-6 text-left" onclick="togFaq(this)"><span class="text-sm font-semibold text-white pr-4">How does the private beta work?</span><i data-lucide="chevron-down" class="w-4 h-4 text-dm-muted fc flex-shrink-0"></i></button><div class="fa px-6 pb-0"><p class="text-sm text-dm-muted leading-relaxed pb-6">We're accepting a limited number of enterprise teams. Submit a request with your work email, and our team will review and onboard you manually to maintain infrastructure quality and data depth.</p></div></div>
                 <div class="fi sr2 sd4"><button class="it w-full flex items-center justify-between p-6 text-left" onclick="togFaq(this)"><span class="text-sm font-semibold text-white pr-4">Is my data secure?</span><i data-lucide="chevron-down" class="w-4 h-4 text-dm-muted fc flex-shrink-0"></i></button><div class="fa px-6 pb-0"><p class="text-sm text-dm-muted leading-relaxed pb-6">SOC 2 ready. All data encrypted at rest and in transit. We never share your intelligence data with other clients.</p></div></div>
-
-                <div class="fi sr2 sd4"><button class="it w-full flex items-center justify-between p-6 text-left" onclick="togFaq(this)"><span class="text-sm font-semibold text-white pr-4">How does the AI Reasoning work?</span><i data-lucide="chevron-down" class="w-4 h-4 text-dm-muted fc flex-shrink-0"></i></button><div class="fa px-6 pb-0"><p class="text-sm text-dm-muted leading-relaxed pb-6">DeepMindQ synthesizes 200+ intelligence points per account into structured strategic insights. Every insight includes evidence references, confidence scores, and a reasoning summary — not a black box. A hallucination guard validates all AI output against your real intelligence data.</p></div></div>
-                <div class="fi sr2 sd4"><button class="it w-full flex items-center justify-between p-6 text-left" onclick="togFaq(this)"><span class="text-sm font-semibold text-white pr-4">What is Account Scoring and Prioritization?</span><i data-lucide="chevron-down" class="w-4 h-4 text-dm-muted fc flex-shrink-0"></i></button><div class="fa px-6 pb-0"><p class="text-sm text-dm-muted leading-relaxed pb-6">Configure your Ideal Customer Profile (ICP) once. Every imported account is automatically scored across multiple dimensions — industry fit, company size, signal strength, engagement readiness. Rankings update dynamically as new signals arrive.</p></div></div>
-                <div class="fi sr2 sd4"><button class="it w-full flex items-center justify-between p-6 text-left" onclick="togFaq(this)"><span class="text-sm font-semibold text-white pr-4">Does DeepMindQ handle outreach too?</span><i data-lucide="chevron-down" class="w-4 h-4 text-dm-muted fc flex-shrink-0"></i></button><div class="fa px-6 pb-0"><p class="text-sm text-dm-muted leading-relaxed pb-6">Yes. AI generates email drafts grounded in account intelligence, not generic templates. Multi-step sequences with signal-driven triggers, open/click tracking, reply detection, and bounce handling. Every interaction feeds back into intelligence.</p></div></div>
                 <div class="fi sr2 sd4"><button class="it w-full flex items-center justify-between p-6 text-left" onclick="togFaq(this)"><span class="text-sm font-semibold text-white pr-4">What data sources does DeepMindQ use?</span><i data-lucide="chevron-down" class="w-4 h-4 text-dm-muted fc flex-shrink-0"></i></button><div class="fa px-6 pb-0"><p class="text-sm text-dm-muted leading-relaxed pb-6">Earnings calls, SEC filings, job postings, news, patent databases, social signals, and proprietary datasets for complete account coverage.</p></div></div>
             </div>
         </div>
@@ -1398,32 +1357,18 @@
 
     <script>
         // ============================================================
-        //  Lucide Icons (safe - already loaded async above)
+        //  Lucide Icons
         // ============================================================
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        } else {
-            document.addEventListener('DOMContentLoaded', function() {
-                if (typeof lucide !== 'undefined') lucide.createIcons();
-            });
-        }
+        lucide.createIcons();
 
         // ============================================================
-        //  Loader - dismiss on DOMContentLoaded + fallback timeout
+        //  Loader
         // ============================================================
-        function dismissLoader() {
-            var ld = document.getElementById('ld');
-            if (ld) ld.classList.add('go');
-        }
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(dismissLoader, 200);
-            });
-        } else {
-            setTimeout(dismissLoader, 200);
-        }
-        // Fallback: force dismiss after 5s no matter what
-        setTimeout(dismissLoader, 5000);
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                document.getElementById('ld').classList.add('go');
+            }, 200);
+        });
 
         // ============================================================
         //  Particles Canvas
@@ -1443,7 +1388,7 @@
         window.addEventListener('resize', resizeCanvas);
 
         // Create particles
-        for (var i = 0; i < 40; i++) {
+        for (var i = 0; i < 60; i++) {
             particles.push({
                 x: Math.random() * W,
                 y: Math.random() * H,
@@ -1470,9 +1415,6 @@
             requestAnimationFrame(drawParticles);
         }
         drawParticles();
-    } else {
-        cv.style.display = 'none';
-    }
 
         // ============================================================
         //  Custom Cursor

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign In — DeepMindQ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000;
+            color: #e0e0e0;
+            font-family: 'Inter', system-ui, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .container {
+            max-width: 420px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 40px 24px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 40px;
+        }
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #6366f1, #06b6d4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .logo-text {
+            color: white;
+            font-weight: 700;
+            font-size: 18px;
+            letter-spacing: -0.02em;
+        }
+        h1 {
+            color: white;
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+        .subtitle {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #aaa;
+            margin-bottom: 8px;
+        }
+        input {
+            width: 100%;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 14px;
+            color: white;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input:focus {
+            border-color: rgba(99,102,241,0.5);
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+        }
+        input::placeholder {
+            color: rgba(255,255,255,0.2);
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 8px;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px -8px rgba(99,102,241,0.5);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-primary .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error {
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.2);
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: #f87171;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .error.visible { display: block; }
+        .back-link {
+            text-align: center;
+            margin-top: 32px;
+        }
+        .back-link a {
+            color: #888;
+            font-size: 13px;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .back-link a:hover { color: white; }
+        .footer {
+            text-align: center;
+            padding: 24px;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .footer a {
+            color: #666;
+            font-size: 12px;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .footer a:hover { color: #aaa; }
+        .otp-section { display: none; }
+        .otp-section.visible { display: block; }
+        .otp-hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="logo" style="text-decoration:none">
+            <div class="logo-icon"><span style="color:white;font-weight:900;font-size:11px">DMQ</span></div>
+            <span class="logo-text">DeepMindQ</span>
+        </a>
+
+        <h1>Sign in</h1>
+        <p class="subtitle">Enter your credentials to access the platform.</p>
+
+        <div id="error" class="error"></div>
+
+        <!-- Email step -->
+        <form id="emailForm" onsubmit="handleEmailSubmit(event)">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" placeholder="you@company.com" required autocomplete="email" />
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Enter your password" required autocomplete="current-password" />
+            </div>
+            <button type="submit" class="btn-primary" id="submitBtn">Sign In</button>
+        </form>
+
+        <!-- OTP step -->
+        <div id="otpSection" class="otp-section">
+            <div class="form-group">
+                <label for="otp">Verification Code</label>
+                <input type="text" id="otp" placeholder="Enter 6-digit code" maxlength="6" autocomplete="one-time-code" />
+                <p class="otp-hint">Check your email for the verification code.</p>
+            </div>
+            <button type="button" class="btn-primary" id="verifyBtn" onclick="handleOtpVerify()">Verify & Sign In</button>
+        </div>
+
+        <div class="back-link">
+            <a href="/">&larr; Back to DeepMindQ</a>
+        </div>
+    </div>
+
+    <div class="footer">
+        <a href="/">Privacy Policy</a> &middot; <a href="/">Terms of Service</a>
+    </div>
+
+    <script>
+        var userEmail = '';
+
+        function showError(msg) {
+            var el = document.getElementById('error');
+            el.textContent = msg;
+            el.classList.add('visible');
+        }
+
+        function hideError() {
+            document.getElementById('error').classList.remove('visible');
+        }
+
+        async function handleEmailSubmit(e) {
+            e.preventDefault();
+            hideError();
+
+            var email = document.getElementById('email').value.trim();
+            var password = document.getElementById('password').value;
+            var btn = document.getElementById('submitBtn');
+
+            if (!email || !password) {
+                showError('Please enter both email and password.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Signing in...';
+
+            try {
+                var res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, password: password })
+                });
+
+                var data = await res.json();
+
+                if (res.ok) {
+                    // Login successful — check if OTP is needed
+                    if (data.requiresOtp || data.requiresVerification) {
+                        userEmail = email;
+                        document.getElementById('emailForm').style.display = 'none';
+                        document.getElementById('otpSection').classList.add('visible');
+                        btn.disabled = false;
+                        btn.innerHTML = 'Sign In';
+                    } else {
+                        // Direct login — redirect to dashboard
+                        window.location.replace('/');
+                    }
+                } else {
+                    showError(data.error || 'Invalid credentials. Please try again.');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Sign In';
+                }
+            } catch (err) {
+                showError('Network error. Please check your connection and try again.');
+                btn.disabled = false;
+                btn.innerHTML = 'Sign In';
+            }
+        }
+
+        async function handleOtpVerify() {
+            hideError();
+            var otp = document.getElementById('otp').value.trim();
+            var btn = document.getElementById('verifyBtn');
+
+            if (!otp || otp.length < 4) {
+                showError('Please enter the verification code.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Verifying...';
+
+            try {
+                var res = await fetch('/api/auth/verify-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: userEmail, otp: otp })
+                });
+
+                if (res.ok) {
+                    window.location.replace('/');
+                } else {
+                    var data = await res.json().catch(function() { return {}; });
+                    showError(data.error || 'Invalid code. Please try again.');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Verify & Sign In';
+                }
+            } catch (err) {
+                showError('Network error. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = 'Verify & Sign In';
+            }
+        }
+    </script>
+</body>
+</html>

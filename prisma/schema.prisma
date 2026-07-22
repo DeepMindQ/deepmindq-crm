@@ -1684,17 +1684,21 @@ model IntelligenceAlert {
 // ═══════════════════════════════════════════════════════════════
 
 model AccountBrief {
-  id                String   @id @default(cuid())
-  companyId         String   @unique
-  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  summary           String                        // LLM-generated executive summary
-  keySignals        String   @default("[]")        // JSON: string[]
-  themes            String   @default("[]")        // JSON: StrategicTheme[]
-  risks             String   @default("[]")        // JSON: string[]
-  recommendations   String   @default("[]")        // JSON: string[]
-  confidence        Float    @default(0)            // 0-1
-  generatedAt       DateTime @default(now())
-  generatedBy       String   @default("system")
+  id                      String   @id @default(cuid())
+  companyId               String   @unique
+  company                 Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  summary                 String                        // LLM-generated executive summary
+  accountHealth           String   @default("unknown")   // high, medium, low, unknown
+  keySignals              String   @default("[]")        // JSON: { signal, type, confidence }[]
+  themes                  String   @default("[]")        // JSON: { name, description, evidenceIds[] }[]
+  recentChanges           String   @default("[]")        // JSON: { change, date, source }[]
+  opportunityAreas        String   @default("[]")        // JSON: string[]
+  risks                   String   @default("[]")        // JSON: string[]
+  recommendedEngagement   String                        // LLM-generated engagement approach
+  evidenceReferences      String   @default("[]")        // JSON: { evidenceId, snippet }[]
+  confidence              Float    @default(0)            // 0-1
+  generatedAt             DateTime @default(now())
+  generatedBy             String   @default("system")
 
   @@index([companyId])
   @@index([confidence])
@@ -1702,18 +1706,19 @@ model AccountBrief {
 }
 
 model OpportunitySignal {
-  id                          String   @id @default(cuid())
-  companyId                   String
-  company                     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  signalType                  String                        // growth, technology, leadership, partnership, pain
-  title                       String
-  description                 String
-  supportingIntelligenceIds  String   @default("[]")        // JSON: string[]
-  score                       Float    @default(0)            // 0-100
-  confidence                  Float    @default(0.5)          // 0-1
-  status                      String   @default("active")    // active, acted_upon, expired, dismissed
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  id                     String   @id @default(cuid())
+  companyId              String
+  company                Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  signalType             String                        // growth, technology, leadership, partnership, pain
+  title                  String
+  description            String
+  matchedPattern         String                        // the keyword/pattern that triggered this signal
+  sourceIntelligenceIds  String   @default("[]")        // JSON: string[] — traceable to IntelligenceObject IDs
+  score                  Float    @default(0)            // 0-100
+  confidence             Float    @default(0.5)          // 0-1
+  status                 String   @default("NEW")        // NEW, REVIEWED, ACTIONED, DISMISSED
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   @@index([companyId])
   @@index([signalType])
@@ -1724,13 +1729,13 @@ model OpportunitySignal {
 }
 
 model AccountScore {
-  id              String   @id @default(cuid())
-  companyId       String   @unique
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  score           Float                         // 0-100
-  scoreBreakdown  String   @default("{}")         // JSON: breakdown object
-  category        String   @default("NURTURE")    // HOT_ACCOUNT, WARM_ACCOUNT, NURTURE, AT_RISK
-  calculatedAt    DateTime @default(now())
+  id             String   @id @default(cuid())
+  companyId      String   @unique
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  score          Float                         // 0-100 overall
+  scoreBreakdown String   @default("{}")         // JSON: { intelligenceCoverage, signalStrength, freshness, strategicFit, overallScore }
+  category       String   @default("NURTURE")    // HOT_ACCOUNT, WARM_ACCOUNT, NURTURE, AT_RISK
+  calculatedAt   DateTime @default(now())
 
   @@index([companyId])
   @@index([category])

@@ -31,3 +31,25 @@ Stage Summary:
 - 42 files have temporary `@ts-nocheck` (all API routes/lib files that reference non-existent Prisma models — tracked for Phase 3 cleanup)
 - Dead code eliminated: ~370 files deleted (legacy routes, g-* directories, dead API routes)
 - Key pattern: Most errors were Prisma schema drift (field renames like name→rawName, jobTitle→title, employeeSize→sizeRange, and model renames like capabilitySnippet→capabilityAsset)
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Phase 2 — Restore middleware.ts with auth enforcement, security headers, rate limiting, CSRF protection
+
+Work Log:
+- Explored full codebase: session.ts, rate-limit.ts, csrf.ts, rbac.ts, api-auth.ts, api-middleware.ts, otp.ts, all auth routes, login page, signup page, next.config.ts
+- Identified: No middleware.ts exists, login page uses mock auth (tries non-existent NextAuth callback then falls back to localStorage), register route returns hardcoded mock user
+- Created src/lib/auth-helpers.ts: Edge-compatible security utilities (session extraction, CSRF validation, rate limiting, security headers, public path matching)
+- Modified src/lib/session.ts: Added validateSessionToken(), destroySessionByToken(), cleanupExpiredSessions() for API-level token validation
+- Created src/middleware.ts: Full Edge middleware with auth enforcement on all /api/* routes, security headers (HSTS, X-Frame-Options), rate limiting (5 OTP/min/IP), CSRF for state-changing requests, public path exclusions (/login, /signup, /api/auth/*)
+- Modified next.config.ts: Extended security headers to all routes (not just API), added HSTS with includeSubDomains
+- Rewrote src/app/login/page.tsx: Replaced mock auth with real OTP-based flow (password login → OTP → verify, OTP-only login option, 6-digit code input with auto-focus)
+- Rewrote src/app/api/auth/register/route.ts: Replaced mock with real user creation (email uniqueness check, PBKDF2 hash, Prisma insert, OTP send)
+- Verified: tsc --noEmit = 0 errors, lint = same 63 pre-existing errors (0 new from Phase 2 files)
+
+Stage Summary:
+- Phase 2 files created: src/middleware.ts, src/lib/auth-helpers.ts
+- Phase 2 files modified: src/lib/session.ts, next.config.ts, src/app/login/page.tsx, src/app/api/auth/register/route.ts
+- Acceptance criteria: 5/9 fully verified, 4/9 require production DB for E2E testing
+- Note: Next.js 16.1.3 shows deprecation warning for middleware → proxy convention

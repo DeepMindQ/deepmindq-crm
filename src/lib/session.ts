@@ -7,6 +7,7 @@
 
 import { db } from './db';
 import { cookies } from 'next/headers';
+import { NextRequest } from 'next/server';
 
 const SESSION_COOKIE_NAME = 'dmq_session';
 const SESSION_EXPIRY_DAYS = 30;
@@ -176,6 +177,74 @@ export async function destroyCurrentSession(): Promise<void> {
   }
 
   cookieStore.delete(SESSION_COOKIE_NAME);
+}
+
+/**
+ * Validate a session token directly (for use in middleware and API routes
+ * that need to validate a token from a NextRequest rather than cookies()).
+ * Does NOT set cookies or extend expiry — only validates.
+ */
+export async function validateSessionToken(token: string): Promise<SessionUser | null> {
+  if (!token || token.length < 16) return null;
+
+  try {
+    const session = await db.session.findUnique({
+      where: { token },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            phone: true,
+            company: true,
+            designation: true,
+            role: true,
+            hasPassword: true,
+            avatarUrl: true,
+            isActive: true,
+          },
+        },
+      },
+    });
+
+    if (!session || session.expiresAt < new Date() || !session.user.isActive) {
+      return null;
+    }
+
+    return {
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+      phone: session.user.phone,
+      company: session.user.company,
+      designation: session.user.designation,
+      role: session.user.role,
+      hasPassword: session.user.hasPassword,
+      avatarUrl: session.user.avatarUrl,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Destroy a specific session token (for logout from API routes).
+ */
+export async function destroySessionByToken(token: string): Promise<void> {
+  if (token) {
+    await db.session.deleteMany({ where: { token } });
+  }
+}
+
+/**
+ * Clean up all expired sessions. Call periodically.
+ */
+export async function cleanupExpiredSessions(): Promise<number> {
+  const result = await db.session.deleteMany({
+    where: { expiresAt: { lt: new Date() } },
+  });
+  return result.count;
 }
 
 /**

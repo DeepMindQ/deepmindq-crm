@@ -1,58 +1,186 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, EyeOff, ArrowRight, Shield, Zap, Target, BarChart3 } from 'lucide-react'
+import { Eye, EyeOff, ArrowRight, ArrowLeft, Shield, Zap, Target, BarChart3, KeyRound, Loader2, CheckCircle2 } from 'lucide-react'
+
+type AuthStep = 'credentials' | 'otp'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('ravi@deepmindq.com')
-  const [password, setPassword] = useState('admin123')
+  const searchParams = useSearchParams()
+  const redirectPath = searchParams.get('redirect') || '/'
+
+  // Credentials state
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+
+  // OTP state
+  const [otpCode, setOtpCode] = useState('')
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', ''])
+  const [needsPassword, setNeedsPassword] = useState(false)
+
+  // UI state
+  const [step, setStep] = useState<AuthStep>('credentials')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [otpEmail, setOtpEmail] = useState('')
+  const [loginMethod, setLoginMethod] = useState<'password' | 'otp'>('password')
+  const [otpSent, setOtpSent] = useState(false)
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
     try {
-      // Try real auth first
-      const res = await fetch('/api/auth/callback/credentials', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ email, password, callbackUrl: '/' }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       })
+      const data = await res.json()
 
-      if (res.ok) {
-        router.push('/')
-        router.refresh()
+      if (!res.ok) {
+        setError(data.error || 'Login failed')
+        setLoading(false)
         return
       }
-    } catch {
-      // DB not available — use mock auth
-    }
 
-    // Mock auth fallback for demo
-    if (email && password) {
-      // Store mock session in localStorage
-      const mockSession = {
-        user: { id: 'demo-1', name: 'Ravi Shanker', email, role: 'admin', image: null },
-        expires: new Date(Date.now() + 86400000).toISOString(),
+      // Password verified — OTP sent (or returned as devCode)
+      setOtpEmail(email)
+      setStep('otp')
+      if (data.devCode) {
+        console.log('[DEV] OTP code:', data.devCode)
       }
-      localStorage.setItem('deepmindq-session', JSON.stringify(mockSession))
-      // Set a cookie so next-auth doesn't redirect
-      document.cookie = 'next-auth.session-token=mock-demo-session; path=/; max-age=86400'
-      document.cookie = 'deepmindq-mock-auth=true; path=/; max-age=86400'
-      router.push('/')
-      router.refresh()
-    } else {
-      setError('Please enter email and password')
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleOtpOnlyLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    try {
+      const res = await fetch('/api/auth/request-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, purpose: 'login' }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Failed to send OTP')
+        setLoading(false)
+        return
+      }
+
+      setOtpEmail(email)
+      setOtpSent(true)
+      setStep('otp')
+      if (data.devCode) {
+        console.log('[DEV] OTP code:', data.devCode)
+      }
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleOtpVerify = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    const code = otpDigits.join('')
+    if (code.length !== 6) {
+      setError('Please enter all 6 digits')
+      setLoading(false)
+      return
     }
 
-    setLoading(false)
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: otpEmail, code, purpose: 'login' }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Verification failed')
+        setLoading(false)
+        return
+      }
+
+      // Session created — redirect
+      if (data.needsPassword) {
+        setNeedsPassword(true)
+      }
+      router.push(redirectPath)
+      router.refresh()
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleOtpDigitChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return // Only digits
+    const newDigits = [...otpDigits]
+    newDigits[index] = value.slice(-1) // Only last character
+    setOtpDigits(newDigits)
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`otp-${index + 1}`)
+      nextInput?.focus()
+    }
+  }
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-${index - 1}`)
+      prevInput?.focus()
+    }
+  }
+
+  const handleBackToCredentials = () => {
+    setStep('credentials')
+    setError('')
+    setOtpDigits(['', '', '', '', '', ''])
+    setOtpSent(false)
+  }
+
+  const handleResendOtp = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      const res = await fetch('/api/auth/request-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: otpEmail, purpose: 'login' }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Failed to resend OTP')
+      } else if (data.devCode) {
+        console.log('[DEV] OTP code:', data.devCode)
+      }
+    } catch {
+      setError('Network error.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const features = [
@@ -92,7 +220,6 @@ export default function LoginPage() {
               left: '-5%',
             }}
           />
-          {/* Grid pattern */}
           <div
             className="absolute inset-0 opacity-[0.03]"
             style={{
@@ -165,7 +292,7 @@ export default function LoginPage() {
         </div>
       </motion.div>
 
-      {/* Right Panel — Login Form */}
+      {/* Right Panel — Auth Form */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -187,101 +314,289 @@ export default function LoginPage() {
             </span>
           </div>
 
-          <div>
-            <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Access Your Workspace</h3>
-            <p className="text-gray-500 text-sm mt-1.5">Enter your credentials to continue</p>
-          </div>
+          {/* ── CREDENTIALS STEP ── */}
+          <AnimatePresence mode="wait">
+            {step === 'credentials' && (
+              <motion.div
+                key="credentials"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Access Your Workspace</h3>
+                  <p className="text-gray-500 text-sm mt-1.5">Enter your credentials to continue</p>
+                </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
-            {/* Email */}
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-gray-700" htmlFor="email">Email</label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-11 px-3.5 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30 focus:border-[#d4af37] transition-all"
-                placeholder="you@company.com"
-                required
-              />
-            </div>
+                {/* Login method tabs */}
+                <div className="flex mt-6 gap-1 p-1 bg-gray-100 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setLoginMethod('password')}
+                    className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-all ${
+                      loginMethod === 'password'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Password
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLoginMethod('otp')}
+                    className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-all ${
+                      loginMethod === 'otp'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    OTP Only
+                  </button>
+                </div>
 
-            {/* Password */}
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-gray-700" htmlFor="password">Password</label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-11 px-3.5 pr-10 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30 focus:border-[#d4af37] transition-all"
-                  placeholder="Enter your password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
+                {loginMethod === 'password' ? (
+                  <form onSubmit={handlePasswordLogin} className="mt-5 space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-medium text-gray-700" htmlFor="email">Email</label>
+                      <input
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full h-11 px-3.5 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30 focus:border-[#d4af37] transition-all"
+                        placeholder="you@company.com"
+                        required
+                        autoComplete="email"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-medium text-gray-700" htmlFor="password">Password</label>
+                      <div className="relative">
+                        <input
+                          id="password"
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="w-full h-11 px-3.5 pr-10 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30 focus:border-[#d4af37] transition-all"
+                          placeholder="Enter your password"
+                          required
+                          autoComplete="current-password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
 
-            {/* Remember + Forgot */}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" defaultChecked className="w-4 h-4 rounded border-gray-300 accent-[#d4af37]" />
-                <span className="text-sm text-gray-600">Remember me</span>
-              </label>
-            </div>
+                    <AnimatePresence>
+                      {error && (
+                        <motion.p
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2"
+                        >
+                          {error}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
 
-            {/* Error */}
-            <AnimatePresence>
-              {error && (
-                <motion.p
-                  initial={{ opacity: 0, y: -5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2"
-                >
-                  {error}
-                </motion.p>
-              )}
-            </AnimatePresence>
+                    <motion.button
+                      type="submit"
+                      disabled={loading}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full h-11 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-70"
+                      style={{
+                        background: 'linear-gradient(135deg, #d4af37, #c49b2a)',
+                        color: '#0a0a1a',
+                      }}
+                    >
+                      {loading ? (
+                        <div className="w-5 h-5 border-2 border-[#0a0a1a]/20 border-t-[#0a0a1a] rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          SIGN IN
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </motion.button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleOtpOnlyLogin} className="mt-5 space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-medium text-gray-700" htmlFor="otp-email">Email</label>
+                      <input
+                        id="otp-email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full h-11 px-3.5 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30 focus:border-[#d4af37] transition-all"
+                        placeholder="you@company.com"
+                        required
+                        autoComplete="email"
+                      />
+                      <p className="text-xs text-gray-500">We&apos;ll send a 6-digit verification code to your email.</p>
+                    </div>
 
-            {/* Submit */}
-            <motion.button
-              type="submit"
-              disabled={loading}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full h-11 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-70"
-              style={{
-                background: 'linear-gradient(135deg, #d4af37, #c49b2a)',
-                color: '#0a0a1a',
-              }}
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-[#0a0a1a]/20 border-t-[#0a0a1a] rounded-full animate-spin" />
-              ) : (
-                <>
-                  LOGIN
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </motion.button>
-          </form>
+                    <AnimatePresence>
+                      {error && (
+                        <motion.p
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2"
+                        >
+                          {error}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
 
-          {/* Demo credentials hint */}
-          <div className="text-center">
-            <p className="text-xs text-gray-400">
-              Demo: Use any email &amp; password to explore
-            </p>
-          </div>
+                    <motion.button
+                      type="submit"
+                      disabled={loading}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full h-11 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-70"
+                      style={{
+                        background: 'linear-gradient(135deg, #d4af37, #c49b2a)',
+                        color: '#0a0a1a',
+                      }}
+                    >
+                      {loading ? (
+                        <div className="w-5 h-5 border-2 border-[#0a0a1a]/20 border-t-[#0a0a1a] rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          SEND OTP CODE
+                          <KeyRound className="w-4 h-4" />
+                        </>
+                      )}
+                    </motion.button>
+                  </form>
+                )}
+
+                {/* Signup link */}
+                <p className="text-center text-sm text-gray-500 mt-6">
+                  Don&apos;t have an account?{' '}
+                  <a href="/signup" className="font-medium text-amber-600 hover:text-amber-500 transition-colors">
+                    Create one
+                  </a>
+                </p>
+              </motion.div>
+            )}
+
+            {/* ── OTP VERIFICATION STEP ── */}
+            {step === 'otp' && (
+              <motion.div
+                key="otp"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div>
+                  <button
+                    type="button"
+                    onClick={handleBackToCredentials}
+                    className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors mb-4"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Back
+                  </button>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.12)' }}>
+                      <KeyRound className="w-5 h-5" style={{ color: '#d4af37' }} />
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Verify Code</h3>
+                  </div>
+                  <p className="text-gray-500 text-sm">
+                    Enter the 6-digit code sent to{' '}
+                    <span className="font-medium text-gray-700">{otpEmail}</span>
+                  </p>
+                </div>
+
+                <form onSubmit={handleOtpVerify} className="mt-6 space-y-6">
+                  {/* OTP Digit Inputs */}
+                  <div className="flex justify-center gap-2">
+                    {otpDigits.map((digit, index) => (
+                      <input
+                        key={index}
+                        id={`otp-${index}`}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handleOtpDigitChange(index, e.target.value)}
+                        onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                        className="w-12 h-14 text-center text-xl font-bold rounded-xl border-2 border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30 focus:border-[#d4af37] transition-all"
+                        autoComplete="one-time-code"
+                      />
+                    ))}
+                  </div>
+
+                  <AnimatePresence>
+                    {error && (
+                      <motion.p
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 text-center"
+                      >
+                        {error}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+
+                  <motion.button
+                    type="submit"
+                    disabled={loading || otpDigits.join('').length !== 6}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full h-11 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-70"
+                    style={{
+                      background: 'linear-gradient(135deg, #d4af37, #c49b2a)',
+                      color: '#0a0a1a',
+                    }}
+                  >
+                    {loading ? (
+                      <div className="w-5 h-5 border-2 border-[#0a0a1a]/20 border-t-[#0a0a1a] rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        VERIFY
+                        <CheckCircle2 className="w-4 h-4" />
+                      </>
+                    )}
+                  </motion.button>
+
+                  {/* Resend */}
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      disabled={loading}
+                      className="text-sm text-amber-600 hover:text-amber-500 font-medium transition-colors disabled:opacity-50"
+                    >
+                      Didn&apos;t receive the code? Resend
+                    </button>
+                  </div>
+
+                  {needsPassword && (
+                    <div className="text-center bg-amber-50 rounded-lg p-3">
+                      <p className="text-sm text-amber-700">
+                        You haven&apos;t set a password yet. You can set one from your profile settings.
+                      </p>
+                    </div>
+                  )}
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
     </div>

@@ -5,8 +5,10 @@
   "scripts": {
     "dev": "next dev -p 3000 -H 0.0.0.0 --webpack 2>&1 | tee dev.log",
     "build": "next build && node scripts/copy-standalone-assets.js",
-    "build:vercel": "next build",
-    "start": "next start -p 8080",
+    "build:vercel": "npx prisma generate && next build",
+    "build:render": "npx prisma generate && next build && node scripts/copy-standalone-assets.js",
+    "start:standalone": "node .next/standalone/server.js -p $PORT",
+    "start": "node .next/standalone/server.js -p $PORT",
     "lint": "eslint . && bash scripts/check-governance.sh",
     "check:governance": "bash scripts/check-governance.sh",
     "db:push": "prisma db push",

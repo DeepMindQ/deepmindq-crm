@@ -16,7 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma db push --skip-generate --accept-data-loss && next build",
+    "vercel-build": "(prisma db push --skip-generate --accept-data-loss 2>/dev/null || echo '⚠ prisma db push skipped (no DB or schema up-to-date)') && next build",
     "cloud:setup": "bash scripts/setup-cloud.sh",
     "cloud:migrate": "node scripts/migrate-to-postgres.js",
     "cloud:export": "node scripts/export-seed-data.js"

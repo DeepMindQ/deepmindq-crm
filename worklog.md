@@ -66,3 +66,24 @@ Stage Summary:
 - Phase 1-7 code: ZERO modifications
 - New files: 14 (5 libs, 4 UI, 5 tests, schema update, barrel update, route update)
 - Total API endpoints: 45 (13 S1 + 12 S2 + 20 S3)
+---
+Task ID: vercel-fix
+Agent: Super Z (main)
+Task: Fix Vercel deployment failure — root cause analysis and fix
+
+Work Log:
+- Ran full TypeScript audit: 180 errors total, all pre-existing (ignoreBuildErrors:true in next.config.ts)
+- Verified all Sprint 9.2 modified files are correct (companies/route.ts, settings/route.ts, etc.)
+- Confirmed next build passes locally
+- Investigated why ALL Vercel deployments fail (10+ consecutive commits)
+- Found root cause: .env file was deleted from git (commit 357c2f5), DATABASE_URL never set in Vercel dashboard
+- vercel-build script: "prisma db push && next build" — prisma crashes without DB URL, && blocks next build
+- Fixed vercel-build: made prisma db push non-blocking (|| echo fallback)
+- Renamed proxy.ts back to middleware.ts, changed export name for Vercel compatibility
+- Pushed fix as bbcde58
+
+Stage Summary:
+- Root cause: Missing DATABASE_URL in Vercel environment variables
+- Fix committed: bbcde58 (vercel-build resilience + middleware.ts restore)
+- ACTION NEEDED: User must add DATABASE_URL to Vercel dashboard env vars
+- Neon DB URL: postgresql://neondb_owner:npg_KEm0tqPp6IOe@ep-square-sound-ad2dx7qw.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require

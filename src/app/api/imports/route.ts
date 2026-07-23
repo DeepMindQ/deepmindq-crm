@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/apiHelpers";
 import crypto from "crypto";
+import * as XLSX from "xlsx";
 
 // ---------------------------------------------------------------------------
 // CSV helpers
@@ -47,6 +48,77 @@ function normalizeName(raw: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// File parsing: CSV and XLSX → unified { columns, dataRows, previewRows }
+// ---------------------------------------------------------------------------
+
+interface ParsedFile {
+  columns: string[];
+  dataRows: string[][];
+  previewRows: string[][];
+}
+
+/** Parse an XLSX/XLS buffer into the same format as CSV parsing. */
+function parseXLSX(buffer: Buffer): ParsedFile {
+  const workbook = XLSX.read(buffer, { type: "buffer" });
+
+  // Use the first sheet
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) {
+    throw new Error("XLSX file contains no sheets.");
+  }
+  const sheet = workbook.Sheets[sheetName];
+
+  // Convert to array of arrays (rows), where each cell is a string
+  const rawData = XLSX.utils.sheet_to_json<string[]>(sheet, {
+    header: 1,
+    raw: false,     // get formatted strings, not raw values
+    defval: "",    // default empty string for missing cells
+  });
+
+  if (!rawData || rawData.length < 2) {
+    throw new Error("XLSX file must have a header row and at least one data row.");
+  }
+
+  const allRows: string[][] = rawData.map((row) =>
+    row.map((cell) => String(cell ?? "").trim())
+  );
+
+  const columns = allRows[0];
+  const dataRows = allRows.slice(1);
+
+  const previewRows: string[][] = [];
+  const maxPreview = Math.min(5, dataRows.length);
+  for (let i = 0; i < maxPreview; i++) {
+    previewRows.push(dataRows[i]);
+  }
+
+  return { columns, dataRows, previewRows };
+}
+
+/** Parse a CSV buffer into columns, dataRows, previewRows. */
+function parseCSV(buffer: Buffer): ParsedFile {
+  const content = buffer.toString("utf-8");
+  const lines = content
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0);
+
+  if (lines.length < 2) {
+    throw new Error("CSV file must have a header row and at least one data row.");
+  }
+
+  const columns = parseCSVLine(lines[0]);
+  const dataRows = lines.slice(1).map((l) => parseCSVLine(l));
+
+  const previewRows: string[][] = [];
+  const maxPreview = Math.min(5, dataRows.length);
+  for (let i = 0; i < maxPreview; i++) {
+    previewRows.push(dataRows[i]);
+  }
+
+  return { columns, dataRows, previewRows };
+}
+
+// ---------------------------------------------------------------------------
 // GET – list import batches
 // ---------------------------------------------------------------------------
 
@@ -88,7 +160,7 @@ export async function POST(request: NextRequest) {
 }
 
 // ---------------------------------------------------------------------------
-// Stage: upload CSV → parse headers + preview → create ImportBatch
+// Stage: upload CSV or XLSX → parse headers + preview → create ImportBatch
 // ---------------------------------------------------------------------------
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -107,41 +179,27 @@ async function stageImport(request: NextRequest) {
   }
 
   const fileName = file.name.toLowerCase();
+  const isXLSX = fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
+  const isCSV = fileName.endsWith(".csv");
 
-  if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
-    return apiError(
-      "Excel format is not supported yet. Please upload a CSV file instead.",
-      400,
-    );
-  }
-
-  if (!fileName.endsWith(".csv")) {
-    return apiError("Unsupported file format. Please upload a CSV file.", 400);
+  if (!isXLSX && !isCSV) {
+    return apiError("Unsupported file format. Please upload a CSV or XLSX file.", 400);
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const content = buffer.toString("utf-8");
-  const lines = content
-    .split(/\r?\n/)
-    .filter((line) => line.trim().length > 0);
 
-  if (lines.length < 2) {
-    return apiError(
-      "CSV file must have a header row and at least one data row.",
-      400,
-    );
+  // Parse based on format — both produce the same ParsedFile structure
+  let parsed: ParsedFile;
+  try {
+    parsed = isXLSX ? parseXLSX(buffer) : parseCSV(buffer);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to parse file.";
+    return apiError(message, 400);
   }
 
-  const columns = parseCSVLine(lines[0]);
-  const dataRows = lines.slice(1);
+  const { columns, dataRows, previewRows } = parsed;
 
-  const previewRows: string[][] = [];
-  const maxPreview = Math.min(5, dataRows.length);
-  for (let i = 0; i < maxPreview; i++) {
-    previewRows.push(parseCSVLine(dataRows[i]));
-  }
-
-  // H16: Use proper SHA-256 hash instead of weak DJB2 hash
+  // H16: Use proper SHA-256 hash for duplicate detection
   const fileHash = crypto.createHash("sha256").update(buffer).digest("hex").slice(0, 16);
 
   // Check for duplicate upload
@@ -169,6 +227,7 @@ async function stageImport(request: NextRequest) {
       totalRows: batch.totalRows,
       columns,
       previewRows,
+      fileType: isXLSX ? "xlsx" : "csv",
     },
     201,
   );

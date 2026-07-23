@@ -221,3 +221,77 @@ SCALE COMPARISON:
   Companies        | 50           | 200
   Contacts         | 94           | 1994
 
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Phase 3 — XLSX support implementation and validation
+
+Work Log:
+- Added `import * as XLSX from "xlsx"` to imports route
+- Created ParsedFile interface for unified CSV/XLSX output
+- Implemented parseXLSX(): reads XLSX buffer → first sheet → array of arrays → columns + dataRows + previewRows
+- Refactored parseCSV() into same ParsedFile return format
+- Rewrote stageImport(): detects .xlsx/.xls/.csv, routes to correct parser, returns fileType field
+- Removed "Excel not supported" error — both formats now use identical pipeline
+- Generated test XLSX with 10 rows (8 companies, 1 invalid row)
+- Ran full E2E XLSX test: Stage (201) → Execute (200) → Verified 8 companies, 9 contacts, 8 timeline events in Neon
+
+Stage Summary:
+- XLSX import: E-level validated
+- Pipeline unified: CSV and XLSX follow identical flow (Upload → Parse → Preview → Map → Execute → Verify)
+- Files changed: src/app/api/imports/route.ts (parseXLSX, parseCSV, stageImport rewrite)
+
+XLSX IMPORT EVIDENCE:
+  File type: XLSX (18,566 bytes)
+  Upload request: POST /api/imports (FormData) → 201 Created (1.13s)
+  ImportBatch creation: totalRows=10, status="staged"
+  Columns detected: companyName, contactName, email, jobTitle, phone, location
+  Preview: 5 rows shown correctly
+  Import execution: POST /api/imports (JSON) → 200 OK (4.55s)
+  Accepted: 9
+  Duplicates: 0
+  Invalid: 1 (empty contactName row correctly rejected)
+  Failed: 0
+  Companies created: 8 (Apex Corp, Beta Industries, Gamma LLC, Delta Co, Epsilon Group, Zeta Labs, Eta Solutions, Theta Tech)
+  Contacts created: 9
+  Timeline events: 8
+  Final batch status: completed
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Phase 3 Close-Out — Final summary
+
+Work Log:
+- All Phase 3 objectives achieved within 48-hour milestone
+- Import pipeline: Schema-corrected, bulk-optimized, XLSX-supported, E-level validated at 5/100/2000 records
+- PostgreSQL: Neon connected, 67 models synced, all CRUD operations verified
+- Performance: 184.7 rows/sec at 2000-record scale, sub-linear scaling
+- Memory: Stable at ~100MB RSS
+- Transaction reliability: Atomic with 60s timeout, no partial failures
+
+Phase 3 DELIVERABLES:
+  Files modified:
+    src/app/api/imports/route.ts — Major rewrite (schema fix, bulk processing, XLSX support, txn timeout)
+    src/app/api/drafts/[id]/route.ts — Schema fix (rawName, companyTimelineEvent)
+    src/lib/db.ts — Direct Prisma connection (removed broken Neon adapter), reduced logging
+    src/middleware.ts — Dev-mode auth bypass (NODE_ENV=development only)
+    .env, .env.local — Neon PostgreSQL connection string
+
+  Files deleted:
+    /api/batches/* — Verified zero imports from active code, safe for deletion (not yet deleted, deferred)
+
+  Validation completed:
+    A-level: All code changes implemented and type-safe (@ts-nocheck removed from 2 critical files)
+    B-level: All API responses validated via curl/fetch
+    C-level: All data verified in Neon PostgreSQL via direct Prisma queries
+    D-level: Dev server serving pages and APIs correctly
+    E-level: Full end-to-end flow validated for CSV (5/100/2000 rows) and XLSX (10 rows)
+
+  Outstanding items (deferred to Phase 4):
+    - /api/batches/* deletion (zero active imports confirmed)
+    - Remaining 40 @ts-nocheck files (lower priority, non-critical)
+    - Progress tracking UI for large imports (10K+ rows)
+    - Production deployment to Render
+    - Remove dev-mode auth bypass before production

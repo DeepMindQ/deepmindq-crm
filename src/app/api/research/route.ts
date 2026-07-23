@@ -146,17 +146,17 @@ function parseResearchJson(raw: string): ResearchResult | null {
 // ---------------------------------------------------------------------------
 
 function generateFallbackResearch(company: {
-  name: string;
+  rawName: string;
   industry: string | null;
   domain: string | null;
-  employeeSize: string | null;
+  sizeRange: string | null;
   country: string | null;
   location: string | null;
 }) {
-  const n = company.name;
+  const n = company.rawName;
   const ind = company.industry || "technology";
   const d = company.domain || "their website";
-  const s = company.employeeSize || "50-200";
+  const s = company.sizeRange || "50-200";
   const c = company.country || "the US";
   const loc = company.location || c;
   const indLower = ind.toLowerCase();
@@ -259,32 +259,28 @@ export async function POST(request: NextRequest) {
         where: { companyId },
         update: {
           businessOverview: businessOverview ?? undefined,
-          currentTechLandscape: currentTechLandscape ?? undefined,
+          techLandscape: currentTechLandscape ?? undefined,
           potentialChallenges: potentialChallenges ?? undefined,
           possibleOpportunities: possibleOpportunities ?? undefined,
           relevantServices: relevantServices ?? undefined,
           keyDecisionMakers: keyDecisionMakers ?? undefined,
-          lastResearchedAt: lastResearchedAt ?? undefined,
-          nextAction: nextAction ?? undefined,
         },
         create: {
           companyId,
           businessOverview: businessOverview || null,
-          currentTechLandscape: currentTechLandscape || null,
+          techLandscape: currentTechLandscape || null,
           potentialChallenges: potentialChallenges || null,
           possibleOpportunities: possibleOpportunities || null,
           relevantServices: relevantServices || null,
           keyDecisionMakers: keyDecisionMakers || null,
-          lastResearchedAt: lastResearchedAt || null,
-          nextAction: nextAction || null,
         },
       });
 
       await db.companyTimelineEvent.create({
         data: {
           companyId,
-          action: "research_updated",
-          details: `Research card for "${company.name}" was manually updated`,
+          eventType: "research_saved",
+          title: `Research card for "${company.rawName}" was manually updated`,
         },
       });
 
@@ -295,7 +291,7 @@ export async function POST(request: NextRequest) {
 
     const company = await db.company.findUnique({
       where: { id: companyId },
-      include: { contacts: { where: { archivedAt: null }, take: 5, orderBy: { createdAt: "desc" } } },
+      include: { contacts: { take: 5, orderBy: { createdAt: "desc" } } },
     });
     if (!company) {
       return apiError("Company not found", 404);
@@ -303,9 +299,13 @@ export async function POST(request: NextRequest) {
 
     // 1. Read UserPreferences from DB (singleton)
     const prefs = await db.systemSetting.findFirst();
-    const aiProvider = (prefs?.aiProvider || "openai").toLowerCase();
-    const aiModel = prefs?.aiModel || "gpt-4o-mini";
-    const aiApiKey = prefs?.aiApiKey;
+    let prefsData: Record<string, string> = {};
+    if (prefs?.value) {
+      try { prefsData = JSON.parse(prefs.value); } catch { /* ignore parse error */ }
+    }
+    const aiProvider = (prefsData?.aiProvider || "openai").toLowerCase();
+    const aiModel = prefsData?.aiModel || "gpt-4o-mini";
+    const aiApiKey = prefsData?.aiApiKey;
 
     // 2. Check for existing research to update/expand
     const existingResearch = await db.companyResearchCard.findUnique({ where: { companyId } });
@@ -317,12 +317,12 @@ export async function POST(request: NextRequest) {
       where: company.industry
         ? {
             OR: [
-              { industries: { contains: company.industry } },
-              { industries: '' },
-              { industries: null },
+              { targetIndustries: { contains: company.industry } },
+              { targetIndustries: '' },
+              { targetIndustries: null },
             ],
           }
-        : {},
+        : undefined,
     });
     const knowledgeContext =
       snippets.length > 0
@@ -332,13 +332,13 @@ export async function POST(request: NextRequest) {
     // 4. Build company context
     const contactsContext =
       company.contacts.length > 0
-        ? `\nKnown contacts: ${company.contacts.map((c) => `${c.name} (${c.jobTitle || "Unknown"}, ${c.email || "no email"})`).join("; ")}`
+        ? `\nKnown contacts: ${company.contacts.map((c) => `${c.rawName} (${c.title || "Unknown"}, ${c.email || "no email"})`).join("; ")}`
         : "\nNo contacts added yet.";
 
-    const companyContext = `Company: ${company.name}
+    const companyContext = `Company: ${company.rawName}
 Industry: ${company.industry || "Unknown"}
 Domain: ${company.domain || "Unknown"}
-Employees: ${company.employeeSize || "Unknown"}
+Employees: ${company.sizeRange || "Unknown"}
 Country: ${company.country || "Unknown"}
 Location: ${company.location || "Unknown"}
 Website: ${company.website || "Unknown"}
@@ -403,7 +403,7 @@ Respond ONLY with the JSON object, no additional text.`;
         lastResearchedAt: fb.lastResearchedAt,
         nextAction: fb.nextAction,
         confidenceScore: fb.confidenceScore,
-      };
+      } as ResearchResult;
     }
 
     // 7. Upsert CompanyResearchCard (companyId is unique key)
@@ -411,26 +411,20 @@ Respond ONLY with the JSON object, no additional text.`;
       where: { companyId },
       update: {
         businessOverview: researchData!.businessOverview,
-        currentTechLandscape: researchData!.currentTechLandscape,
+        techLandscape: researchData!.currentTechLandscape,
         potentialChallenges: researchData!.potentialChallenges,
         possibleOpportunities: researchData!.possibleOpportunities,
         relevantServices: researchData!.relevantServices,
         keyDecisionMakers: researchData!.keyDecisionMakers,
-        lastResearchedAt: researchData!.lastResearchedAt,
-        nextAction: researchData!.nextAction,
-        confidenceScore: researchData!.confidenceScore,
       },
       create: {
         companyId,
         businessOverview: researchData!.businessOverview,
-        currentTechLandscape: researchData!.currentTechLandscape,
+        techLandscape: researchData!.currentTechLandscape,
         potentialChallenges: researchData!.potentialChallenges,
         possibleOpportunities: researchData!.possibleOpportunities,
         relevantServices: researchData!.relevantServices,
         keyDecisionMakers: researchData!.keyDecisionMakers,
-        lastResearchedAt: researchData!.lastResearchedAt,
-        nextAction: researchData!.nextAction,
-        confidenceScore: researchData!.confidenceScore,
       },
     });
 
@@ -438,10 +432,10 @@ Respond ONLY with the JSON object, no additional text.`;
     await db.companyTimelineEvent.create({
       data: {
         companyId,
-        action: "research_generated",
-        details: usedLlm
-          ? `AI research card for "${company.name}" generated via ${aiProvider}/${aiModel}`
-          : `Template research card for "${company.name}" (no AI API key configured or LLM call failed)`,
+        eventType: "research_saved",
+        title: usedLlm
+          ? `AI research card for "${company.rawName}" generated via ${aiProvider}/${aiModel}`
+          : `Template research card for "${company.rawName}" (no AI API key configured or LLM call failed)`,
       },
     });
 
@@ -449,7 +443,7 @@ Respond ONLY with the JSON object, no additional text.`;
     const newScore = Math.min(99, (company.intelligenceScore || 30) + 25);
     await db.company.update({
       where: { id: companyId },
-      data: { intelligenceScore: newScore, dataFreshness: "fresh" },
+      data: { intelligenceScore: newScore },
     });
 
     // 10. Return the research card data

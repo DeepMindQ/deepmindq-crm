@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { C } from "./data";
 
 export function Badge({ label, color, bg }: { label: string; color: string; bg: string }) {

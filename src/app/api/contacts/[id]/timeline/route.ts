@@ -42,7 +42,7 @@ export async function GET(
       type: string;
       title: string;
       description: string;
-      timestamp: string;
+      timestamp: string | Date;
       metadata?: Record<string, unknown>;
     }> = [];
 

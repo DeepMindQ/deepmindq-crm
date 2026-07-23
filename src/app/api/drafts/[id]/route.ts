@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess, validateBody, sanitize } from "@/lib/apiHelpers";

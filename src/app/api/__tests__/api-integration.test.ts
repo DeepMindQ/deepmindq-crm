@@ -33,7 +33,7 @@ afterEach(async () => {
   // Clean up in reverse dependency order
   try {
     if (cleanupIds.timelineEntries.length > 0) {
-      await db.timelineEntry.deleteMany({
+      await db.companyTimelineEvent.deleteMany({
         where: { id: { in: cleanupIds.timelineEntries } },
       })
     }
@@ -250,7 +250,7 @@ describe('Companies API — POST', () => {
     const data = await res.json()
     expect(res.status).toBe(201)
 
-    const timeline = await db.timelineEntry.findFirst({
+    const timeline = await db.companyTimelineEvent.findFirst({
       where: { companyId: data.id, action: 'company_created' },
     })
     expect(timeline).not.toBeNull()
@@ -465,7 +465,7 @@ describe('Contacts API — POST', () => {
     const data = await res.json()
     expect(res.status).toBe(201)
 
-    const timeline = await db.timelineEntry.findFirst({
+    const timeline = await db.companyTimelineEvent.findFirst({
       where: { contactId: data.id, action: 'contact_created' },
     })
     expect(timeline).not.toBeNull()
@@ -507,7 +507,7 @@ describe('Notes API — POST', () => {
     cleanupIds.companyNotes.push(data.id)
 
     // Verify a timeline entry was created
-    const timeline = await db.timelineEntry.findFirst({
+    const timeline = await db.companyTimelineEvent.findFirst({
       where: { companyId: company.id, action: 'note_added' },
     })
     expect(timeline).not.toBeNull()
@@ -549,7 +549,7 @@ describe('Notes API — POST', () => {
     cleanupIds.contactNotes.push(data.id)
 
     // Verify a timeline entry was created
-    const timeline = await db.timelineEntry.findFirst({
+    const timeline = await db.companyTimelineEvent.findFirst({
       where: { contactId: contact.id, action: 'note_added' },
     })
     expect(timeline).not.toBeNull()
@@ -708,7 +708,7 @@ describe('Preferences API — GET', () => {
 
   it('creates default preferences if none exist', async () => {
     // Delete any existing preferences to test creation path
-    await db.userPreferences.deleteMany({})
+    await db.systemSetting.deleteMany({})
 
     const req = new Request('http://localhost/api/preferences')
     const res = await preferencesGET(req as any)
@@ -724,13 +724,13 @@ describe('Preferences API — PUT', () => {
   let originalPrefs: any
 
   beforeEach(async () => {
-    originalPrefs = await db.userPreferences.findFirst()
+    originalPrefs = await db.systemSetting.findFirst()
   })
 
   afterEach(async () => {
     // Restore original preferences
     if (originalPrefs) {
-      await db.userPreferences.update({
+      await db.systemSetting.update({
         where: { id: originalPrefs.id },
         data: {
           tone: originalPrefs.tone,
@@ -837,7 +837,7 @@ describe('Timeline API — GET', () => {
     })
     cleanupIds.companies.push(company.id)
 
-    await db.timelineEntry.create({
+    await db.companyTimelineEvent.create({
       data: {
         companyId: company.id,
         action: 'test_action',
@@ -867,7 +867,7 @@ describe('Timeline API — GET', () => {
     })
     cleanupIds.contacts.push(contact.id)
 
-    await db.timelineEntry.create({
+    await db.companyTimelineEvent.create({
       data: {
         companyId: company.id,
         contactId: contact.id,

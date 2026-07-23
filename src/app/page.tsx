@@ -14,6 +14,7 @@ import { OnboardingFlow } from '@/components/onboarding-flow';
 import {
   RefreshCw, Menu, X, LogOut, Bell, Search, ExternalLink,
   ChevronDown, ChevronRight, Loader2, AlertTriangle,
+  Sparkles, Radar, Mail, Brain, BookOpen, Activity,
 } from 'lucide-react';
 
 import LoginPage from '@/components/login-page';
@@ -25,6 +26,10 @@ import { useAppStore } from '@/lib/store';
    ═══════════════════════════════════════════════════ */
 import { NAV_SECTIONS } from '@/lib/nav-config';
 import { SCREEN_MAP } from '@/lib/screen-map';
+import { lazy } from 'react';
+
+const CompanyDetailScreen = lazy(() => import('@/components/screens/company-detail-screen'));
+const ContactDetailBridge = lazy(() => import('@/lib/screen-map').then(m => ({ default: m.ContactDetailBridge })));
 
 const SCREEN_LABELS: Record<string, string> = {};
 NAV_SECTIONS.forEach(s => s.items.forEach(i => { SCREEN_LABELS[i.key] = i.label; }));
@@ -655,7 +660,6 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                 <ScreenErrorBoundary name="Contact Detail">
                   <ContactDetailBridge
                     contactId={selectedContactId}
-                    navigateTo={navigateTo}
                   />
                 </ScreenErrorBoundary>
               </Suspense>

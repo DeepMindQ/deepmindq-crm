@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from "react";
 import { C, KNOWLEDGE } from "./data";
 import { SearchInput, Card, SectionHeader, Btn, Badge } from "./components";

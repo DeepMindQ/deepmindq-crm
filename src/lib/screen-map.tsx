@@ -80,7 +80,7 @@ function ContactsBridge() {
   return <ContactsScreen />;
 }
 
-function ContactDetailBridge({ contactId }: { contactId: string }) {
+export function ContactDetailBridge({ contactId }: { contactId: string }) {
   // contact-detail-screen reads selectedContactId from store
   const { useAppStore } = require('@/lib/store');
   const { useEffect } = require('react');

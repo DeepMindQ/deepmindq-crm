@@ -22,17 +22,27 @@ import { Separator } from '@/components/ui/separator';
 /* ------------------------------------------------------------------ */
 
 type BriefData = {
-  company: { name: string; domain: string; industry: string; size: string };
-  overview: string;
-  keyThemes: string[];
-  risks: string[];
+  company: { name: string; industry: string; location: string; sizeRange: string; website: string };
+  overallScore?: number;
+  confidence?: string;
+  summary?: string;
+  overview?: string;
+  keyThemes?: string[];
+  risks?: string[];
+  positiveFactors?: Factor[];
+  negativeFactors?: Factor[];
+  breakdown?: { signalQuality: number; evidenceQuality: number; capabilityFit: number; dataCompleteness: number };
+  evidenceTimeline?: TimelineEntry[];
+  capabilityMatch?: Record<string, unknown>;
   recommendation: {
-    priority: string;
+    priority?: string;
     entryPoint: string;
     reason: string;
+    target?: string;
+    conversation?: string;
   };
-  conflicts: Array<{ type: string; description: string; severity: string }>; // eslint-disable-line
-  evidenceStats: { total: number; highQuality: number; mediumQuality: number; lowQuality: number };
+  conflicts: Array<{ type: string; description: string; severity: string }>;
+  evidenceStats: { total: number; highQuality: number; mediumQuality?: number; lowQuality?: number; sources?: number; avgRelevance?: number };
 };
 
 interface Factor {
@@ -296,16 +306,16 @@ export default function IntelligenceReportScreen({
 
   const {
     company,
-    overallScore,
-    confidence,
-    summary,
-    positiveFactors,
-    negativeFactors,
-    breakdown,
-    evidenceTimeline,
+    overallScore = 0,
+    confidence = 'Low',
+    summary = '',
+    positiveFactors = [],
+    negativeFactors = [],
+    breakdown = { signalQuality: 0, evidenceQuality: 0, capabilityFit: 0, dataCompleteness: 0 },
+    evidenceTimeline = [],
     recommendation,
     conflicts,
-    evidenceStats,
+    evidenceStats = { total: 0, highQuality: 0 },
     capabilityMatch,
   } = brief;
 
@@ -417,8 +427,8 @@ export default function IntelligenceReportScreen({
         <div className="space-y-3 max-w-lg">
           <EvidenceBar label="High-quality evidence" value={evidenceStats.highQuality} max={evidenceStats.total || 1} />
           <EvidenceBar label="Validated signals" value={evidenceStats.highQuality} max={evidenceStats.sources || 1} />
-          <EvidenceBar label="Source diversity" value={evidenceStats.sources} max={12} />
-          <EvidenceBar label="Relevance threshold" value={evidenceStats.avgRelevance} max={100} />
+          <EvidenceBar label="Source diversity" value={evidenceStats.sources ?? 0} max={12} />
+          <EvidenceBar label="Relevance threshold" value={evidenceStats.avgRelevance ?? 0} max={100} />
         </div>
       </section>
 
@@ -487,8 +497,8 @@ export default function IntelligenceReportScreen({
               <TrendingUp className="h-4 w-4 rotate-180" />
               Negative Contributors
             </div>
-            {negativeFactors.length > 0 ? (
-              negativeFactors.map((f, i) => (
+            {(negativeFactors ?? []).length > 0 ? (
+              (negativeFactors ?? []).map((f, i) => (
                 <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-red-50/70 border border-red-100 text-sm">
                   <span className="text-foreground/80">{f.factor}</span>
                   <span className="font-semibold text-red-700 shrink-0 ml-3">{f.impact}</span>
@@ -515,21 +525,21 @@ export default function IntelligenceReportScreen({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Target className="h-5 w-5 text-emerald-600" />
-                <span className="font-semibold">{capabilityMatch.recommendedCapability}</span>
+                <span className="font-semibold">{String(capabilityMatch.recommendedCapability)}</span>
               </div>
-              <span className={`text-2xl font-bold ${getScoreColor(capabilityMatch.matchPercent)}`}>
-                {capabilityMatch.matchPercent}%
+              <span className={`text-2xl font-bold ${getScoreColor(Number(capabilityMatch.matchPercent) || 0)}`}>
+                {String(capabilityMatch.matchPercent)}%
               </span>
             </div>
             <div className="h-2.5 rounded-full bg-muted/40 overflow-hidden">
               <div
-                className={`h-full rounded-full ${getScoreBarBg(capabilityMatch.matchPercent)} transition-all duration-700 ease-out`}
+                className={`h-full rounded-full ${getScoreBarBg(Number(capabilityMatch.matchPercent) || 0)} transition-all duration-700 ease-out`}
                 style={{ width: `${capabilityMatch.matchPercent}%` }}
               />
             </div>
             <p className="text-xs text-muted-foreground">
               Match percentage based on signal-to-capability correlation analysis across{' '}
-              {evidenceStats.sources} source domains.
+              {evidenceStats.sources ?? 0} source domains.
             </p>
           </div>
         ) : (

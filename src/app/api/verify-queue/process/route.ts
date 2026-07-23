@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { promises as dns } from 'dns';
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';

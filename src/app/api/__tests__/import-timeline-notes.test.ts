@@ -43,7 +43,7 @@ beforeEach(() => {
 afterEach(async () => {
   try {
     if (cleanupIds.timelineEntries.length > 0) {
-      await db.timelineEntry.deleteMany({
+      await db.companyTimelineEvent.deleteMany({
         where: { id: { in: cleanupIds.timelineEntries } },
       })
     }
@@ -219,7 +219,7 @@ describe('Import API — POST /api/imports (execute)', () => {
     if (betaContact) cleanupIds.contacts.push(betaContact.id)
 
     // Track the timeline entry created by executeImport
-    const tlEntry = await db.timelineEntry.findFirst({
+    const tlEntry = await db.companyTimelineEvent.findFirst({
       where: { action: 'Import Completed' },
     })
     if (tlEntry) cleanupIds.timelineEntries.push(tlEntry.id)
@@ -263,7 +263,7 @@ describe('Timeline API — GET /api/timeline', () => {
     })
     cleanupIds.companies.push(company.id)
 
-    const entry = await db.timelineEntry.create({
+    const entry = await db.companyTimelineEvent.create({
       data: {
         companyId: company.id,
         action: 'test_filter_company',
@@ -290,7 +290,7 @@ describe('Timeline API — GET /api/timeline', () => {
   it('respects the limit parameter', async () => {
     // Create several timeline entries
     for (let i = 0; i < 3; i++) {
-      const entry = await db.timelineEntry.create({
+      const entry = await db.companyTimelineEvent.create({
         data: {
           action: `test_limit_${i}`,
           details: `Entry ${i} for limit test`,
@@ -435,7 +435,7 @@ describe('Notes API — POST company note + verify TimelineEntry', () => {
     cleanupIds.companyNotes.push(data.id)
 
     // Verify a timeline entry was created
-    const tlEntry = await db.timelineEntry.findFirst({
+    const tlEntry = await db.companyTimelineEvent.findFirst({
       where: { companyId: company.id, action: 'note_added' },
     })
     expect(tlEntry).not.toBeNull()
@@ -477,7 +477,7 @@ describe('Notes API — POST contact note + verify TimelineEntry', () => {
     cleanupIds.contactNotes.push(data.id)
 
     // Verify a timeline entry was created
-    const tlEntry = await db.timelineEntry.findFirst({
+    const tlEntry = await db.companyTimelineEvent.findFirst({
       where: { contactId: contact.id, action: 'note_added' },
     })
     expect(tlEntry).not.toBeNull()
@@ -512,7 +512,7 @@ describe('Notes API — DELETE note', () => {
     expect(deleted).toBeNull()
 
     // Clean up the timeline entry created by the delete handler
-    const tlEntry = await db.timelineEntry.findFirst({
+    const tlEntry = await db.companyTimelineEvent.findFirst({
       where: { companyId: company.id, action: 'note_deleted' },
     })
     if (tlEntry) cleanupIds.timelineEntries.push(tlEntry.id)
@@ -548,7 +548,7 @@ describe('Notes API — DELETE note', () => {
     expect(deleted).toBeNull()
 
     // Clean up the timeline entry created by the delete handler
-    const tlEntry = await db.timelineEntry.findFirst({
+    const tlEntry = await db.companyTimelineEvent.findFirst({
       where: { contactId: contact.id, action: 'note_deleted' },
     })
     if (tlEntry) cleanupIds.timelineEntries.push(tlEntry.id)

@@ -37,7 +37,7 @@ export function getEnv(): EnvConfig {
     console.error(`[ENV] Missing env vars (dev mode): ${missing}`)
   }
 
-  _env = result.data
+  _env = result.data as EnvConfig
   return _env
 }
 

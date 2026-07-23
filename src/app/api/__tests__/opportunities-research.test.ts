@@ -34,12 +34,12 @@ afterEach(async () => {
   try {
     // Clean up in reverse dependency order
     if (cleanupIds.timelineEntries.length > 0) {
-      await db.timelineEntry.deleteMany({
+      await db.companyTimelineEvent.deleteMany({
         where: { id: { in: cleanupIds.timelineEntries } },
       })
     }
     if (cleanupIds.opportunities.length > 0) {
-      await db.opportunity.deleteMany({
+      await db.opportunityRecommendation.deleteMany({
         where: { id: { in: cleanupIds.opportunities } },
       })
     }
@@ -84,7 +84,7 @@ describe('Opportunity API — GET /api/opportunities', () => {
     expect(company).not.toBeNull()
 
     // Create an opportunity for this company so we guarantee a result
-    const opp = await db.opportunity.create({
+    const opp = await db.opportunityRecommendation.create({
       data: {
         companyId: company!.id,
         title: 'Filter Test Opportunity',
@@ -213,7 +213,7 @@ describe('Opportunity API — POST /api/opportunities', () => {
 describe('Opportunity API — GET /api/opportunities/[id]', () => {
   it('returns single opportunity with company', async () => {
     const company = await db.company.findFirst()
-    const opp = await db.opportunity.create({
+    const opp = await db.opportunityRecommendation.create({
       data: { companyId: company!.id, title: 'Detail Test Opp' },
       include: { company: true },
     })
@@ -250,7 +250,7 @@ describe('Opportunity API — GET /api/opportunities/[id]', () => {
 describe('Opportunity API — PATCH /api/opportunities/[id]', () => {
   it('updates fields and creates timeline only on status change', async () => {
     const company = await db.company.findFirst()
-    const opp = await db.opportunity.create({
+    const opp = await db.opportunityRecommendation.create({
       data: {
         companyId: company!.id,
         title: 'Patch Test Opp',
@@ -275,7 +275,7 @@ describe('Opportunity API — PATCH /api/opportunities/[id]', () => {
     expect(data1.status).toBe('researching') // unchanged
 
     // Verify no timeline entry was created for this non-status change
-    const timelineBefore = await db.timelineEntry.findMany({
+    const timelineBefore = await db.companyTimelineEvent.findMany({
       where: { companyId: company!.id, action: 'opportunity_updated' },
     })
     // There might be timeline entries from seed data; we'll compare count after status change
@@ -298,7 +298,7 @@ describe('Opportunity API — PATCH /api/opportunities/[id]', () => {
     expect(data2.title).toBe('Updated Patch Test Opp') // title persists
 
     // Verify a timeline entry was created for the status change
-    const timelineAfter = await db.timelineEntry.findMany({
+    const timelineAfter = await db.companyTimelineEvent.findMany({
       where: { companyId: company!.id, action: 'opportunity_updated' },
     })
     expect(timelineAfter.length).toBe(timelineCountBeforeStatusChange + 1)
@@ -331,7 +331,7 @@ describe('Opportunity API — PATCH /api/opportunities/[id]', () => {
 describe('Opportunity API — DELETE /api/opportunities/[id]', () => {
   it('deletes successfully', async () => {
     const company = await db.company.findFirst()
-    const opp = await db.opportunity.create({
+    const opp = await db.opportunityRecommendation.create({
       data: { companyId: company!.id, title: 'Delete Me Opp' },
     })
     // Don't push to cleanupIds — we're testing deletion
@@ -348,7 +348,7 @@ describe('Opportunity API — DELETE /api/opportunities/[id]', () => {
     expect(data.success).toBe(true)
 
     // Verify it's gone
-    const deleted = await db.opportunity.findUnique({ where: { id: opp.id } })
+    const deleted = await db.opportunityRecommendation.findUnique({ where: { id: opp.id } })
     expect(deleted).toBeNull()
   })
 
@@ -508,7 +508,7 @@ describe('Research API — POST /api/research', () => {
     cleanupIds.companies.push(company.id)
 
     // Get timeline count before
-    const beforeEntries = await db.timelineEntry.findMany({
+    const beforeEntries = await db.companyTimelineEvent.findMany({
       where: { companyId: company.id },
     })
 
@@ -520,7 +520,7 @@ describe('Research API — POST /api/research', () => {
     const res = await researchPOST(req as any)
     expect(res.status).toBe(200)
 
-    const afterEntries = await db.timelineEntry.findMany({
+    const afterEntries = await db.companyTimelineEvent.findMany({
       where: { companyId: company.id },
     })
     expect(afterEntries.length).toBe(beforeEntries.length + 1)

@@ -137,21 +137,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // 2. Read user preferences (singleton)
-    const prefs = await db.userPreferences.findFirst()
-    const tone = requestTone || prefs?.tone || 'professional-casual'
-    const emailLength = requestLength || prefs?.emailLength || 'medium'
-    const ctaStyle = requestCta || prefs?.ctaStyle || 'soft'
-    const openerStyle = prefs?.openerStyle || 'Hi [First Name]'
-    const signOff = prefs?.signOff || 'Regards, Ravi'
-    const avoidPhrases = prefs?.avoidPhrases || ''
-    const companyName = contact.company?.name || 'your company'
-    const firstName = contact.name?.split(' ')[0] || 'there'
-    const jobTitle = contact.jobTitle || 'your role'
+    const prefs = await db.systemSetting.findFirst()
+    let prefsData: Record<string, string> = {}
+    if (prefs?.value) { try { prefsData = JSON.parse(prefs.value) } catch { /* ignore */ } }
+    const tone = requestTone || prefsData?.tone || 'professional-casual'
+    const emailLength = requestLength || prefsData?.emailLength || 'medium'
+    const ctaStyle = requestCta || prefsData?.ctaStyle || 'soft'
+    const openerStyle = prefsData?.openerStyle || 'Hi [First Name]'
+    const signOff = prefsData?.signOff || 'Regards, Ravi'
+    const avoidPhrases = prefsData?.avoidPhrases || ''
+    const companyName = contact.company?.rawName || 'your company'
+    const firstName = contact.rawName?.split(' ')[0] || 'there'
+    const jobTitle = contact.title || 'your role'
     const industry = contact.company?.industry || 'Unknown'
 
     // 3. Knowledge Engine: semantic search for relevant snippets
-    const allSnippets = await db.capabilitySnippet.findMany({
-      include: { document: { select: { title: true, fileName: true } } },
+    const allSnippets = await db.capabilityAsset.findMany({
       orderBy: { createdAt: 'desc' },
     })
 
@@ -162,19 +163,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const queryTokens = tok(`${industry} ${jobTitle} ${companyName}`)
     const scoredSnippets = allSnippets.map(s => {
       let sc = 0
-      const cLower = s.content.toLowerCase()
+      const cLower = (s.content || '').toLowerCase()
       const tLower = s.title.toLowerCase()
       const sTokens = new Set(tok(s.title+' '+s.content))
-      if (s.industries) {
-        const si = s.industries.split(',').map(x=>x.trim().toLowerCase())
+      if (s.targetIndustries) {
+        const si = s.targetIndustries.split(',').map(x=>x.trim().toLowerCase())
         if (si.includes(industry.toLowerCase())) sc += 30
         else { const iw = industry.toLowerCase().split(/[\s-]+/); sc += iw.filter(w=>si.some(x=>x.includes(w)||w.includes(x))).length*10 }
       }
       sc += queryTokens.filter(t=>new Set(tok(s.title)).has(t)).length*5
       sc += Math.min(queryTokens.filter(t=>sTokens.has(t)).length*2, 15)
-      if (s.outcomes) { const ot=tok(s.outcomes); sc += queryTokens.filter(t=>ot.includes(t)).length*3 }
-      if (s.content.length>200) sc+=3
-      if (s.content.length>500) sc+=2
+      if (s.customerOutcome) { const ot=tok(s.customerOutcome); sc += queryTokens.filter(t=>ot.includes(t)).length*3 }
+      if ((s.content || '').length>200) sc+=3
+      if ((s.content || '').length>500) sc+=2
       return { ...s, _score: sc }
     }).sort((a,b)=>b._score-a._score).slice(0,5).filter(s=>s._score>0)
 
@@ -184,9 +185,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const retrievedContext = scoredSnippets.map(s => ({
       id: s.id,
       title: s.title,
-      type: s.snippetType,
+      type: s.category,
       score: s._score,
-      industries: s.industries ? s.industries.split(',').map((x:string)=>x.trim()) : [],
+      industries: s.targetIndustries ? s.targetIndustries.split(',').map((x:string)=>x.trim()) : [],
     }))
 
     // 4. Fetch company research card
@@ -197,7 +198,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ? `Company research for ${companyName}:\n` +
         [
           researchCard.businessOverview && `Business Overview: ${researchCard.businessOverview}`,
-          researchCard.currentTechLandscape && `Tech Landscape: ${researchCard.currentTechLandscape}`,
+          researchCard.techLandscape && `Tech Landscape: ${researchCard.techLandscape}`,
           researchCard.potentialChallenges && `Challenges: ${researchCard.potentialChallenges}`,
           researchCard.possibleOpportunities && `Opportunities: ${researchCard.possibleOpportunities}`,
           researchCard.relevantServices && `Relevant Services: ${researchCard.relevantServices}`,
@@ -210,7 +211,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { matchScore, confidenceScore } = calculateScores(
       !!researchCard,
       scoredSnippets.length,
-      !!contact.jobTitle,
+      !!contact.title,
       !!contact.company?.industry,
       !!contact.email,
     )
@@ -222,7 +223,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     {
       const systemPrompt = `You are an expert B2B sales email writer. Generate a personalized outreach email with these parameters:
-- Contact: ${contact.name}, ${jobTitle} at ${companyName} (${industry})
+- Contact: ${contact.rawName}, ${jobTitle} at ${companyName} (${industry})
 - Tone: ${tone}
 - Length: ${emailLength}
 - CTA Style: ${ctaStyle}
@@ -262,8 +263,7 @@ ${researchContext ? `${researchContext}\n` : ''}${knowledgeContext ? `${knowledg
         body: emailBody,
         cta: ctaStyle,
         status: 'draft',
-        matchScore,
-        confidenceScore,
+        confidenceScore: confidenceScore,
       },
     })
 

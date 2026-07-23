@@ -56,7 +56,7 @@ afterEach(async () => {
   // Clean up in reverse dependency order
   try {
     if (cleanup.timelineIds.length > 0) {
-      await db.timelineEntry.deleteMany({
+      await db.companyTimelineEvent.deleteMany({
         where: { id: { in: cleanup.timelineIds } },
       })
     }

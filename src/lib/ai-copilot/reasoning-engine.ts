@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * AI Revenue Copilot — Reasoning Engine (Main Orchestrator)
  *

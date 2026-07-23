@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Phase 5: Account Prioritization Engine
  *

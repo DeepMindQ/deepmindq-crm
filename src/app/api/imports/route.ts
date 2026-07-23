@@ -312,7 +312,7 @@ async function executeImport(body: ExecuteBody) {
           rawName: contactName,
           normalizedName: contactNormalizedName,
           email: email || `unknown-${crypto.randomUUID().slice(0, 8)}@import.temp`,
-          jobTitle: val(row, "jobTitle") || null,
+          title: val(row, "jobTitle") || null,
           phone: val(row, "phone") || null,
           location: val(row, "location") || null,
         },

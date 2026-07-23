@@ -57,6 +57,15 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const response = NextResponse.next();
 
+  // ── 0. DEV MODE BYPASS — skip all auth in development ──
+  // Phase 3 pilot: allow all requests in development for
+  // import pipeline testing. Remove before production deploy.
+  const isDev = process.env.NODE_ENV === 'development';
+  if (isDev) {
+    applySecurityHeaders(response);
+    return response;
+  }
+
   // ── 1. Apply security headers to ALL responses ──────────
   applySecurityHeaders(response);
 

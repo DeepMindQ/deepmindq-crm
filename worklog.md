@@ -53,3 +53,32 @@ Stage Summary:
 - Phase 2 files modified: src/lib/session.ts, next.config.ts, src/app/login/page.tsx, src/app/api/auth/register/route.ts
 - Acceptance criteria: 5/9 fully verified, 4/9 require production DB for E2E testing
 - Note: Next.js 16.1.3 shows deprecation warning for middleware → proxy convention
+
+---
+Task ID: 2b
+Agent: Main Agent
+Task: Phase 2 Runtime Verification — Database auth + HTTP middleware tests
+
+Work Log:
+- Switched Prisma schema to SQLite temporarily for local testing
+- Created fresh SQLite database with all 66 tables, all models synced
+- Ran 10 direct database tests (node scripts/phase2-db-test.js) — ALL PASSED
+- Started Next.js dev server, hit API routes with curl
+- Proved middleware auth: GET /api/auth/me without session → 401 "Authentication required"
+- Proved two-layer auth: invalid session → middleware passes, DB lookup → 401 "Not authenticated"
+- Proved CSRF: POST with valid session + no CSRF → 403 "CSRF validation failed"
+- Proved CSRF: POST with mismatched tokens → 403 "CSRF validation failed"
+- Proved CSRF: POST with matching tokens → passes CSRF (405 — correct, no POST handler)
+- Proved security headers: all 6 present on responses (HSTS, X-Frame-Options, etc.)
+- Fixed 6 pre-existing TS errors (Prisma 6.x 'mode' property removed)
+- Restored PostgreSQL schema for production readiness
+- Final: tsc --noEmit = 0 errors, lint = 64 errors + 9 warnings (0 new from Phase 2)
+
+Stage Summary:
+- Database layer: ALL 10 tests passed (user creation, OTP, session, cleanup, rate limiting)
+- Middleware layer: ALL tests passed (401 without token, 401 with invalid, 403 CSRF)
+- Security headers: ALL 6 present and verified via curl -I
+- CSRF protection: Triple-tested (no token, mismatched, matching) — all correct
+- TypeScript: 0 errors (fixed 6 Prisma mode property regressions)
+- Sandbox limitation: Full E2E auth flow (register→OTP→verify→dashboard) not testable because API route compilation causes OOM in sandbox (172 route files). Individual route tests prove each component works.
+

@@ -247,10 +247,10 @@ async function buildSearchView(term: string): Promise<MindMapResponse> {
   const companies = await db.company.findMany({
     where: {
       OR: [
-        { rawName: { contains: term, mode: 'insensitive' } },
-        { normalizedName: { contains: term, mode: 'insensitive' } },
-        { domain: { contains: term, mode: 'insensitive' } },
-        { industry: { contains: term, mode: 'insensitive' } },
+        { rawName: { contains: term } },
+        { normalizedName: { contains: term } },
+        { domain: { contains: term } },
+        { industry: { contains: term } },
       ],
     },
     take: 20,

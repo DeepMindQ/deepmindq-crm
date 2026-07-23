@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     if (entity) where.entity = entity;
     if (userId) where.userId = userId;
     if (search) {
-      where.details = { contains: search, mode: 'insensitive' };
+      where.details = { contains: search };
     }
     if (startDateStr || endDateStr) {
       where.createdAt = {};

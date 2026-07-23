@@ -1,0 +1,1743 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Core Entities (per SDD Section 5) ──
+
+model Contact {
+  id                String    @id @default(cuid())
+  rawName           String
+  normalizedName    String
+  editedName        String?
+  email             String    @unique
+  linkedinUrl       String?
+  title             String?
+  role              String?
+  phone             String?
+  location          String?
+  companyId         String
+  batchId           String
+  consentStatus     String    @default("unknown") // unknown, opted_in, opted_out
+  emailHealth       String    @default("unknown") // unknown, valid, risky, invalid
+  emailHealthScore  Int       @default(0)
+  status            String    @default("imported") // imported, cleaned, duplicate, drafted, queued, sent, replied, bounced, suppressed, archived
+  leadScore         Int       @default(0)
+  isSuppressed      Boolean   @default(false)
+  suppressionReason String?
+  lastCheckedAt     DateTime?
+  lastContactedAt   DateTime?
+
+  // L-02: Advanced lead scoring
+  companyFitScore   Int   @default(0)
+  engagementScore   Int   @default(0)
+  enrichmentScore   Int   @default(0)
+  aiConversionScore Float @default(0)
+
+  // L-03: Enrichment data (JSON string)
+  enrichmentData String?
+
+  // L-12: GDPR consent tracking
+  consentSource String? // form, list_purchase, manual, double_opt_in
+  consentDate   DateTime?
+  consentIp     String?
+
+  // L-14: Lead assignment
+  assignedTo String?
+
+  // L-15: Lead source tracking
+  source String? // linkedin, event, referral, cold_list, inbound, manual
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company             Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  batch               ImportBatch          @relation(fields: [batchId], references: [id])
+  drafts              Draft[]
+  replies             Reply[]
+  bounces             Bounce[]
+  suppression         Suppression?
+  notes               ContactNote[]
+  events              EmailEvent[]
+  segments            SegmentContact[]
+  sequenceEnrollments SequenceEnrollment[]
+
+  @@index([email])
+  @@index([companyId])
+  @@index([status])
+  @@index([batchId])
+  @@index([leadScore])
+  @@index([assignedTo])
+  @@index([source])
+}
+
+model Company {
+  id                   String    @id @default(cuid())
+  rawName              String
+  normalizedName       String
+  domain               String?
+  industry             String?
+  sizeRange            String?
+  location             String?
+  country              String?
+  website              String?
+  internalSummary      String?
+  tags                 String    @default("[]") // JSON array of tag strings
+  status               String    @default("prospect") // prospect, researching, active, engaged, paused, closed_won, closed_lost
+  lifecycleStage       String    @default("discovery") // discovery, qualification, proposal, negotiation, closed
+  assignedTo           String?
+  intelligenceScore    Int       @default(0) // 0-100 composite score (from intelligence-contract.ts)
+  engagementScore      Int       @default(0) // 0-100 based on email opens/replies/clicks
+  // Phase 5: Account Prioritization (separate from intelligenceScore)
+  // Nullable: only set when explicitly computed. NOT same as intelligenceScore.
+  accountPriorityScore Float? // Phase 5: 0-100 sales priority score
+  priorityTier         String? // Phase 5: HOT | ACTIVE | NURTURE | LOW
+  priorityComputedAt   DateTime? // Phase 5: last computation timestamp
+  lastEnrichedAt       DateTime?
+  lastActivityAt       DateTime?
+  source               String    @default("import") // import, manual, crm, webhook
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  contacts                   Contact[]
+  researchCard               CompanyResearchCard?
+  notes                      CompanyNote[]
+  signals                    CompanySignal[]
+  evidence                   Evidence[]
+  timeline                   CompanyTimelineEvent[]
+  opportunityRecommendations OpportunityRecommendation[]
+  pursuits                   Pursuit[]
+  signalCapabilityMatches    SignalCapabilityMatch[]
+  intelligenceValidations    IntelligenceValidation[]
+  priorityScoreHistory       PriorityScoreHistory[]
+  signalValidations         SignalValidation[]
+  intelligenceHealth        CompanyIntelligenceHealth?
+  intelligenceConflicts     IntelligenceConflict[]
+  recommendationFeedbacks   RecommendationFeedback[]
+
+  // Phase 7.5: Intelligence Acquisition & Fabric
+  aliases                   CompanyAlias[]
+  knowledgeEntries          KnowledgeEntry[]
+  intelligenceObjects       IntelligenceObject[]
+  intelligenceAssociations  IntelligenceAssociation[]
+  humanInboxItems           HumanIntelligenceInbox[]
+  timelineEvents            IntelligenceTimeline[]
+  alerts                    IntelligenceAlert[]
+  accountBrief              AccountBrief?
+  opportunitySignals        OpportunitySignal[]
+  accountScore              AccountScore?
+
+  @@index([domain])
+  @@index([normalizedName])
+  @@index([industry])
+  @@index([status])
+  @@index([lifecycleStage])
+  @@index([assignedTo])
+  @@index([intelligenceScore])
+  @@index([priorityTier])
+  @@index([accountPriorityScore(sort: Desc)])
+}
+
+model ImportBatch {
+  id               String   @id @default(cuid())
+  fileName         String
+  fileHash         String   @unique
+  totalRows        Int      @default(0)
+  acceptedRows     Int      @default(0)
+  duplicateRows    Int      @default(0)
+  invalidRows      Int      @default(0)
+  questionableRows Int      @default(0)
+  status           String   @default("staged") // staged, processing, completed, archived
+  mappingProfile   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  contacts Contact[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CompanyResearchCard {
+  id                    String  @id @default(cuid())
+  companyId             String  @unique
+  businessOverview      String?
+  techLandscape         String?
+  potentialChallenges   String?
+  possibleOpportunities String?
+  relevantServices      String?
+  keyDecisionMakers     String?
+  internalNotes         String?
+
+  // L-03: Enrichment fields
+  revenue          String?
+  employeeCount    String?
+  fundingStage     String?
+  techStack        String? // JSON string
+  socialProfiles   String? // JSON string
+  enrichmentSource String?
+  enrichmentDate   DateTime?
+  fieldConfidence  String? // JSON: {"revenue":0.9,"employeeCount":0.7,...} — per-field confidence from Phase 3
+
+  // Phase 3: Research engine fields
+  industry   String?
+  website    String?
+  keyPeople  String? @default("[]") // JSON: [{name, title, department, linkedInUrl, source}]
+  recentNews String? @default("[]") // JSON: [{title, snippet, source, url, signalType, impact}]
+
+  // Phase 3 Hardening: Structured Technology Landscape
+  structuredTechLandscape String? @default("{}") // JSON: {cloud:[], data:[], ai:[], applications:[]}
+
+  // Phase 3 Hardening: Strategic Priorities
+  strategicPriorities String? @default("[]") // JSON: [{priority, description, evidence, confidence}]
+
+  // Phase 3 Hardening: Capability Matching Inputs
+  businessProblems    String? @default("[]") // JSON: ["problem1", "problem2"]
+  transformationAreas String? @default("[]") // JSON: ["area1", "area2"]
+  technologyThemes    String? @default("[]") // JSON: ["theme1", "theme2"]
+
+  // Phase 3 Hardening: Category-specific Freshness Timestamps
+  profileFreshnessAt DateTime? // when company profile data was last verified
+  signalFreshnessAt  DateTime? // when signals were last refreshed
+  contactFreshnessAt DateTime? // when key people/contacts were last verified
+  techFreshnessAt    DateTime? // when technology landscape was last verified
+
+  lastResearchedAt DateTime @updatedAt
+  createdAt        DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model CompanyNote {
+  id        String   @id @default(cuid())
+  companyId String
+  title     String   @default("")
+  category  String   @default("general") // research, call, meeting, general, swot, competitive, discovery
+  body      String
+  author    String?
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([category])
+}
+
+model CompanySignal {
+  id                 String    @id @default(cuid())
+  companyId          String
+  signalType         String // funding, hiring, leadership_change, tech_change, news, mention, partnership, expansion
+  title              String
+  description        String?
+  source             String?
+  sourceUrl          String?
+  severity           String    @default("medium") // low, medium, high, critical
+  impact             String    @default("medium") // high, medium, low — sales opportunity impact
+  signalDate         DateTime? // when the signal event occurred (not when we detected it)
+  extractedAt        DateTime  @default(now()) // when our system detected/stored it
+  confidence         Float     @default(0.5) // 0-1 confidence score from research engine
+  // RFP/RFI/Tender Intelligence Architecture (Phase 3)
+  opportunityType    String? // rfp, rfi, tender, vendor_search, procurement, tech_transformation, partner_requirement
+  publicationDate    DateTime? // When the opportunity was published
+  deadline           DateTime? // Response deadline
+  buyingArea         String? // e.g. "Cloud Migration", "Data Analytics"
+  techRequirement    String? // e.g. "AWS, Python, Data Engineering"
+  serviceRequirement String? // e.g. "Implementation, Managed Services"
+  matchingCapability String? // ID of matched CapabilityAsset
+  sourceQuality      String    @default("standard") // premium, standard, low
+  evidenceIds        String    @default("[]") // JSON array of Evidence IDs supporting this signal
+  // Track C: Signal meaning — buying stage implication inferred from signal attributes
+  meaningCategory    String? // budget_available, leadership_openness, tech_dissatisfaction, growth_pressure, compliance_requirement, vendor_evaluation, unknown
+  isRead             Boolean   @default(false)
+  status             String    @default("detected") // detected, validated, active, aging, expired, archived
+  createdAt          DateTime  @default(now())
+
+  company                    Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  signalCapabilityMatches    SignalCapabilityMatch[]
+  opportunityRecommendations OpportunityRecommendation[]
+  signalValidation           SignalValidation?
+
+  @@index([meaningCategory])
+  @@index([companyId])
+  @@index([signalType])
+  @@index([severity])
+  @@index([impact])
+  @@index([createdAt])
+  @@index([signalDate])
+  @@index([companyId, signalType, createdAt])
+  @@index([companyId, status])
+}
+
+// ── Phase 3: Evidence — per-field source tracking ──
+// Each piece of extracted information links back to its source.
+// Enables: "show me all evidence for company X's revenue",
+// per-field confidence scoring, audit trail for AI extractions.
+
+model Evidence {
+  id                String    @id @default(cuid())
+  companyId         String
+  jobId             String? // which job produced this evidence
+  searchQuery       String? // what query found this
+  sourceUrl         String // URL of the source
+  sourceTitle       String? // title of the source page
+  sourceName        String? // publication / website name
+  snippet           String // relevant text excerpt
+  extractedField    String? // which field this evidence supports (revenue, employeeCount, etc.)
+  extractedValue    String? // the value extracted from this evidence
+  relevanceScore    Float     @default(0.5) // 0-1 how relevant this evidence is
+  confidence        Float     @default(0.5) // 0-1 confidence in this evidence
+  sourceDate        DateTime? // when the source was published (for recency scoring)
+  sourceQualityTier String    @default("standard") // premium, standard, low — configurable via SystemSetting
+  status            String    @default("active") // active, aging, superseded, expired — evidence lifecycle
+  createdAt         DateTime  @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([extractedField])
+  @@index([jobId])
+  @@index([confidence])
+  @@index([createdAt])
+  @@index([status])
+  @@index([companyId, status, createdAt])
+  @@index([companyId, extractedField, confidence])
+}
+
+model CompanyTimelineEvent {
+  id          String   @id @default(cuid())
+  companyId   String
+  eventType   String // email_sent, email_opened, email_replied, email_bounced, note_added, enrichment, status_change, signal, contact_added, research_saved
+  title       String
+  description String?
+  metadata    String?  @default("{}") // JSON with event-specific data
+  createdAt   DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+// L-13: Contact notes
+model ContactNote {
+  id        String   @id @default(cuid())
+  contactId String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+}
+
+// ── Capability Library (per SDD Section 10) ──
+
+model CapabilityAsset {
+  id                 String  @id @default(cuid())
+  title              String
+  summary            String
+  category           String // service_line, solution, accelerator, technology, case_study, proof_point, objection_response, cta
+  serviceLine        String?
+  targetIndustries   String? // JSON: ["Financial Services", "Healthcare"]
+  targetRoles        String?
+  targetCompanySizes String?
+  problems           String? // JSON: ["legacy system migration", "data silos"]
+  evidence           String?
+  content            String?
+  isActive           Boolean @default(true)
+  version            Int     @default(1)
+
+  // C-08: Asset relationships
+  parentAssetId String?
+
+  // C-15: Tagging system
+  tags String?
+
+  // C-09: Feedback scoring
+  upvotes      Int @default(0)
+  downvotes    Int @default(0)
+  usedInEmails Int @default(0)
+
+  // C-06: Deduplication
+  contentHash String?
+
+  // Phase 3 Hardening: Enhanced Capability Knowledge Base
+  solution        String? // Solution name (e.g., "Cloud Migration Factory")
+  accelerator     String? // Reusable accelerator/asset name
+  technology      String? // Primary technology (e.g., "Azure", "Snowflake")
+  industry        String? // Primary target industry
+  businessProblem String? // Core business problem this addresses
+  customerOutcome String? // Outcome the customer achieves
+  differentiator  String? // What makes this different from alternatives
+  caseStudyRef    String? // JSON: [{title, url, industry, outcome}]
+  proofPointRef   String? // JSON: [{metric, value, context}]
+  keywords        String? // JSON: ["keyword1", "keyword2"] for matching
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  signalCapabilityMatches SignalCapabilityMatch[]
+
+  @@index([category])
+  @@index([serviceLine])
+  @@index([isActive])
+  @@index([parentAssetId])
+  @@index([contentHash])
+  @@index([technology])
+  @@index([industry])
+}
+
+// ── Email Template System (E-14) ──
+
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  subject     String
+  body        String
+  cta         String?
+  serviceLine String?
+  tone        String   @default("professional") // professional, casual, executive
+  category    String? // intro, follow_up, case_study, cta, custom
+  variables   String? // JSON array of placeholder names
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([serviceLine])
+  @@index([isActive])
+}
+
+// ── Email Sequences / Drip Campaigns (E-15) ──
+
+model EmailSequence {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  serviceLine String?
+  isActive    Boolean @default(true)
+
+  // Phase 4 C1: Signal-driven sequence intelligence
+  companyId                String? // Which company this sequence targets
+  triggerSignalId          String? // Which buying signal triggered this
+  triggerCapabilityMatchId String? // Which capability match drove the strategy
+  triggerReason            String? // AI-generated rationale: why this company, why now, why this capability
+  generatedBy              String  @default("manual") // "signal_driven" | "manual"
+
+  // Phase 4 C1-integrate: Opportunity link
+  opportunityId String? // Which OpportunityRecommendation this sequence fulfills
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  steps       SequenceStep[]
+  enrollments SequenceEnrollment[]
+  opportunity OpportunityRecommendation? @relation(fields: [opportunityId], references: [id])
+
+  @@index([serviceLine])
+  @@index([isActive])
+  @@index([companyId])
+  @@index([generatedBy])
+  @@index([opportunityId])
+}
+
+model SequenceStep {
+  id         String  @id @default(cuid())
+  sequenceId String
+  stepNumber Int
+  delayDays  Int     @default(3)
+  subject    String
+  body       String
+  cta        String?
+  templateId String?
+
+  sequence EmailSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  @@unique([sequenceId, stepNumber])
+  @@index([sequenceId])
+}
+
+model SequenceEnrollment {
+  id          String    @id @default(cuid())
+  sequenceId  String
+  contactId   String
+  currentStep Int       @default(1)
+  status      String    @default("active") // active, completed, paused, cancelled
+  startedAt   DateTime  @default(now())
+  nextStepAt  DateTime?
+  completedAt DateTime?
+
+  sequence EmailSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  contact  Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([sequenceId])
+  @@index([contactId])
+  @@index([status])
+  @@index([nextStepAt])
+}
+
+// ── Draft & Send (per SDD Sections 11-12) ──
+
+model Draft {
+  id                 String  @id @default(cuid())
+  contactId          String
+  subject            String
+  body               String
+  cta                String?
+  confidenceScore    Int?
+  sourceSnippetsUsed String?
+  assumptionFlags    String?
+  reviewNotes        String?
+  status             String  @default("pending_review") // pending_review, approved, rejected, sent
+  rejectReason       String?
+
+  // E-06: Email thread tracking
+  messageId  String? // our Message-ID header
+  inReplyTo  String? // In-Reply-To header
+  references String? // References header (JSON array string)
+
+  // E-10: A/B testing
+  variantLabel String? // e.g. "variant_a", "variant_b", "control"
+  abTestId     String?
+
+  // E-11: Tracking
+  trackingPixelId String?
+
+  // E-15: Sequence tracking
+  sequenceId     String?
+  sequenceStepId String?
+  abTest         ABTest? @relation(fields: [abTestId], references: [id])
+
+  // Phase 4 C2: Batch approval workflow
+  assigneeId        String? // Sales rep assigned to review/action this draft
+  governanceAuditId String? // Link to AIGenerationAudit for governance score display
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contact   Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  queueItem SendQueue?
+
+  @@index([contactId])
+  @@index([status])
+  @@index([abTestId])
+  @@index([sequenceId])
+  @@index([assigneeId])
+}
+
+model SendQueue {
+  id            String    @id @default(cuid())
+  draftId       String    @unique
+  scheduledAt   DateTime?
+  sentAt        DateTime?
+  status        String    @default("pending") // pending, scheduled, sent, failed, paused
+  failureReason String?
+  retryCount    Int       @default(0)
+
+  // E-01: Provider tracking
+  providerId String? // ID returned by email provider (Resend, SendGrid, etc.)
+  provider   String? // "resend", "sendgrid", "ses", "postmark"
+
+  // E-11: Engagement tracking
+  openCount  Int     @default(0)
+  clickCount Int     @default(0)
+  replied    Boolean @default(false)
+  bounced    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  draft Draft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+// ── Email Events (E-11) ──
+
+model EmailEvent {
+  id        String   @id @default(cuid())
+  queueId   String?
+  contactId String
+  draftId   String?
+  eventType String // open, click, reply, bounce, unsubscribe, complaint
+  metadata  String? // JSON string with event-specific data (URL for clicks, agent for opens, etc.)
+  createdAt DateTime @default(now())
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([queueId])
+  @@index([contactId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+// ── A/B Tests (E-10) ──
+
+model ABTest {
+  id            String    @id @default(cuid())
+  name          String
+  status        String    @default("running") // running, completed, cancelled
+  winnerVariant String?
+  totalSends    Int       @default(0)
+  createdAt     DateTime  @default(now())
+  completedAt   DateTime?
+
+  drafts Draft[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ── Feedback (per SDD Section 13) ──
+
+model Reply {
+  id         String   @id @default(cuid())
+  contactId  String
+  draftId    String? // E-06: link reply to specific draft
+  subject    String?
+  body       String?
+  category   String? // positive, negative, out_of_office, unsubscribe, other
+  receivedAt DateTime @default(now())
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+  @@index([category])
+  @@index([draftId])
+}
+
+model Bounce {
+  id           String   @id @default(cuid())
+  contactId    String
+  queueId      String? // E-08: link bounce to specific send
+  bounceType   String? // hard, soft
+  reason       String?
+  providerData String? // E-08: raw provider bounce data
+  bouncedAt    DateTime @default(now())
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+  @@index([queueId])
+}
+
+model Suppression {
+  id            String    @id @default(cuid())
+  contactId     String    @unique
+  reason        String // unsubscribe, bounce, manual, negative_reply
+  method        String? // E-09: manual, auto_webhook, auto_bounce
+  createdAt     DateTime  @default(now())
+  removedAt     DateTime?
+  removedBy     String?
+  removalReason String?
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([reason])
+  @@index([method])
+}
+
+// ── Lead Segments (L-04) ──
+
+model Segment {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  filters      String // JSON string: {industry: [...], status: [...], scoreRange: [min, max], ...}
+  contactCount Int      @default(0)
+  isStatic     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  contacts SegmentContact[]
+
+  @@index([name])
+}
+
+model SegmentContact {
+  id        String   @id @default(cuid())
+  segmentId String
+  contactId String
+  addedAt   DateTime @default(now())
+
+  segment Segment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([segmentId, contactId])
+  @@index([segmentId])
+  @@index([contactId])
+}
+
+// ── Audit (per SDD Section 16) ──
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@index([entity])
+  @@index([createdAt])
+}
+
+model ConversationPlan {
+  id            String   @id @default(cuid())
+  companyName   String
+  executiveRole String
+  executiveName String?
+  industry      String?
+  context       String?
+  capabilities  String?
+  plan          String // JSON string of the full ApiPlan object
+  generatedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([companyName])
+  @@index([createdAt])
+}
+
+// ── Phase 4: Playbooks ──
+
+model Playbook {
+  id                String   @id @default(cuid())
+  name              String
+  description       String?
+  category          String   @default("custom") // introduction, follow_up, discovery, proposal, negotiation, closing, objection_handling, custom
+  targetIndustry    String?
+  targetRole        String?
+  targetCompanySize String?
+  steps             String // JSON array: [{title, description, tips, order}]
+  aiTips            String? // AI-generated engagement tips
+  isActive          Boolean  @default(true)
+  usageCount        Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+// ── Phase 4: Account Strategy Room ──
+
+model AccountStrategy {
+  id                  String   @id @default(cuid())
+  companyId           String?
+  title               String
+  objective           String?
+  currentSituation    String?
+  swotAnalysis        String? // JSON: {strengths, weaknesses, opportunities, threats}
+  keyInitiatives      String? // JSON array: [{title, owner, status, dueDate}]
+  stakeholderMap      String? // JSON: {champions, influencers, blockers, decisionMakers}
+  competitivePosition String? // JSON
+  nextSteps           String?
+  status              String   @default("draft") // draft, active, review, completed, archived
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ── Authentication & User Management ──
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  phone        String?
+  company      String?
+  designation  String?
+  role         String    @default("admin") // admin, user
+  passwordHash String? // null = first-time user (no password yet)
+  hasPassword  Boolean   @default(false)
+  avatarUrl    String?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  otpCodes OtpCode[]
+  sessions Session[]
+
+  @@index([email])
+  @@index([isActive])
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  userId    String?
+  email     String // email this OTP was sent to
+  code      String // 6-digit code
+  purpose   String // login, set_password, change_email, change_password, update_profile
+  metadata  String?  @default("{}") // JSON: e.g. { newEmail: "..." } for change_email
+  verified  Boolean  @default(false)
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([code])
+  @@index([purpose])
+  @@index([expiresAt])
+  @@index([verified])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique // opaque session token
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Phase 1: Data Intelligence Engine
+//
+// All business rules (column mapping, validation, normalization,
+// scoring) are stored in these config tables — NOT in code.
+// Admin can modify rules from Settings > Data Rules without
+// any developer intervention or code deployment.
+// ═══════════════════════════════════════════════════════════════
+
+model DataUpload {
+  id               String    @id @default(cuid())
+  fileName         String
+  totalRows        Int       @default(0)
+  processedRows    Int       @default(0)
+  acceptedRows     Int       @default(0)
+  warningRows      Int       @default(0)
+  failedRows       Int       @default(0)
+  duplicateRows    Int       @default(0)
+  dataQualityScore Float     @default(0)
+  // created → mapping_confirmed → processing → review_ready → committing → completed
+  //                                                ↘ cancelled
+  //                                                ↘ failed
+  status           String    @default("created")
+  columnMapping    String // JSON: {sourceHeader: targetField}
+  consentSource    String    @default("manual_upload")
+  leadSource       String    @default("manual")
+  errorMessage     String?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  rows UploadRow[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model UploadRow {
+  id                   String   @id @default(cuid())
+  uploadId             String
+  rowIndex             Int
+  rawData              String // JSON: original row
+  mappedData           String? // JSON: after column mapping
+  normalizedData       String? // JSON: after normalization
+  validationIssues     String? // JSON: [{field, ruleId, severity, message}]
+  suggestedCorrections String? // JSON: [{field, original, suggested, ruleId}]
+  appliedCorrections   String? // JSON: [{field, original, applied}]
+  // pending → accepted / warning / failed / duplicate
+  // warning → corrected / rejected
+  status               String   @default("pending")
+  duplicateOfRow       Int? // rowIndex of the row this duplicates
+  qualityScore         Float    @default(0)
+  companyId            String? // populated after commit
+  createdAt            DateTime @default(now())
+
+  upload DataUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  @@index([uploadId])
+  @@index([status])
+  @@index([qualityScore])
+}
+
+// ── Config: Column Mapping Rules ──
+// Maps source column headers (via regex) to internal field names.
+// Admin can add patterns for new file formats without code changes.
+
+model ColumnMappingRule {
+  id          String   @id @default(cuid())
+  name        String // human-readable name
+  pattern     String // regex pattern for column header
+  targetField String // internal field: name, email, company, etc.
+  priority    Int      @default(0) // higher = checked first
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([targetField])
+  @@index([isActive])
+  @@index([priority])
+}
+
+// ── Config: Field Validation Rules ──
+// Configurable validation rules per field.
+// Rule types: required, regex, format, range, uniqueness, custom.
+
+model FieldValidationRule {
+  id          String   @id @default(cuid())
+  name        String
+  targetField String // which field to validate
+  ruleType    String // required | regex | format | range | uniqueness | custom
+  config      String   @default("{}") // JSON: {pattern, minLength, maxLength, min, max, ...}
+  severity    String   @default("error") // error | warning
+  message     String // human-readable error message
+  isActive    Boolean  @default(true)
+  priority    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([targetField])
+  @@index([isActive])
+}
+
+// ── Config: Normalization Mappings ──
+// Maps messy source values to clean normalized values.
+// Categories: industry, country, employee_size, company_name, title
+
+model NormalizationMapping {
+  id              String   @id @default(cuid())
+  category        String // industry | country | employee_size | title
+  sourceValue     String // the messy input
+  normalizedValue String // the clean output
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([category, sourceValue])
+  @@index([category])
+  @@index([isActive])
+}
+
+// ── Config: Scoring Weights ──
+// Configurable weights for lead scoring dimensions.
+// Dimension: role, email_health, company_fit, data_completeness, engagement, enrichment
+
+model ScoringWeight {
+  id          String   @id @default(cuid())
+  dimension   String // scoring dimension
+  field       String? // sub-field within dimension
+  key         String? // specific value (e.g., "Technology" for industry)
+  weight      Float // weight or score value
+  maxScore    Float    @default(100) // max possible score for this dimension
+  description String? // human-readable
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([dimension, field, key])
+  @@index([dimension])
+  @@index([isActive])
+}
+
+// ── Audit: Normalization Log ──
+// Records every field transformation during data import.
+// Enables: "show me all normalizations applied this month",
+// "which rules fired most often", audit trail per row.
+
+model NormalizationLog {
+  id              String   @id @default(cuid())
+  uploadId        String // which upload batch
+  uploadRowId     String? // specific row (null if batch-level)
+  rowIndex        Int? // row index within upload
+  category        String // industry | country | employee_size | title | company_name | domain | website | name
+  field           String // target field name
+  originalValue   String // value before normalization
+  normalizedValue String // value after normalization
+  ruleApplied     String? // which rule/mapping was applied (null = built-in logic)
+  createdAt       DateTime @default(now())
+
+  @@index([uploadId])
+  @@index([category])
+  @@index([field])
+  @@index([createdAt])
+}
+
+// ── Data Quality Score Log ──
+// Standalone quality score records per row — enables queries like
+// "show all companies scored below 60" without scanning UploadRows.
+
+model DataQualityScore {
+  id                String   @id @default(cuid())
+  uploadId          String // source upload
+  uploadRowId       String? // specific row reference
+  rowIndex          Int? // row index
+  companyId         String? // populated after commit — links to actual Company
+  totalScore        Int // 0-100 overall
+  completenessScore Int // 0-100 data completeness dimension
+  validityScore     Int // 0-100 validation health dimension
+  richnessScore     Int // 0-100 data richness dimension
+  details           String   @default("[]") // JSON: human-readable explanations
+  createdAt         DateTime @default(now())
+
+  @@index([companyId])
+  @@index([uploadId])
+  @@index([totalScore])
+  @@index([createdAt])
+}
+
+// ── System Settings (persistent key-value store) ──
+// Replaces in-memory settings that reset on Vercel cold starts.
+// AI provider configs, app settings, feature flags — all persisted here.
+
+// ── Phase 2: Workflow Automation Engine ──
+
+model Job {
+  id        String  @id @default(cuid())
+  type      String // enrichment, research, scoring, signal_detection, email_generation
+  status    String  @default("pending") // pending, queued, running, completed, failed, cancelled
+  priority  Int     @default(5) // 1 (highest) – 10 (lowest)
+  companyId String? // optional: entity this job operates on
+  contactId String? // optional: for contact-level jobs
+  batchId   String? // optional: for batch operations
+
+  // Progress tracking
+  progress    Int     @default(0) // 0-100 overall progress
+  currentStep String? // human-readable current step label
+  stepDetail  String? // JSON: { step, progress, message } for sub-step tracking
+
+  // Input / Output
+  payload   String? // JSON: job input parameters
+  result    String? // JSON: job output / result data
+  error     String? // error message if failed
+  errorCode String? // machine-readable error code for retry classification
+
+  // Retry tracking
+  attemptCount Int       @default(0)
+  maxAttempts  Int       @default(3)
+  nextRetryAt  DateTime? // when to retry (null = not retryable or no retry needed)
+
+  // Timestamps
+  queuedAt    DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  logs JobLog[]
+
+  @@index([type])
+  @@index([status])
+  @@index([companyId])
+  @@index([contactId])
+  @@index([priority])
+  @@index([status, type])
+  @@index([nextRetryAt])
+  @@index([createdAt])
+}
+
+model JobLog {
+  id        String   @id @default(cuid())
+  jobId     String
+  level     String   @default("info") // info, warn, error, debug
+  step      String? // current processing step
+  message   String
+  metadata  String? // JSON: additional structured data
+  createdAt DateTime @default(now())
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([jobId, level])
+  @@index([createdAt])
+}
+
+// ── Phase 3 Hardening: AI Generation Traceability ──
+// Every AI-generated output stores metadata so the system knows
+// WHY the output was generated and WHAT intelligence backed it.
+
+model AIGenerationAudit {
+  id                     String   @id @default(cuid())
+  generationType         String // email_draft, conversation_plan, account_brief, signal_analysis, suggested_contacts, enrichment, insights, opportunities, recommendations, score_leads
+  companyId              String? // linked company (if applicable)
+  contactId              String? // linked contact (if applicable)
+  researchContextVersion String? // snapshot of freshness.score at generation time
+  evidenceIdsUsed        String   @default("[]") // JSON: ["evidence_id_1", "evidence_id_2"]
+  signalIdsUsed          String   @default("[]") // JSON: ["signal_id_1"]
+  capabilityAssetIdsUsed String   @default("[]") // JSON: ["asset_id_1"]
+  researchConfidence     Float    @default(0) // 0-1 average field confidence at generation time
+  freshnessScore         Int      @default(0) // 0-100 freshness at generation time
+  governancePassed       Boolean  @default(true) // did it pass confidence gates?
+  governanceChecks       String?  @default("{}") // JSON: {email: {research: true, capability: true, freshness: true}, ...}
+  outputSummary          String? // brief summary of what was generated (not full output)
+  modelUsed              String? // which LLM model was used
+  promptVersion          String? // governance prompt version hash for reproducibility
+  inputParams            String?  @default("{}") // JSON: the input parameters (sanitized, no PII)
+  createdAt              DateTime @default(now())
+
+  @@index([generationType])
+  @@index([companyId])
+  @@index([contactId])
+  @@index([createdAt])
+  @@index([governancePassed])
+  @@index([companyId, generationType, createdAt])
+  @@index([companyId, createdAt])
+}
+
+// ── Signal-Capability Matching ──
+// Automatic matching of detected buying signals to capability assets.
+// Enables: "This hiring signal maps to our Cloud Migration capability"
+
+model SignalCapabilityMatch {
+  id              String   @id @default(cuid())
+  companyId       String
+  signalId        String // CompanySignal ID
+  capabilityId    String // CapabilityAsset ID
+  matchScore      Float    @default(0) // 0-1 how relevant the match is
+  reason          String // why this capability matches this signal
+  businessProblem String? // identified business problem
+  expectedOutcome String? // expected outcome if engaged
+  salesAngle      String? // recommended sales angle
+  createdAt       DateTime @default(now())
+
+  // Track C: FK relations for referential integrity + cascade deletes
+  company                    Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  signal                     CompanySignal               @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  capability                 CapabilityAsset             @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+  opportunityRecommendations OpportunityRecommendation[]
+
+  @@index([companyId])
+  @@index([signalId])
+  @@index([capabilityId])
+  @@index([matchScore])
+  @@index([companyId, signalId])
+  @@index([companyId, capabilityId])
+}
+
+// ── Phase 4 Track C: Opportunity Intelligence Layer ──
+// Represents the strategic reason why a company should be pursued.
+// Created from intelligence: Signal + Evidence + Capability Match + Freshness + Confidence.
+
+model OpportunityRecommendation {
+  id                      String    @id @default(cuid())
+  companyId               String
+  signalId                String // Which buying signal triggered this
+  capabilityMatchId       String // Which capability match
+  opportunityTitle        String // Human-readable title for the opportunity
+  businessTrigger         String // What business event created this opportunity
+  whyNow                  String // Why this company should be pursued now
+  businessProblem         String // The identified business problem
+  recommendedCapability   String // Title of the recommended capability
+  recommendedStakeholders String    @default("[]") // JSON: ["CTO", "Cloud Architecture Head"]
+  suggestedConversation   String // Strategic conversation topics to initiate
+  evidenceIds             String    @default("[]") // JSON: evidence IDs backing this recommendation
+  confidenceScore         Float     @default(0) // 0-1 research confidence at creation time
+  freshnessScore          Int       @default(0) // 0-100 freshness at creation time
+  matchScore              Float     @default(0) // 0-1 capability match score
+  opportunityScore        Int       @default(0) // 0-100 composite score
+  priority                String    @default("medium") // high, medium, low
+  status                  String    @default("pending_review") // pending_review, accepted, rejected, monitored
+  rejectionReason         String? // WRONG_TIMING, EXISTING_RELATIONSHIP, NOT_RELEVANT, LOW_CONFIDENCE, NO_BUDGET, OTHER
+  rejectionFeedback       String? // Free-text feedback from sales
+  reviewedBy              String?
+  reviewedAt              DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  confidenceBreakdown     Json?
+  confidenceFactors      Json? // Phase 6.1: explainability factors { positiveFactors: [], negativeFactors: [] }
+
+  company         Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  signal          CompanySignal         @relation(fields: [signalId], references: [id])
+  capabilityMatch SignalCapabilityMatch @relation(fields: [capabilityMatchId], references: [id])
+  pursuits        Pursuit[]
+  sequences       EmailSequence[]
+  feedbacks       RecommendationFeedback[]
+
+  @@index([companyId])
+  @@index([signalId])
+  @@index([capabilityMatchId])
+  @@index([status])
+  @@index([priority])
+  @@index([opportunityScore])
+  @@index([createdAt])
+  @@index([companyId, status])
+  @@index([status, priority])
+}
+
+// ── Phase 4 Track C: Sales Pursuit Tracking ──
+// Created when a salesperson ACCEPTS an OpportunityRecommendation.
+// Tracks the human-driven pursuit of the identified opportunity.
+
+model Pursuit {
+  id             String    @id @default(cuid())
+  opportunityId  String // Which OpportunityRecommendation this pursues
+  companyId      String
+  owner          String? // Sales rep assigned to pursue
+  priority       String    @default("medium") // high, medium, low
+  status         String    @default("active") // active, paused, won, lost
+  nextAction     String? // Next planned action
+  nextActionAt   DateTime? // When the next action is planned
+  outcome        String? // Free-text outcome description
+  outcomeStage   String? // discovery, qualification, proposal, negotiation, closed_won, closed_lost
+  notes          String? // Additional notes
+  lastActivityAt DateTime? // Track C: last meaningful activity for stale detection
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  opportunity OpportunityRecommendation @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  company     Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([opportunityId])
+  @@index([companyId])
+  @@index([owner])
+  @@index([status])
+  @@index([outcomeStage])
+  @@index([createdAt])
+  @@index([lastActivityAt])
+}
+
+// ── Phase 6: Intelligence Validation Layer ──
+// Human judgment against any intelligence artifact.
+// Enables quality measurement without changing frozen scoring formulas.
+// artifactType: "signal_meaning" | "capability_match" | "opportunity_recommendation"
+//              | "pursuit_intelligence" | "evidence_quality"
+
+model IntelligenceValidation {
+  id          String   @id @default(cuid())
+  companyId   String
+  validatedAt DateTime @default(now())
+  validatedBy String?
+
+  // What's being validated
+  artifactType     String // signal_meaning | capability_match | opportunity_recommendation | pursuit_intelligence | evidence_quality
+  artifactId       String // FK to the source record
+  artifactSnapshot Json? // Immutable snapshot of the artifact at validation time
+
+  // Human judgment
+  rating        Int // 1-5 scale (1=wrong, 3=partially useful, 5=highly accurate)
+  accuracy      String? // accurate | partially_accurate | inaccurate | cannot_judge
+  relevance     String? // highly_relevant | somewhat_relevant | not_relevant
+  actionability String? // actionable_now | actionable_with_research | not_actionable
+  feedback      String? // Free-text correction or nuance
+
+  // Context at validation time
+  validatorContext Json? // e.g., { validatorRole: "SDR", dealStage: "discovery" }
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([artifactType, artifactId])
+  @@index([companyId])
+  @@index([validatedAt])
+  @@index([accuracy])
+  @@index([companyId, artifactType])
+}
+
+// ── Phase 6: Signal Validation ──
+// Classifies each signal's trustworthiness based on evidence support,
+// confidence thresholds, and contradiction detection.
+
+model SignalValidation {
+  id              String   @id @default(cuid())
+  companyId       String
+  signalId        String   @unique
+  validationStatus String  @default("WEAK") // VALID | WEAK | CONFLICTING | EXPIRED
+  confidenceScore Float    @default(0)
+  reason          String?
+  evidenceCount     Int      @default(0)
+  sourceDomainCount Int      @default(0)
+  signalAge         Int      @default(0)      // days since signalDate
+  validatedAt      DateTime @default(now())
+
+  company Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  signal  CompanySignal @relation(fields: [signalId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([signalId])
+  @@index([validationStatus])
+  @@index([companyId, validationStatus])
+}
+
+// ── Phase 6: Company Intelligence Health ──
+// Per-company field coverage tracking across data, signals, evidence, and contacts.
+
+model CompanyIntelligenceHealth {
+  id                     String   @id @default(cuid())
+  companyId              String   @unique
+  company                Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  dataCompletenessScore  Int      @default(0)   // 0-100
+  signalCoverageScore    Int      @default(0)   // 0-100
+  evidenceCoverageScore  Int      @default(0)   // 0-100
+  contactCoverageScore   Int      @default(0)   // 0-100
+  overallHealthScore     Int      @default(0)   // 0-100
+
+  // Per-field breakdown (JSON)
+  fieldCoverage          Json?    // { "industry": true, "revenue": false, ... }
+
+  // Scoring inputs
+  totalSignals           Int      @default(0)
+  activeSignals          Int      @default(0)
+  totalEvidence          Int      @default(0)
+  activeEvidence         Int      @default(0)
+  totalContacts          Int      @default(0)
+  filledFields           Int      @default(0)
+  totalTrackedFields     Int      @default(12)
+
+  lastCalculatedAt       DateTime @default(now())
+
+  @@index([overallHealthScore(sort: Desc)])
+  @@index([companyId])
+}
+
+// ── Phase 6: Intelligence Conflict Detection ──
+// Detects conflicting signals for the same company.
+
+model IntelligenceConflict {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  conflictType    String   // SIGNAL_CONTRADICTION | TECHNOLOGY_CONFLICT | FUNDING_CONFLICT | EVIDENCE_CONTRADICTION
+  description     String   // Human-readable conflict explanation
+  relatedSignals  Json     // ["signalId1", "signalId2", ...]
+  severity        String   @default("medium")  // low | medium | high | critical
+  status          String   @default("open")    // open | acknowledged | resolved | dismissed
+
+  detectedAt      DateTime  @default(now())
+  resolvedAt      DateTime?
+  resolvedBy      String?
+  resolutionNotes String?
+
+  @@index([companyId])
+  @@index([status])
+  @@index([severity])
+  @@index([companyId, status])
+}
+
+// ── System Settings (lightweight key-value, Phase 5 ICP persistence) ──
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String // JSON string — schema depends on key
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@index([key])
+}
+
+// ── Priority Score History (GAP-35: Audit Trail) ──
+
+model PriorityScoreHistory {
+  id                   String    @id @default(cuid())
+  companyId            String
+  company              Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Snapshot fields (set at write time)
+  accountPriorityScore Int
+  priorityTier         String
+  staticFitTotal       Int
+  dynamicIntelTotal    Int
+  timingUrgencyTotal   Int
+
+  // Audit trail fields (GAP-35 enhancement)
+  previousScore        Float?
+  previousTier         String?
+  newScore             Float?
+  newTier              String?
+  triggerType          String    @default("manual")   // "manual", "icp_change", "scheduled", "batch"
+  triggerDetails       String?                             // JSON string with details about what triggered the change
+  staticFitScore       Float?
+  dynamicIntelScore    Float?
+  timingUrgencyScore   Float?
+  whyNowReasons        String?                             // JSON array
+
+  computedAt           DateTime  @default(now())
+  createdAt            DateTime  @default(now())
+
+  @@index([companyId])
+  @@index([companyId, computedAt(sort: Desc)])
+  @@index([computedAt])
+}
+
+// ── Phase 6.1 Hardening: Human Feedback Loop ──
+
+model RecommendationFeedback {
+  id              String   @id @default(cuid())
+  recommendationId String
+  companyId       String
+  userDecision    String   // confirmed_accurate | partially_accurate | incorrect | needs_more_evidence
+  feedbackReason  String?
+  createdAt       DateTime @default(now())
+
+  recommendation  OpportunityRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  company         Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([recommendationId])
+  @@index([companyId])
+  @@index([userDecision])
+}
+
+// ── Phase 6.1 Hardening: Source Reliability Model ──
+
+model EvidenceSourceReliability {
+  id                 String   @id @default(cuid())
+  domain             String   @unique
+  totalEvidence      Int      @default(0)
+  validatedCorrect   Int      @default(0)
+  validatedIncorrect Int      @default(0)
+  reliabilityScore   Float    @default(0.5) // 0-1
+  lastUpdated        DateTime @default(now())
+
+  @@index([domain])
+  @@index([reliabilityScore])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Phase 7.5: Intelligence Acquisition & Fabric Layer
+// ═══════════════════════════════════════════════════════════════════════
+
+model Connector {
+  id                String   @id @default(cuid())
+  name              String
+  sourceType        String   // csv, excel, website, rss, document, human
+  status            String   @default("active") // active, paused, disabled, failed
+  config            String   @default("{}") // JSON: connector-specific configuration
+  scheduleFrequency String?  // manual, hourly, daily, weekly
+  lastRunAt         DateTime?
+  lastSuccessAt     DateTime?
+  recordsAcquired   Int      @default(0)
+  totalRuns         Int      @default(0)
+  failureCount      Int      @default(0)
+  errorMessage      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  runs              ConnectorRun[]
+  sourceHealth       SourceHealth?
+
+  @@index([sourceType])
+  @@index([status])
+  @@index([lastRunAt])
+}
+
+model ConnectorRun {
+  id              String   @id @default(cuid())
+  connectorId     String
+  connector       Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+  status          String   @default("pending") // pending, running, completed, failed, cancelled
+  startedAt       DateTime?
+  completedAt     DateTime?
+  recordsAcquired Int      @default(0)
+  errorsCount     Int      @default(0)
+  errorMessage    String?
+  metadata        String   @default("{}") // JSON: run-specific data (URLs fetched, rows processed, etc.)
+  createdAt       DateTime @default(now())
+
+  @@index([connectorId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model IntelligenceObject {
+  id                  String   @id @default(cuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  connectorId         String?
+  connectorRunId      String?
+  sourceType          String   // csv, excel, website, rss, document, human
+  sourceName          String?  // human-readable source identifier
+  origin              String   // csv_upload, excel_upload, website_scrape, rss_feed, human_submission
+  content             String   // full intelligence content
+  summary             String?  // abbreviated summary
+  metadata            String   @default("{}") // JSON: category, title, tags, custom fields
+  sourceUrl           String?
+  capturedAt          DateTime? // when the source was published/captured
+  originalConfidence  Float    @default(0.5) // 0-1 initial confidence from acquisition
+  confidenceBreakdown String?  @default("{}") // JSON: {sourceQuality, freshness, validation, evidenceAgreement}
+  status              String   @default("new") // new, processing, active, stale, superseded, archived, rejected, pending_evidence_mapping
+  evidenceId          String?  // reference to downstream Evidence record (upstream lineage)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([sourceType])
+  @@index([status])
+  @@index([capturedAt])
+  @@index([originalConfidence])
+  @@index([companyId, status, createdAt])
+  // Sprint 2: Association relations
+  assocSources     IntelligenceAssociation[] @relation("AssocSource")
+  assocTargets     IntelligenceAssociation[] @relation("AssocTarget")
+
+  @@index([connectorId])
+  @@index([connectorRunId])
+  @@index([evidenceId])
+}
+
+model CompanyAlias {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  alias      String
+  source     String   @default("manual") // manual, resolution, import
+  confidence Float    @default(1.0) // 0-1
+  createdAt  DateTime @default(now())
+
+  @@unique([companyId, alias])
+  @@index([alias])
+  @@index([companyId])
+}
+
+model KnowledgeEntry {
+  id              String   @id @default(cuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category        String   // Strategy, Products, Technology, Leadership, Opportunities, Stakeholders, Conversations, Platforms, Architecture, Patents, Competitors, Partnerships, Market
+  subCategory     String?  // finer classification within category
+  content         String   // the knowledge content
+  source          String?  // traceability: where this knowledge came from
+  intelligenceObjectId String? // link to originating IntelligenceObject
+  confidence      Float    @default(0.5) // 0-1
+  version         Int      @default(1)
+  previousValue   String?  // for versioning: previous content
+  changeReason    String?  // why the knowledge was updated
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([category])
+  @@index([companyId, category])
+  @@index([intelligenceObjectId])
+  @@index([confidence])
+  @@index([updatedAt])
+
+  // Sprint 2: Version history
+  versions KnowledgeVersion[]
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SPRINT 2: INTELLIGENCE FABRIC LAYER
+// ═══════════════════════════════════════════════════════════════
+
+model IntelligenceAssociation {
+  id              String   @id @default(cuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sourceId        String                        // FK → IntelligenceObject (the source assertion)
+  source          IntelligenceObject @relation("AssocSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  targetId        String                        // FK → IntelligenceObject (the related assertion)
+  target          IntelligenceObject @relation("AssocTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  associationType String                        // duplicate, contradicts, supports, extends, mentions_same_entity
+  confidence      Float    @default(0.5)        // 0-1, how confident the association is
+  metadata        String   @default("{}")        // JSON: {reason, field, overlap, ...}
+  resolved        Boolean  @default(false)       // has this association been reviewed/resolved?
+  resolvedAt      DateTime?
+  resolvedAction  String?                       // merged, dismissed, superseded, manual
+  createdAt       DateTime @default(now())
+
+  @@index([companyId])
+  @@index([sourceId])
+  @@index([targetId])
+  @@index([associationType])
+  @@index([resolved])
+  @@unique([sourceId, targetId, associationType])
+}
+
+model KnowledgeVersion {
+  id                String   @id @default(cuid())
+  knowledgeEntryId  String
+  knowledgeEntry    KnowledgeEntry @relation(fields: [knowledgeEntryId], references: [id], onDelete: Cascade)
+  version           Int                            // monotonically increasing
+  content           String                         // snapshot of the content at this version
+  changedFields     String   @default("{}")         // JSON: {content, subCategory, confidence, ...}
+  changeReason      String                         // why the change occurred
+  changedBy         String   @default("system")     // system, user:{id}, connector:{id}
+  createdAt         DateTime @default(now())
+
+  @@index([knowledgeEntryId])
+  @@index([knowledgeEntryId, version])
+  @@unique([knowledgeEntryId, version])
+}
+
+model SourceHealth {
+  id                    String   @id @default(cuid())
+  connectorId           String   @unique
+  connector             Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+  healthScore           Float    @default(1.0)      // 0-1 composite score
+  successRate           Float    @default(1.0)      // completed / total runs
+  avgRecordsPerRun      Float    @default(0)
+  lastSuccessAt         DateTime?
+  lastFailureAt         DateTime?
+  consecutiveSuccesses  Int      @default(0)
+  consecutiveFailures   Int      @default(0)
+  totalRuns             Int      @default(0)
+  totalSuccesses        Int      @default(0)
+  totalFailures         Int      @default(0)
+  qualityScore          Float    @default(0.5)      // based on confidence of ingested objects
+  freshnessScore        Float    @default(1.0)      // based on recency of data
+  metrics               String   @default("{}")      // JSON: extended metrics
+  updatedAt             DateTime @updatedAt
+  createdAt             DateTime @default(now())
+
+  @@index([connectorId])
+  @@index([healthScore])
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SPRINT 3: HUMAN INTELLIGENCE, TIMELINE, ALERTS
+// ═══════════════════════════════════════════════════════════════
+
+model HumanIntelligenceInbox {
+  id                   String   @id @default(cuid())
+  companyId            String
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  submittedBy          String                        // userId who submitted
+  content              String                        // the intelligence text
+  summary              String?                       // optional short summary
+  category             String?                       // KnowledgeCategory if known
+  source               String   @default("manual")    // where this came from
+  sourceUrl            String?                       // optional URL reference
+  status               String   @default("pending")   // pending, reviewed, approved, rejected, converted
+  reviewedBy           String?                       // userId who reviewed
+  reviewedAt           DateTime?
+  reviewNotes          String?                       // reviewer comments
+  intelligenceObjectId String?                       // FK → IntelligenceObject after conversion
+  priority             String   @default("normal")    // low, normal, high, critical
+  tags                 String   @default("[]")        // JSON array of string tags
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([submittedBy])
+  @@index([priority])
+  @@index([createdAt])
+  @@index([companyId, status])
+}
+
+model IntelligenceTimeline {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  eventType   String                        // acquired, merged, conflict_detected, conflict_resolved, confidence_updated, knowledge_updated, knowledge_restored, source_health_changed, human_submitted, human_approved, human_rejected, connector_created, connector_run, alert_triggered, alert_resolved
+  entityType  String?                       // IntelligenceObject, KnowledgeEntry, Connector, HumanIntelligenceInbox, IntelligenceAlert
+  entityId    String?                       // FK to the related entity
+  title       String                        // short event title
+  description String?                       // longer description
+  metadata    String   @default("{}")        // JSON: event-specific data
+  actor       String?                       // userId or 'system'
+  createdAt   DateTime @default(now())
+
+  @@index([companyId])
+  @@index([eventType])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([companyId, createdAt])
+  @@index([actor])
+}
+
+model IntelligenceAlert {
+  id              String   @id @default(cuid())
+  companyId       String?
+  company         Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  connectorId     String?
+  severity        String   @default("medium")   // low, medium, high, critical
+  alertType       String                       // health_degraded, source_stale, conflict_detected, duplicate_cluster, confidence_drop, ingestion_failure, schedule_missed
+  title           String                       // short alert title
+  description     String                       // detailed description
+  status          String   @default("active")   // active, acknowledged, resolved, dismissed
+  acknowledgedBy  String?
+  acknowledgedAt  DateTime?
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  resolutionNotes String?
+  metadata        String   @default("{}")       // JSON: event-specific data
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([connectorId])
+  @@index([severity])
+  @@index([alertType])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PHASE 7.6: REVENUE INTELLIGENCE LAYER
+// ═══════════════════════════════════════════════════════════════
+
+model AccountBrief {
+  id                      String   @id @default(cuid())
+  companyId               String   @unique
+  company                 Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  summary                 String                        // LLM-generated executive summary
+  accountHealth           String   @default("unknown")   // high, medium, low, unknown
+  keySignals              String   @default("[]")        // JSON: { signal, type, confidence }[]
+  themes                  String   @default("[]")        // JSON: { name, description, evidenceIds[] }[]
+  recentChanges           String   @default("[]")        // JSON: { change, date, source }[]
+  opportunityAreas        String   @default("[]")        // JSON: string[]
+  risks                   String   @default("[]")        // JSON: string[]
+  recommendedEngagement   String                        // LLM-generated engagement approach
+  evidenceReferences      String   @default("[]")        // JSON: { evidenceId, snippet }[]
+  confidence              Float    @default(0)            // 0-1
+  generatedAt             DateTime @default(now())
+  generatedBy             String   @default("system")
+
+  @@index([companyId])
+  @@index([confidence])
+  @@index([generatedAt])
+}
+
+model OpportunitySignal {
+  id                     String   @id @default(cuid())
+  companyId              String
+  company                Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  signalType             String                        // growth, technology, leadership, partnership, pain
+  title                  String
+  description            String
+  matchedPattern         String                        // the keyword/pattern that triggered this signal
+  sourceIntelligenceIds  String   @default("[]")        // JSON: string[] — traceable to IntelligenceObject IDs
+  score                  Float    @default(0)            // 0-100
+  confidence             Float    @default(0.5)          // 0-1
+  status                 String   @default("NEW")        // NEW, REVIEWED, ACTIONED, DISMISSED
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([signalType])
+  @@index([score])
+  @@index([status])
+  @@index([companyId, signalType])
+  @@index([createdAt])
+}
+
+model AccountScore {
+  id             String   @id @default(cuid())
+  companyId      String   @unique
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  score          Float                         // 0-100 overall
+  scoreBreakdown String   @default("{}")         // JSON: { intelligenceCoverage, signalStrength, freshness, strategicFit, overallScore }
+  category       String   @default("NURTURE")    // HOT_ACCOUNT, WARM_ACCOUNT, NURTURE, AT_RISK
+  calculatedAt   DateTime @default(now())
+
+  @@index([companyId])
+  @@index([category])
+  @@index([score])
+}

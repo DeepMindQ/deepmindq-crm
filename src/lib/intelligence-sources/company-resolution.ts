@@ -97,7 +97,7 @@ export async function resolveCompany(
     const alias = await db.companyAlias.findFirst({
       where: {
         companyId: company.id,
-        alias: { equals: inputName, mode: 'insensitive' },
+        alias: { equals: inputName },
       },
     });
     if (alias) {

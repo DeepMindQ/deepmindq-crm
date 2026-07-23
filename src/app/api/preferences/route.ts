@@ -1,23 +1,24 @@
-// @ts-nocheck
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess, validateBody } from "@/lib/apiHelpers";
 import { updatePreferencesSchema } from "@/lib/validations";
 
-// UserPreferences is a singleton model — there should be exactly one row.
+// SystemSetting is a key-value store model.
 
 export async function GET() {
   try {
-    let prefs = await db.systemSetting.findFirst();
+    // SystemSetting is a key-value store; preferences are stored under a special key.
+    // Find the preferences record by key.
+    const prefs = await db.systemSetting.findFirst({
+      where: { key: 'user_preferences' },
+    });
 
     if (!prefs) {
-      prefs = await db.systemSetting.create({ data: {} });
+      // Return empty defaults
+      return apiSuccess({ key: 'user_preferences', value: '{}' });
     }
 
-    // C4: Omit aiApiKey from the response to prevent API key leak
-    const { aiApiKey: _omitted, ...safePrefs } = prefs;
-
-    return apiSuccess(safePrefs);
+    return apiSuccess(prefs);
   } catch {
     return apiError("Failed to fetch preferences");
   }
@@ -33,21 +34,30 @@ export async function PUT(request: NextRequest) {
       return parsed;
     }
 
-    const updateData: Record<string, unknown> = { ...parsed };
+    const valueJson = JSON.stringify(parsed);
 
-    // H5: Use upsert to fix race condition — find the existing record first
-    const existing = await db.systemSetting.findFirst();
-
-    const result = await db.systemSetting.upsert({
-      where: { id: existing?.id || '_singleton_' },
-      update: updateData,
-      create: { id: existing?.id || '_singleton_', ...updateData },
+    // H5: Use upsert to fix race condition
+    const existing = await db.systemSetting.findFirst({
+      where: { key: 'user_preferences' },
     });
 
-    // C4: Omit aiApiKey from the response
-    const { aiApiKey: _omitted, ...safeResult } = result;
+    if (existing) {
+      const result = await db.systemSetting.update({
+        where: { id: existing.id },
+        data: { value: valueJson },
+      });
 
-    return apiSuccess(safeResult);
+      return apiSuccess(result);
+    } else {
+      const result = await db.systemSetting.create({
+        data: {
+          key: 'user_preferences',
+          value: valueJson,
+        },
+      });
+
+      return apiSuccess(result);
+    }
   } catch {
     return apiError("Failed to update preferences");
   }

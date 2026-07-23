@@ -1,8 +1,12 @@
-// @ts-nocheck
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { apiError, apiSuccess, safeInt, validateBody, sanitize } from "@/lib/apiHelpers";
 import { createNoteSchema } from "@/lib/validations";
+
+type NoteWithCompany = Prisma.CompanyNoteGetPayload<{ include: { company: true } }>;
+type NoteWithContact = Prisma.ContactNoteGetPayload<{ include: { contact: true } }>;
+type NoteListItem = NoteWithCompany & { _type: "company" } | (NoteWithContact & { _type: "contact" });
 
 // ─── GET ────────────────────────────────────────────────────────────────────
 // List notes. Query params: companyId, contactId, limit (default 50).
@@ -15,7 +19,7 @@ export async function GET(request: NextRequest) {
     const contactId = searchParams.get("contactId");
     const limit = Math.min(200, Math.max(1, safeInt(searchParams.get("limit"), 50, 10)));
 
-    const results: unknown[] = [];
+    const results: NoteListItem[] = [];
 
     // Both companyId AND contactId → fetch both with OR, single query each
     if (companyId && contactId) {
@@ -83,9 +87,7 @@ export async function GET(request: NextRequest) {
 
     // Sort combined results by createdAt descending and apply limit
     results.sort(
-      (a, b) =>
-        new Date((b as { createdAt: string }).createdAt).getTime() -
-        new Date((a as { createdAt: string }).createdAt).getTime()
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
     );
 
     return apiSuccess(results.slice(0, limit));
@@ -109,7 +111,7 @@ export async function POST(request: NextRequest) {
     const { companyId, contactId, body: noteBody, noteType } = parsed;
     const safeBody = sanitize(noteBody);
 
-    let note;
+    let note: NoteWithCompany | NoteWithContact | null = null;
     let noteTypeStr = noteType ?? null;
 
     if (companyId) {
@@ -122,7 +124,7 @@ export async function POST(request: NextRequest) {
         data: {
           companyId,
           body: safeBody,
-          noteType: noteTypeStr,
+          // noteType not a field on CompanyNote; store in metadata if needed
         },
         include: { company: true },
       });
@@ -130,8 +132,9 @@ export async function POST(request: NextRequest) {
       await db.companyTimelineEvent.create({
         data: {
           companyId,
-          action: "note_added",
-          details: `New note added to "${company.name}"`,
+          eventType: "note_added",
+          title: "Note added",
+          description: `New note added to "${company.rawName}"`,
         },
       });
     } else if (contactId) {
@@ -147,7 +150,6 @@ export async function POST(request: NextRequest) {
         data: {
           contactId,
           body: safeBody,
-          noteType: noteTypeStr,
         },
         include: { contact: true },
       });
@@ -155,9 +157,10 @@ export async function POST(request: NextRequest) {
       await db.companyTimelineEvent.create({
         data: {
           companyId: contact.companyId,
-          contactId,
-          action: "note_added",
-          details: `New note added to contact "${contact.name}"`,
+          eventType: "note_added",
+          title: "Note added",
+          description: `New note added to contact "${contact.rawName}"`,
+          metadata: JSON.stringify({ contactId }),
         },
       });
     }
@@ -189,8 +192,9 @@ export async function DELETE(request: NextRequest) {
       await db.companyTimelineEvent.create({
         data: {
           companyId: companyNote.companyId,
-          action: "note_added",
-          details: "A note was deleted",
+          eventType: "note_added",
+          title: "Note deleted",
+          description: "A note was deleted",
         },
       });
       return apiSuccess({ success: true });
@@ -204,10 +208,11 @@ export async function DELETE(request: NextRequest) {
       await db.contactNote.delete({ where: { id } });
       await db.companyTimelineEvent.create({
         data: {
-          companyId: contact?.companyId ?? null,
-          contactId: contactNote.contactId,
-          action: "note_added",
-          details: "A note was deleted",
+          companyId: contact?.companyId ?? "",
+          eventType: "note_added",
+          title: "Note deleted",
+          description: "A note was deleted",
+          metadata: JSON.stringify({ contactId: contactNote.contactId }),
         },
       });
       return apiSuccess({ success: true });

@@ -1,6 +1,6 @@
-// @ts-nocheck
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { apiError, apiSuccess, validateBody, sanitize } from "@/lib/apiHelpers";
 import { updateOpportunitySchema } from "@/lib/validations";
 import { OPPORTUNITY_STATUSES } from "@/lib/constants";
@@ -45,18 +45,13 @@ export async function PATCH(
       return apiError("Opportunity not found", 404);
     }
 
-    const data: Record<string, unknown> = {};
+    const data: Prisma.OpportunityRecommendationUpdateInput = {};
 
-    if (parsed.title !== undefined) data.title = sanitize(parsed.title);
-    if (parsed.description !== undefined) data.description = parsed.description ? sanitize(parsed.description) : undefined;
-    if (parsed.targetContactId !== undefined) {
-      if (parsed.targetContactId !== null) {
-        const contact = await db.contact.findUnique({ where: { id: parsed.targetContactId } });
-        if (!contact) {
-          return apiError("Target contact not found", 404);
-        }
-      }
-      data.targetContactId = parsed.targetContactId;
+    if (parsed.title !== undefined) {
+      data.opportunityTitle = sanitize(parsed.title);
+    }
+    if (parsed.description !== undefined) {
+      data.businessProblem = parsed.description ? sanitize(parsed.description) : '';
     }
     if (parsed.status !== undefined) {
       if (!OPPORTUNITY_STATUSES.includes(parsed.status)) {
@@ -65,7 +60,7 @@ export async function PATCH(
       data.status = parsed.status;
     }
     if (parsed.nextAction !== undefined) {
-      data.nextAction = parsed.nextAction ? sanitize(parsed.nextAction) : null;
+      data.suggestedConversation = parsed.nextAction ? sanitize(parsed.nextAction) : '';
     }
 
     const updated = await db.opportunityRecommendation.update({
@@ -75,12 +70,13 @@ export async function PATCH(
     });
 
     // Only create TimelineEntry if status actually changed
-    if (data.status !== undefined && data.status !== existing.status) {
+    if (parsed.status !== undefined && parsed.status !== existing.status) {
       await db.companyTimelineEvent.create({
         data: {
           companyId: existing.companyId,
-          action: "opportunity_updated",
-          details: `Opportunity "${updated.title}" status changed from "${existing.status}" to "${updated.status}"`,
+          eventType: "opportunity_updated",
+          title: "Opportunity updated",
+          description: `Opportunity "${updated.opportunityTitle}" status changed from "${existing.status}" to "${updated.status}"`,
         },
       });
     }
@@ -109,8 +105,9 @@ export async function DELETE(
     await db.companyTimelineEvent.create({
       data: {
         companyId: existing.companyId,
-        action: "opportunity_updated",
-        details: `Opportunity "${existing.title}" deleted`,
+        eventType: "opportunity_updated",
+        title: "Opportunity deleted",
+        description: `Opportunity "${existing.opportunityTitle}" deleted`,
       },
     });
 

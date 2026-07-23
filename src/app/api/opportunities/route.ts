@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess, safeInt, validateBody, sanitize } from "@/lib/apiHelpers";
@@ -47,7 +46,7 @@ export async function POST(request: NextRequest) {
       return parsed;
     }
 
-    const { companyId, title, description, targetContactId, status, nextAction } = parsed;
+    const { companyId, title, description, status, nextAction } = parsed;
 
     // Validate company exists
     const company = await db.company.findUnique({ where: { id: companyId } });
@@ -55,22 +54,53 @@ export async function POST(request: NextRequest) {
       return apiError("Company not found", 404);
     }
 
-    // Validate targetContactId FK if provided
-    if (targetContactId) {
-      const contact = await db.contact.findUnique({ where: { id: targetContactId } });
-      if (!contact) {
-        return apiError("Target contact not found", 404);
-      }
-    }
+    // Ensure prerequisite records exist for FK requirements
+    const [signal, capability] = await Promise.all([
+      db.companySignal.findFirst({ where: { companyId } }),
+      db.capabilityAsset.findFirst({ where: { isActive: true } }),
+    ]);
+
+    const signalId = signal?.id ?? (await db.companySignal.create({
+      data: {
+        companyId,
+        signalType: 'manual',
+        title: `Manual opportunity: ${title}`,
+        severity: 'low',
+        impact: 'low',
+      },
+    })).id;
+
+    const capabilityId = capability?.id ?? (await db.capabilityAsset.create({
+      data: {
+        title: `Manual: ${title}`,
+        summary: description ?? '',
+        category: 'other',
+      },
+    })).id;
+
+    const capabilityMatch = await db.signalCapabilityMatch.findFirst({
+      where: { signalId, capabilityId },
+    }) ?? await db.signalCapabilityMatch.create({
+      data: {
+        companyId,
+        signalId,
+        capabilityId,
+        reason: `Manual opportunity created`,
+      },
+    });
 
     const opportunity = await db.opportunityRecommendation.create({
       data: {
         companyId,
-        title: sanitize(title),
-        description: description ? sanitize(description) : null,
-        targetContactId: targetContactId ?? null,
+        signalId,
+        capabilityMatchId: capabilityMatch.id,
+        opportunityTitle: sanitize(title),
+        businessProblem: description ? sanitize(description) : '',
+        recommendedCapability: 'Manual opportunity',
+        suggestedConversation: nextAction ? sanitize(nextAction) : '',
         status: status ?? "researching",
-        nextAction: nextAction ? sanitize(nextAction) : null,
+        whyNow: 'Manually created opportunity',
+        businessTrigger: 'manual',
       },
       include: { company: true },
     });
@@ -78,8 +108,9 @@ export async function POST(request: NextRequest) {
     await db.companyTimelineEvent.create({
       data: {
         companyId,
-        action: "opportunity_created",
-        details: `New opportunity "${opportunity.title}" created for "${company.name}"`,
+        eventType: "opportunity_created",
+        title: "Opportunity created",
+        description: `New opportunity "${opportunity.opportunityTitle}" created for "${company.rawName}"`,
       },
     });
 

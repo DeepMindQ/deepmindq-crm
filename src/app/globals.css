@@ -37,9 +37,17 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* Gold tokens — kept for backward compatibility */
   --color-gold: oklch(0.72 0.14 75);
   --color-gold-dim: oklch(0.68 0.12 75);
   --color-gold-bright: oklch(0.78 0.16 75);
+
+  /* Intelligence tokens — enterprise blue */
+  --color-intel: oklch(0.55 0.15 250);
+  --color-intel-dim: oklch(0.50 0.12 250);
+  --color-intel-bright: oklch(0.62 0.18 250);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -83,21 +91,21 @@
   --popover: #FFFFFF;
   --popover-foreground: #111827;
 
-  /* Primary — DeepMindQ gold */
-  --primary: oklch(0.68 0.14 75);
+  /* Primary — Enterprise Intelligence Blue */
+  --primary: #2563EB;
   --primary-foreground: #FFFFFF;
 
   /* Secondary */
-  --secondary: #F3F4F6;
-  --secondary-foreground: #374151;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #334155;
 
   /* Muted */
   --muted: #F3F4F6;
   --muted-foreground: #6B7280;
 
-  /* Accent */
-  --accent: #FEF3C7;
-  --accent-foreground: #92400E;
+  /* Accent — Sophisticated Teal/Sky */
+  --accent: #E0F2FE;
+  --accent-foreground: #0C4A6E;
 
   /* Destructive */
   --destructive: #DC2626;
@@ -106,36 +114,57 @@
   --border: #E5E7EB;
   --input: #E5E7EB;
 
-  /* Ring */
-  --ring: oklch(0.68 0.14 75);
+  /* Ring — Enterprise Blue */
+  --ring: #2563EB;
 
-  /* Chart */
-  --chart-1: oklch(0.68 0.14 75);
-  --chart-2: oklch(0.55 0.118 184.704);
-  --chart-3: oklch(0.5 0.15 270);
-  --chart-4: oklch(0.6 0.12 175);
-  --chart-5: oklch(0.55 0.18 45);
+  /* Chart — Enterprise palette */
+  --chart-1: #3B82F6;
+  --chart-2: #8B5CF6;
+  --chart-3: #06B6D4;
+  --chart-4: #F59E0B;
+  --chart-5: #EF4444;
 
-  /* Sidebar — light with subtle glass */
-  --sidebar: #FFFFFF;
-  --sidebar-foreground: #374151;
-  --sidebar-primary: oklch(0.68 0.14 75);
+  /* Sidebar — Dark Navy Intelligence */
+  --sidebar: #0F172A;
+  --sidebar-foreground: #CBD5E1;
+  --sidebar-primary: #3B82F6;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #FEF3C7;
-  --sidebar-accent-foreground: #92400E;
-  --sidebar-border: #E5E7EB;
-  --sidebar-ring: oklch(0.68 0.14 75);
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #93C5FD;
+  --sidebar-border: #1E293B;
+  --sidebar-ring: #3B82F6;
 
   /* Light glass tokens */
-  --sidebar-glass: rgba(255, 255, 255, 0.85);
+  --sidebar-glass: rgba(15, 23, 42, 0.85);
   --header-glass: rgba(255, 255, 255, 0.8);
   --border-subtle: rgba(0, 0, 0, 0.06);
   --border-hover: rgba(0, 0, 0, 0.1);
   --text-dim: #9CA3AF;
   --surface-glass: rgba(255, 255, 255, 0.7);
   --surface-glass-heavy: rgba(255, 255, 255, 0.92);
+
+  /* Gold glow tokens — kept for backward compatibility */
   --gold-glow: rgba(180, 140, 20, 0.12);
   --gold-glow-strong: rgba(180, 140, 20, 0.25);
+
+  /* Intel glow tokens — enterprise intelligence blue */
+  --intel-glow: rgba(59, 130, 246, 0.12);
+  --intel-glow-strong: rgba(59, 130, 246, 0.25);
+
+  /* ── Enterprise Intelligence Tokens ── */
+  --intel-gradient: linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%);
+  --intel-gradient-subtle: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+
+  /* Confidence scale colors */
+  --confidence-high: #059669;
+  --confidence-medium: #D97706;
+  --confidence-low: #DC2626;
+
+  /* Intelligence card accent stripes */
+  --stripe-signal: #3B82F6;
+  --stripe-opportunity: #8B5CF6;
+  --stripe-risk: #EF4444;
+  --stripe-enrichment: #06B6D4;
 }
 
 /* ── Base ── */
@@ -182,7 +211,7 @@
   .card-interactive:hover {
     box-shadow: var(--shadow-raised);
     transform: translateY(-1px);
-    border-color: oklch(0.78 0.12 75);
+    border-color: #93C5FD;
   }
   .elevation-overlay { box-shadow: var(--shadow-overlay); }
   .elevation-modal { box-shadow: var(--shadow-modal); }
@@ -259,7 +288,7 @@
     transition: background-color 0.15s ease;
   }
   .table-row-hover:hover {
-    background-color: #FEF9EC;
+    background-color: #EFF6FF;
   }
 }
 
@@ -340,7 +369,7 @@
 /* ── Focus Ring ── */
 @layer base {
   :focus-visible {
-    outline: 2px solid oklch(0.68 0.14 75);
+    outline: 2px solid #2563EB;
     outline-offset: 2px;
     border-radius: 4px;
   }
@@ -356,15 +385,15 @@
   }
 }
 
-/* ── Landing page text selection ── */
+/* ── Text selection — enterprise intelligence blue ── */
 .dark ::selection,
 [data-landing] ::selection {
-  background: rgba(201, 168, 76, 0.25);
-  color: #F9FAFB;
+  background: rgba(59, 130, 246, 0.2);
+  color: #0F172A;
 }
 ::selection {
-  background: rgba(201, 168, 76, 0.25);
-  color: #F9FAFB;
+  background: rgba(59, 130, 246, 0.2);
+  color: #0F172A;
 }
 
 /* ── Print Stylesheet ── */
@@ -390,10 +419,10 @@
   background: var(--surface-glass-heavy, rgba(255, 255, 255, 0.92));
   backdrop-filter: blur(24px) saturate(1.5);
   -webkit-backdrop-filter: blur(24px) saturate(1.5);
-  border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.06));
+  border: 1px solid var(--border-subtle, rgba(0,0, 0, 0.06));
 }
 
-/* ── Gold accent utilities ── */
+/* ── Gold accent utilities (kept for backward compatibility) ── */
 .text-gold { color: var(--color-gold); }
 .text-gold-dim { color: var(--color-gold-dim); }
 .text-gold-bright { color: var(--color-gold-bright); }
@@ -402,7 +431,7 @@
 .border-gold { border-color: var(--color-gold); }
 .ring-gold { --tw-ring-color: var(--color-gold); }
 
-/* ── Gold text shimmer ── */
+/* ── Gold text shimmer (kept for backward compatibility) ── */
 .text-gold-shimmer {
   background: linear-gradient(90deg, var(--color-gold-dim), var(--color-gold-bright), var(--color-gold-dim));
   background-size: 200% auto;
@@ -410,4 +439,76 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: shimmer 3s linear infinite;
+}
+
+/* ── Intelligence accent utilities ── */
+.text-intel { color: var(--color-intel); }
+.text-intel-dim { color: var(--color-intel-dim); }
+.text-intel-bright { color: var(--color-intel-bright); }
+.bg-intel { background-color: var(--color-intel); }
+.bg-intel-subtle { background: color-mix(in oklch, var(--color-intel) 10%, transparent); }
+.border-intel { border-color: var(--color-intel); }
+.ring-intel { --tw-ring-color: var(--color-intel); }
+
+/* ── Enterprise Intelligence Component Classes ── */
+@layer components {
+  /* Intelligence Card — premium card with left accent stripe */
+  .intel-card {
+    @apply relative bg-white border border-slate-200 rounded-xl overflow-hidden;
+    box-shadow: var(--shadow-xs);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .intel-card:hover {
+    box-shadow: var(--shadow-raised);
+    border-color: #CBD5E1;
+  }
+  .intel-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--stripe-signal, #3B82F6);
+    border-radius: 3px 0 0 3px;
+  }
+  .intel-card[data-accent="opportunity"]::before { background: var(--stripe-opportunity); }
+  .intel-card[data-accent="risk"]::before { background: var(--stripe-risk); }
+  .intel-card[data-accent="enrichment"]::before { background: var(--stripe-enrichment); }
+
+  /* AI Processing Shimmer */
+  .ai-shimmer {
+    background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+    background-size: 200% 100%;
+    animation: aiShimmer 1.5s ease-in-out infinite;
+  }
+  @keyframes aiShimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Intelligence gradient header */
+  .intel-header {
+    background: var(--intel-gradient);
+    color: white;
+  }
+
+  /* Intelligence badge */
+  .intel-badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  .intel-badge-high { @apply bg-emerald-50 text-emerald-700; }
+  .intel-badge-medium { @apply bg-amber-50 text-amber-700; }
+  .intel-badge-low { @apply bg-red-50 text-red-700; }
+
+  /* Executive stat */
+  .exec-stat {
+    @apply flex flex-col gap-1 p-5;
+  }
+  .exec-stat-value {
+    @apply text-2xl font-bold text-slate-900 tabular-nums tracking-tight;
+  }
+  .exec-stat-label {
+    @apply text-xs font-medium text-slate-500 uppercase tracking-wider;
+  }
 }

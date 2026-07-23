@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { db } from '@/lib/db'
@@ -6,6 +5,7 @@ import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { sendEmail, type SendResult } from '@/lib/email-sender'
 import { registerTrackingEvent } from '@/lib/email-tracking'
 import { eventBus } from '@/lib/event-bus'
+import { logAction } from '@/lib/audit'
 
 // ── Validation ───────────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ function injectClickTracking(html: string, eventId: string, origin: string): str
   const trackPrefix = `${origin}/api/emails/track?eid=${encodeURIComponent(eventId)}&type=click&url=`
   return html.replace(
     /href="([^"]+)"/g,
-    (_, url: string) => {
+    (_match: string, url: string) => {
       // Skip anchor links, mailto, and already-tracked links
       if (url.startsWith('#') || url.startsWith('mailto:') || url.startsWith(trackPrefix)) {
         return `href="${url}"`
@@ -141,39 +141,46 @@ export async function POST(request: NextRequest) {
 
     await db.companyTimelineEvent.create({
       data: {
-        contactId: contactId ?? null,
-        companyId: companyId ?? null,
-        action: 'email_generated',
-        details: `Email sent to ${to} — Subject: "${subject}"`,
+        companyId: companyId ?? '',
+        eventType: 'email_generated',
+        title: 'Email sent',
+        description: `Email sent to ${to} — Subject: "${subject}"`,
+        metadata: contactId ? JSON.stringify({ contactId }) : undefined,
       },
     })
 
-    // ── Create notification ────────────────────────────────────
-    // Find the first user to notify (single-user app)
-    const user = await db.user.findFirst({ select: { id: true } })
-    if (user) {
-      const notification = await db.auditLog.create({
-        data: {
-          userId: user.id,
-          title: 'Email Sent',
-          message: `Email "${subject}" was sent to ${to}`,
-          type: 'success',
-          link: contactId ? `/contacts/${contactId}` : null,
-        },
-      })
-
-      // Emit via event bus so SSE picks it up
-      eventBus.emit('notification', {
-        id: notification.id,
-        userId: notification.userId,
-        title: notification.title,
-        message: notification.message,
-        type: notification.type,
-        read: notification.read,
-        link: notification.link,
-        createdAt: notification.createdAt.toISOString(),
-      })
+    // ── Create notification via audit log ──────────────────────
+    const notificationDetails = {
+      title: 'Email Sent',
+      message: `Email "${subject}" was sent to ${to}`,
+      type: 'success',
+      link: contactId ? `/contacts/${contactId}` : null,
     }
+
+    const auditEntry = await db.auditLog.create({
+      data: {
+        action: 'email_sent',
+        entity: 'Email',
+        details: JSON.stringify(notificationDetails),
+      },
+    })
+
+    // Emit via event bus so SSE picks it up
+    eventBus.emit('notification', {
+      id: auditEntry.id,
+      title: notificationDetails.title,
+      message: notificationDetails.message,
+      type: notificationDetails.type,
+      link: notificationDetails.link,
+      createdAt: auditEntry.createdAt.toISOString(),
+    })
+
+    await logAction('email_sent', 'Email', auditEntry.id, {
+      to,
+      subject,
+      contactId: contactId ?? null,
+      draftId: draftId ?? null,
+    })
 
     return apiSuccess({
       success: true,

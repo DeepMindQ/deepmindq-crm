@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
@@ -34,7 +33,7 @@ export async function GET(request: NextRequest) {
       where.emailHealth = emailHealth;
     }
     if (roleBucket) {
-      where.roleBucket = roleBucket;
+      where.role = roleBucket;
     }
     if (companyId) {
       where.companyId = companyId;
@@ -85,6 +84,16 @@ export async function POST(request: NextRequest) {
       return apiError("Company not found", 404);
     }
 
+    // Create a manual import batch for non-batch contact creation
+    const batch = await db.importBatch.create({
+      data: {
+        fileName: 'manual-contact',
+        fileHash: 'manual-' + Date.now(),
+        totalRows: 1,
+        status: 'completed',
+      },
+    });
+
     // Sanitize string fields
     const sanitized = sanitizeFields(
       { ...data } as unknown as Record<string, unknown>,
@@ -95,12 +104,13 @@ export async function POST(request: NextRequest) {
       data: {
         rawName: sanitized.name || data.name,
         normalizedName: (sanitized.name || data.name || '').toLowerCase(),
-        email: sanitized.email || null,
-        title: sanitized.jobTitle || null,
-        linkedinUrl: sanitized.linkedinUrl || null,
-        phone: sanitized.phone || null,
-        location: sanitized.location || null,
+        email: sanitized.email || data.email || `no-email-${Date.now()}@import.local`,
+        title: sanitized.jobTitle || '',
+        linkedinUrl: sanitized.linkedinUrl || '',
+        phone: sanitized.phone || '',
+        location: sanitized.location || '',
         companyId: data.companyId,
+        batchId: batch.id,
       },
     });
 

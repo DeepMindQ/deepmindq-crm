@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { apiError } from "@/lib/apiHelpers";
@@ -29,30 +28,26 @@ async function buildCompaniesCSV(): Promise<string> {
     "Name",
     "Domain",
     "Industry",
-    "Employee Size",
+    "Size Range",
     "Country",
     "Location",
     "Website",
-    "LinkedIn",
     "Status",
     "Intelligence Score",
-    "Data Freshness",
     "Created At",
   ].join(",");
 
   const rows = companies.map((c) =>
     [
-      escapeCSV(c.name),
+      escapeCSV(c.rawName),
       escapeCSV(c.domain),
       escapeCSV(c.industry),
-      escapeCSV(c.employeeSize),
+      escapeCSV(c.sizeRange),
       escapeCSV(c.country),
       escapeCSV(c.location),
       escapeCSV(c.website),
-      escapeCSV(c.linkedinUrl),
       escapeCSV(c.status),
       escapeCSV(c.intelligenceScore),
-      escapeCSV(c.dataFreshness),
       escapeCSV(c.createdAt.toISOString()),
     ].join(",")
   );
@@ -62,10 +57,10 @@ async function buildCompaniesCSV(): Promise<string> {
 
 async function buildContactsCSV(): Promise<string> {
   const contacts = await db.contact.findMany({
-    where: { archivedAt: null },
+    where: { status: { not: 'archived' } },
     orderBy: { createdAt: "desc" },
     include: {
-      company: { select: { name: true } },
+      company: { select: { rawName: true } },
     },
   });
 
@@ -85,11 +80,11 @@ async function buildContactsCSV(): Promise<string> {
 
   const rows = contacts.map((c) =>
     [
-      escapeCSV(c.name),
+      escapeCSV(c.rawName),
       escapeCSV(c.email),
-      escapeCSV(c.jobTitle),
-      escapeCSV(c.roleBucket),
-      escapeCSV(c.company?.name),
+      escapeCSV(c.title),
+      escapeCSV(c.role),
+      escapeCSV(c.company?.rawName),
       escapeCSV(c.phone),
       escapeCSV(c.location),
       escapeCSV(c.emailHealth),

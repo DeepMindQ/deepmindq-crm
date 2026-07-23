@@ -1,11 +1,11 @@
-// @ts-nocheck
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
 import { createHash } from 'crypto';
-import { checkSyntax, checkDisposable, checkRoleBased, checkFreeProvider, scoreEmail } from '@/lib/email-verify';
+import { scoreEmail } from '@/lib/email-verify';
 import { logAction } from '@/lib/audit';
 import { calculateLeadScore } from '@/lib/lead-scoring';
+import { Company } from '@prisma/client';
 
 function sha256(str: string): string {
   return 'sha256:' + createHash('sha256').update(str).digest('hex');
@@ -55,7 +55,7 @@ function companyMatchScore(a: string, b: string): number {
 }
 
 /* In-memory progress tracker for chunked processing */
-const batchProgress = new Map<string, {
+interface BatchProgress {
   status: string;
   processedRows: number;
   totalRows: number;
@@ -68,7 +68,9 @@ const batchProgress = new Map<string, {
   source?: string;
   consentIp?: string;
   newContactIds: string[];
-}>();
+}
+
+const batchProgress = new Map<string, BatchProgress>();
 
 const CHUNK_SIZE = 100;
 const LARGE_FILE_THRESHOLD = 500;
@@ -93,8 +95,8 @@ async function processChunk(
   reverseMap: Record<string, string>,
   batchId: string,
   companyIdCache: Map<string, string>,
-  existingCompanies: any[],
-  progress: NonNullable<ReturnType<typeof batchProgress.get>>
+  existingCompanies: Company[],
+  progress: BatchProgress
 ): Promise<{ accepted: number; duplicates: number; invalid: number; newContactIds: string[] }> {
   let accepted = 0;
   let duplicates = 0;
@@ -121,7 +123,7 @@ async function processChunk(
       if (existingEmail) { duplicates++; continue; }
     }
 
-    let companyId: string | undefined;
+    let companyId: string;
     const normalizedName = normalize(rawCompany);
 
     if (normalizedName) {
@@ -137,18 +139,19 @@ async function processChunk(
         }
         if (bestScore >= 70 && bestMatch) {
           companyId = bestMatch;
-          companyIdCache.set(normalizedName!, companyId);
+          companyIdCache.set(normalizedName, companyId);
         } else {
           const newCompany = await db.company.create({
             data: {
-              rawName: rawCompany, normalizedName,
+              rawName: rawCompany,
+              normalizedName,
               domain: rawEmail ? rawEmail.split('@')[1] : undefined,
               industry: rawIndustry || undefined,
               location: rawLocation || undefined,
             },
           });
           companyId = newCompany.id;
-          companyIdCache.set(normalizedName!, companyId!);
+          companyIdCache.set(normalizedName, companyId);
           existingCompanies.push(newCompany);
         }
       }
@@ -156,13 +159,18 @@ async function processChunk(
       const placeholderName = rawEmail ? rawEmail.split('@')[1] || 'Unknown' : 'Unknown';
       const phNorm = normalize(placeholderName);
       const cached = companyIdCache.get(phNorm);
-      if (cached) { companyId = cached; }
-      else {
+      if (cached) {
+        companyId = cached;
+      } else {
         const newCompany = await db.company.create({
-          data: { rawName: placeholderName, normalizedName: phNorm, domain: rawEmail ? rawEmail.split('@')[1] : undefined },
+          data: {
+            rawName: placeholderName,
+            normalizedName: phNorm,
+            domain: rawEmail ? rawEmail.split('@')[1] : undefined,
+          },
         });
         companyId = newCompany.id;
-        companyIdCache.set(phNorm!, companyId!);
+        companyIdCache.set(phNorm, companyId);
         existingCompanies.push(newCompany);
       }
     }
@@ -173,7 +181,7 @@ async function processChunk(
     else if (/^(manager|lead|principal|senior|staff|sr\.|sr )/.test(titleLower)) roleBucket = 'manager';
     else if (/^(engineer|developer|architect|scientist|analyst|programmer|devops|sre|data)/.test(titleLower)) roleBucket = 'technical';
 
-    const emailResult = rawEmail ? scoreEmail(rawEmail) : { health: 'unknown', score: 0, issues: [] };
+    const emailResult = rawEmail ? scoreEmail(rawEmail) : { health: 'unknown' as const, score: 0, issues: [] as string[] };
 
     // L-02: Use advanced lead scoring model
     const leadScoreResult = calculateLeadScore({
@@ -196,7 +204,7 @@ async function processChunk(
       data: {
         rawName: rawName || 'Unknown',
         normalizedName: normalize(rawName) || 'unknown',
-        email: rawEmail || undefined,
+        email: rawEmail || `no-email-${Date.now()}-${Math.random().toString(36).slice(2)}@import.local`,
         title: rawTitle || undefined,
         role: roleBucket,
         phone: rawPhone || undefined,
@@ -236,7 +244,7 @@ export async function POST(request: Request) {
     const customMappingStr = formData.get('mapping') as string | null;
     let customMapping: Record<string, string> | null = null;
     if (customMappingStr) {
-      try { customMapping = JSON.parse(customMappingStr); } catch { /* ignore invalid */ }
+      try { customMapping = JSON.parse(customMappingStr) as Record<string, string>; } catch { /* ignore invalid */ }
     }
 
     if (!file) {
@@ -252,7 +260,7 @@ export async function POST(request: Request) {
     }
 
     const ext = file.name.split('.').pop()?.toLowerCase();
-    if (!['csv', 'xlsx', 'xls'].includes(ext || '')) {
+    if (!ext || !['csv', 'xlsx', 'xls'].includes(ext)) {
       return NextResponse.json({ error: 'Only CSV and Excel files are supported' }, { status: 400 });
     }
 
@@ -262,8 +270,11 @@ export async function POST(request: Request) {
     try {
       const workbook = XLSX.read(buffer, { type: 'buffer' });
       const sheetName = workbook.SheetNames[0];
+      if (!sheetName) {
+        return NextResponse.json({ error: 'File has no sheets.' }, { status: 400 });
+      }
       const sheet = workbook.Sheets[sheetName];
-      rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      rows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, unknown>[];
     } catch {
       return NextResponse.json({ error: 'Failed to parse file.' }, { status: 400 });
     }
@@ -312,8 +323,8 @@ export async function POST(request: Request) {
         if (c.domain) companyCache.set(normalize(c.domain), c.id);
       }
 
-      const progressData = {
-        status: 'processing' as string,
+      const progressData: BatchProgress = {
+        status: 'processing',
         processedRows: 0,
         totalRows: rows.length,
         acceptedRows: 0,
@@ -324,7 +335,7 @@ export async function POST(request: Request) {
         consentSource,
         source,
         consentIp,
-        newContactIds: [] as string[],
+        newContactIds: [],
       };
 
       const result = await processChunk(rows, reverseMap, batch.id, companyCache, existingCompanies, progressData);
@@ -372,8 +383,8 @@ export async function POST(request: Request) {
     }
 
     // Large file: start background chunked processing
-    const progressData = {
-      status: 'processing' as string,
+    const progressData: BatchProgress = {
+      status: 'processing',
       processedRows: 0,
       totalRows: rows.length,
       acceptedRows: 0,
@@ -384,7 +395,7 @@ export async function POST(request: Request) {
       consentSource,
       source,
       consentIp,
-      newContactIds: [] as string[],
+      newContactIds: [],
     };
     batchProgress.set(batch.id, progressData);
 

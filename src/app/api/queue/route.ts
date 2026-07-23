@@ -1,6 +1,6 @@
-// @ts-nocheck
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 
 export async function GET() {
   try {
@@ -43,12 +43,13 @@ export async function GET() {
    ═══════════════════════════════════════════════════ */
 export async function PATCH(request: Request) {
   try {
-    const body = await request.json();
-    const { action, id, ids } = body as {
+    const body = await request.json() as {
       action: string;
       id?: string;
       ids?: string[];
     };
+
+    const { action, id, ids } = body;
 
     if (!action || !['pause', 'resume', 'retry', 'cancel'].includes(action)) {
       return NextResponse.json(
@@ -60,11 +61,11 @@ export async function PATCH(request: Request) {
     let affected = 0;
 
     if (action === 'pause') {
-      const where = id
-        ? { id, status: { in: ['pending', 'scheduled'] } as string[] }
+      const where: Prisma.SendQueueWhereInput = id
+        ? { id, status: { in: ['pending', 'scheduled'] } }
         : ids?.length
-          ? { id: { in: ids }, status: { in: ['pending', 'scheduled'] } as string[] }
-          : { status: { in: ['pending', 'scheduled'] } as string[] };
+          ? { id: { in: ids }, status: { in: ['pending', 'scheduled'] } }
+          : { status: { in: ['pending', 'scheduled'] } };
 
       const result = await db.sendQueue.updateMany({
         where,
@@ -74,7 +75,7 @@ export async function PATCH(request: Request) {
     }
 
     if (action === 'resume') {
-      const where = id
+      const where: Prisma.SendQueueWhereInput = id
         ? { id, status: 'paused' }
         : ids?.length
           ? { id: { in: ids }, status: 'paused' }
@@ -88,7 +89,7 @@ export async function PATCH(request: Request) {
     }
 
     if (action === 'retry') {
-      const where = id
+      const where: Prisma.SendQueueWhereInput = id
         ? { id, status: 'failed' }
         : ids?.length
           ? { id: { in: ids }, status: 'failed' }
@@ -106,11 +107,11 @@ export async function PATCH(request: Request) {
     }
 
     if (action === 'cancel') {
-      const where = id
-        ? { id, status: { in: ['pending', 'scheduled', 'paused'] } as string[] }
+      const where: Prisma.SendQueueWhereInput = id
+        ? { id, status: { in: ['pending', 'scheduled', 'paused'] } }
         : ids?.length
-          ? { id: { in: ids }, status: { in: ['pending', 'scheduled', 'paused'] } as string[] }
-          : { status: { in: ['pending', 'scheduled', 'paused'] } as string[] };
+          ? { id: { in: ids }, status: { in: ['pending', 'scheduled', 'paused'] } }
+          : { status: { in: ['pending', 'scheduled', 'paused'] } };
 
       const result = await db.sendQueue.updateMany({
         where,

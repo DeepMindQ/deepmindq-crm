@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
@@ -83,7 +82,7 @@ export async function GET(request: NextRequest) {
               description: 'Opened your email but hasn\'t replied — prime for follow-up',
               contactId: c.id,
               contactName: c.rawName,
-              companyName: c.company?.normalizedName,
+              companyName: c.company?.normalizedName ?? undefined,
               severity: 'high',
               detectedAt: now.toISOString(),
               metadata: { leadScore: c.leadScore },
@@ -115,7 +114,7 @@ export async function GET(request: NextRequest) {
           description: `Lead score ${c.leadScore} but still in "${c.status}" status — draft and send!`,
           contactId: c.id,
           contactName: c.rawName,
-          companyName: c.company?.normalizedName,
+          companyName: c.company?.normalizedName ?? undefined,
           severity: 'high',
           detectedAt: now.toISOString(),
           metadata: { leadScore: c.leadScore, status: c.status },
@@ -173,7 +172,7 @@ export async function GET(request: NextRequest) {
               description: `Sent 7+ days ago with zero opens, clicks, or replies`,
               contactId: c.id,
               contactName: c.rawName,
-              companyName: companyMap.get(c.companyId),
+              companyName: companyMap.get(c.companyId) ?? undefined,
               severity: 'low',
               detectedAt: now.toISOString(),
               metadata: { lastContactedAt: c.lastContactedAt?.toISOString() },
@@ -212,7 +211,7 @@ export async function GET(request: NextRequest) {
           description: 'Email health is "risky" and currently queued — likely to bounce',
           contactId: c.id,
           contactName: c.rawName,
-          companyName: c.company?.normalizedName,
+          companyName: c.company?.normalizedName ?? undefined,
           severity: 'high',
           detectedAt: now.toISOString(),
           metadata: { emailHealth: c.emailHealth },
@@ -242,7 +241,7 @@ export async function GET(request: NextRequest) {
           description: `Score ${c.leadScore} — needs an owner to drive conversion`,
           contactId: c.id,
           contactName: c.rawName,
-          companyName: c.company?.normalizedName,
+          companyName: c.company?.normalizedName ?? undefined,
           severity: 'medium',
           detectedAt: now.toISOString(),
           metadata: { leadScore: c.leadScore },
@@ -269,7 +268,7 @@ export async function GET(request: NextRequest) {
           sequence: { select: { name: true } },
         },
         take: 10,
-        orderBy: { updatedAt: 'desc' },
+        orderBy: { startedAt: 'desc' },
       });
 
       for (const d of dropouts) {
@@ -280,7 +279,7 @@ export async function GET(request: NextRequest) {
           description: `${d.contact.rawName} dropped out of the sequence`,
           contactId: d.contact.id,
           contactName: d.contact.rawName,
-          companyName: d.contact.company?.normalizedName,
+          companyName: d.contact.company?.normalizedName ?? undefined,
           severity: 'medium',
           detectedAt: now.toISOString(),
           metadata: { sequenceName: d.sequence.name, enrollmentStatus: d.status },
@@ -317,7 +316,7 @@ export async function GET(request: NextRequest) {
             : 'Received a positive response — respond promptly!',
           contactId: r.contact.id,
           contactName: r.contact.rawName,
-          companyName: r.contact.company?.normalizedName,
+          companyName: r.contact.company?.normalizedName ?? undefined,
           severity: 'high',
           detectedAt: r.receivedAt.toISOString(),
           metadata: { replyId: r.id, subject: r.subject },
@@ -355,12 +354,11 @@ export async function GET(request: NextRequest) {
    ═══════════════════════════════════════════════════════════════ */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { id, action } = body;
+    const body = await request.json() as { id?: string; action?: string };
 
-    if (action === 'dismiss' && id) {
-      dismissedIds.add(id);
-      return NextResponse.json({ success: true, dismissed: id });
+    if (body.action === 'dismiss' && body.id) {
+      dismissedIds.add(body.id);
+      return NextResponse.json({ success: true, dismissed: body.id });
     }
 
     return NextResponse.json({ error: 'Invalid action. Use { id, action: "dismiss" }' }, { status: 400 });

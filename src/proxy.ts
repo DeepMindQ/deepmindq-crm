@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * Security headers + landing page routing.
+ * Proxy — replaces deprecated middleware.ts (Next.js 16).
  *
  * - Unauthenticated visitors to / get the static landing page (fast, no JS bundle)
  * - Authenticated visitors to / get the Next.js dashboard
- * - Static HTML files (.html) bypass middleware entirely (no CSP interference)
+ * - Static HTML files (.html) bypass proxy entirely (no CSP interference)
  * - Security headers applied only to API routes and Next.js page routes
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = new URL(request.url);
   const sessionCookie = request.cookies.get('dmq_session');
 
@@ -52,6 +52,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
+  // Proxy matches the same routes as the old middleware
   matcher: [
     // Match API routes
     '/api/:path*',

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/apiHelpers";
@@ -39,6 +38,12 @@ function parseCSVLine(line: string): string[] {
   }
   fields.push(current.trim());
   return fields;
+}
+
+/** Normalise a company or contact name for deduplication.
+ *  Trim whitespace, collapse multiple spaces, lowercase. */
+function normalizeName(raw: string): string {
+  return raw.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
 // ---------------------------------------------------------------------------
@@ -187,7 +192,7 @@ async function executeImport(body: ExecuteBody) {
     return apiError("batchId, mapping, and rows are required.", 400);
   }
 
-  // C10: Cap rows at 1000
+  // C10: Cap rows at 1000 (will increase to 10,000 after chunk processing)
   if (rows.length > 1000) {
     return apiError("Maximum 1000 rows per import", 400);
   }
@@ -198,6 +203,12 @@ async function executeImport(body: ExecuteBody) {
     return apiError("Import batch not found.", 404);
   }
 
+  // Mark batch as processing immediately
+  await db.importBatch.update({
+    where: { id: batchId },
+    data: { status: "processing" },
+  });
+
   // Helper: safely extract a value from a row by mapped column index
   const val = (row: string[], field: string): string | undefined => {
     const idx = mapping[field];
@@ -205,21 +216,37 @@ async function executeImport(body: ExecuteBody) {
     return row[idx]?.trim() || undefined;
   };
 
-  // H3: Batch lookup — collect all unique company names first
-  const companyNames = new Set<string>();
+  // Batch lookup — collect all unique company raw names for dedup
+  const companyRawNames = new Set<string>();
   for (const row of rows) {
     const companyName = val(row, "companyName");
-    if (companyName) companyNames.add(companyName);
+    if (companyName) companyRawNames.add(companyName);
+  }
+
+  // Look up existing companies by BOTH rawName AND normalizedName
+  // to catch cases where same company was imported with different casing
+  const normalizedLookupNames: string[] = [];
+  for (const n of companyRawNames) {
+    normalizedLookupNames.push(n);          // exact rawName
+    normalizedLookupNames.push(normalizeName(n)); // normalizedName
   }
 
   const existingCompanies = await db.company.findMany({
-    where: { name: { in: Array.from(companyNames) } },
-    select: { id: true, name: true },
+    where: {
+      OR: [
+        { rawName: { in: [...companyRawNames] } },
+        { normalizedName: { in: normalizedLookupNames } },
+      ],
+    },
+    select: { id: true, rawName: true, normalizedName: true },
   });
 
-  const companyMap = new Map<string, string>();
+  // Build lookup maps: rawName→id and normalizedName→id
+  const companyByRawName = new Map<string, string>();
+  const companyByNormalizedName = new Map<string, string>();
   for (const c of existingCompanies) {
-    companyMap.set(c.name, c.id);
+    companyByRawName.set(c.rawName, c.id);
+    companyByNormalizedName.set(c.normalizedName, c.id);
   }
 
   let accepted = 0;
@@ -228,7 +255,7 @@ async function executeImport(body: ExecuteBody) {
 
   const affectedCompanies = new Map<string, { id: string; name: string; contactsAdded: number; wasCreated: boolean }>();
 
-  // H4: Wrap entire import loop in a transaction for atomicity
+  // Wrap entire import loop in a transaction for atomicity
   await db.$transaction(async (tx) => {
     for (const row of rows) {
       const companyName = val(row, "companyName");
@@ -239,26 +266,36 @@ async function executeImport(body: ExecuteBody) {
         continue;
       }
 
-      // Use the batch lookup map instead of N+1 queries
-      let companyId = companyMap.get(companyName);
+      // Look up company by rawName first, then normalizedName
+      let companyId = companyByRawName.get(companyName);
+      if (!companyId) {
+        companyId = companyByNormalizedName.get(normalizeName(companyName));
+      }
+
       let wasCreated = false;
 
       if (!companyId) {
         const created = await tx.company.create({
-          data: { name: companyName },
+          data: {
+            rawName: companyName,
+            normalizedName: normalizeName(companyName),
+          },
         });
         companyId = created.id;
         wasCreated = true;
-        // Update the map for subsequent rows with the same company name
-        companyMap.set(companyName, companyId);
+        // Update maps for subsequent rows
+        companyByRawName.set(companyName, companyId);
+        companyByNormalizedName.set(normalizeName(companyName), companyId);
       }
 
       // Check for duplicate contact within the same company
       const email = val(row, "email");
+      const contactNormalizedName = normalizeName(contactName);
+
       const existingContact = await tx.contact.findFirst({
         where: {
           companyId,
-          name: contactName,
+          normalizedName: contactNormalizedName,
           ...(email ? { email } : {}),
         },
       });
@@ -271,8 +308,10 @@ async function executeImport(body: ExecuteBody) {
       await tx.contact.create({
         data: {
           companyId,
-          name: contactName,
-          email: email || null,
+          batchId,
+          rawName: contactName,
+          normalizedName: contactNormalizedName,
+          email: email || `unknown-${crypto.randomUUID().slice(0, 8)}@import.temp`,
           jobTitle: val(row, "jobTitle") || null,
           phone: val(row, "phone") || null,
           location: val(row, "location") || null,
@@ -300,15 +339,17 @@ async function executeImport(body: ExecuteBody) {
       },
     });
 
-    // Create a timeline entry per affected company
+    // Create timeline events per affected company
     if (affectedCompanies.size > 0) {
-      await tx.timelineEntry.createMany({
+      await tx.companyTimelineEvent.createMany({
         data: Array.from(affectedCompanies.values()).map((c) => ({
           companyId: c.id,
-          action: "import_completed",
-          details: c.wasCreated
-            ? `Company "${c.name}" created with ${c.contactsAdded} contact(s) via CSV import "${batch.fileName}".`
-            : `${c.contactsAdded} contact(s) added to "${c.name}" via CSV import "${batch.fileName}".`,
+          eventType: "contact_added",
+          title: c.wasCreated
+            ? `Company "${c.name}" imported with ${c.contactsAdded} contact(s)`
+            : `${c.contactsAdded} contact(s) added to "${c.name}"`,
+          description: `CSV import "${batch.fileName}" — ${c.contactsAdded} contact(s) processed.`,
+          metadata: JSON.stringify({ batchId, fileName: batch.fileName, contactsAdded: c.contactsAdded, wasCreated: c.wasCreated }),
         })),
       });
     }
@@ -319,5 +360,6 @@ async function executeImport(body: ExecuteBody) {
     accepted,
     duplicates,
     invalid,
+    totalProcessed: accepted + duplicates + invalid,
   });
 }

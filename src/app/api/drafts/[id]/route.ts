@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess, validateBody, sanitize } from "@/lib/apiHelpers";
@@ -24,7 +23,7 @@ export async function PATCH(
     const updated = await db.$transaction(async (tx) => {
       const existing = await tx.draft.findUnique({
         where: { id },
-        include: { contact: { select: { id: true, name: true, companyId: true } } },
+        include: { contact: { select: { id: true, rawName: true, companyId: true } } },
       });
       if (!existing) {
         throw new Error("NOT_FOUND");
@@ -45,23 +44,27 @@ export async function PATCH(
         include: { contact: true },
       });
 
-      // Create timeline entry when status changes to 'sent' or 'rejected' from non-sent
+      // Create timeline event when status changes to 'sent' or 'rejected'
       const newStatus = parsed.status;
       if (newStatus && (newStatus === "sent" || newStatus === "rejected") && existing.status !== newStatus) {
         const companyId = draft.contact?.companyId;
         if (companyId) {
-          const action = newStatus === "sent" ? "email_sent" : "draft_updated";
-          const details =
+          const eventType = newStatus === "sent" ? "email_sent" : "draft_updated";
+          const contactDisplayName = draft.contact?.rawName ?? "unknown contact";
+          const description =
             newStatus === "sent"
-              ? `Draft email "${draft.subject || "(no subject)"}" was sent to ${draft.contact?.name}`
-              : `Draft email "${draft.subject || "(no subject)"}" was rejected for ${draft.contact?.name}`;
+              ? `Draft email "${draft.subject || "(no subject)"}" was sent to ${contactDisplayName}`
+              : `Draft email "${draft.subject || "(no subject)"}" was rejected for ${contactDisplayName}`;
 
-          await tx.timelineEntry.create({
+          await tx.companyTimelineEvent.create({
             data: {
-              contactId: draft.contactId,
               companyId,
-              action,
-              details,
+              eventType,
+              title: newStatus === "sent"
+                ? `Email sent to ${contactDisplayName}`
+                : `Draft rejected for ${contactDisplayName}`,
+              description,
+              metadata: JSON.stringify({ draftId: id, contactId: draft.contactId }),
             },
           });
         }

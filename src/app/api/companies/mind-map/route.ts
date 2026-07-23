@@ -45,9 +45,9 @@ interface MindMapResponse {
 /* ── Shared: build graph nodes/edges for a list of companies ── */
 function buildCompanyNodes(
   companies: Array<Record<string, unknown>>,
-  contactsMap: Map<string, unknown[]>,
-  signalsMap: Map<string, unknown[]>,
-  notesMap: Map<string, unknown[]>,
+  contactsMap: Map<string, Array<Record<string, unknown>>>,
+  signalsMap: Map<string, Array<Record<string, unknown>>>,
+  notesMap: Map<string, Array<Record<string, unknown>>>,
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
@@ -217,12 +217,12 @@ async function buildFocusedView(companyId: string): Promise<MindMapResponse> {
     }),
   ]);
 
-  const contactsMap = new Map<string, unknown[]>();
-  const signalsMap = new Map<string, unknown[]>();
-  const notesMap = new Map<string, unknown[]>();
-  contactsMap.set(companyId, contacts as unknown[]);
-  signalsMap.set(companyId, signals as unknown[]);
-  notesMap.set(companyId, notes as unknown[]);
+  const contactsMap = new Map<string, Array<Record<string, unknown>>>();
+  const signalsMap = new Map<string, Array<Record<string, unknown>>>();
+  const notesMap = new Map<string, Array<Record<string, unknown>>>();
+  contactsMap.set(companyId, contacts as unknown as Array<Record<string, unknown>>);
+  signalsMap.set(companyId, signals as unknown as Array<Record<string, unknown>>);
+  notesMap.set(companyId, notes as unknown as Array<Record<string, unknown>>);
 
   const { nodes, edges } = buildCompanyNodes([company as unknown as Record<string, unknown>], contactsMap, signalsMap, notesMap);
 
@@ -272,7 +272,7 @@ async function buildSearchView(term: string): Promise<MindMapResponse> {
     select: { id: true, rawName: true, normalizedName: true, email: true, title: true, role: true, leadScore: true, status: true, companyId: true },
   });
 
-  const contactsMap = new Map<string, unknown[]>();
+  const contactsMap = new Map<string, Array<Record<string, unknown>>>();
   const perCompany = new Map<string, number>();
   for (const ct of contacts) {
     const cid = ct.companyId;
@@ -280,14 +280,14 @@ async function buildSearchView(term: string): Promise<MindMapResponse> {
     if (count >= 3) continue;
     perCompany.set(cid, count + 1);
     if (!contactsMap.has(cid)) contactsMap.set(cid, []);
-    contactsMap.get(cid)!.push(ct);
+    contactsMap.get(cid)!.push(ct as unknown as Record<string, unknown>);
   }
 
   const { nodes, edges } = buildCompanyNodes(
     companies as unknown as Record<string, unknown>[],
     contactsMap,
-    new Map(), // no signals in search view for cleanliness
-    new Map(), // no notes in search view for cleanliness
+    new Map(),
+    new Map(),
   );
 
   return {
@@ -341,9 +341,9 @@ async function buildOverviewView(): Promise<MindMapResponse> {
     select: { id: true, companyId: true, title: true, category: true, pinned: true, createdAt: true },
   });
 
-  const contactsMap = new Map<string, unknown[]>();
-  const signalsMap = new Map<string, unknown[]>();
-  const notesMap = new Map<string, unknown[]>();
+  const contactsMap = new Map<string, Array<Record<string, unknown>>>();
+  const signalsMap = new Map<string, Array<Record<string, unknown>>>();
+  const notesMap = new Map<string, Array<Record<string, unknown>>>();
 
   // Top 3 contacts per company
   const perCompany = new Map<string, number>();
@@ -353,7 +353,7 @@ async function buildOverviewView(): Promise<MindMapResponse> {
     if (count >= 3) continue;
     perCompany.set(cid, count + 1);
     if (!contactsMap.has(cid)) contactsMap.set(cid, []);
-    contactsMap.get(cid)!.push(ct);
+    contactsMap.get(cid)!.push(ct as unknown as Record<string, unknown>);
   }
 
   // 1 signal per company (latest)
@@ -362,7 +362,7 @@ async function buildOverviewView(): Promise<MindMapResponse> {
     if (sigSeen.has(s.companyId)) continue;
     sigSeen.add(s.companyId);
     if (!signalsMap.has(s.companyId)) signalsMap.set(s.companyId, []);
-    signalsMap.get(s.companyId)!.push(s);
+    signalsMap.get(s.companyId)!.push(s as unknown as Record<string, unknown>);
   }
 
   // 1 note per company (latest)
@@ -371,7 +371,7 @@ async function buildOverviewView(): Promise<MindMapResponse> {
     if (noteSeen.has(n.companyId)) continue;
     noteSeen.add(n.companyId);
     if (!notesMap.has(n.companyId)) notesMap.set(n.companyId, []);
-    notesMap.get(n.companyId)!.push(n);
+    notesMap.get(n.companyId)!.push(n as unknown as Record<string, unknown>);
   }
 
   const { nodes, edges } = buildCompanyNodes(

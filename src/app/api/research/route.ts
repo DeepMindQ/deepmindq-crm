@@ -13,7 +13,7 @@ type ResearchResult = {
   possibleOpportunities: string;
   relevantServices: string;
   keyDecisionMakers: string;
-  lastInteraction: string;
+  lastResearchedAt: string;
   nextAction: string;
   confidenceScore: number;
 }
@@ -107,7 +107,7 @@ function parseResearchJson(raw: string): ResearchResult | null {
         possibleOpportunities: obj.possibleOpportunities ? String(obj.possibleOpportunities) : "",
         relevantServices: obj.relevantServices ? String(obj.relevantServices) : "",
         keyDecisionMakers: obj.keyDecisionMakers ? String(obj.keyDecisionMakers) : "",
-        lastInteraction: obj.lastInteraction ? String(obj.lastInteraction) : "",
+        lastResearchedAt: obj.lastResearchedAt ? String(obj.lastResearchedAt) : "",
         nextAction: obj.nextAction ? String(obj.nextAction) : "",
         confidenceScore: typeof obj.confidenceScore === "number" ? obj.confidenceScore : 72,
       };
@@ -128,7 +128,7 @@ function parseResearchJson(raw: string): ResearchResult | null {
           possibleOpportunities: obj.possibleOpportunities ? String(obj.possibleOpportunities) : "",
           relevantServices: obj.relevantServices ? String(obj.relevantServices) : "",
           keyDecisionMakers: obj.keyDecisionMakers ? String(obj.keyDecisionMakers) : "",
-          lastInteraction: obj.lastInteraction ? String(obj.lastInteraction) : "",
+          lastResearchedAt: obj.lastResearchedAt ? String(obj.lastResearchedAt) : "",
           nextAction: obj.nextAction ? String(obj.nextAction) : "",
           confidenceScore: typeof obj.confidenceScore === "number" ? obj.confidenceScore : 72,
         };
@@ -216,7 +216,7 @@ function generateFallbackResearch(company: {
     possibleOpportunities: insights.opportunities,
     relevantServices: `Relevant DeepMindQ services: (1) AI-powered sales intelligence and lead research to identify high-value prospects. (2) Email outreach optimization for personalized ${indLower} sector campaigns. (3) Sales pipeline management and forecasting. (4) Data enrichment services for complete prospect profiles. (5) Strategic consulting for growth in the ${indLower} market.`,
     keyDecisionMakers: `Key decision makers at ${n} (${s} employees, ${indLower}): (1) CEO/Founder for strategic partnership decisions. (2) CTO/VP Engineering for technology solutions. (3) VP Sales/Head of Revenue for sales enablement tools. (4) COO for process optimization and efficiency. (5) CFO for budget allocation and ROI justification.`,
-    lastInteraction: "No prior interactions recorded. This is a fresh engagement opportunity.",
+    lastResearchedAt: "No prior interactions recorded. This is a fresh engagement opportunity.",
     nextAction: `Recommended next steps: (1) Identify and validate key contacts at ${n} using LinkedIn and company website. (2) Research recent news, funding rounds, and strategic initiatives. (3) Craft personalized outreach referencing their ${indLower} focus. (4) Prepare industry-specific value proposition. (5) Schedule initial discovery call within 2 weeks.`,
     confidenceScore: 55,
   };
@@ -246,7 +246,7 @@ export async function POST(request: NextRequest) {
         possibleOpportunities,
         relevantServices,
         keyDecisionMakers,
-        lastInteraction,
+        lastResearchedAt,
         nextAction,
       } = body;
 
@@ -264,7 +264,7 @@ export async function POST(request: NextRequest) {
           possibleOpportunities: possibleOpportunities ?? undefined,
           relevantServices: relevantServices ?? undefined,
           keyDecisionMakers: keyDecisionMakers ?? undefined,
-          lastInteraction: lastInteraction ?? undefined,
+          lastResearchedAt: lastResearchedAt ?? undefined,
           nextAction: nextAction ?? undefined,
         },
         create: {
@@ -275,12 +275,12 @@ export async function POST(request: NextRequest) {
           possibleOpportunities: possibleOpportunities || null,
           relevantServices: relevantServices || null,
           keyDecisionMakers: keyDecisionMakers || null,
-          lastInteraction: lastInteraction || null,
+          lastResearchedAt: lastResearchedAt || null,
           nextAction: nextAction || null,
         },
       });
 
-      await db.timelineEntry.create({
+      await db.companyTimelineEvent.create({
         data: {
           companyId,
           action: "research_updated",
@@ -302,7 +302,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. Read UserPreferences from DB (singleton)
-    const prefs = await db.userPreferences.findFirst();
+    const prefs = await db.systemSetting.findFirst();
     const aiProvider = (prefs?.aiProvider || "openai").toLowerCase();
     const aiModel = prefs?.aiModel || "gpt-4o-mini";
     const aiApiKey = prefs?.aiApiKey;
@@ -311,7 +311,7 @@ export async function POST(request: NextRequest) {
     const existingResearch = await db.companyResearchCard.findUnique({ where: { companyId } });
 
     // 3. H15: Fix snippet query — get relevant snippets by industry match, or empty/null industries
-    const snippets = await db.capabilitySnippet.findMany({
+    const snippets = await db.capabilityAsset.findMany({
       take: 5,
       orderBy: { createdAt: "desc" },
       where: company.industry
@@ -362,7 +362,7 @@ Generate a JSON object with these fields:
 - "possibleOpportunities": Strategic opportunities for DeepMindQ's consulting engagement (3-5 numbered items).
 - "relevantServices": Which DeepMindQ services fit this company (3-5 numbered items). DeepMindQ offers: AI-powered sales intelligence, B2B lead research, email outreach optimization, sales pipeline management, data enrichment, and strategic consulting.
 - "keyDecisionMakers": Who to target and how to approach them (3-5 numbered items with specific roles).
-- "lastInteraction": Summary of known interactions (or "No prior interactions recorded. This is a fresh engagement opportunity.").
+- "lastResearchedAt": Summary of known interactions (or "No prior interactions recorded. This is a fresh engagement opportunity.").
 - "nextAction": Recommended next steps for engagement (3-5 numbered, actionable, specific items).
 - "confidenceScore": Number 0-100 indicating research quality and data completeness.
 
@@ -400,7 +400,7 @@ Respond ONLY with the JSON object, no additional text.`;
         possibleOpportunities: fb.possibleOpportunities,
         relevantServices: fb.relevantServices,
         keyDecisionMakers: fb.keyDecisionMakers,
-        lastInteraction: fb.lastInteraction,
+        lastResearchedAt: fb.lastResearchedAt,
         nextAction: fb.nextAction,
         confidenceScore: fb.confidenceScore,
       };
@@ -416,7 +416,7 @@ Respond ONLY with the JSON object, no additional text.`;
         possibleOpportunities: researchData!.possibleOpportunities,
         relevantServices: researchData!.relevantServices,
         keyDecisionMakers: researchData!.keyDecisionMakers,
-        lastInteraction: researchData!.lastInteraction,
+        lastResearchedAt: researchData!.lastResearchedAt,
         nextAction: researchData!.nextAction,
         confidenceScore: researchData!.confidenceScore,
       },
@@ -428,14 +428,14 @@ Respond ONLY with the JSON object, no additional text.`;
         possibleOpportunities: researchData!.possibleOpportunities,
         relevantServices: researchData!.relevantServices,
         keyDecisionMakers: researchData!.keyDecisionMakers,
-        lastInteraction: researchData!.lastInteraction,
+        lastResearchedAt: researchData!.lastResearchedAt,
         nextAction: researchData!.nextAction,
         confidenceScore: researchData!.confidenceScore,
       },
     });
 
     // 8. Create TimelineEntry
-    await db.timelineEntry.create({
+    await db.companyTimelineEvent.create({
       data: {
         companyId,
         action: "research_generated",

@@ -68,10 +68,10 @@ async function buildContextString(context: {
         parts.push(
           `### Research Summary:\n` +
             `- Overview: ${company.researchCard.businessOverview || 'N/A'}\n` +
-            `- Tech Landscape: ${company.researchCard.techLandscape || 'N/A'}\n` +
+            `- Tech Landscape: ${company.researchCard.currentTechLandscape || 'N/A'}\n` +
             `- Challenges: ${company.researchCard.potentialChallenges || 'N/A'}\n` +
             `- Opportunities: ${company.researchCard.possibleOpportunities || 'N/A'}\n` +
-            `- Suggested Action: ${'See company details'}`,
+            `- Next Action: ${company.researchCard.nextAction || 'N/A'}`,
         )
       }
       if (company.timeline.length > 0) {
@@ -114,18 +114,18 @@ async function buildContextString(context: {
   }
 
   if (context.opportunityId) {
-    const opp = await db.pursuit.findUnique({
+    const opp = await db.opportunity.findUnique({
       where: { id: context.opportunityId },
-      include: { company: true, opportunity: true },
+      include: { company: true, targetContact: true },
     })
     if (opp) {
-      sources.push(`Opportunity: ${opp.opportunity?.opportunityTitle || opp.status}`)
+      sources.push(`Opportunity: ${opp.title}`)
       parts.push(
-        `## Opportunity: ${opp.opportunity?.opportunityTitle || opp.status}\n` +
-          `- Company: ${opp.company?.rawName || 'Unknown'}\n` +
+        `## Opportunity: ${opp.title}\n` +
+          `- Company: ${opp.company?.name || 'Unknown'}\n` +
           `- Status: ${opp.status}\n` +
-          `- Target Contact: ${''}\n` +
-          `- Description: ${opp.notes || 'N/A'}\n` +
+          `- Target Contact: ${opp.targetContact?.name || 'None assigned'}\n` +
+          `- Description: ${opp.description || 'N/A'}\n` +
           `- Next Action: ${opp.nextAction || 'N/A'}`,
       )
     }

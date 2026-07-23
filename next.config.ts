@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  output: 'standalone',
+  // output: 'standalone', — removed for Render free tier compatibility
   serverExternalPackages: ['nodemailer'],
 
   // Security headers for all API routes

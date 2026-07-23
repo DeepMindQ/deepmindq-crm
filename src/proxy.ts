@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * - Static HTML files (.html) bypass proxy entirely (no CSP interference)
  * - Security headers applied only to API routes and Next.js page routes
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = new URL(request.url);
   const sessionCookie = request.cookies.get('dmq_session');
 

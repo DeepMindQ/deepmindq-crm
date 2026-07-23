@@ -73,6 +73,11 @@ export async function GET(request: Request) {
       db.company.count({ where }),
     ]);
 
+    const result = companies.map((c: any) => ({
+      ...c,
+      contactCount: c._count.contacts,
+    }));
+
     return NextResponse.json({ companies: result, total, page, limit });
   } catch (error) {
     console.error('Companies list error:', error);

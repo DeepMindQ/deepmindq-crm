@@ -83,10 +83,8 @@ function summarizeCompany(data: {
   contactCount: number
   notesCount: number
   timelineCount: number
-  opportunityCount: number
   researchOverview: string | null
-  dataFreshness: string | null
-  intelligenceScore: number | null
+  intelligenceScore: number
 }): SummaryResult {
   const parts: string[] = []
   parts.push(
@@ -101,17 +99,11 @@ function summarizeCompany(data: {
     parts.push(`${data.timelineCount} activity event${data.timelineCount !== 1 ? 's' : ''} recorded.`)
   }
 
-  if (data.opportunityCount > 0) {
-    parts.push(`${data.opportunityCount} active opportunit${data.opportunityCount !== 1 ? 'ies' : 'y'} in pipeline.`)
-  }
-
   const keyPoints: string[] = []
   keyPoints.push(`Status: ${data.status}`)
   if (data.industry) keyPoints.push(`Industry: ${data.industry}`)
   keyPoints.push(`${data.contactCount} contact${data.contactCount !== 1 ? 's' : ''} tracked`)
-  if (data.intelligenceScore) keyPoints.push(`Intelligence score: ${data.intelligenceScore}/5`)
-  if (data.dataFreshness) keyPoints.push(`Data freshness: ${data.dataFreshness}`)
-  if (data.opportunityCount > 0) keyPoints.push(`${data.opportunityCount} active opportunit${data.opportunityCount !== 1 ? 'ies' : 'y'}`)
+  if (data.intelligenceScore) keyPoints.push(`Intelligence score: ${data.intelligenceScore}/100`)
   if (data.researchOverview) keyPoints.push('Research card available')
 
   return {
@@ -128,7 +120,6 @@ function summarizeContact(data: {
   draftCount: number
   timelineCount: number
   lastContactedAt: string | null
-  roleBucket: string | null
 }): SummaryResult {
   const parts: string[] = []
   const role = data.jobTitle ?? 'team member'
@@ -146,7 +137,6 @@ function summarizeContact(data: {
   }
 
   const keyPoints: string[] = []
-  if (data.roleBucket) keyPoints.push(`Seniority: ${data.roleBucket}`)
   keyPoints.push(`Email health: ${data.emailHealth}`)
   if (data.draftCount > 0) keyPoints.push(`${data.draftCount} draft${data.draftCount !== 1 ? 's' : ''} available`)
   if (data.timelineCount > 0) keyPoints.push(`${data.timelineCount} timeline event${data.timelineCount !== 1 ? 's' : ''}`)
@@ -218,28 +208,23 @@ export async function POST(request: NextRequest) {
       const company = await db.company.findUnique({
         where: { id: entityId },
         include: {
-          contacts: { where: { archivedAt: null }, select: { id: true, name: true } },
+          contacts: { select: { id: true, rawName: true } },
           researchCard: { select: { businessOverview: true } },
-          opportunities: {
-            where: { status: { notIn: ['won', 'lost', 'archived'] } },
-            select: { id: true },
-          },
-          _count: { select: { notes: true, timeline: true } },
+          timeline: { select: { id: true } },
+          notes: { select: { id: true } },
         },
       })
 
       if (!company) return apiError('Company not found', 404)
 
       const templateData = {
-        name: company.name,
+        name: company.rawName,
         status: company.status,
         industry: company.industry,
         contactCount: company.contacts.length,
-        notesCount: company._count.notes,
-        timelineCount: company._count.timeline,
-        opportunityCount: company.opportunities.length,
+        notesCount: company.notes.length,
+        timelineCount: company.timeline.length,
         researchOverview: company.researchCard?.businessOverview ?? null,
-        dataFreshness: company.dataFreshness,
         intelligenceScore: company.intelligenceScore,
       }
 
@@ -247,20 +232,18 @@ export async function POST(request: NextRequest) {
         const systemPrompt = `You are a B2B sales intelligence assistant. Summarize the following company data for a sales rep. Include a concise summary (2-3 sentences) and 3-5 key bullet points.
 
 Company data:
-- Name: ${company.name}
+- Name: ${company.rawName}
 - Status: ${company.status}
 - Industry: ${company.industry ?? 'Unknown'}
-- Employees: ${company.employeeSize ?? 'Unknown'}
+- Size Range: ${company.sizeRange ?? 'Unknown'}
 - Country: ${company.country ?? 'Unknown'}
 - Domain: ${company.domain ?? 'Unknown'}
-- Intelligence Score: ${company.intelligenceScore ?? 'N/A'}/5
-- Data Freshness: ${company.dataFreshness ?? 'Unknown'}
+- Intelligence Score: ${company.intelligenceScore}/100
 - Contacts: ${company.contacts.length}
-- Notes: ${company._count.notes}
-- Timeline Events: ${company._count.timeline}
-- Open Opportunities: ${company.opportunities.length}
+- Notes: ${company.notes.length}
+- Timeline Events: ${company.timeline.length}
 - Research Overview: ${company.researchCard?.businessOverview ?? 'None'}
-- Contact Names: ${company.contacts.map((c) => c.name).join(', ') || 'None'}
+- Contact Names: ${company.contacts.map((c) => c.rawName).join(', ') || 'None'}
 
 Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
@@ -288,35 +271,33 @@ Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
     // ── Contact ──
     if (entityType === 'contact') {
       const contact = await db.contact.findFirst({
-        where: { id: entityId, archivedAt: null },
+        where: { id: entityId },
         include: {
-          company: { select: { name: true } },
+          company: { select: { rawName: true } },
           drafts: { where: { status: 'draft' }, select: { id: true } },
-          _count: { select: { timeline: true } },
+          replies: { select: { id: true } },
         },
       })
 
       if (!contact) return apiError('Contact not found', 404)
 
       const templateData = {
-        name: contact.name,
-        jobTitle: contact.jobTitle,
-        companyName: contact.company.name,
+        name: contact.rawName,
+        jobTitle: contact.title,
+        companyName: contact.company.rawName,
         emailHealth: contact.emailHealth,
         draftCount: contact.drafts.length,
-        timelineCount: contact._count.timeline,
+        timelineCount: contact.replies.length,
         lastContactedAt: contact.lastContactedAt?.toISOString() ?? null,
-        roleBucket: contact.roleBucket,
       }
 
       {
         const systemPrompt = `You are a B2B sales intelligence assistant. Summarize the following contact data for a sales rep. Include a concise summary (2-3 sentences) and 3-5 key bullet points.
 
 Contact data:
-- Name: ${contact.name}
-- Job Title: ${contact.jobTitle ?? 'Unknown'}
-- Role Bucket: ${contact.roleBucket ?? 'Unknown'}
-- Company: ${contact.company.name}
+- Name: ${contact.rawName}
+- Job Title: ${contact.title ?? 'Unknown'}
+- Company: ${contact.company.rawName}
 - Email: ${contact.email ?? 'None'}
 - Email Health: ${contact.emailHealth}
 - Email Health Score: ${contact.emailHealthScore ?? 'N/A'}
@@ -325,7 +306,6 @@ Contact data:
 - LinkedIn: ${contact.linkedinUrl ?? 'None'}
 - Last Contacted: ${contact.lastContactedAt ?? 'Never'}
 - Draft Emails: ${contact.drafts.length}
-- Timeline Events: ${contact._count.timeline}
 
 Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
@@ -352,39 +332,38 @@ Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
     // ── Opportunity ──
     if (entityType === 'opportunity') {
-      const opportunity = await db.opportunity.findUnique({
+      const pursuit = await db.pursuit.findUnique({
         where: { id: entityId },
         include: {
-          company: { select: { name: true } },
-          targetContact: { select: { name: true } },
+          company: true,
+          opportunity: { select: { opportunityTitle: true } },
         },
       })
 
-      if (!opportunity) return apiError('Opportunity not found', 404)
+      if (!pursuit) return apiError('Opportunity not found', 404)
 
       const templateData = {
-        title: opportunity.title,
-        companyName: opportunity.company.name,
-        status: opportunity.status,
-        contactName: opportunity.targetContact?.name ?? null,
-        nextAction: opportunity.nextAction,
-        createdAt: opportunity.createdAt.toISOString(),
-        updatedAt: opportunity.updatedAt.toISOString(),
-        description: opportunity.description,
+        title: pursuit.opportunity?.opportunityTitle ?? 'Untitled',
+        companyName: pursuit.company.rawName,
+        status: pursuit.status,
+        contactName: null,
+        nextAction: pursuit.nextAction,
+        createdAt: pursuit.createdAt.toISOString(),
+        updatedAt: pursuit.updatedAt.toISOString(),
+        description: pursuit.notes,
       }
 
       {
         const systemPrompt = `You are a B2B sales intelligence assistant. Summarize the following opportunity for a sales rep. Include a concise summary (2-3 sentences) and 3-5 key bullet points.
 
 Opportunity data:
-- Title: ${opportunity.title}
-- Company: ${opportunity.company.name}
-- Status: ${opportunity.status}
-- Target Contact: ${opportunity.targetContact?.name ?? 'None'}
-- Next Action: ${opportunity.nextAction ?? 'None'}
-- Description: ${opportunity.description ?? 'None'}
-- Created: ${opportunity.createdAt.toISOString()}
-- Updated: ${opportunity.updatedAt.toISOString()}
+- Title: ${pursuit.opportunity?.opportunityTitle ?? 'Untitled'}
+- Company: ${pursuit.company.rawName}
+- Status: ${pursuit.status}
+- Next Action: ${pursuit.nextAction ?? 'None'}
+- Description: ${pursuit.notes ?? 'None'}
+- Created: ${pursuit.createdAt.toISOString()}
+- Updated: ${pursuit.updatedAt.toISOString()}
 
 Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 

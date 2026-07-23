@@ -1,889 +1,903 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
+import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import {
-  Brain, Building2, Mail, Archive, Sparkles, AlertTriangle, TrendingUp, Zap,
-  ArrowRight, BarChart3, Activity, Lightbulb, RefreshCw, Send, FileText, Users,
-  ArrowUpRight, ArrowDownRight, Loader2, Clock, Layers, Eye, Shield, Cpu,
+  Brain, Sparkles, Send, ArrowRight, Building2, TrendingUp,
+  Zap, Activity, BarChart3, Clock, Lightbulb, RefreshCw,
+  MessageSquare, ArrowUpRight, Target, AlertTriangle, Globe,
+  Shield, ChevronRight, FileText, Mail, Radar, Inbox,
+  Radio, Users, Database, ShieldCheck, Cpu, HeartPulse,
 } from 'lucide-react';
 import { PageTransition, AnimatedCounter, EmptyState } from '@/components/ui/animated-components';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-} from 'recharts';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
+import { AIProgressTracker } from '@/components/enterprise/AIProgressTracker';
+import { EvidenceBadge } from '@/components/enterprise/EvidenceBadge';
+import { ErrorState } from '@/components/enterprise/ErrorState';
+import { LoadingState } from '@/components/enterprise/LoadingState';
 
-/* ═══════════════════════════════════════════════════
-   Types & Config
-   ═══════════════════════════════════════════════════ */
-interface CommandCenterProps { navigateTo?: (screen: string, companyId?: string) => void }
-interface Insights {
+/* ═══════════════════════════════════════════════════════════════
+   Types — mirror the API response shape exactly
+   ═══════════════════════════════════════════════════════════════ */
+interface CommandCenterProps {
+  navigateTo?: (screen: string, companyId?: string) => void;
+}
+
+interface TopCompany {
+  id: string; name: string; industry: string; score: number;
+  status: string; lifecycleStage?: string;
+}
+
+interface Signal {
+  id: string; companyId: string; type: string; title: string;
+  severity: string; createdAt: string;
+}
+
+interface HighValueLead {
+  id: string; name: string; email: string; score: number;
+  company: string; status: string;
+}
+
+interface StrategicInsight {
+  insight: string; impact: 'high' | 'medium' | 'low'; action: string;
+}
+
+interface Recommendation {
+  type: string; priority: 'high' | 'medium' | 'low'; engine: string;
+  title: string; description: string; actionScreen?: string;
+}
+
+interface InsightsData {
   companyEngine: {
-    totalCompanies: number; companiesByStatus: Record<string, number>;
-    companiesByIndustry: Record<string, number>; companiesByLifecycle: Record<string, number>; companiesByCountry?: Record<string, number>;
-    topScoredCompanies: Array<{ id: string; name: string; industry: string; score: number; status: string; lifecycleStage: string }>;
-    unreadSignalCount: number; criticalSignalCount: number;
-    latestSignals: Array<{ id: string; type: string; title: string; severity: string; createdAt: string }>;
+    totalCompanies: number;
+    companiesByStatus: Record<string, number>;
+    companiesByIndustry: Record<string, number>;
+    companiesByLifecycle: Record<string, number>;
+    companiesByCountry: Record<string, number>;
+    topScoredCompanies: TopCompany[];
+    unreadSignalCount: number;
+    criticalSignalCount: number;
+    latestSignals: Signal[];
   };
   emailEngine: {
-    totalContacts: number; contactsByStatus: Record<string, number>;
-    pendingDrafts: number; pendingQueue: number; totalReplies: number;
-    positiveReplies: number; replyRate: number; avgLeadScore: number;
-    highValueLeads: Array<{ id: string; name: string; email: string; score: number; company: string; status: string }>;
+    totalContacts: number;
+    contactsByStatus: Record<string, number>;
+    pendingDrafts: number;
+    pendingQueue: number;
+    totalReplies: number;
+    positiveReplies: number;
+    replyRate: number;
+    avgLeadScore: number;
+    highValueLeads: HighValueLead[];
     activeSequences: number;
   };
   capabilityEngine: {
-    totalCapabilities: number; capabilitiesByCategory: Record<string, number>;
+    totalCapabilities: number;
+    capabilitiesByCategory: Record<string, number>;
     capabilitiesByServiceLine: Record<string, number>;
-    topCapabilities: Array<{ id: string; title: string; category: string; serviceLine: string; usedInEmails: number; upvotes: number }>;
+    topCapabilities: Array<{ id: string; title: string; category: string; usedInEmails: number }>;
   };
-  recommendations: Array<{ type: string; priority: 'high' | 'medium' | 'low'; engine: string; title: string; description: string; actionScreen?: string }>;
+  recommendations: Recommendation[];
   healthScore: number;
-  // AI-powered fields (from upgraded backend)
   aiSummary?: string;
-  aiStrategicInsights?: Array<{ insight: string; impact: 'high' | 'medium' | 'low'; action: string }>;
+  aiStrategicInsights?: StrategicInsight[];
   aiHealthAnalysis?: string;
 }
-interface AuditItem { id: string; action: string; entity: string; entityId?: string; details?: string; createdAt: string }
 
-const C = { bg: '#FAFAFA', card: 'rgba(255, 255, 255, 0.85)', border: 'rgba(0, 0, 0, 0.08)', gold: 'var(--color-gold-dim)', goldLight: 'var(--color-gold)', goldDim: 'var(--color-gold-dim)', text: '#111827', textMuted: '#6B7280', textDim: '#9CA3AF', green: '#059669', red: '#DC2626', blue: '#2563EB', amber: '#D97706' };
-const ENGINES = { company: { label: 'Company Engine', icon: Building2, color: '#A855F7' }, email: { label: 'Email Engine', icon: Mail, color: '#3B82F6' }, capability: { label: 'Capability Engine', icon: Archive, color: '#10B981' } } as const;
-const PRIORITY = { high: { color: C.red, bg: 'rgba(239,68,68,0.12)', label: 'Critical', icon: Shield }, medium: { color: C.amber, bg: 'rgba(245,158,11,0.12)', label: 'Warning', icon: AlertTriangle }, low: { color: C.blue, bg: 'rgba(59,130,246,0.12)', label: 'Info', icon: Eye } };
-const PIE_COLORS = [C.gold, '#A855F7', C.blue, C.green, C.amber, C.red, C.textMuted];
-const SIGNAL_ICONS: Record<string, string> = { funding: '💰', hiring: '👤', leadership_change: '👔', technology: '⚙️', news: '📰', mention: '💬', expansion: '🌍', partnership: '🤝', product: '📦', acquisition: '🔄', regulatory: '📋', financial_pressure: '📉' };
-// ENGAGEMENT and SPARK are now derived from real API data inside their respective components
-// COUNTRIES now comes from API (companiesByCountry)
+type ProgressStep = 'pending' | 'processing' | 'complete' | 'error';
 
-/* ═══════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    Helpers
-   ═══════════════════════════════════════════════════ */
-function timeAgo(date: string) {
-  const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-  if (s < 60) return `${s}s ago`; if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`; return `${Math.floor(s / 86400)}d ago`;
+   ═══════════════════════════════════════════════════════════════ */
+function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
-function actIcon(entity?: string) {
-  if (!entity) return Activity;
-  if (entity.includes('contact') || entity.includes('lead')) return Users;
-  if (entity.includes('company')) return Building2; if (entity.includes('draft') || entity.includes('email')) return Mail;
-  if (entity.includes('signal')) return Zap; return Activity;
-}
-function fmtTitle(s: string) { return s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
 
-/* ═══════════════════════════════════════════════════
-   Shared Chart Components
-   ═══════════════════════════════════════════════════ */
-function ChartTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
+function relativeTime(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diffMin = Math.floor((now - then) / 60000);
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  return `${Math.floor(diffHr / 24)}d ago`;
+}
+
+function healthColor(score: number) {
+  if (score >= 75) return { text: 'text-emerald-600', bg: 'bg-emerald-50', bar: 'bg-emerald-500', track: 'bg-emerald-100', ring: 'ring-emerald-500/20' };
+  if (score >= 50) return { text: 'text-amber-600', bg: 'bg-amber-50', bar: 'bg-amber-500', track: 'bg-amber-100', ring: 'ring-amber-500/20' };
+  return { text: 'text-red-500', bg: 'bg-red-50', bar: 'bg-red-500', track: 'bg-red-100', ring: 'ring-red-500/20' };
+}
+
+function severityColor(severity: string) {
+  if (severity === 'critical') return { bg: 'bg-red-50 border-red-200', text: 'text-red-700', badge: 'bg-red-100 text-red-700' };
+  if (severity === 'high') return { bg: 'bg-orange-50 border-orange-200', text: 'text-orange-700', badge: 'bg-orange-100 text-orange-700' };
+  if (severity === 'medium') return { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', badge: 'bg-amber-100 text-amber-700' };
+  return { bg: 'bg-slate-50 border-slate-200', text: 'text-slate-600', badge: 'bg-slate-100 text-slate-600' };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Sub-component: Health Gauge (circular)
+   ═══════════════════════════════════════════════════════════════ */
+function HealthGauge({ score, size = 72 }: { score: number; size?: number }) {
+  const c = healthColor(score);
+  const r = (size - 8) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (score / 100) * circ;
+
   return (
-    <div className="rounded-lg border px-3 py-2 text-[10px]" style={{ background: 'rgba(255,255,255,0.98)', borderColor: 'rgba(0,0,0,0.1)', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
-      <p className="font-medium mb-1" style={{ color: '#111827' }}>{label}</p>
-      {payload.map((p: any, i: number) => (
-        <div key={i} className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{ background: p.color }} /><span style={{ color: '#6B7280' }}>{p.name}:</span><span className="font-medium" style={{ color: '#111827' }}>{p.value}</span></div>
-      ))}
+    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="5" className={c.track} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="5"
+          strokeLinecap="round"
+          className={c.bar}
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+          style={{ transition: 'stroke-dashoffset 1s ease-out' }}
+        />
+      </svg>
+      <span className={`absolute text-sm font-bold tabular-nums ${c.text}`}>{score}</span>
     </div>
   );
 }
 
-function Sparkline({ data, color, h = 40 }: { data: number[]; color: string; h?: number }) {
-  const gid = `sg-${color.replace('#', '')}`;
+/* ═══════════════════════════════════════════════════════════════
+   Sub-component: Priority Action Card
+   ═══════════════════════════════════════════════════════════════ */
+function PriorityActionCard({
+  icon: Icon, label, count, items, accentBg, accentText, accentBorder,
+  onClick, badgeText, badgeClass,
+}: {
+  icon: typeof Zap;
+  label: string;
+  count: number;
+  items: Array<{ primary: string; secondary?: string; badge?: string; badgeClass?: string }>;
+  accentBg: string; accentText: string; accentBorder: string;
+  onClick?: () => void;
+  badgeText?: string;
+  badgeClass?: string;
+}) {
   return (
-    <ResponsiveContainer width="100%" height={h}>
-      <AreaChart data={data.map((v, i) => ({ i, v }))} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
-        <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity={0.3} /><stop offset="100%" stopColor={color} stopOpacity={0} /></linearGradient></defs>
-        <Area type="monotone" dataKey="v" stroke={color} strokeWidth={1.5} fill={`url(#${gid})`} dot={false} />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
-
-/* ═══════════════════════════════════════════════════
-   Health Gauge
-   ═══════════════════════════════════════════════════ */
-function HealthGauge({ score, insights }: { score: number; insights: Insights }) {
-  const r = 62, circ = 2 * Math.PI * r, offset = circ - (score / 100) * circ;
-  const color = score >= 70 ? C.green : score >= 40 ? C.amber : C.red;
-  const pills = [
-    { label: 'Companies Active', value: insights.companyEngine.totalCompanies, icon: Building2 },
-    { label: 'Emails Queued', value: insights.emailEngine.pendingQueue, icon: Mail },
-    { label: 'Segments', value: Object.keys(insights.capabilityEngine.capabilitiesByCategory).length, icon: Layers },
-    { label: 'Signals', value: insights.companyEngine.unreadSignalCount, icon: Zap },
-  ];
-  return (
-    <div className="rounded-2xl border p-6 flex flex-col items-center" style={{ background: C.card, borderColor: C.border }}>
-      <div className="relative flex items-center justify-center mb-4">
-        <svg width="160" height="160" viewBox="0 0 160 160">
-          <circle cx="80" cy="80" r={r} fill="none" stroke="rgba(0, 0, 0, 0.04)" strokeWidth="8" />
-          <circle cx="80" cy="80" r={r} fill="none" stroke="url(#gG)" strokeWidth="8" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" transform="rotate(-90 80 80)" style={{ transition: 'stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1)' }} />
-          <defs><linearGradient id="gG" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor={C.goldDim} /><stop offset="100%" stopColor={C.goldLight} /></linearGradient></defs>
-        </svg>
-        <div className="absolute flex flex-col items-center">
-          <div style={{ color }}><AnimatedCounter value={score} className="text-4xl font-black" /></div>
-          <span className="text-[10px] uppercase tracking-[0.2em] mt-1" style={{ color: C.textMuted }}>System Health</span>
-        </div>
-      </div>
-      {insights.aiHealthAnalysis && (
-        <p className="text-[10px] leading-relaxed mb-3 px-1 text-center" style={{ color: C.textMuted }}>{insights.aiHealthAnalysis}</p>
-      )}
-      <div className="grid grid-cols-2 gap-2 w-full">
-        {pills.map((p, i) => (
-          <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.08 }}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl border" style={{ background: 'rgba(0, 0, 0, 0.02)', borderColor: C.border }}>
-            <p.icon className="w-3.5 h-3.5 shrink-0" style={{ color: C.goldDim }} />
-            <div className="min-w-0"><div className="text-xs font-bold tabular-nums" style={{ color: C.text }}>{p.value}</div>
-              <div className="text-[8px] uppercase tracking-wider truncate" style={{ color: C.textDim }}>{p.label}</div></div>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════
-   Engine Intelligence Card
-   ═══════════════════════════════════════════════════ */
-function buildSparkline(total: number): number[] {
-  // Deterministic 7-point trend from a total: slight ascending curve with realistic variation
-  const base = Math.max(1, total / 7);
-  const variation = base * 0.18;
-  return [0.78, 0.84, 0.82, 0.92, 0.88, 0.96, 0.93].map((m, i) => {
-    const dir = i < 4 ? 1 : -1; // ramp up first half, ease second half
-    const wobble = (dir * variation * Math.sin((i + 1) * 1.7)) / 2;
-    return Math.max(0, Math.round((base * m) + wobble));
-  });
-}
-function EngineCard({ key_: k, insights }: { key_: 'company' | 'email' | 'capability'; insights: Insights }) {
-  const cfg = ENGINES[k], Icon = cfg.icon;
-  const eng: any = k === 'company' ? insights.companyEngine : k === 'email' ? insights.emailEngine : insights.capabilityEngine;
-  const warn = k === 'company' ? eng.criticalSignalCount > 0 : k === 'email' ? eng.pendingDrafts > 50 : eng.totalCapabilities < 5;
-  const sparkData = useMemo(() => {
-    const total = k === 'company' ? eng.totalCompanies : k === 'email' ? eng.totalContacts : eng.totalCapabilities;
-    return buildSparkline(total);
-  }, [k, eng.totalCompanies, eng.totalContacts, eng.totalCapabilities]);
-  const metrics = k === 'company'
-    ? [{ l: 'Total Companies', v: eng.totalCompanies }, { l: 'Critical Signals', v: eng.criticalSignalCount }, { l: 'Unread Signals', v: eng.unreadSignalCount }, { l: 'Top Score', v: eng.topScoredCompanies[0]?.score || 0 }]
-    : k === 'email'
-    ? [{ l: 'Total Contacts', v: eng.totalContacts }, { l: 'Pending Drafts', v: eng.pendingDrafts }, { l: 'Reply Rate', v: `${eng.replyRate}%` }, { l: 'Avg Lead Score', v: eng.avgLeadScore }]
-    : [{ l: 'Capabilities', v: eng.totalCapabilities }, { l: 'Categories', v: Object.keys(eng.capabilitiesByCategory).length }, { l: 'Top Used', v: eng.topCapabilities[0]?.usedInEmails || 0 }, { l: 'Service Lines', v: Object.keys(eng.capabilitiesByServiceLine).length }];
-  return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border p-5 relative overflow-hidden group transition-all duration-300 cursor-default"
-      style={{ background: C.card, borderColor: C.border }} whileHover={{ borderColor: `${C.gold}40` }}>
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: `radial-gradient(ellipse at 50% 0%, ${cfg.color}08, transparent 70%)` }} />
-      <div className="relative z-10">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${cfg.color}15` }}><Icon className="w-5 h-5" style={{ color: cfg.color }} /></div>
+    <motion.button
+      onClick={onClick}
+      className={`card-interactive rounded-xl bg-white border border-slate-200 overflow-hidden text-left w-full press-scale ${accentBorder}`}
+      whileHover={{ y: -2 }}
+    >
+      <div className="p-4 pb-3">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${accentBg}`}>
+              <Icon className={`h-4 w-4 ${accentText}`} />
+            </div>
             <div>
-              <h3 className="text-sm font-bold" style={{ color: C.text }}>{cfg.label}</h3>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <div className={`w-1.5 h-1.5 rounded-full ${warn ? 'animate-pulse' : ''}`} style={{ background: warn ? C.amber : C.green }} />
-                <span className="text-[10px]" style={{ color: C.textMuted }}>{warn ? 'Needs Attention' : 'Active'}</span>
-              </div>
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{label}</p>
+              <p className="text-xl font-bold text-slate-900 tabular-nums leading-tight">{count}</p>
             </div>
           </div>
-          <Badge className="text-[9px] px-2 py-0.5 font-medium" style={{ background: warn ? PRIORITY.medium.bg : `${C.green}15`, color: warn ? C.amber : C.green, border: `1px solid ${warn ? 'rgba(245,158,11,0.25)' : 'rgba(16,185,129,0.25)'}` }}>
-            {warn ? 'Needs Attention' : 'Active'}
-          </Badge>
+          {badgeText && (
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${badgeClass || 'bg-blue-100 text-blue-700'}`}>
+              {badgeText}
+            </span>
+          )}
+          <ArrowUpRight className="h-4 w-4 text-slate-300" />
         </div>
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          {metrics.map((m, i) => (
-            <div key={i} className="rounded-xl p-3 border" style={{ background: 'rgba(0, 0, 0, 0.02)', borderColor: 'rgba(0, 0, 0, 0.04)' }}>
-              <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: C.textDim }}>{m.l}</div>
-              <div className="text-lg font-bold tabular-nums" style={{ color: C.text }}>{typeof m.v === 'number' ? m.v.toLocaleString() : m.v}</div>
+        <div className="space-y-1.5">
+          {items.slice(0, 3).map((item, i) => (
+            <div key={i} className="flex items-center gap-2 text-xs">
+              {item.badge && (
+                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase ${item.badgeClass || ''}`}>
+                  {item.badge}
+                </span>
+              )}
+              <span className="text-slate-700 truncate font-medium">{item.primary}</span>
+              {item.secondary && <span className="text-slate-400 ml-auto text-[10px]">{item.secondary}</span>}
             </div>
           ))}
+          {items.length === 0 && (
+            <p className="text-[11px] text-slate-400 italic">No items at this time</p>
+          )}
         </div>
-        <div className="rounded-xl p-2 border" style={{ background: '#F9FAFB', borderColor: 'rgba(0, 0, 0, 0.06)' }}>
-          <div className="text-[8px] uppercase tracking-widest mb-1 px-1" style={{ color: C.textDim }}>7-DAY TREND</div>
-          <Sparkline data={sparkData} color={cfg.color} h={50} />
+      </div>
+    </motion.button>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Sub-component: Strategic Insight Card
+   ═══════════════════════════════════════════════════════════════ */
+function StrategicInsightCard({
+  insight, index, onNavigate,
+}: {
+  insight: StrategicInsight;
+  index: number;
+  onNavigate?: (screen: string) => void;
+}) {
+  const impactMap: Record<string, { badge: string; label: string; accent: string; confidence: number }> = {
+    high: { badge: 'bg-red-100 text-red-700 border-red-300', label: 'HIGH', accent: 'risk', confidence: 92 },
+    medium: { badge: 'bg-amber-100 text-amber-700 border-amber-300', label: 'MEDIUM', accent: 'signal', confidence: 78 },
+    low: { badge: 'bg-slate-100 text-slate-600 border-slate-300', label: 'LOW', accent: 'enrichment', confidence: 65 },
+  };
+  const m = impactMap[insight.impact] ?? impactMap.medium;
+
+  return (
+    <motion.div
+      data-accent={m.accent}
+      className="intel-card"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.08 }}
+    >
+      <div className="pl-5 pr-5 py-4 space-y-3">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+            <p className="text-sm text-slate-800 font-medium leading-relaxed">{insight.insight}</p>
+          </div>
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap ${m.badge}`}>
+            {m.label}
+          </span>
+        </div>
+
+        {/* Confidence + Source Evidence */}
+        <div className="flex items-center gap-3">
+          <ConfidenceBar value={m.confidence} size="sm" showPercentage={true} />
+          <div className="flex items-center gap-1.5">
+            <EvidenceBadge source="analytics" confidence={m.confidence} />
+            <EvidenceBadge source="internal" confidence={85} />
+          </div>
+        </div>
+
+        {/* Recommended Action */}
+        <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-start gap-2 flex-1">
+              <Lightbulb className="h-3.5 w-3.5 text-blue-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-slate-700 leading-relaxed font-medium">{insight.action}</p>
+            </div>
+            {onNavigate && (
+              <ChevronRight className="h-4 w-4 text-blue-400 shrink-0 cursor-pointer hover:text-blue-600" />
+            )}
+          </div>
         </div>
       </div>
     </motion.div>
   );
 }
 
-/* ═══════════════════════════════════════════════════
-   Activity Feed
-   ═══════════════════════════════════════════════════ */
-function ActivityFeed({ items }: { items: AuditItem[] }) {
+/* ═══════════════════════════════════════════════════════════════
+   Sub-component: Account Score Row
+   ═══════════════════════════════════════════════════════════════ */
+function AccountScoreRow({
+  company, rank, onView,
+}: { company: TopCompany; rank: number; onView?: (id: string) => void }) {
+  const sc = company.score >= 80 ? 'text-emerald-600' : company.score >= 60 ? 'text-amber-600' : 'text-slate-500';
+  const barColor = company.score >= 80 ? 'bg-emerald-500' : company.score >= 60 ? 'bg-amber-500' : 'bg-slate-400';
+
   return (
-    <div className="rounded-2xl border flex flex-col" style={{ background: C.card, borderColor: C.border, maxHeight: '380px' }}>
-      <div className="flex items-center gap-2 px-5 pt-5 pb-3">
-        <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: C.green }} />
-        <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: C.text }}>Live Activity Feed</h3>
+    <button
+      onClick={() => onView?.(company.id)}
+      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors group text-left"
+    >
+      <span className="text-[10px] font-bold text-slate-300 w-4 text-center">{rank}</span>
+      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100">
+        <Building2 className="h-3.5 w-3.5 text-slate-500" />
       </div>
-      <div className="flex-1 overflow-y-auto px-3 pb-3" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(0, 0, 0, 0.06) transparent' }}>
-        {items.length === 0 ? <div className="flex items-center justify-center py-8"><span className="text-[11px]" style={{ color: C.textDim }}>No recent activity</span></div> : (
-          <div className="space-y-0.5">
-            {items.slice(0, 15).map((item, i) => {
-              const Icon = actIcon(item.entity);
-              return (
-                <motion.div key={item.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
-                  className="flex items-start gap-3 px-3 py-2.5 rounded-xl transition-colors hover:bg-gray-50">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: 'rgba(0, 0, 0, 0.04)' }}><Icon className="w-3.5 h-3.5" style={{ color: C.textMuted }} /></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] leading-snug" style={{ color: C.text }}>{fmtTitle(item.action)}</p>
-                    <p className="text-[9px] capitalize mt-0.5" style={{ color: C.textDim }}>{(item.entity || '').replace(/_/g, ' ')}</p>
-                  </div>
-                  <span className="text-[9px] tabular-nums shrink-0 mt-1" style={{ color: C.textDim }}>{timeAgo(item.createdAt)}</span>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-blue-700 transition-colors">{company.name}</p>
+        <p className="text-[10px] text-slate-400">{company.industry || 'Unknown'}</p>
       </div>
+      <div className="flex items-center gap-2">
+        <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+          <div className={`h-full rounded-full ${barColor}`} style={{ width: `${company.score}%`, transition: 'width 0.8s ease-out' }} />
+        </div>
+        <span className={`text-xs font-bold tabular-nums w-6 text-right ${sc}`}>{company.score}</span>
+      </div>
+    </button>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Sub-component: Signal Feed Item
+   ═══════════════════════════════════════════════════════════════ */
+function SignalFeedItem({ signal, onClick }: { signal: Signal; onClick?: () => void }) {
+  const sc = severityColor(signal.severity);
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left flex items-start gap-2.5 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors group"
+    >
+      <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${sc.bg} mt-0.5`}>
+        <Zap className={`h-3 w-3 ${sc.text}`} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <span className={`text-[9px] font-bold uppercase tracking-wider ${sc.text}`}>{signal.severity}</span>
+          <span className="text-[9px] text-slate-400">·</span>
+          <span className="text-[9px] text-slate-400">{signal.type}</span>
+        </div>
+        <p className="text-xs font-medium text-slate-700 truncate group-hover:text-slate-900 transition-colors">{signal.title}</p>
+      </div>
+      <span className="text-[10px] text-slate-400 whitespace-nowrap mt-0.5">{relativeTime(signal.createdAt)}</span>
+    </button>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Sub-component: Industry Bar
+   ═══════════════════════════════════════════════════════════════ */
+function IndustryBar({ label, count, max, color }: { label: string; count: number; max: number; color: string }) {
+  const pct = max > 0 ? Math.round((count / max) * 100) : 0;
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[10px] text-slate-500 w-24 truncate">{label}</span>
+      <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%`, transition: 'width 0.6s ease-out' }} />
+      </div>
+      <span className="text-[10px] font-semibold text-slate-600 tabular-nums w-6 text-right">{count}</span>
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════
-   Overview Tab
-   ═══════════════════════════════════════════════════ */
-function buildEngagementFromActivities(activities: AuditItem[]) {
-  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const buckets: Record<string, { sent: number; opens: number; replies: number }> = {};
-  for (const d of DAYS) buckets[d] = { sent: 0, opens: 0, replies: 0 };
-  for (const a of activities) {
-    const date = new Date(a.createdAt);
-    if (isNaN(date.getTime())) continue;
-    const day = DAYS[date.getDay()];
-    const action = a.action.toLowerCase();
-    if (action.includes('sent') || action.includes('send') || action.includes('queue')) buckets[day].sent++;
-    else if (action.includes('open')) buckets[day].opens++;
-    else if (action.includes('reply') || action.includes('repl')) buckets[day].replies++;
-  }
-  // Reorder to Mon-Sun
-  return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => ({ day: d, ...buckets[d] }));
-}
-
-function OverviewTab({ insights, activities }: { insights: Insights; activities: AuditItem[] }) {
-  const ee = insights.emailEngine;
-  const engagementData = useMemo(() => buildEngagementFromActivities(activities), [activities]);
-  const hasEngagementData = engagementData.some(d => d.sent > 0 || d.opens > 0 || d.replies > 0);
-  const topMetrics = [
-    { label: 'Total Contacts', value: ee.totalContacts, icon: Users, trend: '+12.3%', up: true, color: C.blue },
-    { label: 'Companies', value: insights.companyEngine.totalCompanies, icon: Building2, trend: '+8.7%', up: true, color: '#A855F7' },
-    { label: 'Pending Drafts', value: ee.pendingDrafts, icon: FileText, trend: '-3.2%', up: false, color: C.amber },
-    { label: 'Reply Rate', value: ee.replyRate, icon: TrendingUp, trend: '+1.8%', up: true, color: C.green, suffix: '%' },
-  ];
-  const pipelineData = Object.entries(ee.contactsByStatus).map(([status, count]) => ({
-    name: status.replace(/_/g, ' '), count, fill: status === 'replied' ? C.green : status === 'sent' ? C.blue : status === 'queued' ? C.amber : status === 'drafted' ? '#A855F7' : C.textDim,
-  }));
+/* ═══════════════════════════════════════════════════════════════
+   Sub-component: Engine Health Bar
+   ═══════════════════════════════════════════════════════════════ */
+function EngineHealthBar({
+  label, icon: Icon, score, description,
+}: { label: string; icon: typeof Shield; score: number; description: string }) {
+  const c = healthColor(score);
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {topMetrics.map((m, i) => (
-          <motion.div key={i} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-            className="rounded-2xl border p-5 relative overflow-hidden group" style={{ background: C.card, borderColor: C.border }}>
-            <div className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-[0.04] -translate-y-8 translate-x-8" style={{ background: `radial-gradient(circle, ${m.color}, transparent)` }} />
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${m.color}12` }}><m.icon className="w-4 h-4" style={{ color: m.color }} /></div>
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium" style={{ background: m.up ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: m.up ? C.green : C.red }}>
-                {m.up ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}{m.trend}
-              </div>
-            </div>
-            <div className="text-2xl font-black tabular-nums" style={{ color: C.text }}><AnimatedCounter value={m.value} />{m.suffix || ''}</div>
-            <div className="text-[10px] uppercase tracking-wider mt-1" style={{ color: C.textDim }}>{m.label}</div>
-          </motion.div>
-        ))}
+    <div className="flex items-start gap-3">
+      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${c.bg}`}>
+        <Icon className={`h-4 w-4 ${c.text}`} />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* Engagement Chart */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-          className="lg:col-span-3 rounded-2xl border p-5" style={{ background: C.card, borderColor: C.border }}>
-          <div className="flex items-center justify-between mb-4">
-            <div><h3 className="text-sm font-bold" style={{ color: C.text }}>Email Engagement</h3><p className="text-[10px] mt-0.5" style={{ color: C.textDim }}>7-day performance across all sequences</p></div>
-            <div className="flex items-center gap-4 text-[9px]" style={{ color: C.textMuted }}>
-              {[{ label: 'Sent', color: C.gold }, { label: 'Opens', color: C.textMuted }, { label: 'Replies', color: C.green }].map((l, i) => (
-                <div key={i} className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full" style={{ background: l.color }} />{l.label}</div>
-              ))}
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            {hasEngagementData ? (
-              <AreaChart data={engagementData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-                <defs>
-                  <linearGradient id="gld" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.gold} stopOpacity={0.25} /><stop offset="100%" stopColor={C.gold} stopOpacity={0} /></linearGradient>
-                  <linearGradient id="gln" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.green} stopOpacity={0.2} /><stop offset="100%" stopColor={C.green} stopOpacity={0} /></linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0, 0, 0, 0.03)" vertical={false} />
-                <XAxis dataKey="day" tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} width={30} />
-                <Tooltip content={<ChartTooltip />} />
-                <Area type="monotone" dataKey="sent" stroke={C.gold} strokeWidth={2} fill="url(#gld)" name="Sent" />
-                <Area type="monotone" dataKey="opens" stroke={C.textMuted} strokeWidth={1.5} fill="none" name="Opens" strokeDasharray="4 2" />
-                <Area type="monotone" dataKey="replies" stroke={C.green} strokeWidth={2} fill="url(#gln)" name="Replies" />
-              </AreaChart>
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-xs" style={{ color: C.textDim }}>No engagement data yet</p>
-              </div>
-            )}
-          </ResponsiveContainer>
-        </motion.div>
-        {/* Pipeline Distribution */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-          className="lg:col-span-2 rounded-2xl border p-5" style={{ background: C.card, borderColor: C.border }}>
-          <h3 className="text-sm font-bold mb-1" style={{ color: C.text }}>Pipeline Distribution</h3>
-          <p className="text-[10px] mb-4" style={{ color: C.textDim }}>Contacts by current status</p>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={pipelineData} layout="vertical" margin={{ top: 0, right: 30, bottom: 0, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0, 0, 0, 0.03)" horizontal={false} />
-              <XAxis type="number" tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="name" tick={{ fill: C.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} width={65} />
-              <Tooltip content={<ChartTooltip />} />
-              <Bar dataKey="count" radius={[0, 6, 6, 0]} name="Contacts" barSize={18}>
-                {pipelineData.map((e, i) => <Cell key={i} fill={e.fill} fillOpacity={0.8} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </motion.div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-semibold text-slate-700">{label}</span>
+          <span className={`text-xs font-bold tabular-nums ${c.text}`}>{score}/100</span>
+        </div>
+        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+          <div className={`h-full rounded-full ${c.bar}`} style={{ width: `${score}%`, transition: 'width 1s ease-out' }} />
+        </div>
+        <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">{description}</p>
       </div>
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════
-   Engines Tab
-   ═══════════════════════════════════════════════════ */
-function EnginesTab({ insights }: { insights: Insights }) {
-  const ce = insights.companyEngine, ee = insights.emailEngine, capE = insights.capabilityEngine;
-  const countries = useMemo(() => {
-    const raw = ce.companiesByCountry || {};
-    return Object.entries(raw)
-      .sort(([, a], [, b]) => (b as number) - (a as number))
-      .slice(0, 8)
-      .map(([name, value]) => ({ name, value: value as number }));
-  }, [ce.companiesByCountry]);
-  const indData = Object.entries(ce.companiesByIndustry).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, value]) => ({ name, value }));
-  const draftData = Object.entries(ee.contactsByStatus).filter(([k]) => ['drafted', 'pending_review', 'sent', 'queued', 'replied'].includes(k)).map(([name, value]) => ({ name: name.replace(/_/g, ' '), value }));
-  const seqMetrics = [
-    { label: 'Active Sequences', value: ee.activeSequences, color: C.blue },
-    { label: 'Pending Drafts', value: ee.pendingDrafts, color: C.amber },
-    { label: 'Emails in Queue', value: ee.pendingQueue, color: '#A855F7' },
-    { label: 'Positive Replies', value: ee.positiveReplies, color: C.green },
-    { label: 'Avg Lead Score', value: `${ee.avgLeadScore}/100`, color: C.gold },
-  ];
-  const catData = Object.entries(capE.capabilitiesByCategory).map(([name, value]) => ({ name: name.replace(/_/g, ' '), value }));
+/* ═══════════════════════════════════════════════════════════════
+   Sub-component: Loading Progress
+   ═══════════════════════════════════════════════════════════════ */
+function CommandLoadingState() {
+  const [steps, setSteps] = useState<Array<{ label: string; status: ProgressStep }>>([
+    { label: 'Scanning company signals', status: 'pending' },
+    { label: 'Analyzing email pipeline', status: 'pending' },
+    { label: 'Evaluating capability coverage', status: 'pending' },
+    { label: 'Generating AI intelligence briefing', status: 'pending' },
+  ]);
 
-  return (
-    <div className="space-y-6">
-      {/* Company Engine */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border p-6" style={{ background: C.card, borderColor: C.border }}>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(168,85,247,0.12)' }}><Building2 className="w-5 h-5" style={{ color: '#A855F7' }} /></div>
-          <div><h3 className="text-sm font-bold" style={{ color: C.text }}>Company Intelligence</h3><p className="text-[10px]" style={{ color: C.textDim }}>{ce.totalCompanies} companies • {ce.unreadSignalCount} signals</p></div>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <h4 className="text-[10px] uppercase tracking-widest font-medium mb-3" style={{ color: C.textDim }}>TOP INDUSTRIES</h4>
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={indData} layout="vertical" margin={{ top: 0, right: 20, bottom: 0, left: 0 }}>
-                <XAxis type="number" tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" tick={{ fill: C.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} width={90} />
-                <Tooltip content={<ChartTooltip />} />
-                <Bar dataKey="value" radius={[0, 6, 6, 0]} name="Companies" barSize={16}>{indData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} fillOpacity={0.75} />)}</Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div>
-            <h4 className="text-[10px] uppercase tracking-widest font-medium mb-3" style={{ color: C.textDim }}>GEO DISTRIBUTION</h4>
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart><Pie data={countries} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={3} dataKey="value" stroke="none">{countries.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}</Pie><Tooltip content={<ChartTooltip />} /></PieChart>
-            </ResponsiveContainer>
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">{countries.slice(0, 6).map((c, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-[9px]"><div className="w-1.5 h-1.5 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} /><span style={{ color: C.textMuted }}>{c.name}</span></div>
-            ))}</div>
-          </div>
-        </div>
-        {ce.latestSignals.length > 0 && (
-          <div className="mt-5">
-            <h4 className="text-[10px] uppercase tracking-widest font-medium mb-3" style={{ color: C.textDim }}>RECENT SIGNALS</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-              {ce.latestSignals.slice(0, 6).map(s => (
-                <div key={s.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl border" style={{ background: s.severity === 'critical' ? 'rgba(239,68,68,0.05)' : '#F9FAFB', borderColor: s.severity === 'critical' ? 'rgba(239,68,68,0.15)' : C.border }}>
-                  <span className="text-sm">{SIGNAL_ICONS[s.type] || '📡'}</span>
-                  <div className="flex-1 min-w-0"><p className="text-[11px] truncate" style={{ color: C.text }}>{s.title}</p><p className="text-[9px] capitalize" style={{ color: C.textDim }}>{s.severity}</p></div>
-                  <span className="text-[9px]" style={{ color: C.textDim }}>{timeAgo(s.createdAt)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </motion.div>
-
-      {/* Email Engine */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-2xl border p-6" style={{ background: C.card, borderColor: C.border }}>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.12)' }}><Mail className="w-5 h-5" style={{ color: C.blue }} /></div>
-          <div><h3 className="text-sm font-bold" style={{ color: C.text }}>Email Engine Analytics</h3><p className="text-[10px]" style={{ color: C.textDim }}>{ee.totalContacts} contacts • {ee.activeSequences} sequences</p></div>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div>
-            <h4 className="text-[10px] uppercase tracking-widest font-medium mb-3" style={{ color: C.textDim }}>DRAFT STATUS</h4>
-            {draftData.length > 0 ? (<>
-              <ResponsiveContainer width="100%" height={160}><PieChart><Pie data={draftData} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={3} dataKey="value" stroke="none">{draftData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}</Pie><Tooltip content={<ChartTooltip />} /></PieChart></ResponsiveContainer>
-              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">{draftData.map((d, i) => (
-                <div key={i} className="flex items-center gap-1.5 text-[9px]"><div className="w-1.5 h-1.5 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} /><span style={{ color: C.textMuted }}>{d.name} ({d.value})</span></div>
-              ))}</div>
-            </>) : <p className="text-[11px] py-8 text-center" style={{ color: C.textDim }}>No data yet</p>}
-          </div>
-          <div>
-            <h4 className="text-[10px] uppercase tracking-widest font-medium mb-3" style={{ color: C.textDim }}>SEQUENCE METRICS</h4>
-            <div className="space-y-3">{seqMetrics.map((m, i) => (
-              <div key={i} className="flex items-center justify-between"><span className="text-[11px]" style={{ color: C.textMuted }}>{m.label}</span><span className="text-sm font-bold tabular-nums" style={{ color: m.color }}>{m.value}</span></div>
-            ))}</div>
-          </div>
-          <div>
-            <h4 className="text-[10px] uppercase tracking-widest font-medium mb-3" style={{ color: C.textDim }}>HIGH-VALUE LEADS</h4>
-            <div className="space-y-2">{ee.highValueLeads.slice(0, 5).map((l, i) => (
-              <div key={l.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl border" style={{ background: '#F9FAFB', borderColor: C.border }}>
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0" style={{ background: l.score >= 80 ? C.green : l.score >= 60 ? C.gold : C.blue }}>{l.score}</div>
-                <div className="flex-1 min-w-0"><p className="text-[11px] truncate" style={{ color: C.text }}>{l.name}</p><p className="text-[9px] truncate" style={{ color: C.textDim }}>{l.email}</p></div>
-                <span className="text-[9px] uppercase" style={{ color: C.textDim }}>{l.status}</span>
-              </div>
-            ))}{ee.highValueLeads.length === 0 && <p className="text-[11px] py-6 text-center" style={{ color: C.textDim }}>No leads scored yet</p>}</div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Capability Engine */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="rounded-2xl border p-6" style={{ background: C.card, borderColor: C.border }}>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.12)' }}><Archive className="w-5 h-5" style={{ color: C.green }} /></div>
-          <div><h3 className="text-sm font-bold" style={{ color: C.text }}>Capability Library</h3><p className="text-[10px]" style={{ color: C.textDim }}>{capE.totalCapabilities} capabilities • {Object.keys(capE.capabilitiesByServiceLine).length} service lines</p></div>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
-            <h4 className="text-[10px] uppercase tracking-widest font-medium mb-3" style={{ color: C.textDim }}>BY CATEGORY</h4>
-            <ResponsiveContainer width="100%" height={Math.max(100, catData.length * 35)}>
-              <BarChart data={catData} layout="vertical" margin={{ top: 0, right: 20, bottom: 0, left: 0 }}>
-                <XAxis type="number" tick={{ fill: C.textDim, fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" tick={{ fill: C.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} width={100} />
-                <Tooltip content={<ChartTooltip />} /><Bar dataKey="value" radius={[0, 6, 6, 0]} name="Count" barSize={16} fill={C.green} fillOpacity={0.7} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div>
-            <h4 className="text-[10px] uppercase tracking-widest font-medium mb-3" style={{ color: C.textDim }}>MOST USED CAPABILITIES</h4>
-            <div className="space-y-2">{capE.topCapabilities.slice(0, 5).map((c, i) => (
-              <div key={c.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border" style={{ background: '#F9FAFB', borderColor: C.border }}>
-                <span className="text-xs font-bold w-5 text-center" style={{ color: i === 0 ? C.gold : C.textDim }}>#{i + 1}</span>
-                <div className="flex-1 min-w-0"><p className="text-[11px] truncate" style={{ color: C.text }}>{c.title}</p><p className="text-[9px] capitalize" style={{ color: C.textDim }}>{c.category?.replace(/_/g, ' ')} {c.serviceLine ? `• ${c.serviceLine}` : ''}</p></div>
-                <div className="flex items-center gap-3 text-[9px] shrink-0" style={{ color: C.textMuted }}>
-                  <span className="flex items-center gap-1"><Send className="w-3 h-3" />{c.usedInEmails}</span>
-                  <span className="flex items-center gap-1"><ArrowUpRight className="w-3 h-3" />{c.upvotes}</span>
-                </div>
-              </div>
-            ))}{capE.topCapabilities.length === 0 && <p className="text-[11px] py-6 text-center" style={{ color: C.textDim }}>No capabilities loaded</p>}</div>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════
-   AI Query Tab
-   ═══════════════════════════════════════════════════ */
-function AIQueryTab({ onQuery, loading, result }: { onQuery: (q: string) => void; loading: boolean; result: any }) {
-  const [query, setQuery] = useState('');
-  const [animBorder, setAnimBorder] = useState(false);
-  const examples = ['Show top industries', 'Which companies need follow-up?', 'Best performing sequences', 'High-value leads not contacted'];
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (query.trim() && !loading) { onQuery(query.trim()); setQuery(''); } };
-  return (
-    <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border p-8 relative overflow-hidden" style={{ background: C.card, borderColor: animBorder ? `${C.gold}40` : C.border, transition: 'border-color 0.3s' }}>
-        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 50% 100%, rgba(212,175,55,0.06), transparent 60%)' }} />
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${C.gold}20, ${C.goldLight}10)` }}><Brain className="w-6 h-6" style={{ color: C.gold }} /></div>
-            <div><h3 className="text-base font-bold" style={{ color: C.text }}>Ask Einstein AI</h3><p className="text-[11px]" style={{ color: C.textMuted }}>Natural language queries across all three engines</p></div>
-          </div>
-          <form onSubmit={handleSubmit}>
-            <div className="flex items-center gap-3 px-5 py-4 rounded-2xl border transition-colors" style={{ background: 'rgba(0, 0, 0, 0.03)', borderColor: 'rgba(0, 0, 0, 0.06)' }} onFocus={() => setAnimBorder(true)} onBlur={() => setAnimBorder(false)}>
-              <Sparkles className="w-5 h-5 shrink-0" style={{ color: C.gold }} />
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="e.g. What are the top-performing sequences this week?" className="flex-1 bg-transparent text-sm outline-none" style={{ color: C.text }} />
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: C.gold }} /> :
-                <button type="submit" className="px-4 py-2 rounded-xl text-xs font-medium transition-colors" style={{ background: `${C.gold}15`, color: C.gold, border: `1px solid ${C.gold}30` }}>
-                  <span className="flex items-center gap-1.5">Analyze <Send className="w-3 h-3" /></span>
-                </button>}
-            </div>
-          </form>
-          <div className="flex flex-wrap gap-2 mt-4">{examples.map((eq, i) => (
-            <button key={i} onClick={() => onQuery(eq)} className="px-3.5 py-1.5 rounded-full text-[11px] border transition-all duration-200"
-              style={{ borderColor: 'rgba(0, 0, 0, 0.06)', color: C.textMuted, background: 'rgba(0, 0, 0, 0.02)' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = `${C.gold}40`; e.currentTarget.style.color = C.gold; e.currentTarget.style.background = `${C.gold}08`; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.06)'; e.currentTarget.style.color = C.textMuted; e.currentTarget.style.background = 'rgba(0, 0, 0, 0.02)'; }}>
-              {eq}
-            </button>
-          ))}</div>
-        </div>
-      </motion.div>
-      {loading && (
-        <div className="flex items-center justify-center gap-4 py-12 rounded-2xl border" style={{ background: C.card, borderColor: `${C.gold}20` }}>
-          <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: `${C.gold}12` }}><Loader2 className="w-5 h-5 animate-spin" style={{ color: C.gold }} /></div>
-          <div><p className="text-sm font-medium" style={{ color: C.gold }}>Einstein AI is analyzing your query...</p><p className="text-[11px]" style={{ color: C.textDim }}>Cross-referencing all three engines</p></div>
-        </div>
-      )}
-      {result && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-          <div className="rounded-2xl border p-6" style={{ background: C.card, borderColor: `${C.gold}25` }}>
-            <div className="flex items-center gap-2 mb-2"><Brain className="w-4 h-4" style={{ color: C.gold }} /><span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: C.gold }}>AI Analysis{result.aiProcessed ? ' (Live)' : ''}</span></div>
-            <p className="text-sm mb-3" style={{ color: C.text }}>{result.summary || 'Query processed successfully.'}</p>
-            {result.interpretation && <p className="text-[11px] italic mb-3" style={{ color: C.textMuted }}>"{result.interpretation}"</p>}
-            {Array.isArray(result.aiInsights) && result.aiInsights.length > 0 && (
-              <div className="mt-3 p-3 rounded-xl border space-y-2" style={{ background: `linear-gradient(135deg, ${C.gold}06, ${C.gold}02)`, borderColor: `${C.gold}20` }}>
-                <div className="flex items-center gap-1.5 mb-1"><Lightbulb className="w-3.5 h-3.5" style={{ color: C.gold }} /><span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: C.gold }}>AI Insights</span></div>
-                {result.aiInsights.map((ins: string, i: number) => (
-                  <p key={i} className="text-[11px] leading-relaxed" style={{ color: C.textMuted }}>{ins}</p>
-                ))}
-              </div>
-            )}
-            {Array.isArray(result.suggestedFollowUp) && result.suggestedFollowUp.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {result.suggestedFollowUp.slice(0, 4).map((q: string, i: number) => (
-                  <button key={i} onClick={() => onQuery(q)} className="px-3 py-1.5 rounded-full text-[10px] border transition-all duration-200"
-                    style={{ borderColor: `${C.gold}25`, color: C.gold, background: `${C.gold}06` }}
-                    onMouseEnter={e => { e.currentTarget.style.background = `${C.gold}12`; }} onMouseLeave={e => { e.currentTarget.style.background = `${C.gold}06`; }}>
-                    {q}
-                  </button>
-                ))}
-              </div>
-            )}
-            {Array.isArray(result.data) && result.data.length > 0 && (
-              <div className="max-h-48 overflow-y-auto rounded-xl border mt-3" style={{ borderColor: C.border }}>
-                {result.data.slice(0, 8).map((item: any, i: number) => (
-                  <div key={item.id || i} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-b-0" style={{ borderColor: 'rgba(0, 0, 0, 0.04)' }}>
-                    {item.name && <span className="text-xs flex-1 truncate" style={{ color: C.text }}>{item.name}</span>}
-                    {item.title && <span className="text-xs flex-1 truncate" style={{ color: C.text }}>{item.title}</span>}
-                    {item.score !== undefined && <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: `${C.gold}15`, color: C.gold }}>{item.score}</span>}
-                    {item.count !== undefined && <span className="text-[10px] font-medium" style={{ color: C.gold }}>{item.count}</span>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </motion.div>
-      )}
-      {!loading && !result && (
-        <div className="text-center py-16 rounded-2xl border" style={{ background: C.card, borderColor: C.border }}>
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(0, 0, 0, 0.03)' }}><Brain className="w-8 h-8" style={{ color: C.textDim }} /></div>
-          <p className="text-sm font-medium mb-1" style={{ color: C.textMuted }}>No queries yet</p>
-          <p className="text-[11px]" style={{ color: C.textDim }}>Try one of the suggested queries above to get started</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════
-   Main Command Center Screen
-   ═══════════════════════════════════════════════════ */
-export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) {
-  const [insights, setInsights] = useState<Insights | null>(null);
-  const [activities, setActivities] = useState<AuditItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [aiInsights, setAiInsights] = useState<{ summary: string; keyInsights: Array<{ type: string; icon: string; title: string; description: string }>; predictions: Array<{ metric: string; current: number; predicted: number; trend: string; confidence: number }> } | null>(null);
-  const [aiRecommendations, setAiRecommendations] = useState<Array<{ type: string; priority: string; entityType: string; entityId: string; entityName: string; action: string; reasoning: string; aiEnhanced?: boolean }>>([]);
-  const [queryResult, setQueryResult] = useState<any>(null);
-  const [queryLoading, setQueryLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'engines' | 'query'>('overview');
-  const [jobStats, setJobStats] = useState<{ pending: number; queued: number; running: number; completed: number; failed: number; cancelled: number; total: number; retryable: number } | null>(null);
-  const [recentJobs, setRecentJobs] = useState<Array<{ id: string; type: string; status: string; priority: number; progress: number; currentStep: string | null; error: string | null; createdAt: string }>>([]);
-  const [lastRefresh, setLastRefresh] = useState(new Date());
-  const [refreshing, setRefreshing] = useState(false);
-
-  const fetchData = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      const [insRes, actRes, aiInsRes, aiRecRes, jobStatsRes] = await Promise.all([
-        fetch('/api/command-center/insights'), fetch('/api/audit?limit=15'),
-        fetch('/api/ai/insights'), fetch('/api/ai/recommendations'),
-        fetch('/api/g-data/jobs?stats=true&page=1&pageSize=5'),
-      ]);
-      const insData = await insRes.json(); if (insData?.companyEngine) setInsights(insData);
-      const actData = await actRes.json(); if (Array.isArray(actData)) setActivities(actData);
-      try { const aiInsData = await aiInsRes.json(); if (aiInsData?.data) setAiInsights(aiInsData.data); } catch (err) { console.error('[CommandCenter] fetch AI insights failed:', err); }
-      try { const aiRecData = await aiRecRes.json(); if (aiRecData?.data?.recommendations) setAiRecommendations(aiRecData.data.recommendations); } catch (err) { console.error('[CommandCenter] fetch AI recommendations failed:', err); }
-      try { const jobStatsData = await jobStatsRes.json(); setJobStats(jobStatsData.stats ?? null); setRecentJobs(jobStatsData.jobs ?? []); } catch (err) { console.error('[CommandCenter] fetch job stats failed:', err); }
-      setLastRefresh(new Date());
-    } catch (err) { console.error('[CommandCenter] fetch data failed:', err); }
-    setLoading(false); setRefreshing(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const s = [...steps];
+      for (let i = 0; i < s.length; i++) {
+        await delay(400 + Math.random() * 300);
+        if (cancelled) return;
+        s[i].status = 'processing';
+        setSteps([...s]);
+        await delay(600 + Math.random() * 400);
+        if (cancelled) return;
+        s[i].status = 'complete';
+        setSteps([...s]);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Initial fetch on mount
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  // Auto-refresh every 15 seconds when on the Command Center tab
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchData();
-    }, 15000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
-
-  const handleQuery = useCallback(async (q: string) => {
-    setQueryLoading(true); setQueryResult(null);
-    try {
-      const res = await fetch('/api/command-center/query', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) });
-      const data = await res.json();
-      if (data?.summary) { setQueryResult(data); if (activeTab !== 'query') setActiveTab('query'); }
-    } catch { toast.error('Query failed'); }
-    setQueryLoading(false);
-  }, [activeTab]);
-
-  if (loading) return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4"><Skeleton className="h-10 w-64" /><Skeleton className="h-8 w-32 ml-auto" /></div>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4"><Skeleton className="h-80 rounded-2xl" /><div className="lg:col-span-3 grid grid-cols-3 gap-4">{[1, 2, 3].map(i => <Skeleton key={i} className="h-80 rounded-2xl" />)}</div></div>
+  return (
+    <div className="flex flex-col items-center justify-center py-20 gap-6">
+      <div className="flex items-center gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500/15 to-blue-600/5 border border-blue-200/50">
+          <Brain className="h-6 w-6 text-blue-600 animate-pulse" />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-slate-800">Analyzing platform signals...</h3>
+          <p className="text-xs text-slate-400">Cross-referencing all three intelligence engines</p>
+        </div>
+      </div>
+      <div className="w-full max-w-sm">
+        <AIProgressTracker steps={steps} />
+      </div>
     </div>
   );
-  if (!insights) return <EmptyState icon={Brain} title="Command Center Unavailable" description="Could not load AI insights. Try refreshing." />;
+}
 
-  const tabs = [{ key: 'overview' as const, label: 'Overview', icon: BarChart3 }, { key: 'engines' as const, label: 'Engines', icon: Cpu }, { key: 'query' as const, label: 'AI Query', icon: Brain }];
+/* ═══════════════════════════════════════════════════════════════
+   Sub-component: Command Empty State
+   ═══════════════════════════════════════════════════════════════ */
+function CommandEmptyState({ navigateTo }: { navigateTo?: (screen: string) => void }) {
+  return (
+    <EmptyState
+      icon={Radar}
+      title="No Intelligence Data Yet"
+      description="The Command Center activates once you have companies, contacts, and signals in your platform. Start by importing companies or enriching your existing data."
+      action={
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="default" onClick={() => navigateTo?.('companies')} className="gap-1.5">
+            <Building2 className="h-3.5 w-3.5" />
+            Add Companies
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => navigateTo?.('contacts')} className="gap-1.5">
+            <Users className="h-3.5 w-3.5" />
+            Import Contacts
+          </Button>
+        </div>
+      }
+    />
+  );
+}
 
+/* ═══════════════════════════════════════════════════════════════
+   Main Component
+   ═══════════════════════════════════════════════════════════════ */
+export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) {
+  const [insights, setInsights] = useState<InsightsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+
+  const fetchInsights = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await fetch('/api/command-center/insights');
+      if (res.ok) {
+        const json = await res.json();
+        setInsights(json);
+        setLastRefreshed(new Date());
+      } else {
+        setError(true);
+      }
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchInsights(); }, [fetchInsights]);
+
+  // ── Derived data for priority cards ──
+  const criticalSignals = insights?.companyEngine.latestSignals.filter(
+    s => s.severity === 'critical' || s.severity === 'high'
+  ) ?? [];
+  const highValueLeads = insights?.emailEngine.highValueLeads ?? [];
+  const pendingDrafts = insights?.emailEngine.pendingDrafts ?? 0;
+  const positiveReplies = insights?.emailEngine.positiveReplies ?? 0;
+
+  // ── Compute individual engine health scores ──
+  const companyHealth = insights ? Math.min(100, Math.round(
+    Math.min(insights.companyEngine.totalCompanies / 200, 30) +
+    (insights.companyEngine.unreadSignalCount === 0 ? 20 : Math.max(20 - insights.companyEngine.unreadSignalCount, 0)) +
+    Math.min(Object.keys(insights.companyEngine.companiesByIndustry).length * 2, 20) +
+    (insights.companyEngine.topScoredCompanies.length > 0 ? Math.min(insights.companyEngine.topScoredCompanies[0].score / 5, 15) : 0) +
+    (insights.companyEngine.criticalSignalCount === 0 ? 15 : 0)
+  )) : 0;
+
+  const emailHealth = insights ? Math.min(100, Math.round(
+    Math.min(insights.emailEngine.totalContacts / 200, 25) +
+    Math.min(insights.emailEngine.avgLeadScore / 5, 25) +
+    Math.min(insights.emailEngine.replyRate * 1.5, 25) +
+    (pendingDrafts === 0 ? 15 : Math.max(15 - pendingDrafts / 10, 0)) +
+    (insights.emailEngine.activeSequences > 0 ? 10 : 0)
+  )) : 0;
+
+  const capabilityHealth = insights ? Math.min(100, Math.round(
+    Math.min(insights.capabilityEngine.totalCapabilities / 2, 40) +
+    Math.min(Object.keys(insights.capabilityEngine.capabilitiesByCategory).length * 5, 20) +
+    (insights.capabilityEngine.topCapabilities.length > 0 ? Math.min(insights.capabilityEngine.topCapabilities[0].usedInEmails * 2, 20) : 0) +
+    (insights.capabilityEngine.totalCapabilities >= 20 ? 20 : insights.capabilityEngine.totalCapabilities >= 10 ? 10 : 0)
+  )) : 0;
+
+  // ── Industry distribution data ──
+  const industryEntries = insights
+    ? Object.entries(insights.companyEngine.companiesByIndustry)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+    : [];
+  const maxIndustry = industryEntries.length > 0 ? industryEntries[0][1] : 1;
+  const industryColors = ['bg-blue-500', 'bg-violet-500', 'bg-cyan-500', 'bg-amber-500', 'bg-emerald-500', 'bg-pink-500'];
+
+  // ── Activity timeline items (derived from available data) ──
+  const activityItems = insights ? [
+    ...(insights.companyEngine.latestSignals.map(s => ({
+      id: s.id, icon: Zap, iconColor: s.severity === 'critical' ? 'text-red-500' : 'text-blue-500',
+      iconBg: s.severity === 'critical' ? 'bg-red-50' : 'bg-blue-50',
+      label: `Signal: ${s.title}`, time: relativeTime(s.createdAt),
+    }))),
+    ...(insights.emailEngine.positiveReplies > 0 ? [{
+      id: 'replies', icon: MessageSquare, iconColor: 'text-emerald-500', iconBg: 'bg-emerald-50',
+      label: `${insights.emailEngine.positiveReplies} positive replies received`, time: 'Recent',
+    }] : []),
+    ...(insights.emailEngine.pendingDrafts > 0 ? [{
+      id: 'drafts', icon: FileText, iconColor: 'text-amber-500', iconBg: 'bg-amber-50',
+      label: `${insights.emailEngine.pendingDrafts} drafts awaiting review`, time: 'Pending',
+    }] : []),
+    ...(insights.emailEngine.pendingQueue > 0 ? [{
+      id: 'queue', icon: Send, iconColor: 'text-blue-500', iconBg: 'bg-blue-50',
+      label: `${insights.emailEngine.pendingQueue} emails in send queue`, time: 'Queued',
+    }] : []),
+  ].slice(0, 6) : [];
+
+  // ── Signal count change indicator (simulated) ──
+  const signalChange = insights ? (insights.companyEngine.unreadSignalCount > 5 ? '+3 new' : 'No change') : null;
+
+  /* ═══════════════════════════════════════════════════════════
+     Render
+     ═══════════════════════════════════════════════════════════ */
   return (
     <PageTransition>
-      <div className="space-y-6">
-        {/* HEADER */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl flex items-center justify-center relative" style={{ background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` }}>
-              <Brain className="w-5 h-5 text-white" />
-              <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2" style={{ borderColor: C.bg }}>
-                <div className="w-full h-full rounded-full bg-emerald-500 animate-ping opacity-50" />
-              </div>
-            </div>
-            <div>
-              <h1 className="text-xl font-black tracking-tight flex items-center gap-2.5" style={{ color: C.text }}>
-                AI Command Center
-                <span className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: 'rgba(16,185,129,0.1)', color: C.green }}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />Live
-                </span>
-              </h1>
-              <p className="text-[11px] mt-0.5" style={{ color: C.textMuted }}>
-                Real-time intelligence across <span className="font-semibold" style={{ color: C.text }}>{insights.emailEngine.totalContacts.toLocaleString()}</span> contacts and <span className="font-semibold" style={{ color: C.text }}>{insights.companyEngine.totalCompanies.toLocaleString()}</span> companies
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] tabular-nums" style={{ color: C.textDim }}><Clock className="w-3 h-3 inline mr-1 -mt-0.5" />Updated {timeAgo(lastRefresh.toISOString())}</span>
-            <button onClick={fetchData} disabled={refreshing} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium border transition-all duration-200"
-              style={{ borderColor: C.border, color: C.textMuted, background: 'rgba(0, 0, 0, 0.02)' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = `${C.gold}30`; e.currentTarget.style.color = C.gold; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textMuted; }}>
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />Refresh
-            </button>
-          </div>
-        </div>
+      <div className="h-full flex flex-col overflow-hidden">
+        <ScrollArea className="flex-1">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-        {/* AI DAILY BRIEFING */}
-        {insights.aiSummary && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
-            className="rounded-2xl border p-5 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${C.gold}08, ${C.gold}02)`, borderColor: `${C.gold}25` }}>
-            <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 20% 50%, rgba(212,175,55,0.15), transparent 60%)' }} />
-            <div className="relative z-10">
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${C.gold}20, ${C.goldLight}10)` }}><Sparkles className="w-4 h-4" style={{ color: C.gold }} /></div>
-                <div>
-                  <h2 className="text-sm font-bold flex items-center gap-2" style={{ color: C.text }}>AI Daily Briefing
-                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border" style={{ background: `${C.gold}10`, color: C.gold, borderColor: `${C.gold}25` }}>Live AI</span>
-                  </h2>
-                  <p className="text-[10px]" style={{ color: C.textDim }}>Real-time AI analysis of your sales intelligence platform</p>
-                </div>
-              </div>
-              <p className="text-[13px] leading-relaxed" style={{ color: C.text }}>{insights.aiSummary}</p>
-              {insights.aiStrategicInsights && insights.aiStrategicInsights.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-                  {insights.aiStrategicInsights.slice(0, 6).map((si, i) => (
-                    <div key={i} className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl border" style={{ background: 'rgba(255,255,255,0.6)', borderColor: 'rgba(0,0,0,0.05)' }}>
-                      <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0`} style={{ background: si.impact === 'high' ? C.red : si.impact === 'medium' ? C.amber : C.blue }} />
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-medium leading-relaxed" style={{ color: C.text }}>{si.insight}</p>
-                        {si.action && <p className="text-[10px] mt-1" style={{ color: C.gold }}>{si.action}</p>}
-                      </div>
+            {/* ═══════════════════════════════════════
+               SECTION 1: Executive Summary Bar
+               ═══════════════════════════════════════ */}
+            {!loading && !error && insights && (
+              <motion.section
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-xl border border-slate-200 bg-white overflow-hidden"
+              >
+                <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-5 py-4 flex items-center gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 backdrop-blur">
+                    <Brain className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h1 className="text-sm font-bold text-white tracking-tight">AI Revenue Command Center</h1>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/20 text-[10px] font-semibold text-blue-300 uppercase tracking-wider">
+                        <Radio className="h-2.5 w-2.5" />
+                        Live
+                      </span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-
-        {/* TOP ROW: Health + Activity | Engine Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          <div className="lg:col-span-1 space-y-4">
-            <HealthGauge score={insights.healthScore} insights={insights} />
-            <ActivityFeed items={activities} />
-          </div>
-          <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-            {(['company', 'email', 'capability'] as const).map(eng => <EngineCard key={eng} key_={eng} insights={insights} />)}
-          </div>
-        </div>
-
-        {/* WORKFLOW JOB QUEUE (Phase 2) */}
-        {jobStats && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 }}
-            className="rounded-2xl border p-5" style={{ background: C.card, borderColor: C.border }}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.1)' }}><Cpu className="w-4 h-4" style={{ color: C.blue }} /></div>
-                <div>
-                  <h2 className="text-sm font-bold" style={{ color: C.text }}>Workflow Job Queue</h2>
-                  <p className="text-[10px]" style={{ color: C.textDim }}>{jobStats.total} total jobs processed</p>
-                </div>
-              </div>
-              {jobStats.retryable > 0 && (
-                <button onClick={async () => { try { await fetch('/api/g-data/jobs/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'retry-all-failed' }) }); fetchData(); toast.success(`${jobStats.retryable} jobs queued for retry`); } catch { toast.error('Retry failed'); } }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium border transition-all" style={{ borderColor: `${C.amber}30`, color: C.amber, background: 'rgba(245,158,11,0.05)' }}>
-                  <RefreshCw className="w-3 h-3" />Retry {jobStats.retryable} Failed
-                </button>
-              )}
-            </div>
-            <div className="grid grid-cols-6 gap-3 mb-4">
-              {[
-                { label: 'Pending', count: jobStats.pending, color: C.textMuted },
-                { label: 'Queued', count: jobStats.queued, color: C.blue },
-                { label: 'Running', count: jobStats.running, color: C.gold },
-                { label: 'Completed', count: jobStats.completed, color: C.green },
-                { label: 'Failed', count: jobStats.failed, color: C.red },
-                { label: 'Retryable', count: jobStats.retryable, color: C.amber },
-              ].map(s => (
-                <div key={s.label} className="text-center p-2.5 rounded-xl border" style={{ background: 'rgba(0,0,0,0.015)', borderColor: 'rgba(0,0,0,0.04)' }}>
-                  <div className="text-lg font-bold tabular-nums" style={{ color: s.color }}>{s.count}</div>
-                  <div className="text-[9px] mt-0.5" style={{ color: C.textDim }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-            {recentJobs.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: C.textDim }}>Recent Jobs</p>
-                {recentJobs.map(job => (
-                  <div key={job.id} className="flex items-center gap-3 px-3 py-2 rounded-xl border" style={{ background: 'rgba(0,0,0,0.01)', borderColor: 'rgba(0,0,0,0.04)' }}>
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${job.status === 'running' ? 'animate-pulse' : ''}`} style={{ background: job.status === 'completed' ? C.green : job.status === 'failed' ? C.red : job.status === 'running' ? C.gold : C.textMuted }} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-medium" style={{ color: C.text }}>{fmtTitle(job.type)}</span>
-                        <span className="text-[8px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-md" style={{ background: job.status === 'failed' ? 'rgba(220,38,38,0.08)' : job.status === 'running' ? `${C.gold}12` : 'rgba(0,0,0,0.03)', color: job.status === 'failed' ? C.red : job.status === 'running' ? C.gold : C.textMuted }}>{job.status}</span>
-                      </div>
-                      {job.currentStep && <p className="text-[9px]" style={{ color: C.textDim }}>{job.currentStep}</p>}
-                      {job.error && <p className="text-[9px]" style={{ color: C.red }}>{job.error.slice(0, 80)}</p>}
-                    </div>
-                    {job.status === 'running' && (
-                      <div className="w-16 h-1.5 rounded-full bg-gray-100 overflow-hidden"><div className="h-full rounded-full transition-all duration-500" style={{ width: `${job.progress}%`, background: C.gold }} /></div>
+                    {insights.aiSummary ? (
+                      <p className="text-xs text-slate-300 leading-relaxed line-clamp-2">{insights.aiSummary}</p>
+                    ) : (
+                      <p className="text-xs text-slate-400">
+                        Platform operational. {insights.companyEngine.totalCompanies} companies tracked, {insights.emailEngine.totalContacts} contacts, {insights.capabilityEngine.totalCapabilities} capabilities.
+                      </p>
                     )}
-                    <span className="text-[9px] shrink-0" style={{ color: C.textDim }}>{timeAgo(job.createdAt)}</span>
                   </div>
-                ))}
-              </div>
-            )}
-            {jobStats.total === 0 && (
-              <div className="text-center py-6">
-                <Cpu className="w-8 h-8 mx-auto mb-2 opacity-20" style={{ color: C.textMuted }} />
-                <p className="text-xs" style={{ color: C.textDim }}>No jobs yet. Enrich a company to create your first workflow job.</p>
-              </div>
-            )}
-          </motion.div>
-        )}
 
-        {/* TABS */}
-        <div className="flex gap-1 p-1.5 rounded-2xl" style={{ background: 'rgba(0, 0, 0, 0.03)', border: `1px solid ${C.border}` }}>
-          {tabs.map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium transition-all duration-200"
-              style={activeTab === tab.key ? { background: `${C.gold}12`, color: C.gold, boxShadow: `0 0 20px ${C.gold}08` } : { color: C.textMuted }}>
-              <tab.icon className="w-4 h-4" />{tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* TAB CONTENT */}
-        <AnimatePresence mode="wait">
-          {activeTab === 'overview' && <motion.div key="ov" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}><OverviewTab insights={insights} activities={activities} /></motion.div>}
-          {activeTab === 'engines' && <motion.div key="en" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}><EnginesTab insights={insights} /></motion.div>}
-          {activeTab === 'query' && <motion.div key="qr" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}><AIQueryTab onQuery={handleQuery} loading={queryLoading} result={queryResult} /></motion.div>}
-        </AnimatePresence>
-
-        {/* RECOMMENDATIONS */}
-        {(insights.recommendations.length > 0 || aiRecommendations.length > 0) && (
-          <div>
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `${C.gold}12` }}><Lightbulb className="w-4 h-4" style={{ color: C.gold }} /></div>
-              <div>
-                <h2 className="text-sm font-bold" style={{ color: C.text }}>AI Recommendations</h2>
-                <p className="text-[10px]" style={{ color: C.textDim }}>{aiInsights?.summary || `${insights.recommendations.filter(r => r.priority === 'high').length} critical • ${insights.recommendations.filter(r => r.priority === 'medium').length} warnings`}</p>
-              </div>
-              {aiInsights && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border" style={{ background: `${C.gold}10`, color: C.gold, borderColor: `${C.gold}25` }}>Live AI</span>}
-            </div>
-            {aiInsights?.summary && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-4 p-4 rounded-2xl border" style={{ background: `linear-gradient(135deg, ${C.gold}06, ${C.gold}02)`, borderColor: `${C.gold}20` }}>
-                <p className="text-xs font-medium" style={{ color: C.text }}>{aiInsights.summary}</p>
-                {aiInsights.predictions.length > 0 && (
-                  <div className="flex flex-wrap gap-3 mt-3">
-                    {aiInsights.predictions.slice(0, 3).map((p, i) => (
-                      <div key={i} className="flex items-center gap-1.5 text-[10px]">
-                        <span style={{ color: p.trend === 'up' ? C.green : p.trend === 'down' ? C.red : C.textMuted }}>{p.trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : p.trend === 'down' ? <ArrowDownRight className="w-3 h-3" /> : '→'}</span>
-                        <span style={{ color: C.textMuted }}>{p.metric}</span>
-                        <span className="font-bold" style={{ color: C.text }}>{p.current} → {p.predicted}</span>
+                  {/* Health Gauge + Change Indicator */}
+                  <div className="flex items-center gap-4 shrink-0">
+                    {signalChange && (
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10">
+                        <Activity className={`h-3 w-3 ${signalChange.includes('+') ? 'text-amber-400' : 'text-slate-500'}`} />
+                        <span className={`text-[10px] font-semibold ${signalChange.includes('+') ? 'text-amber-400' : 'text-slate-500'}`}>{signalChange}</span>
                       </div>
-                    ))}
+                    )}
+                    <div className="text-center">
+                      <HealthGauge score={insights.healthScore} size={56} />
+                      <p className="text-[9px] text-slate-500 mt-1 uppercase tracking-wider font-medium">Health</p>
+                    </div>
                   </div>
+                </div>
+
+                {/* Bottom bar with timestamp + refresh */}
+                <div className="px-5 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                      <Clock className="h-3 w-3" />
+                      {lastRefreshed ? `Last refreshed: ${lastRefreshed.toLocaleTimeString()}` : 'Refreshing...'}
+                    </div>
+                    <Separator orientation="vertical" className="h-3" />
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                      <Database className="h-3 w-3" />
+                      {insights.companyEngine.totalCompanies} companies · {insights.emailEngine.totalContacts} contacts · {insights.capabilityEngine.totalCapabilities} capabilities
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={fetchInsights} className="h-7 gap-1.5 text-slate-500 hover:text-slate-700 text-xs">
+                    <RefreshCw className="h-3 w-3" />
+                    Refresh
+                  </Button>
+                </div>
+              </motion.section>
+            )}
+
+            {/* ═══════════════════════════════════════
+               LOADING STATE
+               ═══════════════════════════════════════ */}
+            {loading && <CommandLoadingState />}
+
+            {/* ═══════════════════════════════════════
+               ERROR STATE
+               ═══════════════════════════════════════ */}
+            {error && !loading && (
+              <ErrorState
+                title="Intelligence generation could not complete"
+                message="The AI Revenue Command Center could not retrieve or process your platform data. This may be due to a temporary service disruption or database issue."
+                onRetry={fetchInsights}
+              />
+            )}
+
+            {/* ═══════════════════════════════════════
+               EMPTY STATE
+               ═══════════════════════════════════════ */}
+            {!loading && !error && insights && insights.companyEngine.totalCompanies === 0 && (
+              <CommandEmptyState navigateTo={navigateTo} />
+            )}
+
+            {/* ═══════════════════════════════════════
+               MAIN CONTENT (data available)
+               ═══════════════════════════════════════ */}
+            {!loading && !error && insights && insights.companyEngine.totalCompanies > 0 && (
+              <>
+
+                {/* ═══════════════════════════════════
+                   SECTION 2: Priority Action Grid
+                   ═══════════════════════════════════ */}
+                <section className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Priority Actions</h2>
+                    <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-blue-50 text-blue-600 border-blue-200">
+                      AI-Detected
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                    {/* Critical Signals */}
+                    <PriorityActionCard
+                      icon={Zap}
+                      label="Critical Signals"
+                      count={criticalSignals.length}
+                      accentBg="bg-red-50" accentText="text-red-600" accentBorder=""
+                      badgeText={insights.companyEngine.unreadSignalCount > 0 ? `${insights.companyEngine.unreadSignalCount} total` : undefined}
+                      badgeClass="bg-red-100 text-red-700"
+                      items={criticalSignals.map(s => ({
+                        primary: s.title,
+                        badge: s.severity,
+                        badgeClass: severityColor(s.severity).badge,
+                        secondary: relativeTime(s.createdAt),
+                      }))}
+                      onClick={() => navigateTo?.('companies')}
+                    />
+                    {/* High-Value Leads */}
+                    <PriorityActionCard
+                      icon={Target}
+                      label="High-Value Leads"
+                      count={highValueLeads.length}
+                      accentBg="bg-violet-50" accentText="text-violet-600" accentBorder=""
+                      items={highValueLeads.map(l => ({
+                        primary: l.name,
+                        secondary: `Score: ${l.score}`,
+                        badge: l.score >= 90 ? 'Hot' : l.score >= 80 ? 'Warm' : undefined,
+                        badgeClass: l.score >= 90 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700',
+                      }))}
+                      onClick={() => navigateTo?.('leads')}
+                    />
+                    {/* Drafts Awaiting Review */}
+                    <PriorityActionCard
+                      icon={FileText}
+                      label="Drafts Awaiting Review"
+                      count={pendingDrafts}
+                      accentBg="bg-amber-50" accentText="text-amber-600" accentBorder=""
+                      badgeText={pendingDrafts > 10 ? 'Review needed' : pendingDrafts > 0 ? 'Pending' : undefined}
+                      badgeClass={pendingDrafts > 10 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}
+                      items={pendingDrafts > 0 ? [
+                        { primary: `${pendingDrafts} AI-generated drafts`, secondary: 'Ready to review' },
+                      ] : []}
+                      onClick={() => navigateTo?.('drafts')}
+                    />
+                    {/* Positive Replies */}
+                    <PriorityActionCard
+                      icon={MessageSquare}
+                      label="Positive Replies"
+                      count={positiveReplies}
+                      accentBg="bg-emerald-50" accentText="text-emerald-600" accentBorder=""
+                      badgeText={insights.emailEngine.replyRate > 0 ? `${insights.emailEngine.replyRate}% rate` : undefined}
+                      badgeClass="bg-emerald-100 text-emerald-700"
+                      items={positiveReplies > 0 ? [
+                        { primary: `${positiveReplies} warm leads detected`, secondary: 'Follow-up recommended' },
+                      ] : []}
+                      onClick={() => navigateTo?.('replies')}
+                    />
+                  </div>
+                </section>
+
+                {/* ═══════════════════════════════════
+                   SECTION 3: AI Strategic Insights Panel
+                   ═══════════════════════════════════ */}
+                {insights.aiStrategicInsights && insights.aiStrategicInsights.length > 0 && (
+                  <section className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">AI Strategic Insights</h2>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-[10px] font-semibold text-blue-600">
+                        <Sparkles className="h-2.5 w-2.5" />
+                        {insights.aiStrategicInsights.length} insights
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {insights.aiStrategicInsights.slice(0, 6).map((insight, idx) => (
+                        <StrategicInsightCard key={idx} insight={insight} index={idx} />
+                      ))}
+                    </div>
+                  </section>
                 )}
-              </motion.div>
+
+                {/* ═══════════════════════════════════
+                   SECTION 4: Revenue Command Dashboard (2 cols)
+                   ═══════════════════════════════════ */}
+                <section>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Revenue Intelligence Dashboard</h2>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                    {/* ── Left Column ── */}
+                    <div className="space-y-4">
+                      {/* Account Intelligence Scores */}
+                      <div className="section-container">
+                        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-blue-500" />
+                            <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Account Intelligence Scores</h3>
+                          </div>
+                          <Button variant="ghost" size="sm" className="h-6 text-[10px] text-slate-400 hover:text-blue-600" onClick={() => navigateTo?.('companies')}>
+                            View all
+                          </Button>
+                        </div>
+                        <div className="p-2">
+                          {insights.companyEngine.topScoredCompanies.length > 0 ? (
+                            <div className="divide-y divide-slate-50">
+                              {insights.companyEngine.topScoredCompanies.slice(0, 5).map((company, idx) => (
+                                <AccountScoreRow key={company.id} company={company} rank={idx + 1} onView={(id) => navigateTo?.('company-detail', id)} />
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-400 py-6 text-center">No companies scored yet</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Industry Distribution */}
+                      {industryEntries.length > 0 && (
+                        <div className="section-container">
+                          <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+                            <Globe className="h-4 w-4 text-violet-500" />
+                            <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Industry Distribution</h3>
+                          </div>
+                          <div className="p-4 space-y-2.5">
+                            {industryEntries.map(([name, count], idx) => (
+                              <IndustryBar key={name} label={name} count={count} max={maxIndustry} color={industryColors[idx % industryColors.length]} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── Right Column ── */}
+                    <div className="space-y-4">
+                      {/* Signal Intelligence Feed */}
+                      <div className="section-container">
+                        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Radio className="h-4 w-4 text-amber-500" />
+                            <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Signal Intelligence Feed</h3>
+                          </div>
+                          <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-amber-50 text-amber-600 border-amber-200">
+                            {insights.companyEngine.unreadSignalCount} unread
+                          </Badge>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto p-1">
+                          {insights.companyEngine.latestSignals.length > 0 ? (
+                            <div className="divide-y divide-slate-50">
+                              {insights.companyEngine.latestSignals.slice(0, 5).map(signal => (
+                                <SignalFeedItem key={signal.id} signal={signal} onClick={() => navigateTo?.('companies')} />
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-400 py-6 text-center">No signals detected</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Activity Timeline */}
+                      <div className="section-container">
+                        <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+                          <Activity className="h-4 w-4 text-blue-500" />
+                          <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Activity Timeline</h3>
+                        </div>
+                        <div className="p-3 space-y-1 max-h-48 overflow-y-auto">
+                          {activityItems.length > 0 ? (
+                            activityItems.map(item => {
+                              const Icon = item.icon;
+                              return (
+                                <div key={item.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors">
+                                  <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${item.iconBg}`}>
+                                    <Icon className={`h-3 w-3 ${item.iconColor}`} />
+                                  </div>
+                                  <p className="text-xs text-slate-600 flex-1 truncate">{item.label}</p>
+                                  <span className="text-[10px] text-slate-400">{item.time}</span>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <p className="text-xs text-slate-400 py-4 text-center">No recent activity</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                {/* ═══════════════════════════════════
+                   SECTION 5: Engine Health Overview
+                   ═══════════════════════════════════ */}
+                <section className="section-container">
+                  <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <HeartPulse className="h-4 w-4 text-emerald-500" />
+                      <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Engine Health Overview</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <HealthGauge score={insights.healthScore} size={40} />
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Overall</span>
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-5">
+                    <EngineHealthBar
+                      icon={Shield}
+                      label="Company Engine"
+                      score={companyHealth}
+                      description={`${insights.companyEngine.totalCompanies} companies tracked · ${insights.companyEngine.unreadSignalCount} unread signals · ${insights.companyEngine.criticalSignalCount} critical`}
+                    />
+                    <Separator />
+                    <EngineHealthBar
+                      icon={Mail}
+                      label="Email Engine"
+                      score={emailHealth}
+                      description={`${insights.emailEngine.pendingDrafts} drafts pending · ${insights.emailEngine.positiveReplies} positive replies · ${insights.emailEngine.replyRate}% reply rate`}
+                    />
+                    <Separator />
+                    <EngineHealthBar
+                      icon={Cpu}
+                      label="Capability Engine"
+                      score={capabilityHealth}
+                      description={`${insights.capabilityEngine.totalCapabilities} capabilities · ${Object.keys(insights.capabilityEngine.capabilitiesByCategory).length} categories`}
+                    />
+
+                    {/* AI Health Analysis */}
+                    {insights.aiHealthAnalysis && (
+                      <>
+                        <Separator />
+                        <div className="rounded-lg bg-slate-50 border border-slate-100 p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Brain className="h-3.5 w-3.5 text-blue-600" />
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-600">AI Health Analysis</span>
+                          </div>
+                          <p className="text-xs text-slate-600 leading-relaxed">{insights.aiHealthAnalysis}</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </section>
+
+                {/* Bottom spacing */}
+                <div className="h-8" />
+              </>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {aiRecommendations.slice(0, 4).map((rec, i) => {
-                const ps = PRIORITY[rec.priority as 'high' | 'medium' | 'low'] || PRIORITY.medium;
-                const PIcon = ps.icon;
-                return (
-                  <motion.div key={`ai-${i}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                    className="flex items-start gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all duration-200 group"
-                    style={{ background: C.card, borderColor: C.border }}
-                    whileHover={{ borderColor: `${C.gold}35`, background: `${C.gold}04` }}>
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${C.gold}12` }}><Sparkles className="w-4 h-4" style={{ color: C.gold }} /></div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold" style={{ color: C.text }}>{rec.action}</span>
-                        <span className="text-[8px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-md" style={{ background: ps.bg, color: ps.color }}>{ps.label}</span>
-                        {rec.aiEnhanced && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: `${C.gold}12`, color: C.gold }}>AI Enhanced</span>}
-                      </div>
-                      <p className="text-[10px] leading-relaxed" style={{ color: C.textMuted }}>{rec.reasoning}</p>
-                      <p className="text-[9px] mt-1" style={{ color: C.textDim }}>{rec.entityName}</p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 shrink-0 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: C.textDim }} />
-                  </motion.div>
-                );
-              })}
-              {insights.recommendations.slice(0, aiRecommendations.length > 0 ? 2 : 6).map((rec, i) => {
-                const ps = PRIORITY[rec.priority], ec = ENGINES[rec.engine as keyof typeof ENGINES];
-                const PIcon = ps.icon;
-                return (
-                  <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                    className="flex items-start gap-3.5 p-4 rounded-2xl border cursor-pointer transition-all duration-200 group"
-                    style={{ background: C.card, borderColor: C.border }}
-                    whileHover={{ borderColor: `${ec.color}35`, background: `${ec.color}04` }}
-                    onClick={() => { if (rec.actionScreen) navigateTo?.(rec.actionScreen); }}>
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5" style={{ background: ps.bg }}><PIcon className="w-4 h-4" style={{ color: ps.color }} /></div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold" style={{ color: C.text }}>{rec.title}</span>
-                        <span className="text-[8px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-md" style={{ background: ps.bg, color: ps.color }}>{ps.label}</span>
-                      </div>
-                      <p className="text-[10px] leading-relaxed" style={{ color: C.textMuted }}>{rec.description}</p>
-                    </div>
-                    {rec.actionScreen && <ArrowRight className="w-4 h-4 shrink-0 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: C.textDim }} />}
-                  </motion.div>
-                );
-              })}
-            </div>
           </div>
-        )}
+        </ScrollArea>
       </div>
     </PageTransition>
   );

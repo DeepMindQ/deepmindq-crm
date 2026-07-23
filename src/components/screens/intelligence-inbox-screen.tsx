@@ -3,23 +3,26 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Inbox, Send, CheckCircle, XCircle, ArrowRight,
-  ChevronDown, Filter, AlertTriangle, Tag, Loader2,
-  Search, ChevronUp,
+  ChevronDown, AlertTriangle, Tag, Loader2,
+  Search, CheckCheck, Trash2, Filter,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import {
-  Card, CardContent, CardHeader, CardTitle,
-} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { LoadingState } from '@/components/enterprise/LoadingState';
+import { ErrorState } from '@/components/enterprise/ErrorState';
+import { EmptyState } from '@/components/shared/design-system';
+import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
 import { toast } from 'sonner';
 import { ALL_CATEGORIES } from '@/lib/intelligence-sources/types';
 
-// ─── Types ──────────────────────────────────────────────────────
-
+/* ═══════════════════════════════════════════════════════════════
+   Types
+   ═══════════════════════════════════════════════════════════════ */
 type InboxStatus = 'pending' | 'approved' | 'rejected' | 'converted';
 type InboxPriority = 'low' | 'normal' | 'high' | 'critical';
 
@@ -39,6 +42,7 @@ interface InboxItem {
   source?: string | null;
   priority: InboxPriority;
   status: InboxStatus;
+  confidence?: number;
   tags?: string | null;
   reviewedBy?: string | null;
   reviewedAt?: string | null;
@@ -47,25 +51,26 @@ interface InboxItem {
   updatedAt: string;
 }
 
-// ─── Helpers ────────────────────────────────────────────────────
-
-const PRIORITY_COLORS: Record<InboxPriority, string> = {
-  critical: 'bg-red-100 text-red-800 border-red-200',
-  high: 'bg-orange-100 text-orange-800 border-orange-200',
-  normal: 'bg-blue-100 text-blue-800 border-blue-200',
-  low: 'bg-gray-100 text-gray-600 border-gray-200',
+/* ═══════════════════════════════════════════════════════════════
+   Helpers
+   ═══════════════════════════════════════════════════════════════ */
+const PRIORITY_CONFIG: Record<InboxPriority, { color: string; icon: typeof AlertTriangle; label: string }> = {
+  critical: { color: 'bg-red-100 text-red-700 border-red-200', icon: AlertTriangle, label: 'Critical' },
+  high: { color: 'bg-orange-100 text-orange-700 border-orange-200', icon: AlertTriangle, label: 'High' },
+  normal: { color: 'bg-blue-100 text-blue-700 border-blue-200', icon: Inbox, label: 'Normal' },
+  low: { color: 'bg-slate-100 text-slate-600 border-slate-200', icon: Inbox, label: 'Low' },
 };
 
-const STATUS_COLORS: Record<InboxStatus, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  approved: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
-  converted: 'bg-indigo-100 text-indigo-800',
+const STATUS_CONFIG: Record<InboxStatus, { color: string; icon: typeof CheckCircle }> = {
+  pending: { color: 'bg-amber-100 text-amber-700 border-amber-200', icon: Clock },
+  approved: { color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle },
+  rejected: { color: 'bg-red-100 text-red-700 border-red-200', icon: XCircle },
+  converted: { color: 'bg-blue-100 text-blue-700 border-blue-200', icon: ArrowRight },
 };
 
 function relativeTime(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60_000);
+  const minutes = Math.floor(diff / 60000);
   if (minutes < 1) return 'just now';
   if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
@@ -80,70 +85,166 @@ function parseTags(tags: string | null | undefined): string[] {
   try {
     const parsed = JSON.parse(tags);
     return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
-// ─── Component ──────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════
+   Inbox Item Card
+   ═══════════════════════════════════════════════════════════════ */
+function InboxItemCard({
+  item, busy, onReview, onConvert, onExpand, expanded, selected,
+  onSelect,
+}: {
+  item: InboxItem;
+  busy: boolean;
+  onReview: (id: string, action: 'approve' | 'reject') => void;
+  onConvert: (id: string) => void;
+  onExpand: (id: string) => void;
+  expanded: boolean;
+  selected: boolean;
+  onSelect: (id: string) => void;
+}) {
+  const tags = parseTags(item.tags);
+  const priorityCfg = PRIORITY_CONFIG[item.priority];
+  const statusCfg = STATUS_CONFIG[item.status];
+  const truncated = item.content.length > 200;
 
+  return (
+    <div className={cn(
+      'rounded-xl border bg-white shadow-sm transition-all',
+      selected ? 'border-blue-300 ring-1 ring-blue-200' : 'border-slate-200 hover:shadow-md'
+    )}>
+      <div className="p-4">
+        {/* Header row */}
+        <div className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onSelect(item.id)}
+            className="mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+          />
+          <div className="flex-1 min-w-0">
+            {/* Badges row */}
+            <div className="flex flex-wrap items-center gap-1.5 mb-2">
+              <Badge variant="outline" className={cn('text-[10px]', priorityCfg.color)}>
+                {item.priority === 'critical' && <AlertTriangle className="mr-0.5 h-2.5 w-2.5" />}
+                {priorityCfg.label}
+              </Badge>
+              <Badge variant="outline" className={cn('text-[10px]', statusCfg.color)}>
+                {item.status}
+              </Badge>
+              <span className="text-[11px] text-slate-400">by {item.submittedBy}</span>
+              <span className="ml-auto text-[11px] text-slate-400">{relativeTime(item.createdAt)}</span>
+            </div>
+
+            {/* Content */}
+            <p className="text-sm text-slate-700 leading-relaxed">
+              {expanded ? item.content : item.content.slice(0, 200)}
+              {truncated && !expanded && '...'}
+              {truncated && (
+                <button onClick={() => onExpand(item.id)}
+                  className="ml-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+                  {expanded ? 'less' : 'more'}
+                </button>
+              )}
+            </p>
+
+            {/* Tags & Meta */}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {item.category && (
+                <Badge variant="secondary" className="text-[10px]">{item.category}</Badge>
+              )}
+              {item.source && (
+                <span className="text-[10px] text-slate-400">source: {item.source}</span>
+              )}
+              {tags.map(tag => (
+                <Badge key={tag} variant="outline" className="text-[10px] gap-0.5 text-slate-500 bg-slate-50">
+                  <Tag className="h-2 w-2" />{tag}
+                </Badge>
+              ))}
+            </div>
+
+            {/* Confidence threshold indicator */}
+            {item.confidence !== undefined && (
+              <div className="mt-3">
+                <ConfidenceBar value={item.confidence} label="AI Confidence" size="sm" />
+              </div>
+            )}
+
+            {/* Summary */}
+            {item.summary && (
+              <p className="mt-2 text-xs italic text-slate-500 border-l-2 border-blue-200 pl-2">
+                {item.summary}
+              </p>
+            )}
+
+            {/* Actions */}
+            <div className="mt-3 flex items-center gap-2 pt-2 border-t border-slate-100">
+              {item.status === 'pending' && (
+                <>
+                  <Button size="sm" variant="outline"
+                    className="h-7 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50 gap-1"
+                    disabled={busy} onClick={() => onReview(item.id, 'approve')}>
+                    {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                    Approve
+                  </Button>
+                  <Button size="sm" variant="outline"
+                    className="h-7 text-xs text-red-700 border-red-200 hover:bg-red-50 gap-1"
+                    disabled={busy} onClick={() => onReview(item.id, 'reject')}>
+                    {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+                    Reject
+                  </Button>
+                </>
+              )}
+              {item.status === 'approved' && (
+                <Button size="sm" variant="outline"
+                  className="h-7 text-xs text-blue-700 border-blue-200 hover:bg-blue-50 gap-1"
+                  disabled={busy} onClick={() => onConvert(item.id)}>
+                  {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowRight className="h-3 w-3" />}
+                  Convert to Intelligence
+                </Button>
+              )}
+              {item.status === 'converted' && (
+                <Button size="sm" variant="outline"
+                  className="h-7 text-xs text-slate-400 cursor-not-allowed" disabled>
+                  <CheckCheck className="h-3 w-3 mr-1" />
+                  Converted
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Main Component
+   ═══════════════════════════════════════════════════════════════ */
 export default function IntelligenceInboxScreen() {
-  // Stats
   const [stats, setStats] = useState<InboxStats | null>(null);
-
-  // List
   const [items, setItems] = useState<InboxItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(1);
-
-  // Filters
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Form
-  const [formOpen, setFormOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({
-    companyId: '',
-    submittedBy: '',
-    content: '',
-    summary: '',
-    category: '',
-    priority: 'normal' as InboxPriority,
-    tags: '',
-  });
-
-  // Expanded items
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
-  // Action in-progress tracking
   const [actionInProgress, setActionInProgress] = useState<Set<string>>(new Set());
-
-  // ─── Fetch Stats ──────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const fetchStats = useCallback(async () => {
     try {
       const res = await fetch('/api/g-intel-acquisition/inbox/stats');
-      if (!res.ok) throw new Error('Failed to fetch stats');
-      const data = await res.json();
-      setStats(data);
-    } catch {
-      toast.error('Failed to load inbox stats');
-    }
+      if (res.ok) setStats(await res.json());
+    } catch { toast.error('Failed to load inbox stats'); }
   }, []);
 
-  // ─── Fetch Items ──────────────────────────────────────────────
-
   const fetchItems = useCallback(async (pageNum: number, append = false) => {
-    if (append) {
-      setLoadingMore(true);
-    } else {
-      setLoading(true);
-    }
-
+    if (append) setLoadingMore(true); else setLoading(true);
     try {
       const params = new URLSearchParams();
       params.set('page', String(pageNum));
@@ -151,162 +252,81 @@ export default function IntelligenceInboxScreen() {
       if (statusFilter !== 'all') params.set('status', statusFilter);
       if (priorityFilter !== 'all') params.set('priority', priorityFilter);
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
-
       const res = await fetch(`/api/g-intel-acquisition/inbox?${params}`);
-      if (!res.ok) throw new Error('Failed to fetch inbox');
+      if (!res.ok) throw new Error('Failed');
       const data = await res.json();
-
       const newItems: InboxItem[] = data.items ?? data ?? [];
-      setItems(prev => (append ? [...prev, ...newItems] : newItems));
+      setItems(prev => append ? [...prev, ...newItems] : newItems);
       setHasMore(newItems.length >= 20);
-    } catch {
-      toast.error('Failed to load inbox items');
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
+    } catch { toast.error('Failed to load inbox items'); }
+    finally { setLoading(false); setLoadingMore(false); }
   }, [statusFilter, priorityFilter, searchQuery]);
 
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
-
-  useEffect(() => {
-    setPage(1);
-    fetchItems(1, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, priorityFilter, searchQuery]);
-
-  // ─── Handlers ─────────────────────────────────────────────────
-
-  const handleSubmit = async () => {
-    if (!form.companyId.trim() || !form.submittedBy.trim() || !form.content.trim()) {
-      toast.error('Company ID, Submitter, and Content are required');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const body: Record<string, unknown> = {
-        companyId: form.companyId.trim(),
-        submittedBy: form.submittedBy.trim(),
-        content: form.content.trim(),
-        summary: form.summary.trim() || undefined,
-        category: form.category || undefined,
-        priority: form.priority,
-        tags: form.tags
-          .split(',')
-          .map(t => t.trim())
-          .filter(Boolean),
-      };
-      const res = await fetch('/api/g-intel-acquisition/inbox', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? 'Submit failed');
-      }
-      toast.success('Intelligence submitted to inbox');
-      setForm({ companyId: '', submittedBy: '', content: '', summary: '', category: '', priority: 'normal', tags: '' });
-      setFormOpen(false);
-      fetchItems(1, false);
-      fetchStats();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Submit failed');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  useEffect(() => { fetchStats(); }, [fetchStats]);
+  useEffect(() => { setPage(1); fetchItems(1, false); }, [statusFilter, priorityFilter, searchQuery]);
 
   const handleReview = async (id: string, action: 'approve' | 'reject') => {
     setActionInProgress(prev => new Set(prev).add(id));
     try {
       const res = await fetch(`/api/g-intel-acquisition/inbox/${id}/review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, reviewerId: 'current-user' }),
       });
-      if (!res.ok) throw new Error(`${action} failed`);
+      if (!res.ok) throw new Error();
       toast.success(`Item ${action}d`);
-      fetchItems(1, false);
-      fetchStats();
-    } catch {
-      toast.error(`Failed to ${action} item`);
-    } finally {
-      setActionInProgress(prev => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }
+      fetchItems(1, false); fetchStats();
+    } catch { toast.error(`Failed to ${action}`); }
+    finally { setActionInProgress(prev => { const n = new Set(prev); n.delete(id); return n; }); }
   };
 
   const handleConvert = async (id: string) => {
     setActionInProgress(prev => new Set(prev).add(id));
     try {
-      const res = await fetch(`/api/g-intel-acquisition/inbox/${id}/convert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!res.ok) throw new Error('Convert failed');
+      const res = await fetch(`/api/g-intel-acquisition/inbox/${id}/convert`, { method: 'POST' });
+      if (!res.ok) throw new Error();
       toast.success('Converted to Intelligence Object');
-      fetchItems(1, false);
-      fetchStats();
-    } catch {
-      toast.error('Failed to convert item');
-    } finally {
-      setActionInProgress(prev => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }
+      fetchItems(1, false); fetchStats();
+    } catch { toast.error('Failed to convert'); }
+    finally { setActionInProgress(prev => { const n = new Set(prev); n.delete(id); return n; }); }
+  };
+
+  const handleBatchApprove = async () => {
+    const pendingSelected = items.filter(i => selectedIds.has(i.id) && i.status === 'pending');
+    for (const item of pendingSelected) await handleReview(item.id, 'approve');
+    setSelectedIds(new Set());
   };
 
   const toggleExpand = (id: string) => {
-    setExpandedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setExpandedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   };
 
-  const loadMore = () => {
-    const nextPage = page + 1;
-    setPage(nextPage);
-    fetchItems(nextPage, true);
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   };
-
-  // ─── Render ───────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
-      {/* ── Top Bar ────────────────────────────────────────────── */}
+      {/* ── Header ── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100">
-            <Inbox className="h-5 w-5 text-indigo-700" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+            <Inbox className="h-5 w-5 text-blue-600" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Human Intelligence Inbox</h2>
-            <p className="text-sm text-muted-foreground">
-              Submit, review, approve, reject, and convert human intelligence
-            </p>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900">Review Queue</h2>
+            <p className="text-sm text-slate-500">Prioritized intelligence review with confidence thresholds</p>
           </div>
         </div>
 
+        {/* Stats badges */}
         {stats && (
           <div className="flex flex-wrap gap-2">
             {[
-              { label: 'Total', value: stats.total, cls: 'bg-gray-100 text-gray-700' },
-              { label: 'Pending', value: stats.byStatus?.pending ?? 0, cls: 'bg-yellow-100 text-yellow-800' },
-              { label: 'Approved', value: stats.byStatus?.approved ?? 0, cls: 'bg-green-100 text-green-800' },
-              { label: 'Rejected', value: stats.byStatus?.rejected ?? 0, cls: 'bg-red-100 text-red-800' },
-              { label: 'Converted', value: stats.byStatus?.converted ?? 0, cls: 'bg-indigo-100 text-indigo-800' },
+              { label: 'Pending', value: stats.byStatus?.pending ?? 0, cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+              { label: 'Approved', value: stats.byStatus?.approved ?? 0, cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+              { label: 'Rejected', value: stats.byStatus?.rejected ?? 0, cls: 'bg-red-100 text-red-700 border-red-200' },
             ].map(s => (
-              <Badge key={s.label} variant="outline" className={`${s.cls} px-2.5 py-1 text-xs font-medium`}>
+              <Badge key={s.label} variant="outline" className={cn('text-[10px] px-2.5 py-1', s.cls)}>
                 {s.label}: {s.value}
               </Badge>
             ))}
@@ -314,108 +334,22 @@ export default function IntelligenceInboxScreen() {
         )}
       </div>
 
-      {/* ── Submit Form (collapsible) ──────────────────────────── */}
-      <Card>
-        <CardHeader
-          className="cursor-pointer select-none py-3"
-          onClick={() => setFormOpen(v => !v)}
-        >
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Send className="h-4 w-4" />
-              Submit New Intelligence
-            </CardTitle>
-            {formOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+      {/* ── Filter Bar ── */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              className="h-9 pl-9 text-sm border-slate-200"
+              placeholder="Search content, submitter, company..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
           </div>
-        </CardHeader>
-        {formOpen && (
-          <CardContent className="space-y-4 border-t pt-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Company ID *</label>
-                <Input
-                  placeholder="e.g. company_abc123"
-                  value={form.companyId}
-                  onChange={e => setForm(f => ({ ...f, companyId: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Submitted By *</label>
-                <Input
-                  placeholder="Your name or ID"
-                  value={form.submittedBy}
-                  onChange={e => setForm(f => ({ ...f, submittedBy: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-sm font-medium">Content *</label>
-                <textarea
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                  placeholder="Intelligence content..."
-                  value={form.content}
-                  onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Summary</label>
-                <Input
-                  placeholder="Brief summary"
-                  value={form.summary}
-                  onChange={e => setForm(f => ({ ...f, summary: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Category</label>
-                <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                  <SelectContent>
-                    {ALL_CATEGORIES.map(c => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Priority</label>
-                <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v as InboxPriority }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="critical">Critical</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="flex items-center gap-1.5 text-sm font-medium">
-                  <Tag className="h-3.5 w-3.5" /> Tags
-                </label>
-                <Input
-                  placeholder="tag1, tag2, tag3"
-                  value={form.tags}
-                  onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Button onClick={handleSubmit} disabled={submitting}>
-                {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                Submit to Inbox
-              </Button>
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* ── Filter Bar ─────────────────────────────────────────── */}
-      <Card className="py-3">
-        <CardContent className="flex flex-wrap items-center gap-3">
-          <Filter className="h-4 w-4 text-muted-foreground" />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectTrigger className="w-[130px] h-9 text-xs border-slate-200"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>
@@ -423,163 +357,66 @@ export default function IntelligenceInboxScreen() {
             </SelectContent>
           </Select>
           <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-            <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="Priority" /></SelectTrigger>
+            <SelectTrigger className="w-[130px] h-9 text-xs border-slate-200"><SelectValue placeholder="Priority" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Priorities</SelectItem>
+              <SelectItem value="all">All Priority</SelectItem>
               <SelectItem value="low">Low</SelectItem>
               <SelectItem value="normal">Normal</SelectItem>
               <SelectItem value="high">High</SelectItem>
               <SelectItem value="critical">Critical</SelectItem>
             </SelectContent>
           </Select>
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="h-8 pl-8 text-xs"
-              placeholder="Search content, submitter, company..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* ── Items List ─────────────────────────────────────────── */}
+        {/* Batch actions */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
+            <span className="text-xs text-slate-500">{selectedIds.size} selected</span>
+            <Button size="sm" variant="outline"
+              className="h-7 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50 gap-1"
+              onClick={handleBatchApprove}>
+              <CheckCheck className="h-3 w-3" /> Batch Approve
+            </Button>
+            <Button size="sm" variant="ghost"
+              className="h-7 text-xs text-slate-500 gap-1"
+              onClick={() => setSelectedIds(new Set())}>
+              <XCircle className="h-3 w-3" /> Clear
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Items List ── */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState message="Loading review queue..." lines={4} />
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-          <Inbox className="h-12 w-12 mb-3 opacity-40" />
-          <p className="text-lg font-medium">No items found</p>
-          <p className="text-sm">Adjust filters or submit new intelligence</p>
-        </div>
+        <EmptyState
+          icon={Inbox}
+          title="No items in review queue"
+          description="Intelligence submissions will appear here for review and approval."
+        />
       ) : (
         <div className="space-y-3">
-          {items.map(item => {
-            const expanded = expandedIds.has(item.id);
-            const busy = actionInProgress.has(item.id);
-            const tags = parseTags(item.tags);
-            const truncated = item.content.length > 200;
+          {items.map(item => (
+            <InboxItemCard
+              key={item.id}
+              item={item}
+              busy={actionInProgress.has(item.id)}
+              onReview={handleReview}
+              onConvert={handleConvert}
+              onExpand={toggleExpand}
+              expanded={expandedIds.has(item.id)}
+              selected={selectedIds.has(item.id)}
+              onSelect={toggleSelect}
+            />
+          ))}
 
-            return (
-              <Card key={item.id} className="overflow-hidden">
-                {/* Header */}
-                <CardHeader className="pb-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline" className={PRIORITY_COLORS[item.priority]}>
-                      {item.priority === 'critical' && <AlertTriangle className="mr-1 h-3 w-3" />}
-                      {item.priority}
-                    </Badge>
-                    <Badge variant="outline" className={STATUS_COLORS[item.status]}>
-                      {item.status}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      by {item.submittedBy}
-                    </span>
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {relativeTime(item.createdAt)}
-                    </span>
-                  </div>
-                </CardHeader>
-
-                {/* Body */}
-                <CardContent className="space-y-2">
-                  <p className="text-sm leading-relaxed">
-                    {expanded ? item.content : item.content.slice(0, 200)}
-                    {truncated && !expanded && '...'}
-                    {truncated && (
-                      <button
-                        onClick={() => toggleExpand(item.id)}
-                        className="ml-1 text-xs text-indigo-600 hover:underline"
-                      >
-                        {expanded ? 'less' : 'more'}
-                      </button>
-                    )}
-                  </p>
-
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {item.category && (
-                      <Badge variant="secondary" className="text-xs">{item.category}</Badge>
-                    )}
-                    {item.source && (
-                      <span className="text-xs text-muted-foreground">source: {item.source}</span>
-                    )}
-                    {tags.map(tag => (
-                      <Badge key={tag} variant="outline" className="gap-1 text-xs text-muted-foreground">
-                        <Tag className="h-2.5 w-2.5" />
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-
-                  {item.summary && (
-                    <p className="text-xs italic text-muted-foreground border-l-2 border-muted pl-2">
-                      {item.summary}
-                    </p>
-                  )}
-
-                  {/* Footer actions */}
-                  <div className="flex items-center gap-2 pt-1">
-                    {item.status === 'pending' && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs text-green-700 border-green-200 hover:bg-green-50"
-                          disabled={busy}
-                          onClick={() => handleReview(item.id, 'approve')}
-                        >
-                          {busy ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <CheckCircle className="mr-1 h-3 w-3" />}
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs text-red-700 border-red-200 hover:bg-red-50"
-                          disabled={busy}
-                          onClick={() => handleReview(item.id, 'reject')}
-                        >
-                          {busy ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <XCircle className="mr-1 h-3 w-3" />}
-                          Reject
-                        </Button>
-                      </>
-                    )}
-                    {item.status === 'approved' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs text-blue-700 border-blue-200 hover:bg-blue-50"
-                        disabled={busy}
-                        onClick={() => handleConvert(item.id)}
-                      >
-                        {busy ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <ArrowRight className="mr-1 h-3 w-3" />}
-                        Convert to Intelligence
-                      </Button>
-                    )}
-                    {item.status === 'converted' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs text-muted-foreground cursor-not-allowed"
-                        disabled
-                      >
-                        <ArrowRight className="mr-1 h-3 w-3" />
-                        View Intelligence Object
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-
-          {/* Load More */}
           {hasMore && (
             <div className="flex justify-center pt-2">
-              <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
-                {loadingMore ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              <Button variant="outline" onClick={() => { const np = page + 1; setPage(np); fetchItems(np, true); }}
+                disabled={loadingMore}
+                className="gap-2 border-slate-200 text-slate-600 hover:bg-slate-50">
+                {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Load More
               </Button>
             </div>

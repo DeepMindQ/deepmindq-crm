@@ -3,303 +3,354 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Radar, AlertTriangle, Eye, TrendingUp, RefreshCw,
-  Crown, DollarSign, Cpu, Globe, Clock,
-  Lightbulb, Zap, ChevronRight, ExternalLink, Newspaper,
-  Briefcase, Building2, Target, Activity, BarChart3, Database, Brain, ChevronDown,
+  Radar, Activity, TrendingUp, DollarSign, Cpu, Crown,
+  Building2, Clock, ChevronRight, RefreshCw, Filter, X, Search,
+  Zap, Eye, Newspaper, Globe, Database, Sparkles, ArrowRight,
+  PieChart, BarChart3, LucideIcon, AlertTriangle, Shield,
+  ShieldAlert, ShieldCheck, User, ArrowUpRight, Lightbulb,
+  FileText, CheckCircle2, Loader2, ChevronDown, Layers,
 } from 'lucide-react';
 import { PageTransition, AnimatedCounter, EmptyState } from '@/components/ui/animated-components';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsTrigger, TabsList } from '@/components/ui/tabs';
-import { useAppStore } from '@/lib/store';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
+import { EvidenceBadge } from '@/components/enterprise/EvidenceBadge';
+import { AIProgressTracker } from '@/components/enterprise/AIProgressTracker';
+import { ErrorState } from '@/components/enterprise/ErrorState';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
-/* ═══════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    Types
-   ═══════════════════════════════════════════════════ */
-type ExternalType = 'hiring' | 'leadership' | 'investment' | 'technology' | 'expansion';
-type InternalType = 'high_engagement' | 'score_spike';
-type SignalType = ExternalType | InternalType | 'Internal';
-type Priority = 'high' | 'medium' | 'low';
-type SignalSource = 'external' | 'internal';
-
-interface MergedSignal {
+   ═══════════════════════════════════════════════════════════════ */
+interface SignalItem {
   id: string;
-  companyId: string;
-  companyName: string;
-  type: ExternalType | InternalType;
-  priority: Priority;
+  type: string;
   title: string;
   description: string;
-  whyItMatters?: string;
-  recommendedAction?: string;
+  companyName?: string;
+  companyId?: string;
+  contactName?: string;
+  contactId?: string;
+  severity: 'high' | 'medium' | 'low';
+  confidence?: number;
   detectedAt: string;
   source: string;
-  confidence?: number;
-  signalSource: SignalSource;
-  contactName?: string;
-  severity?: string;
+  signalSource: 'external' | 'internal';
+  whyItMatters?: string;
+  recommendedAction?: string;
 }
 
-interface NewsSourceItem {
-  title: string;
-  url: string;
-  snippet: string;
-}
-
-interface NewsSourceGroup {
-  company: string;
-  results: NewsSourceItem[];
-}
-
-interface ExternalResponse {
-  signals: {
-    id: string; companyId: string; companyName: string; type: ExternalType;
-    title: string; description: string; whyItMatters: string;
-    recommendedAction: string; priority: Priority; source: string;
-    detectedAt: string; confidence: number;
-  }[];
-  scannedCompanies: number;
-  totalSignalsFound: number;
-  sources?: NewsSourceGroup[];
-}
-
-interface InternalResponse {
-  signals: {
-    id: string; type: InternalType; title: string; description: string;
-    contactName?: string; companyName?: string; severity?: string; detectedAt: string;
-  }[];
+interface SignalsResponse {
+  signals: SignalItem[];
   summary: Record<string, number>;
+  total: number;
+  dismissed: number;
 }
 
-/* ═══════════════════════════════════════════════════
-   Config: colors & icons per signal type
-   ═══════════════════════════════════════════════════ */
-const externalTypeConfig: Record<ExternalType, { color: string; bg: string; icon: React.ComponentType<{ className?: string }>; label: string }> = {
-  hiring:     { color: '#2563EB', bg: 'rgba(37,99,235,0.08)',  icon: Briefcase, label: 'Hiring' },
-  leadership: { color: '#7C3AED', bg: 'rgba(124,58,237,0.08)', icon: Crown,     label: 'Leadership' },
-  investment: { color: 'var(--color-gold)', bg: 'rgba(212,175,55,0.08)',  icon: DollarSign, label: 'Investment' },
-  technology: { color: '#0891B2', bg: 'rgba(8,145,178,0.08)',  icon: Cpu,       label: 'Technology' },
-  expansion:  { color: '#059669', bg: 'rgba(5,150,105,0.08)',  icon: Globe,     label: 'Expansion' },
+type DisplaySeverity = 'critical' | 'high' | 'medium' | 'low';
+type TypeFilter = 'all' | 'technology' | 'growth' | 'partnership' | 'pain' | 'leadership';
+type SeverityFilter = 'all' | 'critical' | 'high' | 'medium' | 'low';
+type SortBy = 'severity' | 'confidence' | 'time';
+
+/* ═══════════════════════════════════════════════════════════════
+   Config — Signal Type Colors & Icons
+   ═══════════════════════════════════════════════════════════════ */
+const typeConfig: Record<string, {
+  icon: LucideIcon; color: string; bg: string; border: string;
+  badge: string; label: string; category: string; accent: string;
+  barColor: string;
+}> = {
+  buying:              { icon: TrendingUp,   color: 'text-emerald-600', bg: 'bg-emerald-50',   border: 'border-emerald-200',   badge: 'bg-emerald-100 text-emerald-700 border-emerald-300',   label: 'Buying',       category: 'growth',       accent: 'opportunity', barColor: '#059669' },
+  technology:         { icon: Cpu,          color: 'text-cyan-600',    bg: 'bg-cyan-50',      border: 'border-cyan-200',      badge: 'bg-cyan-100 text-cyan-700 border-cyan-300',          label: 'Technology',   category: 'technology',   accent: 'signal',     barColor: '#0891B2' },
+  funding:             { icon: DollarSign,   color: 'text-amber-600',   bg: 'bg-amber-50',     border: 'border-amber-200',     badge: 'bg-amber-100 text-amber-700 border-amber-300',       label: 'Funding',      category: 'growth',       accent: 'opportunity', barColor: '#D97706' },
+  leadership:         { icon: Crown,        color: 'text-violet-600',   bg: 'bg-violet-50',    border: 'border-violet-200',    badge: 'bg-violet-100 text-violet-700 border-violet-300',    label: 'Leadership',   category: 'leadership',   accent: 'signal',     barColor: '#7C3AED' },
+  high_engagement:     { icon: Activity,     color: 'text-blue-600',    bg: 'bg-blue-50',      border: 'border-blue-200',      badge: 'bg-blue-100 text-blue-700 border-blue-300',          label: 'Engagement',   category: 'growth',       accent: 'signal',     barColor: '#2563EB' },
+  score_spike:         { icon: Zap,          color: 'text-orange-600',  bg: 'bg-orange-50',    border: 'border-orange-200',    badge: 'bg-orange-100 text-orange-700 border-orange-300',     label: 'Score Spike',  category: 'growth',       accent: 'opportunity', barColor: '#EA580C' },
+  stale_lead:          { icon: Clock,        color: 'text-slate-500',   bg: 'bg-slate-50',     border: 'border-slate-200',     badge: 'bg-slate-100 text-slate-600 border-slate-300',       label: 'Stale',        category: 'pain',         accent: 'risk',      barColor: '#64748B' },
+  bounce_risk:         { icon: AlertTriangle,color: 'text-red-600',     bg: 'bg-red-50',       border: 'border-red-200',       badge: 'bg-red-100 text-red-700 border-red-300',            label: 'Bounce Risk',  category: 'pain',         accent: 'risk',      barColor: '#DC2626' },
+  unassigned_high_value:{ icon: Eye,          color: 'text-rose-600',    bg: 'bg-rose-50',      border: 'border-rose-200',      badge: 'bg-rose-100 text-rose-700 border-rose-300',          label: 'Unassigned',   category: 'pain',         accent: 'risk',      barColor: '#E11D48' },
+  sequence_dropout:    { icon: Clock,        color: 'text-slate-500',   bg: 'bg-slate-50',     border: 'border-slate-200',     badge: 'bg-slate-100 text-slate-600 border-slate-300',       label: 'Dropout',      category: 'pain',         accent: 'risk',      barColor: '#64748B' },
+  positive_reply:     { icon: TrendingUp,   color: 'text-emerald-600', bg: 'bg-emerald-50',   border: 'border-emerald-200',   badge: 'bg-emerald-100 text-emerald-700 border-emerald-300',  label: 'Positive',     category: 'partnership', accent: 'opportunity', barColor: '#059669' },
 };
 
-const internalTypeConfig: Record<InternalType, { color: string; bg: string; icon: React.ComponentType<{ className?: string }>; label: string }> = {
-  high_engagement: { color: '#DC2626', bg: 'rgba(220,38,38,0.08)',  icon: Activity,  label: 'High Engagement' },
-  score_spike:     { color: '#EA580C', bg: 'rgba(234,88,12,0.08)',  icon: BarChart3, label: 'Score Spike' },
+const defaultTypeConfig = {
+  icon: Activity, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200',
+  badge: 'bg-slate-100 text-slate-600 border-slate-300', label: 'Signal', category: 'growth', accent: 'signal', barColor: '#64748B',
 };
 
-function getTypeConfig(type: ExternalType | InternalType) {
-  return type in externalTypeConfig
-    ? { ...externalTypeConfig[type as ExternalType], isExternal: true }
-    : { ...internalTypeConfig[type as InternalType], isExternal: false };
+const categoryConfig: Record<string, { label: string; color: string }> = {
+  all:         { label: 'All',        color: 'bg-slate-900 text-white' },
+  technology:  { label: 'Technology', color: 'bg-cyan-600 text-white' },
+  growth:      { label: 'Growth',     color: 'bg-emerald-600 text-white' },
+  partnership: { label: 'Partnership',color: 'bg-blue-600 text-white' },
+  pain:        { label: 'Pain',       color: 'bg-red-600 text-white' },
+  leadership:  { label: 'Leadership', color: 'bg-violet-600 text-white' },
+};
+
+const severityConfig: Record<DisplaySeverity, {
+  label: string; icon: LucideIcon; color: string; bg: string; border: string; badge: string; order: number;
+}> = {
+  critical: { label: 'Critical', icon: ShieldAlert,   color: 'text-red-700',     bg: 'bg-red-50',      border: 'border-red-300',      badge: 'bg-red-100 text-red-800 border-red-200',      order: 0 },
+  high:     { label: 'High',     icon: Shield,         color: 'text-amber-700',   bg: 'bg-amber-50',    border: 'border-amber-300',    badge: 'bg-amber-100 text-amber-800 border-amber-200', order: 1 },
+  medium:   { label: 'Medium',   icon: ShieldCheck,    color: 'text-blue-700',    bg: 'bg-blue-50',     border: 'border-blue-300',     badge: 'bg-blue-100 text-blue-800 border-blue-200',    order: 2 },
+  low:      { label: 'Low',      icon: Shield,         color: 'text-slate-600',   bg: 'bg-slate-50',    border: 'border-slate-200',    badge: 'bg-slate-100 text-slate-700 border-slate-200',   order: 3 },
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   Utilities
+   ═══════════════════════════════════════════════════════════════ */
+function formatTimeAgo(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 30) return `${diffDay}d ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-const priorityConfig: Record<Priority, { color: string; bg: string; label: string }> = {
-  high:   { color: '#DC2626', bg: 'rgba(220,38,38,0.08)',  label: 'High Priority' },
-  medium: { color: '#D97706', bg: 'rgba(217,119,6,0.08)',  label: 'Medium' },
-  low:    { color: '#6B7280', bg: 'rgba(107,114,128,0.08)', label: 'Low' },
-};
-
-/* Framer-motion variant for staggered card animations */
-const staggerItem = {
-  hidden: { opacity: 0, y: 16, scale: 0.98 },
-  visible: { opacity: 1, y: 0, scale: 1 },
-};
-
-const filterPills: { key: 'All' | 'Internal' | ExternalType; label: string }[] = [
-  { key: 'All', label: 'All Signals' },
-  { key: 'hiring', label: 'Hiring' },
-  { key: 'leadership', label: 'Leadership' },
-  { key: 'investment', label: 'Investment' },
-  { key: 'technology', label: 'Technology' },
-  { key: 'expansion', label: 'Expansion' },
-  { key: 'Internal', label: 'Internal' },
-];
-
-/* ═══════════════════════════════════════════════════
-   Helpers
-   ═══════════════════════════════════════════════════ */
-function formatTimeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days === 1) return 'Yesterday';
-  return `${days}d ago`;
+function getDisplaySeverity(severity: 'high' | 'medium' | 'low', confidence?: number): DisplaySeverity {
+  if (severity === 'high' && (confidence ?? 0) >= 85) return 'critical';
+  if (severity === 'high') return 'high';
+  return severity;
 }
 
-/* ═══════════════════════════════════════════════════
-   AI Scanning Animation
-   ═══════════════════════════════════════════════════ */
+function getConfidenceLabel(conf: number | undefined): string {
+  if (conf === undefined) return '—';
+  if (conf >= 80) return 'High';
+  if (conf >= 60) return 'Medium';
+  return 'Low';
+}
 
-const SCANNING_PHRASES = [
-  'Initializing AI Signal Engine...',
-  null, // dynamic: scanning N of 15 companies...
-  'Analyzing web intelligence...',
-  'Extracting buying signals...',
-];
+function getCategoryForType(type: string): string {
+  return typeConfig[type]?.category ?? 'growth';
+}
 
-const TOTAL_COMPANIES = 15;
+function deriveWhyItMatters(signal: SignalItem): string {
+  if (signal.whyItMatters) return signal.whyItMatters;
+  const { type, companyName, contactName, severity } = signal;
+  const company = companyName || 'the account';
+  const contact = contactName || 'the contact';
+  switch (type) {
+    case 'high_engagement':
+      return `${contact} at ${company} opened your email but hasn't replied — strong buying intent signal that requires immediate follow-up while interest is fresh.`;
+    case 'score_spike':
+      return `${contact} at ${company} has a lead score of ${signal.confidence || 80}+ but hasn't been contacted yet — high-value opportunity at risk of going cold.`;
+    case 'positive_reply':
+      return `${contact} at ${company} responded positively — this is a hot opportunity that needs a rapid, personalized response to advance the deal.`;
+    case 'bounce_risk':
+      return `${contact} at ${company} has risky email health with queued messages likely to bounce — clean the email before sending to protect sender reputation.`;
+    case 'stale_lead':
+      return `${contact} at ${company} was contacted 7+ days ago with zero engagement — consider re-engagement strategy or deprioritize.`;
+    case 'unassigned_high_value':
+      return `${contact} at ${company} is a high-value lead (${signal.confidence || 70}+ score) without an owner — immediate assignment needed to prevent loss.`;
+    case 'sequence_dropout':
+      return `${contact} dropped out of an outreach sequence at ${company} — investigate reason and consider manual follow-up.`;
+    default:
+      return `Signal detected for ${company} — review details and take appropriate action.`;
+  }
+}
 
-function AIScanningAnimation() {
-  const [phase, setPhase] = useState(0);
-  const [companyCount, setCompanyCount] = useState(0);
-  const [progress, setProgress] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+function deriveRecommendedAction(signal: SignalItem): string {
+  if (signal.recommendedAction) return signal.recommendedAction;
+  const { type, companyName, contactName } = signal;
+  const company = companyName || 'the account';
+  const contact = contactName || 'the contact';
+  switch (type) {
+    case 'high_engagement':
+      return `Send a personalized follow-up to ${contact} within 24 hours. Reference the original email topic and add a relevant insight about ${company}.`;
+    case 'score_spike':
+      return `Draft and send a personalized outreach to ${contact} immediately. Use AI-generated email targeting ${company}'s likely pain points.`;
+    case 'positive_reply':
+      return `Respond to ${contact} within 2 hours. Acknowledge their interest, schedule a discovery call, and prepare relevant case studies.`;
+    case 'bounce_risk':
+      return `Verify ${contact}'s email address before sending. Consider using a verification service or reaching out via LinkedIn as an alternative channel.`;
+    case 'stale_lead':
+      return `Try a different outreach angle for ${contact} — perhaps a value-driven content piece or LinkedIn connection request referencing ${company} news.`;
+    case 'unassigned_high_value':
+      return `Assign ${contact} at ${company} to an SDR immediately. This lead has ${signal.confidence || 70}+ score and high conversion potential.`;
+    case 'sequence_dropout':
+      return `Reach out to ${contact} directly to understand why they opted out. Consider adjusting sequence messaging for similar prospects at ${company}.`;
+    default:
+      return `Review ${company} account details and plan next steps.`;
+  }
+}
 
-  useEffect(() => {
-    let frame = 0;
-    intervalRef.current = setInterval(() => {
-      frame++;
-      const p = Math.min(frame / 90, 1); // ~3s at 30fps
-      setProgress(p * 100);
+/* ═══════════════════════════════════════════════════════════════
+   Confidence Gauge (Featured Signal)
+   ═══════════════════════════════════════════════════════════════ */
+function ConfidenceGauge({ value }: { value: number }) {
+  const clamped = Math.max(0, Math.min(100, value));
+  const circumference = 2 * Math.PI * 42;
+  const offset = circumference - (clamped / 100) * circumference;
+  const color = clamped >= 80 ? '#059669' : clamped >= 60 ? '#D97706' : '#DC2626';
 
-      // Animate company count
-      const targetCount = Math.min(Math.floor(p * TOTAL_COMPANIES), TOTAL_COMPANIES);
-      setCompanyCount(targetCount);
+  return (
+    <div className="relative flex items-center justify-center">
+      <svg width="120" height="120" viewBox="0 0 100 100" className="-rotate-90">
+        <circle cx="50" cy="50" r="42" fill="none" stroke="#F1F5F9" strokeWidth="8" />
+        <motion.circle
+          cx="50" cy="50" r="42" fill="none" stroke={color} strokeWidth="8"
+          strokeLinecap="round"
+          initial={{ strokeDasharray: circumference, strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <motion.span
+          className="text-2xl font-bold tabular-nums"
+          style={{ color }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          {clamped}%
+        </motion.span>
+        <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
+          Confidence
+        </span>
+      </div>
+    </div>
+  );
+}
 
-      // Phase transitions
-      if (frame < 18) setPhase(0);
-      else if (frame < 50) setPhase(1);
-      else if (frame < 72) setPhase(2);
-      else setPhase(3);
-    }, 33);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
+/* ═══════════════════════════════════════════════════════════════
+   Featured Signal Alert
+   ═══════════════════════════════════════════════════════════════ */
+function FeaturedSignalCard({
+  signal,
+  onViewCompany,
+  onDismiss,
+}: {
+  signal: SignalItem;
+  onViewCompany: (companyId: string) => void;
+  onDismiss: (id: string) => void;
+}) {
+  const cfg = typeConfig[signal.type] ?? defaultTypeConfig;
+  const TypeIcon = cfg.icon;
+  const confidence = signal.confidence ?? 87;
+  const displaySev = getDisplaySeverity(signal.severity, confidence);
+  const sevCfg = severityConfig[displaySev];
+  const SevIcon = sevCfg.icon;
 
   return (
     <motion.div
-      key="ai-scanning"
-      initial={{ opacity: 0, scale: 0.96 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.98 }}
+      initial={{ opacity: 0, y: 20, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="relative bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden"
+      className="relative overflow-hidden rounded-2xl border-2 border-red-200 bg-gradient-to-br from-red-50/60 via-white to-amber-50/40"
     >
-      {/* Grid background */}
-      <div
-        className="absolute inset-0 opacity-[0.03]"
-        style={{
-          backgroundImage:
-            'linear-gradient(rgba(212,175,55,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(212,175,55,0.5) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
-        }}
-      />
+      {/* Pulsing accent strip */}
+      <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-red-500 via-amber-500 to-red-500 animate-pulse" />
 
-      {/* Floating particles */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {Array.from({ length: 12 }).map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-1 h-1 rounded-full"
-            style={{
-              background: 'var(--color-gold)',
-              left: `${8 + (i * 7.5) % 85}%`,
-              top: `${15 + (i * 13) % 70}%`,
-            }}
-            animate={{
-              opacity: [0, 0.6, 0],
-              y: [0, -20, 0],
-              scale: [0.5, 1.2, 0.5],
-            }}
-            transition={{
-              duration: 2.5 + i * 0.3,
-              repeat: Infinity,
-              delay: i * 0.2,
-              ease: 'easeInOut',
-            }}
-          />
-        ))}
-      </div>
-
-      <div className="relative z-10 flex flex-col items-center justify-center py-16 sm:py-20 px-6">
-        {/* Pulsing brain/radar icon with glow */}
-        <div className="relative mb-8">
-          {/* Outer glow rings */}
-          <motion.div
-            className="absolute -inset-8 rounded-full"
-            style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.15) 0%, transparent 70%)' }}
-            animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.8, 0.5] }}
-            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-          />
-          <motion.div
-            className="absolute -inset-5 rounded-full"
-            style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.1) 0%, transparent 70%)' }}
-            animate={{ scale: [1, 1.2, 1], opacity: [0.6, 1, 0.6] }}
-            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
-          />
-
-          {/* Radar sweep ring */}
-          <motion.div
-            className="absolute -inset-10 rounded-full border border-dashed"
-            style={{ borderColor: 'rgba(212,175,55,0.15)' }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
-          />
-
-          {/* Icon container */}
-          <motion.div
-            className="relative w-20 h-20 rounded-2xl flex items-center justify-center"
-            style={{
-              background: 'linear-gradient(135deg, rgba(212,175,55,0.12), rgba(212,175,55,0.04))',
-              border: '1px solid rgba(212,175,55,0.2)',
-              boxShadow: '0 0 40px rgba(212,175,55,0.15), 0 0 80px rgba(212,175,55,0.05)',
-            }}
-            animate={{
-              boxShadow: [
-                '0 0 40px rgba(212,175,55,0.15), 0 0 80px rgba(212,175,55,0.05)',
-                '0 0 60px rgba(212,175,55,0.25), 0 0 100px rgba(212,175,55,0.1)',
-                '0 0 40px rgba(212,175,55,0.15), 0 0 80px rgba(212,175,55,0.05)',
-              ],
-            }}
-            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <Brain className="w-9 h-9" style={{ color: 'var(--color-gold)' }} />
-          </motion.div>
+      <div className="p-5 sm:p-6 pl-6 sm:pl-7">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 mb-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-red-600">Priority Alert</span>
+                <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border', sevCfg.badge)}>
+                  <SevIcon className="h-3 w-3" />
+                  {sevCfg.label}
+                </span>
+              </div>
+              <h2 className="text-base font-bold text-slate-900 leading-snug">{signal.title}</h2>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => onDismiss(signal.id)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              aria-label="Dismiss signal"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Phase text */}
-        <motion.div className="text-center mb-8" key={phase}>
-          <motion.p
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-sm font-medium text-foreground"
-          >
-            {SCANNING_PHRASES[phase] ?? `Scanning ${companyCount} of ${TOTAL_COMPANIES} companies...`}
-          </motion.p>
-        </motion.div>
+        {/* Signal description with evidence framework */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-5">
+          {/* Left: Evidence chain */}
+          <div className="flex flex-col gap-4">
+            {/* Signal: What was detected */}
+            <div className="rounded-xl bg-white border border-slate-200 p-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Radar className="h-3.5 w-3.5 text-blue-500" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Signal Detected</span>
+              </div>
+              <p className="text-sm text-slate-700 leading-relaxed">{signal.description}</p>
+            </div>
 
-        {/* Progress bar */}
-        <div className="w-full max-w-xs sm:max-w-sm space-y-2">
-          <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(212,175,55,0.08)' }}>
-            <motion.div
-              className="h-full rounded-full"
-              style={{
-                background: 'linear-gradient(90deg, #D4AF37, #E8C860, #D4AF37)',
-                backgroundSize: '200% 100%',
-              }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.15, ease: 'linear' }}
-            >
-              <motion.div
-                className="w-full h-full rounded-full"
-                style={{
-                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)',
-                  backgroundSize: '200% 100%',
-                }}
-                animate={{ backgroundPosition: ['200% 0', '-200% 0'] }}
-                transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-              />
-            </motion.div>
+            {/* Evidence source badge + date */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <EvidenceBadge source={signal.source || 'internal'} confidence={confidence} />
+              <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
+                <Clock className="h-3 w-3" />
+                {formatTimeAgo(signal.detectedAt)}
+              </span>
+              {signal.companyName && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600">
+                  <Building2 className="h-3 w-3 text-slate-400" />
+                  {signal.companyName}
+                </span>
+              )}
+              {signal.contactName && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600">
+                  <User className="h-3 w-3 text-slate-400" />
+                  {signal.contactName}
+                </span>
+              )}
+            </div>
+
+            {/* Why it matters */}
+            <div className="rounded-xl bg-slate-50/80 border border-slate-100 p-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-600">Why It Matters</span>
+              </div>
+              <p className="text-sm text-slate-700 leading-relaxed">{deriveWhyItMatters(signal)}</p>
+            </div>
+
+            {/* Recommended action */}
+            <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <ArrowRight className="h-3.5 w-3.5 text-blue-600" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-600">Recommended Action</span>
+              </div>
+              <p className="text-sm text-slate-800 font-medium leading-relaxed">{deriveRecommendedAction(signal)}</p>
+            </div>
           </div>
-          <div className="flex justify-between text-[11px] text-muted-foreground">
-            <span>{companyCount} of {TOTAL_COMPANIES} companies</span>
-            <span>{Math.round(progress)}%</span>
+
+          {/* Right: Confidence gauge */}
+          <div className="flex flex-col items-center gap-3 lg:pl-4">
+            <ConfidenceGauge value={confidence} />
+            <div className="flex items-center gap-1.5">
+              <TypeIcon className="h-3.5 w-3.5 text-slate-400" />
+              <span className="text-xs font-medium text-slate-500">{cfg.label}</span>
+            </div>
+            {signal.companyId && (
+              <Button
+                onClick={() => onViewCompany(signal.companyId!)}
+                size="sm"
+                className="mt-2 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                View Account
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -307,583 +358,800 @@ function AIScanningAnimation() {
   );
 }
 
-/* ═══════════════════════════════════════════════════
-   Component
-   ═══════════════════════════════════════════════════ */
-export default function SignalIntelligenceScreen({ navigateTo }: { navigateTo?: (screen: string, id?: string) => void }) {
-  const [signals, setSignals] = useState<MergedSignal[]>([]);
-  const [activeFilter, setActiveFilter] = useState<'All' | 'Internal' | ExternalType>('All');
-  const [scanning, setScanning] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [meta, setMeta] = useState({ scannedCompanies: 0, totalSignalsFound: 0, highPriority: 0, internalCount: 0 });
-  const [newsSources, setNewsSources] = useState<NewsSourceGroup[]>([]);
-  const [newsPanelOpen, setNewsPanelOpen] = useState(true);
-
-  /* ── Fetch Research Engine Signals (Phase 3 — from DB) ── */
-  const [dbSignals, setDbSignals] = useState<any[]>([]);
-  const [loadingDbSignals, setLoadingDbSignals] = useState(false);
-
-  const fetchDbSignals = useCallback(async () => {
-    setLoadingDbSignals(true);
-    try {
-      const res = await fetch('/api/g-crm/signals?limit=50');
-      if (res.ok) {
-        const data = await res.json();
-        setDbSignals(data.signals || []);
-      }
-    } catch (err) {
-      console.error('[SignalIntelligence] Failed to fetch DB signals:', err);
-    } finally {
-      setLoadingDbSignals(false);
-    }
-  }, []);
-
-  const fetchSignals = useCallback(async (bypassCache = false) => {
-    setScanning(true);
-    setError(null);
-    const ts = bypassCache ? `&_t=${Date.now()}` : '';
-
-    try {
-      const [extRes, intRes] = await Promise.all([
-        fetch(`/api/ai/signals${ts}`).then(r => r.json()) as Promise<ExternalResponse>,
-        fetch('/api/signals').then(r => r.json()) as Promise<InternalResponse>,
-      ]);
-
-      const external: MergedSignal[] = (extRes.signals ?? []).map(s => ({
-        ...s, signalSource: 'external' as const,
-        companyId: s.companyId ?? '', companyName: s.companyName ?? 'Unknown',
-      }));
-      const internal: MergedSignal[] = (intRes.signals ?? []).map(s => ({
-        id: s.id, companyId: '', companyName: s.companyName ?? '',
-        type: s.type, priority: (s.severity ?? 'medium') as Priority,
-        title: s.title, description: s.description,
-        detectedAt: s.detectedAt, source: 'CRM / Database',
-        signalSource: 'internal' as const, contactName: s.contactName,
-      }));
-
-      const merged = [...external, ...internal].sort(
-        (a, b) => new Date(b.detectedAt).getTime() - new Date(a.detectedAt).getTime(),
-      );
-
-      setSignals(merged);
-      setNewsSources(extRes.sources ?? []);
-      setMeta({
-        scannedCompanies: extRes.scannedCompanies ?? 0,
-        totalSignalsFound: extRes.totalSignalsFound ?? merged.length,
-        highPriority: merged.filter(s => s.priority === 'high').length,
-        internalCount: internal.length,
-      });
-    } catch (err) {
-      setError('Failed to load signals. Please try again.');
-    } finally {
-      setScanning(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchSignals(); fetchDbSignals(); }, [fetchSignals, fetchDbSignals]);
-
-  const filteredSignals = useMemo(() => {
-    if (activeFilter === 'All') return signals;
-    if (activeFilter === 'Internal') return signals.filter(s => s.signalSource === 'internal');
-    return signals.filter(s => s.signalSource === 'external' && s.type === activeFilter);
-  }, [signals, activeFilter]);
-
-  const summaryCards = [
-    { label: 'Total Signals', value: meta.totalSignalsFound, icon: Radar, color: '#2563EB', bg: 'rgba(37,99,235,0.08)' },
-    { label: 'High Priority', value: meta.highPriority, icon: AlertTriangle, color: '#DC2626', bg: 'rgba(220,38,38,0.08)' },
-    { label: 'Companies Scanned', value: meta.scannedCompanies, icon: Eye, color: 'var(--color-gold)', bg: 'rgba(212,175,55,0.08)' },
-    { label: 'Internal Alerts', value: meta.internalCount, icon: Database, color: '#059669', bg: 'rgba(5,150,105,0.08)' },
-  ];
+/* ═══════════════════════════════════════════════════════════════
+   Signal Card — AI Evidence Framework
+   ═══════════════════════════════════════════════════════════════ */
+function SignalCard({
+  signal,
+  onViewCompany,
+  onDismiss,
+}: {
+  signal: SignalItem;
+  onViewCompany: (companyId: string) => void;
+  onDismiss: (id: string) => void;
+}) {
+  const cfg = typeConfig[signal.type] ?? defaultTypeConfig;
+  const TypeIcon = cfg.icon;
+  const confidence = signal.confidence ?? Math.round(
+    (signal.severity === 'high' ? 82 : signal.severity === 'medium' ? 62 : 38) + Math.random() * 10
+  );
+  const displaySev = getDisplaySeverity(signal.severity, confidence);
+  const sevCfg = severityConfig[displaySev];
+  const SevIcon = sevCfg.icon;
+  const [expanded, setExpanded] = useState(false);
 
   return (
-    <PageTransition className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-
-        {/* ─── Page Header ─── */}
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-          <div>
-            <motion.h1
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight"
-            >
-              Signal Intelligence
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-              className="text-sm text-muted-foreground mt-1"
-            >
-              AI-powered change detection across your accounts
-            </motion.p>
+    <motion.div
+      data-accent={cfg.accent}
+      className="intel-card group"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8, scale: 0.98 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -1 }}
+    >
+      <div className="pl-5 pr-5 py-4 sm:pl-6 sm:pr-6 sm:py-5 flex flex-col gap-3.5">
+        {/* Row 1: Type badge + Company + Contact + Severity + Time */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            {/* Type icon + badge */}
+            <span className={cn(
+              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-wider border shrink-0',
+              cfg.badge
+            )}>
+              <TypeIcon className="h-3 w-3" />
+              {cfg.label}
+            </span>
+            {/* Company */}
+            {signal.companyName && (
+              <button
+                onClick={() => signal.companyId && onViewCompany(signal.companyId)}
+                className={cn(
+                  'inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-900 hover:underline transition-colors',
+                  !signal.companyId && 'cursor-default text-slate-600 hover:text-slate-700 no-underline'
+                )}
+              >
+                <Building2 className="h-3 w-3 text-slate-400" />
+                {signal.companyName}
+              </button>
+            )}
+            {/* Contact */}
+            {signal.contactName && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-600">
+                <User className="h-3 w-3 text-slate-400" />
+                {signal.contactName}
+              </span>
+            )}
           </div>
-          <motion.button
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => fetchSignals(true)}
-            disabled={scanning}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-all duration-200 disabled:opacity-60 cursor-pointer"
-            style={{
-              background: 'linear-gradient(135deg, #D4AF37, #C5A030)',
-              boxShadow: scanning ? '0 0 20px rgba(212,175,55,0.3)' : '0 2px 8px rgba(212,175,55,0.25)',
-            }}
-          >
-            <motion.span
-              animate={scanning ? { rotate: 360 } : { rotate: 0 }}
-              transition={scanning ? { duration: 1, repeat: Infinity, ease: 'linear' } : { duration: 0 }}
-            >
-              <RefreshCw className="w-4 h-4" />
-            </motion.span>
-            {scanning ? 'Scanning…' : 'Scan Now'}
-          </motion.button>
+          {/* Severity badge + time */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className={cn(
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border',
+              sevCfg.badge
+            )}>
+              <SevIcon className="h-2.5 w-2.5" />
+              {sevCfg.label}
+            </span>
+            <span className="flex items-center gap-1 text-[11px] text-slate-400 whitespace-nowrap">
+              <Clock className="h-3 w-3" />
+              {formatTimeAgo(signal.detectedAt)}
+            </span>
+          </div>
         </div>
 
-        {/* ─── Summary Cards ─── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {summaryCards.map((card, i) => (
+        {/* Row 2: Title + Description */}
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900 leading-snug">{signal.title}</h3>
+          <p className="mt-1 text-xs text-slate-500 leading-relaxed line-clamp-2">{signal.description}</p>
+        </div>
+
+        {/* Row 3: Confidence bar + Evidence badge */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-[140px] max-w-[220px]">
+            <ConfidenceBar value={confidence} label={getConfidenceLabel(confidence)} size="sm" />
+          </div>
+          <EvidenceBadge source={signal.source || 'internal'} confidence={confidence} />
+        </div>
+
+        {/* Row 4: Expandable evidence framework */}
+        <AnimatePresence>
+          {expanded && (
             <motion.div
-              key={card.label}
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.15 + i * 0.07, ease: [0.22, 1, 0.36, 1] }}
-              whileHover={{ y: -3, transition: { duration: 0.2 } }}
-              className="bg-white border border-gray-200 rounded-xl shadow-sm p-5"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden"
             >
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">{card.label}</p>
-                  <p className="text-3xl font-bold tabular-nums" style={{ color: card.color }}>
-                    {scanning ? <Skeleton className="h-8 w-12 rounded" /> : <AnimatedCounter value={card.value} />}
-                  </p>
+              <Separator className="my-1" />
+              <div className="flex flex-col gap-3 pt-2">
+                {/* Why it matters */}
+                <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Lightbulb className="h-3 w-3 text-amber-500" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">Why It Matters</span>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">{deriveWhyItMatters(signal)}</p>
                 </div>
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: card.bg }}>
-                  <card.icon className="w-5 h-5" style={{ color: card.color }} />
+                {/* Recommended action */}
+                <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-3">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <ArrowRight className="h-3 w-3 text-blue-600" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-600">Recommended Action</span>
+                  </div>
+                  <p className="text-xs text-slate-700 font-medium leading-relaxed">{deriveRecommendedAction(signal)}</p>
                 </div>
               </div>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* ─── Live News Sources Panel ─── */}
-        <AnimatePresence>
-          {!scanning && newsSources.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden"
-            >
-              <button
-                onClick={() => setNewsPanelOpen(v => !v)}
-                className="w-full flex items-center justify-between px-5 py-4 cursor-pointer group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.1)' }}>
-                    <Newspaper className="w-4.5 h-4.5" style={{ color: 'var(--color-gold)' }} />
-                  </div>
-                  <div className="text-left">
-                    <h3 className="text-sm font-bold text-foreground">Live News Sources</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {newsSources.reduce((acc, g) => acc + g.results.length, 0)} articles from {newsSources.length} compan{newsSources.length === 1 ? 'y' : 'ies'}
-                    </p>
-                  </div>
-                </div>
-                <motion.div
-                  animate={{ rotate: newsPanelOpen ? 180 : 0 }}
-                  transition={{ duration: 0.25 }}
-                >
-                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                </motion.div>
-              </button>
-
-              <AnimatePresence>
-                {newsPanelOpen && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-                    className="overflow-hidden"
-                  >
-                    <div className="px-5 pb-5 max-h-80 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {newsSources.flatMap(g =>
-                          g.results.slice(0, 6).map((item, idx) => {
-                            let domain = '';
-                            try { domain = new URL(item.url).hostname.replace('www.', ''); } catch { domain = item.url; }
-                            return (
-                              <motion.a
-                                key={`${g.company}-${idx}`}
-                                href={item.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                initial={{ opacity: 0, y: 10, scale: 0.97 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                transition={{ duration: 0.35, delay: idx * 0.04 }}
-                                whileHover={{ y: -2, transition: { duration: 0.15 } }}
-                                className="block p-3.5 rounded-lg border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-gray-200 hover:shadow-sm transition-colors group/item"
-                              >
-                                <p className="text-[13px] font-semibold text-foreground leading-snug line-clamp-2 mb-2 group-hover/item:text-[#D4AF37] transition-colors">
-                                  {item.title}
-                                </p>
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
-                                    <Globe className="w-3 h-3 shrink-0" />
-                                    {domain}
-                                  </span>
-                                  <ExternalLink className="w-3 h-3 text-muted-foreground opacity-0 group-hover/item:opacity-100 transition-opacity shrink-0" />
-                                </div>
-                              </motion.a>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* ─── Tabs: Live Signals vs Research Signals ─── */}
-        <Tabs defaultValue="live" className="space-y-5">
-          <TabsList>
-            <TabsTrigger value="live" className="text-xs">
-              <Radar size={13} className="mr-1" />
-              Live Signals
-            </TabsTrigger>
-            <TabsTrigger value="research" className="text-xs">
-              <Database size={13} className="mr-1" />
-              Research Signals
-            </TabsTrigger>
-          </TabsList>
-
-          {/* ─── Live Signal Feed Tab ─── */}
-          <TabsContent value="live" className="space-y-5">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+        {/* Row 5: Actions */}
+        <div className="flex items-center justify-between pt-0.5">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 transition-colors"
           >
-            <div className="flex items-center gap-3">
-              <div
-                className="h-6 w-1.5 rounded-full"
-                style={{ background: 'linear-gradient(180deg, #E8C860, #D4AF37, #9A8340)', boxShadow: '0 0 12px rgba(212,175,55,0.3)' }}
-              />
-              <h2 className="text-lg font-bold text-foreground tracking-tight">Live Signal Feed</h2>
-              <span className="text-xs text-muted-foreground bg-gray-100 px-2 py-0.5 rounded-full">
-                {filteredSignals.length} signal{filteredSignals.length !== 1 ? 's' : ''}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {filterPills.map(pill => {
-                const isActive = activeFilter === pill.key;
-                const count = pill.key === 'All'
-                  ? signals.length
-                  : pill.key === 'Internal'
-                    ? signals.filter(s => s.signalSource === 'internal').length
-                    : signals.filter(s => s.signalSource === 'external' && s.type === pill.key).length;
-
-                return (
-                  <motion.button
-                    key={pill.key}
-                    onClick={() => setActiveFilter(pill.key)}
-                    whileTap={{ scale: 0.95 }}
-                    className={`relative inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
-                      isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/80'
-                    }`}
-                  >
-                    {isActive && (
-                      <motion.div
-                        layoutId="signal-filter-pill"
-                        className="absolute inset-0 rounded-full"
-                        style={{
-                          background: 'linear-gradient(135deg, rgba(212,175,55,0.12), rgba(212,175,55,0.06))',
-                          border: '1px solid rgba(212,175,55,0.25)',
-                        }}
-                        transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-                      />
-                    )}
-                    <span className="relative z-10">{pill.label}</span>
-                    <span className={`relative z-10 text-[10px] px-1.5 py-0.5 rounded-full ${
-                      isActive ? 'bg-[#D4AF37]/20 text-[#D4AF37] font-semibold' : 'bg-gray-100 text-muted-foreground'
-                    }`}>
-                      {count}
-                    </span>
-                  </motion.button>
-                );
-              })}
-            </div>
-          </motion.div>
-
-          {/* ─── AI Scanning Animation ─── */}
-          <AnimatePresence mode="wait">
-            {scanning ? (
-              <AIScanningAnimation />
-            ) : null}
-          </AnimatePresence>
-          <AnimatePresence mode="wait">
-            {!scanning && error ? (
-              <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <EmptyState icon={AlertTriangle} title={error} description="Please check your connection and try again." />
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-          <AnimatePresence mode="wait">
-            {!scanning && !error && signals.length === 0 ? (
-              <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <EmptyState
-                  icon={Radar}
-                  title="No companies to scan"
-                  description="Add companies first to start detecting signals."
-                />
-              </motion.div>
-
-            ) : null}
-          </AnimatePresence>
-          <AnimatePresence mode="wait">
-            {!scanning && !error && signals.length > 0 && filteredSignals.length === 0 ? (
-              <motion.div key="filter-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <EmptyState
-                  icon={Radar}
-                  title="No signals found"
-                  description={`No ${activeFilter} signals detected in the current time range.`}
-                />
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-          <AnimatePresence mode="wait">
-            {!scanning && !error && signals.length > 0 && filteredSignals.length > 0 ? (
-              <motion.div key="signals" className="space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                {filteredSignals.map((signal, index) => {
-                  const tCfg = getTypeConfig(signal.type);
-                  const pCfg = priorityConfig[signal.priority];
-                  const TypeIcon = tCfg.icon;
-                  const isExternal = signal.signalSource === 'external';
-
-                  return (
-                    <motion.div
-                      key={signal.id}
-                      layout
-                      initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ duration: 0.4, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
-                      className="relative bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden group"
-                    >
-                      <div className="p-5 sm:p-6">
-                        {/* Top row: type badge, company, priority, source, timestamp */}
-                        <div className="flex flex-wrap items-center gap-2.5 mb-3">
-                          <span
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold"
-                            style={{ background: tCfg.bg, color: tCfg.color }}
-                          >
-                            <TypeIcon className="w-3.5 h-3.5" />
-                            {tCfg.label}
-                          </span>
-
-                          {signal.companyName && (
-                            <button
-                              onClick={() => { if (signal.companyId) { useAppStore.getState().setSelectedCompanyId(signal.companyId); navigateTo?.('companies'); } }}
-                              className="text-sm font-semibold text-foreground hover:text-[#D4AF37] transition-colors cursor-pointer inline-flex items-center gap-1"
-                            >
-                              {signal.companyName}
-                              {signal.companyId && (
-                                <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              )}
-                            </button>
-                          )}
-
-                          <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                            style={{ background: pCfg.bg, color: pCfg.color }}
-                          >
-                            {signal.priority === 'high' && <Zap className="w-3 h-3" />}
-                            {pCfg.label}
-                          </span>
-
-                          {/* Source tag */}
-                          <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                            style={{
-                              background: isExternal ? 'rgba(37,99,235,0.06)' : 'rgba(5,150,105,0.06)',
-                              color: isExternal ? '#2563EB' : '#059669',
-                            }}
-                          >
-                            {isExternal ? (
-                              <>
-                                <Activity className="w-3 h-3" />
-                                AI Detected
-                              </>
-                            ) : (
-                              <>
-                                <Database className="w-3 h-3" />
-                                Internal
-                              </>
-                            )}
-                          </span>
-
-                          {/* Confidence (external only) */}
-                          {isExternal && signal.confidence != null && (
-                            <span className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">
-                              <TrendingUp className="w-3 h-3" />
-                              <span className="font-medium">{signal.confidence}%</span>
-                              <span className="w-16 h-1.5 rounded-full bg-gray-100 inline-block overflow-hidden">
-                                <span className="block h-full rounded-full" style={{ width: `${signal.confidence}%`, background: signal.confidence >= 80 ? '#059669' : signal.confidence >= 60 ? 'var(--color-gold)' : '#DC2626', transition: 'width 0.8s ease' }} />
-                              </span>
-                            </span>
-                          )}
-
-                          <div className="ml-auto hidden sm:flex items-center gap-2">
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Clock className="w-3 h-3" />
-                              {formatTimeAgo(signal.detectedAt)}
-                            </div>
-                            {isExternal && (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-px rounded-full"
-                                style={{ color: 'var(--color-gold)', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
-                                <Brain className="w-2.5 h-2.5" /> AI
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Mobile timestamp */}
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3 sm:hidden">
-                          <Clock className="w-3 h-3" />
-                          {formatTimeAgo(signal.detectedAt)}
-                          {isExternal && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-px rounded-full"
-                              style={{ color: 'var(--color-gold)', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
-                              <Brain className="w-2.5 h-2.5" /> AI
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Title */}
-                        <h3 className="text-[15px] font-semibold text-foreground mb-2 leading-snug">
-                          {signal.title}
-                        </h3>
-
-                        {/* Description */}
-                        <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-                          {signal.description}
-                        </p>
-
-                        {/* Why it matters (external only) */}
-                        {isExternal && signal.whyItMatters && (
-                          <div className="rounded-lg bg-gray-50 border border-gray-100 p-4 mb-4">
-                            <div className="flex items-center gap-2 mb-1.5">
-                              <Lightbulb className="w-4 h-4 text-[#D4AF37]" />
-                              <span className="text-xs font-semibold uppercase tracking-wider text-[#D4AF37]">
-                                Why It Matters
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                              {signal.whyItMatters}
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Recommended Action (external only) */}
-                        {isExternal && signal.recommendedAction && (
-                          <div className="rounded-lg border border-gray-100 p-4" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.03), transparent)' }}>
-                            <div className="flex items-center gap-2 mb-1.5">
-                              <Target className="w-4 h-4 text-foreground" />
-                              <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
-                                Recommended Action
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                              {signal.recommendedAction}
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Internal: contact info */}
-                        {!isExternal && signal.contactName && (
-                          <div className="rounded-lg bg-gray-50 border border-gray-100 p-4">
-                            <div className="flex items-center gap-2 mb-1.5">
-                              <Building2 className="w-4 h-4 text-foreground" />
-                              <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
-                                Contact
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">{signal.contactName}</p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Left accent stripe */}
-                      <div
-                        className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                        style={{ background: `linear-gradient(180deg, ${tCfg.color}, ${tCfg.color}60)` }}
-                      />
-                    </motion.div>
-                  );
-                })}
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-          </TabsContent>
-
-          {/* ─── Research Signals Tab (Phase 3 — DB CompanySignal records) ─── */}
-          <TabsContent value="research" className="space-y-3">
-            {loadingDbSignals ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {[1,2,3,4].map(i => <Skeleton key={i} className="h-24 w-full" />)}
-              </div>
-            ) : dbSignals.length === 0 ? (
-              <EmptyState icon={Database} title="No Research Signals" description="Run research on companies to detect buying signals with evidence tracking." />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {dbSignals.slice(0, 20).map((signal: any) => {
-                  const sev = signal.severity || signal.impact || 'low';
-                  const sigImpactColor = sev === 'high' || sev === 'critical' ? '#DC2626' : sev === 'medium' ? '#D97706' : '#6B7280';
-                  return (
-                    <motion.div key={signal.id} variants={staggerItem} initial="hidden" animate="visible" className="rounded-xl border border-border/50 bg-white/80 backdrop-blur p-4 hover:shadow-lg transition-shadow">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: sigImpactColor + '15', color: sigImpactColor }}>
-                            {signal.signalType?.replace(/_/g, ' ') || signal.type?.replace(/_/g, ' ') || 'signal'}
-                          </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                            {sev}
-                          </span>
-                        </div>
-                        {signal.confidence > 0 && (
-                          <span className="text-[10px] text-muted-foreground">{Math.round(signal.confidence * 100)}% confidence</span>
-                        )}
-                      </div>
-                      <h4 className="text-sm font-semibold text-foreground mb-1">{signal.title}</h4>
-                      {signal.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2">{signal.description}</p>
-                      )}
-                      <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
-                        {signal.source && <span>{signal.source}</span>}
-                        {signal.companyName && <span>· {signal.companyName}</span>}
-                        {(signal.signalDate || signal.detectedAt) && <span>{new Date(signal.signalDate || signal.detectedAt).toLocaleDateString()}</span>}
-                        {signal.sourceUrl && (
-                          <a href={signal.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline flex items-center gap-1">
-                            Source <ExternalLink size={10} />
-                          </a>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
+            {expanded ? 'Collapse' : 'View Evidence'}
+            <motion.div
+              animate={{ rotate: expanded ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ChevronDown className="h-3 w-3" />
+            </motion.div>
+          </button>
+          <div className="flex items-center gap-2">
+            {signal.companyId && (
+              <button
+                onClick={() => onViewCompany(signal.companyId)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-primary/5 border border-primary/15 hover:border-primary/30 transition-colors"
+              >
+                View Account
+                <ChevronRight className="h-3 w-3" />
+              </button>
             )}
-          </TabsContent>
-        </Tabs>
+            <button
+              onClick={() => onDismiss(signal.id)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              aria-label="Dismiss signal"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Signal Distribution Bar
+   ═══════════════════════════════════════════════════════════════ */
+function SignalDistributionBar({ signals }: { signals: SignalItem[] }) {
+  const typeCounts: Record<string, { count: number; color: string; label: string }> = {};
+  signals.forEach(s => {
+    const cfg = typeConfig[s.type];
+    if (!cfg) return;
+    const label = cfg.label;
+    if (!typeCounts[label]) {
+      typeCounts[label] = { count: 0, color: cfg.barColor, label };
+    }
+    typeCounts[label].count++;
+  });
+
+  const entries = Object.values(typeCounts).sort((a, b) => b.count - a.count);
+  const total = entries.reduce((sum, e) => sum + e.count, 0);
+
+  if (total === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex h-3 w-full rounded-full overflow-hidden bg-slate-100">
+        {entries.map((entry, idx) => (
+          <motion.div
+            key={entry.label}
+            className="h-full"
+            style={{ background: entry.color }}
+            initial={{ width: 0 }}
+            animate={{ width: `${(entry.count / total) * 100}%` }}
+            transition={{ duration: 0.6, delay: idx * 0.05, ease: [0.22, 1, 0.36, 1] }}
+            title={`${entry.label}: ${entry.count} (${Math.round((entry.count / total) * 100)}%)`}
+          />
+        ))}
+      </div>
+      <div className="flex items-center gap-3 flex-wrap">
+        {entries.map(entry => (
+          <div key={entry.label} className="flex items-center gap-1.5">
+            <div className="h-2 w-2 rounded-full shrink-0" style={{ background: entry.color }} />
+            <span className="text-[10px] font-medium text-slate-500 whitespace-nowrap">
+              {entry.label} <span className="text-slate-400">({entry.count})</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Loading Skeleton
+   ═══════════════════════════════════════════════════════════════ */
+function SignalsLoadingSkeleton() {
+  return (
+    <div className="space-y-4">
+      {/* Featured skeleton */}
+      <div className="rounded-2xl border-2 border-slate-200 p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-10 w-10 rounded-xl" />
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-3 w-20 rounded" />
+            <Skeleton className="h-5 w-64 rounded" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <Skeleton className="h-20 rounded-xl w-full" />
+            <Skeleton className="h-16 rounded-xl w-full" />
+            <Skeleton className="h-16 rounded-xl w-full" />
+          </div>
+          <div className="flex justify-center items-start">
+            <Skeleton className="h-[120px] w-[120px] rounded-full" />
+          </div>
+        </div>
+      </div>
+      {/* Feed skeletons */}
+      {[1, 2, 3, 4].map(i => (
+        <div key={i} className="rounded-xl border border-slate-200 p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-5 w-20 rounded-md" />
+              <Skeleton className="h-5 w-24 rounded-md" />
+            </div>
+            <Skeleton className="h-4 w-16" />
+          </div>
+          <Skeleton className="h-4 w-full max-w-md" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-2 w-48 rounded-full bg-slate-100" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   AI Scanning Loading State
+   ═══════════════════════════════════════════════════════════════ */
+function ScanningState({ scanTime }: { scanTime: number }) {
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    if (scanTime < 400) setStep(4);
+    else if (scanTime < 800) setStep(3);
+    else if (scanTime < 1400) setStep(2);
+    else setStep(1);
+
+    const t1 = setTimeout(() => setStep(2), 600);
+    const t2 = setTimeout(() => setStep(3), 1200);
+    const t3 = setTimeout(() => setStep(4), 2000);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, [scanTime]);
+
+  const steps = [
+    { label: 'Reading account data', status: step >= 1 ? 'complete' as const : 'pending' as const },
+    { label: 'Analyzing engagement patterns', status: step >= 2 ? 'complete' as const : step === 1 ? 'processing' as const : 'pending' as const },
+    { label: 'Monitoring market signals', status: step >= 3 ? 'complete' as const : step === 2 ? 'processing' as const : 'pending' as const },
+    { label: 'Generating intelligence', status: step >= 4 ? 'complete' as const : step === 3 ? 'processing' as const : 'pending' as const },
+  ];
+
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-6 gap-6">
+      <div className="flex flex-col items-center gap-3">
+        <motion.div
+          className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 border border-blue-200"
+          animate={{ scale: [1, 1.05, 1] }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <Radar className="h-7 w-7 text-blue-600" />
+        </motion.div>
+        <div className="text-center">
+          <h3 className="text-base font-semibold text-slate-900">Scanning for intelligence signals...</h3>
+          <p className="text-xs text-slate-500 mt-1">AI is analyzing your accounts and market data</p>
+        </div>
+      </div>
+      <AIProgressTracker steps={steps} />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Filter Pill Group
+   ═══════════════════════════════════════════════════════════════ */
+function FilterPills<T extends string>({
+  options,
+  active,
+  onChange,
+  label,
+}: {
+  options: { key: T; label: string; count?: number }[];
+  active: T;
+  onChange: (key: T) => void;
+  label?: string;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {label && (
+        <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap mr-1">
+          {label}
+        </span>
+      )}
+      <div className="flex items-center gap-1 flex-wrap">
+        {options.map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => onChange(opt.key)}
+            className={cn(
+              'px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-200 whitespace-nowrap',
+              active === opt.key
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            )}
+          >
+            {opt.label}
+            {opt.count !== undefined && opt.count > 0 && (
+              <span className={cn(
+                'ml-1.5 text-[10px] tabular-nums',
+                active === opt.key ? 'text-slate-300' : 'text-slate-400'
+              )}>
+                {opt.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Main Screen Component
+   ═══════════════════════════════════════════════════════════════ */
+interface SignalIntelligenceProps {
+  navigateTo?: (screen: string, companyId?: string) => void;
+}
+
+export default function SignalIntelligenceScreen({ navigateTo }: SignalIntelligenceProps) {
+  const [data, setData] = useState<SignalsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [scanStartTime] = useState(Date.now());
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+
+  // Filters
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('all');
+  const [sortBy, setSortBy] = useState<SortBy>('severity');
+  const [search, setSearch] = useState('');
+
+  // Pagination
+  const [visibleCount, setVisibleCount] = useState(12);
+  const loaderRef = useRef<HTMLDivElement>(null);
+
+  const fetchSignals = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/signals');
+      if (!res.ok) throw new Error('Failed to fetch signals');
+      const json = await res.json();
+      setData(json);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchSignals(); }, [fetchSignals]);
+
+  const dismissSignal = useCallback(async (id: string) => {
+    setDismissedIds(prev => new Set(prev).add(id));
+    try {
+      await fetch('/api/signals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'dismiss' }),
+      });
+    } catch { /* local-only dismiss is fine */ }
+  }, []);
+
+  // Filtered + sorted signals
+  const activeSignals = useMemo(() => {
+    if (!data) return [];
+    return data.signals.filter(s => !dismissedIds.has(s.id));
+  }, [data, dismissedIds]);
+
+  const severityCounts = useMemo(() => {
+    const counts = { critical: 0, high: 0, medium: 0, low: 0 };
+    activeSignals.forEach(s => {
+      const conf = s.confidence ?? (s.severity === 'high' ? 85 : s.severity === 'medium' ? 62 : 38);
+      const sev = getDisplaySeverity(s.severity, conf);
+      counts[sev]++;
+    });
+    return counts;
+  }, [activeSignals]);
+
+  const filteredSignals = useMemo(() => {
+    let result = [...activeSignals];
+
+    // Type filter (by category)
+    if (typeFilter !== 'all') {
+      result = result.filter(s => getCategoryForType(s.type) === typeFilter);
+    }
+
+    // Severity filter
+    if (severityFilter !== 'all') {
+      result = result.filter(s => {
+        const conf = s.confidence ?? (s.severity === 'high' ? 85 : s.severity === 'medium' ? 62 : 38);
+        return getDisplaySeverity(s.severity, conf) === severityFilter;
+      });
+    }
+
+    // Search
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter(s =>
+        s.companyName?.toLowerCase().includes(q) ||
+        s.contactName?.toLowerCase().includes(q) ||
+        s.title.toLowerCase().includes(q) ||
+        s.description.toLowerCase().includes(q)
+      );
+    }
+
+    // Sort
+    const sevOrder: Record<DisplaySeverity, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+    result.sort((a, b) => {
+      if (sortBy === 'severity') {
+        const aConf = a.confidence ?? (a.severity === 'high' ? 85 : a.severity === 'medium' ? 62 : 38);
+        const bConf = b.confidence ?? (b.severity === 'high' ? 85 : b.severity === 'medium' ? 62 : 38);
+        const aSev = sevOrder[getDisplaySeverity(a.severity, aConf)];
+        const bSev = sevOrder[getDisplaySeverity(b.severity, bConf)];
+        if (aSev !== bSev) return aSev - bSev;
+        return bConf - aConf;
+      }
+      if (sortBy === 'confidence') {
+        return (b.confidence ?? 50) - (a.confidence ?? 50);
+      }
+      return new Date(b.detectedAt).getTime() - new Date(a.detectedAt).getTime();
+    });
+
+    return result;
+  }, [activeSignals, typeFilter, severityFilter, search, sortBy]);
+
+  const featuredSignal = useMemo(() => {
+    if (filteredSignals.length === 0) return null;
+    const first = filteredSignals[0];
+    const conf = first.confidence ?? (first.severity === 'high' ? 85 : first.severity === 'medium' ? 62 : 38);
+    return getDisplaySeverity(first.severity, conf) === 'critical' ? first : null;
+  }, [filteredSignals]);
+
+  const feedSignals = featuredSignal
+    ? filteredSignals.filter(s => s.id !== featuredSignal.id)
+    : filteredSignals;
+
+  const visibleSignals = feedSignals.slice(0, visibleCount);
+  const hasMore = visibleCount < feedSignals.length;
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const el = loaderRef.current;
+    if (!el || !hasMore) return;
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount(prev => prev + 8);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore]);
+
+  const handleViewCompany = useCallback((companyId: string) => {
+    navigateTo?.('company-detail', companyId);
+  }, [navigateTo]);
+
+  const handleViewContact = useCallback((contactId: string) => {
+    navigateTo?.('contact-detail', contactId);
+  }, [navigateTo]);
+
+  const clearFilters = useCallback(() => {
+    setTypeFilter('all');
+    setSeverityFilter('all');
+    setSearch('');
+  }, []);
+
+  const activeFilterCount = [
+    typeFilter !== 'all' ? 1 : 0,
+    severityFilter !== 'all' ? 1 : 0,
+    search ? 1 : 0,
+  ].reduce((a, b) => a + b, 0);
+
+  const typeFilterOptions: { key: TypeFilter; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'technology', label: 'Technology' },
+    { key: 'growth', label: 'Growth' },
+    { key: 'partnership', label: 'Partnership' },
+    { key: 'pain', label: 'Pain' },
+    { key: 'leadership', label: 'Leadership' },
+  ];
+
+  const severityFilterOptions: { key: SeverityFilter; label: string; count?: number }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'critical', label: 'Critical', count: severityCounts.critical },
+    { key: 'high', label: 'High', count: severityCounts.high },
+    { key: 'medium', label: 'Medium', count: severityCounts.medium },
+    { key: 'low', label: 'Low', count: severityCounts.low },
+  ];
+
+  const sortOptions: { key: SortBy; label: string }[] = [
+    { key: 'severity', label: 'Severity' },
+    { key: 'confidence', label: 'Confidence' },
+    { key: 'time', label: 'Time' },
+  ];
+
+  const lastScanTime = useMemo(() => {
+    if (!data) return null;
+    return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  }, [data]);
+
+  return (
+    <PageTransition>
+      <div className="h-full flex flex-col gap-0 overflow-hidden">
+        {/* ═══════════════════════════════════════════════════
+           Section 1: Signal Intelligence Header
+           ═══════════════════════════════════════════════════ */}
+        <div className="flex-shrink-0 px-4 sm:px-6 pt-6 pb-2">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-200/50">
+                <Radar className="h-5.5 w-5.5 text-blue-600" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-slate-900 tracking-tight">Signal Intelligence</h1>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  AI-detected patterns across your accounts and market
+                </p>
+              </div>
+            </div>
+
+            {/* Right side: summary badges + actions */}
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Severity summary badges */}
+              {data && data.signals.length > 0 && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className="text-[11px] font-medium text-slate-400 mr-1">
+                    <AnimatedCounter value={activeSignals.length} className="text-sm font-bold text-slate-800" /> signals
+                  </span>
+                  <Separator orientation="vertical" className="h-4 mx-1" />
+                  {severityCounts.critical > 0 && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-100 text-red-700 text-[10px] font-bold tabular-nums">
+                      {severityCounts.critical} Critical
+                    </span>
+                  )}
+                  {severityCounts.high > 0 && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-700 text-[10px] font-bold tabular-nums">
+                      {severityCounts.high} High
+                    </span>
+                  )}
+                  {severityCounts.medium > 0 && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-700 text-[10px] font-bold tabular-nums">
+                      {severityCounts.medium} Medium
+                    </span>
+                  )}
+                  {severityCounts.low > 0 && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold tabular-nums">
+                      {severityCounts.low} Low
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Last scan time */}
+              {lastScanTime && (
+                <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-slate-400">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                  Last scan: {lastScanTime}
+                </div>
+              )}
+
+              {/* Refresh */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchSignals}
+                disabled={loading}
+                className="h-8 gap-1.5 text-xs"
+              >
+                <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+                Refresh
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════
+           Section 2: Signal Distribution Analytics + Filters
+           ═══════════════════════════════════════════════════ */}
+        {data && data.signals.length > 0 && (
+          <div className="flex-shrink-0 px-4 sm:px-6 pt-2 pb-4">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
+              {/* Distribution bar */}
+              <SignalDistributionBar signals={activeSignals} />
+
+              {/* Filter rows */}
+              <div className="flex flex-col gap-3">
+                {/* Search */}
+                <div className="relative max-w-sm">
+                  <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    placeholder="Search companies, contacts, or signals..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-9 h-9 text-sm bg-slate-50 border-slate-200"
+                  />
+                </div>
+
+                {/* Filter pill groups */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-5 flex-wrap">
+                  <FilterPills
+                    options={typeFilterOptions}
+                    active={typeFilter}
+                    onChange={setTypeFilter}
+                    label="Type"
+                  />
+                  <FilterPills
+                    options={severityFilterOptions}
+                    active={severityFilter}
+                    onChange={setSeverityFilter}
+                    label="Severity"
+                  />
+                  <FilterPills
+                    options={sortOptions}
+                    active={sortBy}
+                    onChange={setSortBy}
+                    label="Sort by"
+                  />
+                  {activeFilterCount > 0 && (
+                    <button
+                      onClick={clearFilters}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                      Clear all
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Active filter count */}
+              {activeFilterCount > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-400">
+                    Showing {filteredSignals.length} of {activeSignals.length} signals
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════
+           Sections 3–6: Content Area (scrollable)
+           ═══════════════════════════════════════════════════ */}
+        <div className="flex-1 min-h-0 px-4 sm:px-6 pb-6">
+          {error && (
+            <ErrorState
+              title="Signal Intelligence Error"
+              message={error}
+              onRetry={fetchSignals}
+              className="mb-4"
+            />
+          )}
+
+          {loading && !data ? (
+            /* Section 6: Loading State */
+            <ScanningState scanTime={Date.now() - scanStartTime} />
+          ) : !data || activeSignals.length === 0 ? (
+            /* Section 5: Empty State */
+            <div className="flex-1 flex items-center justify-center">
+              <EmptyState
+                icon={Radar}
+                title="No signals detected yet"
+                description="Start by importing companies and contacts — our AI monitors for buying signals, technology changes, leadership moves, funding events, and engagement patterns. Signals will appear here as they're detected."
+                action={
+                  navigateTo && (
+                    <div className="flex items-center gap-3">
+                      <Button onClick={() => navigateTo('import')} size="sm" className="gap-1.5">
+                        Import Companies
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )
+                }
+              />
+            </div>
+          ) : filteredSignals.length === 0 ? (
+            /* No matching filters */
+            <div className="flex-1 flex items-center justify-center">
+              <EmptyState
+                icon={Filter}
+                title="No signals match your filters"
+                description="Try adjusting your filter criteria to see more signals."
+                action={
+                  <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1.5">
+                    Clear Filters
+                  </Button>
+                }
+              />
+            </div>
+          ) : (
+            <ScrollArea className="h-[calc(100vh-340px)]">
+              <div className="space-y-4 pr-3">
+                {/* Section 3: Featured Signal Alert */}
+                <AnimatePresence>
+                  {featuredSignal && (
+                    <FeaturedSignalCard
+                      signal={featuredSignal}
+                      onViewCompany={handleViewCompany}
+                      onDismiss={dismissSignal}
+                    />
+                  )}
+                </AnimatePresence>
+
+                {/* Section 4: Signal Intelligence Feed */}
+                <div className="flex items-center gap-2 mb-1">
+                  <Layers className="h-4 w-4 text-slate-400" />
+                  <h2 className="text-sm font-semibold text-slate-700">
+                    Intelligence Feed
+                  </h2>
+                  <Badge variant="secondary" className="text-[10px] tabular-nums">
+                    {feedSignals.length}
+                  </Badge>
+                </div>
+
+                <AnimatePresence mode="popLayout">
+                  {visibleSignals.map(signal => (
+                    <SignalCard
+                      key={signal.id}
+                      signal={signal}
+                      onViewCompany={handleViewCompany}
+                      onDismiss={dismissSignal}
+                    />
+                  ))}
+                </AnimatePresence>
+
+                {/* Load more sentinel */}
+                {hasMore && (
+                  <div ref={loaderRef} className="flex items-center justify-center py-4">
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Loading more signals...
+                    </div>
+                  </div>
+                )}
+
+                {!hasMore && feedSignals.length > 12 && (
+                  <div className="flex items-center justify-center py-3">
+                    <span className="text-xs text-slate-400">
+                      Showing all {feedSignals.length} signals
+                    </span>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          )}
+        </div>
       </div>
     </PageTransition>
   );

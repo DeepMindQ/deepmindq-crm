@@ -5,13 +5,21 @@ import {
   BarChart3, TrendingUp, Shield, Brain, Activity, Zap,
   Layers, Clock, RefreshCw, Loader2, AlertTriangle,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
+} from 'recharts';
+import { LoadingState } from '@/components/enterprise/LoadingState';
+import { ErrorState } from '@/components/enterprise/ErrorState';
+import { EmptyState } from '@/components/shared/design-system';
 
-// ─── Types ──────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════
+   Types
+   ═══════════════════════════════════════════════════════════════ */
 interface OverviewData {
   totalObjects: number;
   knowledgeEntries: number;
@@ -53,7 +61,9 @@ interface ActivityItem {
   timestamp: string;
 }
 
-// ─── Helpers ────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════
+   Helpers
+   ═══════════════════════════════════════════════════════════════ */
 function relativeTime(dateStr: string | null): string {
   if (!dateStr) return '—';
   const now = Date.now();
@@ -84,12 +94,14 @@ function coverageColor(pct: number): string {
 }
 
 const CONFIDENCE_BUCKETS = [
-  { range: '0.0–0.2', min: 0, max: 0.2, color: 'bg-red-400' },
-  { range: '0.2–0.4', min: 0.2, max: 0.4, color: 'bg-orange-400' },
-  { range: '0.4–0.6', min: 0.4, max: 0.6, color: 'bg-yellow-400' },
-  { range: '0.6–0.8', min: 0.6, max: 0.8, color: 'bg-lime-400' },
-  { range: '0.8–1.0', min: 0.8, max: 1.0, color: 'bg-emerald-400' },
+  { range: '0-20%', min: 0, max: 0.2, color: '#EF4444' },
+  { range: '20-40%', min: 0.2, max: 0.4, color: '#F97316' },
+  { range: '40-60%', min: 0.4, max: 0.6, color: '#F59E0B' },
+  { range: '60-80%', min: 0.6, max: 0.8, color: '#84CC16' },
+  { range: '80-100%', min: 0.8, max: 1.0, color: '#10B981' },
 ];
+
+const DONUT_COLORS = ['#2563EB', '#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#EC4899', '#06B6D4'];
 
 const ACTIVITY_TYPE_CONFIG: Record<string, { color: string; label: string }> = {
   timeline: { color: 'bg-blue-100 text-blue-700 border-blue-200', label: 'Timeline' },
@@ -97,7 +109,25 @@ const ACTIVITY_TYPE_CONFIG: Record<string, { color: string; label: string }> = {
   inbox:   { color: 'bg-emerald-100 text-emerald-700 border-emerald-200', label: 'Inbox' },
 };
 
-// ─── Component ──────────────────────────────────────
+function ChartTooltipContent({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-lg text-xs">
+      <p className="font-medium text-slate-700 mb-1">{label}</p>
+      {payload.map((p: any, i: number) => (
+        <div key={i} className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+          <span className="text-slate-500">{p.name}:</span>
+          <span className="font-semibold text-slate-700">{p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Main Component
+   ═══════════════════════════════════════════════════════════════ */
 export default function IntelligenceAnalyticsScreen() {
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [trends, setTrends] = useState<TrendPoint[]>([]);
@@ -105,14 +135,12 @@ export default function IntelligenceAnalyticsScreen() {
   const [coverage, setCoverage] = useState<CoverageCategory[]>([]);
   const [sourcePerf, setSourcePerf] = useState<SourcePerformance[]>([]);
   const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([]);
-
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sectionErrors, setSectionErrors] = useState<Record<string, string>>({});
 
   const fetchAll = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+    if (isRefresh) setRefreshing(true); else setLoading(true);
     setSectionErrors({});
 
     const endpoints = [
@@ -148,299 +176,279 @@ export default function IntelligenceAnalyticsScreen() {
       }
     });
 
-    if (isRefresh) setRefreshing(false);
-    else setLoading(false);
+    if (isRefresh) setRefreshing(false); else setLoading(false);
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchAll().catch(() => {});
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // ─── Loading skeleton ─────────────────────────────
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
-        <div className="flex items-center gap-3">
-          <BarChart3 className="h-6 w-6 text-muted-foreground" />
-          <h1 className="text-2xl font-bold tracking-tight">Intelligence Analytics</h1>
-        </div>
-        <p className="text-muted-foreground text-sm">Loading analytics...</p>
-        <div className="grid grid-cols-6 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 rounded-xl" />
-          ))}
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
         <Skeleton className="h-64 rounded-xl" />
-        <div className="grid grid-cols-2 gap-4">
-          <Skeleton className="h-56 rounded-xl" />
-          <Skeleton className="h-56 rounded-xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-64 rounded-xl" />
         </div>
       </div>
     );
   }
 
-  const maxTrendCount = Math.max(1, ...trends.map(t => t.count));
-  const maxConfCount = Math.max(1, ...confidence.map(b => b.count));
-  const maxCoverageCount = Math.max(1, ...coverage.map(c => c.count));
   const overallPct = (overview?.coverageScore ?? 0) * 100;
 
+  // Prepare chart data
+  const confidenceChartData = CONFIDENCE_BUCKETS.map(bucket => {
+    const matched = confidence.find(b =>
+      b.range === bucket.range || (b.min !== undefined && b.max !== undefined && b.min === bucket.min && b.max === bucket.max)
+    );
+    return { name: bucket.range, count: matched?.count ?? 0, fill: bucket.color };
+  });
+
+  const coverageChartData = coverage.map(cat => ({ name: cat.category, value: cat.count }));
+
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      {/* ── Header ── */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <BarChart3 className="h-6 w-6 text-muted-foreground" />
-          <h1 className="text-2xl font-bold tracking-tight">Intelligence Analytics</h1>
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+            <BarChart3 className="h-5 w-5 text-blue-600" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900">Intelligence Analytics</h2>
+            <p className="text-sm text-slate-500">Quality metrics, trends, and source performance</p>
+          </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => fetchAll(true)} disabled={refreshing}>
-          {refreshing
-            ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-            : <RefreshCw className="h-4 w-4 mr-1.5" />
-          }
+        <Button variant="outline" size="sm" onClick={() => fetchAll(true)} disabled={refreshing}
+          className="gap-2 border-slate-200 text-slate-600 hover:bg-slate-50">
+          {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           Refresh
         </Button>
       </div>
 
-      {/* 6 Stat Cards */}
-      {!sectionErrors.overview && overview && (
-        <div className="grid grid-cols-6 gap-4">
+      {/* ── Stat Cards ── */}
+      {sectionErrors.overview ? (
+        <ErrorState message="Failed to load overview data" onRetry={() => fetchAll(true)} />
+      ) : overview && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {[
             { label: 'Total Objects', value: overview.totalObjects.toLocaleString(), Icon: Layers, color: 'text-blue-600' },
-            { label: 'Knowledge Entries', value: overview.knowledgeEntries.toLocaleString(), Icon: Brain, color: 'text-violet-600' },
+            { label: 'Knowledge', value: overview.knowledgeEntries.toLocaleString(), Icon: Brain, color: 'text-violet-600' },
             { label: 'Active Alerts', value: overview.activeAlerts.toLocaleString(), Icon: AlertTriangle, color: 'text-orange-600' },
-            { label: 'Avg Confidence', value: `${(overview.avgConfidence * 100).toFixed(1)}%`, Icon: Shield, color: overview.avgConfidence >= 0.7 ? 'text-emerald-600' : overview.avgConfidence >= 0.4 ? 'text-amber-600' : 'text-red-600' },
-            { label: 'Coverage Score', value: `${overallPct.toFixed(1)}%`, Icon: TrendingUp, color: coverageColor(overallPct) },
+            { label: 'Avg Confidence', value: `${(overview.avgConfidence * 100).toFixed(1)}%`, Icon: Shield, color: overview.avgConfidence >= 0.7 ? 'text-emerald-600' : 'text-amber-600' },
+            { label: 'Coverage', value: `${overallPct.toFixed(1)}%`, Icon: TrendingUp, color: coverageColor(overallPct) },
             { label: 'Activity (24h)', value: overview.activity24h.toLocaleString(), Icon: Zap, color: 'text-sky-600' },
           ].map(stat => (
-            <Card key={stat.label}>
-              <CardContent className="pt-0 pb-0">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-                  <stat.Icon className={`h-4 w-4 ${stat.color}`} />
-                  {stat.label}
-                </div>
-                <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
-              </CardContent>
-            </Card>
+            <div key={stat.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <stat.Icon className={cn('h-4 w-4', stat.color)} />
+              </div>
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">{stat.label}</p>
+              <p className={cn('text-xl font-bold mt-0.5', stat.color)}>{stat.value}</p>
+            </div>
           ))}
         </div>
       )}
-      {sectionErrors.overview && (
-        <Card><CardContent className="py-4 text-center text-destructive text-sm">Failed to load overview</CardContent></Card>
-      )}
 
-      {/* Acquisition Trends */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
-            Acquisition Trends
-          </CardTitle>
-          <CardDescription>Last 30 days</CardDescription>
-        </CardHeader>
-        <CardContent>
+      {/* ── Acquisition Trends (Line Chart) ── */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="p-4 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-slate-400" />
+            <h3 className="text-sm font-semibold text-slate-900">Acquisition Trends</h3>
+            <Badge variant="outline" className="text-[10px] bg-slate-50">Last 30 days</Badge>
+          </div>
+        </div>
+        <div className="p-4">
           {sectionErrors.trends ? (
-            <div className="py-8 text-center text-destructive text-sm">Failed to load trends</div>
+            <ErrorState message="Failed to load trends" />
           ) : trends.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground text-sm">No acquisition data</div>
+            <EmptyState icon={TrendingUp} title="No trend data" description="Acquisition trend data will appear here." />
           ) : (
-            <div className="flex items-end gap-[2px] h-48">
-              {trends.map((point, i) => {
-                const heightPct = (point.count / maxTrendCount) * 100;
-                const dateLabel = new Date(point.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                return (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1 group min-w-0">
-                    <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                      {point.count}
-                    </span>
-                    <div
-                      className="w-full bg-sky-500 rounded-t-sm hover:bg-sky-400 transition-colors cursor-default"
-                      style={{ height: `${heightPct}%` }}
-                      title={`${dateLabel}: ${point.count} records`}
-                    />
-                    <span className="text-[9px] text-muted-foreground truncate w-full text-center">
-                      {new Date(point.date).getDate()}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart data={trends} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94A3B8' }}
+                  tickFormatter={(v: string) => new Date(v).getDate().toString()} />
+                <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} />
+                <Tooltip content={<ChartTooltipContent />} />
+                <Line type="monotone" dataKey="count" stroke="#2563EB" strokeWidth={2}
+                  dot={false} activeDot={{ r: 4, fill: '#2563EB', stroke: '#fff', strokeWidth: 2 }} />
+              </LineChart>
+            </ResponsiveContainer>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Confidence Distribution + Knowledge Coverage */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Confidence Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Confidence Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {sectionErrors.confidence ? (
-              <div className="py-8 text-center text-destructive text-sm">Failed to load</div>
-            ) : confidence.length === 0 ? (
-              <div className="py-8 text-center text-muted-foreground text-sm">No confidence data</div>
-            ) : (
-              <div className="space-y-3">
-                {CONFIDENCE_BUCKETS.map(bucket => {
-                  const matched = confidence.find(
-                    b => b.range === bucket.range
-                      || (b.min !== undefined && b.max !== undefined && b.min === bucket.min && b.max === bucket.max)
-                  );
-                  const count = matched?.count ?? 0;
-                  const widthPct = (count / maxConfCount) * 100;
-                  return (
-                    <div key={bucket.range} className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground w-12 text-right shrink-0">{bucket.range}</span>
-                      <div className="flex-1 h-5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${bucket.color} rounded-full transition-all`}
-                          style={{ width: `${widthPct}%` }}
-                        />
-                      </div>
-                      <span className="text-xs font-medium w-8 text-right shrink-0">{count}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Knowledge Coverage */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Layers className="h-4 w-4" />
-              Knowledge Coverage
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {sectionErrors.coverage ? (
-              <div className="py-8 text-center text-destructive text-sm">Failed to load</div>
-            ) : (
-              <>
-                <div className="text-center mb-4">
-                  <span className={`text-4xl font-bold ${coverageColor(overallPct)}`}>
-                    {overallPct.toFixed(1)}%
-                  </span>
-                  <p className="text-xs text-muted-foreground mt-1">Overall Coverage</p>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {coverage.map(cat => {
-                    const isGap = cat.count === 0;
-                    const barPct = (cat.count / maxCoverageCount) * 100;
-                    return (
-                      <div
-                        key={cat.category}
-                        className={`p-2 rounded-lg border text-center ${isGap ? 'border-red-300 bg-red-50/50' : 'border-border bg-muted/30'}`}
-                      >
-                        <div className="flex items-center justify-center gap-1">
-                          <span className="text-xs font-medium truncate">{cat.category}</span>
-                          {isGap && (
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 text-red-600 border-red-300">
-                              Gap
-                            </Badge>
-                          )}
-                        </div>
-                        <span className="text-sm font-bold block my-1">{cat.count}</span>
-                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${isGap ? 'bg-red-400' : 'bg-emerald-500'}`}
-                            style={{ width: `${barPct}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        </div>
       </div>
 
-      {/* Source Performance */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            Source Performance
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {sectionErrors.sourcePerf ? (
-            <div className="py-8 text-center text-destructive text-sm">Failed to load</div>
-          ) : sourcePerf.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground text-sm">No source performance data</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Connector Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Health</TableHead>
-                  <TableHead className="text-right">Records</TableHead>
-                  <TableHead className="text-right">Avg Confidence</TableHead>
-                  <TableHead>Last Run</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sourcePerf.map((src, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium">{src.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs">{src.type}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={healthBadgeColor(src.healthScore)}>
-                        {(src.healthScore * 100).toFixed(0)}%
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{src.totalRecords.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">{(src.avgConfidence * 100).toFixed(1)}%</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{relativeTime(src.lastRun)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {/* ── Confidence Distribution + Coverage By Entity Type ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Confidence Distribution (Bar Chart) */}
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="p-4 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-slate-400" />
+              <h3 className="text-sm font-semibold text-slate-900">Confidence Distribution</h3>
+            </div>
+          </div>
+          <div className="p-4">
+            {sectionErrors.confidence ? (
+              <ErrorState message="Failed to load" />
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={confidenceChartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94A3B8' }} />
+                  <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} />
+                  <Tooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                    {confidenceChartData.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
 
-      {/* Activity Feed */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            Activity Feed
-          </CardTitle>
-          <CardDescription>Latest intelligence activity</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {sectionErrors.activity ? (
-            <div className="py-8 text-center text-destructive text-sm">Failed to load</div>
-          ) : activityFeed.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground text-sm">No recent activity</div>
+        {/* Coverage by Entity Type (Donut Chart) */}
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="p-4 border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-slate-400" />
+                <h3 className="text-sm font-semibold text-slate-900">Coverage by Entity Type</h3>
+              </div>
+              <Badge variant="outline" className={cn('text-xs', overallPct > 75 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200')}>
+                {overallPct.toFixed(1)}% overall
+              </Badge>
+            </div>
+          </div>
+          <div className="p-4">
+            {sectionErrors.coverage ? (
+              <ErrorState message="Failed to load" />
+            ) : coverage.length === 0 ? (
+              <EmptyState icon={Layers} title="No coverage data" description="Coverage data will populate as intelligence is acquired." />
+            ) : (
+              <div className="flex items-center gap-6">
+                <ResponsiveContainer width="50%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={coverageChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {coverageChartData.map((_, idx) => (
+                        <Cell key={idx} fill={DONUT_COLORS[idx % DONUT_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<ChartTooltipContent />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex-1 space-y-1.5">
+                  {coverageChartData.map((cat, idx) => (
+                    <div key={cat.name} className="flex items-center gap-2 text-xs">
+                      <div className="w-2.5 h-2.5 rounded-sm shrink-0"
+                        style={{ backgroundColor: DONUT_COLORS[idx % DONUT_COLORS.length] }} />
+                      <span className="text-slate-600 flex-1 truncate">{cat.name}</span>
+                      <span className="font-semibold text-slate-700">{cat.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Source Reliability (Horizontal Bar) ── */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="p-4 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-slate-400" />
+            <h3 className="text-sm font-semibold text-slate-900">Source Reliability</h3>
+          </div>
+        </div>
+        <div className="p-4">
+          {sectionErrors.sourcePerf ? (
+            <ErrorState message="Failed to load" />
+          ) : sourcePerf.length === 0 ? (
+            <EmptyState icon={Activity} title="No source data" description="Source performance data will appear here." />
           ) : (
-            <div className="space-y-2">
-              {activityFeed.map((item, i) => {
-                const config = ACTIVITY_TYPE_CONFIG[item.type] ?? ACTIVITY_TYPE_CONFIG.timeline;
+            <div className="space-y-3">
+              {sourcePerf.map((src) => {
+                const relPct = Math.round(src.healthScore * 100);
                 return (
-                  <div key={i} className="flex items-center gap-3 py-2 border-b last:border-0">
-                    <Badge variant="outline" className={config.color}>
-                      {config.label}
-                    </Badge>
-                    <span className="text-sm flex-1">{item.title}</span>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">{relativeTime(item.timestamp)}</span>
+                  <div key={src.name} className="group">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-700">{src.name}</span>
+                        <Badge variant="outline" className="text-[10px] bg-slate-50">{src.type}</Badge>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-slate-400">{relativeTime(src.lastRun)}</span>
+                        <Badge variant="outline" className={cn('text-[10px]', healthBadgeColor(src.healthScore))}>
+                          {relPct}%
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className={cn(
+                          'h-full rounded-full transition-all duration-500',
+                          src.healthScore >= 0.7 ? 'bg-emerald-500' : src.healthScore >= 0.4 ? 'bg-amber-500' : 'bg-red-500'
+                        )}
+                        style={{ width: `${relPct}%` }}
+                      />
+                    </div>
                   </div>
                 );
               })}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      {/* ── Activity Feed ── */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="p-4 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-slate-400" />
+            <h3 className="text-sm font-semibold text-slate-900">Activity Feed</h3>
+            <Badge variant="outline" className="text-[10px] bg-slate-50">Latest</Badge>
+          </div>
+        </div>
+        <div className="divide-y divide-slate-100">
+          {sectionErrors.activity ? (
+            <div className="p-4"><ErrorState message="Failed to load" /></div>
+          ) : activityFeed.length === 0 ? (
+            <div className="p-8"><EmptyState icon={Clock} title="No recent activity" description="Recent intelligence activity will appear here." /></div>
+          ) : (
+            activityFeed.map((item, i) => {
+              const config = ACTIVITY_TYPE_CONFIG[item.type] ?? ACTIVITY_TYPE_CONFIG.timeline;
+              return (
+                <div key={i} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
+                  <Badge variant="outline" className={cn('text-[10px]', config.color)}>{config.label}</Badge>
+                  <span className="text-sm flex-1 text-slate-700">{item.title}</span>
+                  <span className="text-xs text-slate-400 whitespace-nowrap">{relativeTime(item.timestamp)}</span>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
     </div>
   );
 }

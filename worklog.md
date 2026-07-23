@@ -430,3 +430,84 @@ Remaining errors (not in our 11 files):
 - src/components/enterprise/AIProgressTracker.tsx: 2 errors (bg, animate properties) — outside scope
 
 Result: All 11 API route files pass TypeScript strict checking. No @ts-nocheck remains. No `any` types used.
+
+---
+Task ID: wave1b-cmd
+Agent: Sub-agent (Command Center redesign)
+Task: Redesign AI Revenue Command Center screen to enterprise-grade quality
+
+Work Log:
+- Read existing command-center-screen.tsx (793 lines, query-centric search interface)
+- Read API route GET /api/command-center/insights (returns companyEngine, emailEngine, capabilityEngine, recommendations, healthScore, + optional AI fields: aiSummary, aiStrategicInsights, aiHealthAnalysis)
+- Read all enterprise components: AIInsightCard, ConfidenceBar, EvidenceBadge, IntelligenceFeed, LoadingState, ErrorState, AIProgressTracker
+- Read globals.css design system: navy sidebar #0F172A, intel blue #3B82F6, confidence scale, intel-card classes, section-container, stat-card
+- Read animated-components: PageTransition, AnimatedCounter, EmptyState
+
+Changes Made:
+- Complete rewrite of /home/z/my-project/src/components/screens/command-center-screen.tsx
+- Replaced query-centric search interface with executive dashboard layout
+- Designed 5 sections matching enterprise requirements:
+  1. Executive Summary Bar — dark navy header with AI briefing, health gauge (circular SVG), live badge, signal change indicator, last refreshed timestamp, refresh button
+  2. Priority Action Grid — 4 clickable cards (Critical Signals, High-Value Leads, Drafts Awaiting Review, Positive Replies) with counts, severity badges, preview items, navigation onClick
+  3. AI Strategic Insights Panel — AI-generated insights with impact badges (HIGH/MEDIUM/LOW), ConfidenceBar, EvidenceBadge sources, recommended action boxes
+  4. Revenue Command Dashboard — 2-column layout:
+     - Left: Account Intelligence Scores (top 5 with rank, name, industry, score bar), Industry Distribution (compact horizontal bars)
+     - Right: Signal Intelligence Feed (type badges, severity, relative time), Activity Timeline (derived from signals + email activity)
+  5. Engine Health Overview — Company Engine, Email Engine, Capability Engine health bars with computed sub-scores + AI Health Analysis
+- Loading state: "Analyzing platform signals..." with step-by-step AIProgressTracker
+- Empty state: explains why empty, suggests adding companies/contacts, has action buttons
+- Error state: "Intelligence generation could not complete" with retry button
+- Uses all required enterprise components: AIProgressTracker, ConfidenceBar, EvidenceBadge, ErrorState, LoadingState
+- Uses shadcn/ui: Badge, Button, Skeleton, ScrollArea, Separator
+- Uses framer-motion: PageTransition, motion.div with staggered animations
+- Uses lucide-react for all icons (25+ icons)
+- Accepts navigateTo prop, all cards navigate to relevant screens
+- 'use client' directive at top, export default function component
+- Helper sub-components defined in same file: HealthGauge, PriorityActionCard, StrategicInsightCard, AccountScoreRow, SignalFeedItem, IndustryBar, EngineHealthBar, CommandLoadingState, CommandEmptyState
+
+TypeScript: `npx tsc --noEmit 2>&1 | grep "command-center"` returns 0 errors.
+Pre-existing error in import-screen.tsx (unrelated) — not introduced by this change.
+
+Result: Command Center redesigned as enterprise-grade AI Revenue Intelligence executive opening screen. Zero new TypeScript errors.
+
+---
+Task ID: wave1d-signal
+Agent: Sub-agent (Signal Intelligence redesign)
+Task: Redesign Signal Intelligence screen to enterprise-grade quality with AI Evidence Framework
+
+Work Log:
+- Read existing signal-intelligence-screen.tsx (667 lines, sidebar analytics layout)
+- Read API route GET /api/signals (returns signals[], summary{}, total, dismissed; POST dismisses)
+- Read all enterprise components: AIInsightCard, ConfidenceBar, EvidenceBadge, IntelligenceFeed, FilterBar, LoadingState, ErrorState, AIProgressTracker
+- Read globals.css design system: intel tokens, confidence scale, intel-card classes, section-container, stat-card
+- Read animated-components: PageTransition, AnimatedCounter, EmptyState
+
+Changes Made:
+- Complete rewrite of /home/z/my-project/src/components/screens/signal-intelligence-screen.tsx (667 → ~750 lines)
+- Replaced sidebar analytics layout with full-width enterprise intelligence feed
+- Designed 6 sections matching enterprise requirements:
+  1. Signal Intelligence Header — Title "Signal Intelligence", subtitle "AI-detected patterns across your accounts and market", severity summary badges (Critical/High/Medium/Low with counts), last scan time, refresh button
+  2. Signal Distribution Analytics — Compact horizontal stacked bar showing signal type distribution, type filter pills (All, Technology, Growth, Partnership, Pain, Leadership), severity filter pills (All, Critical, High, Medium, Low with counts), sort by (Severity, Confidence, Time), search input, clear all
+  3. Featured Signal Alert — Large card for highest-priority signal (critical severity), full evidence chain (signal detected + evidence source + date + company + contact), confidence gauge (circular SVG with animated stroke), "Why It Matters" explanation, "Recommended Action" blue callout, "View Account" CTA button, dismiss button, pulsing red accent strip
+  4. Signal Intelligence Feed — Grid/list of all signals, each card shows: type icon + type badge, title + description, company name (clickable → navigate), contact name, severity badge (color-coded: Critical/High/Medium/Low), ConfidenceBar + EvidenceBadge, expandable "View Evidence" toggle revealing "Why It Matters" + "Recommended Action" boxes, relative time (e.g. "2h ago"), "View Account" button, dismiss button, infinite scroll pagination
+  5. Empty State — Descriptive message: "Start by importing companies and contacts — our AI monitors for buying signals, technology changes, leadership moves, funding events, and engagement patterns." with Import Companies CTA
+  6. Loading State — "Scanning for intelligence signals..." with animated Radar icon + AIProgressTracker showing 4 steps: Reading account data ✓, Analyzing engagement patterns ✓, Monitoring market signals ✓, Generating intelligence ◉
+
+- Every signal shows the AI Evidence Framework: Signal (what detected), Evidence source (with EvidenceBadge), Date, Business impact (Why It Matters), Confidence % (ConfidenceBar), Recommended Action (blue callout box)
+- 4-tier severity system: Critical (severity=high + confidence≥85), High, Medium, Low — derived from API's 3-tier system
+- Smart "Why It Matters" and "Recommended Action" text generators for all 7 signal types (high_engagement, score_spike, positive_reply, bounce_risk, stale_lead, unassigned_high_value, sequence_dropout)
+- Signal categorization: technology, growth, partnership, pain, leadership (mapped from raw API signal types)
+- Infinite scroll with IntersectionObserver, loads 8 more on scroll
+- Local dismiss state + POST /api/signals for server-side dismiss
+- ConfidenceGauge component: circular SVG with animated stroke for featured signal
+- SignalDistributionBar: animated horizontal stacked bar with legend
+- FilterPills: reusable filter button group component
+- All animations via framer-motion: PageTransition, staggered card entry, expand/collapse, gauge animation
+- Uses enterprise components: ConfidenceBar, EvidenceBadge, AIProgressTracker, ErrorState
+- Uses shadcn/ui: Badge, Button, Skeleton, ScrollArea, Separator, Input
+- Accepts navigateTo prop for company/contact navigation
+
+TypeScript: `npx tsc --noEmit 2>&1 | grep "signal-intelligence"` returns 0 errors.
+Pre-existing error in import-screen.tsx (unrelated) — not introduced by this change.
+
+Result: Signal Intelligence redesigned as enterprise-grade AI Evidence Framework intelligence feed. Zero new TypeScript errors.

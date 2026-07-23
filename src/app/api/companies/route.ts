@@ -52,6 +52,9 @@ export async function GET(request: Request) {
       case 'score':
         orderBy = { intelligenceScore: sortDir };
         break;
+      case 'signals':
+        orderBy = { signals: { _count: sortDir } };
+        break;
       case 'updatedAt':
         orderBy = { updatedAt: sortDir };
         break;
@@ -59,26 +62,65 @@ export async function GET(request: Request) {
         orderBy = { rawName: sortDir };
     }
 
-    const [companies, total] = await Promise.all([
+    const [companies, total, globalStats] = await Promise.all([
       db.company.findMany({
         where,
         include: {
-          _count: { select: { contacts: true } },
-          researchCard: true,
+          _count: { select: { contacts: true, signals: true } },
+          researchCard: { select: { id: true } },
+          signals: {
+            where: { status: { in: ['detected', 'validated', 'active'] } },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { id: true, title: true, signalType: true, impact: true },
+          },
         },
         orderBy,
         skip: (page - 1) * limit,
         take: limit,
       }),
       db.company.count({ where }),
+      // Global stats across all companies (ignoring pagination filters)
+      db.company.aggregate({
+        _avg: { intelligenceScore: true },
+        _count: { id: true },
+      }),
     ]);
 
+    const withSignals = await db.company.count({
+      where: { ...where, signals: { some: {} } },
+    });
+    const enriched = await db.company.count({
+      where: { ...where, researchCard: { isNot: null } },
+    });
+
     const result = companies.map((c: any) => ({
-      ...c,
+      id: c.id,
+      rawName: c.rawName,
+      domain: c.domain,
+      industry: c.industry,
+      sizeRange: c.sizeRange,
+      country: c.country,
+      status: c.status,
+      intelligenceScore: c.intelligenceScore,
       contactCount: c._count.contacts,
+      signalCount: c._count.signals,
+      isEnriched: !!c.researchCard,
+      topSignal: c.signals[0] ?? null,
     }));
 
-    return NextResponse.json({ companies: result, total, page, limit });
+    return NextResponse.json({
+      companies: result,
+      total,
+      page,
+      limit,
+      stats: {
+        total: globalStats._count.id,
+        avgScore: Math.round(globalStats._avg.intelligenceScore ?? 0),
+        withSignals,
+        enriched,
+      },
+    });
   } catch (error) {
     console.error('Companies list error:', error);
     return NextResponse.json({ error: 'Failed to load companies' }, { status: 500 });
@@ -99,7 +141,6 @@ export async function POST(request: Request) {
 
     const normalizedName = rawName.trim().toLowerCase();
 
-    // Check for duplicate by normalized name or domain
     const existingWhere: Prisma.CompanyWhereInput = { normalizedName };
     if (domain && typeof domain === 'string' && domain.trim()) {
       existingWhere.OR = [
@@ -132,12 +173,19 @@ export async function POST(request: Request) {
         source: 'manual',
       },
       include: {
-        _count: { select: { contacts: true } },
-        researchCard: true,
+        _count: { select: { contacts: true, signals: true } },
+        researchCard: { select: { id: true } },
       },
     });
 
-    return NextResponse.json({ company: { ...company, contactCount: company._count.contacts } }, { status: 201 });
+    return NextResponse.json({
+      company: {
+        ...company,
+        contactCount: company._count.contacts,
+        signalCount: company._count.signals,
+        isEnriched: !!company.researchCard,
+      },
+    }, { status: 201 });
   } catch (error) {
     console.error('Company create error:', error);
     return NextResponse.json({ error: 'Failed to create company' }, { status: 500 });

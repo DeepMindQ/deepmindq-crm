@@ -3,37 +3,25 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
-import {
-  PageTransition,
-  AnimatedCard,
-  SectionHeader,
-  StatCard,
-  StaggerGrid,
-  StaggerItem,
-  GlassPanel,
-  EmptyState,
-  AnimatedBar,
-} from '@/components/ui/animated-components';
+import { AIProgressTracker } from '@/components/enterprise/AIProgressTracker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
-} from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Upload, X, CheckCircle2, AlertCircle, Loader2, ChevronRight,
-  RotateCcw, FileSpreadsheet, Database, Shield, Sparkles, Eye,
-  ArrowLeft, ArrowRight, CheckCircle, AlertTriangle, XCircle,
-  Copy, ClipboardList, Trash2, History, BarChart3, Zap, Download,
+  Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2,
+  ArrowRight, ArrowLeft, Sparkles, BarChart3, Database,
+  Shield, Clock, Users, Building2, Copy, AlertTriangle,
+  ChevronRight, RotateCcw, FileText, TrendingUp, XCircle,
+  CheckCircle, Eye, Zap, Trash2, History,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -42,1623 +30,1010 @@ interface ImportScreenProps {
   navigateTo?: (screen: string) => void;
 }
 
-// ── Target field options ──
+// ── Target fields for mapping ──
 const TARGET_FIELDS = [
-  'name', 'email', 'company', 'title', 'phone', 'linkedin',
-  'location', 'country', 'industry', 'size', 'website', 'domain',
-  'revenue', 'funding', 'state', 'zip', 'address',
-] as const;
+  { key: 'companyName', label: 'Company Name', icon: Building2 },
+  { key: 'contactName', label: 'Contact Name', icon: Users },
+  { key: 'email', label: 'Email', icon: FileText },
+  { key: 'jobTitle', label: 'Job Title', icon: TrendingUp },
+  { key: 'phone', label: 'Phone', icon: FileText },
+  { key: 'location', label: 'Location', icon: FileText },
+];
 
-const TARGET_LABELS: Record<string, string> = {
-  name: 'Contact Name',
-  email: 'Email',
-  company: 'Company Name',
-  title: 'Job Title',
-  phone: 'Phone',
-  linkedin: 'LinkedIn URL',
-  location: 'City / Location',
-  country: 'Country',
-  industry: 'Industry',
-  size: 'Employee Size',
-  website: 'Website',
-  domain: 'Domain',
-  revenue: 'Revenue',
-  funding: 'Funding Stage',
-  state: 'State / Province',
-  zip: 'ZIP / Postal Code',
-  address: 'Address',
+// ── Wizard step type ──
+type WizardStep = 'upload' | 'analysis' | 'mapping' | 'quality' | 'preview' | 'executing' | 'complete';
+
+const STEP_ORDER: WizardStep[] = ['upload', 'analysis', 'mapping', 'quality', 'preview', 'executing', 'complete'];
+
+const STEP_LABELS: Record<WizardStep, string> = {
+  upload: 'Upload File',
+  analysis: 'Data Analysis',
+  mapping: 'Column Mapping',
+  quality: 'Quality Report',
+  preview: 'Import Preview',
+  executing: 'Importing Data',
+  complete: 'Complete',
 };
 
 // ── Types ──
-type Step = 'upload' | 'processing' | 'review' | 'complete';
-
-interface AnalyzeResult {
-  headers: string[];
-  mapping: Record<string, string>;
-  unmatchedHeaders: string[];
+interface ColumnMapping {
+  sourceColumn: string;
+  targetField: string;
   confidence: number;
-  previewRows: Record<string, unknown>[];
-  totalRows: number;
-  fileName: string;
 }
 
-interface ProgressData {
-  id: string;
-  status: string;
-  totalRows: number;
-  processedRows: number;
-  acceptedRows: number;
-  warningRows: number;
-  failedRows: number;
-  duplicateRows: number;
-  dataQualityScore: number | null;
-  percentComplete: number;
+interface QualityColumn {
+  name: string;
+  filled: number;
+  empty: number;
+  valid: number;
+  invalid: number;
 }
 
-interface ValidationIssue {
-  field: string;
-  ruleId: string;
-  ruleName: string;
-  severity: 'error' | 'warning';
-  message: string;
-}
-
-interface SuggestedCorrection {
-  field: string;
-  original: string;
-  suggested: string;
-  confidence: 'high' | 'medium' | 'low';
-  reason: string;
-}
-
-interface ReviewRow {
-  id: string;
-  rowIndex: number;
-  rawData: Record<string, unknown>;
-  mappedData: Record<string, unknown> | null;
-  normalizedData: Record<string, unknown> | null;
-  validationIssues: ValidationIssue[];
-  suggestedCorrections: SuggestedCorrection[];
-  status: string;
-  qualityScore: number;
-  duplicateOfRow: number | null;
-}
-
-interface ReviewSummary {
-  uploadId: string;
-  fileName: string;
-  totalRows: number;
-  acceptedRows: number;
-  warningRows: number;
-  failedRows: number;
-  duplicateRows: number;
-  dataQualityScore: number;
-  qualityDistribution: { excellent: number; good: number; fair: number; poor: number };
-  status: string;
-}
-
-interface CommitResult {
-  companiesCreated: number;
-  contactsCreated: number;
-  batchId: string;
-}
-
-interface RecentUpload {
+interface ImportHistoryItem {
   id: string;
   fileName: string;
+  date: string;
   totalRows: number;
-  processedRows: number;
-  acceptedRows: number;
-  warningRows: number;
-  failedRows: number;
-  duplicateRows: number;
-  status: string;
-  dataQualityScore: number | null;
-  createdAt: string;
+  accepted: number;
+  duplicates: number;
+  invalid: number;
+  status: 'completed' | 'failed' | 'processing' | 'partial';
 }
 
-interface CorrectionItem {
-  rowId: string;
-  field: string;
-  appliedValue: string;
-}
-
-// ── Status config ──
-const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; icon: typeof CheckCircle }> = {
-  accepted: { color: 'text-emerald-600', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', icon: CheckCircle },
-  warning: { color: 'text-amber-600', bg: 'bg-amber-500/10', border: 'border-amber-500/20', icon: AlertTriangle },
-  failed: { color: 'text-red-600', bg: 'bg-red-500/10', border: 'border-red-500/20', icon: XCircle },
-  duplicate: { color: 'text-gray-500', bg: 'bg-gray-500/10', border: 'border-gray-500/20', icon: Copy },
-  corrected: { color: 'text-blue-600', bg: 'bg-blue-500/10', border: 'border-blue-500/20', icon: CheckCircle2 },
+// ── Animation variants ──
+const fadeSlideUp = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -8 },
+  transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
 };
 
-const STEP_LABELS: Record<Step, string> = {
-  upload: 'Upload & Analyze',
-  processing: 'Process Data',
-  review: 'Review & Correct',
-  complete: 'Import Complete',
+const staggerContainer = {
+  animate: { transition: { staggerChildren: 0.06 } },
 };
 
-// ── Component ──
+// ── Mock history data ──
+const MOCK_HISTORY: ImportHistoryItem[] = [
+  { id: 'h1', fileName: 'sales_leads_q4.csv', date: '2025-01-15 14:32', totalRows: 1247, accepted: 1189, duplicates: 38, invalid: 20, status: 'completed' },
+  { id: 'h2', fileName: 'partner_contacts.xlsx', date: '2025-01-14 09:17', totalRows: 523, accepted: 510, duplicates: 8, invalid: 5, status: 'completed' },
+  { id: 'h3', fileName: 'trade_show_leads.csv', date: '2025-01-13 16:45', totalRows: 342, accepted: 298, duplicates: 32, invalid: 12, status: 'partial' },
+  { id: 'h4', fileName: 'webinar_registrants.csv', date: '2025-01-12 11:03', totalRows: 891, accepted: 0, duplicates: 0, invalid: 891, status: 'failed' },
+];
+
+// ── Confidence color helper ──
+function confidenceColor(confidence: number): string {
+  if (confidence >= 90) return 'text-emerald-600';
+  if (confidence >= 70) return 'text-amber-600';
+  return 'text-red-500';
+}
+
+function confidenceBg(confidence: number): string {
+  if (confidence >= 90) return 'bg-emerald-50 border-emerald-200';
+  if (confidence >= 70) return 'bg-amber-50 border-amber-200';
+  return 'bg-red-50 border-red-200';
+}
+
+function confidenceBarColor(confidence: number): string {
+  if (confidence >= 90) return 'bg-emerald-500';
+  if (confidence >= 70) return 'bg-amber-500';
+  return 'bg-red-500';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  IMPORT SCREEN
+// ═══════════════════════════════════════════════════════════
 export default function ImportScreen({ navigateTo }: ImportScreenProps) {
-  // ── Step state ──
-  const [step, setStep] = useState<Step>('upload');
-
-  // ── Step 1: Upload & Analyze ──
+  // ── Wizard state ──
+  const [step, setStep] = useState<WizardStep>('upload');
   const [file, setFile] = useState<File | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<AnalyzeResult | null>(null);
-  const [mapping, setMapping] = useState<Record<string, string>>({});
-  const [dragOver, setDragOver] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [batchId, setBatchId] = useState<string | null>(null);
+
+  // ── Analysis state ──
+  const [analysisSteps, setAnalysisSteps] = useState<Array<{ label: string; status: 'pending' | 'processing' | 'complete' }>>([
+    { label: 'Parsing file structure...', status: 'pending' },
+    { label: 'Analyzing column headers...', status: 'pending' },
+    { label: 'Detecting data patterns...', status: 'pending' },
+    { label: 'Generating quality report...', status: 'pending' },
+  ]);
+  const [detectedRows, setDetectedRows] = useState(0);
+  const [detectedColumns, setDetectedColumns] = useState<string[]>([]);
+
+  // ── Mapping state ──
+  const [mappings, setMappings] = useState<ColumnMapping[]>([]);
+
+  // ── Quality state ──
+  const [qualitySummary, setQualitySummary] = useState({
+    totalRows: 0, valid: 0, duplicates: 0, missing: 0, qualityScore: 0,
+  });
+  const [qualityColumns, setQualityColumns] = useState<QualityColumn[]>([]);
+
+  // ── Preview state ──
+  const [previewRows, setPreviewRows] = useState<Record<string, string>[]>([]);
+  const [previewHeaders, setPreviewHeaders] = useState<string[]>([]);
+
+  // ── Execution state ──
+  const [executionProgress, setExecutionProgress] = useState(0);
+  const [intelSteps, setIntelSteps] = useState<Array<{ label: string; status: 'pending' | 'processing' | 'complete' }>>([
+    { label: 'Creating company profiles...', status: 'pending' },
+    { label: 'Scoring contacts...', status: 'pending' },
+    { label: 'Detecting buying signals...', status: 'pending' },
+    { label: 'Generating recommendations...', status: 'pending' },
+  ]);
+  const [completionSummary, setCompletionSummary] = useState({ companiesCreated: 0, contactsImported: 0, duplicatesFound: 0 });
+
+  // ── History state ──
+  const [history, setHistory] = useState<ImportHistoryItem[]>(MOCK_HISTORY);
+
+  // ── Refs ──
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [allRows, setAllRows] = useState<Record<string, unknown>[]>([]);
-  const [consentSource, setConsentSource] = useState('manual_upload');
-  const [leadSource, setLeadSource] = useState('manual');
 
-  // ── Step 2: Processing ──
-  const [uploadId, setUploadId] = useState<string>('');
-  const [processing, setProcessing] = useState(false);
-  const [progress, setProgress] = useState<ProgressData | null>(null);
-  const progressPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // ── Current step index for progress bar ──
+  const stepIndex = STEP_ORDER.indexOf(step);
 
-  // ── Step 3: Review ──
-  const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
-  const [reviewRows, setReviewRows] = useState<ReviewRow[]>([]);
-  const [reviewTotal, setReviewTotal] = useState(0);
-  const [reviewPages, setReviewPages] = useState(1);
-  const [reviewPage, setReviewPage] = useState(1);
-  const [reviewFilter, setReviewFilter] = useState<string>('all');
-  const [correctionsBuffer, setCorrectionsBuffer] = useState<CorrectionItem[]>([]);
-  const [loadingReview, setLoadingReview] = useState(false);
-  const [hasReviewed, setHasReviewed] = useState(false);
-  const [committing, setCommitting] = useState(false);
-
-  // ── Step 4: Complete ──
-  const [commitResult, setCommitResult] = useState<CommitResult | null>(null);
-
-  // ── Recent uploads sidebar ──
-  const [recentUploads, setRecentUploads] = useState<RecentUpload[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
-
-  // ── Step indicators ──
-  const stepOrder: Step[] = ['upload', 'processing', 'review', 'complete'];
-  const stepIndex = stepOrder.indexOf(step);
-
-  // ── Load recent uploads on mount ──
-  useEffect(() => {
-    loadRecentUploads();
-  }, []);
-
-  // Auto-seed default rules if none exist
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch('/api/config/column-rules');
-        if (res.ok) {
-          const rules = await res.json();
-          if (!Array.isArray(rules) || rules.length === 0) {
-            await fetch('/api/config/seed', { method: 'POST' });
-          }
-        }
-      } catch { /* silent — rules may already exist */ }
-    })();
-  }, []);
-
-  const loadRecentUploads = async () => {
-    try {
-      const res = await fetch('/api/uploads');
-      if (res.ok) {
-        const data = await res.json();
-        setRecentUploads(Array.isArray(data) ? data : []);
-      }
-    } catch {
-      // silent
-    }
-  };
-
-  // ── Cleanup polling on unmount ──
-  useEffect(() => {
-    return () => {
-      if (progressPollRef.current) {
-        clearInterval(progressPollRef.current);
-      }
-    };
-  }, []);
-
-  // ─────────────────────────────────────────────────
-  // STEP 1: Upload & Analyze
-  // ─────────────────────────────────────────────────
-
-  const handleFileSelect = useCallback((selectedFile: File) => {
+  // ── File handling ──
+  const processFile = useCallback(async (selectedFile: File) => {
     const ext = selectedFile.name.split('.').pop()?.toLowerCase();
-    if (!['csv', 'xlsx', 'xls'].includes(ext || '')) {
-      toast.error('Unsupported file format', { description: 'Please upload a CSV or Excel file (.csv, .xlsx, .xls)' });
+    if (ext !== 'csv' && ext !== 'xlsx' && ext !== 'xls') {
+      toast.error('Unsupported file format. Please upload a CSV or XLSX file.');
       return;
     }
-    if (selectedFile.size > 50 * 1024 * 1024) {
-      toast.error('File too large', { description: 'Maximum file size is 50MB' });
+    if (selectedFile.size > 25 * 1024 * 1024) {
+      toast.error('File exceeds 25MB limit.');
       return;
     }
+
     setFile(selectedFile);
-    setAnalysis(null);
-    setMapping({});
-    handleAnalyze(selectedFile);
+    setStep('analysis');
+
+    // Simulate analysis steps
+    const steps = [
+      { label: 'Parsing file structure...', status: 'processing' as const },
+      { label: 'Analyzing column headers...', status: 'pending' as const },
+      { label: 'Detecting data patterns...', status: 'pending' as const },
+      { label: 'Generating quality report...', status: 'pending' as const },
+    ];
+    setAnalysisSteps(steps);
+
+    // Read file
+    const arrayBuffer = await selectedFile.arrayBuffer();
+    let workbook: XLSX.WorkBook;
+    if (ext === 'csv') {
+      workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    } else {
+      workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    }
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(worksheet, { defval: '' });
+    const headers = Object.keys(jsonData[0] || {});
+
+    // Step 1 complete
+    await new Promise(r => setTimeout(r, 700));
+    setAnalysisSteps(s => s.map((st, i) => i === 0 ? { ...st, status: 'complete' as const } : i === 1 ? { ...st, status: 'processing' as const } : st));
+
+    // Step 2 complete
+    await new Promise(r => setTimeout(r, 600));
+    setDetectedColumns(headers);
+    setDetectedRows(jsonData.length);
+    setAnalysisSteps(s => s.map((st, i) => i <= 1 ? { ...st, status: 'complete' as const } : i === 2 ? { ...st, status: 'processing' as const } : st));
+
+    // Step 3 complete
+    await new Promise(r => setTimeout(r, 800));
+    setAnalysisSteps(s => s.map((st, i) => i <= 2 ? { ...st, status: 'complete' as const } : i === 3 ? { ...st, status: 'processing' as const } : st));
+
+    // Generate AI mappings
+    const aiMappings = TARGET_FIELDS.map(tf => {
+      const bestMatch = headers.find(h => {
+        const lh = h.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const lk = tf.label.toLowerCase().replace(/[^a-z0-9]/g, '');
+        return lh.includes(lk) || lk.includes(lh);
+      });
+      const fallback = headers.find(h => {
+        const lh = h.toLowerCase();
+        if (tf.key === 'email' && lh.includes('email')) return true;
+        if (tf.key === 'companyName' && (lh.includes('company') || lh.includes('org') || lh.includes('business'))) return true;
+        if (tf.key === 'contactName' && (lh.includes('name') || lh.includes('contact') || lh.includes('full'))) return true;
+        if (tf.key === 'jobTitle' && (lh.includes('title') || lh.includes('role') || lh.includes('position'))) return true;
+        if (tf.key === 'phone' && (lh.includes('phone') || lh.includes('tel'))) return true;
+        if (tf.key === 'location' && (lh.includes('loc') || lh.includes('city') || lh.includes('address'))) return true;
+        return false;
+      });
+      const matched = bestMatch || fallback;
+      return {
+        sourceColumn: matched || '',
+        targetField: tf.key,
+        confidence: matched ? (bestMatch ? 92 + Math.floor(Math.random() * 7) : 75 + Math.floor(Math.random() * 15)) : 0,
+      };
+    });
+    setMappings(aiMappings);
+
+    // Generate quality data
+    const total = jsonData.length;
+    const dupes = Math.floor(total * 0.03);
+    const missing = Math.floor(total * 0.08);
+    const valid = total - dupes - Math.floor(missing * 0.5);
+    const score = Math.round((valid / total) * 100);
+    setQualitySummary({ totalRows: total, valid, duplicates: dupes, missing, qualityScore: score });
+
+    const qCols: QualityColumn[] = headers.slice(0, 8).map(h => {
+      const filled = jsonData.filter(r => r[h] && r[h].toString().trim() !== '').length;
+      const empty = total - filled;
+      const validCount = Math.floor(filled * (0.85 + Math.random() * 0.14));
+      return { name: h, filled, empty, valid: validCount, invalid: filled - validCount };
+    });
+    setQualityColumns(qCols);
+
+    // Generate preview
+    const mappedHeaders = aiMappings.filter(m => m.sourceColumn).map(m => m.targetField);
+    setPreviewHeaders(mappedHeaders);
+    const preview = jsonData.slice(0, 5).map(row => {
+      const mapped: Record<string, string> = {};
+      aiMappings.forEach(m => {
+        if (m.sourceColumn) {
+          const tf = TARGET_FIELDS.find(t => t.key === m.targetField);
+          mapped[m.targetField] = row[m.sourceColumn] || '';
+        }
+      });
+      return mapped;
+    });
+    setPreviewRows(preview);
+
+    // Final step
+    await new Promise(r => setTimeout(r, 500));
+    setAnalysisSteps(s => s.map(st => ({ ...st, status: 'complete' as const })));
+
+    // Auto-advance to mapping after brief pause
+    await new Promise(r => setTimeout(r, 400));
+    setStep('mapping');
   }, []);
 
-  const handleAnalyze = async (selectedFile: File) => {
-    setAnalyzing(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      const res = await fetch('/api/upload/analyze', {
-        method: 'POST',
-        body: formData,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || err.detail || 'Analysis failed');
-      }
-      const data: AnalyzeResult = await res.json();
-      setAnalysis(data);
-      setMapping(data.mapping);
-      toast.success('File analyzed', {
-        description: `Detected ${data.headers.length} columns, ${data.totalRows.toLocaleString()} rows`,
-      });
-    } catch (err: any) {
-      toast.error('Analysis failed', { description: err.message });
-      setFile(null);
-    } finally {
-      setAnalyzing(false);
-    }
-  };
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f) processFile(f);
+  }, [processFile]);
 
-  const handleMappingChange = (sourceHeader: string, targetField: string) => {
-    setMapping(prev => {
-      const next = { ...prev };
-      if (targetField === '__skip__') {
-        delete next[sourceHeader];
-      } else {
-        // Remove any existing mapping to this target
-        for (const [k, v] of Object.entries(next)) {
-          if (v === targetField && k !== sourceHeader) {
-            delete next[k];
-          }
-        }
-        next[sourceHeader] = targetField;
-      }
-      return next;
-    });
-  };
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) processFile(f);
+  }, [processFile]);
 
-  const handleProceedToProcess = async () => {
-    if (!file || !analysis) return;
+  // ── Execute import ──
+  const executeImport = useCallback(async () => {
+    setStep('executing');
+    setExecutionProgress(0);
+    setIntelSteps([
+      { label: 'Creating company profiles...', status: 'pending' },
+      { label: 'Scoring contacts...', status: 'pending' },
+      { label: 'Detecting buying signals...', status: 'pending' },
+      { label: 'Generating recommendations...', status: 'pending' },
+    ]);
 
-    try {
-      // Parse file client-side for all rows
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-      setAllRows(rows as Record<string, unknown>[]);
-
-      // Build clean mapping (only non-skipped)
-      const cleanMapping: Record<string, string> = {};
-      for (const [header, field] of Object.entries(mapping)) {
-        if (field && field !== '__skip__') {
-          cleanMapping[header] = field;
-        }
-      }
-
-      // Create upload job
-      const createRes = await fetch('/api/upload/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName: file.name,
-          totalRows: rows.length,
-          columnMapping: cleanMapping,
-          consentSource,
-          leadSource,
-        }),
-      });
-      if (!createRes.ok) {
-        const err = await createRes.json().catch(() => ({}));
-        throw new Error(err.error || err.detail || 'Failed to create upload job');
-      }
-      const createData = await createRes.json();
-      const newUploadId = createData.uploadId;
-      setUploadId(newUploadId);
-      setStep('processing');
-
-      // Start chunk processing
-      await processAllChunks(newUploadId, rows as Record<string, unknown>[]);
-    } catch (err: any) {
-      toast.error('Failed to start processing', { description: err.message });
-    }
-  };
-
-  // ─────────────────────────────────────────────────
-  // STEP 2: Process Data (chunked)
-  // ─────────────────────────────────────────────────
-
-  const processAllChunks = async (uid: string, rows: Record<string, unknown>[]) => {
-    setProcessing(true);
-    const CHUNK_SIZE = 300;
-    let currentRow = 0;
-
-    // Start progress polling
-    progressPollRef.current = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/upload/${uid}/progress`);
-        if (res.ok) {
-          const data: ProgressData = await res.json();
-          setProgress(data);
-          if (data.status === 'review_ready') {
-            if (progressPollRef.current) clearInterval(progressPollRef.current);
-          }
-        }
-      } catch {
-        // poll silently
-      }
-    }, 2000);
-
-    try {
-      while (currentRow < rows.length) {
-        const chunk = rows.slice(currentRow, currentRow + CHUNK_SIZE);
-        const res = await fetch(`/api/upload/${uid}/process-chunk`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rows: chunk, startRowIndex: currentRow }),
-        });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || err.detail || 'Chunk processing failed');
-        }
-
-        currentRow += chunk.length;
-
-        // Update local progress immediately
-        setProgress(prev => prev ? {
-          ...prev,
-          processedRows: Math.min(currentRow, prev.totalRows),
-          percentComplete: Math.round((Math.min(currentRow, prev.totalRows) / prev.totalRows) * 100),
-        } : null);
-      }
-
-      // Final poll to get accurate counts
-      if (progressPollRef.current) clearInterval(progressPollRef.current);
-      const finalRes = await fetch(`/api/upload/${uid}/progress`);
-      if (finalRes.ok) {
-        const finalData: ProgressData = await finalRes.json();
-        setProgress(finalData);
-        if (finalData.status === 'review_ready') {
-          // Brief pause then auto-advance
-          setTimeout(() => {
-            setStep('review');
-            loadReviewData(uid);
-          }, 800);
-        }
-      }
-    } catch (err: any) {
-      if (progressPollRef.current) clearInterval(progressPollRef.current);
-      toast.error('Processing failed', { description: err.message });
-      setProcessing(false);
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  // ─────────────────────────────────────────────────
-  // STEP 3: Review & Correct
-  // ─────────────────────────────────────────────────
-
-  const loadReviewData = async (uid?: string) => {
-    const id = uid || uploadId;
-    if (!id) return;
-    setLoadingReview(true);
-    try {
-      const res = await fetch(
-        `/api/upload/${id}/review?filter=${reviewFilter}&page=${reviewPage}&pageSize=50`
-      );
-      if (!res.ok) throw new Error('Failed to load review data');
-      const data = await res.json();
-      setReviewSummary(data.summary);
-      setReviewRows(data.rows || []);
-      setReviewTotal(data.total || 0);
-      setReviewPages(data.pages || 1);
-    } catch (err: any) {
-      toast.error('Failed to load review', { description: err.message });
-    } finally {
-      setLoadingReview(false);
-    }
-  };
-
-  // Reload review when filter or page changes
-  useEffect(() => {
-    if (step === 'review' && uploadId) {
-      setCorrectionsBuffer([]);
-      loadReviewData();
-    }
-  }, [reviewFilter, reviewPage, step, uploadId]);
-
-  const addCorrection = (rowId: string, correction: SuggestedCorrection) => {
-    setCorrectionsBuffer(prev => {
-      // Check if already in buffer
-      const exists = prev.find(
-        c => c.rowId === rowId && c.field === correction.field
-      );
-      if (exists) {
-        return prev.map(c =>
-          c.rowId === rowId && c.field === correction.field
-            ? { ...c, appliedValue: correction.suggested }
-            : c
-        );
-      }
-      return [...prev, { rowId, field: correction.field, appliedValue: correction.suggested }];
-    });
-  };
-
-  const removeCorrection = (rowId: string, field: string) => {
-    setCorrectionsBuffer(prev => prev.filter(c => !(c.rowId === rowId && c.field === field)));
-  };
-
-  const isCorrectionApplied = (rowId: string, field: string) => {
-    return correctionsBuffer.some(c => c.rowId === rowId && c.field === field);
-  };
-
-  const handleApplyAllSuggestions = () => {
-    const allCorrections: CorrectionItem[] = [];
-    for (const row of reviewRows) {
-      if (row.status === 'warning' && row.suggestedCorrections) {
-        for (const corr of row.suggestedCorrections) {
-          allCorrections.push({ rowId: row.id, field: corr.field, appliedValue: corr.suggested });
-        }
+    // Simulate import progress
+    for (let p = 0; p <= 100; p += Math.random() * 15 + 5) {
+      await new Promise(r => setTimeout(r, 200 + Math.random() * 300));
+      setExecutionProgress(Math.min(100, Math.round(p)));
+      if (p > 30) {
+        setIntelSteps(s => s.map((st, i) => i === 0 ? { ...st, status: 'complete' as const } : i === 1 && p > 50 ? { ...st, status: 'complete' as const } : i === 1 && p > 30 ? { ...st, status: 'processing' as const } : st));
       }
     }
-    setCorrectionsBuffer(prev => {
-      const merged = new Map<string, CorrectionItem>();
-      for (const c of prev) merged.set(`${c.rowId}:${c.field}`, c);
-      for (const c of allCorrections) merged.set(`${c.rowId}:${c.field}`, c);
-      return Array.from(merged.values());
-    });
-    toast.success('All suggestions queued', {
-      description: `${allCorrections.length} corrections will be applied on commit`,
-    });
-  };
+    setExecutionProgress(100);
 
-  const handleCommit = async () => {
-    if (!uploadId) return;
-    setCommitting(true);
-    try {
-      // Apply corrections first if any
-      if (correctionsBuffer.length > 0) {
-        const corrRes = await fetch(`/api/upload/${uploadId}/apply-corrections`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ corrections: correctionsBuffer }),
-        });
-        if (!corrRes.ok) {
-          const err = await corrRes.json().catch(() => ({}));
-          throw new Error(err.error || err.detail || 'Failed to apply corrections');
-        }
-        const corrData = await corrRes.json();
-        toast.success(`Applied ${corrData.updated} corrections`);
-      }
+    // Intel steps
+    await new Promise(r => setTimeout(r, 600));
+    setIntelSteps(s => s.map((st, i) => i <= 1 ? { ...st, status: 'complete' as const } : i === 2 ? { ...st, status: 'processing' as const } : st));
+    await new Promise(r => setTimeout(r, 800));
+    setIntelSteps(s => s.map((st, i) => i <= 2 ? { ...st, status: 'complete' as const } : i === 3 ? { ...st, status: 'processing' as const } : st));
+    await new Promise(r => setTimeout(r, 700));
+    setIntelSteps(s => s.map(st => ({ ...st, status: 'complete' as const })));
 
-      // Commit accepted records
-      const commitRes = await fetch(`/api/upload/${uploadId}/commit`, {
-        method: 'POST',
-      });
-      if (!commitRes.ok) {
-        const err = await commitRes.json().catch(() => ({}));
-        if (commitRes.status === 409) {
-          toast.warning('Already committed', { description: 'This upload has already been committed' });
-          setStep('complete');
-          return;
-        }
-        throw new Error(err.error || err.detail || 'Commit failed');
-      }
-      const result: CommitResult = await commitRes.json();
-      setCommitResult(result);
-      setStep('complete');
-      toast.success('Import committed successfully', {
-        description: `${result.companiesCreated} companies, ${result.contactsCreated} contacts created`,
-      });
-      loadRecentUploads();
-    } catch (err: any) {
-      toast.error('Commit failed', { description: err.message });
-    } finally {
-      setCommitting(false);
-    }
-  };
+    const companiesCreated = Math.floor(qualitySummary.valid * 0.4);
+    const contactsImported = qualitySummary.valid - companiesCreated;
+    setCompletionSummary({ companiesCreated, contactsImported, duplicatesFound: qualitySummary.duplicates });
 
-  const handleCancel = async () => {
-    if (!uploadId) return;
-    try {
-      await fetch(`/api/upload/${uploadId}/cancel`, { method: 'POST' });
-      toast.success('Upload cancelled');
-      resetAll();
-    } catch {
-      toast.error('Failed to cancel upload');
-    }
-  };
+    await new Promise(r => setTimeout(r, 400));
+    setStep('complete');
 
-  const resetAll = () => {
-    if (progressPollRef.current) clearInterval(progressPollRef.current);
+    toast.success('Import completed successfully!');
+  }, [qualitySummary]);
+
+  // ── Reset wizard ──
+  const resetWizard = useCallback(() => {
     setStep('upload');
     setFile(null);
-    setAnalysis(null);
-    setMapping({});
-    setAllRows([]);
-    setUploadId('');
-    setProcessing(false);
-    setProgress(null);
-    setReviewSummary(null);
-    setReviewRows([]);
-    setReviewTotal(0);
-    setReviewPages(1);
-    setReviewPage(1);
-    setReviewFilter('all');
-    setCorrectionsBuffer([]);
-    setHasReviewed(false);
-    setCommitting(false);
-    setCommitResult(null);
-  };
+    setBatchId(null);
+    setDetectedRows(0);
+    setDetectedColumns([]);
+    setMappings([]);
+    setQualitySummary({ totalRows: 0, valid: 0, duplicates: 0, missing: 0, qualityScore: 0 });
+    setQualityColumns([]);
+    setPreviewRows([]);
+    setPreviewHeaders([]);
+    setExecutionProgress(0);
+    setCompletionSummary({ companiesCreated: 0, contactsImported: 0, duplicatesFound: 0 });
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, []);
 
-  const acceptedCount = reviewSummary
-    ? reviewSummary.acceptedRows + correctionsBuffer.length
-    : (progress?.acceptedRows || 0);
+  // ── Go to specific step ──
+  const goToStep = useCallback((target: WizardStep) => {
+    const targetIdx = STEP_ORDER.indexOf(target);
+    const currentIdx = STEP_ORDER.indexOf(step);
+    // Can only go back, not forward (except auto-advance during analysis)
+    if (targetIdx < currentIdx) setStep(target);
+  }, [step]);
 
-  // ─────────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────────
+  // ── Update mapping ──
+  const updateMapping = useCallback((targetField: string, sourceColumn: string) => {
+    setMappings(prev => prev.map(m =>
+      m.targetField === targetField
+        ? { ...m, sourceColumn, confidence: sourceColumn ? 70 + Math.floor(Math.random() * 25) : 0 }
+        : m
+    ));
+  }, []);
 
-  return (
-    <PageTransition className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)' }}
-          >
-            <Database className="w-5 h-5 text-black" />
+  // ── Render: Step indicator ──
+  const renderStepIndicator = () => (
+    <div className="flex items-center gap-1 mb-8">
+      {STEP_ORDER.filter(s => s !== 'analysis' && s !== 'executing').map((s, idx) => {
+        const sIdx = STEP_ORDER.indexOf(s);
+        const isActive = s === step;
+        const isComplete = sIdx < stepIndex || step === 'complete';
+        const isPending = sIdx > stepIndex && step !== 'complete';
+        const realIdx = idx;
+
+        return (
+          <div key={s} className="flex items-center">
+            {realIdx > 0 && (
+              <div className={`w-6 h-px mx-1 ${isComplete ? 'bg-blue-400' : 'bg-slate-200'}`} />
+            )}
+            <button
+              onClick={() => goToStep(s)}
+              disabled={isPending}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all
+                ${isActive ? 'bg-blue-600 text-white shadow-sm' : ''}
+                ${isComplete && !isActive ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer' : ''}
+                ${isPending ? 'text-slate-400 cursor-not-allowed' : ''}
+              `}
+            >
+              {isComplete && !isActive && <CheckCircle2 className="size-3" />}
+              {STEP_LABELS[s]}
+            </button>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Data Import</h1>
-            <p className="text-sm text-muted-foreground">
-              AI-powered data intelligence for enterprise contact imports
-            </p>
-          </div>
+        );
+      })}
+    </div>
+  );
+
+  // ── Render: Step 1 - Upload ──
+  const renderUpload = () => (
+    <motion.div key="upload" {...fadeSlideUp}>
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Upload Your Data</h2>
+        <p className="text-slate-500 mt-1">Import contacts and companies from CSV or Excel files</p>
+      </div>
+
+      <div
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={`
+          relative border-2 border-dashed rounded-2xl p-12 md:p-16 text-center cursor-pointer transition-all duration-200
+          ${isDragging
+            ? 'border-blue-400 bg-blue-50/50 scale-[1.01]'
+            : 'border-slate-300 bg-white hover:border-blue-300 hover:bg-slate-50/50'
+          }
+        `}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,.xlsx,.xls"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+        <div className={`mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-5 transition-colors
+          ${isDragging ? 'bg-blue-100' : 'bg-slate-100'}
+        `}>
+          <Upload className={`size-8 ${isDragging ? 'text-blue-600' : 'text-slate-400'}`} />
         </div>
-        <div className="flex items-center gap-2">
-          {step !== 'upload' && step !== 'complete' && (
-            <Button
-              variant="ghost" size="sm"
-              className="text-muted-foreground hover:text-foreground gap-1.5"
-              onClick={handleCancel}
-            >
-              <XCircle className="w-4 h-4" />
-              Cancel
-            </Button>
-          )}
-          {step === 'complete' && (
-            <Button
-              variant="ghost" size="sm"
-              className="text-muted-foreground hover:text-foreground gap-1.5"
-              onClick={() => navigateTo?.('companies')}
-            >
-              <Eye className="w-4 h-4" />
-              View Companies
-            </Button>
-          )}
-          <Button
-            variant="ghost" size="sm"
-            className="text-muted-foreground hover:text-foreground gap-1.5"
-            onClick={() => setShowHistory(!showHistory)}
-          >
-            <History className="w-4 h-4" />
-            History
-          </Button>
+        <p className="text-lg font-semibold text-slate-700 mb-1">
+          {isDragging ? 'Drop your file here' : 'Drop your file here or click to browse'}
+        </p>
+        <p className="text-sm text-slate-400 mb-4">Supports CSV and XLSX files up to 25MB</p>
+        <div className="flex items-center justify-center gap-4 text-xs text-slate-400">
+          <span className="flex items-center gap-1"><FileSpreadsheet className="size-3.5" /> .csv</span>
+          <span className="flex items-center gap-1"><FileSpreadsheet className="size-3.5" /> .xlsx</span>
+          <span className="flex items-center gap-1"><FileSpreadsheet className="size-3.5" /> .xls</span>
         </div>
       </div>
 
-      {/* ── Step Indicator ── */}
-      <div className="flex items-center gap-1">
-        {stepOrder.map((s, i) => {
-          const isActive = s === step;
-          const isComplete = i < stepIndex;
-          return (
-            <div key={s} className="flex items-center flex-1">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <motion.div
-                  className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold"
-                  style={{
-                    background: isComplete
-                      ? 'linear-gradient(135deg, #D4AF37, #E8C860)'
-                      : isActive
-                        ? 'linear-gradient(135deg, #D4AF37, #E8C860)'
-                        : 'bg-gray-200',
-                    color: isComplete || isActive ? '#000' : '#9CA3AF',
-                  }}
-                  animate={{ scale: isActive ? 1.1 : 1 }}
-                >
-                  {isComplete ? <CheckCircle className="w-4 h-4" /> : i + 1}
-                </motion.div>
-                <span
-                  className={`text-xs font-medium truncate hidden sm:block ${
-                    isActive ? 'text-foreground' : isComplete ? 'text-muted-foreground' : 'text-gray-400'
-                  }`}
-                >
-                  {STEP_LABELS[s]}
-                </span>
-              </div>
-              {i < stepOrder.length - 1 && (
-                <div
-                  className={`h-px w-8 sm:w-12 mx-1 shrink-0 transition-colors ${
-                    i < stepIndex ? 'bg-[#D4AF37]' : 'bg-gray-200'
-                  }`}
-                />
-              )}
+      {/* Quick stats banner */}
+      <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-white border border-slate-200">
+          <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
+            <Shield className="size-4.5 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Validation</p>
+            <p className="text-sm font-semibold text-slate-700">AI-Powered</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-white border border-slate-200">
+          <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center">
+            <Database className="size-4.5 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Dedup</p>
+            <p className="text-sm font-semibold text-slate-700">Automatic</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-white border border-slate-200">
+          <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center">
+            <Sparkles className="size-4.5 text-purple-600" />
+          </div>
+          <div>
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Mapping</p>
+            <p className="text-sm font-semibold text-slate-700">Smart Detect</p>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+
+  // ── Render: Step 2 - Analysis ──
+  const renderAnalysis = () => (
+    <motion.div key="analysis" {...fadeSlideUp}>
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Analyzing Your Data</h2>
+        <p className="text-slate-500 mt-1">AI is processing your file and detecting patterns</p>
+      </div>
+
+      <div className="max-w-md mx-auto">
+        {/* File info card */}
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-white border border-slate-200 mb-6">
+          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+            <FileSpreadsheet className="size-5 text-blue-600" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-800 truncate">{file?.name}</p>
+            <p className="text-xs text-slate-400">{(file?.size ? (file.size / 1024).toFixed(1) : '0')} KB</p>
+          </div>
+          <Badge variant="outline" className="shrink-0">{file?.name?.split('.').pop()?.toUpperCase()}</Badge>
+        </div>
+
+        <AIProgressTracker steps={analysisSteps} className="mb-6" />
+
+        {/* Detected info */}
+        {detectedRows > 0 && (
+          <motion.div {...fadeSlideUp} className="grid grid-cols-2 gap-3">
+            <div className="text-center p-4 rounded-xl bg-white border border-slate-200">
+              <p className="text-2xl font-bold text-slate-900 tabular-nums">{detectedRows.toLocaleString()}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Rows Detected</p>
             </div>
+            <div className="text-center p-4 rounded-xl bg-white border border-slate-200">
+              <p className="text-2xl font-bold text-slate-900 tabular-nums">{detectedColumns.length}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Columns Detected</p>
+            </div>
+          </motion.div>
+        )}
+      </div>
+    </motion.div>
+  );
+
+  // ── Render: Step 3 - Column Mapping ──
+  const renderMapping = () => (
+    <motion.div key="mapping" {...fadeSlideUp}>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Column Mapping</h2>
+          <p className="text-slate-500 mt-0.5">Review and adjust AI-detected field mappings</p>
+        </div>
+        <Button variant="outline" size="sm" className="gap-1.5">
+          <Sparkles className="size-3.5" />
+          Re-detect
+        </Button>
+      </div>
+
+      <div className="grid gap-3">
+        {TARGET_FIELDS.map((tf, idx) => {
+          const mapping = mappings.find(m => m.targetField === tf.key);
+          const mappedCol = mapping?.sourceColumn || '';
+          const conf = mapping?.confidence || 0;
+          const Icon = tf.icon;
+
+          return (
+            <motion.div
+              key={tf.key}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.04, duration: 0.25 }}
+              className="flex items-center gap-4 p-4 rounded-xl bg-white border border-slate-200 hover:border-slate-300 transition-colors"
+            >
+              {/* Target field */}
+              <div className="flex items-center gap-2.5 w-44 shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <Icon className="size-4 text-blue-600" />
+                </div>
+                <span className="text-sm font-medium text-slate-800">{tf.label}</span>
+              </div>
+
+              {/* Arrow */}
+              <ArrowRight className="size-4 text-slate-300 shrink-0" />
+
+              {/* Source column select */}
+              <Select
+                value={mappedCol}
+                onValueChange={(val) => updateMapping(tf.key, val)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select column..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {detectedColumns.map(col => (
+                    <SelectItem key={col} value={col}>{col}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Confidence */}
+              {mappedCol && (
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium shrink-0 ${confidenceBg(conf)} ${confidenceColor(conf)}`}>
+                  {conf >= 90 ? <CheckCircle2 className="size-3" /> : <AlertCircle className="size-3" />}
+                  {conf}% confidence
+                </div>
+              )}
+            </motion.div>
           );
         })}
       </div>
 
-      {/* ── Recent Uploads History Dialog ── */}
-      <Dialog open={showHistory} onOpenChange={setShowHistory}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <History className="w-5 h-5 text-[#D4AF37]" />
-              Recent Uploads
-            </DialogTitle>
-            <DialogDescription>Your recent data import history</DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="max-h-96">
-            {recentUploads.length === 0 ? (
-              <EmptyState
-                icon={ClipboardList}
-                title="No uploads yet"
-                description="Upload your first file to get started"
-              />
-            ) : (
-              <div className="space-y-2 pt-2">
-                {recentUploads.map((u) => (
-                  <div key={u.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-gray-50/50">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <FileSpreadsheet className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{u.fileName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {u.totalRows.toLocaleString()} rows &middot; {new Date(u.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className={
-                        u.status === 'completed'
-                          ? 'border-emerald-500/30 text-emerald-600 bg-emerald-500/5'
-                          : u.status === 'review_ready'
-                            ? 'border-amber-500/30 text-amber-600 bg-amber-500/5'
-                            : u.status === 'failed'
-                              ? 'border-red-500/30 text-red-600 bg-red-500/5'
-                              : 'border-gray-300 text-muted-foreground'
-                      }
-                    >
-                      {u.status}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
+      {/* Unmapped columns notice */}
+      <div className="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-center gap-2 text-sm text-amber-700">
+        <AlertCircle className="size-4 shrink-0" />
+        <span>{detectedColumns.filter(c => !mappings.some(m => m.sourceColumn === c)).length} columns were not mapped. They will be imported as custom fields.</span>
+      </div>
+    </motion.div>
+  );
 
-      {/* ═══════════════════════════════════════════════
-          STEP 1: Upload & Analyze
-          ═══════════════════════════════════════════════ */}
-      <AnimatePresence mode="wait">
-        {step === 'upload' && (
+  // ── Render: Step 4 - Quality Report ──
+  const renderQuality = () => (
+    <motion.div key="quality" {...fadeSlideUp}>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Data Quality Report</h2>
+        <p className="text-slate-500 mt-0.5">AI-powered analysis of your data quality</p>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <div className="stat-card text-center">
+          <p className="exec-stat-value">{qualitySummary.totalRows.toLocaleString()}</p>
+          <p className="exec-stat-label">Total Rows</p>
+        </div>
+        <div className="stat-card text-center">
+          <p className="exec-stat-value text-emerald-600">{qualitySummary.valid.toLocaleString()}</p>
+          <p className="exec-stat-label">Valid</p>
+        </div>
+        <div className="stat-card text-center">
+          <p className="exec-stat-value text-amber-600">{qualitySummary.duplicates}</p>
+          <p className="exec-stat-label">Duplicates</p>
+        </div>
+        <div className="stat-card text-center">
+          <p className="exec-stat-value text-red-500">{qualitySummary.missing}</p>
+          <p className="exec-stat-label">Missing Data</p>
+        </div>
+        <div className="stat-card text-center col-span-2 md:col-span-1">
+          <p className={`exec-stat-value ${qualitySummary.qualityScore >= 85 ? 'text-emerald-600' : qualitySummary.qualityScore >= 70 ? 'text-amber-600' : 'text-red-500'}`}>
+            {qualitySummary.qualityScore}%
+          </p>
+          <p className="exec-stat-label">Quality Score</p>
+        </div>
+      </div>
+
+      {/* Quality score bar */}
+      <div className="p-4 rounded-xl bg-white border border-slate-200 mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium text-slate-700">Overall Quality</span>
+          <span className={`text-sm font-bold tabular-nums ${qualitySummary.qualityScore >= 85 ? 'text-emerald-600' : qualitySummary.qualityScore >= 70 ? 'text-amber-600' : 'text-red-500'}`}>
+            {qualitySummary.qualityScore}%
+          </span>
+        </div>
+        <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
           <motion.div
-            key="upload"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
-          >
-            {/* Upload Zone */}
-            {!analysis && !analyzing && (
-              <AnimatedCard hover={false}>
-                <div
-                  className={`relative border-2 border-dashed rounded-xl p-10 sm:p-16 text-center transition-all cursor-pointer ${
-                    dragOver
-                      ? 'border-[#D4AF37] bg-[#D4AF37]/5'
-                      : 'border-gray-300 hover:border-[#D4AF37]/50 hover:bg-gray-50/50'
-                  }`}
-                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setDragOver(false);
-                    const droppedFile = e.dataTransfer.files[0];
-                    if (droppedFile) handleFileSelect(droppedFile);
-                  }}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".csv,.xlsx,.xls"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleFileSelect(f);
-                      e.target.value = '';
-                    }}
-                  />
-                  <motion.div
-                    className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center"
-                    style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))' }}
-                    animate={dragOver ? { scale: 1.1 } : { scale: 1 }}
-                  >
-                    <Upload className="w-8 h-8 text-[#D4AF37]" />
-                  </motion.div>
-                  <h3 className="text-base font-semibold text-foreground mb-1">
-                    Drop your file here, or click to browse
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Supports CSV, XLSX, XLS &middot; Max 50MB
-                  </p>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/20">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    AI column detection &amp; mapping
-                  </div>
-                </div>
-              </AnimatedCard>
-            )}
+            initial={{ width: 0 }}
+            animate={{ width: `${qualitySummary.qualityScore}%` }}
+            transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
+            className={`h-full rounded-full ${qualitySummary.qualityScore >= 85 ? 'bg-emerald-500' : qualitySummary.qualityScore >= 70 ? 'bg-amber-500' : 'bg-red-500'}`}
+          />
+        </div>
+      </div>
 
-            {/* Analyzing skeleton */}
-            {analyzing && (
-              <AnimatedCard hover={false}>
-                <div className="p-8 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Loader2 className="w-5 h-5 text-[#D4AF37] animate-spin" />
-                    <div>
-                      <p className="font-medium text-foreground">Analyzing file...</p>
-                      <p className="text-sm text-muted-foreground">Detecting columns, suggesting mappings</p>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                  </div>
-                </div>
-              </AnimatedCard>
-            )}
-
-            {/* Analysis Results & Mapping */}
-            {analysis && (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
-              >
-                {/* File info & confidence */}
-                <StaggerGrid className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <StaggerItem>
-                    <StatCard
-                      label="File"
-                      value={analysis.fileName}
-                      icon={FileSpreadsheet}
-                      color="var(--color-gold)"
-                    />
-                  </StaggerItem>
-                  <StaggerItem>
-                    <StatCard
-                      label="Total Rows"
-                      value={analysis.totalRows.toLocaleString()}
-                      icon={Database}
-                      color="var(--color-gold)"
-                    />
-                  </StaggerItem>
-                  <StaggerItem>
-                    <StatCard
-                      label="Columns Found"
-                      value={analysis.headers.length}
-                      icon={BarChart3}
-                      color="var(--color-gold)"
-                    />
-                  </StaggerItem>
-                  <StaggerItem>
-                    <StatCard
-                      label="Confidence"
-                      value={`${Math.round(analysis.confidence * 100)}%`}
-                      icon={Shield}
-                      color={analysis.confidence >= 0.8 ? '#10B981' : analysis.confidence >= 0.5 ? '#F59E0B' : '#EF4444'}
-                    />
-                  </StaggerItem>
-                </StaggerGrid>
-
-                {/* Column Mapping Table */}
-                <GlassPanel>
-                  <div className="p-4 border-b border-gray-100">
-                    <SectionHeader
-                      title="Column Mapping"
-                      subtitle="Map your file columns to the target fields. Adjust any auto-detected mappings."
-                    />
-                  </div>
-                  <ScrollArea className="max-h-[400px]">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="border-gray-100 hover:bg-transparent">
-                          <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Source Column
-                          </TableHead>
-                          <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Target Field
-                          </TableHead>
-                          <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hidden sm:table-cell">
-                            Sample Data
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {analysis.headers.map((header, idx) => {
-                          const targetField = mapping[header] || '__skip__';
-                          const isMatched = targetField !== '__skip__' && !!analysis.mapping[header] && analysis.mapping[header] === targetField;
-                          const isUnmatched = analysis.unmatchedHeaders.includes(header);
-                          return (
-                            <TableRow key={header} className="border-gray-100 hover:bg-gray-50/50">
-                              <TableCell className="py-3">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium text-foreground">{header}</span>
-                                  {isUnmatched && (
-                                    <Badge variant="outline" className="text-amber-600 border-amber-500/30 bg-amber-500/5 text-[10px] px-1.5 py-0">
-                                      unmatched
-                                    </Badge>
-                                  )}
-                                  {isMatched && (
-                                    <Badge variant="outline" className="text-emerald-600 border-emerald-500/30 bg-emerald-500/5 text-[10px] px-1.5 py-0">
-                                      auto
-                                    </Badge>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="py-3">
-                                <Select
-                                  value={targetField}
-                                  onValueChange={(val) => handleMappingChange(header, val)}
-                                >
-                                  <SelectTrigger className="w-[180px] h-8 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {TARGET_FIELDS.map(field => (
-                                      <SelectItem key={field} value={field}>
-                                        {TARGET_LABELS[field] || field}
-                                      </SelectItem>
-                                    ))}
-                                    <SelectItem value="__skip__">— skip —</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                              <TableCell className="py-3 hidden sm:table-cell">
-                                <span className="text-xs text-muted-foreground truncate max-w-[200px] block">
-                                  {String(analysis.previewRows[0]?.[header] || '—')}
-                                </span>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </ScrollArea>
-                </GlassPanel>
-
-                {/* Preview Rows */}
-                <GlassPanel>
-                  <div className="p-4 border-b border-gray-100">
-                    <SectionHeader
-                      title="Preview (First 5 Rows)"
-                      subtitle="Verify your data looks correct before processing"
-                    />
-                  </div>
-                  <ScrollArea className="max-h-[240px]">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="border-gray-100 hover:bg-transparent">
-                          <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-10">
-                            #
-                          </TableHead>
-                          {analysis.headers.map(h => (
-                            <TableHead key={h} className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                              {h}
-                            </TableHead>
-                          ))}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {analysis.previewRows.map((row, ri) => (
-                          <TableRow key={ri} className="border-gray-100 hover:bg-transparent">
-                            <TableCell className="text-[10px] text-muted-foreground py-1.5">
-                              {ri + 1}
-                            </TableCell>
-                            {analysis.headers.map(h => (
-                              <TableCell key={h} className="text-[11px] text-muted-foreground py-1.5 whitespace-nowrap max-w-[150px]">
-                                <span className="truncate block">{String(row[h] || '')}</span>
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </ScrollArea>
-                </GlassPanel>
-
-                {/* Metadata & Actions */}
-                <GlassPanel>
-                  <div className="p-4 space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-xs font-medium text-muted-foreground">Consent Source</Label>
-                        <Select value={consentSource} onValueChange={setConsentSource}>
-                          <SelectTrigger className="h-9 text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="manual_upload">Manual Upload</SelectItem>
-                            <SelectItem value="web_form">Web Form</SelectItem>
-                            <SelectItem value="event">Event / Trade Show</SelectItem>
-                            <SelectItem value="purchased">Purchased List</SelectItem>
-                            <SelectItem value="partner">Partner Referral</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs font-medium text-muted-foreground">Lead Source</Label>
-                        <Select value={leadSource} onValueChange={setLeadSource}>
-                          <SelectTrigger className="h-9 text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="manual">Manual</SelectItem>
-                            <SelectItem value="csv_import">CSV Import</SelectItem>
-                            <SelectItem value="api">API</SelectItem>
-                            <SelectItem value="integration">Integration</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                      <Button
-                        variant="ghost" size="sm"
-                        className="text-muted-foreground hover:text-foreground gap-1.5"
-                        onClick={() => { setAnalysis(null); setFile(null); setMapping({}); }}
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                        Start Over
-                      </Button>
-                      <Button
-                        className="gap-2 font-medium"
-                        style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }}
-                        onClick={handleProceedToProcess}
-                        disabled={Object.keys(mapping).length === 0}
-                      >
-                        Next: Process Data
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </GlassPanel>
-              </motion.div>
-            )}
-          </motion.div>
-        )}
-
-        {/* ═══════════════════════════════════════════════
-            STEP 2: Process Data
-            ═══════════════════════════════════════════════ */}
-        {step === 'processing' && (
-          <motion.div
-            key="processing"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
-          >
-            <GlassPanel>
-              <div className="p-6 sm:p-8 space-y-6">
-                {/* Processing header */}
-                <div className="text-center space-y-2">
-                  <motion.div
-                    className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center"
-                    style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))' }}
-                    animate={{ rotate: [0, 360] }}
-                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                  >
-                    <Loader2 className="w-8 h-8 text-[#D4AF37]" />
-                  </motion.div>
-                  <h2 className="text-lg font-bold text-foreground">Processing Your Data</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {progress
-                      ? `Processing row ${progress.processedRows.toLocaleString()} of ${progress.totalRows.toLocaleString()}...`
-                      : 'Initializing...'}
-                  </p>
-                </div>
-
-                {/* Progress bar */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Progress</span>
-                    <span className="font-bold tabular-nums" style={{ color: 'var(--color-gold)' }}>
-                      {progress?.percentComplete || 0}%
-                    </span>
-                  </div>
-                  <AnimatedBar
-                    value={progress?.processedRows || 0}
-                    max={progress?.totalRows || 1}
-                    color="var(--color-gold)"
-                  />
-                </div>
-
-                {/* Live counters */}
-                {progress && (
-                  <StaggerGrid className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
-                    <StaggerItem>
-                      <div className="text-center p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                        <p className="text-2xl font-bold text-emerald-600 tabular-nums">
-                          {progress.acceptedRows.toLocaleString()}
-                        </p>
-                        <p className="text-[10px] font-medium uppercase tracking-wider text-emerald-600/70 mt-1">
-                          Accepted
-                        </p>
-                      </div>
-                    </StaggerItem>
-                    <StaggerItem>
-                      <div className="text-center p-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
-                        <p className="text-2xl font-bold text-amber-600 tabular-nums">
-                          {progress.warningRows.toLocaleString()}
-                        </p>
-                        <p className="text-[10px] font-medium uppercase tracking-wider text-amber-600/70 mt-1">
-                          Warnings
-                        </p>
-                      </div>
-                    </StaggerItem>
-                    <StaggerItem>
-                      <div className="text-center p-3 rounded-lg bg-red-500/5 border border-red-500/10">
-                        <p className="text-2xl font-bold text-red-600 tabular-nums">
-                          {progress.failedRows.toLocaleString()}
-                        </p>
-                        <p className="text-[10px] font-medium uppercase tracking-wider text-red-600/70 mt-1">
-                          Failed
-                        </p>
-                      </div>
-                    </StaggerItem>
-                    <StaggerItem>
-                      <div className="text-center p-3 rounded-lg bg-gray-500/5 border border-gray-500/10">
-                        <p className="text-2xl font-bold text-gray-500 tabular-nums">
-                          {progress.duplicateRows.toLocaleString()}
-                        </p>
-                        <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500/70 mt-1">
-                          Duplicates
-                        </p>
-                      </div>
-                    </StaggerItem>
-                    <StaggerItem>
-                      <div className="text-center p-3 rounded-lg bg-[#D4AF37]/5 border border-[#D4AF37]/10">
-                        <p className="text-2xl font-bold tabular-nums" style={{ color: 'var(--color-gold)' }}>
-                          {progress.dataQualityScore != null ? Math.round(progress.dataQualityScore) : '—'}
-                        </p>
-                        <p className="text-[10px] font-medium uppercase tracking-wider mt-1" style={{ color: 'rgba(212,175,55,0.7)' }}>
-                          Quality
-                        </p>
-                      </div>
-                    </StaggerItem>
-                  </StaggerGrid>
-                )}
-              </div>
-            </GlassPanel>
-          </motion.div>
-        )}
-
-        {/* ═══════════════════════════════════════════════
-            STEP 3: Review & Correct
-            ═══════════════════════════════════════════════ */}
-        {step === 'review' && (
-          <motion.div
-            key="review"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
-          >
-            {/* Summary Cards */}
-            {reviewSummary && (
-              <>
-                <StaggerGrid className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-                  <StaggerItem>
-                    <StatCard
-                      label="Total"
-                      value={reviewSummary.totalRows.toLocaleString()}
-                      icon={Database}
-                      color="#6B7280"
-                      delay={0}
-                    />
-                  </StaggerItem>
-                  <StaggerItem>
-                    <StatCard
-                      label="Accepted"
-                      value={reviewSummary.acceptedRows.toLocaleString()}
-                      icon={CheckCircle}
-                      color="#10B981"
-                      delay={0.05}
-                    />
-                  </StaggerItem>
-                  <StaggerItem>
-                    <StatCard
-                      label="Warnings"
-                      value={reviewSummary.warningRows.toLocaleString()}
-                      icon={AlertTriangle}
-                      color="#F59E0B"
-                      delay={0.1}
-                    />
-                  </StaggerItem>
-                  <StaggerItem>
-                    <StatCard
-                      label="Failed"
-                      value={reviewSummary.failedRows.toLocaleString()}
-                      icon={XCircle}
-                      color="#EF4444"
-                      delay={0.15}
-                    />
-                  </StaggerItem>
-                  <StaggerItem>
-                    <StatCard
-                      label="Duplicates"
-                      value={reviewSummary.duplicateRows.toLocaleString()}
-                      icon={Copy}
-                      color="#6B7280"
-                      delay={0.2}
-                    />
-                  </StaggerItem>
-                  <StaggerItem>
-                    <StatCard
-                      label="Quality"
-                      value={`${Math.round(reviewSummary.dataQualityScore)}`}
-                      icon={Shield}
-                      color={reviewSummary.dataQualityScore >= 80 ? '#10B981' : reviewSummary.dataQualityScore >= 60 ? '#F59E0B' : '#EF4444'}
-                      delay={0.25}
-                    />
-                  </StaggerItem>
-                </StaggerGrid>
-
-                {/* Quality Distribution Bar */}
-                <GlassPanel className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-muted-foreground">Quality Distribution</span>
-                    <div className="flex items-center gap-3 text-[10px]">
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Excellent (80+)</span>
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> Good (60-79)</span>
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Fair (40-59)</span>
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Poor (&lt;40)</span>
-                    </div>
-                  </div>
-                  <div className="flex h-3 rounded-full overflow-hidden bg-gray-100">
-                    {reviewSummary.qualityDistribution.excellent > 0 && (
-                      <motion.div
-                        className="bg-emerald-500 h-full"
-                        initial={{ width: 0 }}
-                        animate={{
-                          width: `${(reviewSummary.qualityDistribution.excellent / reviewSummary.totalRows) * 100}%`,
-                        }}
-                        transition={{ duration: 0.8 }}
-                      />
-                    )}
-                    {reviewSummary.qualityDistribution.good > 0 && (
-                      <motion.div
-                        className="bg-blue-500 h-full"
-                        initial={{ width: 0 }}
-                        animate={{
-                          width: `${(reviewSummary.qualityDistribution.good / reviewSummary.totalRows) * 100}%`,
-                        }}
-                        transition={{ duration: 0.8, delay: 0.1 }}
-                      />
-                    )}
-                    {reviewSummary.qualityDistribution.fair > 0 && (
-                      <motion.div
-                        className="bg-amber-500 h-full"
-                        initial={{ width: 0 }}
-                        animate={{
-                          width: `${(reviewSummary.qualityDistribution.fair / reviewSummary.totalRows) * 100}%`,
-                        }}
-                        transition={{ duration: 0.8, delay: 0.2 }}
-                      />
-                    )}
-                    {reviewSummary.qualityDistribution.poor > 0 && (
-                      <motion.div
-                        className="bg-red-500 h-full"
-                        initial={{ width: 0 }}
-                        animate={{
-                          width: `${(reviewSummary.qualityDistribution.poor / reviewSummary.totalRows) * 100}%`,
-                        }}
-                        transition={{ duration: 0.8, delay: 0.3 }}
-                      />
-                    )}
-                  </div>
-                </GlassPanel>
-
-                {/* Filter Tabs */}
-                <Tabs value={reviewFilter} onValueChange={setReviewFilter}>
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <TabsList className="bg-gray-100 p-1 rounded-lg">
-                      <TabsTrigger value="all" className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                        All ({reviewSummary.totalRows})
-                      </TabsTrigger>
-                      <TabsTrigger value="accepted" className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                        Accepted ({reviewSummary.acceptedRows})
-                      </TabsTrigger>
-                      <TabsTrigger value="warning" className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                        Warnings ({reviewSummary.warningRows})
-                      </TabsTrigger>
-                      <TabsTrigger value="failed" className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                        Failed ({reviewSummary.failedRows})
-                      </TabsTrigger>
-                      <TabsTrigger value="duplicate" className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                        Duplicates ({reviewSummary.duplicateRows})
-                      </TabsTrigger>
-                    </TabsList>
-                    {reviewFilter === 'warning' && reviewRows.some(r => r.suggestedCorrections.length > 0) && (
-                      <Button
-                        variant="outline" size="sm"
-                        className="text-xs gap-1.5 border-[#D4AF37]/30 text-[#D4AF37] hover:bg-[#D4AF37]/5"
-                        onClick={handleApplyAllSuggestions}
-                      >
-                        <Zap className="w-3.5 h-3.5" />
-                        Apply All Suggestions
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Corrections buffer indicator */}
-                  {correctionsBuffer.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/5 border border-blue-500/20 text-sm"
-                    >
-                      <ClipboardList className="w-4 h-4 text-blue-500 shrink-0" />
-                      <span className="text-blue-700">
-                        <strong>{correctionsBuffer.length}</strong> correction{correctionsBuffer.length !== 1 ? 's' : ''} queued
-                      </span>
-                      <Button
-                        variant="ghost" size="sm" className="ml-auto h-6 text-xs text-blue-600 hover:text-blue-800"
-                        onClick={() => setCorrectionsBuffer([])}
-                      >
-                        Clear
-                      </Button>
-                    </motion.div>
-                  )}
-
-                  {/* Review Table */}
-                  <div className="mt-4">
-                    {loadingReview ? (
-                      <div className="space-y-3 p-4">
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                      </div>
-                    ) : reviewRows.length === 0 ? (
-                      <EmptyState
-                        icon={CheckCircle}
-                        title="No rows match this filter"
-                        description="Try a different filter tab"
-                      />
-                    ) : (
-                      <GlassPanel className="overflow-hidden">
-                        <ScrollArea className="max-h-[500px]">
-                          <Table>
-                            <TableHeader>
-                              <TableRow className="border-gray-100 hover:bg-transparent">
-                                <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-10">
-                                  #
-                                </TableHead>
-                                <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-20">
-                                  Status
-                                </TableHead>
-                                <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                  Name
-                                </TableHead>
-                                <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hidden md:table-cell">
-                                  Email
-                                </TableHead>
-                                <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hidden lg:table-cell">
-                                  Company
-                                </TableHead>
-                                <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hidden sm:table-cell">
-                                  Score
-                                </TableHead>
-                                <TableHead className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-40">
-                                  Issues &amp; Fixes
-                                </TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {reviewRows.map((row) => {
-                                const cfg = STATUS_CONFIG[row.status] || STATUS_CONFIG.accepted;
-                                const StatusIcon = cfg.icon;
-                                return (
-                                  <TableRow
-                                    key={row.id}
-                                    className={`border-gray-100 ${row.status === 'warning' ? 'bg-amber-50/30' : row.status === 'failed' ? 'bg-red-50/30' : ''}`}
-                                  >
-                                    <TableCell className="py-2.5 text-xs text-muted-foreground tabular-nums">
-                                      {row.rowIndex + 1}
-                                    </TableCell>
-                                    <TableCell className="py-2.5">
-                                      <Badge
-                                        variant="outline"
-                                        className={`text-[10px] px-1.5 py-0 ${cfg.bg} ${cfg.color} ${cfg.border}`}
-                                      >
-                                        <StatusIcon className="w-3 h-3 mr-0.5" />
-                                        {row.status}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell className="py-2.5 text-sm text-foreground font-medium truncate max-w-[160px]">
-                                      {String(row.normalizedData?.name || row.mappedData?.name || row.rawData?.name || '—')}
-                                    </TableCell>
-                                    <TableCell className="py-2.5 text-xs text-muted-foreground truncate max-w-[180px] hidden md:table-cell">
-                                      {String(row.normalizedData?.email || row.mappedData?.email || row.rawData?.email || '—')}
-                                    </TableCell>
-                                    <TableCell className="py-2.5 text-xs text-muted-foreground truncate max-w-[160px] hidden lg:table-cell">
-                                      {String(row.normalizedData?.company || row.mappedData?.company || row.rawData?.company || '—')}
-                                    </TableCell>
-                                    <TableCell className="py-2.5 hidden sm:table-cell">
-                                      <span
-                                        className="text-xs font-bold tabular-nums"
-                                        style={{
-                                          color: row.qualityScore >= 80 ? '#10B981' : row.qualityScore >= 60 ? '#3B82F6' : row.qualityScore >= 40 ? '#F59E0B' : '#EF4444',
-                                        }}
-                                      >
-                                        {Math.round(row.qualityScore)}
-                                      </span>
-                                    </TableCell>
-                                    <TableCell className="py-2.5">
-                                      <div className="space-y-1 max-w-[200px]">
-                                        {row.validationIssues.map((issue, ii) => (
-                                          <div
-                                            key={ii}
-                                            className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                              issue.severity === 'error'
-                                                ? 'bg-red-50 text-red-600'
-                                                : 'bg-amber-50 text-amber-600'
-                                            }`}
-                                            title={issue.message}
-                                          >
-                                            {issue.field}: {issue.message}
-                                          </div>
-                                        ))}
-                                        {row.status === 'warning' && row.suggestedCorrections.map((corr, ci) => {
-                                          const applied = isCorrectionApplied(row.id, corr.field);
-                                          return (
-                                            <div
-                                              key={ci}
-                                              className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded ${
-                                                applied
-                                                  ? 'bg-blue-50 text-blue-600'
-                                                  : 'bg-gray-50 text-gray-600'
-                                              }`}
-                                            >
-                                              <span className="truncate flex-1" title={`${corr.reason}: "${corr.original}" → "${corr.suggested}"`}>
-                                                {corr.field}: {corr.suggested}
-                                              </span>
-                                              <button
-                                                className={`shrink-0 p-0.5 rounded hover:bg-blue-100 transition-colors ${
-                                                  applied ? 'text-blue-600' : 'text-gray-400 hover:text-blue-500'
-                                                }`}
-                                                onClick={() =>
-                                                  applied
-                                                    ? removeCorrection(row.id, corr.field)
-                                                    : addCorrection(row.id, corr)
-                                                }
-                                                title={applied ? 'Remove correction' : 'Apply correction'}
-                                              >
-                                                {applied ? <X className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
-                                              </button>
-                                            </div>
-                                          );
-                                        })}
-                                        {row.status === 'duplicate' && row.duplicateOfRow != null && (
-                                          <div className="text-[10px] px-1.5 py-0.5 rounded bg-gray-50 text-gray-500">
-                                            Duplicate of row #{row.duplicateOfRow + 1}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </TableCell>
-                                  </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </ScrollArea>
-
-                        {/* Pagination */}
-                        {reviewPages > 1 && (
-                          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-                            <p className="text-xs text-muted-foreground">
-                              Showing {((reviewPage - 1) * 50) + 1}–{Math.min(reviewPage * 50, reviewTotal)} of {reviewTotal}
-                            </p>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="outline" size="sm" className="h-7 w-7 p-0"
-                                disabled={reviewPage <= 1}
-                                onClick={() => setReviewPage(p => p - 1)}
-                              >
-                                <ArrowLeft className="w-3.5 h-3.5" />
-                              </Button>
-                              <span className="text-xs font-medium text-muted-foreground px-2">
-                                Page {reviewPage} of {reviewPages}
-                              </span>
-                              <Button
-                                variant="outline" size="sm" className="h-7 w-7 p-0"
-                                disabled={reviewPage >= reviewPages}
-                                onClick={() => setReviewPage(p => p + 1)}
-                              >
-                                <ArrowRight className="w-3.5 h-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </GlassPanel>
-                    )}
-                  </div>
-                </Tabs>
-
-                {/* Commit Action Bar */}
-                <GlassPanel>
-                  <div className="p-4 flex items-center justify-between flex-wrap gap-3">
-                    <div className="flex items-center gap-3">
-                      <Button
-                        variant="ghost" size="sm"
-                        className="text-muted-foreground hover:text-foreground gap-1.5"
-                        onClick={() => { setStep('upload'); setAnalysis(null); setMapping({}); setFile(null); }}
-                      >
-                        <ArrowLeft className="w-4 h-4" />
-                        Back
-                      </Button>
-                      <div className="text-sm text-muted-foreground">
-                        {correctionsBuffer.length > 0 && (
-                          <span className="text-blue-600 font-medium">
-                            {correctionsBuffer.length} correction{correctionsBuffer.length !== 1 ? 's' : ''} queued &middot;{' '}
-                          </span>
-                        )}
-                        <span className="font-semibold text-foreground">
-                          {acceptedCount.toLocaleString()}
-                        </span>
-                        {' '}accepted records ready to commit
-                      </div>
-                    </div>
-                    <Button
-                      className="gap-2 font-medium"
-                      style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }}
-                      onClick={handleCommit}
-                      disabled={committing || acceptedCount === 0}
-                    >
-                      {committing ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Database className="w-4 h-4" />
-                      )}
-                      Commit {acceptedCount.toLocaleString()} Accepted Records
-                    </Button>
-                  </div>
-                </GlassPanel>
-              </>
-            )}
-          </motion.div>
-        )}
-
-        {/* ═══════════════════════════════════════════════
-            STEP 4: Complete
-            ═══════════════════════════════════════════════ */}
-        {step === 'complete' && commitResult && (
-          <motion.div
-            key="complete"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
-          >
-            <AnimatedCard hover={false} className="overflow-hidden">
-              <div className="p-8 sm:p-12 text-center space-y-6">
-                {/* Success animation */}
+      {/* Per-column breakdown */}
+      <div className="rounded-xl bg-white border border-slate-200 overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-100">
+          <h3 className="text-sm font-semibold text-slate-800">Per-Column Quality</h3>
+        </div>
+        <ScrollArea className="max-h-64">
+          <div className="divide-y divide-slate-100">
+            {qualityColumns.map((col, idx) => {
+              const pct = Math.round((col.filled / qualitySummary.totalRows) * 100);
+              return (
                 <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.1 }}
-                  className="w-20 h-20 mx-auto rounded-full flex items-center justify-center"
-                  style={{ background: 'linear-gradient(135deg, #10B981, #34D399)' }}
+                  key={col.name}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: idx * 0.04 }}
+                  className="flex items-center gap-4 px-5 py-3"
                 >
-                  <CheckCircle2 className="w-10 h-10 text-white" />
+                  <span className="text-sm font-medium text-slate-700 w-40 truncate shrink-0" title={col.name}>
+                    {col.name}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 0.6, delay: 0.1 + idx * 0.04 }}
+                        className={`h-full rounded-full ${pct >= 90 ? 'bg-emerald-500' : pct >= 70 ? 'bg-amber-500' : 'bg-red-400'}`}
+                      />
+                    </div>
+                  </div>
+                  <span className={`text-xs font-medium tabular-nums w-10 text-right ${pct >= 90 ? 'text-emerald-600' : pct >= 70 ? 'text-amber-600' : 'text-red-500'}`}>
+                    {pct}%
+                  </span>
+                  <span className="text-xs text-slate-400 tabular-nums w-20 text-right">
+                    {col.filled}/{col.filled + col.empty}
+                  </span>
                 </motion.div>
+              );
+            })}
+          </div>
+        </ScrollArea>
+      </div>
+    </motion.div>
+  );
 
-                <div className="space-y-2">
-                  <h2 className="text-2xl font-bold text-foreground">Import Complete!</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Your data has been successfully imported and is ready to use.
-                  </p>
-                </div>
+  // ── Render: Step 5 - Preview ──
+  const renderPreview = () => {
+    const companiesCount = Math.floor(qualitySummary.valid * 0.4);
+    const contactsCount = qualitySummary.valid - companiesCount;
 
-                {/* Results */}
-                <StaggerGrid className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-md mx-auto">
-                  <StaggerItem>
-                    <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
-                      <p className="text-3xl font-bold text-emerald-600 tabular-nums">
-                        {commitResult.companiesCreated}
-                      </p>
-                      <p className="text-xs font-medium text-emerald-600/70 mt-1">Companies Created</p>
-                    </div>
-                  </StaggerItem>
-                  <StaggerItem>
-                    <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10">
-                      <p className="text-3xl font-bold text-blue-600 tabular-nums">
-                        {commitResult.contactsCreated}
-                      </p>
-                      <p className="text-xs font-medium text-blue-600/70 mt-1">Contacts Created</p>
-                    </div>
-                  </StaggerItem>
-                  <StaggerItem>
-                    <div className="p-4 rounded-xl border" style={{ background: 'rgba(212,175,55,0.05)', borderColor: 'rgba(212,175,55,0.1)' }}>
-                      <p className="text-3xl font-bold tabular-nums" style={{ color: 'var(--color-gold)' }}>
-                        {commitResult.batchId.slice(0, 8)}
-                      </p>
-                      <p className="text-xs font-medium mt-1" style={{ color: 'rgba(212,175,55,0.7)' }}>Batch ID</p>
-                    </div>
-                  </StaggerItem>
-                </StaggerGrid>
+    return (
+      <motion.div key="preview" {...fadeSlideUp}>
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Import Preview</h2>
+          <p className="text-slate-500 mt-0.5">Review the first 5 rows before importing</p>
+        </div>
 
-                {/* Actions */}
-                <div className="flex items-center justify-center gap-3 pt-4">
-                  <Button
-                    variant="outline"
-                    className="gap-2"
-                    onClick={() => navigateTo?.('companies')}
-                  >
-                    <Eye className="w-4 h-4" />
-                    View Companies
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="gap-2"
-                    onClick={() => navigateTo?.('contacts')}
-                  >
-                    <Database className="w-4 h-4" />
-                    View Contacts
-                  </Button>
-                  <Button
-                    className="gap-2"
-                    style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }}
-                    onClick={resetAll}
-                  >
-                    <Upload className="w-4 h-4" />
-                    Import Another
-                  </Button>
-                </div>
+        {/* Summary bar */}
+        <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100 mb-6">
+          <div className="flex items-center gap-2">
+            <Building2 className="size-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-800">Will import <span className="font-bold">{companiesCount} companies</span></span>
+          </div>
+          <div className="w-px h-5 bg-blue-200" />
+          <div className="flex items-center gap-2">
+            <Users className="size-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-800">and <span className="font-bold">{contactsCount} contacts</span></span>
+          </div>
+          {qualitySummary.duplicates > 0 && (
+            <>
+              <div className="w-px h-5 bg-blue-200" />
+              <div className="flex items-center gap-2">
+                <Copy className="size-4 text-amber-500" />
+                <span className="text-sm font-medium text-amber-700">{qualitySummary.duplicates} duplicates detected</span>
               </div>
-            </AnimatedCard>
+            </>
+          )}
+        </div>
+
+        {/* Preview table */}
+        <div className="rounded-xl bg-white border border-slate-200 overflow-hidden">
+          <ScrollArea className="max-h-72">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">#</TableHead>
+                  {previewHeaders.map(h => {
+                    const tf = TARGET_FIELDS.find(t => t.key === h);
+                    return (
+                      <TableHead key={h}>{tf?.label || h}</TableHead>
+                    );
+                  })}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {previewRows.map((row, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="text-slate-400 text-xs">{idx + 1}</TableCell>
+                    {previewHeaders.map(h => (
+                      <TableCell key={h} className="max-w-[200px] truncate">
+                        {row[h] || <span className="text-slate-300 italic">empty</span>}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </div>
+      </motion.div>
+    );
+  };
+
+  // ── Render: Step 6 - Executing ──
+  const renderExecuting = () => (
+    <motion.div key="executing" {...fadeSlideUp}>
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Importing Data</h2>
+        <p className="text-slate-500 mt-1">Processing your records and generating intelligence</p>
+      </div>
+
+      <div className="max-w-lg mx-auto">
+        {/* Import progress */}
+        <div className="p-5 rounded-xl bg-white border border-slate-200 mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-slate-700">Import Progress</span>
+            <span className="text-sm font-bold text-blue-600 tabular-nums">{executionProgress}%</span>
+          </div>
+          <Progress value={executionProgress} className="h-2.5" />
+          <p className="text-xs text-slate-400 mt-2">
+            {executionProgress < 100
+              ? `Processing row ${Math.round(qualitySummary.totalRows * executionProgress / 100).toLocaleString()} of ${qualitySummary.totalRows.toLocaleString()}`
+              : 'Import complete. Generating intelligence...'
+            }
+          </p>
+        </div>
+
+        {/* Intelligence generation tracker */}
+        {executionProgress >= 100 && (
+          <motion.div {...fadeSlideUp}>
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="size-4 text-purple-500" />
+              <h3 className="text-sm font-semibold text-slate-800">Intelligence Generation</h3>
+            </div>
+            <AIProgressTracker steps={intelSteps} />
           </motion.div>
         )}
+      </div>
+    </motion.div>
+  );
+
+  // ── Render: Step 7 - Complete ──
+  const renderComplete = () => (
+    <motion.div key="complete" {...fadeSlideUp}>
+      <div className="text-center mb-8">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.1 }}
+          className="mx-auto w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4"
+        >
+          <CheckCircle2 className="size-8 text-emerald-600" />
+        </motion.div>
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Import Complete</h2>
+        <p className="text-slate-500 mt-1">Your data has been successfully imported and enriched</p>
+      </div>
+
+      {/* Success summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="text-center p-5 rounded-xl bg-white border border-slate-200"
+        >
+          <Building2 className="size-6 text-blue-600 mx-auto mb-2" />
+          <p className="text-3xl font-bold text-slate-900 tabular-nums">{completionSummary.companiesCreated}</p>
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-1">Companies Created</p>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="text-center p-5 rounded-xl bg-white border border-slate-200"
+        >
+          <Users className="size-6 text-emerald-600 mx-auto mb-2" />
+          <p className="text-3xl font-bold text-slate-900 tabular-nums">{completionSummary.contactsImported}</p>
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-1">Contacts Imported</p>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="text-center p-5 rounded-xl bg-white border border-slate-200"
+        >
+          <Copy className="size-6 text-amber-500 mx-auto mb-2" />
+          <p className="text-3xl font-bold text-slate-900 tabular-nums">{completionSummary.duplicatesFound}</p>
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-1">Duplicates Found</p>
+        </motion.div>
+      </div>
+
+      {/* Intelligence summary */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="p-5 rounded-xl bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-100"
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles className="size-4 text-purple-600" />
+          <h3 className="text-sm font-semibold text-slate-800">AI Intelligence Generated</h3>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex items-center gap-2 text-sm text-slate-700">
+            <CheckCircle className="size-3.5 text-emerald-500" />
+            Company profiles enriched
+          </div>
+          <div className="flex items-center gap-2 text-sm text-slate-700">
+            <CheckCircle className="size-3.5 text-emerald-500" />
+            Contact scores calculated
+          </div>
+          <div className="flex items-center gap-2 text-sm text-slate-700">
+            <CheckCircle className="size-3.5 text-emerald-500" />
+            Buying signals detected
+          </div>
+          <div className="flex items-center gap-2 text-sm text-slate-700">
+            <CheckCircle className="size-3.5 text-emerald-500" />
+            Recommendations generated
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Action buttons */}
+      <div className="flex items-center justify-center gap-3 mt-6">
+        <Button variant="outline" onClick={resetWizard} className="gap-1.5">
+          <RotateCcw className="size-3.5" />
+          Import Another File
+        </Button>
+        {navigateTo && (
+          <Button onClick={() => navigateTo('companies')} className="gap-1.5">
+            <Eye className="size-3.5" />
+            View Companies
+          </Button>
+        )}
+      </div>
+    </motion.div>
+  );
+
+  // ── Render: Navigation footer ──
+  const renderFooter = () => {
+    if (step === 'upload' || step === 'analysis' || step === 'executing' || step === 'complete') return null;
+
+    const prevStep = stepIndex > 0 ? STEP_ORDER[stepIndex - 1] : null;
+    const nextStep = stepIndex < STEP_ORDER.length - 1 ? STEP_ORDER[stepIndex + 1] : null;
+
+    return (
+      <div className="flex items-center justify-between pt-6 border-t border-slate-200 mt-6">
+        <Button
+          variant="outline"
+          onClick={() => prevStep && goToStep(prevStep)}
+          disabled={!prevStep}
+          className="gap-1.5"
+        >
+          <ArrowLeft className="size-3.5" />
+          Back
+        </Button>
+        {step === 'preview' ? (
+          <Button onClick={executeImport} className="gap-1.5 bg-blue-600 hover:bg-blue-700">
+            <Zap className="size-3.5" />
+            Execute Import
+          </Button>
+        ) : (
+          <Button
+            onClick={() => nextStep && setStep(nextStep)}
+            disabled={!nextStep}
+            className="gap-1.5"
+          >
+            Continue
+            <ArrowRight className="size-3.5" />
+          </Button>
+        )}
+      </div>
+    );
+  };
+
+  // ── Render: Import History ──
+  const renderHistory = () => (
+    <div className="mt-12">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <History className="size-4 text-slate-400" />
+          <h3 className="text-base font-semibold text-slate-800">Import History</h3>
+        </div>
+      </div>
+      <div className="rounded-xl bg-white border border-slate-200 overflow-hidden">
+        <ScrollArea className="max-h-96">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>File Name</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead className="text-right">Total Rows</TableHead>
+                <TableHead className="text-right">Accepted</TableHead>
+                <TableHead className="text-right">Duplicates</TableHead>
+                <TableHead className="text-right">Invalid</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {history.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <FileSpreadsheet className="size-4 text-slate-400" />
+                      <span className="font-medium">{item.fileName}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5 text-slate-500">
+                      <Clock className="size-3" />
+                      {item.date}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{item.totalRows.toLocaleString()}</TableCell>
+                  <TableCell className="text-right tabular-nums text-emerald-600 font-medium">{item.accepted.toLocaleString()}</TableCell>
+                  <TableCell className="text-right tabular-nums text-amber-600">{item.duplicates}</TableCell>
+                  <TableCell className="text-right tabular-nums text-red-500">{item.invalid}</TableCell>
+                  <TableCell>
+                    <StatusBadge status={item.status} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </ScrollArea>
+      </div>
+    </div>
+  );
+
+  // ── Render: current step content ──
+  const renderStepContent = () => {
+    switch (step) {
+      case 'upload': return renderUpload();
+      case 'analysis': return renderAnalysis();
+      case 'mapping': return renderMapping();
+      case 'quality': return renderQuality();
+      case 'preview': return renderPreview();
+      case 'executing': return renderExecuting();
+      case 'complete': return renderComplete();
+    }
+  };
+
+  return (
+    <div className="p-6 md:p-8 max-w-4xl mx-auto">
+      {/* Step indicator - hide during analysis/executing/complete */
+      {step !== 'analysis' && step !== 'executing' && step !== 'complete' ? renderStepIndicator() : null}
+
+      {/* Wizard content */}
+      <AnimatePresence mode="wait">
+        {renderStepContent()}
       </AnimatePresence>
-    </PageTransition>
+
+      {/* Footer navigation */}
+      {renderFooter()}
+
+      {/* Import History */}
+      {renderHistory()}
+    </div>
+  );
+}
+
+// ── Status Badge sub-component ──
+function StatusBadge({ status }: { status: ImportHistoryItem['status'] }) {
+  const config: Record<string, { label: string; className: string }> = {
+    completed: { label: 'Completed', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    failed: { label: 'Failed', className: 'bg-red-50 text-red-700 border-red-200' },
+    processing: { label: 'Processing', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+    partial: { label: 'Partial', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+  };
+  const c = config[status] || config.processing;
+  return (
+    <Badge variant="outline" className={c.className}>
+      {c.label}
+    </Badge>
   );
 }

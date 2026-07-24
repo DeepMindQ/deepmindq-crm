@@ -337,6 +337,41 @@ async function scoreCompany(
     recommendations.push(`URGENT: ${urgentSignals.length} immediate-action signal(s) — ${urgentSignals[0].recommendedAction || 'review now'}`)
   }
 
+  // Wave 8B: Cross-signal association bonus (up to 5pts)
+  const associationCount = await db.intelligenceAssociation.count({
+    where: {
+      companyId,
+      associationType: { in: ['supports', 'extends'] },
+      resolved: false,
+    },
+  })
+  if (associationCount > 0) {
+    const corrPoints = Math.min(associationCount * 2, 5)
+    factors.push({
+      name: 'Signal Correlation',
+      points: corrPoints,
+      maxPoints: 5,
+      description: `${associationCount} supporting signal association(s)`,
+      evidence: `Multiple independent signals corroborate the same intelligence — higher confidence in account fit.`,
+      signalId: undefined,
+      timing: 'ongoing',
+    })
+    // Recalculate total
+    const newTotal = factors.reduce((sum, f) => sum + f.points, 0)
+    return {
+      entityId: companyId,
+      entityType: 'company',
+      score: clamp(Math.max(newTotal, 0), 100),
+      grade: toGrade(clamp(Math.max(newTotal, 0), 100)),
+      factors,
+      breakdown: 'Score: ' + clamp(Math.max(newTotal, 0), 100) + ' because: ' + formatDecomposedBreakdown(factors),
+      recommendations,
+      evidenceCount,
+      scoreConfidence: Math.min(95, evidenceCount >= 5 ? 90 : evidenceCount >= 3 ? 75 : evidenceCount >= 1 ? 55 : 30),
+      scoringMode: 'rule-based',
+    }
+  }
+
   return {
     entityId: companyId,
     entityType: 'company',

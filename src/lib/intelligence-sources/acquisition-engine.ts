@@ -11,6 +11,7 @@ import { RawIntelligenceObject, SOURCE_RELIABILITY } from './types';
 import { resolveCompany, createUnverifiedCompany } from './company-resolution';
 import { adaptToEvidence } from './evidence-adapter';
 import { createKnowledgeEntry } from './knowledge-fabric';
+import { intelligenceObjectToSignalInput, createSignalFromIntelligenceObject } from './signal-creator';
 import type { IConnector } from './connector-interface';
 
 export interface AcquisitionContext {
@@ -130,6 +131,22 @@ export async function processIntelligenceObject(
         data: { status: 'pending_evidence_mapping' },
       });
     }
+
+    // Step 5 (Wave 8B): Create CompanySignal from IntelligenceObject
+    const signalInput = intelligenceObjectToSignalInput({
+      companyId,
+      content: raw.content,
+      summary: raw.summary ?? null,
+      sourceType,
+      sourceName: ctx.connector.name,
+      sourceUrl: raw.sourceUrl ?? null,
+      originalConfidence: confidence,
+      capturedAt: raw.capturedAt || new Date(),
+      metadata: JSON.stringify(raw.metadata || {}),
+    })
+    createSignalFromIntelligenceObject(signalInput).catch(err =>
+      console.warn(`[acquisition] Signal creation failed for company ${companyId}:`, err)
+    )
 
     // Update run and connector counters
     await db.connectorRun.update({

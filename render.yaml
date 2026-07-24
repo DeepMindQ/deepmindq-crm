@@ -1,0 +1,25 @@
+# Render Blueprint — explicit deployment configuration
+# https://docs.render.com/blueprint-spec
+#
+# This file eliminates ambiguity about build/start commands.
+# Render auto-detects this file and uses it for web services.
+
+services:
+  - type: web
+    name: deepmindq-crm
+    runtime: node
+    plan: starter  # Free tier compatible; change to "standard" for production
+    buildCommand: npm install && npm run build:standalone
+    startCommand: node .next/standalone/server.js -p $PORT
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false  # Set manually in Render dashboard
+      - key: NEXTAUTH_SECRET
+        generateValue: true  # Auto-generates a secure value
+      - key: NEXTAUTH_URL
+        fromService:
+          name: deepmindq-crm
+          type: web
+          property: hostport

@@ -23,3 +23,27 @@ Stage Summary:
 - 33/33 unit tests passing
 - All AI routes using unified caller with quality gates and usage tracking
 - Next: Wave 8B — Intelligence Pipeline (evidence ingestion wiring, cross-signal correlation, freshness decay)
+
+---
+Task ID: 8b-1 to 8b-5
+Agent: Main Agent
+Task: Wave 8B — Intelligence Pipeline
+
+Work Log:
+- Discovered remote had additional Wave 8A commits (IO Framework, Quality Gates, Decomposed Scoring, Unified AI Caller)
+- Reset to remote base, verified IO fields already in schema and Prisma client
+- Created signal-creator.ts: Intelligence Object → CompanySignal bridge with classifySignalType, inferSeverity, deduplication, batch creation
+- Created freshness-decay.ts: Signal lifecycle management — expire stale signals, decay confidence, promote aging, stats, backfill
+- Created api/ai/freshness/route.ts: POST scan + GET stats endpoint
+- Enhanced acquisition-engine.ts: Added Step 5 to create CompanySignal from every IntelligenceObject
+- Enhanced score-leads/route.ts: Added signalCorrelation factor (cross-signal association bonus, up to 5pts)
+- Prisma generate + TypeScript build: 0 errors
+- Unit tests: 99 pass / 0 fail
+- Pushed to GitHub: commit 0ed5d98
+
+Stage Summary:
+- Wave 8B Intelligence Pipeline complete
+- 3 new files, 2 enhanced files
+- Signal lifecycle fully automated (creation → scoring → decay → expiry)
+- Cross-signal association now boosts scoring
+- Next: Wave 4 (Pipeline Intelligence screen upgrades)

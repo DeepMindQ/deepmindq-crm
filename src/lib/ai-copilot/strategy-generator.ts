@@ -1,4 +1,3 @@
-// @ts-nocheck — References AIEngagementStrategy model (not yet in schema)
 /**
  * AI Revenue Copilot — Engagement Strategy Generator
  *
@@ -94,14 +93,11 @@ async function logUsage(
     await db.aIGenerationAudit.create({
       data: {
         companyId,
-        feature: FEATURE,
-        model,
-        promptTokens: 0,
-        completionTokens: 0,
-        totalTokens: 0,
-        estimatedCost: 0,
-        status,
-        errorMessage: errorMessage ?? null,
+        generationType: FEATURE,
+        modelUsed: model,
+        outputSummary: `Engagement strategy generated (status: ${status})`,
+        governancePassed: status === 'success',
+        inputParams: JSON.stringify({}),
       },
     });
   } catch (err) {
@@ -428,7 +424,7 @@ export async function getLatestStrategy(
 export async function getStrategyHistory(
   companyId: string,
   limit: number = 10,
-): Promise<Array<EngagementStrategyOutput & { id: string; generatedAt: Date; modelUsed: string }>> {
+): Promise<Array<EngagementStrategyOutput & { id: string; generatedAt: Date; modelUsed: string | null }>> {
   try {
     const records = await db.aIEngagementStrategy.findMany({
       where: { companyId },
@@ -437,7 +433,7 @@ export async function getStrategyHistory(
     });
 
     return records.map((record) => {
-      const strategy: EngagementStrategyOutput & { id: string; generatedAt: Date; modelUsed: string } = {
+      const strategy: EngagementStrategyOutput & { id: string; generatedAt: Date; modelUsed: string | null } = {
         id: record.id,
         situationAssessment: safeParseJSON(record.situationAssessment, {
           currentPhase: 'unknown',

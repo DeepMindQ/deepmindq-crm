@@ -1,23 +1,73 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
-/* ═══════════════════════════════════════════════════════════════
-   Types
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+   Types — AI Evidence Framework Compliant
+   
+   Every AI output must be:
+   - Evidence-backed (web source + URL)
+   - Confidence-scored (0-100%)
+   - Actionable (specific recommended sales action)
+   - Explainable (why this was detected)
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-interface AiInsights {
-  businessOverview: string;
-  keyDevelopments: string[];
-  potentialChallenges: string[];
-  outreachAngle: string;
-  techStack: string[];
-  competitors: string[];
-  webFindings: Array<{ title: string; url: string; snippet: string }>;
+interface EvidenceBackedSignal {
+  signal: string;
+  whyDetected: string;
+  evidenceSource: string;
+  evidenceUrl: string;
+  sourceDate: string;
+  confidence: number; // 0-100
+  businessImpact: string;
+  recommendedAction: string;
 }
 
-/* ═══════════════════════════════════════════════════════════════
+interface EnhancedAiInsights {
+  // Company Understanding
+  companyUnderstanding: {
+    overview: string;
+    industryClassification: string;
+    businessModel: string;
+    revenueIndicators: string[];
+    employeeSignals: string[];
+    geographicPresence: string;
+  };
+  // Technology Intelligence
+  technologyIntelligence: {
+    techStack: string[];
+    cloudUsage: string;
+    digitalMaturity: string; // low | medium | high | advanced
+    engineeringSignals: EvidenceBackedSignal[];
+  };
+  // Business Signals — evidence-backed with full chain
+  businessSignals: EvidenceBackedSignal[];
+  // Key Developments — each with evidence
+  keyDevelopments: EvidenceBackedSignal[];
+  // Outreach Intelligence
+  outreachAngle: {
+    angle: string;
+    rationale: string;
+    evidence: string;
+    recommendedApproach: string;
+    targetStakeholders: Array<{ role: string; focus: string; whyRelevant: string }>;
+  };
+  // Competitive Landscape
+  competitors: Array<{ name: string; threat: 'low' | 'medium' | 'high'; evidence: string }>;
+  // Web findings
+  webFindings: Array<{ title: string; url: string; snippet: string; relevanceScore: number }>;
+  // Metadata
+  generatedAt: string;
+  dataQuality: {
+    webSourcesUsed: number;
+    crmSignalsUsed: number;
+    contactsAnalyzed: number;
+    overallConfidence: number; // 0-100
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    Z-AI SDK helpers
-   ═══════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════════════════ */
 
 async function webSearch(query: string, num = 5) {
   try {
@@ -49,56 +99,156 @@ async function aiChat(systemPrompt: string, userPrompt: string): Promise<string>
 }
 
 /**
- * Parse the LLM text response into the AiInsights shape.
+ * Parse the LLM text response into the EnhancedAiInsights shape.
  */
-function parseAiResponse(raw: string): AiInsights | null {
+function parseAiResponse(raw: string): EnhancedAiInsights | null {
   const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
 
   try {
     const parsed = JSON.parse(cleaned);
-    return {
-      businessOverview: String(parsed.businessOverview ?? ''),
-      keyDevelopments: Array.isArray(parsed.keyDevelopments) ? parsed.keyDevelopments.map(String) : [],
-      potentialChallenges: Array.isArray(parsed.potentialChallenges) ? parsed.potentialChallenges.map(String) : [],
-      outreachAngle: String(parsed.outreachAngle ?? ''),
-      techStack: Array.isArray(parsed.techStack) ? parsed.techStack.map(String) : [],
-      competitors: Array.isArray(parsed.competitors) ? parsed.competitors.map(String) : [],
-      webFindings: Array.isArray(parsed.webFindings) ? parsed.webFindings : [],
-    };
+    return normalizeInsights(parsed);
   } catch {
-    // Regex fallback
+    // Regex fallback for partial parse
   }
 
-  const insights: AiInsights = {
-    businessOverview: '', keyDevelopments: [], potentialChallenges: [],
-    outreachAngle: '', techStack: [], competitors: [], webFindings: [],
-  };
-
-  const boMatch = cleaned.match(/"businessOverview"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-  if (boMatch) insights.businessOverview = boMatch[1].replace(/\\"/g, '"');
-
-  const oaMatch = cleaned.match(/"outreachAngle"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-  if (oaMatch) insights.outreachAngle = oaMatch[1].replace(/\\"/g, '"');
-
-  const extractArr = (key: string, target: string[]) => {
-    const re = new RegExp('"' + key + '"\\s*:\\s*\\[([^\\]]*)\\]', 'g');
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(cleaned)) !== null) {
-      const items = m[1].match(/"((?:[^"\\]|\\.)*)"/g);
-      if (items) target.push(...items.map(s => s.replace(/"/g, '').replace(/\\"/g, '"')));
+  try {
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return normalizeInsights(parsed);
     }
+  } catch {
+    // Fall through
+  }
+
+  return null;
+}
+
+function normalizeInsights(obj: Record<string, unknown>): EnhancedAiInsights {
+  const safeArr = (v: unknown): string[] =>
+    Array.isArray(v) ? v.map(String).filter(Boolean) : [];
+  const safeStr = (v: unknown, fallback = ''): string =>
+    typeof v === 'string' ? v : fallback;
+
+  const normalizeSignal = (s: unknown): EvidenceBackedSignal => {
+    const sig = (s && typeof s === 'object') ? s as Record<string, unknown> : {};
+    return {
+      signal: safeStr(sig.signal, 'Unknown signal'),
+      whyDetected: safeStr(sig.whyDetected, 'Not specified'),
+      evidenceSource: safeStr(sig.evidenceSource, 'Not specified'),
+      evidenceUrl: safeStr(sig.evidenceUrl, ''),
+      sourceDate: safeStr(sig.sourceDate, new Date().toISOString().split('T')[0]),
+      confidence: typeof sig.confidence === 'number' ? Math.min(100, Math.max(0, Math.round(sig.confidence))) : 50,
+      businessImpact: safeStr(sig.businessImpact, 'Not assessed'),
+      recommendedAction: safeStr(sig.recommendedAction, 'Not specified'),
+    };
   };
 
-  extractArr('keyDevelopments', insights.keyDevelopments);
-  extractArr('potentialChallenges', insights.potentialChallenges);
-  extractArr('techStack', insights.techStack);
-  extractArr('competitors', insights.competitors);
+  const businessSignals = Array.isArray(obj.businessSignals)
+    ? obj.businessSignals.map(normalizeSignal).slice(0, 10)
+    : [];
 
-  return insights.businessOverview ? insights : null;
+  const keyDevelopments = Array.isArray(obj.keyDevelopments)
+    ? obj.keyDevelopments.map(normalizeSignal).slice(0, 8)
+    : [];
+
+  const engSignals = Array.isArray(obj.engineeringSignals)
+    ? obj.engineeringSignals.map(normalizeSignal).slice(0, 5)
+    : [];
+
+  const companyUnderstanding = (obj.companyUnderstanding && typeof obj.companyUnderstanding === 'object')
+    ? obj.companyUnderstanding as Record<string, unknown>
+    : {};
+
+  const techIntel = (obj.technologyIntelligence && typeof obj.technologyIntelligence === 'object')
+    ? obj.technologyIntelligence as Record<string, unknown>
+    : {};
+
+  const outreach = (obj.outreachAngle && typeof obj.outreachAngle === 'object')
+    ? obj.outreachAngle as Record<string, unknown>
+    : {};
+
+  const targetStakeholders = Array.isArray(outreach.targetStakeholders)
+    ? outreach.targetStakeholders
+        .filter((e: unknown) => e && typeof e === 'object')
+        .map((e: unknown) => {
+          const t = e as Record<string, unknown>;
+          return { role: safeStr(t.role), focus: safeStr(t.focus), whyRelevant: safeStr(t.whyRelevant) };
+        })
+        .slice(0, 6)
+    : [];
+
+  const competitors = Array.isArray(obj.competitors)
+    ? obj.competitors
+        .filter((c: unknown) => c && typeof c === 'object')
+        .map((c: unknown) => {
+          const comp = c as Record<string, unknown>;
+          return {
+            name: safeStr(comp.name, 'Unknown'),
+            threat: (['low', 'medium', 'high'] as const).includes(String(comp.threat ?? '') ? String(comp.threat) : 'medium') as 'low' | 'medium' | 'high',
+            evidence: safeStr(comp.evidence),
+          };
+        })
+        .slice(0, 8)
+    : [];
+
+  const webFindings = Array.isArray(obj.webFindings)
+    ? obj.webFindings
+        .filter((w: unknown) => w && typeof w === 'object')
+        .map((w: unknown) => {
+          const wf = w as Record<string, unknown>;
+          return {
+            title: safeStr(wf.title),
+            url: safeStr(wf.url),
+            snippet: safeStr(wf.snippet),
+            relevanceScore: typeof wf.relevanceScore === 'number' ? wf.relevanceScore : 0.5,
+          };
+        })
+    : [];
+
+  const dataQuality = (obj.dataQuality && typeof obj.dataQuality === 'object')
+    ? obj.dataQuality as Record<string, unknown>
+    : {};
+
+  return {
+    companyUnderstanding: {
+      overview: safeStr(companyUnderstanding.overview),
+      industryClassification: safeStr(companyUnderstanding.industryClassification),
+      businessModel: safeStr(companyUnderstanding.businessModel),
+      revenueIndicators: safeArr(companyUnderstanding.revenueIndicators),
+      employeeSignals: safeArr(companyUnderstanding.employeeSignals),
+      geographicPresence: safeStr(companyUnderstanding.geographicPresence),
+    },
+    technologyIntelligence: {
+      techStack: safeArr(techIntel.techStack).slice(0, 15),
+      cloudUsage: safeStr(techIntel.cloudUsage),
+      digitalMaturity: ['low', 'medium', 'high', 'advanced'].includes(String(techIntel.digitalMaturity ?? '')) ? String(techIntel.digitalMaturity) : 'medium',
+      engineeringSignals: engSignals,
+    },
+    businessSignals,
+    keyDevelopments,
+    outreachAngle: {
+      angle: safeStr(outreach.angle, 'Not determined'),
+      rationale: safeStr(outreach.rationale),
+      evidence: safeStr(outreach.evidence),
+      recommendedApproach: safeStr(outreach.recommendedApproach),
+      targetStakeholders,
+    },
+    competitors,
+    webFindings,
+    generatedAt: new Date().toISOString(),
+    dataQuality: {
+      webSourcesUsed: typeof dataQuality.webSourcesUsed === 'number' ? dataQuality.webSourcesUsed : 0,
+      crmSignalsUsed: typeof dataQuality.crmSignalsUsed === 'number' ? dataQuality.crmSignalsUsed : 0,
+      contactsAnalyzed: typeof dataQuality.contactsAnalyzed === 'number' ? dataQuality.contactsAnalyzed : 0,
+      overallConfidence: typeof dataQuality.overallConfidence === 'number' ? dataQuality.overallConfidence : 50,
+    },
+  };
 }
 
 /**
  * Full pipeline: web search → AI analysis with live context
+ * Enhanced with Evidence Framework — every output is explainable and actionable
  */
 async function generateIntelligence(
   companyName: string,
@@ -110,13 +260,14 @@ async function generateIntelligence(
   existingResearch: string,
   signalSummaries: string,
   contactSummaries: string,
-): Promise<AiInsights | null> {
+): Promise<EnhancedAiInsights | null> {
   try {
     // Step 1: Search the web for real-time company data
     const searchQueries = [
-      `${companyName} ${industry || ''} company overview recent news`,
-      `${companyName || ''} ${domain || ''} technology stack`,
-      `${companyName || ''} competitors ${industry || ''}`,
+      `${companyName} ${industry || ''} company overview recent news 2025 2026`,
+      `${companyName || ''} ${domain || ''} technology stack cloud engineering`,
+      `${companyName || ''} competitors ${industry || ''} market landscape`,
+      `${companyName || ''} hiring growth funding revenue employees`,
     ];
 
     const searchResults = await Promise.all(
@@ -134,12 +285,24 @@ async function generateIntelligence(
 
     // Step 2: Build context from web results
     const webContext = uniqueResults
-      .slice(0, 10)
+      .slice(0, 15)
       .map((r, i) => `${i + 1}. ${r.title}\n   ${r.snippet}\n   URL: ${r.url}`)
       .join('\n\n');
 
-    // Step 3: AI analysis using web data + DB data
-    const userPrompt = `Analyze this company using BOTH the web search results and the CRM data below.
+    // Step 3: Enhanced AI analysis — Evidence Framework prompt
+    const systemPrompt = `You are a senior enterprise sales intelligence analyst. Your outputs must be evidence-backed, specific, and actionable.
+
+CRITICAL RULES:
+1. Every signal MUST include: the signal description, WHY it was detected, the evidence source (with URL), source date, confidence score (0-100), business impact, and a recommended sales action.
+2. NEVER output vague statements like "Company may need X". Instead: "Company hired 15 cloud engineers in Q1 2026 according to LinkedIn job postings (source URL). Confidence: 85%. Impact: Cloud migration opportunity. Action: Position cloud optimization assessment."
+3. Ground every claim in the web search results. If information is sparse, lower confidence scores accordingly.
+4. Be specific about technology, timing, and business context.
+5. Every competitor mention must include evidence of why they are a competitor.
+6. The outreach angle must be specific enough for a sales rep to use in a first meeting.
+
+OUTPUT FORMAT: Valid JSON only.`;
+
+    const userPrompt = `Analyze this company using BOTH the web search results and the CRM data.
 
 ── CRM DATA ──
 Company Name: ${companyName}
@@ -151,38 +314,100 @@ Size: ${sizeRange || 'Unknown'}
 Existing Research:
 ${existingResearch}
 
-Recent Signals:
-${signalSummaries || 'No recent signals.'}
+Recent Signals (from CRM):
+${signalSummaries || 'No recent signals in CRM.'}
 
-Top Contacts:
-${contactSummaries || 'No contacts.'}
+Top Contacts (from CRM):
+${contactSummaries || 'No contacts in CRM.'}
 
-── LIVE WEB RESULTS ──
+── LIVE WEB RESULTS (${uniqueResults.length} sources) ──
 ${webContext || 'No web results found.'}
 
-── TASK ──
-Generate actionable B2B sales intelligence. Use the web results for REAL, CURRENT information about this company's developments, tech, and competitive landscape. If web results mention specific news, funding, product launches, or leadership changes, include them in keyDevelopments.
+── REQUIRED OUTPUT FORMAT ──
+Generate evidence-backed intelligence. Return valid JSON:
 
-Respond ONLY with valid JSON:
 {
-  "businessOverview": "2-3 sentence overview based on web + CRM data",
-  "keyDevelopments": ["recent development 1 from web", "development 2", "development 3", "development 4", "development 5"],
-  "potentialChallenges": ["challenge 1", "challenge 2", "challenge 3"],
-  "outreachAngle": "Best B2B outreach angle based on their current situation (1-2 sentences)",
-  "techStack": ["technology 1", "technology 2", "technology 3", "technology 4"],
-  "competitors": ["competitor 1", "competitor 2", "competitor 3", "competitor 4", "competitor 5"]
+  "companyUnderstanding": {
+    "overview": "2-3 sentence overview grounded in web + CRM data",
+    "industryClassification": "primary + secondary industry",
+    "businessModel": "how they make money",
+    "revenueIndicators": ["revenue signal 1 with source", "revenue signal 2 with source"],
+    "employeeSignals": ["hiring/firing signal 1 with source", "signal 2 with source"],
+    "geographicPresence": "where they operate"
+  },
+  "technologyIntelligence": {
+    "techStack": ["tech 1", "tech 2", ...],
+    "cloudUsage": "cloud provider and maturity description",
+    "digitalMaturity": "low|medium|high|advanced",
+    "engineeringSignals": [
+      {
+        "signal": "specific engineering signal",
+        "whyDetected": "why we know this",
+        "evidenceSource": "source name",
+        "evidenceUrl": "https://...",
+        "sourceDate": "YYYY-MM-DD",
+        "confidence": 85,
+        "businessImpact": "what this means for sales",
+        "recommendedAction": "specific action sales team should take"
+      }
+    ]
+  },
+  "businessSignals": [
+    {
+      "signal": "specific business signal",
+      "whyDetected": "why this was detected",
+      "evidenceSource": "source name with URL reference",
+      "evidenceUrl": "https://...",
+      "sourceDate": "YYYY-MM-DD",
+      "confidence": 80,
+      "businessImpact": "specific business impact",
+      "recommendedAction": "specific recommended sales action"
+    }
+  ],
+  "keyDevelopments": [
+    {
+      "signal": "specific recent development",
+      "whyDetected": "why this matters",
+      "evidenceSource": "source",
+      "evidenceUrl": "https://...",
+      "sourceDate": "YYYY-MM-DD",
+      "confidence": 90,
+      "businessImpact": "impact description",
+      "recommendedAction": "what to do about it"
+    }
+  ],
+  "outreachAngle": {
+    "angle": "Best B2B outreach angle based on evidence",
+    "rationale": "Why this angle works NOW",
+    "evidence": "Evidence supporting this angle",
+    "recommendedApproach": "warm intro | direct | event-based | referral | content-based",
+    "targetStakeholders": [
+      { "role": "CIO", "focus": "what they care about", "whyRelevant": "why approach this person" }
+    ]
+  },
+  "competitors": [
+    { "name": "Competitor Name", "threat": "low|medium|high", "evidence": "evidence of competition" }
+  ],
+  "webFindings": ${JSON.stringify(uniqueResults.slice(0, 10))},
+  "dataQuality": {
+    "webSourcesUsed": ${uniqueResults.length},
+    "crmSignalsUsed": ${(signalSummaries || '').split('\n').filter(Boolean).length},
+    "contactsAnalyzed": ${(contactSummaries || '').split('\n').filter(Boolean).length},
+    "overallConfidence": <0-100>
+  }
 }
 
-Be specific. Reference real information from web results when available.`;
-
-    const systemPrompt =
-      'You are a B2B sales intelligence analyst. Analyze company data combined with live web search results. Generate actionable, specific, data-driven insights. Always respond with valid JSON only.';
+Be SPECIFIC. Reference real information from web results. Every signal needs evidence.`;
 
     const raw = await aiChat(systemPrompt, userPrompt);
     const insights = parseAiResponse(raw);
 
     if (insights) {
-      insights.webFindings = uniqueResults.slice(0, 10);
+      insights.webFindings = uniqueResults.slice(0, 10).map(r => ({
+        ...r,
+        relevanceScore: r.snippet ? 0.5 : 0.3,
+      }));
+      insights.dataQuality.webSourcesUsed = uniqueResults.length;
     }
 
     return insights;
@@ -192,9 +417,9 @@ Be specific. Reference real information from web results when available.`;
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════════════
    GET /api/companies/[id]/intelligence
-   ═══════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════════════════ */
 
 export async function GET(
   _request: Request,
@@ -257,6 +482,7 @@ export async function GET(
       .map((c) => `${c.rawName} — ${c.title || c.role || 'Unknown role'} (score: ${c.leadScore})`)
       .join('\n');
 
+    // Generate enhanced intelligence with Evidence Framework
     const aiInsights = await generateIntelligence(
       company.rawName,
       company.industry,

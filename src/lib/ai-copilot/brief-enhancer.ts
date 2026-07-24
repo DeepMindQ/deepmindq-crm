@@ -1,4 +1,3 @@
-// @ts-nocheck — References StrategicInsight via reasoning-engine types
 // ── Phase 8: AI Brief Enhancer ──
 // Enhances existing rule-generated AccountBrief with AI-generated strategic narrative,
 // key takeaways, and strategic implications. Uses LLM to produce a deeper, more
@@ -150,27 +149,47 @@ export async function enhanceBrief(
       status: 'success',
     });
 
-    // Update existing AccountBrief
+    // Update existing AccountBrief — map enhanced fields to existing schema columns
+    const briefNarrative = `## Strategic Narrative\n${parsed.narrative}\n\n## Key Takeaways\n${parsed.keyTakeaways.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\n## Strategic Implications\n${parsed.strategicImplications.map(s => `• ${s.implication}: ${s.action}`).join('\n')}`;
+
+    const mergedThemes = (() => {
+      try {
+        const existing = ctx.accountBrief?.themes ? JSON.parse(ctx.accountBrief.themes) : [];
+        return JSON.stringify([...(Array.isArray(existing) ? existing : []), ...parsed.keyTakeaways.slice(0, 5)]);
+      } catch {
+        return JSON.stringify(parsed.keyTakeaways.slice(0, 5));
+      }
+    })();
+
+    const mergedRisks = (() => {
+      try {
+        const existing = ctx.accountBrief?.risks ? JSON.parse(ctx.accountBrief.risks) : [];
+        const newRisks = parsed.strategicImplications
+          .filter(s => s.impact.toLowerCase().includes('risk') || s.impact.toLowerCase().includes('threat'))
+          .map(s => s.implication);
+        return JSON.stringify([...(Array.isArray(existing) ? existing : []), ...newRisks]);
+      } catch {
+        return JSON.stringify([]);
+      }
+    })();
+
     await db.accountBrief.upsert({
       where: { companyId },
       create: {
         companyId,
-        summary: ctx.accountBrief?.summary || `Brief for ${ctx.companyName}`,
-        confidence: ctx.accountBrief?.confidence || 0,
-        aiNarrative: parsed.narrative,
-        aiKeyTakeaways: JSON.stringify(parsed.keyTakeaways),
-        aiStrategicImplications: JSON.stringify(parsed.strategicImplications),
-        aiModelUsed: modelUsed,
+        summary: briefNarrative,
+        confidence: ctx.accountBrief?.confidence || 0.5,
+        themes: mergedThemes,
+        risks: mergedRisks,
+        recommendedEngagement: parsed.strategicImplications[0]?.action || ctx.accountBrief?.recommendations || 'Not determined',
         generatedBy: 'HYBRID',
-        generatedAt: new Date(),
       },
       update: {
-        aiNarrative: parsed.narrative,
-        aiKeyTakeaways: JSON.stringify(parsed.keyTakeaways),
-        aiStrategicImplications: JSON.stringify(parsed.strategicImplications),
-        aiModelUsed: modelUsed,
+        summary: briefNarrative,
+        themes: mergedThemes,
+        risks: mergedRisks,
+        recommendedEngagement: parsed.strategicImplications[0]?.action || ctx.accountBrief?.recommendations || 'Not determined',
         generatedBy: 'HYBRID',
-        generatedAt: new Date(),
       },
     });
 
@@ -217,16 +236,14 @@ export async function getEnhancedBrief(companyId: string) {
     select: {
       id: true,
       summary: true,
-      aiNarrative: true,
-      aiKeyTakeaways: true,
-      aiStrategicImplications: true,
-      aiModelUsed: true,
+      themes: true,
+      risks: true,
+      recommendedEngagement: true,
+      evidenceReferences: true,
       generatedBy: true,
       generatedAt: true,
       confidence: true,
-      themes: true,
-      risks: true,
-      recommendations: true,
+      opportunityAreas: true,
     },
   });
 }

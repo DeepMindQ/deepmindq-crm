@@ -1021,11 +1021,16 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                   <Sparkles size={16} className="text-blue-600" />
                   AI Intelligence Profile
                 </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Real-time AI analysis with live web intelligence</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Evidence-backed intelligence with full reasoning chain</p>
               </div>
               {!aiInsights && !loadingIntel && (
                 <Button size="sm" onClick={fetchIntelligence} className="bg-blue-600 hover:bg-blue-700 text-white text-xs gap-2">
                   <Sparkles size={14} /> Analyze Company
+                </Button>
+              )}
+              {aiInsights && (
+                <Button size="sm" onClick={fetchIntelligence} variant="outline" className="gap-2 text-xs border-blue-200 hover:bg-blue-50">
+                  <RotateCcw size={13} /> Re-analyze
                 </Button>
               )}
             </div>
@@ -1035,7 +1040,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                 <div className="p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <Loader2 size={16} className="text-blue-600 animate-spin" />
-                    <span className="text-sm font-medium text-foreground">Analyzing company intelligence...</span>
+                    <span className="text-sm font-medium text-foreground">Gathering intelligence with web search + AI analysis...</span>
                   </div>
                   <AIProgressTracker steps={intelSteps} />
                 </div>
@@ -1052,58 +1057,202 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
               </AnimatedCard>
             ) : aiInsights ? (
               <div className="space-y-6">
-                {/* Business Overview */}
+                {/* ── Company Understanding ── */}
                 <AnimatedCard delay={0}>
                   <div className="p-5 space-y-4">
                     <div className="flex items-center gap-2">
                       <div className="h-5 w-1.5 rounded-full bg-blue-500" />
                       <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
-                        <Building2 size={12} /> Executive Summary
+                        <Building2 size={12} /> Company Understanding
                       </h4>
                     </div>
-                    <p className="text-sm text-foreground/80 leading-relaxed">{aiInsights.businessOverview}</p>
+                    {aiInsights.companyUnderstanding ? (
+                      <div className="space-y-3">
+                        <p className="text-sm text-foreground/80 leading-relaxed">{aiInsights.companyUnderstanding.overview}</p>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {aiInsights.companyUnderstanding.industryClassification && (
+                            <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-200">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Industry</p>
+                              <p className="text-xs font-medium text-foreground mt-0.5">{aiInsights.companyUnderstanding.industryClassification}</p>
+                            </div>
+                          )}
+                          {aiInsights.companyUnderstanding.businessModel && (
+                            <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-200">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Business Model</p>
+                              <p className="text-xs font-medium text-foreground mt-0.5">{aiInsights.companyUnderstanding.businessModel}</p>
+                            </div>
+                          )}
+                          {aiInsights.companyUnderstanding.geographicPresence && (
+                            <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-200">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Geography</p>
+                              <p className="text-xs font-medium text-foreground mt-0.5">{aiInsights.companyUnderstanding.geographicPresence}</p>
+                            </div>
+                          )}
+                        </div>
+                        {(aiInsights.companyUnderstanding.revenueIndicators?.length > 0) && (
+                          <div className="space-y-1.5">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Revenue Indicators</p>
+                            <div className="space-y-1">
+                              {aiInsights.companyUnderstanding.revenueIndicators.map((ri: string, i: number) => (
+                                <div key={i} className="flex items-start gap-2">
+                                  <DollarSign size={11} className="text-emerald-600 shrink-0 mt-0.5" />
+                                  <p className="text-xs text-foreground/70">{ri}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {(aiInsights.companyUnderstanding.employeeSignals?.length > 0) && (
+                          <div className="space-y-1.5">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Employee Signals</p>
+                            <div className="space-y-1">
+                              {aiInsights.companyUnderstanding.employeeSignals.map((es: string, i: number) => (
+                                <div key={i} className="flex items-start gap-2">
+                                  <Users size={11} className="text-blue-600 shrink-0 mt-0.5" />
+                                  <p className="text-xs text-foreground/70">{es}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-foreground/80 leading-relaxed">{aiInsights.businessOverview}</p>
+                    )}
                     <div className="flex items-center gap-3 pt-1">
-                      <ConfidenceBar value={company?.intelligenceScore || 72} label="Overall Confidence" size="sm" />
+                      <ConfidenceBar value={aiInsights.dataQuality?.overallConfidence ?? company?.intelligenceScore ?? 70} label="Overall Confidence" size="sm" />
+                      {aiInsights.dataQuality && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {aiInsights.dataQuality.webSourcesUsed} web sources | {aiInsights.dataQuality.crmSignalsUsed} CRM signals
+                        </span>
+                      )}
                     </div>
                   </div>
                 </AnimatedCard>
 
-                {/* Key Developments & Challenges - 2 col */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* ── Evidence-Backed Business Signals ── */}
+                {aiInsights.businessSignals && aiInsights.businessSignals.length > 0 && (
                   <AnimatedCard delay={0.1}>
                     <div className="p-5 space-y-4">
                       <div className="flex items-center gap-2">
                         <div className="h-5 w-1.5 rounded-full bg-amber-500" />
                         <h4 className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1.5">
-                          <TrendingUp size={12} /> Key Developments
+                          <Bell size={12} /> Business Signals — Evidence Chain
                         </h4>
+                        <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200">{aiInsights.businessSignals.length}</Badge>
                       </div>
                       <div className="space-y-3">
-                        {(aiInsights.keyDevelopments || []).length === 0 && (
-                          <p className="text-xs text-muted-foreground italic py-2">No key developments identified yet. Run analysis to detect recent company news, funding, and product launches.</p>
-                        )}
-                        {(aiInsights.keyDevelopments || []).map((dev: any, i: number) => {
-                          const text = typeof dev === 'string' ? dev : dev.text || dev.description || '';
-                          const conf = typeof dev === 'object' ? (dev.confidence ?? 70 + (5 - i) * 5) : 75 + (5 - i) * 4;
-                          const source = typeof dev === 'object' ? (dev.source || 'web') : 'web';
-                          return (
-                            <div key={i} className="space-y-2 p-3 rounded-lg bg-amber-50/50 border border-amber-100">
-                              <div className="flex items-start gap-3">
-                                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 text-[10px] font-bold text-amber-700">{i + 1}</div>
-                                <p className="text-xs text-foreground/80 leading-relaxed flex-1">{text}</p>
-                              </div>
-                              <div className="flex items-center gap-3 ml-8">
-                                <EvidenceBadge source={source} confidence={conf} />
-                                <ConfidenceBar value={Math.min(conf, 98)} size="sm" className="flex-1 max-w-[120px]" />
+                        {aiInsights.businessSignals.map((sig: any, i: number) => (
+                          <div key={i} className="p-3 rounded-lg border border-amber-100 bg-amber-50/30 space-y-2">
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="text-xs font-medium text-foreground flex-1">{sig.signal}</p>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <ConfidenceBar value={sig.confidence || 50} size="sm" className="max-w-[80px]" />
+                                <span className="text-[10px] font-semibold" style={{ color: sig.confidence >= 75 ? '#16a34a' : sig.confidence >= 50 ? '#ca8a04' : '#dc2626' }}>
+                                  {sig.confidence || 50}%
+                                </span>
                               </div>
                             </div>
-                          );
-                        })}
+                            {sig.whyDetected && (
+                              <p className="text-[11px] text-foreground/60 pl-3 border-l-2 border-amber-200">
+                                <span className="font-medium text-amber-700">Why detected:</span> {sig.whyDetected}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-4 pl-3 text-[10px]">
+                              {sig.evidenceSource && <span className="text-muted-foreground">Source: <span className="font-medium text-foreground/70">{sig.evidenceSource}</span></span>}
+                              {sig.sourceDate && <span className="text-muted-foreground">Date: <span className="font-medium text-foreground/70">{sig.sourceDate}</span></span>}
+                              {sig.evidenceUrl && (
+                                <a href={sig.evidenceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 hover:underline">
+                                  <ExternalLink size={10} /> Verify
+                                </a>
+                              )}
+                            </div>
+                            {sig.businessImpact && (
+                              <p className="text-[11px] text-foreground/60 pl-3">
+                                <span className="font-medium text-blue-600">Impact:</span> {sig.businessImpact}
+                              </p>
+                            )}
+                            {sig.recommendedAction && (
+                              <div className="ml-3 px-2.5 py-1.5 rounded-md bg-blue-50 border border-blue-100 text-[11px] text-blue-800">
+                                <span className="font-medium">Action:</span> {sig.recommendedAction}
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </AnimatedCard>
+                )}
 
-                  <AnimatedCard delay={0.15}>
+                {/* ── Key Developments with Evidence ── */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {aiInsights.keyDevelopments && aiInsights.keyDevelopments.length > 0 && typeof aiInsights.keyDevelopments[0] === 'object' ? (
+                    <AnimatedCard delay={0.15}>
+                      <div className="p-5 space-y-4">
+                        <div className="flex items-center gap-2">
+                          <div className="h-5 w-1.5 rounded-full bg-emerald-500" />
+                          <h4 className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
+                            <TrendingUp size={12} /> Key Developments
+                          </h4>
+                        </div>
+                        <div className="space-y-3">
+                          {aiInsights.keyDevelopments.map((dev: any, i: number) => (
+                            <div key={i} className="p-3 rounded-lg bg-emerald-50/30 border border-emerald-100 space-y-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-xs font-medium text-foreground flex-1">{dev.signal || dev.text || dev}</p>
+                                <ConfidenceBar value={dev.confidence || 70} size="sm" className="max-w-[70px] shrink-0" />
+                              </div>
+                              {(dev.whyDetected || dev.evidenceSource) && (
+                                <p className="text-[11px] text-foreground/60 pl-3 border-l-2 border-emerald-200">
+                                  {dev.whyDetected || `Source: ${dev.evidenceSource || 'web intelligence'}`}
+                                </p>
+                              )}
+                              {dev.recommendedAction && (
+                                <div className="ml-3 px-2.5 py-1.5 rounded-md bg-emerald-50 border border-emerald-100 text-[11px] text-emerald-800">
+                                  <span className="font-medium">Action:</span> {dev.recommendedAction}
+                                </div>
+                              )}
+                              {dev.evidenceUrl && (
+                                <a href={dev.evidenceUrl} target="_blank" rel="noopener noreferrer" className="ml-3 flex items-center gap-1 text-[10px] text-blue-600 hover:underline">
+                                  <ExternalLink size={10} /> {dev.evidenceSource || dev.evidenceUrl}
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </AnimatedCard>
+                  ) : (
+                    <AnimatedCard delay={0.1}>
+                      <div className="p-5 space-y-4">
+                        <div className="flex items-center gap-2">
+                          <div className="h-5 w-1.5 rounded-full bg-amber-500" />
+                          <h4 className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1.5">
+                            <TrendingUp size={12} /> Key Developments
+                          </h4>
+                        </div>
+                        <div className="space-y-3">
+                          {(aiInsights.keyDevelopments || []).map((dev: any, i: number) => {
+                            const text = typeof dev === 'string' ? dev : dev.text || dev.description || dev.signal || '';
+                            const conf = typeof dev === 'object' ? (dev.confidence ?? 70) : 75;
+                            return text ? (
+                              <div key={i} className="p-3 rounded-lg bg-amber-50/50 border border-amber-100">
+                                <p className="text-xs text-foreground/80 leading-relaxed">{text}</p>
+                                <div className="flex items-center gap-3 mt-2">
+                                  <EvidenceBadge source={dev.evidenceSource || dev.source || 'web'} confidence={conf} />
+                                  <ConfidenceBar value={Math.min(conf, 98)} size="sm" className="flex-1 max-w-[120px]" />
+                                </div>
+                              </div>
+                            ) : null;
+                          })}
+                          {!aiInsights.keyDevelopments?.length && <p className="text-xs text-muted-foreground italic py-2">No developments detected yet.</p>}
+                        </div>
+                      </div>
+                    </AnimatedCard>
+                  )}
+
+                  {/* ── Challenges ── */}
+                  <AnimatedCard delay={0.2}>
                     <div className="p-5 space-y-4">
                       <div className="flex items-center gap-2">
                         <div className="h-5 w-1.5 rounded-full bg-red-400" />
@@ -1113,7 +1262,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                       </div>
                       <div className="space-y-3">
                         {(aiInsights.potentialChallenges || []).length === 0 && (
-                          <p className="text-xs text-muted-foreground italic py-2">No challenges identified. The AI analysis will surface potential friction points in the sales process.</p>
+                          <p className="text-xs text-muted-foreground italic py-2">No challenges identified. AI analysis will surface potential friction points.</p>
                         )}
                         {(aiInsights.potentialChallenges || []).map((ch: string, i: number) => (
                           <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-red-50/50 border border-red-100">
@@ -1126,67 +1275,145 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                   </AnimatedCard>
                 </div>
 
-                {/* Tech Stack & Competitors - 2 col */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <AnimatedCard delay={0.2}>
-                    <div className="p-5 space-y-4">
-                      <div className="flex items-center gap-2">
-                        <div className="h-5 w-1.5 rounded-full bg-blue-500" />
-                        <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
-                          <Layers size={12} /> Technology Stack
-                        </h4>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {(aiInsights.techStack || []).length === 0 && (
-                          <p className="text-xs text-muted-foreground italic">No technologies detected. Analysis will identify the company's stack from web data and job postings.</p>
+                {/* ── Technology Intelligence ── */}
+                {aiInsights.technologyIntelligence && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <AnimatedCard delay={0.25}>
+                      <div className="p-5 space-y-4">
+                        <div className="flex items-center gap-2">
+                          <div className="h-5 w-1.5 rounded-full bg-blue-500" />
+                          <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
+                            <Layers size={12} /> Technology Stack
+                          </h4>
+                        </div>
+                        {aiInsights.technologyIntelligence.digitalMaturity && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-[10px] text-muted-foreground">Digital Maturity:</span>
+                            <Badge className={`text-[10px] px-2 py-0 ${
+                              aiInsights.technologyIntelligence.digitalMaturity === 'advanced' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                              aiInsights.technologyIntelligence.digitalMaturity === 'high' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                              aiInsights.technologyIntelligence.digitalMaturity === 'medium' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                              'bg-red-100 text-red-700 border-red-200'
+                            }`}>{aiInsights.technologyIntelligence.digitalMaturity}</Badge>
+                          </div>
                         )}
-                        {(aiInsights.techStack || []).map((tech: string, i: number) => (
-                          <Badge key={i} variant="outline" className="text-xs px-3 py-1 border-blue-200 text-blue-700 bg-blue-50/50">{tech}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </AnimatedCard>
-
-                  <AnimatedCard delay={0.25}>
-                    <div className="p-5 space-y-4">
-                      <div className="flex items-center gap-2">
-                        <div className="h-5 w-1.5 rounded-full bg-sky-500" />
-                        <h4 className="text-xs font-bold text-sky-600 uppercase tracking-wider flex items-center gap-1.5">
-                          <Target size={12} /> Competitive Landscape
-                        </h4>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {(aiInsights.competitors || []).length === 0 && (
-                          <p className="text-xs text-muted-foreground italic">No competitors identified. Analysis will map the competitive landscape from industry data.</p>
+                        {aiInsights.technologyIntelligence.cloudUsage && (
+                          <p className="text-xs text-foreground/60 mb-2"><span className="font-medium">Cloud:</span> {aiInsights.technologyIntelligence.cloudUsage}</p>
                         )}
-                        {(aiInsights.competitors || []).map((comp: string, i: number) => (
-                          <Badge key={i} variant="outline" className="text-xs px-3 py-1 border-sky-200 text-sky-700 bg-sky-50/50">{comp}</Badge>
-                        ))}
+                        <div className="flex flex-wrap gap-2">
+                          {(aiInsights.technologyIntelligence.techStack || aiInsights.techStack || []).length === 0 && (
+                            <p className="text-xs text-muted-foreground italic">No technologies detected.</p>
+                          )}
+                          {(aiInsights.technologyIntelligence.techStack || aiInsights.techStack || []).map((tech: string, i: number) => (
+                            <Badge key={i} variant="outline" className="text-xs px-3 py-1 border-blue-200 text-blue-700 bg-blue-50/50">{tech}</Badge>
+                          ))}
+                        </div>
+                        {/* Engineering Signals with evidence */}
+                        {aiInsights.technologyIntelligence.engineeringSignals?.length > 0 && (
+                          <div className="space-y-2 mt-3 pt-3 border-t border-gray-200">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Engineering Signals</p>
+                            {aiInsights.technologyIntelligence.engineeringSignals.map((es: any, i: number) => (
+                              <div key={i} className="p-2.5 rounded-lg bg-blue-50/30 border border-blue-100 space-y-1">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="text-[11px] font-medium text-foreground">{es.signal}</p>
+                                  <span className="text-[10px] font-medium text-blue-600">{es.confidence}%</span>
+                                </div>
+                                {es.evidence && <p className="text-[10px] text-foreground/50">{es.evidence}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  </AnimatedCard>
-                </div>
+                    </AnimatedCard>
 
-                {/* Outreach Angle - Blue Callout */}
-                <AnimatedCard delay={0.3}>
+                    {/* ── Competitive Landscape ── */}
+                    <AnimatedCard delay={0.3}>
+                      <div className="p-5 space-y-4">
+                        <div className="flex items-center gap-2">
+                          <div className="h-5 w-1.5 rounded-full bg-sky-500" />
+                          <h4 className="text-xs font-bold text-sky-600 uppercase tracking-wider flex items-center gap-1.5">
+                            <Target size={12} /> Competitive Landscape
+                          </h4>
+                        </div>
+                        <div className="space-y-2">
+                          {(aiInsights.competitors || []).length === 0 && (
+                            <p className="text-xs text-muted-foreground italic">No competitors identified.</p>
+                          )}
+                          {(aiInsights.competitors || []).map((comp: any, i: number) => {
+                            const name = typeof comp === 'string' ? comp : comp.name || 'Unknown';
+                            const threat = comp.threat || 'medium';
+                            const evidence = comp.evidence || '';
+                            return (
+                              <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-sky-50/30 border border-sky-100">
+                                <div className="w-7 h-7 rounded-full bg-sky-100 flex items-center justify-center text-[10px] font-bold text-sky-700 shrink-0">{i + 1}</div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-foreground">{name}</p>
+                                  {evidence && <p className="text-[10px] text-muted-foreground line-clamp-1">{evidence}</p>}
+                                </div>
+                                <Badge className={`text-[9px] px-1.5 py-0 ${
+                                  threat === 'high' ? 'bg-red-100 text-red-700' :
+                                  threat === 'medium' ? 'bg-amber-100 text-amber-700' :
+                                  'bg-green-100 text-green-700'
+                                }`}>{threat}</Badge>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </AnimatedCard>
+                  </div>
+                )}
+
+                {/* ── Outreach Strategy with Evidence ── */}
+                <AnimatedCard delay={0.35}>
                   <div className="p-5 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200">
                     <div className="flex items-start gap-3">
                       <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500">
                         <Lightbulb size={16} className="text-white" />
                       </div>
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider">
-                          Recommended Engagement Strategy
-                        </h4>
-                        <p className="text-sm text-blue-900/80 leading-relaxed">{aiInsights.outreachAngle || 'No outreach strategy generated yet. Run the analysis to receive a personalized engagement recommendation based on the company\u0027s current situation and signals.'}</p>
+                      <div className="space-y-2 flex-1">
+                        <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider">Recommended Engagement Strategy</h4>
+                        {typeof aiInsights.outreachAngle === 'object' ? (
+                          <div className="space-y-2">
+                            <p className="text-sm text-blue-900/80 leading-relaxed">{aiInsights.outreachAngle?.angle || 'Not determined'}</p>
+                            {aiInsights.outreachAngle?.rationale && (
+                              <p className="text-xs text-blue-800/60"><span className="font-medium">Rationale:</span> {aiInsights.outreachAngle.rationale}</p>
+                            )}
+                            {aiInsights.outreachAngle?.evidence && (
+                              <p className="text-[11px] text-blue-800/50"><span className="font-medium">Evidence:</span> {aiInsights.outreachAngle.evidence}</p>
+                            )}
+                            {aiInsights.outreachAngle?.recommendedApproach && (
+                              <div className="px-3 py-2 rounded-lg bg-white/50 border border-blue-200 mt-1">
+                                <p className="text-[10px] text-blue-700 uppercase tracking-wider font-medium">Approach</p>
+                                <p className="text-xs text-blue-900">{aiInsights.outreachAngle.recommendedApproach}</p>
+                              </div>
+                            )}
+                            {aiInsights.outreachAngle?.targetStakeholders?.length > 0 && (
+                              <div className="mt-2 space-y-1.5">
+                                <p className="text-[10px] text-blue-700 uppercase tracking-wider font-medium">Target Stakeholders</p>
+                                {aiInsights.outreachAngle.targetStakeholders.map((ts: any, i: number) => (
+                                  <div key={i} className="flex items-start gap-2 p-2 rounded-md bg-white/40">
+                                    <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-[9px] font-bold text-blue-600 shrink-0 mt-0.5">{ts.role?.charAt(0)}</div>
+                                    <div>
+                                      <p className="text-xs font-medium text-blue-900">{ts.role}</p>
+                                      <p className="text-[10px] text-blue-700/60">{ts.focus}{ts.whyRelevant ? ` — ${ts.whyRelevant}` : ''}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-blue-900/80 leading-relaxed">{aiInsights.outreachAngle || 'Run analysis to receive a personalized engagement recommendation.'}</p>
+                        )}
                       </div>
                     </div>
                   </div>
                 </AnimatedCard>
 
-                {/* Source Citations */}
+                {/* ── Source Citations ── */}
                 {aiInsights.webFindings && aiInsights.webFindings.length > 0 && (
-                  <AnimatedCard delay={0.35}>
+                  <AnimatedCard delay={0.4}>
                     <div className="p-5 space-y-3">
                       <div className="flex items-center gap-2">
                         <div className="h-5 w-1.5 rounded-full bg-emerald-500" />
@@ -1198,7 +1425,6 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                         {aiInsights.webFindings.map((src: any, i: number) => {
                           let domain = '';
                           try { domain = new URL(src.url).hostname.replace('www.', ''); } catch { domain = src.url; }
-                          const sourceType = src.source || 'web';
                           return (
                             <a key={i} href={src.url} target="_blank" rel="noopener noreferrer"
                               className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-colors group">
@@ -1206,7 +1432,6 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 mb-0.5">
                                   <p className="text-xs font-medium text-foreground line-clamp-1 group-hover:text-blue-600 transition-colors">{src.title || domain}</p>
-                                  <EvidenceBadge source={sourceType} />
                                 </div>
                                 <p className="text-[10px] text-muted-foreground">{domain}</p>
                               </div>

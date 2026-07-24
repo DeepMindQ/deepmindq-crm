@@ -1,4 +1,3 @@
-// @ts-nocheck — References StrategicInsight model (not yet in schema)
 /**
  * AI Revenue Copilot — Reasoning Engine (Main Orchestrator)
  *
@@ -212,7 +211,8 @@ export async function gatherReasoningContext(
           summary: true,
           themes: true,
           risks: true,
-          recommendations: true,
+          recommendedEngagement: true,
+          evidenceReferences: true,
           confidence: true,
         },
       }),
@@ -319,7 +319,7 @@ export async function gatherReasoningContext(
             summary: accountBrief.summary,
             themes: accountBrief.themes,
             risks: accountBrief.risks,
-            recommendations: accountBrief.recommendations,
+            recommendations: accountBrief.recommendedEngagement,
             confidence: accountBrief.confidence,
           }
         : null,
@@ -660,7 +660,7 @@ export async function getLatestInsight(companyId: string): Promise<{
       supportingEvidence,
       confidenceScore: record.confidenceScore,
       generatedBy: record.generatedBy,
-      modelUsed: record.modelUsed,
+      modelUsed: record.modelUsed ?? '',
       generatedAt: record.generatedAt,
       expiresAt: record.expiresAt,
     };
@@ -691,7 +691,7 @@ export async function getInsightHistory(
     summary: string;
     confidenceScore: number;
     generatedBy: string;
-    modelUsed: string;
+    modelUsed: string | null;
     generatedAt: Date;
     expiresAt: Date | null;
   }>

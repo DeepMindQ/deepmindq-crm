@@ -130,6 +130,8 @@ model Company {
   accountBrief              AccountBrief?
   opportunitySignals        OpportunitySignal[]
   accountScore              AccountScore?
+  strategicInsights         StrategicInsight[]
+  engagementStrategies      AIEngagementStrategy[]
 
   @@index([domain])
   @@index([normalizedName])
@@ -1740,4 +1742,68 @@ model AccountScore {
   @@index([companyId])
   @@index([category])
   @@index([score])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PHASE 8: AI REASONING & ENGAGEMENT STRATEGY LAYER
+// ═══════════════════════════════════════════════════════════════════════
+
+// Stores LLM-generated strategic insights for each company.
+// Produced by the Reasoning Engine (gatherReasoningContext → buildPrompt → LLM → parse → persist).
+// Each insight has an expiry window and full reasoning chain for explainability.
+
+model StrategicInsight {
+  id                  String    @id @default(cuid())
+  companyId           String
+  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  insightType         String    // STRATEGIC_SHIFT | OPPORTUNITY | RISK | PATTERN_EMERGED
+  summary             String    // concise human-readable insight summary
+  keyThemes           String    @default("[]")  // JSON: string[]
+  reasoningSummary    String    @default("{}")  // JSON: { observations: string[], interpretation: string, confidenceFactors: string[] }
+  supportingEvidence  String    @default("[]")  // JSON: { evidenceId: string, relevance: string, quote: string }[]
+  confidenceScore     Int       @default(0)     // 0-100
+
+  generatedBy         String    @default("LLM") // LLM | HYBRID | MANUAL
+  modelUsed           String?
+  expiresAt           DateTime?
+  generatedAt         DateTime  @default(now())
+
+  engagementStrategies AIEngagementStrategy[]
+
+  @@index([companyId])
+  @@index([insightType])
+  @@index([confidenceScore])
+  @@index([generatedAt])
+  @@index([companyId, generatedAt(sort: Desc)])
+}
+
+// Stores LLM-generated engagement strategies linked to a strategic insight.
+// Produced by the Strategy Generator (buildStrategyPrompt → LLM → parse → persist).
+// Includes conversation angles, risk factors, and recommended entry points.
+
+model AIEngagementStrategy {
+  id                     String    @id @default(cuid())
+  companyId              String
+  company                Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  strategicInsightId      String
+  strategicInsight        StrategicInsight @relation(fields: [strategicInsightId], references: [id], onDelete: Cascade)
+
+  situationAssessment    String    @default("{}")  // JSON: { currentPhase, keyDrivers: string[], maturityLevel }
+  recommendedEntry       String    @default("{}")  // JSON: { role, rationale, department }
+  firstMeetingObjective  String    @default("discovery") // discovery | technical | executive_alignment
+  conversationAngles     String    @default("[]")  // JSON: { angle, talkingPoints: string[] }[]
+  riskFactors            String    @default("[]")  // JSON: { risk, severity, mitigation }[]
+  priorityScore          Int       @default(0)     // 0-100
+
+  generatedBy            String    @default("LLM")
+  modelUsed              String?
+  expiresAt              DateTime?
+  generatedAt            DateTime  @default(now())
+
+  @@index([companyId])
+  @@index([strategicInsightId])
+  @@index([priorityScore])
+  @@index([generatedAt])
+  @@index([companyId, generatedAt(sort: Desc)])
 }

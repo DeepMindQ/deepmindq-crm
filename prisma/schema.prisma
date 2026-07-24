@@ -65,6 +65,7 @@ model Contact {
   events              EmailEvent[]
   segments            SegmentContact[]
   sequenceEnrollments SequenceEnrollment[]
+  aiInsights          AIInsight[]
 
   @@index([email])
   @@index([companyId])
@@ -132,6 +133,7 @@ model Company {
   accountScore             AccountScore?
   strategicInsights        StrategicInsight[]
   engagementStrategies     AIEngagementStrategy[]
+  aiInsights              AIInsight[]
 
   @@index([domain])
   @@index([normalizedName])
@@ -1817,4 +1819,65 @@ model AIEngagementStrategy {
   @@index([priorityScore])
   @@index([generatedAt])
   @@index([companyId, generatedAt(sort: Desc)])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PHASE 8.1: UNIFIED AI INSIGHT — Every AI output follows one standard
+// ═══════════════════════════════════════════════════════════════════════
+
+model AIInsight {
+  id                  String                    @id @default(cuid())
+  companyId           String?
+  company             Company?                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contactId           String?
+  contact             Contact?                  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  opportunityId       String?
+
+  // What type of insight
+  type                String                    @default("SIGNAL") // SIGNAL, RISK, OPPORTUNITY, RECOMMENDATION, SCORING, FORECAST
+
+  // Core content
+  title               String                    @db.Text
+  description         String                    @db.Text
+
+  // Evidence chain — JSON array of { source, url, date, snippet, reliability }
+  evidence            String                    @default("[]")
+
+  // Scores
+  confidenceScore     Float                     @default(0)       // 0-100
+  impactScore         Float                     @default(0)       // 0-100
+  urgencyScore        Float                     @default(0)       // 0-100
+
+  // Reasoning — why AI thinks this
+  reasoning           String?                   @db.Text
+
+  // Actionability
+  recommendedAction   String?                   @db.Text
+
+  // Source tracking
+  sourceType          String                    @default("ai_generated") // ai_generated, signal, enrichment, manual
+  sourceRoute         String?                   // which API route produced this
+  modelUsed           String?                   // which AI model
+  metadata            String                    @default("{}")     // JSON: any extra data
+
+  // Lifecycle
+  status              String                    @default("active") // active, consumed, expired, superseded, rejected
+  expiresAt           DateTime?
+  consumedAt          DateTime?
+  feedback            String?                   // positive, negative, neutral
+  feedbackNote        String?                   @db.Text
+
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  @@index([companyId])
+  @@index([contactId])
+  @@index([opportunityId])
+  @@index([type])
+  @@index([status])
+  @@index([confidenceScore])
+  @@index([impactScore])
+  @@index([createdAt(sort: Desc)])
+  @@index([companyId, type, status])
+  @@index([expiresAt])
 }

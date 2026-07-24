@@ -47,3 +47,30 @@ Stage Summary:
 - Signal lifecycle fully automated (creation → scoring → decay → expiry)
 - Cross-signal association now boosts scoring
 - Next: Wave 4 (Pipeline Intelligence screen upgrades)
+
+---
+Task ID: 8.1-ai-evidence
+Agent: Main Agent
+Task: Wave 8.1 — AI Evidence Framework
+
+Work Log:
+- Read worklog: Waves 0-3, 8A, 8B complete; schema at 1820 lines, 55+ models
+- Read schema: Found Contact model (line 12-76), Company model (line 78-145), AIEngagementStrategy (last model)
+- Added `aiInsights AIInsight[]` relation to Contact model (line 68)
+- Added `aiInsights AIInsight[]` relation to Company model (line 136)
+- Appended AIInsight model (58 lines) to end of schema with 10 composite indexes
+- Created src/lib/ai-insight-types.ts: AIInsightType, AIInsightStatus, AIInsightEvidence, AIInsightInput, AIInsightOutput
+- Created src/lib/ai-insight-service.ts: createInsight, createInsights (batch), getCompanyInsights, getContactInsights, getUrgentInsights, markInsightConsumed, submitInsightFeedback, expireStaleInsights
+- Created src/app/api/ai/health/route.ts: GET /api/ai/health — overview, quality, byType, usageByRoute metrics
+- `npx prisma generate` — SUCCESS (385ms)
+- `npx tsc --noEmit` — No errors in new files (2 pre-existing errors in onboarding-flow.tsx unrelated)
+- `npx eslint` on new files — 0 errors
+
+Stage Summary:
+- Wave 8.1 COMPLETE
+- 3 new files: ai-insight-types.ts, ai-insight-service.ts, api/ai/health/route.ts
+- 1 modified file: prisma/schema.prisma (+60 lines: AIInsight model + 2 relation fields)
+- AIInsight model: 25 fields, 10 indexes, optional company/contact/opportunity relations
+- Service: 7 exported functions for full insight lifecycle
+- Health API: 4 metric categories (overview, quality, byType, usageByRoute)
+- Every AI output now follows unified standard: What? Why? Evidence? Confidence? Impact? Action?

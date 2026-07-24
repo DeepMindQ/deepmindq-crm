@@ -202,14 +202,15 @@ export async function requestOtp(
     console.warn(`[OTP] No EMAIL_API_KEY configured (provider: ${config.provider}). OTP will be returned in response.`);
   }
 
-  // Always log the code in development
-  if (process.env.NODE_ENV === 'development') {
+  // Log the code when dev bypass is explicitly enabled
+  const devBypassEnabled = process.env.ENABLE_DEV_AUTH_BYPASS === 'true';
+  if (devBypassEnabled) {
     console.log(`[OTP] DEV — Code for ${normalizedEmail}: ${code}`);
   }
 
   // If email was NOT sent
   if (!emailSent) {
-    if (process.env.NODE_ENV === 'development') {
+    if (devBypassEnabled) {
       console.log(`[OTP] FALLBACK — Code for ${normalizedEmail}: ${code}`);
       return { success: true, devCode: code };
     }

@@ -57,11 +57,13 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const response = NextResponse.next();
 
-  // ── 0. DEV MODE BYPASS — skip all auth in development ──
-  // Phase 3 pilot: allow all requests in development for
-  // import pipeline testing. Remove before production deploy.
-  const isDev = process.env.NODE_ENV === 'development';
-  if (isDev) {
+  // ── 0. DEV AUTH BYPASS — only when explicitly enabled ──
+  // ⚠️  SECURITY: This bypass is DISABLED by default.
+  // To enable in local development, set ENABLE_DEV_AUTH_BYPASS=true in .env.local
+  // NEVER set this in production. NODE_ENV alone is NOT sufficient.
+  const devBypassEnabled = process.env.ENABLE_DEV_AUTH_BYPASS === 'true';
+  if (devBypassEnabled) {
+    console.warn('[Middleware] ⚠️  DEV AUTH BYPASS ACTIVE — all auth checks skipped');
     applySecurityHeaders(response);
     return response;
   }

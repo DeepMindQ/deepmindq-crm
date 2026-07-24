@@ -1,23 +1,26 @@
 # Render Blueprint — explicit deployment configuration
 # https://docs.render.com/blueprint-spec
 #
-# This file eliminates ambiguity about build/start commands.
-# Render auto-detects this file and uses it for web services.
+# AUTO-DETECTED ONLY ON NEW SERVICE CREATION.
+# If you already have a Render web service, you must either:
+#   1. Delete and recreate it (it will auto-detect this file), OR
+#   2. Manually set Build Command and Start Command in Render dashboard
+#      to match the values below.
 
 services:
   - type: web
     name: deepmindq-crm
     runtime: node
-    plan: starter  # Free tier compatible; change to "standard" for production
-    buildCommand: npm install && npm run build:standalone
-    startCommand: node .next/standalone/server.js -p $PORT
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: false  # Set manually in Render dashboard
+        sync: false
       - key: NEXTAUTH_SECRET
-        generateValue: true  # Auto-generates a secure value
+        generateValue: true
       - key: NEXTAUTH_URL
         fromService:
           name: deepmindq-crm

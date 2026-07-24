@@ -11,9 +11,7 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  output: 'standalone',
-  // standalone output is REQUIRED for Render deployment.
-  // Uses start:standalone script (node .next/standalone/server.js -p $PORT)
+  // output: 'standalone' removed — not needed for Render web services.
   serverExternalPackages: ['nodemailer'],
 
   // Security headers for all routes (API and pages)

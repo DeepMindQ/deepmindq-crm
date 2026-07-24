@@ -209,7 +209,7 @@ function StepCompany({
           >
             <SelectValue placeholder="Select your industry" />
           </SelectTrigger>
-          <SelectContent className="rounded-xl bg-[#1a1a2e] border-white/10 text-white">
+          <SelectContent portal={false} className="rounded-xl bg-[#1a1a2e] border-white/10 text-white">
             {INDUSTRIES.map((ind) => (
               <SelectItem key={ind} value={ind} className="rounded-lg focus:bg-white/10 focus:text-[var(--color-gold)]">
                 {ind}
@@ -289,7 +289,7 @@ function StepRole({
           >
             <SelectValue placeholder="Select your role" />
           </SelectTrigger>
-          <SelectContent className="rounded-xl bg-[#1a1a2e] border-white/10 text-white">
+          <SelectContent portal={false} className="rounded-xl bg-[#1a1a2e] border-white/10 text-white">
             {DESIGNATIONS.map((d) => (
               <SelectItem key={d} value={d} className="rounded-lg focus:bg-white/10 focus:text-[var(--color-gold)]">
                 {d}
@@ -463,8 +463,8 @@ export function OnboardingFlow() {
           transition={{ duration: 0.3 }}
           style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(12px) saturate(1.5)' }}
         >
-          {/* Close backdrop click area */}
-          <div className="absolute inset-0" />
+          {/* Close backdrop click area — stops propagation so dropdown clicks work */}
+          <div className="absolute inset-0" onClick={(e) => e.stopPropagation()} />
 
           {/* Card */}
           <motion.div

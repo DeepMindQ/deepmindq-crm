@@ -17,6 +17,7 @@ export const CSRF_TOKEN_HEADER = 'x-csrf-token';
 // These path prefixes are always accessible without authentication.
 export const PUBLIC_PATH_PREFIXES: string[] = [
   '/api/auth/',
+  '/api/setup-db',         // DB schema setup (initial deployment)
   '/api/webhooks/',       // Incoming webhooks (Stripe, etc.)
   '/login',
   '/signup',

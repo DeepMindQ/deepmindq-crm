@@ -32,6 +32,11 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[auth/request-otp] Error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    // Detect common issues for better user feedback
+    if (message.includes('prisma') || message.includes('datasource') || message.includes('database') || message.includes('relation')) {
+      return NextResponse.json({ error: 'Database not configured. Please set DATABASE_URL on Render.', detail: message }, { status: 503 });
+    }
+    return NextResponse.json({ error: 'Internal server error', detail: message }, { status: 500 });
   }
 }

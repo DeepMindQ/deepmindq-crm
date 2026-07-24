@@ -106,3 +106,41 @@ Stage Summary:
 - All engines persist results as AIInsight records via createInsight() for full traceability
 - Schema-adapted to actual Prisma models (no mismatched field references)
 - Next: Wave 8.3+ — Frontend scoring dashboard, multi-engine composite scores
+
+---
+Task ID: 8.3-ai-health-dashboard
+Agent: Main Agent
+Task: Wave 8.3 — AI Health Center Dashboard
+
+Work Log:
+- Read worklog: Waves 8A, 8B, 8.1, 8.2 complete; AIInsight model + service + /api/ai/health route in place
+- Read dashboard-screen.tsx, intelligence-health-screen.tsx, ai-usage-dashboard-screen.tsx for style reference
+- Read animated-components.tsx: PageTransition, AnimatedCard, StatCard, StaggerGrid, StaggerItem, PulseDot, EmptyState, SectionHeader, AnimatedCounter, AnimatedBar available
+- Read proxy.ts + auth-helpers.ts: /api/ai/health requires auth (not in PUBLIC_PATH_PREFIXES) — acceptable since dashboard is behind login
+- Checked /api/ai/health/route.ts response shape: overview, quality, byType, usageByRoute
+- Created src/components/screens/ai-health-screen.tsx (780 lines):
+  - Header: "AI Intelligence Health" with Brain icon and gold accent
+  - Top Stats Row (4 StatCards): Active Insights, Avg Confidence, Avg Impact, Approval Rate
+  - Insights by Type: horizontal bar visualization with 6 color-coded types (SIGNAL=blue, RISK=red, OPPORTUNITY=green, RECOMMENDATION=purple, SCORING=amber, FORECAST=cyan)
+  - System Alerts: high urgency count, expiring soon count, recent insights (last 7 days), total/active/expired summary
+  - Usage by Route: ranked route bars with gold accent for top route
+  - AI Quality Trust Indicators: confidence + impact progress bars with contextual labels
+  - Loading skeleton state, error empty state with retry button
+  - Uses PageTransition, AnimatedCard, StatCard, StaggerGrid, StaggerItem, PulseDot, AnimatedCounter from animated-components
+  - Dark theme with var(--color-gold), var(--color-gold-bright) CSS variables
+  - Responsive grid layout (2-col mobile, 4-col desktop for stats; 2-col for type+alerts)
+  - framer-motion entrance animations on all sections
+- `npx tsc --noEmit` — 0 new errors (only pre-existing onboarding-flow.tsx issues)
+- `bun run lint` — 0 errors in ai-health-screen
+- Pushed to GitHub: commit 46fdb1a
+
+Stage Summary:
+- Wave 8.3 COMPLETE
+- 1 new file: ai-health-screen.tsx (780 insertions)
+- Enterprise-grade AI monitoring dashboard with 5 sections
+- Fetches from /api/ai/health (Wave 8.1 endpoint)
+- Dark theme with gold accents, animated cards, loading skeletons
+- Type breakdown with color-coded horizontal bars and legend
+- System alerts with pulse dots for active warnings
+- Quality trust indicators with gradient progress bars
+- Next: Wave 8.4+ — Multi-engine composite scoring dashboard, frontend integration

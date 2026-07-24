@@ -58,6 +58,9 @@ const IntelligenceHealthScreen = lazy(() => import('@/components/screens/intelli
 
 // — Phase 7: Revenue Intelligence —
 const RevenueIntelligenceScreen = lazy(() => import('@/components/screens/revenue-intelligence-screen'));
+
+// — Phase 8: AI Intelligence Health —
+const AIHealthScreen = lazy(() => import('@/components/screens/ai-health-screen'));
 const RevenueIntelligenceOpportunitiesScreen = lazy(() => import('@/components/screens/revenue-intelligence-opportunities-screen'));
 const RevenueIntelligenceRecommendationsScreen = lazy(() => import('@/components/screens/revenue-intelligence-recommendations-screen'));
 
@@ -124,6 +127,8 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'revenue-intelligence-recommendations': RevenueIntelligenceRecommendationsScreen,
   'intelligence-reasoning': IntelligenceReasoningScreen,
   'intelligence-report': IntelligenceReportScreen,
+  // AI Intelligence Health (Phase 8)
+  'ai-health': AIHealthScreen,
   // Revenue Intelligence (Phase 5/7)
   'account-ranking': AccountRankingScreen,
   'opportunity-workspace': OpportunityWorkspaceScreen,

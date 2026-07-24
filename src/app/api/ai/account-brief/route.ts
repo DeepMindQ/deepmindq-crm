@@ -108,46 +108,25 @@ const CACHE_TTL_MS = 2 * 60 * 60 * 1000
 const briefCache = new Map<string, { data: CachedBrief; expiresAt: number }>()
 
 // ---------------------------------------------------------------------------
-// SDK helpers
+// SDK helpers — Wave 8A: Using unified AI caller
 // ---------------------------------------------------------------------------
 
 type ZAIInstance = any
 
 async function createZAI() {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then((m) => m.default)
-  return ZAI.create()
+  const { getZAI } = await import('@/lib/ai-copilot/ai-caller');
+  return getZAI();
 }
 
 async function webSearch(zai: ZAIInstance, query: string): Promise<Array<{ title: string; url: string; snippet: string }>> {
-  try {
-    const results = await zai.functions.invoke('web_search', { query, num: 10 })
-    const items = results?.results ?? results?.data ?? results
-    if (!Array.isArray(items)) return []
-    return items
-      .filter((r: Record<string, unknown>) => r.title || r.url)
-      .map((r: Record<string, unknown>) => ({
-        title: String(r.title ?? ''),
-        url: String(r.url ?? ''),
-        snippet: String(r.snippet ?? r.description ?? r.content ?? ''),
-      }))
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.error(`[account-brief] Search failed for "${query}": ${msg}`)
-    return []
-  }
+  const { webSearch: search } = await import('@/lib/ai-copilot/ai-caller');
+  return search(query, 10);
 }
 
 async function callLLM(zai: ZAIInstance, systemPrompt: string, userPrompt: string): Promise<string> {
-  const completion = await zai.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  })
-  return completion.choices?.[0]?.message?.content ?? ''
+  const { callAI } = await import('@/lib/ai-copilot/ai-caller');
+  const result = await callAI({ systemPrompt, userPrompt, feature: 'account_brief', runQualityCheck: false });
+  return result.raw;
 }
 
 // ---------------------------------------------------------------------------
@@ -301,6 +280,13 @@ CRITICAL QUALITY RULES:
 8. CONVERSATION STARTERS must feel natural — not salesy.
 9. RECOMMENDED ENGAGEMENT must include timeline, first meeting goal, and success criteria.
 10. CONFIDENCE SCORES: If evidence is thin, say so. 0-100 for each section.
+
+INTELLIGENCE OBJECT STANDARD:
+Every signal, challenge, and opportunity must include:
+- Timing: "immediate" | "within_7_days" | "within_30_days" | "within_90_days" | "ongoing"
+- Action: Specific recommended next step
+- Owner: Who should execute (role or team)
+- Impact: Revenue/business implication
 
 FORBIDDEN:
 - "Company may benefit from..." → Instead: "Company is hiring 20 engineers for X (source). Recommended: position Y."

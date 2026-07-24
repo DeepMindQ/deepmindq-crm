@@ -21,21 +21,28 @@ export async function POST(request: NextRequest) {
     const result = await requestOtp(email, purpose as OtpPurpose);
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 429 });
+      // Distinguish rate limit (429) from email service errors (503)
+      const status = result.error?.includes('wait') ? 429 : 503;
+      return NextResponse.json({ error: result.error }, { status });
     }
 
     return NextResponse.json({
       success: true,
-      message: result.devCode ? 'OTP generated (email not configured — code shown below)' : 'OTP sent to your email',
-      // Always include code when email delivery failed (no EMAIL_API_KEY configured)
+      message: result.devCode
+        ? `OTP generated (email not configured). Code: ${result.devCode}`
+        : 'OTP sent to your email',
       ...(result.devCode ? { devCode: result.devCode } : {}),
     });
   } catch (error) {
     console.error('[auth/request-otp] Error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    // Detect common issues for better user feedback
-    if (message.includes('prisma') || message.includes('datasource') || message.includes('database') || message.includes('relation')) {
-      return NextResponse.json({ error: 'Database not configured. Please set DATABASE_URL on Render.', detail: message }, { status: 503 });
+    // Detect database connection issues for clear user guidance
+    const dbKeywords = ['prisma', 'datasource', 'database', 'relation', 'connection', 'ECONNREFUSED', 'ENOTFOUND', '0x', 'P1001', 'P1002', 'P1003'];
+    if (dbKeywords.some(k => message.toLowerCase().includes(k.toLowerCase()))) {
+      return NextResponse.json(
+        { error: 'Service unavailable: Database connection failed. Please ensure DATABASE_URL is configured on Render.', detail: message },
+        { status: 503 }
+      );
     }
     return NextResponse.json({ error: 'Internal server error', detail: message }, { status: 500 });
   }

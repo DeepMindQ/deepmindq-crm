@@ -208,8 +208,14 @@ export async function requestOtp(
     console.log(`[OTP] DEV — Code for ${normalizedEmail}: ${code}`);
   }
 
-  // If email was NOT sent — fail closed (enterprise security)
+  // If email was NOT sent — return devCode as fallback in dev/non-production environments
   if (!emailSent) {
+    const isDev = process.env.NODE_ENV !== 'production' || process.env.ENABLE_DEV_AUTH_BYPASS === 'true';
+    if (isDev) {
+      console.warn(`[OTP] DEV — Email not configured. Returning code in response for ${normalizedEmail}: ${code}`);
+      return { success: true, devCode: code };
+    }
+    // Production: fail closed (enterprise security)
     console.error(`[OTP] Email send failed and no fallback available for ${normalizedEmail}.`);
     return { success: false, error: 'Email service not available. Please contact support.' };
   }

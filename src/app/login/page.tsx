@@ -29,6 +29,7 @@ export default function LoginPage() {
   const [otpEmail, setOtpEmail] = useState('')
   const [loginMethod, setLoginMethod] = useState<'password' | 'otp'>('password')
   const [otpSent, setOtpSent] = useState(false)
+  const [devCode, setDevCode] = useState('')
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -53,6 +54,7 @@ export default function LoginPage() {
       setOtpEmail(email)
       setStep('otp')
       if (data.devCode) {
+        setDevCode(data.devCode)
         console.log('[DEV] OTP code:', data.devCode)
       }
     } catch {
@@ -85,6 +87,7 @@ export default function LoginPage() {
       setOtpSent(true)
       setStep('otp')
       if (data.devCode) {
+        setDevCode(data.devCode)
         console.log('[DEV] OTP code:', data.devCode)
       }
     } catch {
@@ -174,6 +177,7 @@ export default function LoginPage() {
       if (!res.ok) {
         setError(data.error || 'Failed to resend OTP')
       } else if (data.devCode) {
+        setDevCode(data.devCode)
         console.log('[DEV] OTP code:', data.devCode)
       }
     } catch {
@@ -522,6 +526,21 @@ export default function LoginPage() {
                 </div>
 
                 <form onSubmit={handleOtpVerify} className="mt-6 space-y-6">
+                  {/* Dev Code Banner — shown when email not configured */}
+                  <AnimatePresence>
+                    {devCode && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center"
+                      >
+                        <p className="text-xs text-amber-600 font-medium mb-1">DEV — Email not configured</p>
+                        <p className="text-2xl font-mono font-bold tracking-[0.3em] text-amber-700">{devCode}</p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {/* OTP Digit Inputs */}
                   <div className="flex justify-center gap-2">
                     {otpDigits.map((digit, index) => (

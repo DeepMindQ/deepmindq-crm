@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Activity, Heart, AlertTriangle, RefreshCw, Shield,
-  Clock, Uptime, Layers, CheckCircle2, XCircle, TrendingUp, ChevronRight,
+  Clock, Timer, Layers, CheckCircle2, XCircle, TrendingUp, ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -188,7 +188,7 @@ export default function IntelligenceHealthScreen() {
   const avgFreshness = connectors.length > 0
     ? connectors.reduce((s, c) => s + c.freshnessScore, 0) / connectors.length
     : 0;
-  const totalErrors = connectors.reduce((s, c) => s + c.failureCount, 0);
+  const totalErrors = connectors.reduce((s, c) => s + (c as any).failureCount, 0);
 
   return (
     <div className="space-y-6">
@@ -360,8 +360,8 @@ export default function IntelligenceHealthScreen() {
                 <XCircle className="h-4 w-4 text-red-500 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-red-800">{c.name}</p>
-                  {c.failureCount > 0 && (
-                    <p className="text-xs text-red-600 mt-0.5">{c.failureCount} consecutive failures</p>
+                  {(c as any).failureCount > 0 && (
+                    <p className="text-xs text-red-600 mt-0.5">{(c as any).failureCount} consecutive failures</p>
                   )}
                 </div>
                 <Button variant="outline" size="sm" className="h-7 text-[11px] border-red-200 text-red-600 hover:bg-red-100 gap-1">

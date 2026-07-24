@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
@@ -24,9 +23,9 @@ async function webSearch(query: string, num = 5) {
   try {
     const { ensureZaiConfig } = await import('@/lib/zai-config');
     await ensureZaiConfig();
-    const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
-    const results = await Z.functions.invoke('web_search', { query, num });
-    return (results || []).slice(0, num).map((r: any) => ({
+    const ZAI: any = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
+    const results = await ZAI.functions.invoke('web_search', { query, num });
+    return (results || []).slice(0, num).map((r: Record<string, string>) => ({
       title: r.name || '',
       url: r.url || '',
       snippet: r.snippet || '',
@@ -38,7 +37,7 @@ async function webSearch(query: string, num = 5) {
 }
 
 async function aiChat(systemPrompt: string, userPrompt: string): Promise<string> {
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
+  const ZAI: any = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
   const completion = await ZAI.chat.completions.create({
     messages: [
       { role: 'assistant', content: systemPrompt },

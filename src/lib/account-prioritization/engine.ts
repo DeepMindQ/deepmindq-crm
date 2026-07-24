@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Phase 5: Account Prioritization Engine
  *
@@ -490,7 +489,7 @@ export async function getPrioritizedCompanies(options: {
     companies,
     total,
     tierDistribution: tierDist.reduce((acc, t) => {
-      acc[t.priorityTier] = t._count;
+      acc[t.priorityTier ?? "unknown"] = t._count;
       return acc;
     }, {} as Record<string, number>),
   };

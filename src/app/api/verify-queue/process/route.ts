@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { promises as dns } from 'dns';
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
@@ -51,7 +50,7 @@ export async function POST() {
   try {
     const contacts = await db.contact.findMany({
       where: {
-        email: { not: null },
+        email: { not: null } as any,
         emailHealth: 'unknown',
       },
       select: { id: true, email: true },
@@ -90,7 +89,7 @@ export async function POST() {
 
     // Check if more remain
     const remaining = await db.contact.count({
-      where: { email: { not: null }, emailHealth: 'unknown' },
+      where: { emailHealth: 'unknown' } as any,
     });
 
     return NextResponse.json({

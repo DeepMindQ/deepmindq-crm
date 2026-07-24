@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers';
@@ -56,7 +55,7 @@ interface ConversationPlan {
 // SDK helpers
 // ---------------------------------------------------------------------------
 
-async function createZAI() {
+async function createZAI(): Promise<any> {
   const { ensureZaiConfig } = await import('@/lib/zai-config');
   await ensureZaiConfig();
   return import('z-ai-web-dev-sdk').then((m) => m.default).then((Z) => Z.create());
@@ -64,7 +63,7 @@ async function createZAI() {
 
 async function webSearch(query: string): Promise<WebSearchResult[]> {
   try {
-    const zai = await createZAI();
+    const zai: any = await createZAI();
     const results = await zai.functions.invoke('web_search', { query, num: 5 });
     return (results || [])
       .slice(0, 5)
@@ -80,7 +79,7 @@ async function webSearch(query: string): Promise<WebSearchResult[]> {
 }
 
 async function aiChat(systemPrompt: string, userPrompt: string): Promise<string> {
-  const zai = await createZAI();
+  const zai: any = await createZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       { role: 'assistant', content: systemPrompt },
@@ -99,9 +98,9 @@ function parseConversationPlan(raw: string): ConversationPlan | null {
   const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
 
   try {
-    const parsed = JSON.parse(cleaned);
+    const parsed: Record<string, unknown> = JSON.parse(cleaned);
     if (parsed.executiveProfile && parsed.conversationPlan) {
-      return parsed as ConversationPlan;
+      return parsed as unknown as ConversationPlan;
     }
   } catch {
     // fall through to regex
@@ -111,9 +110,9 @@ function parseConversationPlan(raw: string): ConversationPlan | null {
   const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed: Record<string, unknown> = JSON.parse(jsonMatch[0]);
       if (parsed.executiveProfile && parsed.conversationPlan) {
-        return parsed as ConversationPlan;
+        return parsed as unknown as ConversationPlan;
       }
     } catch {
       // give up
@@ -233,7 +232,7 @@ export async function POST(request: NextRequest) {
       sources: result.sources,
       generatedAt: new Date().toISOString(),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to generate conversation plan';
     console.error('[conversation-plan] Error:', message);
 

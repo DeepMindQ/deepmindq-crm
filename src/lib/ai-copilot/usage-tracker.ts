@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * AI Revenue Copilot — Usage Tracker
  *
@@ -97,7 +96,7 @@ export async function logAIUsage(
         estimatedCost: record.estimatedCost,
         status: record.status,
         errorMessage: record.errorMessage ?? null,
-      },
+      } as any,
     });
 
     console.log('[ai-copilot:usage-tracker] Usage record persisted successfully');
@@ -133,8 +132,8 @@ export async function getUsageStats(days: number = 30): Promise<{
     const records = await db.aIGenerationAudit.findMany({
       where: {
         generatedAt: { gte: since },
-      },
-      orderBy: { generatedAt: 'asc' },
+      } as any,
+      orderBy: { generatedAt: 'asc' } as any,
     });
 
     // Aggregate totals
@@ -145,34 +144,34 @@ export async function getUsageStats(days: number = 30): Promise<{
     const byModel: Record<string, { calls: number; cost: number; tokens: number }> = {};
     const dailyMap = new Map<string, { calls: number; cost: number }>();
 
-    for (const record of records) {
+    for (const record of records as any[]) {
       totalCalls++;
-      totalCost += record.estimatedCost;
-      totalTokens += record.totalTokens;
+      totalCost += record.estimatedCost ?? 0;
+      totalTokens += record.totalTokens ?? 0;
 
       // By feature
-      const feature = record.feature;
+      const feature = record.feature ?? 'unknown';
       if (!byFeature[feature]) {
         byFeature[feature] = { calls: 0, cost: 0, tokens: 0 };
       }
       byFeature[feature].calls++;
-      byFeature[feature].cost += record.estimatedCost;
-      byFeature[feature].tokens += record.totalTokens;
+      byFeature[feature].cost += record.estimatedCost ?? 0;
+      byFeature[feature].tokens += record.totalTokens ?? 0;
 
       // By model
-      const model = record.model;
+      const model = record.model ?? 'unknown';
       if (!byModel[model]) {
         byModel[model] = { calls: 0, cost: 0, tokens: 0 };
       }
       byModel[model].calls++;
-      byModel[model].cost += record.estimatedCost;
-      byModel[model].tokens += record.totalTokens;
+      byModel[model].cost += record.estimatedCost ?? 0;
+      byModel[model].tokens += record.totalTokens ?? 0;
 
       // Daily trend
-      const dateKey = record.generatedAt.toISOString().slice(0, 10); // YYYY-MM-DD
+      const dateKey = (record.generatedAt ?? record.createdAt ?? new Date()).toISOString().slice(0, 10); // YYYY-MM-DD
       const daily = dailyMap.get(dateKey) ?? { calls: 0, cost: 0 };
       daily.calls++;
-      daily.cost += record.estimatedCost;
+      daily.cost += record.estimatedCost ?? 0;
       dailyMap.set(dateKey, daily);
     }
 

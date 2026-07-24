@@ -1,4 +1,4 @@
-// @ts-nocheck
+import { NextRequest } from 'next/server';
 import { db } from "@/lib/db";
 import { apiError, apiSuccess, safeInt } from "@/lib/apiHelpers";
 
@@ -15,7 +15,7 @@ function getMonthLabel(date: Date): string {
   return date.toLocaleString("en-US", { month: "short", year: "2-digit" });
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const months = safeInt(searchParams.get("months"), 6, 1);
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     // Fetch active pipeline (non-archived, non-won, non-lost)
     const activeOpps = await db.opportunityRecommendation.findMany({
       where: { status: { in: STAGE_ORDER } },
-      include: { company: { select: { name: true } } },
+      include: { company: { select: { rawName: true } } },
       orderBy: { createdAt: "desc" },
     });
 
@@ -88,8 +88,8 @@ export async function GET(request: Request) {
     );
 
     const topDeals = sortedOpps.slice(0, 10).map((opp) => ({
-      title: opp.title,
-      company: opp.company.name,
+      title: (opp as any).title || 'Untitled',
+      company: opp.company ? (opp.company as any).rawName || (opp.company as any).normalizedName : 'Unknown',
       value: 1,
       probability: Math.round((STAGE_PROBABILITY[opp.status] ?? 0) * 100),
       stage: opp.status,

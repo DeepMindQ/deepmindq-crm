@@ -1,4 +1,4 @@
-// @ts-nocheck
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/apiHelpers";
 
@@ -18,7 +18,7 @@ function parseDateParam(val: string | null): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const from = parseDateParam(searchParams.get("from"));
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
     // Fetch all non-archived opportunities with company name
     const opportunities = await db.opportunityRecommendation.findMany({
       where: whereClause,
-      include: { company: { select: { name: true } } },
+      include: { company: { select: { rawName: true } } },
       orderBy: { createdAt: "asc" },
     });
 

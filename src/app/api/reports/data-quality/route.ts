@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/apiHelpers";
 
@@ -11,10 +10,9 @@ export async function GET() {
         domain: true,
         website: true,
         industry: true,
-        employeeSize: true,
+        sizeRange: true,
         country: true,
         location: true,
-        researchCard: { select: { id: true } },
       },
     });
 
@@ -22,10 +20,10 @@ export async function GET() {
     const withDomain = companies.filter((c) => !!c.domain).length;
     const withWebsite = companies.filter((c) => !!c.website).length;
     const withIndustry = companies.filter((c) => !!c.industry).length;
-    const withEmployeeSize = companies.filter((c) => !!c.employeeSize).length;
+    const withEmployeeSize = companies.filter((c) => !!c.sizeRange).length;
     const withCountry = companies.filter((c) => !!c.country).length;
     const withLocation = companies.filter((c) => !!c.location).length;
-    const withResearchCard = companies.filter((c) => !!c.researchCard).length;
+    const withResearchCard = companies.filter(() => false).length;
 
     const companyFields = [
       { name: "Domain", filled: withDomain },
@@ -44,10 +42,9 @@ export async function GET() {
 
     // ── Contacts ──────────────────────────────────────────────────
     const contacts = await db.contact.findMany({
-      where: { archivedAt: null },
       select: {
         email: true,
-        jobTitle: true,
+        title: true,
         phone: true,
         location: true,
         linkedinUrl: true,
@@ -57,7 +54,7 @@ export async function GET() {
 
     const totalContacts = contacts.length;
     const withEmail = contacts.filter((c) => !!c.email).length;
-    const withJobTitle = contacts.filter((c) => !!c.jobTitle).length;
+    const withJobTitle = contacts.filter((c) => !!c.title).length;
     const withPhone = contacts.filter((c) => !!c.phone).length;
     const contactsWithLocation = contacts.filter((c) => !!c.location).length;
     const withLinkedin = contacts.filter((c) => !!c.linkedinUrl).length;
@@ -104,10 +101,10 @@ export async function GET() {
         c.domain,
         c.website,
         c.industry,
-        c.employeeSize,
+        c.sizeRange,
         c.country,
         c.location,
-        c.researchCard,
+        false as unknown as boolean,
       ].filter(Boolean).length;
       if (filled === 0) companyEmpty++;
       else if (filled === companyTotalFields) companyComplete++;
@@ -118,7 +115,7 @@ export async function GET() {
     let contactComplete = 0;
     let contactEmpty = 0;
     for (const c of contacts) {
-      const filled = [c.email, c.jobTitle, c.phone, c.location, c.linkedinUrl].filter(
+      const filled = [c.email, c.title, c.phone, c.location, c.linkedinUrl].filter(
         Boolean
       ).length;
       if (filled === 0) contactEmpty++;

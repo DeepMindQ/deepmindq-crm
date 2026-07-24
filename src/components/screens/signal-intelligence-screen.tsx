@@ -503,7 +503,7 @@ function SignalCard({
           <div className="flex items-center gap-2">
             {signal.companyId && (
               <button
-                onClick={() => onViewCompany(signal.companyId)}
+                onClick={() => onViewCompany(signal.companyId!)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-primary/5 border border-primary/15 hover:border-primary/30 transition-colors"
               >
                 View Account

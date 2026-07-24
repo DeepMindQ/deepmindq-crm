@@ -1,13 +1,52 @@
-// @ts-nocheck
 // ── Phase 7.6: Signal Detector ──
 // Scans CompanySignals for a given company and classifies them into
 // revenue-relevant OpportunitySignal records using keyword matching.
 
 import { db } from '@/lib/db';
-import { matchSignalPatterns, type PatternMatch, type SignalCategory } from './signal-patterns';
+import { KEYWORD_TO_CATEGORY, IMPORTANCE_WEIGHTS, type SignalCategory } from './signal-patterns';
+
+interface PatternMatch {
+  category: SignalCategory;
+  matchedKeywords: string[];
+  score: number;
+  weight: number;
+}
+
+function matchSignalPatterns(text: string): PatternMatch[] {
+  const lower = text.toLowerCase();
+  const matches: PatternMatch[] = [];
+  const seen = new Set<string>();
+
+  for (const pattern of KEYWORD_TO_CATEGORY.keys()) {
+    if (lower.includes(pattern)) {
+      const entry = KEYWORD_TO_CATEGORY.get(pattern)!;
+      if (!seen.has(entry.category)) {
+        seen.add(entry.category);
+        const weight = IMPORTANCE_WEIGHTS[entry.importance] ?? 0.5;
+        matches.push({
+          category: entry.category,
+          matchedKeywords: [pattern],
+          score: entry.importance * weight * 10,
+          weight,
+        });
+      } else {
+        const existing = matches.find(m => m.category === entry.category);
+        if (existing) {
+          existing.matchedKeywords.push(pattern);
+          const weight = IMPORTANCE_WEIGHTS[entry.importance] ?? 0.5;
+          existing.score += entry.importance * weight * 10;
+          existing.weight = Math.max(existing.weight, weight);
+        }
+      }
+    }
+  }
+
+  return matches;
+}
 
 export interface RawSignal {
   id: string;
+  companyId?: string;
   signalType: string;
   title: string;
   description: string | null;
@@ -183,10 +222,10 @@ export async function persistDetectedSignals(companyId: string, signals: Detecte
         data: {
           title: signal.title,
           description: signal.description,
-          supportingIntelligenceIds: JSON.stringify(signal.supportingIntelligenceIds),
+          sourceIntelligenceIds: JSON.stringify(signal.supportingIntelligenceIds),
           score: signal.score,
           confidence: signal.confidence,
-        },
+        } as any,
       });
     } else {
       await db.opportunitySignal.create({
@@ -195,11 +234,11 @@ export async function persistDetectedSignals(companyId: string, signals: Detecte
           signalType: signal.signalType,
           title: signal.title,
           description: signal.description,
-          supportingIntelligenceIds: JSON.stringify(signal.supportingIntelligenceIds),
+          sourceIntelligenceIds: JSON.stringify(signal.supportingIntelligenceIds),
           score: signal.score,
           confidence: signal.confidence,
           status: 'new',
-        },
+        } as any,
       });
     }
     count++;
@@ -210,19 +249,19 @@ export async function persistDetectedSignals(companyId: string, signals: Detecte
 
 // ── Helpers ──
 
-function buildSignalTitle(category: SignalCategory, topMatch: PatternMatch, rawTexts: string[]): string {
-  const categoryLabels: Record<SignalCategory, string> = {
-    TECHNOLOGY: 'Technology Signal',
-    GROWTH: 'Growth Signal',
-    PARTNERSHIP: 'Partnership Signal',
-    PAIN: 'Pain Point Signal',
-    LEADERSHIP: 'Leadership Signal',
+function buildSignalTitle(category: SignalCategory, topMatch: PatternMatch, _rawTexts: string[]): string {
+  const categoryLabels: Record<string, string> = {
+    technology: 'Technology Signal',
+    growth: 'Growth Signal',
+    partnership: 'Partnership Signal',
+    pain: 'Pain Point Signal',
+    leadership: 'Leadership Signal',
   };
   const keywordsStr = topMatch.matchedKeywords.slice(0, 3).join(', ');
-  return `${categoryLabels[category]}: ${keywordsStr}`;
+  return `${categoryLabels[category] || 'Signal'}: ${keywordsStr}`;
 }
 
-function buildSignalDescription(category: SignalCategory, matches: PatternMatch[], signalCount: number): string {
+function buildSignalDescription(_category: SignalCategory, matches: PatternMatch[], signalCount: number): string {
   const allKeywords = [...new Set(matches.flatMap(m => m.matchedKeywords))].slice(0, 5);
   return `Detected ${allKeywords.length} relevant keywords across ${signalCount} intelligence items: ${allKeywords.join(', ')}.`;
 }

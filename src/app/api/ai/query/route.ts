@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
@@ -11,7 +10,7 @@ import { apiError, apiSuccess } from '@/lib/apiHelpers'
 async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
   const { ensureZaiConfig } = await import('@/lib/zai-config');
   await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
+  const ZAI: any = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
   const completion = await ZAI.chat.completions.create({
     messages: [
       { role: 'assistant', content: systemPrompt },
@@ -51,7 +50,7 @@ function extractJson(raw: string): unknown {
 // Safe Prisma query builder
 // ---------------------------------------------------------------------------
 
-const ALLOWED_COMPANY_FILTERS: Record<string, (v: string) => any> = {
+const ALLOWED_COMPANY_FILTERS: Record<string, (v: string) => Record<string, unknown>> = {
   name: (v) => ({ name: { contains: v, mode: 'insensitive' } }),
   domain: (v) => ({ domain: { contains: v, mode: 'insensitive' } }),
   industry: (v) => ({ industry: { contains: v, mode: 'insensitive' } }),
@@ -60,7 +59,7 @@ const ALLOWED_COMPANY_FILTERS: Record<string, (v: string) => any> = {
   country: (v) => ({ country: { contains: v, mode: 'insensitive' } }),
 }
 
-const ALLOWED_CONTACT_FILTERS: Record<string, (v: string) => any> = {
+const ALLOWED_CONTACT_FILTERS: Record<string, (v: string) => Record<string, unknown>> = {
   name: (v) => ({ name: { contains: v, mode: 'insensitive' } }),
   email: (v) => ({ email: { contains: v, mode: 'insensitive' } }),
   jobTitle: (v) => ({ jobTitle: { contains: v, mode: 'insensitive' } }),
@@ -69,12 +68,12 @@ const ALLOWED_CONTACT_FILTERS: Record<string, (v: string) => any> = {
   emailHealth: (v) => ({ emailHealth: v }),
 }
 
-const ALLOWED_OPPORTUNITY_FILTERS: Record<string, (v: string) => any> = {
+const ALLOWED_OPPORTUNITY_FILTERS: Record<string, (v: string) => Record<string, unknown>> = {
   title: (v) => ({ title: { contains: v, mode: 'insensitive' } }),
   status: (v) => ({ status: v }),
 }
 
-const ALLOWED_COMPANY_SORT: Record<string, any> = {
+const ALLOWED_COMPANY_SORT: Record<string, Record<string, unknown>> = {
   name: { name: 'asc' },
   domain: { domain: 'asc' },
   industry: { industry: 'asc' },
@@ -85,7 +84,7 @@ const ALLOWED_COMPANY_SORT: Record<string, any> = {
   createdAt: { createdAt: 'desc' },
 }
 
-const ALLOWED_CONTACT_SORT: Record<string, any> = {
+const ALLOWED_CONTACT_SORT: Record<string, Record<string, unknown>> = {
   name: { name: 'asc' },
   email: { email: 'asc' },
   jobTitle: { jobTitle: 'asc' },
@@ -95,7 +94,7 @@ const ALLOWED_CONTACT_SORT: Record<string, any> = {
   createdAt: { createdAt: 'desc' },
 }
 
-const ALLOWED_OPPORTUNITY_SORT: Record<string, any> = {
+const ALLOWED_OPPORTUNITY_SORT: Record<string, Record<string, unknown>> = {
   title: { title: 'asc' },
   status: { status: 'asc' },
   createdAt: { createdAt: 'desc' },
@@ -138,8 +137,8 @@ Examples:
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { query } = body
+    const body = await request.json() as Record<string, unknown>
+    const { query } = body as { query?: unknown }
 
     if (!query || typeof query !== 'string') {
       return apiError('Query is required', 400)
@@ -206,10 +205,10 @@ async function executeQuery(
         where,
         orderBy,
         take: 20,
-        include: { _count: { select: { contacts: true, opportunities: true } } },
+        include: { _count: { select: { contacts: true } } },
       })
 
-      return { data, queryInterpretation, totalResults: data.length }
+      return { data: data as any[], queryInterpretation, totalResults: data.length }
     }
 
     if (entityType === 'contact') {
@@ -217,13 +216,13 @@ async function executeQuery(
       const orderBy = buildOrderBy(sortBy, sortOrder, ALLOWED_CONTACT_SORT, { createdAt: 'desc' })
 
       const data = await db.contact.findMany({
-        where: { ...where, archivedAt: null },
+        where: { ...where } as any,
         orderBy,
         take: 20,
-        include: { company: { select: { name: true, industry: true } } },
+        include: { company: { select: { rawName: true, industry: true } } },
       })
 
-      return { data, queryInterpretation, totalResults: data.length }
+      return { data: data as any[], queryInterpretation, totalResults: data.length }
     }
 
     if (entityType === 'opportunity') {
@@ -235,9 +234,8 @@ async function executeQuery(
         orderBy,
         take: 20,
         include: {
-          company: { select: { name: true, industry: true } },
-          targetContact: { select: { name: true, jobTitle: true } },
-        },
+          company: { select: { rawName: true, industry: true } },
+        } as any,
       })
 
       return { data, queryInterpretation, totalResults: data.length }

@@ -593,7 +593,7 @@ export default function IntelligenceSourcesScreen({ navigateTo }: IntelligenceSo
                     await fetch(`/api/g-intel-acquisition/runs/${resolutionModal.runId}/resolve`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ companyId: c.id }),
+                      body: JSON.stringify({ companyId: (c as any).id }),
                     });
                     toast.success(`Resolved to ${c.name}`);
                     setResolutionModal(prev => ({ ...prev, open: false }));

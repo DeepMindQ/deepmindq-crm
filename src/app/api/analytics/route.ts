@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Prisma } from '@prisma/client';
@@ -129,7 +128,7 @@ export async function GET() {
         },
         _count: { id: true },
         orderBy: { _count: { id: 'desc' } },
-      }),
+      } as any),
       // Per-batch bounce counts
       db.contact.groupBy({
         by: ['importBatchId'],
@@ -139,7 +138,7 @@ export async function GET() {
         },
         _count: { id: true },
         orderBy: { _count: { id: 'desc' } },
-      }),
+      } as any),
     ]);
 
     // If no real data, return empty
@@ -209,12 +208,14 @@ export async function GET() {
     // ── Campaign performance (from batches with real reply/bounce data) ──
     // Build lookup maps for per-batch reply and bounce counts
     const replyCountMap = new Map<string, number>();
-    for (const item of batchReplyCounts as { importBatchId: string; _count: { id: number } }[]) {
-      replyCountMap.set(item.importBatchId, item._count.id);
+    for (const item of batchReplyCounts as unknown[]) {
+      const r = item as Record<string, unknown>;
+      if (r.importBatchId && r._count) replyCountMap.set(r.importBatchId as string, (r._count as Record<string, unknown>).id as number);
     }
     const bounceCountMap = new Map<string, number>();
-    for (const item of batchBounceCounts as { importBatchId: string; _count: { id: number } }[]) {
-      bounceCountMap.set(item.importBatchId, item._count.id);
+    for (const item of batchBounceCounts as unknown[]) {
+      const r = item as Record<string, unknown>;
+      if (r.importBatchId && r._count) bounceCountMap.set(r.importBatchId as string, (r._count as Record<string, unknown>).id as number);
     }
 
     const campaignPerformance = recentBatches.map((batch: any) => {

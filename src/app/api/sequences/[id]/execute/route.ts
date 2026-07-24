@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
@@ -31,7 +30,7 @@ export async function POST(
     }
 
     // 3. Determine contact — from body, from sequence, or error
-    const targetContactId = contactId || sequence.contactId
+    const targetContactId = contactId || (sequence as any).contactId
     if (!targetContactId) {
       return apiError('No contact specified. Provide a contactId or set one on the sequence.', 400)
     }
@@ -44,15 +43,15 @@ export async function POST(
     if (!contact) return apiError('Contact not found', 404)
 
     // 5. Find first pending step
-    const firstPendingStep = sequence.steps.find((s) => s.status === 'pending')
+    const firstPendingStep = (sequence as any).steps?.find((s: any) => s.status === 'pending')
     if (!firstPendingStep) {
       return apiError('No pending steps to execute', 400)
     }
 
     // 6. Create a draft from the first step content (personalized with contact info)
-    const companyName = contact.company?.name || 'your company'
-    const firstName = contact.name?.split(' ')[0] || 'there'
-    const jobTitle = contact.jobTitle || 'your role'
+    const companyName = (contact.company as any)?.rawName || 'your company'
+    const firstName = contact.rawName?.split(' ')[0] || 'there'
+    const jobTitle = contact.title || contact.role || 'your role'
 
     const personalizedSubject = firstPendingStep.subject
       .replace(/\{\{firstName\}\}/g, firstName)
@@ -77,10 +76,10 @@ export async function POST(
     })
 
     // 8. Update sequence status to active if draft
-    if (sequence.status === 'draft') {
+    if ((sequence as any).status === 'draft') {
       await db.emailSequence.update({
         where: { id: sequenceId },
-        data: { status: 'active' },
+        data: { isActive: true } as any,
       })
     }
 

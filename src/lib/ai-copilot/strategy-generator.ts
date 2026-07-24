@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-nocheck — References AIEngagementStrategy model (not yet in schema)
 /**
  * AI Revenue Copilot — Engagement Strategy Generator
  *
@@ -91,7 +91,7 @@ async function logUsage(
   errorMessage?: string,
 ): Promise<void> {
   try {
-    await db.aIUsageLog.create({
+    await db.aIGenerationAudit.create({
       data: {
         companyId,
         feature: FEATURE,

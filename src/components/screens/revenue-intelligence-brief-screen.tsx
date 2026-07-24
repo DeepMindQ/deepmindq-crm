@@ -6,6 +6,8 @@ import {
   FileText, BarChart3, Search, Check, Copy, Globe, Building2, Monitor,
   TrendingUp, MessageSquare, ShieldCheck, ChevronRight, Loader2,
   DollarSign, MapPin, Users, ArrowDownRight, ArrowUpRight,
+  Lightbulb, ArrowRight, Handshake, HelpCircle, CalendarClock,
+  Flame, Crosshair, Quote, Play,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -82,6 +84,97 @@ function sourceTypeFromUrl(url: string): string {
   if (u.includes('news') || u.includes('press') || u.includes('techcrunch') || u.includes('reuters') || u.includes('bloomberg')) return 'news';
   if (u.includes('crunchbase') || u.includes('pitchbook')) return 'database';
   return 'web';
+}
+
+function sectionConfidence(overall: number, offset: number): number {
+  return Math.max(0, Math.min(100, overall - offset));
+}
+
+function freshnessLabel(isoDate: string): string {
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 5) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BriefSectionHeader — reusable VP-ready section wrapper
+   ═══════════════════════════════════════════════════════════════ */
+
+function BriefSectionHeader({
+  icon, title, subtitle, confidence, sourceLabel, sourceType, freshness, children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  confidence?: number;
+  sourceLabel?: string;
+  sourceType?: string;
+  freshness?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="flex items-center gap-2.5">
+        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          {icon}
+        </div>
+        <div>
+          <h2 className="text-base font-semibold text-foreground">{title}</h2>
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0 pt-0.5">
+        {confidence !== undefined && (
+          <ConfidenceBar value={confidence} size="sm" showPercentage={false} className="w-20" />
+        )}
+        {sourceType && (
+          <EvidenceBadge source={sourceType} confidence={confidence} className="text-[10px]" />
+        )}
+        {freshness && (
+          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+            <CalendarClock className="w-3 h-3" />
+            {freshness}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BlueCalloutBox — executive conversation starter card
+   ═══════════════════════════════════════════════════════════════ */
+
+function BlueCalloutBox({ text, index }: { text: string; index: number }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div className="group relative rounded-xl border-2 border-blue-200 bg-blue-50/50 p-4 hover:border-blue-300 hover:shadow-sm transition-all">
+      <div className="absolute -top-2.5 left-4">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-semibold">
+          <Quote className="w-2.5 h-2.5" />
+          Opener {index}
+        </span>
+      </div>
+      <p className="text-sm text-foreground/90 leading-relaxed pt-2">{text}</p>
+      <button
+        onClick={handleCopy}
+        className="absolute top-3 right-3 shrink-0 p-1.5 rounded-md hover:bg-blue-100 transition-colors opacity-0 group-hover:opacity-100"
+        title="Copy to clipboard"
+      >
+        {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-blue-500" />}
+      </button>
+    </div>
+  );
 }
 
 function estimateImpactValue(priority: string): string {

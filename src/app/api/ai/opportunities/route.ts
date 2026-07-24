@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 
@@ -68,7 +67,7 @@ async function withConcurrency<T>(
 
 /* ── Web search for a single company ── */
 async function searchCompany(
-  zai: Awaited<ReturnType<typeof import('z-ai-web-dev-sdk').default.create>>,
+  zai: any,
   name: string,
 ): Promise<SearchResult> {
   try {
@@ -82,7 +81,7 @@ async function searchCompany(
       }),
     ) ?? []
     return { companyName: name, results: items, error: null }
-  } catch (err) {
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     return { companyName: name, results: null, error: msg }
   }
@@ -103,19 +102,19 @@ function parseLLMJson(raw: string): ScoredOpportunity[] {
     if (Array.isArray(arr)) {
       return arr
         .filter(
-          (item) =>
+          (item: Record<string, unknown>) =>
             item.companyName &&
             typeof item.matchScore === 'number' &&
-            item.matchScore >= 40,
+            (item.matchScore as number) >= 40,
         )
-        .map((item) => ({
+        .map((item: Record<string, unknown>) => ({
           companyName: String(item.companyName),
-          matchScore: Math.min(100, Math.max(0, Math.round(item.matchScore))),
+          matchScore: Math.min(100, Math.max(0, Math.round(item.matchScore as number))),
           opportunityType: String(item.opportunityType ?? 'Digital Transformation'),
           whyNow: String(item.whyNow ?? ''),
           relevantCapability: String(item.relevantCapability ?? ''),
           targetPersona: String(item.targetPersona ?? 'CIO'),
-          confidence: Math.min(100, Math.max(0, Math.round(item.confidence ?? 50))),
+          confidence: Math.min(100, Math.max(0, Math.round((item.confidence as number) ?? 50))),
           reasoning: String(item.reasoning ?? ''),
         }))
         .sort((a: ScoredOpportunity, b: ScoredOpportunity) => b.matchScore - a.matchScore)
@@ -127,7 +126,7 @@ function parseLLMJson(raw: string): ScoredOpportunity[] {
   // Regex fallback — extract individual objects
   const opportunities: ScoredOpportunity[] = []
   const objRegex =
-    /\{\s*"companyName"\s*:\s*"([^"]+)"\s*.*?"matchScore"\s*:\s*(\d+)\s*.*?\}/gs
+    /\{\s*"companyName"\s*:\s*"([^"]+)"\s*.*?"matchScore"\s*:\s*(\d+)\s*.*?\}/gu
   let match: RegExpExecArray | null
   while ((match = objRegex.exec(cleaned)) !== null) {
     const block = match[0]
@@ -209,7 +208,7 @@ export async function GET() {
     }
 
     // 2. Run web searches with concurrency limit of 3
-    const ZAI = await import('z-ai-web-dev-sdk').then((m) => m.default).then((Z) => Z.create())
+    const ZAI: any = await import('z-ai-web-dev-sdk').then((m) => m.default).then((Z) => Z.create())
 
     const searchTasks = companies.map(
       (c) => () => searchCompany(ZAI, c.normalizedName),
@@ -295,7 +294,7 @@ Only include companies with matchScore >= 40. Sort by matchScore descending.`
 
     cachedResult = { data: response, ts: Date.now() }
     return apiSuccess(response)
-  } catch (error) {
+  } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('[ai/opportunities] Failed:', msg)
 

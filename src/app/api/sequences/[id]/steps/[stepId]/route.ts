@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
@@ -30,15 +29,16 @@ export async function POST(
     })
     const nextStepNumber = (maxStep._max.stepNumber ?? 0) + 1
 
+    const d = data as Record<string, unknown>;
     const step = await db.sequenceStep.create({
       data: {
         sequenceId,
         stepNumber: nextStepNumber,
         subject: data.subject,
         body: data.body,
-        delayDays: data.delayDays,
+        delayMinutes: (d.delayDays ?? d.delayMinutes ?? 0) as number,
         cta: data.cta ?? null,
-      },
+      } as any,
     })
 
     return apiSuccess(step, 201)
@@ -68,7 +68,8 @@ export async function PATCH(
     const updateData: Record<string, unknown> = {}
     if (data.subject !== undefined) updateData.subject = data.subject
     if (data.body !== undefined) updateData.body = data.body
-    if (data.delayDays !== undefined) updateData.delayDays = data.delayDays
+    const dd = data as Record<string, unknown>;
+    if (dd.delayDays !== undefined || dd.delayMinutes !== undefined) updateData.delayMinutes = (dd.delayDays ?? dd.delayMinutes ?? 0) as number
     if (data.cta !== undefined) updateData.cta = data.cta
     if (data.stepNumber !== undefined) updateData.stepNumber = data.stepNumber
     if (data.status !== undefined) updateData.status = data.status

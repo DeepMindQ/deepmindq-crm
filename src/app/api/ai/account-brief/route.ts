@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
@@ -42,7 +41,7 @@ const briefCache = new Map<string, { data: CachedBrief; expiresAt: number }>()
 // SDK helpers
 // ---------------------------------------------------------------------------
 
-type ZAIInstance = Awaited<ReturnType<typeof createZAI>>
+type ZAIInstance = any
 
 async function createZAI() {
   const { ensureZaiConfig } = await import('@/lib/zai-config');

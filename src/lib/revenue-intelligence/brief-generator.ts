@@ -1,4 +1,3 @@
-// @ts-nocheck
 // ── Phase 7.6: Hybrid Brief Generator ──
 // Generates AccountBrief using the hybrid approach:
 //   1. Rule engine extracts structured facts from signals/scores/opportunities
@@ -97,7 +96,7 @@ export async function extractBriefFacts(companyId: string): Promise<BriefFacts> 
 
   const oppSignals = await db.opportunitySignal.findMany({
     where: { companyId, status: { in: ['new', 'validated'] } },
-    select: { signalType: true as any, title: true, score: true, confidence: true },
+    select: { signalType: true, title: true, score: true, confidence: true } as any,
     orderBy: { score: 'desc' },
     take: 10,
   });
@@ -108,17 +107,17 @@ export async function extractBriefFacts(companyId: string): Promise<BriefFacts> 
     }),
     db.pursuit.count({
       where: { companyId, status: 'active' },
-    }),
+    }) as any,
   ]);
 
   const themes = extractThemes(company);
-  const risks = extractRisks(recentSignals, oppSignals as any);
+  const risks = extractRisks(recentSignals, oppSignals as any[]);
   const recommendations = generateRuleBasedRecommendations({
     company,
     latestScore,
     openOpps,
     activePursuits,
-    oppSignals: oppSignals as any,
+    oppSignals: oppSignals as any[],
     recentSignals,
     themes,
   });
@@ -230,7 +229,7 @@ export async function generateAndPersistBrief(companyId: string): Promise<{
       recommendations: JSON.stringify(facts.recommendations),
       confidence,
       generatedBy: 'system',
-    },
+    } as any,
     update: {
       summary,
       keySignals: JSON.stringify(facts.opportunitySignals),
@@ -240,7 +239,7 @@ export async function generateAndPersistBrief(companyId: string): Promise<{
       confidence,
       generatedAt: new Date(),
       generatedBy: 'system',
-    },
+    } as any,
   });
 
   return { id: brief.id, summary: brief.summary, confidence: brief.confidence };
@@ -291,7 +290,7 @@ function extractRisks(
 ): BriefFacts['risks'] {
   const risks: BriefFacts['risks'] = [];
 
-  const painSignals = oppSignals.filter(s => s.signalType === 'PAIN');
+  const painSignals = oppSignals.filter(s => (s.signalType as any) === 'PAIN');
   for (const ps of painSignals) {
     risks.push({
       risk: ps.title,
@@ -331,7 +330,7 @@ function generateRuleBasedRecommendations(ctx: {
     });
   }
 
-  const techSignals = ctx.oppSignals.filter(s => s.signalType === 'TECHNOLOGY' && s.score > 50);
+  const techSignals = ctx.oppSignals.filter(s => (s.signalType as any) === 'TECHNOLOGY' && s.score > 50);
   if (techSignals.length > 0) {
     recs.push({
       action: 'Position technology capabilities based on detected tech signals',
@@ -340,7 +339,7 @@ function generateRuleBasedRecommendations(ctx: {
     });
   }
 
-  const painSignals = ctx.oppSignals.filter(s => s.signalType === 'PAIN');
+  const painSignals = ctx.oppSignals.filter(s => (s.signalType as any) === 'PAIN');
   if (painSignals.length > 0) {
     recs.push({
       action: 'Take consultative approach addressing detected pain points',
@@ -349,7 +348,7 @@ function generateRuleBasedRecommendations(ctx: {
     });
   }
 
-  if (ctx.oppSignals.some(s => s.signalType === 'GROWTH')) {
+  if (ctx.oppSignals.some(s => (s.signalType as any) === 'GROWTH')) {
     recs.push({
       action: 'Open expansion support conversation',
       priority: 'medium',

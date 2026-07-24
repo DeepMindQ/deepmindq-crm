@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-nocheck — References StrategicInsight via reasoning-engine types
 // ── Phase 8: AI Brief Enhancer ──
 // Enhances existing rule-generated AccountBrief with AI-generated strategic narrative,
 // key takeaways, and strategic implications. Uses LLM to produce a deeper, more

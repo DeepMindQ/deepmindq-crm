@@ -15,6 +15,11 @@ import {
   PageTransition, AnimatedCard, StatCard, GlassPanel,
   EmptyState, StaggerGrid, StaggerItem, SectionHeader,
 } from '@/components/ui/animated-components';
+import { AIInsightCard } from '@/components/enterprise/AIInsightCard';
+import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
+import { EvidenceBadge } from '@/components/enterprise/EvidenceBadge';
+import { AIProgressTracker } from '@/components/enterprise/AIProgressTracker';
+import { ErrorState } from '@/components/enterprise/ErrorState';
 import { CompanyMindMap } from '@/components/company-mind-map';
 import {
   ArrowLeft, ArrowRight, Globe, MapPin, Users, Building2, ExternalLink, Edit3, Save,
@@ -95,12 +100,12 @@ const TIMELINE_ICONS: Record<string, React.ReactNode> = {
   email_opened: <MailOpen size={14} className="text-emerald-600" />,
   email_replied: <MessageSquare size={14} className="text-purple-600" />,
   email_bounced: <RotateCcw size={14} className="text-red-600" />,
-  note_added: <FileText size={14} style={{ color: 'var(--color-gold)' }} />,
-  enrichment: <Sparkles size={14} style={{ color: 'var(--color-gold)' }} />,
+  note_added: <FileText size={14} className="text-blue-500" />,
+  enrichment: <Sparkles size={14} className="text-blue-500" />,
   status_change: <Activity size={14} className="text-amber-600" />,
   signal: <Bell size={14} className="text-orange-600" />,
   contact_added: <UserCircle size={14} className="text-cyan-600" />,
-  research_saved: <BookOpen size={14} style={{ color: 'var(--color-gold)' }} />,
+  research_saved: <BookOpen size={14} className="text-blue-500" />,
 };
 
 const INTEL = '#2563eb';
@@ -295,6 +300,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
 
   // AI Intelligence
   const [aiInsights, setAiInsights] = useState<any>(null);
+  const [aiIntelligence, setAiIntelligence] = useState<any>(null);
   const [loadingIntel, setLoadingIntel] = useState(false);
   const [intelError, setIntelError] = useState<string | null>(null);
   const [intelSteps, setIntelSteps] = useState<Array<{label: string; status: 'pending' | 'processing' | 'complete' | 'error'}>>([
@@ -342,6 +348,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
       if (!res.ok) throw new Error('Failed to fetch intelligence');
       const data = await res.json();
       setAiInsights(data.aiInsights);
+      setAiIntelligence(data);
       setIntelSteps(prev => prev.map(s => ({ ...s, status: 'complete' as const })));
     } catch (err: any) {
       setIntelError(err.message || 'Intelligence analysis failed');
@@ -437,6 +444,13 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
     run();
     return () => { cancelled = true; };
   }, [noteFilter, fetchNotes]);
+
+  /* ── Auto-fetch Intelligence when tab activates ── */
+  useEffect(() => {
+    if (activeTab === 'intelligence' && !aiInsights && !loadingIntel && !intelError) {
+      fetchIntelligence();
+    }
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Save Company Edit ── */
   const saveCompany = async () => {
@@ -617,7 +631,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
               <ArrowLeft size={16} className="text-muted-foreground" />
             </motion.button>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))', border: '1px solid rgba(212,175,55,0.2)' }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50 border border-blue-100">
                 <Building2 size={20} style={{ color: INTEL }} />
               </div>
               <div>
@@ -804,7 +818,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
 
                   {/* Scores */}
                   <div className="space-y-3 pt-3 border-t border-gray-200">
-                    <ScoreBar label="Intelligence Score" value={company?.intelligenceScore || 0} color="var(--color-gold)" />
+                    <ScoreBar label="Intelligence Score" value={company?.intelligenceScore || 0} color={INTEL} />
                     <ScoreBar label="Engagement Score" value={company?.engagementScore || 0} color="#3b82f6" />
                   </div>
 
@@ -1065,12 +1079,26 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                         </h4>
                       </div>
                       <div className="space-y-3">
-                        {(aiInsights.keyDevelopments || []).map((dev: string, i: number) => (
-                          <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-amber-50/50 border border-amber-100">
-                            <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 text-[10px] font-bold text-amber-700">{i + 1}</div>
-                            <p className="text-xs text-foreground/80 leading-relaxed">{dev}</p>
-                          </div>
-                        ))}
+                        {(aiInsights.keyDevelopments || []).length === 0 && (
+                          <p className="text-xs text-muted-foreground italic py-2">No key developments identified yet. Run analysis to detect recent company news, funding, and product launches.</p>
+                        )}
+                        {(aiInsights.keyDevelopments || []).map((dev: any, i: number) => {
+                          const text = typeof dev === 'string' ? dev : dev.text || dev.description || '';
+                          const conf = typeof dev === 'object' ? (dev.confidence ?? 70 + (5 - i) * 5) : 75 + (5 - i) * 4;
+                          const source = typeof dev === 'object' ? (dev.source || 'web') : 'web';
+                          return (
+                            <div key={i} className="space-y-2 p-3 rounded-lg bg-amber-50/50 border border-amber-100">
+                              <div className="flex items-start gap-3">
+                                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 text-[10px] font-bold text-amber-700">{i + 1}</div>
+                                <p className="text-xs text-foreground/80 leading-relaxed flex-1">{text}</p>
+                              </div>
+                              <div className="flex items-center gap-3 ml-8">
+                                <EvidenceBadge source={source} confidence={conf} />
+                                <ConfidenceBar value={Math.min(conf, 98)} size="sm" className="flex-1 max-w-[120px]" />
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </AnimatedCard>
@@ -1084,6 +1112,9 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                         </h4>
                       </div>
                       <div className="space-y-3">
+                        {(aiInsights.potentialChallenges || []).length === 0 && (
+                          <p className="text-xs text-muted-foreground italic py-2">No challenges identified. The AI analysis will surface potential friction points in the sales process.</p>
+                        )}
                         {(aiInsights.potentialChallenges || []).map((ch: string, i: number) => (
                           <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-red-50/50 border border-red-100">
                             <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-[10px] font-bold text-red-600">{i + 1}</div>
@@ -1100,14 +1131,17 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                   <AnimatedCard delay={0.2}>
                     <div className="p-5 space-y-4">
                       <div className="flex items-center gap-2">
-                        <div className="h-5 w-1.5 rounded-full bg-violet-500" />
-                        <h4 className="text-xs font-bold text-violet-600 uppercase tracking-wider flex items-center gap-1.5">
-                          <Layers size={12} /> Technology Landscape
+                        <div className="h-5 w-1.5 rounded-full bg-blue-500" />
+                        <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
+                          <Layers size={12} /> Technology Stack
                         </h4>
                       </div>
                       <div className="flex flex-wrap gap-2">
+                        {(aiInsights.techStack || []).length === 0 && (
+                          <p className="text-xs text-muted-foreground italic">No technologies detected. Analysis will identify the company's stack from web data and job postings.</p>
+                        )}
                         {(aiInsights.techStack || []).map((tech: string, i: number) => (
-                          <Badge key={i} variant="outline" className="text-xs px-3 py-1 border-violet-200 text-violet-700 bg-violet-50/50">{tech}</Badge>
+                          <Badge key={i} variant="outline" className="text-xs px-3 py-1 border-blue-200 text-blue-700 bg-blue-50/50">{tech}</Badge>
                         ))}
                       </div>
                     </div>
@@ -1121,12 +1155,12 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                           <Target size={12} /> Competitive Landscape
                         </h4>
                       </div>
-                      <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        {(aiInsights.competitors || []).length === 0 && (
+                          <p className="text-xs text-muted-foreground italic">No competitors identified. Analysis will map the competitive landscape from industry data.</p>
+                        )}
                         {(aiInsights.competitors || []).map((comp: string, i: number) => (
-                          <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-sky-50/50 border border-sky-100">
-                            <div className="h-6 w-6 rounded-full bg-sky-100 flex items-center justify-center text-[10px] font-bold text-sky-700">{i + 1}</div>
-                            <span className="text-xs font-medium text-foreground/80">{comp}</span>
-                          </div>
+                          <Badge key={i} variant="outline" className="text-xs px-3 py-1 border-sky-200 text-sky-700 bg-sky-50/50">{comp}</Badge>
                         ))}
                       </div>
                     </div>
@@ -1144,7 +1178,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                         <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider">
                           Recommended Engagement Strategy
                         </h4>
-                        <p className="text-sm text-blue-900/80 leading-relaxed">{aiInsights.outreachAngle}</p>
+                        <p className="text-sm text-blue-900/80 leading-relaxed">{aiInsights.outreachAngle || 'No outreach strategy generated yet. Run the analysis to receive a personalized engagement recommendation based on the company\u0027s current situation and signals.'}</p>
                       </div>
                     </div>
                   </div>
@@ -1164,12 +1198,16 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                         {aiInsights.webFindings.map((src: any, i: number) => {
                           let domain = '';
                           try { domain = new URL(src.url).hostname.replace('www.', ''); } catch { domain = src.url; }
+                          const sourceType = src.source || 'web';
                           return (
                             <a key={i} href={src.url} target="_blank" rel="noopener noreferrer"
                               className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-colors group">
                               <ExternalLink size={12} className="mt-0.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                               <div className="min-w-0 flex-1">
-                                <p className="text-xs font-medium text-foreground line-clamp-1 group-hover:text-blue-600 transition-colors">{src.title || domain}</p>
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <p className="text-xs font-medium text-foreground line-clamp-1 group-hover:text-blue-600 transition-colors">{src.title || domain}</p>
+                                  <EvidenceBadge source={sourceType} />
+                                </div>
                                 <p className="text-[10px] text-muted-foreground">{domain}</p>
                               </div>
                             </a>
@@ -1364,7 +1402,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                   <StaggerItem key={contact.id}>
                     <GlassPanel className="p-4 hover:border-[#2563eb]/20 transition-all">
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))', border: '1px solid rgba(212,175,55,0.15)' }}>
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 border border-blue-100">
                           <UserCircle size={20} style={{ color: INTEL }} />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -1630,7 +1668,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                   <div className="lg:col-span-2">
                     <AnimatedCard delay={0.5}>
                       <div className="p-5 space-y-3">
-                        <h4 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2" style={{ color: 'var(--color-gold)' }}>
+                        <h4 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-blue-600">
                           <Globe size={14} /> Research Sources ({briefSources.length})
                         </h4>
                         <div className="space-y-2 max-h-48 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>

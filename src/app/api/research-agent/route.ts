@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 
 // POST /api/research-agent — Deep research on company or person
@@ -18,7 +17,7 @@ export async function POST(req: NextRequest) {
       const ZAI = (await import('z-ai-web-dev-sdk')).default;
       const { ensureZaiConfig } = await import('@/lib/zai-config');
       await ensureZaiConfig();
-      const zai = await ZAI.create();
+      const zai: any = await ZAI.create();
 
       // First do web search, then LLM synthesis
       const searchResult = await zai.functions.invoke('web_search', { query });

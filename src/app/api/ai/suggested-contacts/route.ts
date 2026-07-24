@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
@@ -39,7 +38,7 @@ async function webSearch(query: string, num = 10): Promise<WebResult[]> {
   try {
     const { ensureZaiConfig } = await import('@/lib/zai-config');
     await ensureZaiConfig();
-    const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
+    const ZAI: any = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
     const results = await ZAI.functions.invoke('web_search', { query, num });
     return (results || [])
       .slice(0, num)
@@ -55,7 +54,7 @@ async function webSearch(query: string, num = 10): Promise<WebResult[]> {
 }
 
 async function aiChat(systemPrompt: string, userPrompt: string): Promise<string> {
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
+  const ZAI: any = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
   const completion = await ZAI.chat.completions.create({
     messages: [
       { role: 'assistant', content: systemPrompt },
@@ -79,7 +78,7 @@ function parseContacts(raw: string): SuggestedContact[] {
   }
 
   const contacts: SuggestedContact[] = [];
-  const re = /\{\s*"role"\s*:\s*"([^"]+)"[\s\S]*?"whyRelevant"\s*:\s*"((?:[^"\\]|\\.)*)"[\s\S]*?"influence"\s*:\s*"([^"]+)"[\s\S]*?"priority"\s*:\s*(\d)[\s\S]*?"recommendedAction"\s*:\s*"((?:[^"\\]|\\.)*)"[\s\S]*?"name"\s*:\s*(?:"((?:[^"\\]|\\.)*)"|null)\s*\}/g;
+  const re = /\{\s*"role"\s*:\s*"([^"]+)"[\s\S]*?"whyRelevant"\s*:\s*"((?:[^"\\\\]|\\\\.)*)"[\s\S]*?"influence"\s*:\s*"([^"]+)"[\s\S]*?"priority"\s*:\s*(\d)[\s\S]*?"recommendedAction"\s*:\s*"((?:[^"\\\\]|\\\\.)*)"[\s\S]*?"name"\s*:\s*(?:"((?:[^"\\\\]|\\\\.)*)"|null)\s*\}/g;
   let match: RegExpExecArray | null;
   while ((match = re.exec(cleaned)) !== null) {
     contacts.push({
@@ -98,7 +97,7 @@ const VALID_INFLUENCE = ['Decision Maker', 'Technical Influencer', 'Business Spo
 
 function validateContacts(arr: unknown[]): SuggestedContact[] {
   return arr
-    .filter((c): c is Record<string, unknown> => typeof c === 'object' && c !== null && c.role)
+    .filter((c): c is Record<string, unknown> => typeof c === 'object' && c !== null && 'role' in c)
     .map((c) => ({
       name: typeof c.name === 'string' ? c.name : null,
       role: String(c.role),
@@ -165,39 +164,12 @@ export async function GET(request: NextRequest) {
     const systemPrompt =
       'You are a B2B stakeholder identification expert. Analyze search results to identify key decision-makers and influencers within a company. Always respond with valid JSON only.';
 
-    const userPrompt = `Based on the search results about ${companyName}, identify the key stakeholders who would be relevant for a technology/AI consulting engagement.
-
-For each stakeholder, determine:
-- Name (if found in search results, otherwise use role only)
-- Role/Title
-- Why they're relevant
-- Influence level: Decision Maker / Technical Influencer / Business Sponsor / Champion / Blocker
-- Priority (1-5 stars)
-- Recommended action to engage them
-
-Existing contacts in CRM:\n${existingContactSummary}
-
-Search results:
-${webContext || 'No web results found.'}
-
-Return ONLY valid JSON array:
-[
-  {
-    "name": "Name or null if not found",
-    "role": "Chief Information Officer",
-    "whyRelevant": "Leads technology strategy...",
-    "influence": "Decision Maker",
-    "priority": 5,
-    "recommendedAction": "Direct executive introduction"
-  }
-]
-
-Identify 5-8 stakeholders. Focus on C-suite, VPs, and Directors relevant to technology, digital transformation, and operations.`;
+    const userPrompt = `Based on the search results about ${companyName}, identify the key stakeholders who would be relevant for a technology/AI consulting engagement.\n\nFor each stakeholder, determine:\n- Name (if found in search results, otherwise use role only)\n- Role/Title\n- Why they're relevant\n- Influence level: Decision Maker / Technical Influencer / Business Sponsor / Champion / Blocker\n- Priority (1-5 stars)\n- Recommended action to engage them\n\nExisting contacts in CRM:\n${existingContactSummary}\n\nSearch results:\n${webContext || 'No web results found.'}\n\nReturn ONLY valid JSON array:\n[\n  {\n    "name": "Name or null if not found",\n    "role": "Chief Information Officer",\n    "whyRelevant": "Leads technology strategy...",\n    "influence": "Decision Maker",\n    "priority": 5,\n    "recommendedAction": "Direct executive introduction"\n  }\n]\n\nIdentify 5-8 stakeholders. Focus on C-suite, VPs, and Directors relevant to technology, digital transformation, and operations.`;
 
     const raw = await aiChat(systemPrompt, userPrompt);
     const contacts = parseContacts(raw);
 
-    const response = {
+    const response: Record<string, unknown> = {
       companyId,
       companyName,
       contacts,

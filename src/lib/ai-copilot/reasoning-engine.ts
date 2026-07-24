@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-nocheck — References StrategicInsight model (not yet in schema)
 /**
  * AI Revenue Copilot — Reasoning Engine (Main Orchestrator)
  *

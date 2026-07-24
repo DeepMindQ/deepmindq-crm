@@ -33,6 +33,11 @@ interface ParsedSignal {
   source: string
   detectedAt: string
   confidence: number
+  // Intelligence Object fields (Wave 8A)
+  businessImpact: string
+  timing: string
+  owner: string
+  expiresAt: string | null
 }
 
 interface SignalsResponse {
@@ -129,7 +134,7 @@ Classify each signal into one of these types:
 - "technology" — new tech adoption, platform migrations, product launches, patent filings, or tech stack changes
 - "expansion" — opening new offices, entering new markets, geographic growth, partnerships, or joint ventures
 
-For each signal provide:
+INTELLIGENCE OBJECT STANDARD — Every signal MUST include these 8 fields:
 - type: one of the five categories above
 - title: a concise, specific headline (max 80 chars)
 - description: 1-2 sentences summarizing the finding based on the search results
@@ -137,7 +142,12 @@ For each signal provide:
 - recommendedAction: a specific, actionable next step for a sales team
 - priority: "high", "medium", or "low" based on urgency and sales relevance
 - source: the source domain(s) where this was found, e.g. "LinkedIn / TechCrunch"
+- sourceUrl: a specific URL from the search results (critical for evidence)
 - confidence: 0-100 based on how clearly the signal is supported by the search results
+- businessImpact: specific revenue/sales implication (e.g., "High — $3M cloud budget indicated")
+- timing: "immediate", "within_7_days", "within_30_days", "within_90_days", or "ongoing"
+- owner: who should act (e.g., "Enterprise AE", "SDR Team", "Account Manager")
+- expiresAt: ISO date when this intelligence becomes stale (typically 90 days out, or null)
 
 Only include signals that are clearly supported by the search results. Do not fabricate information.
 Return a JSON array of signal objects. If no meaningful signals are found, return an empty array [].
@@ -160,7 +170,13 @@ interface RawLLMSignal {
   recommendedAction?: string
   priority?: string
   source?: string
+  sourceUrl?: string
   confidence?: number
+  // Intelligence Object fields (Wave 8A)
+  businessImpact?: string
+  timing?: string
+  owner?: string
+  expiresAt?: string | null
 }
 
 function parseLLMSignals(raw: string): RawLLMSignal[] {
@@ -210,6 +226,17 @@ function normalizeSignal(raw: RawLLMSignal, companyId: string, companyName: stri
     ? Math.min(100, Math.max(0, Math.round(raw.confidence)))
     : 60
 
+  // Intelligence Object: derive timing from priority if not provided
+  const validTimings = ['immediate', 'within_7_days', 'within_30_days', 'within_90_days', 'ongoing', 'expired']
+  const timing = validTimings.includes(raw.timing ?? '')
+    ? raw.timing!
+    : priority === 'high' ? 'within_7_days'
+    : priority === 'medium' ? 'within_30_days'
+    : 'within_90_days'
+
+  // Intelligence Object: derive expiry
+  const expiresAt = raw.expiresAt ?? new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
   return {
     id: randomUUID(),
     companyId,
@@ -223,7 +250,16 @@ function normalizeSignal(raw: RawLLMSignal, companyId: string, companyName: stri
     source: String(raw.source || 'Web Search'),
     detectedAt: new Date().toISOString(),
     confidence,
+    // Intelligence Object fields
+    businessImpact: String(raw.businessImpact || `${capitalize(priority)} impact — ${type} signal detected`),
+    timing,
+    owner: String(raw.owner || 'Unassigned'),
+    expiresAt,
   }
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
 // ---------------------------------------------------------------------------
@@ -280,6 +316,39 @@ async function scanCompany(zai: Awaited<ReturnType<typeof getZAI>>, company: Com
     console.error(`[ai/signals] LLM analysis failed for ${company.normalizedName}:`, err instanceof Error ? err.message : err)
     return { signals: [], rawResults: allResults }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Signal Persistence — Wave 8A Intelligence Object fields
+// ---------------------------------------------------------------------------
+
+/**
+ * Persist detected signals to CompanySignal table with full Intelligence Object fields.
+ * Uses createMany for efficiency. Fire-and-forget — errors are logged but not thrown.
+ */
+async function persistSignalsToDb(signals: ParsedSignal[]): Promise<void> {
+  const now = new Date()
+  await db.companySignal.createMany({
+    data: signals.map(s => ({
+      companyId: s.companyId,
+      signalType: s.type,
+      title: s.title,
+      description: s.description,
+      source: s.source,
+      severity: s.priority === 'high' ? 'high' : s.priority === 'low' ? 'low' : 'medium',
+      confidence: s.confidence / 100, // 0-1 scale in DB
+      signalDate: now,
+      extractedAt: now,
+      // Intelligence Object fields (Wave 8A)
+      businessImpact: s.businessImpact,
+      recommendedAction: s.recommendedAction,
+      timingWindow: s.timing,
+      expiresAt: s.expiresAt ? new Date(s.expiresAt) : null,
+      status: 'detected',
+    })),
+    skipDuplicates: true,
+  })
+  console.log(`[ai/signals] Persisted ${signals.length} signals to CompanySignal with Intelligence Object fields`)
 }
 
 // ---------------------------------------------------------------------------
@@ -358,6 +427,13 @@ export async function GET(request: NextRequest) {
 
     // Cache the result
     setCache(companyId, limit, response)
+
+    // Wave 8A: Persist signals to CompanySignal with Intelligence Object fields (fire-and-forget)
+    if (allSignals.length > 0) {
+      persistSignalsToDb(allSignals).catch(err => {
+        console.error('[ai/signals] Signal persistence failed:', err instanceof Error ? err.message : err)
+      })
+    }
 
     return apiSuccess(response)
   } catch (err) {

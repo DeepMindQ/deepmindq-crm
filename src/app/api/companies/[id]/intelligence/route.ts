@@ -20,6 +20,9 @@ interface EvidenceBackedSignal {
   confidence: number; // 0-100
   businessImpact: string;
   recommendedAction: string;
+  timing: string;      // Intelligence Object: timing window
+  owner: string;       // Intelligence Object: who should act
+  expiresAt: string | null; // Intelligence Object: when intelligence decays
 }
 
 interface EnhancedAiInsights {
@@ -63,6 +66,13 @@ interface EnhancedAiInsights {
     contactsAnalyzed: number;
     overallConfidence: number; // 0-100
   };
+  // Wave 8A: Quality gate results
+  qualityReport?: {
+    overallStatus: string;
+    overallScore: number;
+    gates: Array<{ gate: string; status: string; score: number; message: string }>;
+    objectCompleteness: number;
+  };
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -70,32 +80,14 @@ interface EnhancedAiInsights {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 async function webSearch(query: string, num = 5) {
-  try {
-    const { ensureZaiConfig } = await import('@/lib/zai-config');
-    await ensureZaiConfig();
-    const ZAI: any = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
-    const results = await ZAI.functions.invoke('web_search', { query, num });
-    return (results || []).slice(0, num).map((r: Record<string, string>) => ({
-      title: r.name || '',
-      url: r.url || '',
-      snippet: r.snippet || '',
-    }));
-  } catch (e) {
-    console.error('[intelligence] Web search failed:', e);
-    return [];
-  }
+  const { webSearch: search } = await import('@/lib/ai-copilot/ai-caller');
+  return search(query, num);
 }
 
 async function aiChat(systemPrompt: string, userPrompt: string): Promise<string> {
-  const ZAI: any = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  });
-  return completion.choices?.[0]?.message?.content ?? '';
+  const { callAI } = await import('@/lib/ai-copilot/ai-caller');
+  const result = await callAI({ systemPrompt, userPrompt, feature: 'company_intelligence', runQualityCheck: false });
+  return result.raw;
 }
 
 /**
@@ -141,6 +133,9 @@ function normalizeInsights(obj: Record<string, unknown>): EnhancedAiInsights {
       confidence: typeof sig.confidence === 'number' ? Math.min(100, Math.max(0, Math.round(sig.confidence))) : 50,
       businessImpact: safeStr(sig.businessImpact, 'Not assessed'),
       recommendedAction: safeStr(sig.recommendedAction, 'Not specified'),
+      timing: safeStr(sig.timing, 'within_30_days'),
+      owner: safeStr(sig.owner, 'Unassigned'),
+      expiresAt: sig.expiresAt ? String(sig.expiresAt) : null,
     };
   };
 
@@ -289,16 +284,20 @@ async function generateIntelligence(
       .map((r, i) => `${i + 1}. ${r.title}\n   ${r.snippet}\n   URL: ${r.url}`)
       .join('\n\n');
 
-    // Step 3: Enhanced AI analysis — Evidence Framework prompt
+    // Step 3: Enhanced AI analysis — Evidence Framework + Intelligence Object prompt
     const systemPrompt = `You are a senior enterprise sales intelligence analyst. Your outputs must be evidence-backed, specific, and actionable.
 
 CRITICAL RULES:
-1. Every signal MUST include: the signal description, WHY it was detected, the evidence source (with URL), source date, confidence score (0-100), business impact, and a recommended sales action.
-2. NEVER output vague statements like "Company may need X". Instead: "Company hired 15 cloud engineers in Q1 2026 according to LinkedIn job postings (source URL). Confidence: 85%. Impact: Cloud migration opportunity. Action: Position cloud optimization assessment."
+1. Every signal MUST include the complete Intelligence Object (8 fields): signal, evidence, confidence, businessImpact, recommendedAction, timing, owner, expiresAt.
+2. NEVER output vague statements like "Company may need X". Instead: "Company hired 15 cloud engineers in Q1 2026 according to LinkedIn job postings (source URL). Confidence: 85%. Impact: Cloud migration opportunity. Action: Position cloud optimization assessment. Timing: within_7_days."
 3. Ground every claim in the web search results. If information is sparse, lower confidence scores accordingly.
 4. Be specific about technology, timing, and business context.
 5. Every competitor mention must include evidence of why they are a competitor.
 6. The outreach angle must be specific enough for a sales rep to use in a first meeting.
+
+TIMING OPTIONS: "immediate" (act now), "within_7_days", "within_30_days", "within_90_days", "ongoing" (continuous), "expired" (past window)
+OWNER: Specify who should act — role or team (e.g., "Enterprise AE — West Region", "SDR Team", "VP Sales")
+EXPIRY: ISO date when intelligence becomes stale (typically 90 days from source date, or null for ongoing)
 
 OUTPUT FORMAT: Valid JSON only.`;
 
@@ -348,7 +347,10 @@ Generate evidence-backed intelligence. Return valid JSON:
         "sourceDate": "YYYY-MM-DD",
         "confidence": 85,
         "businessImpact": "what this means for sales",
-        "recommendedAction": "specific action sales team should take"
+        "recommendedAction": "specific action sales team should take",
+        "timing": "within_7_days",
+        "owner": "Enterprise AE",
+        "expiresAt": "2026-09-15"
       }
     ]
   },
@@ -361,7 +363,10 @@ Generate evidence-backed intelligence. Return valid JSON:
       "sourceDate": "YYYY-MM-DD",
       "confidence": 80,
       "businessImpact": "specific business impact",
-      "recommendedAction": "specific recommended sales action"
+      "recommendedAction": "specific recommended sales action",
+      "timing": "within_30_days",
+      "owner": "SDR Team",
+      "expiresAt": "2026-10-15"
     }
   ],
   "keyDevelopments": [
@@ -373,7 +378,10 @@ Generate evidence-backed intelligence. Return valid JSON:
       "sourceDate": "YYYY-MM-DD",
       "confidence": 90,
       "businessImpact": "impact description",
-      "recommendedAction": "what to do about it"
+      "recommendedAction": "what to do about it",
+      "timing": "immediate",
+      "owner": "VP Sales",
+      "expiresAt": "2026-08-15"
     }
   ],
   "outreachAngle": {

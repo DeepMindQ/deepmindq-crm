@@ -7,6 +7,10 @@
  * All modules in src/lib/ai-copilot/ import from this single source of truth.
  */
 
+// ── SDK Instance Type ───────────────────────────────────────────────────
+/** ZAI SDK instance — using `any` to avoid coupling to SDK internal types */
+export type ZAIInstance = any
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  REASONING CONTEXT — All intelligence data gathered for a company
 // ═══════════════════════════════════════════════════════════════════════════════

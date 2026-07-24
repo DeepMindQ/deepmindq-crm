@@ -114,24 +114,24 @@ model Company {
   signalCapabilityMatches    SignalCapabilityMatch[]
   intelligenceValidations    IntelligenceValidation[]
   priorityScoreHistory       PriorityScoreHistory[]
-  signalValidations         SignalValidation[]
-  intelligenceHealth        CompanyIntelligenceHealth?
-  intelligenceConflicts     IntelligenceConflict[]
-  recommendationFeedbacks   RecommendationFeedback[]
+  signalValidations          SignalValidation[]
+  intelligenceHealth         CompanyIntelligenceHealth?
+  intelligenceConflicts      IntelligenceConflict[]
+  recommendationFeedbacks    RecommendationFeedback[]
 
   // Phase 7.5: Intelligence Acquisition & Fabric
-  aliases                   CompanyAlias[]
-  knowledgeEntries          KnowledgeEntry[]
-  intelligenceObjects       IntelligenceObject[]
-  intelligenceAssociations  IntelligenceAssociation[]
-  humanInboxItems           HumanIntelligenceInbox[]
-  timelineEvents            IntelligenceTimeline[]
-  alerts                    IntelligenceAlert[]
-  accountBrief              AccountBrief?
-  opportunitySignals        OpportunitySignal[]
-  accountScore              AccountScore?
-  strategicInsights         StrategicInsight[]
-  engagementStrategies      AIEngagementStrategy[]
+  aliases                  CompanyAlias[]
+  knowledgeEntries         KnowledgeEntry[]
+  intelligenceObjects      IntelligenceObject[]
+  intelligenceAssociations IntelligenceAssociation[]
+  humanInboxItems          HumanIntelligenceInbox[]
+  timelineEvents           IntelligenceTimeline[]
+  alerts                   IntelligenceAlert[]
+  accountBrief             AccountBrief?
+  opportunitySignals       OpportunitySignal[]
+  accountScore             AccountScore?
+  strategicInsights        StrategicInsight[]
+  engagementStrategies     AIEngagementStrategy[]
 
   @@index([domain])
   @@index([normalizedName])
@@ -256,9 +256,18 @@ model CompanySignal {
   evidenceIds        String    @default("[]") // JSON array of Evidence IDs supporting this signal
   // Track C: Signal meaning — buying stage implication inferred from signal attributes
   meaningCategory    String? // budget_available, leadership_openness, tech_dissatisfaction, growth_pressure, compliance_requirement, vendor_evaluation, unknown
-  isRead             Boolean   @default(false)
-  status             String    @default("detected") // detected, validated, active, aging, expired, archived
-  createdAt          DateTime  @default(now())
+
+  // ═══ Intelligence Object Framework (Wave 8A) ═══
+  // Every signal must carry these 4 fields to be a complete Intelligence Object.
+  // This is the platform DNA — all AI output references this standard.
+  businessImpact    String? // "High — indicates $2M cloud migration budget" | "Medium — hiring spree signals growth" | "Low — general news mention"
+  recommendedAction String? // "Position cloud optimization assessment within 30 days" | "Schedule technical discovery call with CTO"
+  timingWindow      String? // "immediate" | "within_7_days" | "within_30_days" | "within_90_days" | "ongoing" | "expired"
+  expiresAt         DateTime? // When this signal's intelligence value decays to zero (NULL = never expires)
+
+  isRead    Boolean  @default(false)
+  status    String   @default("detected") // detected, validated, active, aging, expired, archived
+  createdAt DateTime @default(now())
 
   company                    Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   signalCapabilityMatches    SignalCapabilityMatch[]
@@ -272,6 +281,9 @@ model CompanySignal {
   @@index([impact])
   @@index([createdAt])
   @@index([signalDate])
+  @@index([timingWindow])
+  @@index([expiresAt])
+  @@index([status, expiresAt]) // compound: find active non-expired signals
   @@index([companyId, signalType, createdAt])
   @@index([companyId, status])
 }
@@ -1161,11 +1173,11 @@ model OpportunityRecommendation {
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
   confidenceBreakdown     Json?
-  confidenceFactors      Json? // Phase 6.1: explainability factors { positiveFactors: [], negativeFactors: [] }
+  confidenceFactors       Json? // Phase 6.1: explainability factors { positiveFactors: [], negativeFactors: [] }
 
-  company         Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  signal          CompanySignal         @relation(fields: [signalId], references: [id])
-  capabilityMatch SignalCapabilityMatch @relation(fields: [capabilityMatchId], references: [id])
+  company         Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  signal          CompanySignal            @relation(fields: [signalId], references: [id])
+  capabilityMatch SignalCapabilityMatch    @relation(fields: [capabilityMatchId], references: [id])
   pursuits        Pursuit[]
   sequences       EmailSequence[]
   feedbacks       RecommendationFeedback[]
@@ -1254,18 +1266,18 @@ model IntelligenceValidation {
 // confidence thresholds, and contradiction detection.
 
 model SignalValidation {
-  id              String   @id @default(cuid())
-  companyId       String
-  signalId        String   @unique
-  validationStatus String  @default("WEAK") // VALID | WEAK | CONFLICTING | EXPIRED
-  confidenceScore Float    @default(0)
-  reason          String?
+  id                String   @id @default(cuid())
+  companyId         String
+  signalId          String   @unique
+  validationStatus  String   @default("WEAK") // VALID | WEAK | CONFLICTING | EXPIRED
+  confidenceScore   Float    @default(0)
+  reason            String?
   evidenceCount     Int      @default(0)
   sourceDomainCount Int      @default(0)
-  signalAge         Int      @default(0)      // days since signalDate
-  validatedAt      DateTime @default(now())
+  signalAge         Int      @default(0) // days since signalDate
+  validatedAt       DateTime @default(now())
 
-  company Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   signal  CompanySignal @relation(fields: [signalId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
@@ -1278,29 +1290,29 @@ model SignalValidation {
 // Per-company field coverage tracking across data, signals, evidence, and contacts.
 
 model CompanyIntelligenceHealth {
-  id                     String   @id @default(cuid())
-  companyId              String   @unique
-  company                Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  dataCompletenessScore  Int      @default(0)   // 0-100
-  signalCoverageScore    Int      @default(0)   // 0-100
-  evidenceCoverageScore  Int      @default(0)   // 0-100
-  contactCoverageScore   Int      @default(0)   // 0-100
-  overallHealthScore     Int      @default(0)   // 0-100
+  dataCompletenessScore Int @default(0) // 0-100
+  signalCoverageScore   Int @default(0) // 0-100
+  evidenceCoverageScore Int @default(0) // 0-100
+  contactCoverageScore  Int @default(0) // 0-100
+  overallHealthScore    Int @default(0) // 0-100
 
   // Per-field breakdown (JSON)
-  fieldCoverage          Json?    // { "industry": true, "revenue": false, ... }
+  fieldCoverage Json? // { "industry": true, "revenue": false, ... }
 
   // Scoring inputs
-  totalSignals           Int      @default(0)
-  activeSignals          Int      @default(0)
-  totalEvidence          Int      @default(0)
-  activeEvidence         Int      @default(0)
-  totalContacts          Int      @default(0)
-  filledFields           Int      @default(0)
-  totalTrackedFields     Int      @default(12)
+  totalSignals       Int @default(0)
+  activeSignals      Int @default(0)
+  totalEvidence      Int @default(0)
+  activeEvidence     Int @default(0)
+  totalContacts      Int @default(0)
+  filledFields       Int @default(0)
+  totalTrackedFields Int @default(12)
 
-  lastCalculatedAt       DateTime @default(now())
+  lastCalculatedAt DateTime @default(now())
 
   @@index([overallHealthScore(sort: Desc)])
   @@index([companyId])
@@ -1310,15 +1322,15 @@ model CompanyIntelligenceHealth {
 // Detects conflicting signals for the same company.
 
 model IntelligenceConflict {
-  id              String    @id @default(cuid())
-  companyId       String
-  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  conflictType    String   // SIGNAL_CONTRADICTION | TECHNOLOGY_CONFLICT | FUNDING_CONFLICT | EVIDENCE_CONTRADICTION
-  description     String   // Human-readable conflict explanation
-  relatedSignals  Json     // ["signalId1", "signalId2", ...]
-  severity        String   @default("medium")  // low | medium | high | critical
-  status          String   @default("open")    // open | acknowledged | resolved | dismissed
+  conflictType   String // SIGNAL_CONTRADICTION | TECHNOLOGY_CONFLICT | FUNDING_CONFLICT | EVIDENCE_CONTRADICTION
+  description    String // Human-readable conflict explanation
+  relatedSignals Json // ["signalId1", "signalId2", ...]
+  severity       String @default("medium") // low | medium | high | critical
+  status         String @default("open") // open | acknowledged | resolved | dismissed
 
   detectedAt      DateTime  @default(now())
   resolvedAt      DateTime?
@@ -1346,9 +1358,9 @@ model SystemSetting {
 // ── Priority Score History (GAP-35: Audit Trail) ──
 
 model PriorityScoreHistory {
-  id                   String    @id @default(cuid())
-  companyId            String
-  company              Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // Snapshot fields (set at write time)
   accountPriorityScore Int
@@ -1358,19 +1370,19 @@ model PriorityScoreHistory {
   timingUrgencyTotal   Int
 
   // Audit trail fields (GAP-35 enhancement)
-  previousScore        Float?
-  previousTier         String?
-  newScore             Float?
-  newTier              String?
-  triggerType          String    @default("manual")   // "manual", "icp_change", "scheduled", "batch"
-  triggerDetails       String?                             // JSON string with details about what triggered the change
-  staticFitScore       Float?
-  dynamicIntelScore    Float?
-  timingUrgencyScore   Float?
-  whyNowReasons        String?                             // JSON array
+  previousScore      Float?
+  previousTier       String?
+  newScore           Float?
+  newTier            String?
+  triggerType        String  @default("manual") // "manual", "icp_change", "scheduled", "batch"
+  triggerDetails     String? // JSON string with details about what triggered the change
+  staticFitScore     Float?
+  dynamicIntelScore  Float?
+  timingUrgencyScore Float?
+  whyNowReasons      String? // JSON array
 
-  computedAt           DateTime  @default(now())
-  createdAt            DateTime  @default(now())
+  computedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   @@index([companyId])
   @@index([companyId, computedAt(sort: Desc)])
@@ -1380,15 +1392,15 @@ model PriorityScoreHistory {
 // ── Phase 6.1 Hardening: Human Feedback Loop ──
 
 model RecommendationFeedback {
-  id              String   @id @default(cuid())
+  id               String   @id @default(cuid())
   recommendationId String
-  companyId       String
-  userDecision    String   // confirmed_accurate | partially_accurate | incorrect | needs_more_evidence
-  feedbackReason  String?
-  createdAt       DateTime @default(now())
+  companyId        String
+  userDecision     String // confirmed_accurate | partially_accurate | incorrect | needs_more_evidence
+  feedbackReason   String?
+  createdAt        DateTime @default(now())
 
-  recommendation  OpportunityRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
-  company         Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  recommendation OpportunityRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  company        Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([recommendationId])
   @@index([companyId])
@@ -1415,23 +1427,23 @@ model EvidenceSourceReliability {
 // ═══════════════════════════════════════════════════════════════════════
 
 model Connector {
-  id                String   @id @default(cuid())
+  id                String    @id @default(cuid())
   name              String
-  sourceType        String   // csv, excel, website, rss, document, human
-  status            String   @default("active") // active, paused, disabled, failed
-  config            String   @default("{}") // JSON: connector-specific configuration
-  scheduleFrequency String?  // manual, hourly, daily, weekly
+  sourceType        String // csv, excel, website, rss, document, human
+  status            String    @default("active") // active, paused, disabled, failed
+  config            String    @default("{}") // JSON: connector-specific configuration
+  scheduleFrequency String? // manual, hourly, daily, weekly
   lastRunAt         DateTime?
   lastSuccessAt     DateTime?
-  recordsAcquired   Int      @default(0)
-  totalRuns         Int      @default(0)
-  failureCount      Int      @default(0)
+  recordsAcquired   Int       @default(0)
+  totalRuns         Int       @default(0)
+  failureCount      Int       @default(0)
   errorMessage      String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  runs              ConnectorRun[]
-  sourceHealth       SourceHealth?
+  runs         ConnectorRun[]
+  sourceHealth SourceHealth?
 
   @@index([sourceType])
   @@index([status])
@@ -1439,17 +1451,17 @@ model Connector {
 }
 
 model ConnectorRun {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   connectorId     String
   connector       Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
-  status          String   @default("pending") // pending, running, completed, failed, cancelled
+  status          String    @default("pending") // pending, running, completed, failed, cancelled
   startedAt       DateTime?
   completedAt     DateTime?
-  recordsAcquired Int      @default(0)
-  errorsCount     Int      @default(0)
+  recordsAcquired Int       @default(0)
+  errorsCount     Int       @default(0)
   errorMessage    String?
-  metadata        String   @default("{}") // JSON: run-specific data (URLs fetched, rows processed, etc.)
-  createdAt       DateTime @default(now())
+  metadata        String    @default("{}") // JSON: run-specific data (URLs fetched, rows processed, etc.)
+  createdAt       DateTime  @default(now())
 
   @@index([connectorId])
   @@index([status])
@@ -1457,25 +1469,28 @@ model ConnectorRun {
 }
 
 model IntelligenceObject {
-  id                  String   @id @default(cuid())
+  id                  String                    @id @default(cuid())
   companyId           String
-  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company             Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   connectorId         String?
   connectorRunId      String?
-  sourceType          String   // csv, excel, website, rss, document, human
-  sourceName          String?  // human-readable source identifier
-  origin              String   // csv_upload, excel_upload, website_scrape, rss_feed, human_submission
-  content             String   // full intelligence content
-  summary             String?  // abbreviated summary
-  metadata            String   @default("{}") // JSON: category, title, tags, custom fields
+  sourceType          String // csv, excel, website, rss, document, human
+  sourceName          String? // human-readable source identifier
+  origin              String // csv_upload, excel_upload, website_scrape, rss_feed, human_submission
+  content             String // full intelligence content
+  summary             String? // abbreviated summary
+  metadata            String                    @default("{}") // JSON: category, title, tags, custom fields
   sourceUrl           String?
   capturedAt          DateTime? // when the source was published/captured
-  originalConfidence  Float    @default(0.5) // 0-1 initial confidence from acquisition
-  confidenceBreakdown String?  @default("{}") // JSON: {sourceQuality, freshness, validation, evidenceAgreement}
-  status              String   @default("new") // new, processing, active, stale, superseded, archived, rejected, pending_evidence_mapping
-  evidenceId          String?  // reference to downstream Evidence record (upstream lineage)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  originalConfidence  Float                     @default(0.5) // 0-1 initial confidence from acquisition
+  confidenceBreakdown String?                   @default("{}") // JSON: {sourceQuality, freshness, validation, evidenceAgreement}
+  status              String                    @default("new") // new, processing, active, stale, superseded, archived, rejected, pending_evidence_mapping
+  evidenceId          String? // reference to downstream Evidence record (upstream lineage)
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  // Sprint 2: Association relations
+  assocSources        IntelligenceAssociation[] @relation("AssocSource")
+  assocTargets        IntelligenceAssociation[] @relation("AssocTarget")
 
   @@index([companyId])
   @@index([sourceType])
@@ -1483,10 +1498,6 @@ model IntelligenceObject {
   @@index([capturedAt])
   @@index([originalConfidence])
   @@index([companyId, status, createdAt])
-  // Sprint 2: Association relations
-  assocSources     IntelligenceAssociation[] @relation("AssocSource")
-  assocTargets     IntelligenceAssociation[] @relation("AssocTarget")
-
   @@index([connectorId])
   @@index([connectorRunId])
   @@index([evidenceId])
@@ -1507,20 +1518,23 @@ model CompanyAlias {
 }
 
 model KnowledgeEntry {
-  id              String   @id @default(cuid())
-  companyId       String
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  category        String   // Strategy, Products, Technology, Leadership, Opportunities, Stakeholders, Conversations, Platforms, Architecture, Patents, Competitors, Partnerships, Market
-  subCategory     String?  // finer classification within category
-  content         String   // the knowledge content
-  source          String?  // traceability: where this knowledge came from
+  id                   String   @id @default(cuid())
+  companyId            String
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category             String // Strategy, Products, Technology, Leadership, Opportunities, Stakeholders, Conversations, Platforms, Architecture, Patents, Competitors, Partnerships, Market
+  subCategory          String? // finer classification within category
+  content              String // the knowledge content
+  source               String? // traceability: where this knowledge came from
   intelligenceObjectId String? // link to originating IntelligenceObject
-  confidence      Float    @default(0.5) // 0-1
-  version         Int      @default(1)
-  previousValue   String?  // for versioning: previous content
-  changeReason    String?  // why the knowledge was updated
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  confidence           Float    @default(0.5) // 0-1
+  version              Int      @default(1)
+  previousValue        String? // for versioning: previous content
+  changeReason         String? // why the knowledge was updated
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Sprint 2: Version history
+  versions KnowledgeVersion[]
 
   @@index([companyId])
   @@index([category])
@@ -1528,9 +1542,6 @@ model KnowledgeEntry {
   @@index([intelligenceObjectId])
   @@index([confidence])
   @@index([updatedAt])
-
-  // Sprint 2: Version history
-  versions KnowledgeVersion[]
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1538,64 +1549,64 @@ model KnowledgeEntry {
 // ═══════════════════════════════════════════════════════════════
 
 model IntelligenceAssociation {
-  id              String   @id @default(cuid())
+  id              String             @id @default(cuid())
   companyId       String
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  sourceId        String                        // FK → IntelligenceObject (the source assertion)
+  company         Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sourceId        String // FK → IntelligenceObject (the source assertion)
   source          IntelligenceObject @relation("AssocSource", fields: [sourceId], references: [id], onDelete: Cascade)
-  targetId        String                        // FK → IntelligenceObject (the related assertion)
+  targetId        String // FK → IntelligenceObject (the related assertion)
   target          IntelligenceObject @relation("AssocTarget", fields: [targetId], references: [id], onDelete: Cascade)
-  associationType String                        // duplicate, contradicts, supports, extends, mentions_same_entity
-  confidence      Float    @default(0.5)        // 0-1, how confident the association is
-  metadata        String   @default("{}")        // JSON: {reason, field, overlap, ...}
-  resolved        Boolean  @default(false)       // has this association been reviewed/resolved?
+  associationType String // duplicate, contradicts, supports, extends, mentions_same_entity
+  confidence      Float              @default(0.5) // 0-1, how confident the association is
+  metadata        String             @default("{}") // JSON: {reason, field, overlap, ...}
+  resolved        Boolean            @default(false) // has this association been reviewed/resolved?
   resolvedAt      DateTime?
-  resolvedAction  String?                       // merged, dismissed, superseded, manual
-  createdAt       DateTime @default(now())
+  resolvedAction  String? // merged, dismissed, superseded, manual
+  createdAt       DateTime           @default(now())
 
+  @@unique([sourceId, targetId, associationType])
   @@index([companyId])
   @@index([sourceId])
   @@index([targetId])
   @@index([associationType])
   @@index([resolved])
-  @@unique([sourceId, targetId, associationType])
 }
 
 model KnowledgeVersion {
-  id                String   @id @default(cuid())
-  knowledgeEntryId  String
-  knowledgeEntry    KnowledgeEntry @relation(fields: [knowledgeEntryId], references: [id], onDelete: Cascade)
-  version           Int                            // monotonically increasing
-  content           String                         // snapshot of the content at this version
-  changedFields     String   @default("{}")         // JSON: {content, subCategory, confidence, ...}
-  changeReason      String                         // why the change occurred
-  changedBy         String   @default("system")     // system, user:{id}, connector:{id}
-  createdAt         DateTime @default(now())
+  id               String         @id @default(cuid())
+  knowledgeEntryId String
+  knowledgeEntry   KnowledgeEntry @relation(fields: [knowledgeEntryId], references: [id], onDelete: Cascade)
+  version          Int // monotonically increasing
+  content          String // snapshot of the content at this version
+  changedFields    String         @default("{}") // JSON: {content, subCategory, confidence, ...}
+  changeReason     String // why the change occurred
+  changedBy        String         @default("system") // system, user:{id}, connector:{id}
+  createdAt        DateTime       @default(now())
 
+  @@unique([knowledgeEntryId, version])
   @@index([knowledgeEntryId])
   @@index([knowledgeEntryId, version])
-  @@unique([knowledgeEntryId, version])
 }
 
 model SourceHealth {
-  id                    String   @id @default(cuid())
-  connectorId           String   @unique
-  connector             Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
-  healthScore           Float    @default(1.0)      // 0-1 composite score
-  successRate           Float    @default(1.0)      // completed / total runs
-  avgRecordsPerRun      Float    @default(0)
-  lastSuccessAt         DateTime?
-  lastFailureAt         DateTime?
-  consecutiveSuccesses  Int      @default(0)
-  consecutiveFailures   Int      @default(0)
-  totalRuns             Int      @default(0)
-  totalSuccesses        Int      @default(0)
-  totalFailures         Int      @default(0)
-  qualityScore          Float    @default(0.5)      // based on confidence of ingested objects
-  freshnessScore        Float    @default(1.0)      // based on recency of data
-  metrics               String   @default("{}")      // JSON: extended metrics
-  updatedAt             DateTime @updatedAt
-  createdAt             DateTime @default(now())
+  id                   String    @id @default(cuid())
+  connectorId          String    @unique
+  connector            Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+  healthScore          Float     @default(1.0) // 0-1 composite score
+  successRate          Float     @default(1.0) // completed / total runs
+  avgRecordsPerRun     Float     @default(0)
+  lastSuccessAt        DateTime?
+  lastFailureAt        DateTime?
+  consecutiveSuccesses Int       @default(0)
+  consecutiveFailures  Int       @default(0)
+  totalRuns            Int       @default(0)
+  totalSuccesses       Int       @default(0)
+  totalFailures        Int       @default(0)
+  qualityScore         Float     @default(0.5) // based on confidence of ingested objects
+  freshnessScore       Float     @default(1.0) // based on recency of data
+  metrics              String    @default("{}") // JSON: extended metrics
+  updatedAt            DateTime  @updatedAt
+  createdAt            DateTime  @default(now())
 
   @@index([connectorId])
   @@index([healthScore])
@@ -1606,24 +1617,24 @@ model SourceHealth {
 // ═══════════════════════════════════════════════════════════════
 
 model HumanIntelligenceInbox {
-  id                   String   @id @default(cuid())
+  id                   String    @id @default(cuid())
   companyId            String
-  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  submittedBy          String                        // userId who submitted
-  content              String                        // the intelligence text
-  summary              String?                       // optional short summary
-  category             String?                       // KnowledgeCategory if known
-  source               String   @default("manual")    // where this came from
-  sourceUrl            String?                       // optional URL reference
-  status               String   @default("pending")   // pending, reviewed, approved, rejected, converted
-  reviewedBy           String?                       // userId who reviewed
+  company              Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  submittedBy          String // userId who submitted
+  content              String // the intelligence text
+  summary              String? // optional short summary
+  category             String? // KnowledgeCategory if known
+  source               String    @default("manual") // where this came from
+  sourceUrl            String? // optional URL reference
+  status               String    @default("pending") // pending, reviewed, approved, rejected, converted
+  reviewedBy           String? // userId who reviewed
   reviewedAt           DateTime?
-  reviewNotes          String?                       // reviewer comments
-  intelligenceObjectId String?                       // FK → IntelligenceObject after conversion
-  priority             String   @default("normal")    // low, normal, high, critical
-  tags                 String   @default("[]")        // JSON array of string tags
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  reviewNotes          String? // reviewer comments
+  intelligenceObjectId String? // FK → IntelligenceObject after conversion
+  priority             String    @default("normal") // low, normal, high, critical
+  tags                 String    @default("[]") // JSON array of string tags
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   @@index([companyId])
   @@index([status])
@@ -1637,13 +1648,13 @@ model IntelligenceTimeline {
   id          String   @id @default(cuid())
   companyId   String
   company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  eventType   String                        // acquired, merged, conflict_detected, conflict_resolved, confidence_updated, knowledge_updated, knowledge_restored, source_health_changed, human_submitted, human_approved, human_rejected, connector_created, connector_run, alert_triggered, alert_resolved
-  entityType  String?                       // IntelligenceObject, KnowledgeEntry, Connector, HumanIntelligenceInbox, IntelligenceAlert
-  entityId    String?                       // FK to the related entity
-  title       String                        // short event title
-  description String?                       // longer description
-  metadata    String   @default("{}")        // JSON: event-specific data
-  actor       String?                       // userId or 'system'
+  eventType   String // acquired, merged, conflict_detected, conflict_resolved, confidence_updated, knowledge_updated, knowledge_restored, source_health_changed, human_submitted, human_approved, human_rejected, connector_created, connector_run, alert_triggered, alert_resolved
+  entityType  String? // IntelligenceObject, KnowledgeEntry, Connector, HumanIntelligenceInbox, IntelligenceAlert
+  entityId    String? // FK to the related entity
+  title       String // short event title
+  description String? // longer description
+  metadata    String   @default("{}") // JSON: event-specific data
+  actor       String? // userId or 'system'
   createdAt   DateTime @default(now())
 
   @@index([companyId])
@@ -1655,23 +1666,23 @@ model IntelligenceTimeline {
 }
 
 model IntelligenceAlert {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   companyId       String?
-  company         Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  company         Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
   connectorId     String?
-  severity        String   @default("medium")   // low, medium, high, critical
-  alertType       String                       // health_degraded, source_stale, conflict_detected, duplicate_cluster, confidence_drop, ingestion_failure, schedule_missed
-  title           String                       // short alert title
-  description     String                       // detailed description
-  status          String   @default("active")   // active, acknowledged, resolved, dismissed
+  severity        String    @default("medium") // low, medium, high, critical
+  alertType       String // health_degraded, source_stale, conflict_detected, duplicate_cluster, confidence_drop, ingestion_failure, schedule_missed
+  title           String // short alert title
+  description     String // detailed description
+  status          String    @default("active") // active, acknowledged, resolved, dismissed
   acknowledgedBy  String?
   acknowledgedAt  DateTime?
   resolvedBy      String?
   resolvedAt      DateTime?
   resolutionNotes String?
-  metadata        String   @default("{}")       // JSON: event-specific data
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  metadata        String    @default("{}") // JSON: event-specific data
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([companyId])
   @@index([connectorId])
@@ -1686,21 +1697,21 @@ model IntelligenceAlert {
 // ═══════════════════════════════════════════════════════════════
 
 model AccountBrief {
-  id                      String   @id @default(cuid())
-  companyId               String   @unique
-  company                 Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  summary                 String                        // LLM-generated executive summary
-  accountHealth           String   @default("unknown")   // high, medium, low, unknown
-  keySignals              String   @default("[]")        // JSON: { signal, type, confidence }[]
-  themes                  String   @default("[]")        // JSON: { name, description, evidenceIds[] }[]
-  recentChanges           String   @default("[]")        // JSON: { change, date, source }[]
-  opportunityAreas        String   @default("[]")        // JSON: string[]
-  risks                   String   @default("[]")        // JSON: string[]
-  recommendedEngagement   String                        // LLM-generated engagement approach
-  evidenceReferences      String   @default("[]")        // JSON: { evidenceId, snippet }[]
-  confidence              Float    @default(0)            // 0-1
-  generatedAt             DateTime @default(now())
-  generatedBy             String   @default("system")
+  id                    String   @id @default(cuid())
+  companyId             String   @unique
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  summary               String // LLM-generated executive summary
+  accountHealth         String   @default("unknown") // high, medium, low, unknown
+  keySignals            String   @default("[]") // JSON: { signal, type, confidence }[]
+  themes                String   @default("[]") // JSON: { name, description, evidenceIds[] }[]
+  recentChanges         String   @default("[]") // JSON: { change, date, source }[]
+  opportunityAreas      String   @default("[]") // JSON: string[]
+  risks                 String   @default("[]") // JSON: string[]
+  recommendedEngagement String // LLM-generated engagement approach
+  evidenceReferences    String   @default("[]") // JSON: { evidenceId, snippet }[]
+  confidence            Float    @default(0) // 0-1
+  generatedAt           DateTime @default(now())
+  generatedBy           String   @default("system")
 
   @@index([companyId])
   @@index([confidence])
@@ -1708,19 +1719,19 @@ model AccountBrief {
 }
 
 model OpportunitySignal {
-  id                     String   @id @default(cuid())
-  companyId              String
-  company                Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  signalType             String                        // growth, technology, leadership, partnership, pain
-  title                  String
-  description            String
-  matchedPattern         String                        // the keyword/pattern that triggered this signal
-  sourceIntelligenceIds  String   @default("[]")        // JSON: string[] — traceable to IntelligenceObject IDs
-  score                  Float    @default(0)            // 0-100
-  confidence             Float    @default(0.5)          // 0-1
-  status                 String   @default("NEW")        // NEW, REVIEWED, ACTIONED, DISMISSED
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  companyId             String
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  signalType            String // growth, technology, leadership, partnership, pain
+  title                 String
+  description           String
+  matchedPattern        String // the keyword/pattern that triggered this signal
+  sourceIntelligenceIds String   @default("[]") // JSON: string[] — traceable to IntelligenceObject IDs
+  score                 Float    @default(0) // 0-100
+  confidence            Float    @default(0.5) // 0-1
+  status                String   @default("NEW") // NEW, REVIEWED, ACTIONED, DISMISSED
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   @@index([companyId])
   @@index([signalType])
@@ -1734,9 +1745,9 @@ model AccountScore {
   id             String   @id @default(cuid())
   companyId      String   @unique
   company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  score          Float                         // 0-100 overall
-  scoreBreakdown String   @default("{}")         // JSON: { intelligenceCoverage, signalStrength, freshness, strategicFit, overallScore }
-  category       String   @default("NURTURE")    // HOT_ACCOUNT, WARM_ACCOUNT, NURTURE, AT_RISK
+  score          Float // 0-100 overall
+  scoreBreakdown String   @default("{}") // JSON: { intelligenceCoverage, signalStrength, freshness, strategicFit, overallScore }
+  category       String   @default("NURTURE") // HOT_ACCOUNT, WARM_ACCOUNT, NURTURE, AT_RISK
   calculatedAt   DateTime @default(now())
 
   @@index([companyId])
@@ -1753,21 +1764,21 @@ model AccountScore {
 // Each insight has an expiry window and full reasoning chain for explainability.
 
 model StrategicInsight {
-  id                  String    @id @default(cuid())
-  companyId           String
-  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  insightType         String    // STRATEGIC_SHIFT | OPPORTUNITY | RISK | PATTERN_EMERGED
-  summary             String    // concise human-readable insight summary
-  keyThemes           String    @default("[]")  // JSON: string[]
-  reasoningSummary    String    @default("{}")  // JSON: { observations: string[], interpretation: string, confidenceFactors: string[] }
-  supportingEvidence  String    @default("[]")  // JSON: { evidenceId: string, relevance: string, quote: string }[]
-  confidenceScore     Int       @default(0)     // 0-100
+  insightType        String // STRATEGIC_SHIFT | OPPORTUNITY | RISK | PATTERN_EMERGED
+  summary            String // concise human-readable insight summary
+  keyThemes          String @default("[]") // JSON: string[]
+  reasoningSummary   String @default("{}") // JSON: { observations: string[], interpretation: string, confidenceFactors: string[] }
+  supportingEvidence String @default("[]") // JSON: { evidenceId: string, relevance: string, quote: string }[]
+  confidenceScore    Int    @default(0) // 0-100
 
-  generatedBy         String    @default("LLM") // LLM | HYBRID | MANUAL
-  modelUsed           String?
-  expiresAt           DateTime?
-  generatedAt         DateTime  @default(now())
+  generatedBy String    @default("LLM") // LLM | HYBRID | MANUAL
+  modelUsed   String?
+  expiresAt   DateTime?
+  generatedAt DateTime  @default(now())
 
   engagementStrategies AIEngagementStrategy[]
 
@@ -1783,23 +1794,23 @@ model StrategicInsight {
 // Includes conversation angles, risk factors, and recommended entry points.
 
 model AIEngagementStrategy {
-  id                     String    @id @default(cuid())
-  companyId              String
-  company                Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  strategicInsightId      String
-  strategicInsight        StrategicInsight @relation(fields: [strategicInsightId], references: [id], onDelete: Cascade)
+  id                 String           @id @default(cuid())
+  companyId          String
+  company            Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  strategicInsightId String
+  strategicInsight   StrategicInsight @relation(fields: [strategicInsightId], references: [id], onDelete: Cascade)
 
-  situationAssessment    String    @default("{}")  // JSON: { currentPhase, keyDrivers: string[], maturityLevel }
-  recommendedEntry       String    @default("{}")  // JSON: { role, rationale, department }
-  firstMeetingObjective  String    @default("discovery") // discovery | technical | executive_alignment
-  conversationAngles     String    @default("[]")  // JSON: { angle, talkingPoints: string[] }[]
-  riskFactors            String    @default("[]")  // JSON: { risk, severity, mitigation }[]
-  priorityScore          Int       @default(0)     // 0-100
+  situationAssessment   String @default("{}") // JSON: { currentPhase, keyDrivers: string[], maturityLevel }
+  recommendedEntry      String @default("{}") // JSON: { role, rationale, department }
+  firstMeetingObjective String @default("discovery") // discovery | technical | executive_alignment
+  conversationAngles    String @default("[]") // JSON: { angle, talkingPoints: string[] }[]
+  riskFactors           String @default("[]") // JSON: { risk, severity, mitigation }[]
+  priorityScore         Int    @default(0) // 0-100
 
-  generatedBy            String    @default("LLM")
-  modelUsed              String?
-  expiresAt              DateTime?
-  generatedAt            DateTime  @default(now())
+  generatedBy String    @default("LLM")
+  modelUsed   String?
+  expiresAt   DateTime?
+  generatedAt DateTime  @default(now())
 
   @@index([companyId])
   @@index([strategicInsightId])

@@ -54,7 +54,7 @@ export function getSessionToken(request: NextRequest): string | null {
  */
 export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATH_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(prefix + '/')
+    (prefix) => pathname === prefix || pathname.startsWith(prefix) || pathname === prefix + '/'
   ) || pathname === '/';
 }
 
@@ -70,7 +70,7 @@ export function isApiRoute(pathname: string): boolean {
  */
 export function isRateLimitedPublicApi(pathname: string): boolean {
   return RATE_LIMITED_PUBLIC_APIS.some(
-    (prefix) => pathname === prefix || pathname.startsWith(prefix + '/')
+    (prefix) => pathname === prefix || pathname.startsWith(prefix) || pathname === prefix + '/'
   );
 }
 

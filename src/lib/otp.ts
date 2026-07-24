@@ -208,11 +208,10 @@ export async function requestOtp(
     console.log(`[OTP] DEV — Code for ${normalizedEmail}: ${code}`);
   }
 
-  // If email was NOT sent
+  // If email was NOT sent — fail closed (enterprise security)
   if (!emailSent) {
-    // In production without email: show code on screen as fallback
-    console.log(`[OTP] FALLBACK — No email service. Code for ${normalizedEmail}: ${code}`);
-    return { success: true, devCode: code };
+    console.error(`[OTP] Email send failed and no fallback available for ${normalizedEmail}.`);
+    return { success: false, error: 'Email service not available. Please contact support.' };
   }
 
   return { success: true };

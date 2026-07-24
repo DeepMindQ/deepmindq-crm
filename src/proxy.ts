@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════
-   Next.js Edge Middleware
+   Next.js 16 Proxy (Edge Runtime)
    
+   Replaces deprecated middleware.ts with Next.js 16 proxy convention.
    Runs on every request BEFORE it reaches any route handler
    or page. Responsible for:
    
@@ -50,10 +51,10 @@ export const config = {
 };
 
 /**
- * Main middleware entry point.
+ * Main proxy entry point (Next.js 16 proxy convention).
  * Called on every matched request.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const response = NextResponse.next();
 

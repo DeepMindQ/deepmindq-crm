@@ -2,13 +2,17 @@
   "name": "nextjs_tailwind_shadcn_ts",
   "version": "0.2.0",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "dev": "next dev -p 3000 -H 0.0.0.0 --webpack 2>&1 | tee dev.log",
-    "build": "npx prisma generate && npx next build",
-    "build:vercel": "npx prisma generate && npx next build",
-    "build:render": "npx prisma generate && npx next build",
+    "build": "prisma generate && next build && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public",
+    "build:vercel": "prisma generate && next build",
+    "build:render": "prisma generate && next build && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public",
     "start:standalone": "node .next/standalone/server.js -p $PORT",
-    "start": "npx next start -p $PORT",
+    "start": "node .next/standalone/server.js -p $PORT",
     "lint": "eslint . && bash scripts/check-governance.sh",
     "check:governance": "bash scripts/check-governance.sh",
     "db:push": "prisma db push",
@@ -17,8 +21,8 @@
     "db:reset": "prisma migrate reset",
     "test": "vitest run",
     "test:watch": "vitest",
-    "postinstall": "npx prisma generate",
-    "vercel-build": "npx prisma generate && npx next build",
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && next build",
     "cloud:setup": "bash scripts/setup-cloud.sh",
     "cloud:migrate": "node scripts/migrate-to-postgres.js",
     "cloud:export": "node scripts/export-seed-data.js"

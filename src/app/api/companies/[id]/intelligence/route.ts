@@ -84,10 +84,10 @@ async function webSearch(query: string, num = 5) {
   return search(query, num);
 }
 
-async function aiChat(systemPrompt: string, userPrompt: string): Promise<string> {
+async function aiChat(systemPrompt: string, userPrompt: string): Promise<{ raw: string; quality?: import('@/lib/ai-copilot/quality-gates').QualityReport }> {
   const { callAI } = await import('@/lib/ai-copilot/ai-caller');
-  const result = await callAI({ systemPrompt, userPrompt, feature: 'company_intelligence', runQualityCheck: false });
-  return result.raw;
+  const result = await callAI({ systemPrompt, userPrompt, feature: 'company_intelligence', runQualityCheck: true });
+  return { raw: result.raw, quality: result.quality };
 }
 
 /**
@@ -407,7 +407,7 @@ Generate evidence-backed intelligence. Return valid JSON:
 
 Be SPECIFIC. Reference real information from web results. Every signal needs evidence.`;
 
-    const raw = await aiChat(systemPrompt, userPrompt);
+    const { raw, quality } = await aiChat(systemPrompt, userPrompt);
     const insights = parseAiResponse(raw);
 
     if (insights) {
@@ -416,6 +416,21 @@ Be SPECIFIC. Reference real information from web results. Every signal needs evi
         relevanceScore: r.snippet ? 0.5 : 0.3,
       }));
       insights.dataQuality.webSourcesUsed = uniqueResults.length;
+
+      // Wave 8A: Attach quality gate report to response
+      if (quality) {
+        insights.qualityReport = {
+          overallStatus: quality.overallStatus,
+          overallScore: quality.overallScore,
+          gates: quality.gates.map(g => ({
+            gate: g.gate,
+            status: g.status,
+            score: g.score,
+            message: g.message,
+          })),
+          objectCompleteness: quality.objectCompleteness,
+        };
+      }
     }
 
     return insights;

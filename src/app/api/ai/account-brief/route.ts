@@ -98,6 +98,7 @@ interface CachedBrief {
   brief: AccountBrief;
   sources: Array<{ title: string; url: string; snippet: string }>;
   generatedAt: string;
+  qualityReport?: import('@/lib/ai-copilot/quality-gates').QualityReport;
 }
 
 // ---------------------------------------------------------------------------
@@ -123,10 +124,10 @@ async function webSearch(zai: ZAIInstance, query: string): Promise<Array<{ title
   return search(query, 10);
 }
 
-async function callLLM(zai: ZAIInstance, systemPrompt: string, userPrompt: string): Promise<string> {
+async function callLLM(zai: ZAIInstance, systemPrompt: string, userPrompt: string): Promise<{ raw: string; quality?: import('@/lib/ai-copilot/quality-gates').QualityReport }> {
   const { callAI } = await import('@/lib/ai-copilot/ai-caller');
-  const result = await callAI({ systemPrompt, userPrompt, feature: 'account_brief', runQualityCheck: false });
-  return result.raw;
+  const result = await callAI({ systemPrompt, userPrompt, feature: 'account_brief', runQualityCheck: true });
+  return { raw: result.raw, quality: result.quality };
 }
 
 // ---------------------------------------------------------------------------
@@ -411,8 +412,10 @@ export async function GET(request: NextRequest) {
 
   // 5. Generate brief via LLM
   let brief: AccountBrief
+  let qualityReport: import('@/lib/ai-copilot/quality-gates').QualityReport | undefined
   try {
-    const raw = await callLLM(zai, SYSTEM_PROMPT, userPrompt)
+    const { raw, quality } = await callLLM(zai, SYSTEM_PROMPT, userPrompt)
+    qualityReport = quality
     const parsed = parseBriefJson(raw)
     brief = parsed ?? (() => { console.error('[account-brief] Unparseable LLM JSON'); return buildFallbackBrief('LLM response was not valid JSON') })()
   } catch (err: unknown) {
@@ -428,6 +431,7 @@ export async function GET(request: NextRequest) {
   const response: CachedBrief = {
     companyId: company.id, companyName: name, brief, sources,
     generatedAt: new Date().toISOString(),
+    ...(qualityReport && { qualityReport }),
   }
   briefCache.set(companyId, { data: response, expiresAt: Date.now() + CACHE_TTL_MS })
   for (const [key, val] of briefCache.entries()) { if (val.expiresAt <= Date.now()) briefCache.delete(key) }

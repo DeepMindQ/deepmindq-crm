@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev -p 3000 -H 0.0.0.0 --webpack 2>&1 | tee dev.log",
-    "build": "npx prisma generate && npx next build",
+    "build": "npx prisma generate && npx prisma db push --skip-generate && npx next build",
     "build:vercel": "npx prisma generate && npx next build",
     "start": "npx next start -p $PORT",
     "lint": "eslint . && bash scripts/check-governance.sh",

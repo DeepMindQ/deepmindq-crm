@@ -74,3 +74,35 @@ Stage Summary:
 - Service: 7 exported functions for full insight lifecycle
 - Health API: 4 metric categories (overview, quality, byType, usageByRoute)
 - Every AI output now follows unified standard: What? Why? Evidence? Confidence? Impact? Action?
+
+---
+Task ID: 8.2-scoring-engines
+Agent: Main Agent
+Task: Wave 8.2 — Three New Scoring Engines
+
+Work Log:
+- Read worklog: Waves 8A, 8B, 8.1 complete; AIInsight model + service + health API in place
+- Read score-leads/route.ts: understood decomposed evidence-linked scoring approach (Technology Fit, Growth Signals, Risk Signals)
+- Read schema: verified Contact, CompanySignal, OpportunityRecommendation, KnowledgeEntry, OpportunitySignal, AIInsight models
+- Schema adaptation: OpportunityRecommendation.status (pending_review/accepted/rejected/monitored) ≠ task's assumed stages, adapted engine to actual schema
+- Schema adaptation: CompanySignal uses `source` (not `sourceType`) and `confidence` Float 0-1 (not `confidenceScore`)
+- Schema adaptation: KnowledgeEntry.category has no 'Risks' value, added content-keyword matching
+- Created src/lib/scoring/contact-influence-engine.ts: seniority scoring (38 title keywords), department relevance (18 depts), buying role classification, decision style heuristic, network scoring
+- Created src/lib/scoring/opportunity-probability-engine.ts: dual-model scoring (status base + pursuit stage multiplier), stagnation risk from lastActivityAt, velocity bonus, engagement strength from signals
+- Created src/lib/scoring/buying-intent-engine.ts: 5-category scoring (technology_trigger, growth, pain_point, engagement, market_timing), weighted composite, intent strength labels, recommended approach + timing window
+- Created src/app/api/ai/score-contacts/route.ts: POST with contactId or companyId
+- Created src/app/api/ai/score-opportunities/route.ts: POST with opportunityId or scoreAll
+- Created src/app/api/ai/buying-intent/route.ts: POST with companyId
+- `npx prisma generate` — SUCCESS
+- `npx tsc --noEmit` — 0 new errors (only pre-existing onboarding-flow.tsx portal prop issues)
+- Pushed to GitHub: commit d902b31
+
+Stage Summary:
+- Wave 8.2 COMPLETE
+- 3 engine files + 3 API route files (7 files, 743 insertions)
+- Contact Influence Engine: 0-100 composite from seniority(40%), department(25%), engagement(20%), network(15%)
+- Opportunity Probability Engine: stage-based base + velocity bonus - stagnation risk + engagement strength
+- Buying Intent Engine: 5-category weighted scoring with intent strength classification and recommended approach
+- All engines persist results as AIInsight records via createInsight() for full traceability
+- Schema-adapted to actual Prisma models (no mismatched field references)
+- Next: Wave 8.3+ — Frontend scoring dashboard, multi-engine composite scores

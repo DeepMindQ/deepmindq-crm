@@ -185,7 +185,7 @@ function normalizeBrief(o: Record<string, unknown>): AccountBrief {
           return {
             role: safeStr(r.role), focus: safeStr(r.focus), whyApproach: safeStr(r.whyApproach),
             conversationAngle: safeStr(r.conversationAngle), evidence: safeStr(r.evidence),
-            priority: ['primary', 'secondary', 'tertiary'].includes(String(r.priority)) ? String(r.priority) : 'secondary',
+            priority: (['primary', 'secondary', 'tertiary'].includes(String(r.priority)) ? String(r.priority) : 'secondary') as 'primary' | 'secondary' | 'tertiary',
           }
         })
         .filter(s => s.role)

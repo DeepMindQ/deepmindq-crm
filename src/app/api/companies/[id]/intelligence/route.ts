@@ -185,7 +185,7 @@ function normalizeInsights(obj: Record<string, unknown>): EnhancedAiInsights {
           const comp = c as Record<string, unknown>;
           return {
             name: safeStr(comp.name, 'Unknown'),
-            threat: (['low', 'medium', 'high'] as const).includes(String(comp.threat ?? '') ? String(comp.threat) : 'medium') as 'low' | 'medium' | 'high',
+            threat: (() => { const v = String(comp.threat ?? 'medium'); return (['low', 'medium', 'high'] as const).includes(v as 'low' | 'medium' | 'high') ? v as 'low' | 'medium' | 'high' : 'medium'; })(),
             evidence: safeStr(comp.evidence),
           };
         })

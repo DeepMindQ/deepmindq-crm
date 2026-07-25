@@ -437,6 +437,7 @@ export async function GET() {
             sourceRoute: '/api/ai/recommendations',
             expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3-day expiry
           }))
+        );
       }
     } catch (insightErr) {
       console.warn('[ai/recommendations] Failed to persist insights:', insightErr)

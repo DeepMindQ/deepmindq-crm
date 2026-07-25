@@ -11,7 +11,7 @@ import {
   BarChart3, LayoutTemplate, Layers, Sparkles, Network, Target,
   FileBarChart, Code2, Copy, ClipboardList, Kanban, MailPlus,
   Radar, MessageSquare, Heart, Shield, Database, BookOpen, Compass,
-  Crosshair, Lightbulb,
+  Crosshair, Lightbulb, Activity,
 } from 'lucide-react';
 
 export interface NavItem {

@@ -1,23 +1,23 @@
 /* ═══════════════════════════════════════════════════
    Navigation Configuration
    
-   Extracted from page.tsx to reduce monolith size.
-   Contains all nav section definitions.
+   Enterprise-grade 5-section navigation.
+   Single source of truth for sidebar structure.
    ═══════════════════════════════════════════════════ */
 
 import {
-  LayoutDashboard, Upload, Users, Building2, FileText, Send,
-  Archive, Mail, XCircle, Brain, GitBranch, ScrollText, Settings,
-  BarChart3, LayoutTemplate, Layers, Sparkles, Network, Target,
-  FileBarChart, Code2, Copy, ClipboardList, Kanban, MailPlus,
-  Radar, MessageSquare, Heart, Shield, Database, BookOpen, Compass,
-  Crosshair, Lightbulb, Activity, TrendingDown, GraduationCap,
+  LayoutDashboard, Sparkles, Radar,
+  Building2, Users, Target, Kanban,
+  GitBranch, FileText, Mail,
+  Upload, BarChart3, Brain, Activity,
+  Settings, ScrollText, Shield, Copy,
 } from 'lucide-react';
 
 export interface NavItem {
   key: string;
   label: string;
   icon: React.ElementType;
+  badgeCount?: number;
 }
 
 export interface NavSection {
@@ -27,108 +27,62 @@ export interface NavSection {
 }
 
 export const NAV_SECTIONS: NavSection[] = [
+  /* ── INTELLIGENCE ── */
   {
-    heading: 'REVENUE INTELLIGENCE',
+    heading: 'INTELLIGENCE',
     defaultOpen: true,
     items: [
+      { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { key: 'revenue-intelligence', label: 'Revenue Intelligence', icon: Sparkles },
-      { key: 'revenue-intelligence-opportunities', label: 'Opportunity Radar', icon: Radar },
-      { key: 'revenue-intelligence-recommendations', label: 'Exec Recommendations', icon: Lightbulb },
-      { key: 'revenue-intelligence-brief', label: 'Company Brief', icon: Target },
-      { key: 'intelligence-reasoning', label: 'AI Reasoning', icon: Brain },
-      { key: 'intelligence-report', label: 'Intelligence Report', icon: FileText },
-      { key: 'account-ranking', label: 'Account Ranking', icon: Target },
-      { key: 'opportunity-workspace', label: 'Opportunity Workspace', icon: Radar },
-      { key: 'pursuit-workspace', label: 'Pursuit Tracker', icon: Compass },
+      { key: 'signal-intelligence', label: 'Signal Intelligence', icon: Radar },
     ],
   },
+
+  /* ── ACCOUNTS ── */
   {
-    heading: 'INTELLIGENCE LAYER',
-    defaultOpen: true,
-    items: [
-      { key: 'signal-intelligence', label: 'Signal Intelligence', icon: Layers },
-      { key: 'research-agent', label: 'Research Agent', icon: Brain },
-      { key: 'opportunity-radar', label: 'Opportunity Radar', icon: Target },
-      { key: 'playbooks', label: 'Sales Playbooks', icon: BookOpen },
-    ],
-  },
-  {
-    heading: 'ACCOUNTS & CONTACTS',
+    heading: 'ACCOUNTS',
     defaultOpen: false,
     items: [
       { key: 'companies', label: 'Companies', icon: Building2 },
-      { key: 'contacts', label: 'Stakeholders', icon: Network },
-      { key: 'leads', label: 'Leads', icon: Database },
+      { key: 'contacts', label: 'Stakeholders', icon: Users },
+      { key: 'opportunities', label: 'Opportunities', icon: Target },
       { key: 'segments', label: 'Segments', icon: Kanban },
     ],
   },
+
+  /* ── PIPELINE & ENGAGEMENT ── */
   {
-    heading: 'ENGAGEMENT',
+    heading: 'PIPELINE & ENGAGEMENT',
     defaultOpen: false,
     items: [
-      { key: 'conversation-studio', label: 'Conversation Studio', icon: MessageSquare },
-      { key: 'strategy-room', label: 'Strategy Room', icon: Compass },
-      { key: 'email-generation', label: 'Email Generator', icon: MailPlus },
-      { key: 'drafts', label: 'Drafts', icon: FileText },
+      { key: 'pipeline', label: 'Pipeline', icon: GitBranch },
       { key: 'sequences', label: 'Sequences', icon: GitBranch },
-      { key: 'queue', label: 'Send Queue', icon: Send },
-      { key: 'templates', label: 'Templates', icon: LayoutTemplate },
+      { key: 'email-studio', label: 'Email Studio', icon: FileText },
+      { key: 'inbox', label: 'Replies & Bounces', icon: Mail, badgeCount: 0 },
     ],
   },
-  {
-    heading: 'INBOX',
-    defaultOpen: false,
-    items: [
-      { key: 'replies', label: 'Replies', icon: Mail },
-      { key: 'bounces', label: 'Bounces & Suppressions', icon: XCircle },
-    ],
-  },
-  {
-    heading: 'KNOWLEDGE',
-    defaultOpen: false,
-    items: [
-      { key: 'knowledge', label: 'Solution Intelligence', icon: Brain },
-      { key: 'capabilities', label: 'Capability Library', icon: Archive },
-      { key: 'mind-map', label: 'Mind Map', icon: Network },
-      { key: 'prompt-templates', label: 'AI Prompts', icon: Code2 },
-    ],
-  },
+
+  /* ── OPERATIONS ── */
   {
     heading: 'OPERATIONS',
     defaultOpen: false,
     items: [
-      { key: 'pipeline', label: 'Pipeline', icon: GitBranch },
-      { key: 'pipeline-health', label: 'Pipeline Health', icon: TrendingDown },
-      { key: 'deal-coaching', label: 'Deal Coaching', icon: GraduationCap },
-      { key: 'pipeline-forecast', label: 'Pipeline Forecast', icon: BarChart3 },
-      { key: 'sales-execution', label: 'Sales Execution', icon: Target },
-      { key: 'contact-intelligence', label: 'Contact Intelligence', icon: Users },
       { key: 'import', label: 'Import', icon: Upload },
       { key: 'analytics', label: 'Analytics', icon: BarChart3 },
-      { key: 'reports', label: 'Reports', icon: FileBarChart },
-      { key: 'revops', label: 'RevOps', icon: Database },
+      { key: 'knowledge', label: 'Knowledge Base', icon: Brain },
+      { key: 'ai-health', label: 'AI Health', icon: Activity },
     ],
   },
+
+  /* ── SETTINGS ── */
   {
-    heading: 'ENTERPRISE',
+    heading: 'SETTINGS',
     defaultOpen: false,
     items: [
-      { key: 'enterprise', label: 'Platform Readiness', icon: Shield },
-    ],
-  },
-  {
-    heading: 'CONFIGURE',
-    defaultOpen: false,
-    items: [
-      { key: 'intelligence-health', label: 'Intelligence Health', icon: Shield },
-      { key: 'ai-health', label: 'AI Health Center', icon: Activity },
-      { key: 'icp-settings', label: 'ICP Configuration', icon: Crosshair },
-      { key: 'data-health', label: 'Data Health', icon: Shield },
-      { key: 'relationship-memory', label: 'Relationship Memory', icon: Heart },
-      { key: 'tasks', label: 'Tasks', icon: ClipboardList },
-      { key: 'duplicates', label: 'Duplicates', icon: Copy },
-      { key: 'audit', label: 'Audit Log', icon: ScrollText },
       { key: 'settings', label: 'Settings', icon: Settings },
+      { key: 'audit', label: 'Audit Log', icon: ScrollText },
+      { key: 'data-health', label: 'Data Health', icon: Shield },
+      { key: 'duplicates', label: 'Duplicates', icon: Copy },
     ],
   },
 ];

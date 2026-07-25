@@ -107,6 +107,7 @@ export async function GET(request: Request) {
       signalCount: c._count.signals,
       isEnriched: !!c.researchCard,
       topSignal: c.signals[0] ?? null,
+      updatedAt: c.updatedAt?.toISOString() ?? null,
     }));
 
     return NextResponse.json({

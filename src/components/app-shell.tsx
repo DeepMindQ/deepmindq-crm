@@ -2,28 +2,16 @@
 
 import React, { useCallback, useState } from 'react';
 import {
-  LayoutDashboard,
-  Users,
-  Building2,
-  Upload,
-  FileText,
-  Send,
-  BookOpen,
-  MessageSquare,
-  Copy,
-  Shield,
-  Settings,
-  Brain,
-  Database,
-  Search,
-  Bell,
-  ChevronLeft,
   ChevronRight,
   PanelLeftClose,
   PanelLeft,
+  Brain,
+  Search,
+  Bell,
+  ChevronDown,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import type { ViewId } from '@/lib/store';
+import { NAV_SECTIONS, type NavItem as NavConfigItem } from '@/lib/nav-config';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -35,41 +23,6 @@ import {
 } from '@/components/ui/tooltip';
 
 /* ═══════════════════════════════════════════════════════════════════════
-   Navigation Configuration
-   ═══════════════════════════════════════════════════════════════════════ */
-
-interface NavItem {
-  label: string;
-  view: ViewId;
-  icon: React.ElementType;
-  badge?: string;
-  badgeCount?: number;
-  isHeart?: boolean;
-  isSectionDivider?: boolean;
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', view: 'dashboard', icon: LayoutDashboard },
-  { label: 'Leads', view: 'leads', icon: Users },
-  { label: 'Companies', view: 'companies', icon: Building2 },
-  { label: 'Import', view: 'import', icon: Upload },
-  { label: 'Draft Review', view: 'drafts', icon: FileText, badgeCount: 23 },
-  { label: 'Send Queue', view: 'queue', icon: Send },
-  { label: 'Capability Library', view: 'capability-library', icon: BookOpen, isHeart: true },
-  { label: 'Replies & Bounces', view: 'replies', icon: MessageSquare },
-  { label: 'Duplicates', view: 'duplicates', icon: Copy },
-  { label: 'Audit Log', view: 'audit', icon: Shield },
-  { label: 'Settings', view: 'settings', icon: Settings },
-  // Phase 7.5: Intelligence Fabric
-  { label: 'Intelligence Sources', view: 'intelligence-sources', icon: Database, isSectionDivider: true },
-];
-
-const INTELLIGENCE_FABRIC_ITEMS: NavItem[] = [
-  { label: 'Intelligence Sources', view: 'intelligence-sources', icon: Database },
-  { label: 'Knowledge Fabric', view: 'intelligence-knowledge', icon: Brain },
-];
-
-/* ═══════════════════════════════════════════════════════════════════════
    Sidebar Nav Button
    ═══════════════════════════════════════════════════════════════════════ */
 
@@ -79,7 +32,7 @@ function NavButton({
   collapsed,
   onClick,
 }: {
-  item: NavItem;
+  item: NavConfigItem;
   active: boolean;
   collapsed: boolean;
   onClick: () => void;
@@ -119,12 +72,6 @@ function NavButton({
         <span className="truncate">{item.label}</span>
       )}
 
-      {!collapsed && item.isHeart && (
-        <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded">
-          Heart
-        </span>
-      )}
-
       {!collapsed && item.badgeCount !== undefined && item.badgeCount > 0 && (
         <Badge
           variant="secondary"
@@ -149,9 +96,6 @@ function NavButton({
           {item.badgeCount !== undefined && item.badgeCount > 0 && (
             <p className="text-xs text-muted-foreground mt-0.5">{item.badgeCount} pending</p>
           )}
-          {item.isHeart && (
-            <p className="text-[10px] uppercase tracking-wider text-primary mt-0.5">The Heart</p>
-          )}
         </TooltipContent>
       </Tooltip>
     );
@@ -166,13 +110,18 @@ function NavButton({
 
 function Sidebar() {
   const { activeView, sidebarCollapsed, setActiveView, toggleSidebar } = useAppStore();
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
   const handleNavClick = useCallback(
-    (view: ViewId) => {
-      setActiveView(view);
+    (view: string) => {
+      setActiveView(view as any);
     },
     [setActiveView]
   );
+
+  const toggleSection = useCallback((heading: string) => {
+    setCollapsedSections(prev => ({ ...prev, [heading]: !prev[heading] }));
+  }, []);
 
   return (
     <aside
@@ -202,43 +151,93 @@ function Sidebar() {
         </div>
       </div>
 
-      {/* ── Navigation ── */}
+      {/* ── Navigation Sections ── */}
       <ScrollArea className="flex-1 py-3">
         <nav className="flex flex-col gap-0.5" role="navigation" aria-label="Main navigation">
-          {NAV_ITEMS.map((item) =>
-            item.isSectionDivider ? (
-              <div
-                key={item.view}
-                className={`${sidebarCollapsed ? 'px-2 my-2' : 'px-3 my-2'}`}
-              >
-                <div className="border-t border-border/50 mb-2" />
-                {INTELLIGENCE_FABRIC_ITEMS.map((fi) => (
-                  <div key={fi.view} className={sidebarCollapsed ? 'px-2 mt-0.5' : 'mt-0.5'}>
-                    <NavButton
-                      item={fi}
-                      active={activeView === fi.view}
-                      collapsed={sidebarCollapsed}
-                      onClick={() => handleNavClick(fi.view)}
-                    />
+          {NAV_SECTIONS.map((section) => {
+            const isCollapsed = collapsedSections[section.heading] ?? !section.defaultOpen;
+
+            if (sidebarCollapsed) {
+              // Collapsed: show items without section headers
+              return (
+                <div key={section.heading} className="space-y-0.5">
+                  {section.items.map((item) => (
+                    <div key={item.key} className="px-2">
+                      <NavButton
+                        item={item}
+                        active={activeView === item.key}
+                        collapsed={sidebarCollapsed}
+                        onClick={() => handleNavClick(item.key)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+
+            // Expanded: show section headers with collapsible items
+            return (
+              <div key={section.heading} className="mb-1">
+                <button
+                  onClick={() => toggleSection(section.heading)}
+                  className="w-full flex items-center gap-1.5 px-3 pt-3 pb-1.5 group"
+                >
+                  <span className="text-[10px] uppercase tracking-[0.18em] font-semibold flex-1 text-left text-muted-foreground">
+                    {section.heading}
+                  </span>
+                  <ChevronDown
+                    className={`w-3 h-3 transition-transform duration-200 text-muted-foreground ${
+                      isCollapsed ? '-rotate-90' : ''
+                    }`}
+                  />
+                </button>
+
+                {!isCollapsed && (
+                  <div className="space-y-0.5 pb-1">
+                    {section.items.map((item) => (
+                      <div key={item.key} className="px-3">
+                        <NavButton
+                          item={item}
+                          active={activeView === item.key}
+                          collapsed={false}
+                          onClick={() => handleNavClick(item.key)}
+                        />
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            ) : (
-              <div
-                key={item.view}
-                className={sidebarCollapsed ? 'px-2' : 'px-3'}
-              >
-                <NavButton
-                  item={item}
-                  active={activeView === item.view}
-                  collapsed={sidebarCollapsed}
-                  onClick={() => handleNavClick(item.view)}
-                />
-              </div>
-            )
-          )}
+            );
+          })}
         </nav>
       </ScrollArea>
+
+      {/* ── User Avatar ── */}
+      {!sidebarCollapsed && (
+        <div className="shrink-0 border-t border-[oklch(0.22_0.005_260)] px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-8 w-8 shrink-0">
+              <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
+                RS
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-medium text-foreground leading-tight truncate">Ravi Shanker</span>
+              <span className="text-[11px] text-muted-foreground leading-tight">Administrator</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sidebarCollapsed && (
+        <div className="shrink-0 border-t border-[oklch(0.22_0.005_260)] px-2 py-2 flex justify-center">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
+              RS
+            </AvatarFallback>
+          </Avatar>
+        </div>
+      )}
 
       {/* ── Collapse Toggle ── */}
       <div className="shrink-0 border-t border-[oklch(0.22_0.005_260)] p-2">
@@ -312,7 +311,7 @@ function Header() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none" />
           <Input
             type="search"
-            placeholder="Search leads, companies..."
+            placeholder="Search accounts, contacts..."
             className="h-9 pl-9 bg-black/[0.04] border-[oklch(0.27_0.005_260)] text-foreground placeholder:text-muted-foreground/50 focus-visible:border-primary/40 focus-visible:ring-primary/20"
           />
           <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground/50 bg-black/[0.04] border border-[oklch(0.27_0.005_260)] rounded">

@@ -3,9 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   LayoutDashboard, Building2, Users, Upload, Settings, Mail, BookOpen,
-  Sparkles, Network, GitBranch, BarChart3, Send, FileText, XCircle,
-  Target, Layers, ScrollText, LayoutTemplate, Archive, ClipboardList,
-  FileBarChart, Code2, Copy, Kanban, MailPlus,
+  Sparkles, GitBranch, BarChart3, FileText,
+  Target, Layers, ScrollText, Copy, Kanban, Activity, Radar, Brain,
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import {
@@ -27,34 +26,27 @@ interface NavCmd {
   section: string
 }
 
-// ── All navigation commands (mirrors NAV_SECTIONS in page.tsx) ──
+// ── All navigation commands (mirrors NAV_SECTIONS in nav-config.ts) ──
 const ALL_NAV: NavCmd[] = [
-  { id: 'command-center', label: 'Command Center', icon: Sparkles, screen: 'command-center', section: 'AI Command' },
-  { id: 'mind-map', label: 'Company Mind Map', icon: Network, screen: 'mind-map', section: 'AI Command' },
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, screen: 'dashboard', section: 'Workspace' },
-  { id: 'pipeline', label: 'Pipeline', icon: GitBranch, screen: 'pipeline', section: 'Workspace' },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3, screen: 'analytics', section: 'Workspace' },
-  { id: 'contacts', label: 'Contacts', icon: Users, screen: 'contacts', section: 'People' },
-  { id: 'companies', label: 'Companies', icon: Building2, screen: 'companies', section: 'People' },
-  { id: 'opportunities', label: 'Opportunities', icon: Target, screen: 'opportunities', section: 'People' },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, screen: 'dashboard', section: 'Intelligence' },
+  { id: 'revenue-intelligence', label: 'Revenue Intelligence', icon: Sparkles, screen: 'revenue-intelligence', section: 'Intelligence' },
+  { id: 'signal-intelligence', label: 'Signal Intelligence', icon: Radar, screen: 'signal-intelligence', section: 'Intelligence' },
+  { id: 'companies', label: 'Companies', icon: Building2, screen: 'companies', section: 'Accounts' },
+  { id: 'contacts', label: 'Stakeholders', icon: Users, screen: 'contacts', section: 'Accounts' },
+  { id: 'opportunities', label: 'Opportunities', icon: Target, screen: 'opportunities', section: 'Accounts' },
+  { id: 'segments', label: 'Segments', icon: Kanban, screen: 'segments', section: 'Accounts' },
+  { id: 'pipeline', label: 'Pipeline', icon: GitBranch, screen: 'pipeline', section: 'Pipeline & Engagement' },
+  { id: 'sequences', label: 'Sequences', icon: GitBranch, screen: 'sequences', section: 'Pipeline & Engagement' },
+  { id: 'email-studio', label: 'Email Studio', icon: FileText, screen: 'email-studio', section: 'Pipeline & Engagement' },
+  { id: 'inbox', label: 'Replies & Bounces', icon: Mail, screen: 'inbox', section: 'Pipeline & Engagement' },
   { id: 'import', label: 'Import', icon: Upload, screen: 'import', section: 'Operations' },
-  { id: 'leads', label: 'Leads', icon: Layers, screen: 'leads', section: 'Operations' },
-  { id: 'segments', label: 'Segments', icon: Kanban, screen: 'segments', section: 'Operations' },
-  { id: 'duplicates', label: 'Duplicates', icon: Copy, screen: 'duplicates', section: 'Operations' },
-  { id: 'capabilities', label: 'Capability Library', icon: Archive, screen: 'capabilities', section: 'Operations' },
-  { id: 'knowledge', label: 'Knowledge Engine', icon: BookOpen, screen: 'knowledge', section: 'Operations' },
-  { id: 'email-generation', label: 'Email Generator', icon: MailPlus, screen: 'email-generation', section: 'Outreach' },
-  { id: 'drafts', label: 'Drafts', icon: FileText, screen: 'drafts', section: 'Outreach' },
-  { id: 'queue', label: 'Send Queue', icon: Send, screen: 'queue', section: 'Outreach' },
-  { id: 'templates', label: 'Templates', icon: LayoutTemplate, screen: 'templates', section: 'Outreach' },
-  { id: 'sequences', label: 'Sequences', icon: GitBranch, screen: 'sequences', section: 'Outreach' },
-  { id: 'replies', label: 'Replies', icon: Mail, screen: 'replies', section: 'Outreach' },
-  { id: 'bounces', label: 'Bounces & Suppressions', icon: XCircle, screen: 'bounces', section: 'Outreach' },
-  { id: 'reports', label: 'Reports', icon: FileBarChart, screen: 'reports', section: 'Insights' },
-  { id: 'tasks', label: 'Tasks', icon: ClipboardList, screen: 'tasks', section: 'Insights' },
-  { id: 'prompt-templates', label: 'AI Prompts', icon: Code2, screen: 'prompt-templates', section: 'Insights' },
-  { id: 'audit', label: 'Audit Log', icon: ScrollText, screen: 'audit', section: 'System' },
-  { id: 'settings', label: 'Settings', icon: Settings, screen: 'settings', section: 'System' },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, screen: 'analytics', section: 'Operations' },
+  { id: 'knowledge', label: 'Knowledge Base', icon: Brain, screen: 'knowledge', section: 'Operations' },
+  { id: 'ai-health', label: 'AI Health', icon: Activity, screen: 'ai-health', section: 'Operations' },
+  { id: 'settings', label: 'Settings', icon: Settings, screen: 'settings', section: 'Settings' },
+  { id: 'audit', label: 'Audit Log', icon: ScrollText, screen: 'audit', section: 'Settings' },
+  { id: 'data-health', label: 'Data Health', icon: Layers, screen: 'data-health', section: 'Settings' },
+  { id: 'duplicates', label: 'Duplicates', icon: Copy, screen: 'duplicates', section: 'Settings' },
 ]
 
 interface SearchCompany { id: string; name: string; rawName?: string; industry?: string | null }
@@ -66,7 +58,6 @@ export function CommandPalette() {
   const [companies, setCompanies] = useState<SearchCompany[]>([])
   const [contacts, setContacts] = useState<SearchContact[]>([])
 
-  // ── ⌘K / Ctrl+K global listener ──
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -78,7 +69,6 @@ export function CommandPalette() {
     return () => document.removeEventListener('keydown', down)
   }, [])
 
-  // Reset search state when dialog closes
   useEffect(() => {
     if (!open) {
       setQuery('')
@@ -87,7 +77,6 @@ export function CommandPalette() {
     }
   }, [open])
 
-  // Debounced search
   useEffect(() => {
     const trimmed = query.trim()
     if (!trimmed || trimmed.length < 2) {
@@ -95,7 +84,6 @@ export function CommandPalette() {
       setContacts([])
       return
     }
-
     const controller = new AbortController()
     const timer = setTimeout(async () => {
       try {
@@ -116,17 +104,14 @@ export function CommandPalette() {
         // Ignore aborted or failed requests
       }
     }, 200)
-
     return () => {
       clearTimeout(timer)
       controller.abort()
     }
   }, [query])
 
-  // ── Navigation: uses URL hash (works with active system) ──
   const navigateToScreen = useCallback((screen: string) => {
     window.location.hash = `#${screen}`
-    // Dispatch a hashchange event so the AppShell picks it up
     window.dispatchEvent(new HashChangeEvent('hashchange'))
     setOpen(false)
   }, [])
@@ -134,7 +119,6 @@ export function CommandPalette() {
   const navigateToCompany = useCallback((id: string) => {
     window.location.hash = '#companies'
     window.dispatchEvent(new HashChangeEvent('hashchange'))
-    // Use the store to set the company ID so the AppShell detects it
     useAppStore.getState().setSelectedCompanyId(id)
     setOpen(false)
   }, [])
@@ -146,13 +130,11 @@ export function CommandPalette() {
     setOpen(false)
   }, [])
 
-  // Filter nav items by query
   const q = query.trim().toLowerCase()
   const filteredNav = q.length >= 1
     ? ALL_NAV.filter(c => c.label.toLowerCase().includes(q) || c.section.toLowerCase().includes(q))
     : ALL_NAV
 
-  // Group by section
   const grouped = filteredNav.reduce<Record<string, NavCmd[]>>((acc, cmd) => {
     if (!acc[cmd.section]) acc[cmd.section] = []
     acc[cmd.section].push(cmd)
@@ -168,8 +150,6 @@ export function CommandPalette() {
       />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
-
-        {/* Search results: Companies */}
         {companies.length > 0 && (
           <CommandGroup heading="Companies">
             {companies.map((company) => (
@@ -189,8 +169,6 @@ export function CommandPalette() {
             ))}
           </CommandGroup>
         )}
-
-        {/* Search results: Contacts */}
         {contacts.length > 0 && (
           <CommandGroup heading="Contacts">
             {contacts.map((contact) => (
@@ -210,8 +188,6 @@ export function CommandPalette() {
             ))}
           </CommandGroup>
         )}
-
-        {/* Navigation commands — grouped by section */}
         {companies.length === 0 && contacts.length === 0 && (
           <>
             {Object.entries(grouped).map(([section, items]) => (
@@ -233,8 +209,6 @@ export function CommandPalette() {
             ))}
           </>
         )}
-
-        {/* Quick actions */}
         {!q && companies.length === 0 && contacts.length === 0 && (
           <>
             <CommandSeparator />
@@ -243,9 +217,9 @@ export function CommandPalette() {
                 <Users className="size-4 text-muted-foreground" />
                 <span>Add New Contact</span>
               </CommandItem>
-              <CommandItem onSelect={() => navigateToScreen('email-generation')}>
-                <MailPlus className="size-4 text-muted-foreground" />
-                <span>Generate Email</span>
+              <CommandItem onSelect={() => navigateToScreen('email-studio')}>
+                <FileText className="size-4 text-muted-foreground" />
+                <span>Email Studio</span>
               </CommandItem>
               <CommandItem onSelect={() => navigateToScreen('import')}>
                 <Upload className="size-4 text-muted-foreground" />

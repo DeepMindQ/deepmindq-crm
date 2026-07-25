@@ -36,11 +36,10 @@ NAV_SECTIONS.forEach(s => s.items.forEach(i => { SCREEN_LABELS[i.key] = i.label;
 
 const PIPELINE_STAGES = [
   { key: 'import', label: 'Import' },
-  { key: 'leads', label: 'Accounts' },
-  { key: 'drafts', label: 'Drafts' },
-  { key: 'queue', label: 'Queue' },
-  { key: 'replies', label: 'Replies' },
-  { key: 'bounces', label: 'Bounced' },
+  { key: 'companies', label: 'Accounts' },
+  { key: 'email-studio', label: 'Studio' },
+  { key: 'pipeline', label: 'Pipeline' },
+  { key: 'inbox', label: 'Inbox' },
 ];
 
 /* ═══════════════════════════════════════════════════
@@ -141,7 +140,7 @@ function getTimeAgo(dateStr: string): string {
 
 function AppShell({ onLogout }: { onLogout: () => void }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeScreen, setActiveScreen] = useState('command-center');
+  const [activeScreen, setActiveScreen] = useState('dashboard');
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
@@ -195,11 +194,10 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
         .then((data) => {
           setStageCounts({
             import: data.importedCount ?? 0,
-            leads: data.totalLeads ?? 0,
-            drafts: data.draftCount ?? 0,
-            queue: data.queueCount ?? 0,
-            replies: data.replyCount ?? 0,
-            bounces: data.bounceCount ?? 0,
+            companies: data.totalLeads ?? 0,
+            'email-studio': data.draftCount ?? 0,
+            pipeline: data.queueCount ?? 0,
+            inbox: (data.replyCount ?? 0) + (data.bounceCount ?? 0),
           });
         })
         .catch((err) => { console.error('[Page] Error:', err) });
@@ -621,11 +619,10 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                   .then((data) => {
                     setStageCounts({
                       import: data.importedCount ?? 0,
-                      leads: data.totalLeads ?? 0,
-                      drafts: data.draftCount ?? 0,
-                      queue: data.queueCount ?? 0,
-                      replies: data.replyCount ?? 0,
-                      bounces: data.bounceCount ?? 0,
+                      companies: data.totalLeads ?? 0,
+                      'email-studio': data.draftCount ?? 0,
+                      pipeline: data.queueCount ?? 0,
+                      inbox: (data.replyCount ?? 0) + (data.bounceCount ?? 0),
                     });
                   })
                   .catch((err) => { console.error('[Page] Error:', err) });
@@ -715,7 +712,7 @@ export default function HomePage() {
       const res = await fetch('/api/auth/me');
       if (res.ok) {
         setLoggedIn(true);
-        window.location.hash = '#command-center';
+        window.location.hash = '#dashboard';
         return;
       }
     } catch { /* fall through */ }

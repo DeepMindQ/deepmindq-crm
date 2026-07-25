@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -145,31 +146,21 @@ function rate(part: number, whole: number) {
    Component
    ═══════════════════════════════════════════════════ */
 export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: string) => void }) {
-  const [dashData, setDashData] = useState<DashboardData | null>(null);
-  const [totalLeads, setTotalLeads] = useState(0);
-  const [loading, setLoading] = useState(true);
+  /* ── Data fetching with useQuery ── */
+  const { data: dashData, isLoading } = useQuery<DashboardData>({
+    queryKey: ['pipeline-dashboard'],
+    queryFn: () => fetch('/api/dashboard').then(r => r.json()),
+    staleTime: 30000,
+  });
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [dashRes, leadsRes] = await Promise.all([
-          fetch('/api/dashboard'),
-          fetch('/api/leads?limit=1'),
-        ]);
-        const dash = await dashRes.json();
-        const leads = await leadsRes.json();
-        setDashData(dash);
-        setTotalLeads(leads.total || 0);
-      } catch {
-        /* empty */
-      }
-      setLoading(false);
-    };
-    load();
-  }, []);
+  const { data: leadsData } = useQuery<{ total: number }>({
+    queryKey: ['pipeline-leads-count'],
+    queryFn: () => fetch('/api/leads?limit=1').then(r => r.json()),
+    staleTime: 60000,
+  });
 
   /* -- Loading state -- */
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-8 pr-1">
         <Skeleton className="h-32 w-full rounded-xl" />
@@ -194,7 +185,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
   /* -- Compute stage counts -- */
   const { contactsByStatus: cbs, emailHealthDistribution: eh, draftsPendingReview, queuePending, repliesThisWeek, bouncesCount, suppressionsCount } = dashData;
 
-  const importedCount = totalLeads || Object.values(cbs).reduce((a, b) => a + b, 0);
+  const importedCount = leadsData?.total || Object.values(cbs).reduce((a: number, b: number) => a + b, 0);
   const verifiedCount = cbs['cleaned'] || 0;
   const validEmails = eh?.valid || 0;
   const riskyEmails = eh?.risky || 0;

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   GitMerge, Users, ArrowLeftRight, Check, X, Copy, Eye,
   GitCommitHorizontal, Brain, AlertCircle, RefreshCw,
@@ -463,37 +464,34 @@ function DuplicateCard({
    DuplicatesScreen
    ═══════════════════════════════════════════════════════════════ */
 export default function DuplicatesScreen() {
-  const [candidates, setCandidates] = useState<DuplicateCandidate[]>([])
-  const [mergeHistory, setMergeHistory] = useState<any[]>([])
   const [filter, setFilter] = useState<DuplicateStatus | 'all'>('all')
   const [showHistory, setShowHistory] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [scanning, setScanning] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [totalScanned, setTotalScanned] = useState(0)
+  const [scanning, setScanning] = useState(true)
 
-  const fetchDuplicates = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    setScanning(true)
-    try {
-      const res = await fetch('/api/duplicates')
-      if (!res.ok) throw new Error(`Server error: ${res.status}`)
-      const data: DuplicatesResponse = await res.json()
-      setTotalScanned(data.totalScanned)
-      setMergeHistory(data.mergeHistory || [])
-      // Brief scanning animation then reveal results
-      setTimeout(() => {
-        setScanning(false)
-        setCandidates(data.candidates || [])
-        setLoading(false)
-      }, 2200)
-    } catch (err) {
-      setScanning(false)
-      setLoading(false)
-      setError(err instanceof Error ? err.message : 'Failed to load duplicates')
+  /* ── Data fetching with useQuery ── */
+  const { data: _dupData, isLoading: _dupLoading, error: fetchError, refetch } = useQuery<DuplicatesResponse>({  queryKey: ['duplicates'],
+    queryFn: () => fetch('/api/duplicates').then(r => { if (!r.ok) throw new Error(`Server error: ${r.status}`); return r.json(); }),
+    staleTime: 60000, retry: false,
+  })
+
+  const [candidates, setCandidates] = useState<DuplicateCandidate[]>([])
+  const [mergeHistory, setMergeHistory] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (_dupData) {
+      setTotalScanned(_dupData.totalScanned)
+      setMergeHistory(_dupData.mergeHistory || [])
+      setTimeout(() => { setScanning(false); setCandidates(_dupData.candidates || []); setLoading(false); }, 2200)
     }
-  }, [])
+  }, [_dupData])
+
+  if (_dupLoading) setLoading(true)
+  if (fetchError) setError(fetchError.message)
+
+  const fetchDuplicates = useCallback(() => refetch(), [refetch])
 
   useEffect(() => {
     fetchDuplicates()

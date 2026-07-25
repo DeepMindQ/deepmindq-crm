@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
   Brain,
@@ -154,28 +155,14 @@ export default function AIHealthScreen({
 }: {
   navigateTo?: (screen: string) => void;
 }) {
-  const [data, setData] = useState<AIHealthData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchHealth = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/ai/health');
-      if (!res.ok) throw new Error(`API returned ${res.status}`);
-      const json = await res.json();
-      setData(json);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load AI health data');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchHealth();
-  }, [fetchHealth]);
+  /* ── Data fetching with useQuery ── */
+  const { data, isLoading: loading, error: fetchError, refetch } = useQuery<AIHealthData | null>({
+    queryKey: ['ai-health'],
+    queryFn: () => fetch('/api/ai/health').then(r => { if (!r.ok) throw new Error(`API returned ${r.status}`); return r.json(); }),
+    staleTime: 30000,
+    retry: false,
+  });
+  const error = fetchError?.message || null;
 
   /* ── Loading ── */
   if (loading) {
@@ -195,7 +182,7 @@ export default function AIHealthScreen({
           title="Unable to load AI health data"
           description={error}
           action={
-            <Button variant="outline" size="sm" onClick={fetchHealth} className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2">
               <RefreshCw className="h-3.5 w-3.5" />
               Retry
             </Button>
@@ -278,7 +265,7 @@ export default function AIHealthScreen({
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchHealth}
+            onClick={() => refetch()}
             disabled={loading}
             className="gap-2"
           >

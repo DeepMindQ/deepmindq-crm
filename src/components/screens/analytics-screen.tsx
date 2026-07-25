@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -206,37 +207,28 @@ function pct(value: number, total: number) {
 // ---------------------------------------------------------------------------
 
 export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: string) => void }) {
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
-  const [replies, setReplies] = useState<ReplyItem[]>([]);
-  const [sourceStats, setSourceStats] = useState<SourceStats | null>(null);
-  const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('7d');
 
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/dashboard').then(r => r.json()).catch(() => null),
-      fetch('/api/queue').then(r => r.json()).catch(() => []),
-      fetch('/api/replies').then(r => r.json()).catch(() => []),
-      fetch('/api/leads/source-stats').then(r => r.json()).catch(() => null),
-    ])
-      .then(([dash, queue, replyData, sources]) => {
-        setDashboardData(dash && dash.contactsByStatus ? dash : null);
-        setQueueItems(Array.isArray(queue) ? queue : []);
-        setReplies(Array.isArray(replyData) ? replyData : []);
-        setSourceStats(sources && sources.sources ? sources : null);
-        setLoading(false);
-      })
-      .catch(() => {
-        setDashboardData(null);
-        setQueueItems([]);
-        setReplies([]);
-        setSourceStats(null);
-        setLoading(false);
-      });
-  }, []);
+  /* ── Data fetching with useQuery ── */
+  const { data: _dash } = useQuery<DashboardData>({
+    queryKey: ['analytics-dashboard'], queryFn: () => fetch('/api/dashboard').then(r => r.json()).catch(() => null), staleTime: 60000,
+  });
+  const { data: _queue } = useQuery({
+    queryKey: ['analytics-queue'], queryFn: () => fetch('/api/queue').then(r => r.json()).catch(() => []), staleTime: 60000,
+  });
+  const { data: _replies } = useQuery({
+    queryKey: ['analytics-replies'], queryFn: () => fetch('/api/replies').then(r => r.json()).catch(() => []), staleTime: 60000,
+  });
+  const { data: _sources } = useQuery({
+    queryKey: ['analytics-sources'], queryFn: () => fetch('/api/leads/source-stats').then(r => r.json()).catch(() => null), staleTime: 60000,
+  });
 
-  // ── Derived data (before early return to satisfy rules of hooks) ──
+  const dashboardData = _dash && _dash.contactsByStatus ? _dash : null;
+  const queueItems = Array.isArray(_queue) ? _queue : [];
+  const replies = Array.isArray(_replies) ? _replies : [];
+  const sourceStats = _sources && _sources.sources ? _sources : null;
+  const loading = false;
+
   const d = dashboardData;
 
   const sentItems = queueItems.filter(q => q.status === 'sent');

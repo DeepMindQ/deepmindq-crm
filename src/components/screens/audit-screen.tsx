@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
@@ -142,28 +143,19 @@ const DATE_TABS = [
 
 export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: string) => void }) {
   // ── State ──────────────────────────────────────────────────────────────
-  const [data, setData]           = useState<AuditEntry[] | null>(null);
-  const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
   const [entityFilter, setEntityFilter] = useState<string>('All');
   const [dateRange, setDateRange] = useState<string>('7d');
   const [page, setPage]           = useState(1);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
-  // ── Fetch ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    fetch('/api/audit')
-      .then(r => r.json())
-      .then((d: AuditEntry[] | { error?: string }) => {
-        if (Array.isArray(d) && d.length > 0) {
-          setData(d);
-        } else {
-          setData([]);
-        }
-      })
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
-  }, []);
+  // ── Fetch with useQuery ──
+  const { data: _data, isLoading: loading } = useQuery<AuditEntry[]>({
+    queryKey: ['audit-logs'],
+    queryFn: () => fetch('/api/audit').then(r => r.json()).then((d: any) => Array.isArray(d) ? d : []),
+    staleTime: 30000,
+  });
+  const data = _data || null;
 
   // ── Derived: filtered data ─────────────────────────────────────────────
   const filtered = useMemo(() => {

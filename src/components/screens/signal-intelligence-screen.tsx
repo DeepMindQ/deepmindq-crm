@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Radar, Activity, TrendingUp, DollarSign, Cpu, Crown,
@@ -720,12 +721,26 @@ interface SignalIntelligenceProps {
 }
 
 export default function SignalIntelligenceScreen({ navigateTo }: SignalIntelligenceProps) {
-  const [data, setData] = useState<SignalsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  /* ── Data fetching with useQuery ── */
+  const { data: signalsRaw, isLoading, error: fetchError, refetch: fetchSignals } = useQuery<SignalsResponse | null>({
+    queryKey: ['signals'],
+    queryFn: () => fetch('/api/signals').then(r => { if (!r.ok) throw new Error('Failed to fetch signals'); return r.json(); }),
+    staleTime: 15000,
+    retry: false,
+  });
+  const data = signalsRaw || null;
+  const loading = isLoading;
+  const error = fetchError?.message || null;
+
   const [scanStartTime] = useState(Date.now());
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
+  const dismissSignal = useCallback(async (id: string) => {
+    setDismissedIds(prev => new Set(prev).add(id));
+    try {
+      await fetch('/api/signals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action: 'dismiss' }) });
+    } catch { /* local-only dismiss is fine */ }
+  }, []);
   // Filters
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('all');
@@ -735,34 +750,6 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
   // Pagination
   const [visibleCount, setVisibleCount] = useState(12);
   const loaderRef = useRef<HTMLDivElement>(null);
-
-  const fetchSignals = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/signals');
-      if (!res.ok) throw new Error('Failed to fetch signals');
-      const json = await res.json();
-      setData(json);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchSignals(); }, [fetchSignals]);
-
-  const dismissSignal = useCallback(async (id: string) => {
-    setDismissedIds(prev => new Set(prev).add(id));
-    try {
-      await fetch('/api/signals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action: 'dismiss' }),
-      });
-    } catch { /* local-only dismiss is fine */ }
-  }, []);
 
   // Filtered + sorted signals
   const activeSignals = useMemo(() => {
@@ -969,7 +956,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
               <Button
                 variant="outline"
                 size="sm"
-                onClick={fetchSignals}
+                onClick={() => fetchSignals()}
                 disabled={loading}
                 className="h-8 gap-1.5 text-xs"
               >
@@ -1054,7 +1041,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
             <ErrorState
               title="Signal Intelligence Error"
               message={error}
-              onRetry={fetchSignals}
+              onRetry={() => fetchSignals()}
               className="mb-4"
             />
           )}

@@ -140,14 +140,19 @@ function getTimeAgo(dateStr: string): string {
 
 function AppShell({ onLogout }: { onLogout: () => void }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeScreen, setActiveScreen] = useState('dashboard');
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
-  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Array<{id:string;title:string;message:string;type:string;icon:string;createdAt:string;link:string|null}>>([]);
+
+  // Single source of truth: useAppStore
+  const activeScreen = useAppStore((s) => s.activeView);
+  const selectedCompanyId = useAppStore((s) => s.selectedCompanyId);
+  const selectedContactId = useAppStore((s) => s.selectedContactId);
+  const setActiveScreen = useAppStore((s) => s.setActiveView);
+  const setSelectedCompanyId = useAppStore((s) => s.setSelectedCompanyId);
+  const setSelectedContactId = useAppStore((s) => s.setSelectedContactId);
 
   // URL hash sync for bookmarkability + browser back/forward
   useEffect(() => {
@@ -156,7 +161,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
       if (hash && SCREEN_MAP[hash] && hash !== activeScreen) {
         setSelectedCompanyId(null);
         setSelectedContactId(null);
-        setActiveScreen(hash);
+        setActiveScreen(hash as any);
       }
     };
     syncHash();
@@ -170,21 +175,6 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
       document.title = `${SCREEN_LABELS[activeScreen] || 'DeepMindQ'} — DeepMindQ`;
     }
   }, [activeScreen]);
-
-  // Listen for sub-view changes from useAppStore (dormant screens)
-  useEffect(() => {
-    const unsub = useAppStore.subscribe((state, prev) => {
-      // If a dormant screen navigated to contact-profile
-      if (state.selectedContactId && state.selectedContactId !== prev.selectedContactId) {
-        setSelectedContactId(state.selectedContactId);
-      }
-      // If a dormant screen navigated to company-profile
-      if (state.selectedCompanyId && state.selectedCompanyId !== prev.selectedCompanyId && !selectedCompanyId) {
-        setSelectedCompanyId(state.selectedCompanyId);
-      }
-    });
-    return unsub;
-  }, [selectedCompanyId]);
 
   // Fetch pipeline counts
   useEffect(() => {
@@ -221,23 +211,23 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
   }, []);
 
   // Handle navigation
-  const navigateTo = (screen: string, companyId?: string) => {
+  const navigateTo = useCallback((screen: string, companyId?: string) => {
     if (companyId) {
       setSelectedCompanyId(companyId);
     } else {
       setSelectedCompanyId(null);
       setSelectedContactId(null);
-      setActiveScreen(screen);
     }
+    setActiveScreen(screen as any);
     setSidebarOpen(false);
-  };
+  }, [setActiveScreen, setSelectedCompanyId, setSelectedContactId]);
 
   const handleNavClick = useCallback((key: string) => {
     setSelectedCompanyId(null);
     setSelectedContactId(null);
-    setActiveScreen(key);
+    setActiveScreen(key as any);
     setSidebarOpen(false);
-  }, []);
+  }, [setActiveScreen, setSelectedCompanyId, setSelectedContactId]);
 
   const toggleSection = (heading: string) => {
     setCollapsedSections(prev => ({ ...prev, [heading]: !prev[heading] }));

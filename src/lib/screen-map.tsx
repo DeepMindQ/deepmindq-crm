@@ -53,6 +53,18 @@ const PipelineHealthScreen = lazy(() => import('@/components/screens/pipeline-he
 const DealCoachingScreen = lazy(() => import('@/components/screens/deal-coaching-screen'));
 const PipelineForecastScreen = lazy(() => import('@/components/screens/pipeline-forecast-screen'));
 
+// — Wave 5: Contact Intelligence —
+const ContactIntelligenceScreen = lazy(() => import('@/components/screens/contact-intelligence-screen'));
+
+// — Wave 6: Sales Execution —
+const SalesExecutionScreen = lazy(() => import('@/components/screens/sales-execution-screen'));
+
+// — Wave 7: RevOps —
+const RevOpsScreen = lazy(() => import('@/components/screens/revops-screen'));
+
+// — Wave 9: Enterprise Readiness —
+const EnterpriseScreen = lazy(() => import('@/components/screens/enterprise-screen'));
+
 // — Phase 4 screens —
 const PlaybooksScreen = lazy(() => import('@/components/screens/playbooks-screen'));
 const ResearchAgentScreen = lazy(() => import('@/components/screens/research-agent-screen'));
@@ -156,6 +168,10 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'pipeline-health': PipelineHealthScreen,
   'deal-coaching': DealCoachingScreen,
   'pipeline-forecast': PipelineForecastScreen,
+  'contact-intelligence': ContactIntelligenceScreen,
+  'sales-execution': SalesExecutionScreen,
+  'revops': RevOpsScreen,
+  'enterprise': EnterpriseScreen,
   analytics: AnalyticsScreen,
   contacts: ContactsBridge,
   companies: CompaniesScreen,

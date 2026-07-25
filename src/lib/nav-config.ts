@@ -101,9 +101,19 @@ export const NAV_SECTIONS: NavSection[] = [
       { key: 'pipeline-health', label: 'Pipeline Health', icon: TrendingDown },
       { key: 'deal-coaching', label: 'Deal Coaching', icon: GraduationCap },
       { key: 'pipeline-forecast', label: 'Pipeline Forecast', icon: BarChart3 },
+      { key: 'sales-execution', label: 'Sales Execution', icon: Target },
+      { key: 'contact-intelligence', label: 'Contact Intelligence', icon: Users },
       { key: 'import', label: 'Import', icon: Upload },
       { key: 'analytics', label: 'Analytics', icon: BarChart3 },
       { key: 'reports', label: 'Reports', icon: FileBarChart },
+      { key: 'revops', label: 'RevOps', icon: Database },
+    ],
+  },
+  {
+    heading: 'ENTERPRISE',
+    defaultOpen: false,
+    items: [
+      { key: 'enterprise', label: 'Enterprise Readiness', icon: Shield },
     ],
   },
   {

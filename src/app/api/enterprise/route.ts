@@ -3,49 +3,18 @@ import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 
 /**
- * Wave 9 — Enterprise Readiness
+ * Wave 9 — SaaS Platform Readiness
  * 
- * GET /api/enterprise — enterprise readiness dashboard
- * GET /api/enterprise?view=rbac — RBAC summary
+ * GET /api/enterprise — platform readiness dashboard
  * GET /api/enterprise?view=audit — audit trail summary
  * GET /api/enterprise?view=export — data export inventory
+ * GET /api/enterprise?view=compliance — GDPR/compliance details
  */
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const view = searchParams.get('view');
-
-    // ── RBAC View ──
-    if (view === 'rbac') {
-      const users = await db.user.count();
-      const admins = await db.user.count({ where: { role: 'admin' } });
-      const roles = await db.user.groupBy({
-        by: ['role'],
-        _count: { role: true },
-      });
-
-      const roleDistribution: Record<string, number> = {};
-      for (const r of roles) roleDistribution[r.role] = r._count.role;
-
-      return apiSuccess({
-        totalUsers: users,
-        admins,
-        roleDistribution,
-        features: {
-          roleBasedAccess: true,
-          apiAuthentication: true,
-          sessionManagement: true,
-          auditLogging: true,
-          dataEncryption: true,
-          gdprCompliance: true,
-          consentTracking: true,
-          suppressionManagement: true,
-          dataExport: true,
-          webhookIntegration: true,
-        },
-      });
-    }
 
     // ── Audit View ──
     if (view === 'audit') {
@@ -106,14 +75,39 @@ export async function GET(request: NextRequest) {
         ],
         totalRecords: contacts + companies + opportunities + pursuits + sequences + aiInsights,
         exportFormats: ['csv', 'json'],
-        lastExport: null,
+      });
+    }
+
+    // ── Compliance View ──
+    if (view === 'compliance') {
+      const consentGroups = await db.contact.groupBy({ by: ['consentStatus'], _count: { id: true } });
+      const optedIn = consentGroups.find(g => g.consentStatus === 'opted_in')?._count.id || 0;
+      const optedOut = consentGroups.find(g => g.consentStatus === 'opted_out')?._count.id || 0;
+      const unknown = consentGroups.find(g => g.consentStatus === 'unknown')?._count.id || 0;
+
+      const totalContacts = optedIn + optedOut + unknown;
+      const suppressions = await db.suppression.count();
+
+      return apiSuccess({
+        totalContacts,
+        consentBreakdown: { optedIn, optedOut, unknown },
+        complianceScore: totalContacts > 0 ? Math.round((optedIn / totalContacts) * 100) : 0,
+        suppressionCount: suppressions,
+        gdprFeatures: {
+          consentTracking: true,
+          suppressionManagement: true,
+          emailHealthVerification: true,
+          unsubscribeHandling: true,
+          dataExport: true,
+          auditLogging: true,
+        },
       });
     }
 
     // ── Main Dashboard ──
     const [
       totalContacts, totalCompanies, totalOpportunities, totalPursuits,
-      totalAIInsights, totalAuditLogs,
+      totalAIInsights, totalAuditLogs, totalUsers,
     ] = await Promise.all([
       db.contact.count(),
       db.company.count(),
@@ -121,6 +115,7 @@ export async function GET(request: NextRequest) {
       db.pursuit.count(),
       db.aIInsight.count(),
       db.auditLog.count(),
+      db.user.count(),
     ]);
 
     // Compliance check
@@ -135,7 +130,7 @@ export async function GET(request: NextRequest) {
     const dataMaturity = Math.min(100, Math.round((totalContacts * 0.2 + totalCompanies * 2 + totalAIInsights * 0.5)));
     const securityMaturity = Math.min(100, Math.round((totalAuditLogs > 100 ? 50 : totalAuditLogs * 0.5) + (complianceScore > 50 ? 50 : complianceScore)));
     const aiMaturity = Math.min(100, Math.round(totalAIInsights * 2));
-    const enterpriseReadinessScore = Math.round((dataMaturity + securityMaturity + aiMaturity) / 3);
+    const platformReadinessScore = Math.round((dataMaturity + securityMaturity + aiMaturity) / 3);
 
     return apiSuccess({
       // Overview
@@ -145,16 +140,17 @@ export async function GET(request: NextRequest) {
       totalPursuits,
       totalAIInsights,
       totalAuditLogs,
+      totalUsers,
 
       // Compliance
       consentBreakdown: { optedIn, optedOut, unknown },
       complianceScore,
       gdprReady: complianceScore >= 50,
 
-      // Enterprise features
+      // SaaS platform features
       features: {
         authentication: true,
-        rbac: true,
+        sessionManagement: true,
         auditLogging: true,
         consentManagement: true,
         suppressionManagement: true,
@@ -164,28 +160,29 @@ export async function GET(request: NextRequest) {
         pipelineIntelligence: true,
         salesExecution: true,
         revOps: true,
+        contactIntelligence: true,
       },
 
       // Readiness
-      enterpriseReadinessScore,
+      platformReadinessScore,
       readinessBreakdown: {
         data: dataMaturity,
         security: securityMaturity,
         ai: aiMaturity,
       },
 
-      // Wave completion tracking
+      // Wave completion
       waveCompletion: {
         wave4_pipelineIntelligence: true,
         wave5_contactIntelligence: true,
         wave6_salesExecution: true,
         wave7_revOps: true,
         wave8_aiIntelligence: true,
-        wave9_enterpriseReadiness: true,
+        wave9_platformReadiness: true,
       },
     });
   } catch (error) {
     console.error('[enterprise] Error:', error);
-    return apiError('Failed to load enterprise data', 500);
+    return apiError('Failed to load platform data', 500);
   }
 }

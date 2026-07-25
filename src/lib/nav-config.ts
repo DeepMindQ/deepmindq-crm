@@ -113,7 +113,7 @@ export const NAV_SECTIONS: NavSection[] = [
     heading: 'ENTERPRISE',
     defaultOpen: false,
     items: [
-      { key: 'enterprise', label: 'Enterprise Readiness', icon: Shield },
+      { key: 'enterprise', label: 'Platform Readiness', icon: Shield },
     ],
   },
   {

@@ -22,3 +22,42 @@ Stage Summary:
 - Wave 8.3 (AI Quality Validation): COMPLETE — AI Health Center API + dashboard + nav entry
 - Pushed commit 295df43 to main branch
 - Ready for Wave 4 (Pipeline Intelligence) as next wave per dependency chain
+
+---
+Task ID: wave-4-build-fix
+Agent: Super Z (main)
+Task: Fix Render build failure before Wave 4
+
+Work Log:
+- Found syntax error in recommendations/route.ts: missing closing `)` for createInsights() call
+- Found missing `Activity` icon import in nav-config.ts
+- Fixed both issues, build passed, pushed commit 6a04cfe
+
+Stage Summary:
+- Build error: missing `)` in createInsights call + missing Activity icon import
+- Pushed fix to main
+
+---
+Task ID: wave-4-pipeline-intelligence
+Agent: Super Z (main)
+Task: Execute Wave 4 — Pipeline Intelligence (4.1, 4.2, 4.3)
+
+Work Log:
+- Wave 4.1: Created /api/pipeline/health/route.ts — pipeline health metrics (stage distribution, velocity, conversion rates, stale/at-risk detection)
+- Wave 4.1: Created /api/ai/deal-risk/route.ts — deal risk analysis with composite scoring (staleness, ownership, next action, confidence, stage stuck)
+- Wave 4.1: Created pipeline-health-screen.tsx — dashboard with funnel visualization, health score cards, at-risk deals table, priority distribution
+- Wave 4.2: Created /api/ai/deal-coaching/route.ts — stage-specific coaching with conversation topics, strengths/gaps detection, churn risk calculation
+- Wave 4.2: Created deal-coaching-screen.tsx — expandable coaching cards per deal with progression guide, strengths/gaps/next steps
+- Wave 4.3: Created /api/pipeline/forecast/route.ts — pipeline forecasting with projected closes, stage flow, velocity analytics, health score composite
+- Wave 4.3: Created pipeline-forecast-screen.tsx — forecast dashboard with summary cards, stage flow table, velocity bars, health circle, recommendations
+- All APIs persist critical findings as AIInsight records via createInsights()
+- Added 3 new nav entries: Pipeline Health, Deal Coaching, Pipeline Forecast
+- Registered 3 new screens in screen-map.tsx
+- Fixed Company model field name (normalizedName not name) across all 4 new API routes
+
+Stage Summary:
+- Wave 4.1 (Pipeline Health + Risk): COMPLETE — health dashboard + deal risk engine + AI insight persistence
+- Wave 4.2 (Deal Coaching): COMPLETE — stage-specific coaching + conversation topics + churn risk + coaching UI
+- Wave 4.3 (Pipeline Forecast): COMPLETE — revenue forecast + velocity analytics + health composite + forecast UI
+- Total: 4 API routes, 3 dashboard screens, all registered in nav + screen-map
+- Build verified clean, pushed commit c26109d to main branch

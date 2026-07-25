@@ -115,3 +115,27 @@ Stage Summary:
 - Every AI engine persists insights and tracks reliability
 - Zero RBAC/SaaS code — fully aligned with dedicated deployment architecture
 - Quality bar: All AI outputs have evidence, confidence, impact, action
+
+---
+Task ID: enterprise-ux-overhaul-phase1
+Agent: Super Z (main)
+Task: Enterprise UX Overhaul — transform from feature-dump to enterprise product
+
+Work Log:
+- Audited full codebase: 50+ screens, 100+ API routes, 2 competing navigation systems, inconsistent UX
+- Identified core problems: nav chaos (9 sections/40+ items), duplicate app shells, no cohesive workflow
+- Restructured nav-config.ts: 9 sections → 5 focused sections (Intelligence, Accounts, Pipeline & Engagement, Operations, Settings), 40+ items → 19 primary items
+- Updated store ViewId type: added legacy aliases for backward compatibility (40+ old screen keys)
+- Rebuilt screen-map.tsx: 19 primary screens + 40+ legacy aliases, removed unused bridges
+- Rebuilt app-shell.tsx: removed hardcoded NAV_ITEMS, now reads from nav-config.ts, dark sidebar with brand, user avatar, collapsible sections
+- Rebuilt companies-screen.tsx (1211 → 574 lines): enterprise data table with CRUD, grid/table views, bulk operations, status badges, score bars, inline actions
+- Updated companies API: added updatedAt field
+- Build verified clean (0 errors)
+- Pushed commit 7fe906d to main
+
+Stage Summary:
+- Phase 1 complete: navigation restructured, app shell unified, companies screen enterprise-grade
+- Contacts screen (1485 lines) already enterprise-grade with full CRUD, bulk ops, AI suggestions
+- Opportunities screen (761 lines) already has kanban+list view, CRUD, stage progression
+- Dashboard (554 lines) has AI briefing, pipeline funnel, engagement chart, activity timeline — needs modernization but functional
+- Remaining: Dashboard redesign, pipeline screen enhancement, unified activity view

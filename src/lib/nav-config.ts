@@ -11,7 +11,7 @@ import {
   BarChart3, LayoutTemplate, Layers, Sparkles, Network, Target,
   FileBarChart, Code2, Copy, ClipboardList, Kanban, MailPlus,
   Radar, MessageSquare, Heart, Shield, Database, BookOpen, Compass,
-  Crosshair, Lightbulb, Activity,
+  Crosshair, Lightbulb, Activity, TrendingDown, GraduationCap,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -98,6 +98,9 @@ export const NAV_SECTIONS: NavSection[] = [
     defaultOpen: false,
     items: [
       { key: 'pipeline', label: 'Pipeline', icon: GitBranch },
+      { key: 'pipeline-health', label: 'Pipeline Health', icon: TrendingDown },
+      { key: 'deal-coaching', label: 'Deal Coaching', icon: GraduationCap },
+      { key: 'pipeline-forecast', label: 'Pipeline Forecast', icon: BarChart3 },
       { key: 'import', label: 'Import', icon: Upload },
       { key: 'analytics', label: 'Analytics', icon: BarChart3 },
       { key: 'reports', label: 'Reports', icon: FileBarChart },

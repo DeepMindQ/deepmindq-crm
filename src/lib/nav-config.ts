@@ -108,6 +108,7 @@ export const NAV_SECTIONS: NavSection[] = [
     defaultOpen: false,
     items: [
       { key: 'intelligence-health', label: 'Intelligence Health', icon: Shield },
+      { key: 'ai-health', label: 'AI Health Center', icon: Activity },
       { key: 'icp-settings', label: 'ICP Configuration', icon: Crosshair },
       { key: 'data-health', label: 'Data Health', icon: Shield },
       { key: 'relationship-memory', label: 'Relationship Memory', icon: Heart },

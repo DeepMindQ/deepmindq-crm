@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { apiSuccess, apiError } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
+import { createInsights } from '@/lib/ai-insight-service'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -411,6 +412,35 @@ export async function GET() {
 
     // Limit to top 20
     const sorted = enhanced.slice(0, 20)
+
+    // Persist top recommendations as AI Insights (batch)
+    try {
+      const highPriorityRecs = sorted.filter(r => r.priority === 'high')
+      if (highPriorityRecs.length > 0) {
+        await createInsights(
+          highPriorityRecs.slice(0, 5).map(r => ({
+            companyId: r.entityType === 'company' ? r.entityId : undefined,
+            contactId: r.entityType === 'contact' ? r.entityId : undefined,
+            type: 'RECOMMENDATION' as const,
+            title: `Action: ${r.action}`,
+            description: `${r.reasoning}${r.aiEnhanced ? ' (AI-enhanced)' : ''}`,
+            evidence: [{
+              source: 'recommendation-engine',
+              snippet: `Type: ${r.type}, Priority: ${r.priority}, Entity: ${r.entityName}`,
+              reliability: r.aiEnhanced ? 0.7 : 0.5,
+            }],
+            confidenceScore: r.aiEnhanced ? 70 : 50,
+            impactScore: r.priority === 'high' ? 80 : 50,
+            urgencyScore: r.priority === 'high' ? 65 : 30,
+            recommendedAction: r.action,
+            sourceType: 'recommendation_engine',
+            sourceRoute: '/api/ai/recommendations',
+            expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3-day expiry
+          }))
+      }
+    } catch (insightErr) {
+      console.warn('[ai/recommendations] Failed to persist insights:', insightErr)
+    }
 
     return apiSuccess({ recommendations: sorted })
   } catch {

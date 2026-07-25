@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
+import { createInsight } from '@/lib/ai-insight-service'
 
 // ---------------------------------------------------------------------------
 // Types — VP Sales-Ready Executive Brief
@@ -435,6 +436,40 @@ export async function GET(request: NextRequest) {
   }
   briefCache.set(companyId, { data: response, expiresAt: Date.now() + CACHE_TTL_MS })
   for (const [key, val] of briefCache.entries()) { if (val.expiresAt <= Date.now()) briefCache.delete(key) }
+
+  // 7. Persist key brief findings as AI Insights
+  try {
+    const keySignals = brief.keySignals?.slice(0, 5) || [];
+    await createInsight({
+      companyId: company.id,
+      type: brief.overallConfidence >= 70 ? 'OPPORTUNITY' : 'SIGNAL',
+      title: `Account Brief: ${name} — Confidence ${brief.overallConfidence}%`,
+      description: brief.executiveSummary,
+      evidence: [
+        ...keySignals.map(s => ({
+          source: 'account-brief',
+          snippet: `${s.signal}: ${s.evidence || 'detected'}`,
+          reliability: s.confidence / 100,
+        })),
+        ...sources.slice(0, 5).map(s => ({
+          source: s.url || 'web-search',
+          snippet: s.title,
+          reliability: 0.6,
+        })),
+      ],
+      confidenceScore: brief.overallConfidence,
+      impactScore: brief.strategicPriority?.includes('High') ? 85 : 60,
+      urgencyScore: brief.keySignals?.length ? 65 : 30,
+      recommendedAction: brief.recommendedEngagement?.approach || 'Review brief for engagement strategy',
+      reasoning: `Strategic priority: ${brief.strategicPriority}. ${brief.keySignals?.length || 0} key signals identified.`,
+      sourceType: 'account_brief_engine',
+      sourceRoute: '/api/ai/account-brief',
+      modelUsed: 'account_brief_v1',
+      expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5-day expiry
+    });
+  } catch (insightErr) {
+    console.warn('[account-brief] Failed to persist insight:', insightErr);
+  }
 
   return apiSuccess(response)
 }

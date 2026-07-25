@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
+import { createInsight } from '@/lib/ai-insight-service'
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -178,6 +179,33 @@ Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence":
       })
       enriched = true
     }
+  }
+
+  // Persist as AI Insight
+  try {
+    await createInsight({
+      companyId: entityId,
+      type: suggestions.length > 0 ? 'RECOMMENDATION' : 'SIGNAL',
+      title: `Enrichment: ${company.rawName} — ${suggestions.length} suggestion(s)`,
+      description: `Missing ${missingFields.length} field(s): ${missingFields.join(', ')}. ${suggestions.length} AI-suggested enrichment(s) generated.${enriched ? ' Auto-filled high-confidence values.' : ''}`,
+      evidence: suggestions.slice(0, 5).map(s => ({
+        source: 'ai-enrich',
+        snippet: `${s.field}: ${s.suggestedValue} (${Math.round(s.confidence * 100)}% confidence)`,
+        reliability: s.confidence,
+      })),
+      confidenceScore: suggestions.length > 0 ? 70 : 30,
+      impactScore: Math.min(100, suggestions.length * 20),
+      urgencyScore: missingFields.length > 3 ? 60 : 20,
+      recommendedAction: enriched
+        ? 'High-confidence fields auto-filled. Review remaining suggestions.'
+        : suggestions.length > 0
+          ? 'Review AI suggestions and auto-fill approved values.'
+          : 'All key fields populated. No enrichment needed.',
+      sourceType: 'enrichment_engine',
+      sourceRoute: '/api/ai/enrich',
+    })
+  } catch (insightErr) {
+    console.warn('[ai/enrich] Failed to persist insight:', insightErr)
   }
 
   return apiSuccess({

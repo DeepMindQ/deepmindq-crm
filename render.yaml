@@ -30,7 +30,12 @@ services:
     name: deepmindq-crm
     runtime: node
     plan: starter
-    buildCommand: npm install && npm run build
+    # CRITICAL: use build:vercel (NOT build). The `build` script runs
+    # `prisma db push` which requires DATABASE_URL to be reachable at
+    # build time — fails on first deploy when Postgres isn't ready yet.
+    # build:vercel only does `prisma generate + next build` (no DB access).
+    # DB schema is pushed post-deploy via POST /api/setup-db.
+    buildCommand: npm install && npm run build:vercel
     startCommand: npm start
     healthCheckPath: /api/health
     autoDeploy: true

@@ -10,7 +10,7 @@
     "dev": "next dev -p 3000 -H 0.0.0.0 --webpack 2>&1 | tee dev.log",
     "build": "npx prisma generate && npx prisma db push --skip-generate && npx next build",
     "build:vercel": "npx prisma generate && npx next build",
-    "start": "npx next start -p $PORT",
+    "start": "next start -p ${PORT:-3000}",
     "lint": "eslint . && bash scripts/check-governance.sh",
     "check:governance": "bash scripts/check-governance.sh",
     "db:push": "prisma db push",

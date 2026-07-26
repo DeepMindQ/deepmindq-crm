@@ -257,3 +257,30 @@ Stage Summary:
   - Updated `eslint-rules/no-ungoverned-llm.js` (added model-router.ts to allowlist)
   - Updated 6 ai-copilot test files (bun:test → vitest, 1 line each)
 - Next: Phase B Session 2 (ScoringEngine, ActionEngine, ConversationEngine) — then Phase C (UI bridge layer + AI Engines screen).
+
+---
+Task ID: deploy-render-push
+Agent: Super Z (main)
+Task: Push Phase B/C work to GitHub and prepare Render deployment
+
+Work Log:
+- Pre-push quality gate: `tsc --noEmit` clean, `next build` succeeds (41s, 142 static pages), 4-engine smoke test all pass (21/21).
+- Added GET /api/health route — lightweight liveness probe (no DB calls), returns provider-configured booleans (zai/gemini/groq) for diagnostics during deploy.
+- Expanded render.yaml: added `databases:` block for managed Postgres, wired DATABASE_URL via `fromDatabase`, added `sync:false` env vars for ZAI_API_KEY / GEMINI_API_KEY / GROQ_API_KEY (zero-budget AI providers), set `healthCheckPath: /api/health`, `autoDeploy: true`.
+- Staged and committed (5de3197): health endpoint + render.yaml expansion + bun.lock refresh (added @xenova/transformers for local embeddings).
+- Push was rejected because remote had 2 commits ahead (Phase 2: Enterprise CRM — useQuery conversion + design system rebuild, ~5000 lines changed across 13 files).
+- `git pull origin main --no-rebase` merged cleanly (no conflicts) via ort strategy. Result: merge commit dfd300f.
+- Post-merge verification: tsc clean, `next build` succeeds (41s, 142 static pages — 1 new page is /api/health).
+- Pushed successfully: `fb90b00..dfd300f main -> main`.
+
+Stage Summary:
+- Commit on remote: dfd300f (merge) + 5de3197 (deploy changes) + c0e39bb (Phase B engines).
+- Repo: https://github.com/DeepMindQ/deepmindq-crm
+- Render-ready: render.yaml now declares Postgres DB + 3 AI provider env slots + health endpoint.
+- NEXT STEPS for user (Render side, manual — cannot be automated from CLI):
+  1. Go to https://dashboard.render.com → New → Blueprint → pick this repo.
+  2. Render will auto-detect render.yaml → create `deepmindq-postgres` DB + `deepmindq-crm` web service.
+  3. In the web service's Environment tab, paste values for: ZAI_API_KEY, GEMINI_API_KEY, GROQ_API_KEY (leave empty if you want engines to degrade gracefully — they're all optional).
+  4. Trigger manual deploy (or push any new commit — autoDeploy is on).
+  5. After first successful deploy, hit POST /api/setup-db once to run `prisma db push` against the new Postgres (creates all 71 tables).
+  6. Visit /api/health to confirm liveness + provider config.

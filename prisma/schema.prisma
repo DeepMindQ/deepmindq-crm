@@ -1881,3 +1881,79 @@ model AIInsight {
   @@index([companyId, type, status])
   @@index([expiresAt])
 }
+
+// ─── Phase B Engine Architecture Models ──────────────────────────────────
+// Added for the unified engine architecture (ModelRouter + GroundingEngine +
+// RetrievalEngine + 4 composition engines). These support:
+//   1. Embedding persistence for RetrievalEngine (semantic search)
+//   2. EngineRun audit trail for composition engines (one row per
+//      composition-level call, links to AIGenerationAudit at the LLM-call
+//      level via llmCallCount + llmTokensUsed + llmCostUsd aggregates)
+
+model Embedding {
+  id          String   @id @default(cuid())
+  // What this embedding represents: 'capability_asset', 'ai_insight',
+  // 'company_signal', 'company', 'contact', 'opportunity', etc.
+  entityType  String
+  // Stable ID of the entity this embedding represents (e.g. 'cap_xyz')
+  entityId    String   @unique
+  // The source text that was embedded (for re-embedding if model changes)
+  sourceText  String   @db.Text
+  // SHA-256 of sourceText — used to detect stale embeddings that need refresh
+  textHash    String
+  // The embedding vector serialized as JSON string (e.g. "[0.1,0.2,...]")
+  // Stored as Text rather than a native vector type because we don't depend
+  // on pgvector — cosine similarity is computed in JS after parsing.
+  vector      String   @db.Text
+  // Which model produced this embedding (e.g. 'Xenova/all-MiniLM-L6-v2')
+  model       String
+  // Vector dimensionality (e.g. 384 for all-MiniLM-L6-v2)
+  dimensions  Int
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([entityType])
+  @@index([entityId])
+  @@index([model])
+}
+
+model EngineRun {
+  id              String   @id @default(cuid())
+  // Which composition engine ran: 'synthesis', 'scoring', 'action', 'conversation'
+  engine          String
+  // Composition ID — links related runs (e.g. one compositionId per chat session)
+  compositionId   String?
+  // Brief summary of the input (JSON: { briefType, companyId, ... })
+  inputSummary    String   @db.Text
+  // Brief summary of the output (JSON: { wordCount, confidence, ... })
+  outputSummary   String   @db.Text
+  // Engine-level confidence (0-1)
+  confidence      Float    @default(0)
+  // Wall-clock duration
+  durationMs      Int
+  // Whether the engine returned success=true
+  success         Boolean  @default(true)
+  // Error message if !success
+  errorMessage    String?
+
+  // Context entities (nullable — not all runs target a specific entity)
+  companyId       String?
+  contactId       String?
+  opportunityId   String?
+
+  // Aggregate LLM stats for this composition run (links to AIGenerationAudit
+  // at the per-call level — one EngineRun may include multiple LLM calls
+  // across Deep/Smart/Fast tiers)
+  llmCallCount    Int      @default(0)
+  llmTokensUsed   Int      @default(0)
+  llmCostUsd      Float    @default(0)
+
+  createdAt       DateTime @default(now())
+
+  @@index([engine])
+  @@index([compositionId])
+  @@index([companyId])
+  @@index([contactId])
+  @@index([createdAt(sort: Desc)])
+}

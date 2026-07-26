@@ -2,11 +2,20 @@
  * ESLint custom rule: no-ungoverned-llm
  *
  * Enforces the AI governance architecture:
- * - Only ai-governance.ts may import callLLM from zai-helpers
+ * - Only ai-governance.ts (legacy) OR engines/model-router.ts (Phase B) may
+ *   import callLLM from zai-helpers. Both ARE governance layers —
+ *   model-router.ts is the new tiered router that logs every call via
+ *   logAIUsage and tracks cost.
  * - No file may import callChatLLM (removed function)
  * - No file may import from AI SDK ('ai') or OpenAI SDK directly
  * - Other imports from zai-helpers (webSearch, extractJSON, tavilyAIAnswer, etc.) are fine
  */
+
+// Files allowed to import callLLM directly — they ARE the governance layer
+const ALLOWED_GOVERNANCE_FILES = new Set([
+  "ai-governance.ts", // legacy governance (used by /api/ai/* routes)
+  "model-router.ts",  // Phase B governance (used by /api/engines/* routes)
+]);
 
 module.exports = {
   meta: {
@@ -19,15 +28,15 @@ module.exports = {
     },
     messages: {
       ungovernedCallLLM:
-        "Direct import of 'callLLM' is only allowed in 'ai-governance.ts'. Use 'governedAICall()' or 'governedAICallAggregate()' from '@/lib/ai-governance' instead.",
+        "Direct import of 'callLLM' is only allowed in governance layer files (ai-governance.ts or engines/model-router.ts). Use 'governedAICall()' from '@/lib/ai-governance' or 'ModelRouter.complete()' from '@/lib/engines' instead.",
       removedCallChatLLM:
         "'callChatLLM' was removed in Phase 3 and must not be imported or used.",
       directAiSdk:
-        "Direct import from 'ai' SDK is forbidden. All AI calls must go through the governance layer (ai-governance.ts).",
+        "Direct import from 'ai' SDK is forbidden. All AI calls must go through the governance layer (ai-governance.ts or engines/model-router.ts).",
       directOpenAiSdk:
-        "Direct import from 'openai' SDK is forbidden. All AI calls must go through the governance layer (ai-governance.ts).",
+        "Direct import from 'openai' SDK is forbidden. All AI calls must go through the governance layer (ai-governance.ts or engines/model-router.ts).",
       directAiSdkOpenai:
-        "Direct import from '@ai-sdk/openai' is forbidden. All AI calls must go through the governance layer (ai-governance.ts).",
+        "Direct import from '@ai-sdk/openai' is forbidden. All AI calls must go through the governance layer (ai-governance.ts or engines/model-router.ts).",
     },
     schema: [],
   },
@@ -36,9 +45,11 @@ module.exports = {
     // Extract the filename from the source code file path
     const filename = context.getFilename();
 
-    // Helper: check if the current file is the approved governance file
+    // Helper: check if the current file is an approved governance file
     function isGovernanceFile() {
-      return filename.endsWith("ai-governance.ts");
+      return Array.from(ALLOWED_GOVERNANCE_FILES).some((name) =>
+        filename.endsWith(name),
+      );
     }
 
     // Helper: check if any of the imported specifiers match a given name

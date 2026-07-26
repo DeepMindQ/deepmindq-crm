@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion, useInView, useMotionValue, useTransform, animate } from 'framer-motion';
 import {
   PageTransition,
@@ -314,33 +315,16 @@ function LoadingSkeleton() {
    ═══════════════════════════════════════════════════════════ */
 
 export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen: string, id?: string) => void }) {
-  const [data, setData] = useState<DataHealthResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async (cacheBust = false) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const url = cacheBust ? `/api/data-health?_t=${Date.now()}` : '/api/data-health';
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error(`Failed to fetch data health (${res.status})`);
-      }
-      const json = await res.json();
-      const d = json.data ?? json;
-      setData(d);
-    } catch (err) {
-      console.error('[DataHealthScreen] fetch error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load data health');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  /* ── Data fetching with useQuery ── */
+  const { data: _raw, isLoading: loading, error: fetchError, refetch } = useQuery<any>({
+    queryKey: ['data-health'],
+    queryFn: () => fetch('/api/data-health').then(r => { if (!r.ok) throw new Error(`Failed (${r.status})`); return r.json(); }).then(j => j.data ?? j),
+    staleTime: 30000,
+    retry: false,
+  });
+  const data = _raw || null;
+  const error = fetchError?.message || null;
+  const fetchData = useCallback((_bust?: boolean) => refetch(), [refetch]);
 
   /* ── Derived data ── */
   const healthBreakdown = data
@@ -370,7 +354,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
     : [];
 
   const totalIssues = data
-    ? Object.values(data.qualityCategories).reduce((sum, c) => sum + c.count, 0)
+    ? Object.values(data.qualityCategories as Record<string, { count: number }>).reduce((sum, c) => sum + c.count, 0)
     : 0;
 
   /* ── States ── */

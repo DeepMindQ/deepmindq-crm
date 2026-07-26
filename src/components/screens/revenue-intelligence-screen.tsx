@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   TrendingUp, Target, Sparkles, ChevronRight, RefreshCw,
   Flame, Sun, Sprout, AlertTriangle, Zap, Radar,
@@ -453,33 +454,23 @@ export default function RevenueIntelligenceScreen({
 }: {
   navigateTo?: (screen: string, companyId?: string) => void;
 }) {
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [insightsData, setInsightsData] = useState<InsightsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  /* ── Data fetching with useQuery ── */
+  const { data: dashboardData, isLoading: dashLoading, error: dashError } = useQuery<DashboardData>({
+    queryKey: ['rev-intel-dashboard'],
+    queryFn: () => fetch('/api/dashboard').then(r => { if (!r.ok) throw new Error(`Dashboard: ${r.status}`); return r.json(); }),
+    staleTime: 30000,
+    retry: false,
+  });
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [dashRes, insightRes] = await Promise.all([
-        fetch('/api/dashboard'),
-        fetch('/api/command-center/insights'),
-      ]);
-      if (!dashRes.ok) throw new Error(`Dashboard: ${dashRes.status}`);
-      if (!insightRes.ok) throw new Error(`Insights: ${insightRes.status}`);
-      const dashJson = await dashRes.json();
-      const insightJson = await insightRes.json();
-      setDashboardData(dashJson);
-      setInsightsData(insightJson);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load revenue intelligence.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { data: insightsData, isLoading: insightsLoading, error: insightsError } = useQuery<InsightsData>({
+    queryKey: ['rev-intel-insights'],
+    queryFn: () => fetch('/api/command-center/insights').then(r => { if (!r.ok) throw new Error(`Insights: ${r.status}`); return r.json(); }),
+    staleTime: 30000,
+    retry: false,
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const loading = dashLoading || insightsLoading;
+  const error = dashError?.message || insightsError?.message || null;
 
   /* ── Loading State ── */
   if (loading) {
@@ -497,7 +488,7 @@ export default function RevenueIntelligenceScreen({
         <ErrorState
           title="Revenue intelligence unavailable"
           message={error}
-          onRetry={fetchData}
+          onRetry={() => window.location.reload()}
         />
       </div>
     );
@@ -556,7 +547,7 @@ export default function RevenueIntelligenceScreen({
             </div>
           </div>
           <button
-            onClick={fetchData}
+            onClick={() => window.location.reload()}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-black/[0.04] transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -847,7 +838,7 @@ export default function RevenueIntelligenceScreen({
 }
 
 /** Utility: sum contacts from status map */
-function totalContactsFromStatus(dashboardData: DashboardData | null): number {
+function totalContactsFromStatus(dashboardData: DashboardData | null | undefined): number {
   if (!dashboardData) return 0;
   return totalContacts(dashboardData.contactsByStatus);
 }

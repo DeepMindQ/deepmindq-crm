@@ -142,3 +142,50 @@ Stage Summary:
   - 6 signal-capability matches (75-90% confidence scores)
   - Real AI outputs: company profiles, tech stacks, initiatives, buying signals
 - NEXT: Milestone 1 — Product DNA (design tokens, typography, colors, motion)
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Step 1 — Data Foundation Fixes for Empty Intelligence Engine
+
+Work Log:
+- Read full worklog and all relevant source files to understand current state
+- Read capabilities import route, capabilities CRUD route, companies route, full pipeline route, enrichment batch route
+- Read capability-intelligence-engine.ts (ingest, embedExisting, bulkIngest, matchSignalToCapabilities)
+- Identified 3 fixes needed for "empty engine" product model
+
+Fix 1: Capabilities Import Embedding Bug
+- /api/capabilities/import was creating DB records but never calling embedExisting()
+- Imported capabilities were invisible to vector search — the intelligence engine couldn't find them
+- Added import of CapabilityIntelligenceEngine to import route
+- Added embedExisting() call after each createdAsset in the import loop
+- Expanded VALID_CATEGORIES from 5 to 17 (matching engine's full category list)
+- Added all missing fields: solution, accelerator, technology, industry, businessProblem, customerOutcome, differentiator
+- Fixed targetIndustries/targetRoles to handle both string and array input formats
+
+Fix 2: Removed Hardcoded Demo Capabilities
+- capabilities/route.ts had 10 hardcoded DEMO_CAPABILITIES + demoStore in-memory fallback
+- GET handler fell back to demo data on any DB error — masking real issues
+- POST/PUT/DELETE handlers fell back to in-memory demoStore on DB error
+- Removed ALL demo data: DEMO_CAPABILITIES array, demoStore variable, getDemoCapabilities helper
+- All handlers now return proper error responses (500) on DB failure instead of fake demo data
+- POST handler now supports all CapabilityInput fields (solution, accelerator, technology, etc.)
+- PUT handler allowedFields expanded to cover all capability fields
+
+Fix 3: Validation
+- TypeScript compilation verified clean (zero errors) after all changes
+
+Architecture Decision: Empty Intelligence Engine
+- DeepMindQ now ships with ZERO pre-loaded data
+- GET /api/capabilities returns [] when no capabilities exist — this is the desired state
+- Customer uploads capabilities → they get embedded → intelligence pipeline can find them
+- Customer uploads companies → enrichment runs → signals detected → capability matching works
+- No demo mode, no sample data, no fallback — the product activates on customer data
+
+Stage Summary:
+- Data foundation is now aligned with "empty engine → customer data → intelligence" product model
+- Capabilities import correctly embeds into vector index
+- No hardcoded demo data anywhere in the capabilities API
+- Batch enrichment endpoint already exists at POST /api/intelligence/enrich-batch (no changes needed)
+- TypeScript compiles clean
+- Ready for Step 2: Product DNA

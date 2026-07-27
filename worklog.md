@@ -86,3 +86,28 @@ Stage Summary:
 - Hierarchy: Company → Departments (by role/title) → Contacts (expandable)
 - Signals, Notes, Research as separate expandable branches
 - Clean connecting lines between hierarchy levels
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix authentication security — OTP must go to email, not shown on screen
+
+Work Log:
+- Read all auth files: request-otp route, verify-otp route, me route, otp.ts, email-provider.ts, login-page.tsx, landing-page.tsx, page.tsx
+- Found root causes: (1) devCode returned in API response when EMAIL_API_KEY missing, (2) login page displayed devCode with "Auto-fill & Verify" button, (3) verify-otp accepted ANY code when DB failed, (4) auth/me returned fake user when DB failed
+- Fixed request-otp/route.ts: devCode ONLY returned in NODE_ENV=development; production returns 503 on DB failure
+- Fixed otp.ts: when email send fails in production, returns error (not code); dev fallback only in development
+- Fixed verify-otp/route.ts: DB fallback session ONLY in development; production returns 503
+- Fixed auth/me/route.ts: fallback auth ONLY in development; production returns 503
+- Fixed login/route.ts and register/route.ts: devCode only exposed in development
+- Fixed login-page.tsx: devCode display block only visible in development mode; added "Check your email" card for production
+- Fixed settings-screen.tsx: devCode capture annotated as dev-only
+- Build verified successfully with `npx next build --webpack`
+- Committed and pushed to GitHub for Vercel auto-deploy
+
+Stage Summary:
+- 8 files modified across auth routes and UI components
+- OTP is now SECURE: in production, code goes to email via Resend ONLY, never exposed in API response or UI
+- "Check your email" card shown on login screen in production
+- Dev mode still shows code for local convenience
+- Vercel deployment triggered via git push (commit 07e4d5a)
+- CRITICAL: User must ensure EMAIL_API_KEY (Resend) is set in Vercel production environment variables, otherwise OTP send will fail

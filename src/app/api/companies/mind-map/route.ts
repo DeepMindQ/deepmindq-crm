@@ -183,7 +183,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/* ── Focused view: single company + ALL its children ── */
+/* ── Focused view: single company + ALL children, hierarchical ── */
 async function buildFocusedView(companyId: string): Promise<MindMapResponse> {
   const company = await db.company.findUnique({
     where: { id: companyId },
@@ -305,93 +305,14 @@ async function buildSearchView(term: string): Promise<MindMapResponse> {
   };
 }
 
-/* ── Overview: top 30 companies by IQ score + top 3 contacts each ── */
+/* ── Overview: NOT AVAILABLE — mind map is always company-focused ── */
 async function buildOverviewView(): Promise<MindMapResponse> {
-  const companies = await db.company.findMany({
-    take: 30,
-    orderBy: { intelligenceScore: 'desc' },
-    select: {
-      id: true, rawName: true, normalizedName: true, industry: true,
-      intelligenceScore: true, engagementScore: true, status: true,
-      lifecycleStage: true, location: true, sizeRange: true, domain: true, country: true,
-      _count: { select: { contacts: true } },
-    },
-  });
-
-  const companyIds = companies.map(c => c.id);
-
-  // Fetch top 3 contacts per company
-  const contacts = await db.contact.findMany({
-    where: { companyId: { in: companyIds } },
-    orderBy: { leadScore: 'desc' },
-    select: { id: true, rawName: true, normalizedName: true, email: true, title: true, role: true, leadScore: true, status: true, companyId: true },
-  });
-
-  // Fetch latest signal per company (max 1 each)
-  const signals = await db.companySignal.findMany({
-    where: { companyId: { in: companyIds } },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true, companyId: true, signalType: true, title: true, severity: true, source: true, createdAt: true },
-  });
-
-  // Fetch latest note per company (max 1 each)
-  const notes = await db.companyNote.findMany({
-    where: { companyId: { in: companyIds } },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true, companyId: true, title: true, category: true, pinned: true, createdAt: true },
-  });
-
-  const contactsMap = new Map<string, Array<Record<string, unknown>>>();
-  const signalsMap = new Map<string, Array<Record<string, unknown>>>();
-  const notesMap = new Map<string, Array<Record<string, unknown>>>();
-
-  // Top 3 contacts per company
-  const perCompany = new Map<string, number>();
-  for (const ct of contacts) {
-    const cid = ct.companyId;
-    const count = perCompany.get(cid) || 0;
-    if (count >= 3) continue;
-    perCompany.set(cid, count + 1);
-    if (!contactsMap.has(cid)) contactsMap.set(cid, []);
-    contactsMap.get(cid)!.push(ct as unknown as Record<string, unknown>);
-  }
-
-  // 1 signal per company (latest)
-  const sigSeen = new Set<string>();
-  for (const s of signals) {
-    if (sigSeen.has(s.companyId)) continue;
-    sigSeen.add(s.companyId);
-    if (!signalsMap.has(s.companyId)) signalsMap.set(s.companyId, []);
-    signalsMap.get(s.companyId)!.push(s as unknown as Record<string, unknown>);
-  }
-
-  // 1 note per company (latest)
-  const noteSeen = new Set<string>();
-  for (const n of notes) {
-    if (noteSeen.has(n.companyId)) continue;
-    noteSeen.add(n.companyId);
-    if (!notesMap.has(n.companyId)) notesMap.set(n.companyId, []);
-    notesMap.get(n.companyId)!.push(n as unknown as Record<string, unknown>);
-  }
-
-  const { nodes, edges } = buildCompanyNodes(
-    companies as unknown as Record<string, unknown>[],
-    contactsMap,
-    signalsMap,
-    notesMap,
-  );
-
+  // Overview mode is disabled — always require companyId
+  // This returns empty to force the UI into search/select mode
   return {
-    nodes,
-    edges,
-    stats: {
-      totalNodes: nodes.length,
-      totalEdges: edges.length,
-      companies: companies.length,
-      contacts: contacts.length,
-      signals: sigSeen.size,
-      notes: noteSeen.size,
-    },
+    nodes: [],
+    edges: [],
+    stats: { totalNodes: 0, totalEdges: 0, companies: 0, contacts: 0, signals: 0, notes: 0 },
     mode: 'overview',
   };
 }

@@ -445,6 +445,11 @@ export default function OpportunityWorkspaceScreen() {
   const [activeTab, setActiveTab] = useState('ALL');
   const [isActioning, setIsActioning] = useState(false);
   const [actioningIds, setActioningIds] = useState<Set<string>>(new Set());
+  // AI Deal Intelligence per opportunity
+  const [expandedDealIntelId, setExpandedDealIntelId] = useState<string | null>(null);
+  const [dealIntelLoading, setDealIntelLoading] = useState(false);
+  const [dealIntelData, setDealIntelData] = useState<any>(null);
+
   const setSelectedCompanyId = useAppStore((s) => s.setSelectedCompanyId);
 
   // Fetch opportunities

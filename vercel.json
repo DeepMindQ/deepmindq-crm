@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "npm run build:vercel",
-  "installCommand": "npm install",
-  "devCommand": "npm run dev",
+  "buildCommand": "npx prisma generate && npx next build",
+  "installCommand": "npm install --no-option",
+  "outputDirectory": ".next",
   "regions": ["bom1"],
   "env": {
     "NEXT_TELEMETRY_DISABLED": "1"

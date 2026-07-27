@@ -62,8 +62,7 @@ function checkCompanyMatch(email: string, companyDomain?: string): { pass: boole
   return { pass: false, detail: `Email domain (${emailDomain}) differs from company (${compDomain})` };
 }
 
-export { checkSyntax, checkDisposable, checkRoleBased, checkFreeProvider, checkMXRecords, checkCompanyMatch };
-export type { VerifyResult };
+// Re-exports removed — import directly from '@/lib/email-verify'
 
 /* ═══════════════════════════════════════════════════
    POST /api/verify-email

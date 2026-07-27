@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "next dev -p 3000 -H 0.0.0.0 --webpack 2>&1 | tee dev.log",
     "build": "npx prisma generate && npx prisma db push --skip-generate && npx next build",
-    "build:vercel": "npx prisma generate && npx next build",
+    "build:vercel": "npx prisma generate && npx next build --webpack",
     "start": "next start -p ${PORT:-3000}",
     "lint": "eslint . && bash scripts/check-governance.sh",
     "check:governance": "bash scripts/check-governance.sh",
@@ -20,7 +20,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "postinstall": "npx prisma generate",
-    "vercel-build": "npx prisma generate && npx next build",
+    "vercel-build": "npx prisma generate && npx next build --webpack",
     "cloud:setup": "bash scripts/setup-cloud.sh",
     "cloud:migrate": "node scripts/migrate-to-postgres.js",
     "cloud:export": "node scripts/export-seed-data.js"

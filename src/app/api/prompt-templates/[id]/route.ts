@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { _templatesStore } from '../route';
+import { templates as _templatesStore } from '../store';
 
 /* ═══════════════════════════════════════════════════════════════
    PATCH — Update a template by ID

@@ -38,6 +38,8 @@ export interface EnrichmentResult {
   error?: string;
   searchQueriesRun: number;
   llmProviderUsed: string;
+  capabilitiesMatched?: number;
+  opportunitiesGenerated?: number;
 }
 
 interface LLMSignal {
@@ -331,6 +333,58 @@ Analyze these search results and extract ALL actionable intelligence signals and
       data: { lastEnrichedAt: new Date() },
     });
 
+    // ── Step 6: Internal Intelligence Graph — Signal → Capability Matching ──
+    // This is the CORE MOAT: match detected signals to our internal capabilities
+    let capabilitiesMatched = 0;
+    let opportunitiesGenerated = 0;
+    try {
+      const { CapabilityIntelligenceEngine } = await import('@/lib/capability-intelligence-engine');
+      
+      // Get the signals we just created for this company
+      const newSignals = await db.companySignal.findMany({
+        where: { companyId },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      });
+
+      for (const signal of newSignals) {
+        const matchResult = await CapabilityIntelligenceEngine.matchSignalToCapabilities(
+          companyId, signal.id
+        );
+        if (matchResult.success && matchResult.matches.length > 0) {
+          capabilitiesMatched += matchResult.matches.length;
+
+          // Generate opportunity from best match
+          const bestMatch = matchResult.matches[0];
+          const persistedMatch = await db.signalCapabilityMatch.findFirst({
+            where: { signalId: signal.id, capabilityId: bestMatch.capabilityId },
+          });
+          if (persistedMatch) {
+            const oppResult = await CapabilityIntelligenceEngine.generateOpportunity(
+              companyId, signal.id, persistedMatch.id
+            );
+            if (oppResult.success) opportunitiesGenerated++;
+          }
+        }
+      }
+
+      // Calculate win probability if we have matches
+      if (capabilitiesMatched > 0) {
+        const winResult = await CapabilityIntelligenceEngine.calculateWinProbability(companyId);
+        if (winResult.success && winResult.probability > 0) {
+          // Boost intelligence score based on win probability
+          const currentScore = company.intelligenceScore || 0;
+          const boostedScore = Math.max(currentScore, Math.round(winResult.probability * 0.8));
+          await db.company.update({
+            where: { id: companyId },
+            data: { intelligenceScore: boostedScore },
+          });
+        }
+      }
+    } catch (capErr) {
+      console.warn(`[IntelligencePipeline] Capability matching failed (non-blocking): ${capErr instanceof Error ? capErr.message : capErr}`);
+    }
+
     return {
       companyId,
       companyName: company.rawName,
@@ -341,6 +395,8 @@ Analyze these search results and extract ALL actionable intelligence signals and
       score: null, // ScoringEngine computes separately
       searchQueriesRun: queries.length,
       llmProviderUsed: llmResult.modelUsed,
+      capabilitiesMatched,
+      opportunitiesGenerated,
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

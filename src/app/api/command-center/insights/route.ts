@@ -88,6 +88,9 @@ async function fetchMorningBriefData() {
     enrichedCount,
     totalSignals,
     totalContacts,
+    totalCapabilityMatches,
+    totalOpportunities,
+    totalCapabilities,
   ] = await Promise.all([
     db.user.findFirst({ select: { name: true, email: true } }),
     // Top companies by intelligence score that have signals
@@ -112,6 +115,17 @@ async function fetchMorningBriefData() {
         researchCard: {
           select: { businessOverview: true, keyDecisionMakers: true, industry: true },
         },
+        signalCapabilityMatches: {
+          include: {
+            capability: { select: { title: true, category: true, summary: true } },
+          },
+          take: 3,
+          orderBy: { matchScore: 'desc' },
+        },
+        opportunityRecommendations: {
+          take: 3,
+          orderBy: { opportunityScore: 'desc' },
+        },
       },
       orderBy: { intelligenceScore: 'desc' },
       take: 10,
@@ -129,6 +143,9 @@ async function fetchMorningBriefData() {
     db.company.count({ where: { lastEnrichedAt: { not: null } } }),
     db.companySignal.count(),
     db.contact.count(),
+    db.signalCapabilityMatch.count(),
+    db.opportunityRecommendation.count(),
+    db.capabilityAsset.count({ where: { isActive: true } }),
   ]);
 
   // If no scored companies yet, get companies with most contacts
@@ -148,6 +165,17 @@ async function fetchMorningBriefData() {
         },
         evidence: { select: { id: true } },
         researchCard: { select: { businessOverview: true, keyDecisionMakers: true, industry: true } },
+        signalCapabilityMatches: {
+          include: {
+            capability: { select: { title: true, category: true, summary: true } },
+          },
+          take: 3,
+          orderBy: { matchScore: 'desc' },
+        },
+        opportunityRecommendations: {
+          take: 3,
+          orderBy: { opportunityScore: 'desc' },
+        },
       },
       orderBy: { intelligenceScore: 'desc' },
       take: 10,
@@ -164,6 +192,9 @@ async function fetchMorningBriefData() {
       totalSignals,
       totalContacts,
       highValueTargets: displayCompanies.filter(c => c.intelligenceScore >= 70).length,
+      totalCapabilityMatches,
+      totalOpportunities,
+      totalCapabilities,
     },
   };
 }
@@ -174,10 +205,12 @@ async function generateMorningBrief(data: Awaited<ReturnType<typeof fetchMorning
   const hour = new Date().getHours();
   const timeGreeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
 
-  // Build company context for AI
+  // Build company context for AI — NOW includes capability matches and opportunities
   const companyContexts = data.topCompanies.slice(0, 5).map((c, i) => {
     const signals = c.signals.map(s => `  - [${s.severity.toUpperCase()}] ${s.title} (action: ${s.recommendedAction || 'Monitor'})`).join('\n');
     const contacts = c.contacts.slice(0, 3).map(ct => `  - ${ct.rawName} (${ct.title || ct.role || 'Unknown'}, ${ct.email}, score: ${ct.leadScore})`).join('\n');
+    const capMatches = (c.signalCapabilityMatches || []).map(m => `  - ${m.capability.title} (${m.capability.category}, match: ${Math.round(m.matchScore * 100)}%): ${m.reason || ''}`).join('\n');
+    const opportunities = (c.opportunityRecommendations || []).map(o => `  - [${o.priority?.toUpperCase() || 'MED'}] ${o.opportunityTitle} (score: ${o.opportunityScore}, conf: ${Math.round((o.confidenceScore || 0) * 100)}%): ${o.whyNow || ''}`).join('\n');
 
     return `#${i + 1} ${c.rawName}
   Industry: ${c.industry || 'Unknown'}
@@ -185,6 +218,8 @@ async function generateMorningBrief(data: Awaited<ReturnType<typeof fetchMorning
   Contacts: ${c.contacts.length}
   Evidence Records: ${c.evidence.length}
   Signals:\n${signals || '  (none)'}
+  Capability Matches:\n${capMatches || '  (none — enrich Internal Intelligence Graph)'}
+  Opportunities:\n${opportunities || '  (none)'}
   Decision Makers:\n${contacts || '  (none)'}`;
   }).join('\n\n');
 
@@ -194,7 +229,12 @@ async function generateMorningBrief(data: Awaited<ReturnType<typeof fetchMorning
 
   const systemPrompt = `You are the AI intelligence briefing officer for DeepMindQ, an AI Revenue Intelligence Operating System.
 
-Generate a personalized morning intelligence brief for an enterprise sales leader. This brief must be ACTIONABLE and SPECIFIC — the leader should know exactly who to call and why.
+Generate a personalized morning intelligence brief for an enterprise sales leader. This brief must be ACTIONABLE and SPECIFIC — the leader should know exactly who to call, why now, what capability to position, and what evidence supports it.
+
+CRITICAL: DeepMindQ has TWO intelligence layers:
+1. EXTERNAL (Prospect Intelligence): signals, evidence, decision makers
+2. INTERNAL (Our Intelligence): capabilities, case studies, proof points
+When both layers align, that is the HIGHEST PRIORITY target.
 
 Return ONLY valid JSON:
 {
@@ -208,8 +248,11 @@ Return ONLY valid JSON:
       "intelligenceScore": "from input",
       "whyNow": ["reason1", "reason2", "reason3"],
       "decisionMakers": [{"name": "from input", "title": "from input", "email": "from input"}],
+      "recommendedCapability": "Which of our capabilities to position (from capability matches)",
+      "recommendedCaseStudy": "Relevant case study to reference",
+      "winProbability": "Estimated win probability (0-100)",
       "recommendedAction": "Specific action to take TODAY",
-      "suggestedMessage": "Opening line for outreach — personalized, reference a signal",
+      "suggestedMessage": "Opening line for outreach — reference signal + capability match",
       "evidenceCount": "from input",
       "signalCount": "from input",
       "confidence": 0.0-1.0
@@ -235,12 +278,14 @@ Return ONLY valid JSON:
 }
 
 RULES:
-- topTargets: Max 5 companies. Pick the highest-value targets based on intelligence score and signal quality.
-- whyNow: Extract specific "why now" reasons from signals. Not generic.
-- suggestedMessage: Write a real opening line referencing the specific signal.
-- newIntelligence: Include recently detected signals the user may not have seen.
-- actionsDue: Based on recommendedActions from signals.
-- Be specific, not generic. Reference actual company names, signal types, and data.`;
+- topTargets: Max 5 companies. Prioritize companies with BOTH signals AND capability matches (dual intelligence alignment).
+- whyNow: Extract specific "why now" reasons from signals + capability matches. Reference our capabilities.
+- recommendedCapability: When a capability match exists, specify which of our services/case studies to position.
+- suggestedMessage: Write a real opening line referencing the specific signal AND our matching capability. Not generic.
+- winProbability: Estimate based on signal strength + capability fit + evidence count.
+- newIntelligence: Include recently detected signals with capability match context.
+- actionsDue: Based on recommendedActions from signals AND opportunities.
+- Be specific, not generic. Reference actual company names, signal types, capabilities, and case studies.`;
 
   const userPrompt = `TODAY'S INTELLIGENCE DATA:
 
@@ -250,6 +295,9 @@ PIPELINE STATUS:
 - Total signals detected: ${data.stats.totalSignals}
 - Total contacts: ${data.stats.totalContacts}
 - High-value targets (score >= 70): ${data.stats.highValueTargets}
+- Internal capabilities loaded: ${data.stats.totalCapabilities || 0}
+- Signal-to-capability matches: ${data.stats.totalCapabilityMatches || 0}
+- Opportunities generated: ${data.stats.totalOpportunities || 0}
 
 TOP TARGET COMPANIES (ranked by intelligence score):
 ${companyContexts || 'No enriched companies yet. Run intelligence enrichment to generate signals.'}

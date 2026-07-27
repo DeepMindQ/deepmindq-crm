@@ -28,3 +28,39 @@ Stage Summary:
 - Import pipeline now validates emails before processing, matches companies intelligently
 - AI providers verified working (NVIDIA + Tavily)
 - Ready for user to upload 50 companies and see real intelligence
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Build Internal Intelligence Graph (CapabilityIntelligenceEngine) — the core moat
+
+Work Log:
+- Created `src/lib/capability-intelligence-engine.ts` (1160 lines) — the core engine
+  - Knowledge Ingestion: ingest() + bulkIngest() with auto-embedding
+  - Signal→Capability Matching: LLM-powered matching with structured reasoning
+  - Opportunity Generation: signal + capability → OpportunityRecommendation
+  - Win Probability: 5-factor scoring with LLM reasoning
+  - Full Pipeline: runFullPipeline() orchestrates all steps
+  - Graph Status: getGraphStatus() for monitoring
+- Created API route `src/app/api/intelligence/capability-pipeline/route.ts`
+  - POST: ingest, bulk-ingest, match-signal, generate-opportunity, win-probability, run-pipeline
+  - GET: status, search, list
+- Created seed script `scripts/seed-internal-intelligence.ts` with 27 capability assets
+  - 5 service lines (AI/ML, Cloud, Data, Digital Transform, Security)
+  - 4 case studies (FS AI Doc, Healthcare Cloud, Retail Bank Data, Manufacturing Predictive)
+  - 4 proof points (150+ implementations, 99.99% uptime, certifications, engineers)
+  - 4 objection responses (build vs buy, budget, vendor, security)
+  - 3 technologies (Azure, Snowflake, Databricks)
+  - 2 industry expertise (Financial Services, Healthcare)
+  - 3 accelerators (Cloud Migration Factory, AI Governance, Data Quality)
+  - 2 IP platforms (Intelligence Score Engine, AI Matching Engine)
+- Successfully seeded 27 assets into Neon DB with all embedded (27/27)
+- Wired capability matching into intelligence-pipeline.ts (Step 6 after signal creation)
+- Updated Command Center morning brief with dual-intelligence context
+- All TypeScript errors fixed — zero compile errors
+
+Stage Summary:
+- Internal Intelligence Graph is LIVE with 27 embedded capabilities
+- Full pipeline: Signal → Capability Match → Opportunity → Win Probability
+- Command Center now shows capability matches, recommended capabilities, case studies, and win probability
+- Architecture confirmed: dedicated CapabilityIntelligenceEngine module feeds all AI engines

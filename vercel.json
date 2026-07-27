@@ -10,21 +10,5 @@
     "enabled": true,
     "autoAlias": true,
     "silent": true
-  },
-  "services": {
-    "deepmindq-crm": {
-      "root": ".",
-      "framework": "nextjs",
-      "buildCommand": "npm install && npm run build:vercel"
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": {
-        "type": "service",
-        "service": "deepmindq-crm"
-      }
-    }
-  ]
+  }
 }

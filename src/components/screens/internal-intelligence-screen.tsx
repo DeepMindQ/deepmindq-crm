@@ -1416,7 +1416,7 @@ export default function InternalIntelligenceScreen() {
             >
               <Brain className="h-3.5 w-3.5 mr-1.5" />
               AI Matching Engine
-              {companyId && <PulseDot className="ml-1.5" />}
+              {companyId && <span className="ml-1.5 flex"><PulseDot color="#10b981" /></span>}
             </TabsTrigger>
             <TabsTrigger
               value="account-strategy"

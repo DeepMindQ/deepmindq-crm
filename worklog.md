@@ -1,4 +1,34 @@
 ---
+Task ID: wave9-internal-intel
+Agent: Main Agent
+Task: Build Internal Intelligence Layer + Full 20-Stage Pipeline
+
+Work Log:
+- Analyzed existing architecture: 61 Prisma models, 7 AI engines, capability-intelligence-engine.ts already exists
+- Confirmed enrich route was already fixed (uses ModelRouter correctly)
+- Created 20-stage Full Pipeline API: src/app/api/intelligence/full-pipeline/route.ts
+  - Phase A: External Intelligence (company profile, contact intel, buying committee, signals, evidence, research card, revenue score)
+  - Phase B: Internal Intelligence Matching (capability matching, case study matching, solution matching, competitive positioning)
+  - Phase C: Strategy Generation (win probability, recommended actions, conversation strategy, executive brief, persist strategy)
+- Created Internal Intelligence demo screen: src/components/screens/internal-intelligence-screen.tsx (1453 lines)
+  - 3 tabs: Knowledge Graph, AI Matching Engine, Account Strategy
+  - Dark premium theme with emerald accent
+  - Visual capability matching with progress bars
+  - Win probability circular gauge
+  - Run Full Pipeline button
+- Registered screen in nav-config.ts (AI ENGINES section) and screen-map.tsx
+- Fixed TypeScript errors in both new files
+- Confirmed zero lint errors in new files
+- Auth system uses proxy.ts (Next.js 16 convention) — all /api/* routes require session except public paths
+
+Stage Summary:
+- /api/intelligence/full-pipeline — POST triggers 16-stage pipeline, GET returns cached results
+- Internal Intelligence screen accessible via sidebar → AI ENGINES → Internal Intelligence
+- Existing CapabilityIntelligenceEngine already handles: ingest, bulk-ingest, match-signal, generate-opportunity, win-probability, run-pipeline
+- Signal-to-Capability matching already working (src/lib/research-engine/signal-capability-matching.ts)
+- Seed data needs to be loaded via UI after login (bulk-ingest through capability-pipeline)
+
+---
 Task ID: 1-10
 Agent: Main Agent
 Task: Complete DeepMindQ Intelligence Pipeline Build

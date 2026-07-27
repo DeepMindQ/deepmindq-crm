@@ -6,8 +6,7 @@
   "devCommand": "npm run dev",
   "regions": ["bom1"],
   "env": {
-    "NEXT_TELEMETRY_DISABLED": "1",
-    "ENABLE_DEV_AUTH_BYPASS": "true"
+    "NEXT_TELEMETRY_DISABLED": "1"
   },
   "github": {
     "enabled": true,

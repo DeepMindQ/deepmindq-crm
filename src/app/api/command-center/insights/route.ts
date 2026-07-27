@@ -22,19 +22,19 @@ interface AIResult {
   aiHealthAnalysis: string;
 }
 
-// ── LLM helper (same pattern used across the project) ──
+// ── LLM helper — uses ModelRouter (correct engine path) ──
+import { ModelRouter } from '@/lib/engines/model-router';
+
 async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
+  const result = await ModelRouter.complete({
+    systemPrompt,
+    userPrompt,
+    tier: 'smart',
+    maxTokens: 2048,
+    genType: 'command_center_insights',
   });
-  return completion.choices?.[0]?.message?.content ?? '';
+  if (!result.success) throw new Error(result.error || 'LLM call failed');
+  return result.text;
 }
 
 // ── Build a metrics context string for the AI ──

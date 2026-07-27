@@ -77,6 +77,7 @@ const AccountRankingScreen = lazy(() => import('@/components/screens/account-ran
 const OpportunityWorkspaceScreen = lazy(() => import('@/components/screens/opportunity-workspace-screen'));
 const PursuitWorkspaceScreen = lazy(() => import('@/components/screens/pursuit-workspace-screen'));
 const ICPSettingsScreen = lazy(() => import('@/components/screens/icp-settings-screen'));
+const InternalIntelligenceScreen = lazy(() => import('@/components/screens/internal-intelligence-screen'));
 
 /* ── Bridge wrappers ── */
 
@@ -100,6 +101,7 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'signal-intelligence': SignalIntelligenceScreen,
   // AI ENGINES
   'account-intelligence': AccountIntelligenceScreen,
+  'internal-intelligence': InternalIntelligenceScreen,
   'conversation-planner': ConversationPlannerScreen,
   // ACCOUNTS
   companies: CompaniesScreen,

@@ -131,20 +131,10 @@ export async function POST(request: Request) {
     // Invalidate vector index on create
     try { getVectorIndex().build([]); } catch { /* ignore */ }
 
-    // Auto-embed via CapabilityIntelligenceEngine (creates embedding for semantic search)
+    // Auto-embed via embedExisting (avoids ingest() dedup guard that would skip embedding
+    // because the asset already exists in DB from the create above)
     try {
-      await CapabilityIntelligenceEngine.ingest({
-        title,
-        summary,
-        category: category as any,
-        serviceLine: serviceLine || undefined,
-        targetIndustries: targetIndustries ? targetIndustries.split(',').map(s => s.trim()).filter(Boolean) : undefined,
-        targetRoles: targetRoles ? targetRoles.split(',').map(s => s.trim()).filter(Boolean) : undefined,
-        businessProblem: problems || undefined,
-        evidence: evidence || undefined,
-        content: content || undefined,
-        tags: Array.isArray(tags) ? tags : undefined,
-      });
+      await CapabilityIntelligenceEngine.embedExisting(capability.id);
     } catch { /* non-blocking: embedding failure doesn't prevent capability creation */ }
 
     return NextResponse.json({
@@ -241,22 +231,10 @@ export async function PUT(request: Request) {
     try { getVectorIndex().build([]); } catch { /* ignore */ }
 
     // Re-embed on version-worthy changes (title/summary/content changed)
+    // Use embedExisting to avoid ingest() dedup guard (asset already exists)
     if (hasVersionChange) {
       try {
-        const updated = await db.capabilityAsset.findUnique({ where: { id } });
-        if (updated) {
-          await CapabilityIntelligenceEngine.ingest({
-            title: updated.title,
-            summary: updated.summary,
-            category: updated.category as any,
-            serviceLine: updated.serviceLine || undefined,
-            targetIndustries: updated.targetIndustries ? updated.targetIndustries.split(',').map(s => s.trim()).filter(Boolean) : undefined,
-            targetRoles: updated.targetRoles ? updated.targetRoles.split(',').map(s => s.trim()).filter(Boolean) : undefined,
-            businessProblem: updated.problems || undefined,
-            evidence: updated.evidence || undefined,
-            content: updated.content || undefined,
-          });
-        }
+        await CapabilityIntelligenceEngine.embedExisting(id);
       } catch { /* non-blocking */ }
     }
 

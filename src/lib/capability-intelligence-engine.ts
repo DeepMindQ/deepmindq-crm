@@ -367,7 +367,48 @@ export const CapabilityIntelligenceEngine = {
     }
   },
 
-  // ─── 2. SIGNAL → CAPABILITY MATCHING ─────────────────────────────────
+  // ─── 1b. EMBED ONLY (for assets already in DB) ────────────────────────
+
+  /**
+   * Embed an existing capability asset that's already in the database.
+   * This is used when the asset was created via API route (which creates
+   * the DB record directly) and we only need to generate the embedding.
+   *
+   * Unlike ingest(), this skips the dedup check and DB create step.
+   */
+  async embedExisting(assetId: string): Promise<{ success: boolean; embedded: boolean; error: string | null }> {
+    try {
+      const asset = await db.capabilityAsset.findUnique({ where: { id: assetId } });
+      if (!asset) {
+        return { success: false, embedded: false, error: `Asset ${assetId} not found` };
+      }
+
+      const embedText = [
+        asset.title,
+        asset.summary,
+        asset.businessProblem || '',
+        asset.customerOutcome || '',
+        asset.differentiator || '',
+        asset.technology || '',
+        asset.industry || '',
+        asset.keywords || '',
+      ].filter(Boolean).join('\n');
+
+      if (!embedText.trim()) {
+        return { success: true, embedded: false, error: 'No content to embed' };
+      }
+
+      await embedEntity('capability_asset', asset.id, embedText);
+      logger.info(`[capability-engine] embedded existing asset "${asset.title}" (${asset.id})`);
+      return { success: true, embedded: true, error: null };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error(`[capability-engine] embedExisting failed: ${msg}`);
+      return { success: false, embedded: false, error: msg };
+    }
+  },
+
+  // ─── 2. SIGNAL → CAPABILITY MATCHING (Retrieval-First) ───────────────
 
   /**
    * Match a detected signal against all internal capabilities.
@@ -376,7 +417,14 @@ export const CapabilityIntelligenceEngine = {
    * → "Our Fortune 500 Document Automation case study is relevant"
    * → "CTO and Head of Data should be prioritized"
    *
-   * Uses LLM reasoning + semantic retrieval for maximum matching quality.
+   * RETRIEVAL-FIRST PATTERN:
+   *   1. Embed the signal description using RetrievalEngine
+   *   2. Vector search narrows candidates to top-K (default 15)
+   *   3. LLM reasons over the narrowed set (not ALL capabilities)
+   *   4. If vector search returns 0 results (no index), fall back to full LLM
+   *
+   * This reduces token usage and improves matching quality by avoiding
+   * diluting the LLM context with irrelevant capabilities.
    */
   async matchSignalToCapabilities(
     companyId: string,
@@ -402,12 +450,12 @@ export const CapabilityIntelligenceEngine = {
         return { success: false, companyId, signalId, matches: [], error: 'Signal not found' };
       }
 
-      // Fetch active capabilities
-      const capabilities = await db.capabilityAsset.findMany({
+      // Fetch ALL active capabilities (we'll narrow via retrieval)
+      const allCapabilities = await db.capabilityAsset.findMany({
         where: { isActive: true },
       });
 
-      if (capabilities.length === 0) {
+      if (allCapabilities.length === 0) {
         return {
           success: true,
           companyId,
@@ -415,6 +463,37 @@ export const CapabilityIntelligenceEngine = {
           matches: [],
           error: null,
         };
+      }
+
+      // ── RETRIEVAL-FIRST: Narrow candidates via vector search ──
+      let capabilities = allCapabilities;
+      const RETRIEVAL_TOP_K = 15;
+      const MINIMUM_CAPACITY_FOR_RETRIEVAL = 5; // Only use retrieval if we have enough capabilities
+
+      if (allCapabilities.length > MINIMUM_CAPACITY_FOR_RETRIEVAL) {
+        try {
+          const signalQuery = `${signal.title} ${signal.description || ''} ${signal.signalType} ${signal.company.industry || ''}`;
+          const retrieved = await RetrievalEngine.search(signalQuery, RETRIEVAL_TOP_K, { type: 'capability_asset' });
+
+          if (retrieved.length > 0) {
+            // Filter allCapabilities to only include those found by vector search
+            const retrievedIds = new Set(retrieved.map(r => r.entityId));
+            capabilities = allCapabilities.filter(c => retrievedIds.has(c.id));
+
+            // If retrieval returned very few, supplement with a few from the full list
+            // to avoid missing edge-case matches the vector index doesn't cover
+            if (capabilities.length < 5 && allCapabilities.length > capabilities.length) {
+              const remaining = allCapabilities.filter(c => !retrievedIds.has(c.id));
+              capabilities = [...capabilities, ...remaining.slice(0, 5)];
+            }
+
+            logger.info(`[capability-engine] Retrieval-First: narrowed ${allCapabilities.length} → ${capabilities.length} capabilities for signal "${signal.title}"`);
+          }
+          // If retrieval returned 0 (index empty/not built), use full list as fallback
+        } catch (retrievalErr) {
+          logger.warn(`[capability-engine] Retrieval-First failed, falling back to full list: ${retrievalErr instanceof Error ? retrievalErr.message : retrievalErr}`);
+          // capabilities stays as allCapabilities — safe fallback
+        }
       }
 
       // Build capability context for LLM

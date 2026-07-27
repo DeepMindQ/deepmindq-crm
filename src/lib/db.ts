@@ -1,14 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 
 /* ═══════════════════════════════════════════════════════════════
-   Prisma DB client — PostgreSQL with Neon adapter
+   Prisma DB client — PostgreSQL (Neon)
 
-   - Vercel / serverless: uses @prisma/adapter-neon for
-     connection pooling (pgbouncer-compatible).
-   - Local dev: uses standard PrismaClient with direct
-     PostgreSQL connection.
-   - Fallback: if Neon adapter fails, falls back to direct
-     PrismaClient connection.
+   Uses standard PrismaClient. Works on both local dev and
+   Vercel serverless. Neon's pgbouncer-compatible connection
+   string works natively with PrismaClient.
    ═══════════════════════════════════════════════════════════════ */
 
 const globalForPrisma = globalThis as unknown as {
@@ -16,38 +13,8 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient(): PrismaClient {
-  const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA;
-
-  if (isServerless && process.env.DATABASE_URL) {
-    // Serverless (Vercel) — try Neon adapter for connection pooling
-    try {
-      // Use dynamic require with try/catch for webpack compatibility
-      const neonMod = require("@neondatabase/serverless");
-      const adapterMod = require("@prisma/adapter-neon");
-
-      if (neonMod?.neon && adapterMod?.PrismaNeon) {
-        const neonPool = neonMod.neon(process.env.DATABASE_URL);
-        const adapter = new adapterMod.PrismaNeon(neonPool);
-
-        const client = new PrismaClient({
-          adapter,
-          log: ["error"],
-        });
-
-        console.log("[DB] Using Neon adapter for serverless connection");
-        return client;
-      }
-    } catch (neonError) {
-      console.warn("[DB] Neon adapter failed, falling back to direct connection:", neonError instanceof Error ? neonError.message : neonError);
-    }
-  }
-
-  // Direct connection (local dev or Neon adapter fallback)
   return new PrismaClient({
-    log:
-      process.env.NODE_ENV === "development"
-        ? ["error", "warn"]
-        : ["error"],
+    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 }
 

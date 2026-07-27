@@ -6,7 +6,7 @@ import {
   ArrowLeft, ShieldCheck, Sparkles, Plus, Archive, Mail, Phone, MapPin,
   Building2, Linkedin, Copy, RefreshCw, FileText, Clock, Loader2, X,
   AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronUp,
-  ExternalLink, Eye, ChevronRight,
+  ExternalLink, Eye, ChevronRight, UserCircle, MessageSquare, Search,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
@@ -81,6 +81,25 @@ export default function ContactDetailScreen() {
   /* ── Validation detailed result ── */
   const [validationDetail, setValidationDetail] = useState<EmailHealthCheck | null>(null)
   const [showValidation, setShowValidation] = useState(false)
+
+  /* ── Buyer Intelligence state ── */
+  const [briefing, setBriefing] = useState<any>(null)
+  const [briefingLoading, setBriefingLoading] = useState(false)
+
+  /* ── Fetch Buyer Intelligence Briefing ── */
+  const fetchBriefing = async () => {
+    if (!data?.companyId || !selectedContactId) return
+    setBriefingLoading(true)
+    try {
+      const res = await fetch('/api/contacts/' + selectedContactId + '/briefing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ briefingType: 'meeting_prep', skipNarrative: true }),
+      })
+      if (res.ok) setBriefing(await res.json())
+    } catch (err) { console.error('[briefing] failed:', err) }
+    finally { setBriefingLoading(false) }
+  }
 
   /* ── Generate email result ── */
   const [generatedEmail, setGeneratedEmail] = useState<GeneratedEmailResult | null>(null)
@@ -558,6 +577,7 @@ export default function ContactDetailScreen() {
         <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 overflow-x-auto">
           {([
             { key: 'overview', label: 'Overview' },
+            { key: 'buyer_intel', label: 'Buyer Intel' },
             { key: 'ai-emails', label: 'AI Emails', count: drafts.length },
             { key: 'notes', label: 'Notes', count: notes.length },
             { key: 'activity', label: 'Activity', count: timeline.length },
@@ -576,6 +596,154 @@ export default function ContactDetailScreen() {
             </TabsTrigger>
           ))}
         </TabsList>
+
+        {/* ════════════ BUYER INTELLIGENCE TAB ════════════ */}
+        <TabsContent value="buyer_intel" className="space-y-4 mt-5">
+          {!data?.companyId ? (
+            <div className="rounded-xl bg-white p-8 text-center text-gray-400 text-sm">
+              No company linked to this contact.
+            </div>
+          ) : briefingLoading && !briefing ? (
+            <div className="rounded-xl bg-white p-8 flex flex-col items-center gap-3">
+              <Loader2 size={28} className="animate-spin text-blue-500" />
+              <p className="text-sm text-gray-500">Generating Buyer Intelligence Profile...</p>
+            </div>
+          ) : briefing ? (
+            <div className="space-y-4">
+              {/* Buyer Profile Summary */}
+              <div className="rounded-xl bg-white p-5 card-rest">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-2">
+                  <UserCircle size={14} className="text-blue-600" /> Buyer Profile
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {([
+                    ['Name', briefing.buyerProfile.name],
+                    ['Role', briefing.buyerProfile.role],
+                    ['Seniority', briefing.buyerProfile.seniority?.replace('_', ' ') || '-'],
+                    ['Buyer Type', briefing.buyerProfile.buyerRole?.replace('_', ' ') || '-'],
+                    ['Influence', (briefing.buyerProfile.influenceScore ?? 0) + '/100'],
+                    ['Relationship', briefing.buyerProfile.relationshipStrength],
+                    ['Style', briefing.buyerProfile.communicationStyle],
+                    ['Meeting Type', briefing.meetingType?.replace('_', ' ') || '-'],
+                  ] as const).map(([label, val]) => (
+                    <div key={label} className="space-y-0.5">
+                      <p className="text-[10px] text-gray-400 uppercase">{label}</p>
+                      <p className="text-sm font-medium text-gray-800">{val || '-'}</p>
+                    </div>
+                  ))}
+                </div>
+                {briefing.buyerProfile.detectedPriorities?.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <p className="text-[10px] text-gray-400 uppercase mb-1">Detected Priorities</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {briefing.buyerProfile.detectedPriorities.map((p: string, i: number) => (
+                        <Badge key={i} className="bg-blue-50 text-blue-700 text-[10px] border border-blue-100">{p}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Meeting Objective */}
+              <div className="rounded-xl bg-white p-5 card-rest border-l-4 border-blue-500">
+                <h4 className="text-xs font-bold text-gray-500 mb-1">Meeting Objective</h4>
+                <p className="text-sm text-gray-700">{briefing.meetingObjective || '-'}</p>
+                <div className="flex gap-4 mt-2 text-[10px] text-gray-400">
+                  <span>Duration: {briefing.suggestedDuration || '-'}</span>
+                  <span>Type: {briefing.meetingType?.replace('_', ' ') || '-'}</span>
+                </div>
+              </div>
+
+              {/* Talking Points */}
+              {briefing.talkingPoints?.length > 0 && (
+                <div className="rounded-xl bg-white p-5 card-rest">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-2">
+                    <MessageSquare size={14} className="text-emerald-500" /> Talking Points ({briefing.talkingPoints.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {briefing.talkingPoints.map((tp: any, i: number) => (
+                      <div key={i} className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg">
+                        <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-xs font-medium text-gray-800">{tp.point}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{tp.evidence?.slice(0, 120)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Questions to Ask */}
+              {briefing.questionsToAsk?.length > 0 && (
+                <div className="rounded-xl bg-white p-5 card-rest">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-2">
+                    <Search size={14} className="text-purple-500" /> Questions ({briefing.questionsToAsk.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {briefing.questionsToAsk.map((q: any, i: number) => (
+                      <div key={i} className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg">
+                        <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-600 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                        <div>
+                          <p className="text-xs font-medium text-gray-800">{q.question}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">Purpose: {q.purpose} · Timing: {q.timing}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Objections */}
+              {briefing.objectionsToPrepare?.length > 0 && (
+                <div className="rounded-xl bg-white p-5 card-rest">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-2">
+                    <AlertTriangle size={14} className="text-amber-500" /> Objections ({briefing.objectionsToPrepare.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {briefing.objectionsToPrepare.map((obj: any, i: number) => (
+                      <div key={i} className="p-3 bg-amber-50/50 rounded-lg border border-amber-100">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-xs font-bold text-amber-800">&ldquo;{obj.objection}&rdquo;</p>
+                          <Badge className={`text-[10px] ${obj.probability === 'high' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>{obj.probability}</Badge>
+                        </div>
+                        <p className="text-[10px] text-gray-500">{obj.preparedResponse?.slice(0, 150)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Topics to Avoid */}
+              {briefing.topicsToAvoid?.length > 0 && (
+                <div className="rounded-xl bg-white p-5 card-rest">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Topics to Avoid</h4>
+                  <div className="space-y-1">
+                    {briefing.topicsToAvoid.map((t: string, i: number) => (
+                      <div key={i} className="flex items-center gap-2 text-xs text-gray-500">
+                        <XCircle size={12} className="text-red-400" /> {t}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                <Button size="sm" onClick={fetchBriefing} disabled={briefingLoading} className="gap-1 text-xs">
+                  <RefreshCw size={12} className={briefingLoading ? 'animate-spin' : ''} /> Refresh Briefing
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl bg-white p-8 text-center">
+              <p className="text-sm text-gray-500 mb-3">Generate a Buyer Intelligence Profile</p>
+              <Button size="sm" onClick={fetchBriefing} disabled={briefingLoading} className="gap-1 text-xs">
+                <Sparkles size={12} /> Generate Briefing
+              </Button>
+            </div>
+          )}
+        </TabsContent>
 
         {/* ════════════ OVERVIEW TAB ════════════ */}
         <TabsContent value="overview" className="space-y-6 mt-5">

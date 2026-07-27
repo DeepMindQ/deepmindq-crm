@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
+import { type OtpPurpose } from '@/lib/otp';
 
 // ═══════════════════════════════════════════════════════════════
 // Single-User OTP Verification — DeepMindQ Enterprise
@@ -37,8 +38,8 @@ export async function POST(request: NextRequest) {
 
     // Try full DB-based verification
     try {
-      const { verifyOtp, type OtpPurpose } = await import('@/lib/otp');
-      const result = await verifyOtp(normalizedEmail, code, purpose as OtpPurpose);
+      const otpModule = await import('@/lib/otp');
+      const result = await otpModule.verifyOtp(normalizedEmail, code, purpose as OtpPurpose);
 
       if (!result.success) {
         return NextResponse.json({ error: result.error }, { status: 401 });

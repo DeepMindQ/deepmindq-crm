@@ -1,14 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 // ═══════════════════════════════════════════════════════════════
 // Single-User OTP Login — DeepMindQ Enterprise
 //
-// Only ONE authorized email: shanker001@gmail.com
-// OTP ALWAYS goes to email (Resend). Never exposed in response.
-// If DB fails, uses in-memory cache + email as fallback.
+// 1. Generate 6-digit code
+// 2. Send code via Resend email
+// 3. Store SHA256(code) in httpOnly cookie (survives across serverless)
+// 4. Verify by hashing user input and comparing to cookie
+//
+// Only authorized email: shanker001@gmail.com
 // ═══════════════════════════════════════════════════════════════
 
 const AUTHORIZED_EMAIL = 'shanker001@gmail.com';
+
+async function hashOtp(code: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(`dmq:${code}`);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function generateOtpCode(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(4));
+  const num = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+  return (Math.abs(num) % 1_000_000).toString().padStart(6, '0');
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,13 +43,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Import shared utilities
-    const { otpCache, generateOtpCode, cleanupExpired } = await import('@/lib/otp-cache');
-
-    // Generate OTP code
     const code = generateOtpCode();
+    const codeHash = await hashOtp(code);
 
-    // Step 1: Send email via Resend (the ONLY way user gets the code)
+    // === STEP 1: Send email via Resend ===
     let emailSent = false;
     const apiKey = process.env.EMAIL_API_KEY;
     const fromAddr = process.env.EMAIL_FROM || 'noreply@deepmindq.com';
@@ -69,39 +83,38 @@ export async function POST(request: NextRequest) {
 
         if (res.ok) {
           emailSent = true;
-          console.log('[auth/request-otp] Email sent successfully via Resend');
+          console.log('[auth/request-otp] Email sent via Resend');
         } else {
           const errData = await res.json().catch(() => ({}));
           console.error('[auth/request-otp] Resend error:', res.status, errData);
         }
       } catch (emailErr) {
-        console.error('[auth/request-otp] Email send failed:', emailErr instanceof Error ? emailErr.message : emailErr);
+        console.error('[auth/request-otp] Email failed:', emailErr instanceof Error ? emailErr.message : emailErr);
       }
     } else {
-      console.error('[auth/request-otp] No EMAIL_API_KEY configured!');
+      console.error('[auth/request-otp] No EMAIL_API_KEY!');
     }
 
     if (!emailSent) {
       return NextResponse.json(
-        { error: 'Failed to send verification email. Please ensure email service is configured.' },
+        { error: 'Failed to send verification email. Please try again later.' },
         { status: 503 }
       );
     }
 
-    // Step 2: Store OTP for verification
-    const cacheKey = `${email}:login`;
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    // === STEP 2: Store OTP hash in httpOnly cookie ===
+    const cookieStore = await cookies();
+    cookieStore.set('dmq_otp_hash', codeHash, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 10 * 60,
+    });
+    // Reset attempt counter
+    cookieStore.delete('dmq_otp_attempts');
 
-    // Rate limit check
-    const existing = otpCache.get(cacheKey);
-    if (existing && (expiresAt - 600_000) > Date.now() - 60_000) {
-      return NextResponse.json({ error: 'Please wait 60 seconds before requesting another code' }, { status: 429 });
-    }
-
-    // Store in memory cache (reliable fallback for serverless)
-    otpCache.set(cacheKey, { code, expiresAt, attempts: 0 });
-
-    // Also try DB storage
+    // Also try DB storage (best effort)
     try {
       const { db } = await import('@/lib/db');
       await db.otpCode.updateMany({
@@ -113,15 +126,11 @@ export async function POST(request: NextRequest) {
         await db.user.create({ data: { email, name: 'Shanker', role: 'admin', isActive: true } });
       }
       await db.otpCode.create({
-        data: { email, code, purpose: 'login', expiresAt: new Date(expiresAt) },
+        data: { email, code, purpose: 'login', expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
       });
-      console.log('[auth/request-otp] OTP also stored in DB');
     } catch (dbErr) {
-      console.warn('[auth/request-otp] DB storage failed, in-memory cache active:', dbErr instanceof Error ? dbErr.message : dbErr);
+      console.warn('[auth/request-otp] DB failed (cookie is primary):', dbErr instanceof Error ? dbErr.message : dbErr);
     }
-
-    // Cleanup
-    cleanupExpired();
 
     return NextResponse.json({
       success: true,

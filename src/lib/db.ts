@@ -18,10 +18,12 @@ function createPrismaClient(): PrismaClient {
 
   if (isServerless && process.env.DATABASE_URL) {
     // Serverless (Vercel) — use Neon adapter for connection pooling
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { neon } = require("@neondatabase/serverless");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { PrismaNeon } = require("@prisma/adapter-neon");
 
-    const neonPool = neon(process.env.DATABASE_URL!);
+    const neonPool = neon(process.env.DATABASE_URL);
     const adapter = new PrismaNeon(neonPool);
 
     return new PrismaClient({

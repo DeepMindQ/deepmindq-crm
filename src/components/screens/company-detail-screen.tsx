@@ -284,6 +284,13 @@ function EvidencePanel({ companyId }: { companyId: string }) {
    ═══════════════════════════════════════════════════ */
 export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: CompanyDetailScreenProps) {
   /* ── State ── */
+  // AI Revenue Intelligence Score
+  const [aiScore, setAiScore] = useState<any>(null);
+  const [aiScoreLoading, setAiScoreLoading] = useState(false);
+  // AI Action Recommendations
+  const [aiActions, setAiActions] = useState<any>(null);
+  const [aiActionsLoading, setAiActionsLoading] = useState(false);
+
   const [company, setCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [contacts, setContacts] = useState<any[]>([]);
@@ -436,6 +443,34 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
     })();
     return () => { cancelled = true; };
   }, [fetchCompany, fetchContacts, fetchNotes, fetchSignals, fetchTimeline]);
+
+  /* ── Fetch AI Revenue Score ── */
+  const fetchAIScore = useCallback(async () => {
+    setAiScoreLoading(true);
+    try {
+      const res = await fetch(`/api/companies/${companyId}/score`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ skipNarrative: true }) });
+      if (res.ok) { const data = await res.json(); setAiScore(data); }
+    } catch (err) { console.error('[AI Score] fetch failed:', err); }
+    finally { setAiScoreLoading(false); }
+  }, [companyId]);
+
+  /* ── Fetch AI Action Recommendations ── */
+  const fetchAIActions = useCallback(async () => {
+    setAiActionsLoading(true);
+    try {
+      const res = await fetch(`/api/companies/${companyId}/actions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ skipNarrative: true }) });
+      if (res.ok) { const data = await res.json(); setAiActions(data); }
+    } catch (err) { console.error('[AI Actions] fetch failed:', err); }
+    finally { setAiActionsLoading(false); }
+  }, [companyId]);
+
+  /* ── Auto-trigger score/actions when tabs activate ── */
+  useEffect(() => {
+    if (activeTab === 'ai_score' && !aiScore && !aiScoreLoading) fetchAIScore();
+  }, [activeTab, aiScore, aiScoreLoading, fetchAIScore]);
+  useEffect(() => {
+    if (activeTab === 'ai_actions' && !aiActions && !aiActionsLoading) fetchAIActions();
+  }, [activeTab, aiActions, aiActionsLoading, fetchAIActions]);
 
   /* ── Refetch notes on filter change ── */
   useEffect(() => {
@@ -686,6 +721,8 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
           <TabsList className="bg-gray-50 border border-gray-200 rounded-xl p-1 h-auto flex-wrap gap-1">
             {[
               { key: 'overview', label: 'Overview', icon: Building2 },
+              { key: 'ai_score', label: 'AI Score', icon: Target },
+              { key: 'ai_actions', label: 'AI Actions', icon: Lightbulb },
               { key: 'intelligence', label: 'Intelligence', icon: Sparkles },
               { key: 'mindmap', label: 'Mind Map', icon: Brain },
               { key: 'notes', label: 'Notes', icon: FileText, count: company?._count?.notes || notes.length },
@@ -1009,6 +1046,262 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: C
                 </div>
               </AnimatedCard>
             </div>
+          </TabsContent>
+
+          {/* ═════════════════════════════════════════════
+              TAB: AI Revenue Intelligence Score
+              ════════════════════════════════════════════ */}
+          <TabsContent value="ai_score" className="mt-2 space-y-6">
+            {aiScoreLoading && !aiScore ? (
+              <GlassPanel className="p-8 flex flex-col items-center gap-4">
+                <Loader2 size={32} className="animate-spin text-blue-500" />
+                <p className="text-sm text-muted-foreground">Running Revenue Intelligence Scoring Engine...</p>
+                <p className="text-xs text-muted-foreground">Analyzing signals, evidence, contacts, and opportunities</p>
+              </GlassPanel>
+            ) : aiScore ? (
+              <div className="space-y-6">
+                {/* Score Hero */}
+                <AnimatedCard delay={0}>
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Target size={20} className="text-blue-600" />
+                        <h3 className="text-sm font-bold">Revenue Intelligence Score</h3>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-blue-500/15 text-blue-600 border-blue-200 text-[10px]">{aiScore.priorityTier.toUpperCase()}</Badge>
+                        <button onClick={() => fetchAIScore()} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                          <RotateCcw size={11} /> Refresh
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-end gap-6">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-5xl font-black" style={{ color: aiScore.score >= 80 ? '#059669' : aiScore.score >= 60 ? '#d97706' : aiScore.score >= 40 ? '#ea580c' : '#dc2626' }}>
+                          {aiScore.score}
+                        </span>
+                        <span className="text-lg text-muted-foreground">/100</span>
+                        <Badge className={`ml-2 text-sm font-bold ${aiScore.grade === 'A' ? 'bg-emerald-500/15 text-emerald-600 border-emerald-200' : aiScore.grade === 'B' ? 'bg-amber-500/15 text-amber-600 border-amber-200' : aiScore.grade === 'C' ? 'bg-orange-500/15 text-orange-600 border-orange-200' : aiScore.grade === 'D' ? 'bg-red-500/15 text-red-600 border-red-200' : 'bg-gray-500/15 text-gray-600 border-gray-200'}`}>
+                          Grade {aiScore.grade}
+                        </Badge>
+                      </div>
+                      <div className="text-right text-xs text-muted-foreground space-y-1">
+                        <div>Confidence: <span className="font-bold text-foreground">{aiScore.confidence}%</span></div>
+                        <div>Evidence: <span className="font-bold text-foreground">{aiScore.evidenceCount}</span> sources</div>
+                        <div>Signals: <span className="font-bold text-foreground">{aiScore.signalCount}</span></div>
+                        <div>Engine: <span className="font-bold text-foreground">{aiScore.modelUsed}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </AnimatedCard>
+
+                {/* Score Factor Breakdown */}
+                <AnimatedCard delay={0.1}>
+                  <div className="p-5">
+                    <h4 className="text-sm font-bold mb-4 flex items-center gap-2"><Activity size={16} className="text-blue-600" />Score Breakdown</h4>
+                    <div className="space-y-3">
+                      {aiScore.factors.sort((a: any, b: any) => b.points - a.points).map((factor: any, i: number) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <div className={`w-10 text-center font-bold text-sm ${factor.points > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {factor.points > 0 ? '+' : ''}{factor.points}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-semibold">{factor.label}</span>
+                              <span className="text-[10px] text-muted-foreground">{factor.maxPoints} max</span>
+                            </div>
+                            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${factor.points > 0 ? 'bg-emerald-500' : 'bg-red-400'}`}
+                                style={{ width: `${Math.min(100, Math.abs(factor.points) / factor.maxPoints * 100)}%` }}
+                              />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-1 truncate">{factor.evidence}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </AnimatedCard>
+
+                {/* Sub-Scores */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Account Fit', value: aiScore.accountFit, color: '#2563eb' },
+                    { label: 'Contact Influence', value: aiScore.contactInfluence, color: '#059669' },
+                    { label: 'Opp. Strength', value: aiScore.opportunityStrength, color: '#d97706' },
+                    { label: 'Buying Intent', value: aiScore.buyingIntent, color: '#7c3aed' },
+                  ].map((sub, i) => (
+                    <AnimatedCard key={i} delay={0.15 + i * 0.05}>
+                      <div className="p-4 text-center">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{sub.label}</p>
+                        <p className="text-2xl font-black" style={{ color: sub.color }}>{sub.value}</p>
+                        <div className="w-full h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${sub.value}%`, background: sub.color }} />
+                        </div>
+                      </div>
+                    </AnimatedCard>
+                  ))}
+                </div>
+
+                {/* AI Narrative */}
+                {aiScore.narrative && (
+                  <AnimatedCard delay={0.3}>
+                    <div className="p-5">
+                      <h4 className="text-sm font-bold mb-2 flex items-center gap-2"><Sparkles size={16} className="text-blue-600" />AI Analysis</h4>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{aiScore.narrative}</p>
+                    </div>
+                  </AnimatedCard>
+                )}
+
+                {/* Next Best Actions */}
+                {aiScore.nextBestActions.length > 0 && (
+                  <AnimatedCard delay={0.35}>
+                    <div className="p-5">
+                      <h4 className="text-sm font-bold mb-3 flex items-center gap-2"><Lightbulb size={16} className="text-amber-500" />Recommended Next Steps</h4>
+                      <div className="space-y-2">
+                        {aiScore.nextBestActions.map((action: string, i: number) => (
+                          <div key={i} className="flex items-start gap-2 text-xs">
+                            <CheckCircle2 size={14} className="text-blue-500 mt-0.5 shrink-0" />
+                            <span className="text-muted-foreground">{action}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </AnimatedCard>
+                )}
+
+                {/* Timing */}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Clock size={12} />
+                  <span>Timing window: <span className="font-bold text-foreground">{aiScore.timingWindow}</span></span>
+                  <span className="mx-2">|</span>
+                  <span>Scored: {new Date(aiScore.scoredAt).toLocaleString()}</span>
+                  <span className="mx-2">|</span>
+                  <span>Duration: {aiScore.durationMs}ms</span>
+                </div>
+              </div>
+            ) : (
+              <ErrorState message="No score data" onRetry={fetchAIScore} />
+            )}
+          </TabsContent>
+
+          {/* ═════════════════════════════════════════════
+              TAB: AI Action Recommendations
+              ════════════════════════════════════════════ */}
+          <TabsContent value="ai_actions" className="mt-2 space-y-6">
+            {aiActionsLoading && !aiActions ? (
+              <GlassPanel className="p-8 flex flex-col items-center gap-4">
+                <Loader2 size={32} className="animate-spin text-blue-500" />
+                <p className="text-sm text-muted-foreground">Generating AI Action Recommendations...</p>
+                <p className="text-xs text-muted-foreground">Analyzing signals, score, and evidence for action derivation</p>
+              </GlassPanel>
+            ) : aiActions ? (
+              <div className="space-y-6">
+                {/* Action Summary Header */}
+                <AnimatedCard delay={0}>
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Lightbulb size={20} className="text-amber-500" />
+                        <h3 className="text-sm font-bold">AI Action Intelligence</h3>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-purple-500/15 text-purple-600 border-purple-200 text-[10px]">{aiActions.detectedSalesMotion.toUpperCase()}</Badge>
+                        <button onClick={() => fetchAIActions()} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                          <RotateCcw size={11} /> Refresh
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div className="p-3 bg-blue-500/5 rounded-lg">
+                        <p className="text-2xl font-black text-blue-600">{aiActions.actions.length}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase">Actions</p>
+                      </div>
+                      <div className="p-3 bg-red-500/5 rounded-lg">
+                        <p className="text-2xl font-black text-red-500">{aiActions.riskActions.length}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase">Risks</p>
+                      </div>
+                      <div className="p-3 bg-emerald-500/5 rounded-lg">
+                        <p className="text-2xl font-black text-emerald-600">{aiActions.currentScore ?? '-'}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase">Score</p>
+                      </div>
+                    </div>
+                    {aiActions.triggerSignals.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-1">
+                        {aiActions.triggerSignals.map((s: string, i: number) => (
+                          <Badge key={i} className="bg-gray-100 text-gray-600 text-[10px] border border-gray-200">{s}</Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </AnimatedCard>
+
+                {/* Primary Action */}
+                {aiActions.primaryAction && (
+                  <AnimatedCard delay={0.05}>
+                    <div className="p-5 border-l-4 border-blue-500">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Award size={16} className="text-blue-600" />
+                        <h4 className="text-sm font-bold">Primary Action</h4>
+                        <Badge className="bg-blue-500/15 text-blue-600 border-blue-200 text-[10px]">{aiActions.primaryAction.urgency.replace('_', ' ')}</Badge>
+                      </div>
+                      <p className="text-sm font-semibold mb-2">{aiActions.primaryAction.title}</p>
+                      <p className="text-xs text-muted-foreground mb-2">{aiActions.primaryAction.reason}</p>
+                      <div className="flex flex-wrap gap-3 text-[10px]">
+                        <span className="text-muted-foreground">Impact: <span className="font-bold text-foreground">{aiActions.primaryAction.impactScore}/100</span></span>
+                        <span className="text-muted-foreground">Confidence: <span className="font-bold text-foreground">{aiActions.primaryAction.confidence}%</span></span>
+                        <span className="text-muted-foreground">Motion: <span className="font-bold text-foreground">{aiActions.primaryAction.salesMotion}</span></span>
+                      </div>
+                      {aiActions.primaryAction.suggestedMessage && (
+                        <div className="mt-3 p-3 bg-gray-50 rounded-lg text-xs text-muted-foreground italic">
+                          Message: &ldquo;{aiActions.primaryAction.suggestedMessage}&rdquo;
+                        </div>
+                      )}
+                    </div>
+                  </AnimatedCard>
+                )}
+
+                {/* All Actions List */}
+                <AnimatedCard delay={0.1}>
+                  <div className="p-5">
+                    <h4 className="text-sm font-bold mb-4">All Recommendations</h4>
+                    <div className="space-y-3">
+                      {aiActions.actions.map((action: any, i: number) => (
+                        <div key={i} className="p-3 bg-gray-50/50 rounded-lg border border-gray-100">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-bold">{action.title}</span>
+                            <div className="flex items-center gap-2">
+                              <Badge className={`text-[10px] ${action.type === 'risk_mitigation' ? 'bg-red-500/10 text-red-500' : action.type === 'opportunity_accel' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                                {action.type.replace('_', ' ')}
+                              </Badge>
+                              <Badge className="text-[10px] bg-gray-100 text-gray-500">{action.urgency.replace('_', ' ')}</Badge>
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mb-1">{action.reason}</p>
+                          <div className="flex gap-4 text-[10px]">
+                            <span>Impact: {action.impactScore}/100</span>
+                            <span>Confidence: {action.confidence}%</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </AnimatedCard>
+
+                {/* Strategy Narrative */}
+                {aiActions.strategyNarrative && (
+                  <AnimatedCard delay={0.15}>
+                    <div className="p-5">
+                      <h4 className="text-sm font-bold mb-2 flex items-center gap-2"><Sparkles size={16} className="text-blue-600" />AI Strategy</h4>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{aiActions.strategyNarrative}</p>
+                    </div>
+                  </AnimatedCard>
+                )}
+              </div>
+            ) : (
+              <ErrorState message="No action data" onRetry={fetchAIActions} />
+            )}
           </TabsContent>
 
           {/* ═════════════════════════════════════════════

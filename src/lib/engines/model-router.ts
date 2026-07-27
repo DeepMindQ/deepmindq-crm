@@ -153,7 +153,7 @@ export const ModelRouter = {
       chain = await getLLMChain();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      logger.error(`$'[model-router] failed to load provider chain:' ${msg}`);
+      logger.error(`[model-router] failed to load provider chain: ${msg}`);
     }
 
     if (chain.length === 0) {
@@ -190,7 +190,7 @@ export const ModelRouter = {
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        logger.error(`$'[model-router] all fallbacks failed:' ${msg}`);
+        logger.error(`[model-router] all fallbacks failed: ${msg}`);
         await this._audit({
           params,
           tier,
@@ -377,7 +377,7 @@ export const ModelRouter = {
       });
     } catch (err) {
       // Audit failure must never break the engine
-      logger.error(`$'[model-router] audit failed:' ${err instanceof Error ? err.message : err}`);
+      logger.error(`[model-router] audit failed: ${err instanceof Error ? err.message : err}`);
     }
   },
 

@@ -216,7 +216,7 @@ async function collectCompanySignals(
       }
     }
   } catch (err) {
-    logger.error(`$'[grounding-engine] company signals collection failed:' ${err instanceof Error ? err.message : err}`);
+    logger.error(`[grounding-engine] company signals collection failed: ${err instanceof Error ? err.message : err}`);
     gaps.push({
       dimension: 'company_signals',
       description: 'Failed to load company signals from database.',
@@ -271,7 +271,7 @@ async function collectCapabilityMatches(
       });
     }
   } catch (err) {
-    logger.error(`$'[grounding-engine] capability matches collection failed:' ${err instanceof Error ? err.message : err}`);
+    logger.error(`[grounding-engine] capability matches collection failed:' ${err instanceof Error ? err.message : err}`);
     gaps.push({
       dimension: 'capability_matches',
       description: 'Failed to load capability matches from database.',
@@ -327,7 +327,7 @@ async function collectAIInsights(
       });
     }
   } catch (err) {
-    logger.error(`$'[grounding-engine] AI insights collection failed:' ${err instanceof Error ? err.message : err}`);
+    logger.error(`[grounding-engine] AI insights collection failed:' ${err instanceof Error ? err.message : err}`);
   }
 
   return { evidences, gaps: [] };
@@ -369,7 +369,7 @@ async function collectEvidenceRecords(
       });
     }
   } catch (err) {
-    logger.error(`$'[grounding-engine] evidence records collection failed:' ${err instanceof Error ? err.message : err}`);
+    logger.error(`[grounding-engine] evidence records collection failed:' ${err instanceof Error ? err.message : err}`);
   }
 
   return { evidences, gaps: [] };

@@ -248,7 +248,7 @@ Return a short cross-entity summary, not a deep report.
 
 ```bash
 curl -X GET \
-  'https://datacenter.aminer.cn/gateway/open_platform/api/paper/search?page=1&size=5&title=Attention%20Is%20All%20You%20Need' \
+  'https://publicapi.chatglm.cn/chatglm_public/skill/aminer/api/paper/search?page=1&size=5&title=Attention%20Is%20All%20You%20Need' \
   -H "Authorization: ${AMINER_API_KEY}" \
   -H 'X-Platform: openclaw'
 ```
@@ -257,7 +257,7 @@ Then enrich with `paper_info`:
 
 ```bash
 curl -X POST \
-  'https://datacenter.aminer.cn/gateway/open_platform/api/paper/info' \
+  'https://publicapi.chatglm.cn/chatglm_public/skill/aminer/api/paper/info' \
   -H 'Content-Type: application/json;charset=utf-8' \
   -H "Authorization: ${AMINER_API_KEY}" \
   -H 'X-Platform: openclaw' \
@@ -268,7 +268,7 @@ curl -X POST \
 
 ```bash
 curl -X POST \
-  'https://datacenter.aminer.cn/gateway/open_platform/api/person/search' \
+  'https://publicapi.chatglm.cn/chatglm_public/skill/aminer/api/person/search' \
   -H 'Content-Type: application/json;charset=utf-8' \
   -H "Authorization: ${AMINER_API_KEY}" \
   -H 'X-Platform: openclaw' \
@@ -279,7 +279,7 @@ curl -X POST \
 
 ```bash
 curl -X POST \
-  'https://datacenter.aminer.cn/gateway/open_platform/api/organization/search' \
+  'https://publicapi.chatglm.cn/chatglm_public/skill/aminer/api/organization/search' \
   -H 'Content-Type: application/json;charset=utf-8' \
   -H "Authorization: ${AMINER_API_KEY}" \
   -H 'X-Platform: openclaw' \
@@ -290,7 +290,7 @@ curl -X POST \
 
 ```bash
 curl -X POST \
-  'https://datacenter.aminer.cn/gateway/open_platform/api/venue/search' \
+  'https://publicapi.chatglm.cn/chatglm_public/skill/aminer/api/venue/search' \
   -H 'Content-Type: application/json;charset=utf-8' \
   -H "Authorization: ${AMINER_API_KEY}" \
   -H 'X-Platform: openclaw' \
@@ -301,7 +301,7 @@ curl -X POST \
 
 ```bash
 curl -X POST \
-  'https://datacenter.aminer.cn/gateway/open_platform/api/patent/search' \
+  'https://publicapi.chatglm.cn/chatglm_public/skill/aminer/api/patent/search' \
   -H 'Content-Type: application/json;charset=utf-8' \
   -H "Authorization: ${AMINER_API_KEY}" \
   -H 'X-Platform: openclaw' \

@@ -21,8 +21,12 @@ export async function POST() {
       );
     }
 
-    // Run prisma db push — creates missing tables without data loss
-    const result = execSync('npx prisma db push --accept-data-loss --skip-generate', {
+    // Run prisma db push — creates missing tables without data loss.
+    // Use the locally-installed prisma binary (./node_modules/.bin/prisma)
+    // to avoid npx downloading the latest version (which may have breaking
+    // CLI flag changes — e.g. Prisma 7.x removed --skip-generate).
+    const prismaBin = path.resolve(process.cwd(), 'node_modules/.bin/prisma');
+    const result = execSync(`"${prismaBin}" db push --accept-data-loss`, {
       cwd: path.resolve(process.cwd()),
       timeout: 60_000,
       encoding: 'utf-8',

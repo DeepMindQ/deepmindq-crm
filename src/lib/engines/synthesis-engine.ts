@@ -454,7 +454,7 @@ async function logEngineRun(args: {
       },
     });
   } catch (err) {
-    logger.error(`$'[synthesis-engine] logEngineRun failed:' ${err instanceof Error ? err.message : err}`);
+    logger.error(`[synthesis-engine] logEngineRun failed: ${err instanceof Error ? err.message : err}`);
   }
 }
 

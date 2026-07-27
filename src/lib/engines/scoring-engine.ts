@@ -77,6 +77,14 @@ export interface ScoreFactor {
   source: string;
   /** Linked signal ID if applicable. */
   signalId?: string;
+  /** When the underlying signal was detected. */
+  signalDate?: string | null;
+  /** Source URL for traceability. */
+  sourceUrl?: string | null;
+  /** Freshness 0-1 (1 = today, 0 = stale beyond lifecycle). */
+  freshnessScore?: number;
+  /** Source reliability 0-1. */
+  sourceReliability?: number;
 }
 
 export interface RevenueScore {
@@ -210,6 +218,13 @@ async function extractSignalFactors(
     where: { companyId, status: 'replied' },
   }).catch(() => 0);
 
+  // Helper: compute freshness from signal date
+  const signalFreshness = (sig: typeof activeSignals[0]): number => {
+    if (!sig.signalDate) return 0.5;
+    const days = (Date.now() - sig.signalDate.getTime()) / (1000 * 60 * 60 * 24);
+    return days <= 0 ? 1 : Math.max(0.05, Math.exp(-0.025 * days));
+  };
+
   // Technology Trigger (up to +25)
   const techSignals = activeSignals.filter(s =>
     s.signalType === 'tech_change' ||
@@ -224,8 +239,12 @@ async function extractSignalFactors(
       points: pts,
       maxPoints: 25,
       evidence: topTech.businessImpact || topTech.title || 'Technology change signal detected',
-      source: 'account-signals',
+      source: topTech.source || 'account-signals',
       signalId: topTech.id,
+      signalDate: topTech.signalDate?.toISOString() ?? null,
+      sourceUrl: topTech.sourceUrl ?? null,
+      freshnessScore: signalFreshness(topTech),
+      sourceReliability: 0.8,
     });
   }
 
@@ -245,8 +264,12 @@ async function extractSignalFactors(
       points: pts,
       maxPoints: 20,
       evidence: topGrowth.businessImpact || topGrowth.title || 'Growth indicator detected',
-      source: 'account-signals',
+      source: topGrowth.source || 'account-signals',
       signalId: topGrowth.id,
+      signalDate: topGrowth.signalDate?.toISOString() ?? null,
+      sourceUrl: topGrowth.sourceUrl ?? null,
+      freshnessScore: signalFreshness(topGrowth),
+      sourceReliability: 0.8,
     });
   }
 
@@ -264,8 +287,12 @@ async function extractSignalFactors(
       points: pts,
       maxPoints: 15,
       evidence: topExec.businessImpact || topExec.title || 'Leadership change detected',
-      source: 'account-signals',
+      source: topExec.source || 'account-signals',
       signalId: topExec.id,
+      signalDate: topExec.signalDate?.toISOString() ?? null,
+      sourceUrl: topExec.sourceUrl ?? null,
+      freshnessScore: signalFreshness(topExec),
+      sourceReliability: topExec.source === 'LinkedIn' ? 0.75 : 0.85,
     });
   }
 
@@ -283,6 +310,8 @@ async function extractSignalFactors(
       maxPoints: 12,
       evidence: `${contactCount} contacts tracked, ${repliedCount} replied, ${engageSignals.length} engagement signals`,
       source: 'account-engagement',
+      freshnessScore: chain.freshnessScore,
+      sourceReliability: 0.7,
     });
   }
 
@@ -300,8 +329,12 @@ async function extractSignalFactors(
       points: -pts,
       maxPoints: 10,
       evidence: topRisk.businessImpact || topRisk.title || 'Risk signal detected',
-      source: 'account-signals',
+      source: topRisk.source || 'account-signals',
       signalId: topRisk.id,
+      signalDate: topRisk.signalDate?.toISOString() ?? null,
+      sourceUrl: topRisk.sourceUrl ?? null,
+      freshnessScore: signalFreshness(topRisk),
+      sourceReliability: topRisk.source === 'SEC Filing' ? 0.95 : 0.8,
     });
   }
 
@@ -328,8 +361,6 @@ async function extractSignalFactors(
   )));
 
   const evidenceCount = activeSignals.length;
-  const logger_ = () => {}; // silence
-  void startedAt; void chain; void logger_;
 
   return {
     factors,
@@ -635,6 +666,21 @@ export const ScoringEngine = {
 
     // Step 2: Collect evidence via GroundingEngine
     const chain = await GroundingEngine.collect({ companyId });
+
+    // Step 2b: Retrieval — find similar scored accounts for calibration context
+    let retrievalContext: string[] = [];
+    try {
+      const topSignals = chain.evidences.slice(0, 3).map(e => e.snippet).join(' ');
+      if (topSignals) {
+        const retrievalResults = await RetrievalEngine.search(
+          `${companyName} ${topSignals}`,
+          3,
+        );
+        retrievalContext = retrievalResults.map(r => `[Similar: ${r.entityId} (${Math.round(r.score * 100)}%)] ${r.snippet}`);
+      }
+    } catch {
+      // Retrieval is optional — don't block scoring
+    }
 
     // Step 3: Extract signal-based factors
     const signalData = await extractSignalFactors(companyId, chain);

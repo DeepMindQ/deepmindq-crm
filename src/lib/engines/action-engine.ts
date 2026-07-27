@@ -192,6 +192,13 @@ function generateDeterministicActions(
 
   const makeId = () => `action_${++actionId}_${Date.now()}`;
 
+  // Evidence-grounded confidence: derive from chain quality, not hardcoded
+  const baseConf = Math.round(chain.aggregateConfidence * 100);
+  const freshBoost = Math.round(chain.freshnessScore * 10);  // up to +10
+  const gapPenalty = Math.round(chain.gaps.length * 3);      // -3 per gap
+  const evidenceConf = Math.max(40, Math.min(95, baseConf + freshBoost - gapPenalty));
+  const conf = (adjust: number = 0) => Math.max(30, Math.min(95, evidenceConf + adjust));
+
   // Technology Trigger → Outreach to technical buyer
   const techSignals = signals.filter(s =>
     s.signalType === 'tech_change' ||
@@ -213,7 +220,7 @@ function generateDeterministicActions(
       impactScore: 85,
       evidence: [topTech.title, topTech.businessImpact || 'Technology change detected'],
       signalIds: [topTech.id],
-      confidence: 80,
+      confidence: conf(+5), // tech signals boost confidence
     });
   }
 
@@ -238,7 +245,7 @@ function generateDeterministicActions(
       impactScore: 70,
       evidence: [topHire.title],
       signalIds: [topHire.id],
-      confidence: 70,
+      confidence: conf(-5), // hiring signals slightly lower certainty
     });
   }
 
@@ -255,7 +262,7 @@ function generateDeterministicActions(
       title: `Engage new leadership at ${companyName}`,
       reason: `Leadership change detected: ${topExec.title}. New executives often reassess vendor relationships and strategic priorities within the first 90 days.`,
       concreteStep: 'Research the new executive\'s background, identify shared connections, and craft a personalized introduction highlighting relevant case studies.',
-      suggestedMessage: `Welcome to ${companyName}. Given your background, I thought you might be interested in how we've helped similar organizations in the ${''}space achieve measurable outcomes. Would a brief introduction call be valuable?`,
+      suggestedMessage: `Welcome to ${companyName}. Given your background, I thought you might be interested in how we've helped similar organizations achieve measurable outcomes. Would a brief introduction call be valuable?`,
       targetContact: topExec.title.includes('CTO') || topExec.title.includes('CIO')
         ? 'New Technology Executive'
         : topExec.title.includes('CFO') ? 'New Finance Executive'
@@ -266,7 +273,7 @@ function generateDeterministicActions(
       impactScore: 90,
       evidence: [topExec.title, topExec.businessImpact || 'Leadership change creates vendor reassessment window'],
       signalIds: [topExec.id],
-      confidence: 75,
+      confidence: conf(), // exec change has strong signal
     });
   }
 
@@ -291,7 +298,7 @@ function generateDeterministicActions(
       impactScore: 85,
       evidence: [topFund.title],
       signalIds: [topFund.id],
-      confidence: 80,
+      confidence: conf(+3), // funding = budget available = higher confidence
     });
   }
 
@@ -311,7 +318,7 @@ function generateDeterministicActions(
       impactScore: 95,
       evidence: ['Zero contacts in database'],
       signalIds: [],
-      confidence: 95,
+      confidence: 95, // deterministic fact, always certain
     });
   }
 
@@ -331,7 +338,7 @@ function generateDeterministicActions(
       impactScore: 75,
       evidence: [`${contactCount} contacts, 0 replies`],
       signalIds: [],
-      confidence: 70,
+      confidence: conf(-3), // no replies = less certain
     });
   }
 
@@ -356,7 +363,7 @@ function generateDeterministicActions(
         impactScore: 80,
         evidence: [risk.title, risk.businessImpact || 'High-severity risk'],
         signalIds: [risk.id],
-        confidence: 70,
+        confidence: conf(-2), // risk situations add uncertainty
       });
     }
   }
@@ -378,7 +385,7 @@ function generateDeterministicActions(
         impactScore: 90,
         evidence: [`Revenue score: ${score}/100`],
         signalIds: [],
-        confidence: 80,
+        confidence: conf(+5), // high score = stronger signal
       });
     } else if (score >= 50 && score < 70) {
       actions.push({
@@ -395,7 +402,7 @@ function generateDeterministicActions(
         impactScore: 60,
         evidence: [`Revenue score: ${score}/100`],
         signalIds: [],
-        confidence: 65,
+        confidence: conf(-8), // moderate score = less certain next step
       });
     }
   }

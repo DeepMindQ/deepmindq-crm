@@ -198,7 +198,7 @@ async function buildBuyerProfile(
     // Detect seniority from title
     const titleLower = title.toLowerCase();
     let seniority: BuyerProfile['seniority'] = 'manager';
-    if (titleLower.match(/ceo|chief|president|c-level|c-level/)) seniority = 'c_suite';
+    if (titleLower.match(/ceo|chief|president|cio|cdo|c-level/)) seniority = 'c_suite';
     else if (titleLower.match(/vp|vice president|svp|evp/)) seniority = 'vp';
     else if (titleLower.match(/director|head of/)) seniority = 'director';
     else if (titleLower.match(/manager|lead|sr\.|senior/)) seniority = 'manager';
@@ -206,7 +206,7 @@ async function buildBuyerProfile(
 
     // Detect buyer role from title/department
     let buyerRole: BuyerRole = 'unknown';
-    if (titleLower.match(/ceo|cfo|coo|president|vp finance|vp operations/)) buyerRole = 'economic_buyer';
+    if (titleLower.match(/ceo|cfo|coo|president|vp finance|vp operations|cio|cdo|chief data|chief digital/)) buyerRole = 'economic_buyer';
     else if (titleLower.match(/cto|ciso|vp engineering|vp technology|architect|devops/)) buyerRole = 'technical_buyer';
     else if (titleLower.match(/director|head|lead/)) buyerRole = 'champion';
     else if (titleLower.match(/manager|analyst|coordinator/)) buyerRole = 'user';
@@ -388,31 +388,70 @@ async function generateDeterministicBriefing(
     );
   }
 
-  // Generate objection preparation
+  // Generate dynamic objections based on buyer role, signals, and evidence
+  const hasRiskSignals = recentSignals.some(s => s.severity === 'high' || s.severity === 'critical');
+  const hasTechSignals = recentSignals.some(s => s.signalType === 'tech_change');
+  const hasBudgetSignals = recentSignals.some(s => s.signalType === 'funding');
+
+  // Base objections tailored to buyer role
+  if (buyerProfile.buyerRole === 'economic_buyer') {
+    objectionsToPrepare.push(
+      {
+        objection: 'We don\'t have budget allocated for this right now',
+        preparedResponse: 'Explore whether this is a timing or priority issue. Reference their recent initiatives to reframe as investment. If funding signals exist, align to their capital deployment goals.',
+        evidence: hasBudgetSignals ? `${recentSignals.filter(s => s.signalType === 'funding')[0].title} — capital is available, budget objection may be prioritization not capacity` : 'Budget cycle insight: FY planning typically happens Q4/Q1',
+        probability: 'high',
+      },
+      {
+        objection: 'We need to see ROI before committing',
+        preparedResponse: 'Acknowledge the need for evidence. Offer a pilot with defined success metrics aligned to their KPIs. Reference similar outcomes from same-industry clients.',
+        evidence: `${buyerProfile.name} is an economic buyer — ROI validation is expected. Align proof points to their detected priorities: ${buyerProfile.detectedPriorities.slice(0, 2).join(', ')}`,
+        probability: 'high',
+      },
+    );
+  } else if (buyerProfile.buyerRole === 'technical_buyer') {
+    objectionsToPrepare.push(
+      {
+        objection: 'Our current architecture handles this fine',
+        preparedResponse: 'Acknowledge their existing investment. Ask what they wish was different — faster, cheaper, more scalable. Position as complementary enhancement, not replacement.',
+        evidence: hasTechSignals ? `${recentSignals.filter(s => s.signalType === 'tech_change')[0].title} — tech changes suggest current architecture is being reassessed` : 'Technical validation: current solution adequacy is a common initial response from technical buyers',
+        probability: 'high',
+      },
+      {
+        objection: 'We need to evaluate multiple options before deciding',
+        preparedResponse: 'Welcome competition — validates the need. Ask what evaluation criteria they\'re using and offer to provide technical benchmarks. Position your technical differentiators early.',
+        evidence: 'Procurement-standard objection — indicates active buying process, which is a positive signal',
+        probability: 'medium',
+      },
+    );
+  }
+
+  // Signal-driven objections
+  if (hasRiskSignals) {
+    const topRisk = recentSignals.find(s => s.severity === 'high' || s.severity === 'critical');
+    objectionsToPrepare.push(
+      {
+        objection: `Recent ${topRisk?.signalType || 'risk'} events make this a bad time for new initiatives`,
+        preparedResponse: `Acknowledge the current situation. Position your solution as risk-reducing rather than adding complexity. Offer to start with minimal scope that addresses their immediate concern.`,
+        evidence: topRisk ? `Risk signal: ${topRisk.title} — seller should be aware but not defer entirely` : 'Risk-aware positioning required',
+        probability: 'medium',
+      },
+    );
+  }
+
+  // Universal objections (contextualized)
   objectionsToPrepare.push(
     {
+      objection: 'We\'re too busy with other priorities right now',
+      preparedResponse: `Acknowledge their workload. Reframe as time-saver: "${buyerProfile.detectedPriorities[0] || 'your key initiative'} can actually accelerate with the right support." Offer 15-min focused call with specific agenda.`,
+      evidence: `Priority objection — ${buyerProfile.relationshipStrength === 'cold' ? 'cold outreach needs stronger value hook' : 'warm relationship can leverage existing rapport'}`,
+      probability: 'medium',
+    },
+    {
       objection: 'We already have a solution / vendor for this',
-      preparedResponse: 'Acknowledge their current solution. Ask what they wish was different. Position as complementary or identify gaps in current approach.',
-      evidence: recentSignals.some(s => s.signalType === 'partnership') ? 'Partnership signals suggest potential vendor shifts' : 'Common objection at qualification stage',
+      preparedResponse: 'Ask what they wish was different about their current solution. Position as complementary or identify gaps. If tech signals indicate migration, current vendor may already be under review.',
+      evidence: hasTechSignals ? 'Tech migration signals suggest current vendor landscape may be shifting' : 'Standard competitive objection — indicates existing relationship to navigate',
       probability: 'high',
-    },
-    {
-      objection: 'We don\'t have budget right now',
-      preparedResponse: 'Explore whether this is a timing issue or priority issue. If timing, propose pilot with smaller scope. If priority, quantify cost of inaction.',
-      evidence: 'Budget cycle: companies typically plan Q4/Q1 budgets',
-      probability: 'high',
-    },
-    {
-      objection: 'We need to evaluate other options',
-      preparedResponse: 'Welcome competition — it validates the need. Offer comparison criteria and case studies. Ask what their evaluation criteria are.',
-      evidence: 'Standard procurement objection — indicates active buying process',
-      probability: 'medium',
-    },
-    {
-      objection: 'We\'re too busy right now',
-      preparedResponse: 'Acknowledge their workload. Reframe as a time-saver, not a time-taker. Offer a 15-min focused call with specific agenda.',
-      evidence: 'Priority objection — need to demonstrate value outweighs time investment',
-      probability: 'medium',
     },
   );
 

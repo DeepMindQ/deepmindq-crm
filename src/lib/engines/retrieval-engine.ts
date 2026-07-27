@@ -248,7 +248,7 @@ export async function embedEntity(
         };
       }
     } catch (err) {
-      logger.error(`$'[retrieval-engine] cache check failed:' ${err instanceof Error ? err.message : err}`);
+      logger.error(`[retrieval-engine] cache check failed: ${err instanceof Error ? err.message : err}`);
     }
   }
 
@@ -280,7 +280,7 @@ export async function embedEntity(
       },
     });
   } catch (err) {
-    logger.error(`$'[retrieval-engine] persist failed:' ${err instanceof Error ? err.message : err}`);
+    logger.error(`[retrieval-engine] persist failed: ${err instanceof Error ? err.message : err}`);
   }
 
   // Cache in memory
@@ -359,12 +359,12 @@ export async function loadIndexFromDB(): Promise<void> {
           snippet: emb.sourceText.slice(0, 200),
         });
       } catch (err) {
-        logger.error(`$'[retrieval-engine] failed to parse embedding for' ${emb.entityId}`);
+        logger.error(`[retrieval-engine] failed to parse embedding for' ${emb.entityId}`);
       }
     }
     logger.info(`[retrieval-engine] loaded ${inMemoryIndex.size} embeddings from DB`);
   } catch (err) {
-    logger.error(`$'[retrieval-engine] loadIndexFromDB failed:' ${err instanceof Error ? err.message : err}`);
+    logger.error(`[retrieval-engine] loadIndexFromDB failed: ${err instanceof Error ? err.message : err}`);
   }
 }
 
@@ -391,7 +391,7 @@ export async function buildIndexFromRawEntities(): Promise<void> {
       }
     }
   } catch (err) {
-    logger.error(`$'[retrieval-engine] capability asset embedding failed:' ${err instanceof Error ? err.message : err}`);
+    logger.error(`[retrieval-engine] capability asset embedding failed: ${err instanceof Error ? err.message : err}`);
   }
 
   // Pull recent AI insights
@@ -407,7 +407,7 @@ export async function buildIndexFromRawEntities(): Promise<void> {
       }
     }
   } catch (err) {
-    logger.error(`$'[retrieval-engine] AI insight embedding failed:' ${err instanceof Error ? err.message : err}`);
+    logger.error(`[retrieval-engine] AI insight embedding failed: ${err instanceof Error ? err.message : err}`);
   }
 
   // Pull recent company signals
@@ -423,7 +423,7 @@ export async function buildIndexFromRawEntities(): Promise<void> {
       }
     }
   } catch (err) {
-    logger.error(`$'[retrieval-engine] company signal embedding failed:' ${err instanceof Error ? err.message : err}`);
+    logger.error(`[retrieval-engine] company signal embedding failed: ${err instanceof Error ? err.message : err}`);
   }
 
   logger.info(`[retrieval-engine] index build complete: ${inMemoryIndex.size} entries`);

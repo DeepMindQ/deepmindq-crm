@@ -346,7 +346,6 @@ async function persistSignalsToDb(signals: ParsedSignal[]): Promise<void> {
       expiresAt: s.expiresAt ? new Date(s.expiresAt) : null,
       status: 'detected',
     })),
-    skipDuplicates: true,
   })
   console.log(`[ai/signals] Persisted ${signals.length} signals to CompanySignal with Intelligence Object fields`)
 }

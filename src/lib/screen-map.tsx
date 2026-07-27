@@ -12,8 +12,11 @@ type ScreenComponent = React.LazyExoticComponent<React.ComponentType<any>> | Rea
 
 /* ── Core screens (in nav) ── */
 const DashboardScreen = lazy(() => import('@/components/screens/dashboard-screen'));
+const AICommandCenterScreen = lazy(() => import('@/components/screens/ai-command-center-screen'));
 const RevenueIntelligenceScreen = lazy(() => import('@/components/screens/revenue-intelligence-screen'));
 const SignalIntelligenceScreen = lazy(() => import('@/components/screens/signal-intelligence-screen'));
+const AccountIntelligenceScreen = lazy(() => import('@/components/screens/account-intelligence-screen'));
+const ConversationPlannerScreen = lazy(() => import('@/components/screens/conversation-planner-screen'));
 const CompaniesScreen = lazy(() => import('@/components/screens/companies-screen'));
 const ContactsScreen = lazy(() => import('@/components/screens/contacts-screen'));
 const OpportunitiesScreen = lazy(() => import('@/components/screens/opportunities-screen'));
@@ -92,8 +95,12 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   // ── Primary nav screens ──
   // INTELLIGENCE
   dashboard: DashboardScreen,
+  'ai-command-center': AICommandCenterScreen,
   'revenue-intelligence': RevenueIntelligenceScreen,
   'signal-intelligence': SignalIntelligenceScreen,
+  // AI ENGINES
+  'account-intelligence': AccountIntelligenceScreen,
+  'conversation-planner': ConversationPlannerScreen,
   // ACCOUNTS
   companies: CompaniesScreen,
   contacts: ContactsScreen,

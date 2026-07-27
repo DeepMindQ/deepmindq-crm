@@ -11,6 +11,7 @@ import {
   GitBranch, FileText, Mail,
   Upload, BarChart3, Brain, Activity,
   Settings, ScrollText, Shield, Copy,
+  Cpu, Crosshair, MessageSquareText,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -33,8 +34,19 @@ export const NAV_SECTIONS: NavSection[] = [
     defaultOpen: true,
     items: [
       { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { key: 'ai-command-center', label: 'AI Command Center', icon: Cpu },
       { key: 'revenue-intelligence', label: 'Revenue Intelligence', icon: Sparkles },
       { key: 'signal-intelligence', label: 'Signal Intelligence', icon: Radar },
+    ],
+  },
+
+  /* ── AI ENGINES ── */
+  {
+    heading: 'AI ENGINES',
+    defaultOpen: false,
+    items: [
+      { key: 'account-intelligence', label: 'Account Intelligence', icon: Crosshair },
+      { key: 'conversation-planner', label: 'Conversation Planner', icon: MessageSquareText },
     ],
   },
 

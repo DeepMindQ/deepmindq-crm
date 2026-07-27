@@ -495,35 +495,92 @@ async function gatherStats(): Promise<PipelineStats> {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
+   Recent DB insights — fetched fresh on every request (not cached)
+   Returns the most recent AIInsight records for the Intelligence Feed.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function safeParseArray(raw: string | null | undefined): any[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+async function fetchRecentInsights(limit: number) {
+  try {
+    const records = await db.aIInsight.findMany({
+      where: { status: { in: ['active', 'consumed'] } },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        company: { select: { id: true, rawName: true } },
+      },
+    })
+    return records.map((r) => ({
+      id: r.id,
+      type: r.type,
+      title: r.title,
+      description: r.description,
+      confidence: r.confidenceScore,
+      impact: r.impactScore,
+      urgency: r.urgencyScore,
+      evidence: safeParseArray(r.evidence),
+      recommendedAction: r.recommendedAction,
+      reasoning: r.reasoning,
+      companyId: r.companyId,
+      companyName: r.company?.rawName ?? null,
+      createdAt: r.createdAt.toISOString(),
+      status: r.status,
+      sourceType: r.sourceType,
+      modelUsed: r.modelUsed,
+    }))
+  } catch (dbErr) {
+    console.warn('[AI Insights] recent insights fetch failed:', dbErr)
+    return []
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
    GET HANDLER
    ══════════════════════════════════════════════════════════════════════════ */
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // Return cached if fresh
-    if (cachedResult && Date.now() - cachedResult.ts < CACHE_TTL) {
-      return apiSuccess(cachedResult.data)
-    }
+    const { searchParams } = new URL(request.url)
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '6', 10) || 6, 1), 50)
 
-    const stats = await gatherStats()
-
-    // --- AI path (primary) ---
+    // Return cached LLM briefing if fresh
     let data: InsightsResponse
-    try {
-      const [trendContext] = await Promise.all([
-        fetchIndustryTrends(stats.topIndustries),
-        // We could parallelize the LLM call too, but it depends on trendContext
-        // so we run it sequentially inside buildAIInsights
-      ])
-      data = await buildAIInsights(stats, trendContext)
-    } catch (aiError) {
-      // Fallback to rule-based if AI fails for any reason
-      console.warn('[AI Insights] AI generation failed, falling back to rules:', aiError)
-      data = buildRuleBasedInsights(stats)
+    if (cachedResult && Date.now() - cachedResult.ts < CACHE_TTL) {
+      data = cachedResult.data
+    } else {
+      const stats = await gatherStats()
+
+      // --- AI path (primary) ---
+      try {
+        const [trendContext] = await Promise.all([
+          fetchIndustryTrends(stats.topIndustries),
+          // We could parallelize the LLM call too, but it depends on trendContext
+          // so we run it sequentially inside buildAIInsights
+        ])
+        data = await buildAIInsights(stats, trendContext)
+      } catch (aiError) {
+        // Fallback to rule-based if AI fails for any reason
+        console.warn('[AI Insights] AI generation failed, falling back to rules:', aiError)
+        data = buildRuleBasedInsights(stats)
+      }
+
+      cachedResult = { data, ts: Date.now() }
     }
 
-    cachedResult = { data, ts: Date.now() }
-    return apiSuccess(data)
+    // Recent DB insights are always fetched fresh (not cached) so the
+    // Intelligence Feed reflects the latest activity.
+    const recentInsights = await fetchRecentInsights(limit)
+
+    return apiSuccess({ ...data, recentInsights })
   } catch (error) {
     console.error('Failed to generate AI insights:', error)
     return apiError('Failed to generate AI insights', 500)

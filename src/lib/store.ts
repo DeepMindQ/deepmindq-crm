@@ -3,8 +3,12 @@ import { create } from 'zustand';
 export type ViewId =
   // INTELLIGENCE
   | 'dashboard'
+  | 'ai-command-center'
   | 'revenue-intelligence'
   | 'signal-intelligence'
+  // AI ENGINES
+  | 'account-intelligence'
+  | 'conversation-planner'
   // ACCOUNTS
   | 'companies'
   | 'contacts'

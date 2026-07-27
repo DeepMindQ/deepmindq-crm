@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -1837,8 +1837,8 @@ model AIInsight {
   type                String                    @default("SIGNAL") // SIGNAL, RISK, OPPORTUNITY, RECOMMENDATION, SCORING, FORECAST
 
   // Core content
-  title               String                    @db.Text
-  description         String                    @db.Text
+  title               String                   
+  description         String                   
 
   // Evidence chain — JSON array of { source, url, date, snippet, reliability }
   evidence            String                    @default("[]")
@@ -1849,10 +1849,10 @@ model AIInsight {
   urgencyScore        Float                     @default(0)       // 0-100
 
   // Reasoning — why AI thinks this
-  reasoning           String?                   @db.Text
+  reasoning           String?                  
 
   // Actionability
-  recommendedAction   String?                   @db.Text
+  recommendedAction   String?                  
 
   // Source tracking
   sourceType          String                    @default("ai_generated") // ai_generated, signal, enrichment, manual
@@ -1865,7 +1865,7 @@ model AIInsight {
   expiresAt           DateTime?
   consumedAt          DateTime?
   feedback            String?                   // positive, negative, neutral
-  feedbackNote        String?                   @db.Text
+  feedbackNote        String?                  
 
   createdAt           DateTime                  @default(now())
   updatedAt           DateTime                  @updatedAt
@@ -1898,13 +1898,13 @@ model Embedding {
   // Stable ID of the entity this embedding represents (e.g. 'cap_xyz')
   entityId    String   @unique
   // The source text that was embedded (for re-embedding if model changes)
-  sourceText  String   @db.Text
+  sourceText  String  
   // SHA-256 of sourceText — used to detect stale embeddings that need refresh
   textHash    String
   // The embedding vector serialized as JSON string (e.g. "[0.1,0.2,...]")
   // Stored as Text rather than a native vector type because we don't depend
   // on pgvector — cosine similarity is computed in JS after parsing.
-  vector      String   @db.Text
+  vector      String  
   // Which model produced this embedding (e.g. 'Xenova/all-MiniLM-L6-v2')
   model       String
   // Vector dimensionality (e.g. 384 for all-MiniLM-L6-v2)
@@ -1925,9 +1925,9 @@ model EngineRun {
   // Composition ID — links related runs (e.g. one compositionId per chat session)
   compositionId   String?
   // Brief summary of the input (JSON: { briefType, companyId, ... })
-  inputSummary    String   @db.Text
+  inputSummary    String  
   // Brief summary of the output (JSON: { wordCount, confidence, ... })
-  outputSummary   String   @db.Text
+  outputSummary   String  
   // Engine-level confidence (0-1)
   confidence      Float    @default(0)
   // Wall-clock duration

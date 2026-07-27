@@ -11,8 +11,9 @@
  *
  * Composition engines (orchestrate foundation engines to produce output):
  *   - SynthesisEngine      Long-form evidence-grounded briefs
- *
- * (Future sessions will add: ScoringEngine, ActionEngine, ConversationEngine)
+ *   - ScoringEngine        Revenue Intelligence Score (explainable, decomposed)
+ *   - ActionEngine         Next-best-action + sales motion recommendations
+ *   - ConversationEngine   Meeting prep + conversation planning intelligence
  */
 
 export { ModelRouter } from './model-router';
@@ -44,3 +45,33 @@ export type {
   BriefSection,
   BriefType,
 } from './synthesis-engine';
+
+export { ScoringEngine } from './scoring-engine';
+export type {
+  ScoreDimension,
+  ScoreGrade,
+  PriorityTier,
+  ScoreFactor,
+  RevenueScore,
+} from './scoring-engine';
+
+export { ActionEngine } from './action-engine';
+export type {
+  ActionType,
+  SalesMotion,
+  UrgencyLevel,
+  RecommendedAction,
+  ActionResult,
+} from './action-engine';
+
+export { ConversationEngine } from './conversation-engine';
+export type {
+  BriefingType,
+  MeetingType,
+  BuyerRole,
+  TalkingPoint,
+  QuestionToAsk,
+  ObjectionPrep,
+  BuyerProfile,
+  ConversationResult,
+} from './conversation-engine';

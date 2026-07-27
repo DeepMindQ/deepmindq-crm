@@ -783,7 +783,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
             {[
               { key: 'intelligence' as const, label: 'AI Intelligence', icon: Brain },
               { key: 'profile' as const, label: 'Company Profile', icon: Building2 },
-              { key: 'mindmap' as const, label: 'Mind Map', icon: Network },
+              { key: 'mindmap' as const, label: 'Org Chart', icon: Network },
               { key: 'timeline' as const, label: 'Activity Timeline', icon: Clock },
               { key: 'evidence' as const, label: 'Evidence Sources', icon: Database },
             ].map(v => (
@@ -1095,11 +1095,11 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
           )}
 
           {/* ═════════════════════════════════════════════
-              VIEW: Mind Map
+              VIEW: Org Chart
               ═════════════════════════════════════════════ */}
           {activeView === 'mindmap' && (
             <div className="mt-5">
-              <SectionPanel title="Relationship Mind Map" icon={Network} accent={INTEL}>
+              <SectionPanel title="Organization Hierarchy" icon={Network} accent={INTEL}>
                 <CompanyMindMap company={company} contacts={contacts} notes={notes} signals={signals} researchCard={company?.researchCard} />
               </SectionPanel>
             </div>

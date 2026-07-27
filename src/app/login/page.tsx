@@ -24,6 +24,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [otpEmail, setOtpEmail] = useState('')
   const [otpSent, setOtpSent] = useState(false)
+  const [devCode, setDevCode] = useState('')
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,6 +47,7 @@ export default function LoginPage() {
 
       setOtpEmail(email.trim())
       setOtpSent(true)
+      if (data.devCode) setDevCode(data.devCode)
       setStep('otp')
     } catch {
       setError('Network error. Please try again.')
@@ -268,10 +270,17 @@ export default function LoginPage() {
                   <p className="text-gray-500 text-sm">
                     Enter the 6-digit code sent to <span className="font-medium text-gray-700">{otpEmail}</span>
                   </p>
-                  {otpSent && (
+                  {otpSent && !devCode && (
                     <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" /> Code sent successfully
                     </p>
+                  )}
+                  {devCode && (
+                    <div className="mt-2 px-3 py-2.5 rounded-lg border border-amber-200 bg-amber-50">
+                      <p className="text-xs text-amber-700 font-medium mb-1">Your verification code:</p>
+                      <p className="text-2xl font-bold text-amber-900 tracking-[0.3em] text-center">{devCode}</p>
+                      <p className="text-[10px] text-amber-600 mt-1 text-center">Email delivery not configured — enter this code manually</p>
+                    </div>
                   )}
                 </div>
 

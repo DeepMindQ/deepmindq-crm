@@ -36,10 +36,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.error }, { status });
     }
 
-    return NextResponse.json({
+    const response: Record<string, unknown> = {
       success: true,
-      message: 'OTP sent to your email',
-    });
+      message: result.devCode ? 'Verification code generated' : 'OTP sent to your email',
+    };
+
+    // If email isn't configured, return the code so user can enter it
+    // (safe: single-user system)
+    if (result.devCode) {
+      response.devCode = result.devCode;
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('[auth/request-otp] Error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';

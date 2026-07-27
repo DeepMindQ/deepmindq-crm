@@ -87,15 +87,15 @@ export async function logAIUsage(
 
     await db.aIGenerationAudit.create({
       data: {
+        generationType: record.feature,
         companyId: record.companyId,
-        feature: record.feature,
-        model: record.model,
-        promptTokens: record.promptTokens,
-        completionTokens: record.completionTokens,
-        totalTokens: record.totalTokens,
-        estimatedCost: record.estimatedCost,
-        status: record.status,
-        errorMessage: record.errorMessage ?? null,
+        modelUsed: record.model,
+        promptVersion: null,
+        outputSummary: `${record.feature}: ${record.status} (${record.totalTokens} tokens)`,
+        evidenceIdsUsed: '[]',
+        signalIdsUsed: '[]',
+        capabilityAssetIdsUsed: '[]',
+        governancePassed: record.status === 'success',
       } as any,
     });
 

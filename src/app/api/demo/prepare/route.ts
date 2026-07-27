@@ -40,7 +40,7 @@ export async function POST() {
             industry: c.industry,
             sizeRange: c.sizeRange,
             country: c.country,
-            description: c.description,
+            internalSummary: c.description,
             tags: '[]',
             status: 'prospect',
             lifecycleStage: 'discovery',

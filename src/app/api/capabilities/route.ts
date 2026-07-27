@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { getVectorIndex } from '@/lib/vector-index';
+import { CapabilityIntelligenceEngine } from '@/lib/capability-intelligence-engine';
 
 /* ── In-memory demo fallback ── */
 let demoStore: Record<string, unknown>[] = [];
@@ -130,6 +131,22 @@ export async function POST(request: Request) {
     // Invalidate vector index on create
     try { getVectorIndex().build([]); } catch { /* ignore */ }
 
+    // Auto-embed via CapabilityIntelligenceEngine (creates embedding for semantic search)
+    try {
+      await CapabilityIntelligenceEngine.ingest({
+        title,
+        summary,
+        category: category as any,
+        serviceLine: serviceLine || undefined,
+        targetIndustries: targetIndustries ? targetIndustries.split(',').map(s => s.trim()).filter(Boolean) : undefined,
+        targetRoles: targetRoles ? targetRoles.split(',').map(s => s.trim()).filter(Boolean) : undefined,
+        businessProblem: problems || undefined,
+        evidence: evidence || undefined,
+        content: content || undefined,
+        tags: Array.isArray(tags) ? tags : undefined,
+      });
+    } catch { /* non-blocking: embedding failure doesn't prevent capability creation */ }
+
     return NextResponse.json({
       ...capability,
       tags: parseTagsField(capability.tags),
@@ -222,6 +239,26 @@ export async function PUT(request: Request) {
 
     // Invalidate vector index on update
     try { getVectorIndex().build([]); } catch { /* ignore */ }
+
+    // Re-embed on version-worthy changes (title/summary/content changed)
+    if (hasVersionChange) {
+      try {
+        const updated = await db.capabilityAsset.findUnique({ where: { id } });
+        if (updated) {
+          await CapabilityIntelligenceEngine.ingest({
+            title: updated.title,
+            summary: updated.summary,
+            category: updated.category as any,
+            serviceLine: updated.serviceLine || undefined,
+            targetIndustries: updated.targetIndustries ? updated.targetIndustries.split(',').map(s => s.trim()).filter(Boolean) : undefined,
+            targetRoles: updated.targetRoles ? updated.targetRoles.split(',').map(s => s.trim()).filter(Boolean) : undefined,
+            businessProblem: updated.problems || undefined,
+            evidence: updated.evidence || undefined,
+            content: updated.content || undefined,
+          });
+        }
+      } catch { /* non-blocking */ }
+    }
 
     return NextResponse.json({
       ...capability,

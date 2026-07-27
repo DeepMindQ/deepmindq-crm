@@ -20,8 +20,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { ModelRouter } from '@/lib/engines/model-router';
-import { matchSignalsToCapabilities } from '@/lib/research-engine/signal-capability-matching';
 import { CapabilityIntelligenceEngine } from '@/lib/capability-intelligence-engine';
+import { FusionEngine } from '@/lib/fusion-engine';
 import { createInsight } from '@/lib/ai-insight-service';
 
 // ── Types ──
@@ -105,6 +105,8 @@ export async function GET(request: NextRequest) {
         accountBrief: true,
         accountScore: true,
         intelligenceHealth: true,
+        fusionResults: { take: 10, orderBy: { fusionScore: 'desc' } },
+        pipelineRuns: { take: 5, orderBy: { startedAt: 'desc' } },
       },
     });
 
@@ -142,6 +144,25 @@ export async function GET(request: NextRequest) {
         })),
       },
       internalKnowledge: capabilityStats,
+      intelligenceFusion: {
+        fusionResultsCount: (company as any).fusionResults?.length || 0,
+        topFusions: ((company as any).fusionResults || []).slice(0, 3).map((f: any) => ({
+          fusionType: f.fusionType,
+          fusionScore: f.fusionScore,
+          recommendedCapability: f.recommendedCapability,
+          businessProblem: f.businessProblem,
+          confidenceScore: f.confidenceScore,
+        })),
+      },
+      pipelineHistory: {
+        totalRuns: (company as any).pipelineRuns?.length || 0,
+        lastRun: ((company as any).pipelineRuns || [])[0] ? {
+          status: ((company as any).pipelineRuns as any[])[0].status,
+          completedStages: ((company as any).pipelineRuns as any[])[0].completedStages,
+          durationMs: ((company as any).pipelineRuns as any[])[0].durationMs,
+          aiCallsMade: ((company as any).pipelineRuns as any[])[0].aiCallsMade,
+        } : null,
+      },
       topOpportunities: company.opportunityRecommendations.slice(0, 3).map(o => ({
         id: o.id,
         title: o.opportunityTitle,
@@ -179,6 +200,17 @@ export async function POST(request: NextRequest) {
   const pipelineId = `pl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const pipelineStart = Date.now();
   const stages: StageResult[] = [];
+
+  // Create PipelineRun record for tracking
+  const pipelineRun = await db.pipelineRun.create({
+    data: {
+      companyId,
+      pipelineType: 'full',
+      status: 'running',
+      totalStages: 17, // Now 17 stages with fusion
+      startedAt: new Date(),
+    },
+  });
 
   // Load company upfront
   const company = await db.company.findUnique({
@@ -319,36 +351,51 @@ export async function POST(request: NextRequest) {
 
   // ── Phase B: Internal Intelligence Matching ──────────────────
 
-  // Stage 8: Capability Matching (THE CORE MOAT)
+  // Stage 8: Capability Matching (THE CORE MOAT) — Unified LLM matcher
+  // Uses CapabilityIntelligenceEngine.matchSignalToCapabilities() — same function as enrichment.
+  // This ensures consistent matching quality across both paths.
   stages.push(await runStage('capability_matching', async () => {
-    const matchResult = await matchSignalsToCapabilities(companyId);
-    const topMatches = company.signalCapabilityMatches
-      .sort((a, b) => b.matchScore - a.matchScore)
-      .slice(0, 10);
+    const signals = await db.companySignal.findMany({
+      where: { companyId, status: { in: ['active', 'validated', 'aging'] } },
+      orderBy: { createdAt: 'desc' },
+    });
 
-    // Enrich with capability details
+    let totalMatches = 0;
+    let highConfidence = 0;
     const enriched: Array<{ matchId: string; capabilityId: string; capabilityTitle: string; category: string; serviceLine: string | null; matchScore: number; businessProblem: string | null; expectedOutcome: string | null; salesAngle: string | null }> = [];
-    for (const m of topMatches) {
-      const cap = await db.capabilityAsset.findUnique({ where: { id: m.capabilityId } });
-      if (cap) {
-        enriched.push({
-          matchId: m.id,
-          capabilityId: cap.id,
-          capabilityTitle: cap.title,
-          category: cap.category,
-          serviceLine: cap.serviceLine,
-          matchScore: m.matchScore,
-          businessProblem: m.businessProblem,
-          expectedOutcome: m.expectedOutcome,
-          salesAngle: m.salesAngle,
-        });
+
+    for (const signal of signals.slice(0, 5)) {
+      const matchResult = await CapabilityIntelligenceEngine.matchSignalToCapabilities(companyId, signal.id);
+      if (matchResult.success && matchResult.matches.length > 0) {
+        totalMatches += matchResult.matches.length;
+        highConfidence += matchResult.matches.filter(m => m.matchScore >= 0.6).length;
+        for (const m of matchResult.matches) {
+          // Find persisted match record for matchId
+          const persisted = await db.signalCapabilityMatch.findFirst({
+            where: { signalId: signal.id, capabilityId: m.capabilityId },
+          });
+          enriched.push({
+            matchId: persisted?.id || '',
+            capabilityId: m.capabilityId,
+            capabilityTitle: m.capabilityTitle,
+            category: m.capabilityCategory,
+            serviceLine: null,
+            matchScore: m.matchScore,
+            businessProblem: m.businessProblem,
+            expectedOutcome: m.expectedOutcome,
+            salesAngle: m.salesAngle,
+          });
+        }
       }
     }
 
+    // Sort by matchScore descending and take top 10
+    enriched.sort((a, b) => b.matchScore - a.matchScore);
+
     return {
-      totalMatches: matchResult.totalMatches,
-      highConfidence: matchResult.highConfidence,
-      topMatches: enriched,
+      totalMatches,
+      highConfidence,
+      topMatches: enriched.slice(0, 10),
     };
   }));
 
@@ -464,9 +511,29 @@ Generate a competitive positioning statement. Be specific to this prospect.`,
     return { positioning };
   }));
 
+  // ── Phase B.5: Intelligence Fusion ──
+
+  // Stage 12: Intelligence Fusion (External × Internal = Opportunity Intelligence)
+  // This is a pure-logic stage — NO AI calls. Uses already-persisted data.
+  stages.push(await runStage('intelligence_fusion', async () => {
+    const fusionResult = await FusionEngine.fuse({ companyId });
+    return {
+      totalFusions: fusionResult.totalFusions,
+      highConfidenceFusions: fusionResult.highConfidenceFusions,
+      topFusions: fusionResult.fusionResults.slice(0, 5).map(f => ({
+        fusionType: f.fusionType,
+        fusionScore: f.fusionScore,
+        recommendedCapability: f.recommendedCapability,
+        relevantCaseStudy: f.relevantCaseStudy,
+        businessProblem: f.businessProblem,
+        confidenceScore: f.confidenceScore,
+      })),
+    };
+  }));
+
   // ── Phase C: Strategy Generation ──
 
-  // Stage 12: Win Probability
+  // Stage 13: Win Probability
   stages.push(await runStage('win_probability', async () => {
     const winResult = await CapabilityIntelligenceEngine.calculateWinProbability(companyId);
     return winResult as unknown as Record<string, unknown>;
@@ -596,65 +663,218 @@ ${capabilities.map(c => `- ${c.title} (match: ${Math.round(c.score * 100)}%)`).j
     return { brief };
   }));
 
-  // Stage 16: Persist Strategic Insight + Engagement Strategy
-  stages.push(await runStage('persist_strategy', async () => {
-    // Find the conversation strategy result
+  // Stage 16: PERSIST EVERYTHING — AccountBrief, AccountScore, IntelligenceHealth,
+  // StrategicInsight, AIEngagementStrategy, AIInsight + all stage outputs
+  stages.push(await runStage('persist_all', async () => {
     const convResult = stages.find(s => s.name === 'conversation_strategy')?.result as Record<string, unknown> | null;
     const strat = (convResult?.strategy as Record<string, unknown>) || {};
 
-    // Find the executive brief
     const briefResult = stages.find(s => s.name === 'executive_brief')?.result as Record<string, unknown> | null;
     const brief = (briefResult?.brief as string) || '';
 
-    // Find win probability
     const winResult = stages.find(s => s.name === 'win_probability')?.result as Record<string, unknown> | null;
+    const winProb = typeof winResult?.probability === 'number' ? winResult.probability : 50;
 
-    // Upsert StrategicInsight
+    const actionsResult = stages.find(s => s.name === 'recommended_actions')?.result as Record<string, unknown> | null;
+    const actions = (actionsResult?.actions as Array<Record<string, unknown>>) || [];
+
+    const caseStudyResult = stages.find(s => s.name === 'case_study_matching')?.result as Record<string, unknown> | null;
+    const caseStudies = (caseStudyResult?.matched as Array<Record<string, unknown>>) || [];
+
+    const solutionResult = stages.find(s => s.name === 'solution_matching')?.result as Record<string, unknown> | null;
+    const solutions = (solutionResult?.matched as Array<Record<string, unknown>>) || [];
+
+    const positioningResult = stages.find(s => s.name === 'competitive_positioning')?.result as Record<string, unknown> | null;
+    const positioning = (positioningResult?.positioning as string) || '';
+
+    // ── 16a: Upsert AccountBrief ──
+    const signals = await db.companySignal.findMany({ where: { companyId, status: { in: ['active', 'validated', 'aging'] } }, take: 10 });
+    const evidence = await db.evidence.findMany({ where: { companyId, status: 'active' }, take: 10 });
+    const matches = await db.signalCapabilityMatch.findMany({ where: { companyId }, take: 10, orderBy: { matchScore: 'desc' } });
+
+    await db.accountBrief.upsert({
+      where: { companyId },
+      create: {
+        companyId,
+        summary: brief.slice(0, 2000) || `Pipeline analysis for ${company.rawName}`,
+        accountHealth: winProb >= 70 ? 'high' : winProb >= 40 ? 'medium' : 'low',
+        keySignals: JSON.stringify(signals.slice(0, 5).map(s => ({ signal: s.title, type: s.signalType, confidence: s.confidence }))),
+        themes: JSON.stringify([...new Set(matches.slice(0, 3).map(m => m.businessProblem).filter(Boolean))]),
+        opportunityAreas: JSON.stringify(matches.slice(0, 5).map(m => m.expectedOutcome).filter(Boolean)),
+        risks: JSON.stringify(signals.filter(s => s.severity === 'critical').map(s => s.title)),
+        recommendedEngagement: (strat.openingAngle as string) || (actions[0]?.action as string) || 'Research and discover',
+        evidenceReferences: JSON.stringify(evidence.slice(0, 5).map(e => ({ evidenceId: e.id, snippet: e.snippet.slice(0, 200) }))),
+        confidence: winProb / 100,
+        generatedBy: 'PIPELINE',
+      },
+      update: {
+        summary: brief.slice(0, 2000) || `Pipeline analysis for ${company.rawName}`,
+        accountHealth: winProb >= 70 ? 'high' : winProb >= 40 ? 'medium' : 'low',
+        keySignals: JSON.stringify(signals.slice(0, 5).map(s => ({ signal: s.title, type: s.signalType, confidence: s.confidence }))),
+        themes: JSON.stringify([...new Set(matches.slice(0, 3).map(m => m.businessProblem).filter(Boolean))]),
+        opportunityAreas: JSON.stringify(matches.slice(0, 5).map(m => m.expectedOutcome).filter(Boolean)),
+        risks: JSON.stringify(signals.filter(s => s.severity === 'critical').map(s => s.title)),
+        recommendedEngagement: (strat.openingAngle as string) || (actions[0]?.action as string) || 'Research and discover',
+        evidenceReferences: JSON.stringify(evidence.slice(0, 5).map(e => ({ evidenceId: e.id, snippet: e.snippet.slice(0, 200) }))),
+        confidence: winProb / 100,
+        generatedBy: 'PIPELINE',
+      },
+    });
+
+    // ── 16b: Upsert AccountScore ──
+    const scoreCategory = winProb >= 75 ? 'HOT_ACCOUNT' : winProb >= 50 ? 'WARM_ACCOUNT' : winProb >= 25 ? 'NURTURE' : 'AT_RISK';
+    await db.accountScore.upsert({
+      where: { companyId },
+      create: {
+        companyId,
+        score: winProb,
+        scoreBreakdown: JSON.stringify({
+          intelligenceCoverage: signals.length > 0 ? Math.min(100, signals.length * 15) : 0,
+          signalStrength: signals.reduce((a: number, s: any) => a + s.confidence, 0) / Math.max(1, signals.length) * 100,
+          freshness: evidence.length > 0 ? 80 : 20,
+          strategicFit: matches.length > 0 ? matches.reduce((a: number, m: any) => a + m.matchScore, 0) / matches.length * 100 : 0,
+          overallScore: winProb,
+        }),
+        category: scoreCategory,
+      },
+      update: {
+        score: winProb,
+        scoreBreakdown: JSON.stringify({
+          intelligenceCoverage: signals.length > 0 ? Math.min(100, signals.length * 15) : 0,
+          signalStrength: signals.reduce((a: number, s: any) => a + s.confidence, 0) / Math.max(1, signals.length) * 100,
+          freshness: evidence.length > 0 ? 80 : 20,
+          strategicFit: matches.length > 0 ? matches.reduce((a: number, m: any) => a + m.matchScore, 0) / matches.length * 100 : 0,
+          overallScore: winProb,
+        }),
+        category: scoreCategory,
+      },
+    });
+
+    // ── 16c: Upsert CompanyIntelligenceHealth ──
+    const totalContacts = await db.contact.count({ where: { companyId } });
+    const filledFields = [company.domain, company.industry, company.sizeRange, company.country, company.website, company.location].filter(Boolean).length;
+    const dataCompleteness = Math.round((filledFields / 6) * 100);
+    const signalCoverage = signals.length > 0 ? Math.min(100, signals.length * 20) : 0;
+    const evidenceCoverage = evidence.length > 0 ? Math.min(100, evidence.length * 15) : 0;
+    const contactCoverage = totalContacts > 0 ? Math.min(100, totalContacts * 15) : 0;
+    const overallHealth = Math.round((dataCompleteness + signalCoverage + evidenceCoverage + contactCoverage) / 4);
+
+    await db.companyIntelligenceHealth.upsert({
+      where: { companyId },
+      create: {
+        companyId,
+        dataCompletenessScore: dataCompleteness,
+        signalCoverageScore: signalCoverage,
+        evidenceCoverageScore: evidenceCoverage,
+        contactCoverageScore: contactCoverage,
+        overallHealthScore: overallHealth,
+        totalSignals: signals.length,
+        activeSignals: signals.filter(s => ['active', 'validated'].includes(s.status)).length,
+        totalEvidence: evidence.length,
+        activeEvidence: evidence.filter(e => e.status === 'active').length,
+        totalContacts,
+        filledFields,
+        fieldCoverage: JSON.stringify({ domain: !!company.domain, industry: !!company.industry, sizeRange: !!company.sizeRange, country: !!company.country, website: !!company.website, location: !!company.location }),
+      },
+      update: {
+        dataCompletenessScore: dataCompleteness,
+        signalCoverageScore: signalCoverage,
+        evidenceCoverageScore: evidenceCoverage,
+        contactCoverageScore: contactCoverage,
+        overallHealthScore: overallHealth,
+        totalSignals: signals.length,
+        activeSignals: signals.filter(s => ['active', 'validated'].includes(s.status)).length,
+        totalEvidence: evidence.length,
+        activeEvidence: evidence.filter(e => e.status === 'active').length,
+        totalContacts,
+        filledFields,
+        fieldCoverage: JSON.stringify({ domain: !!company.domain, industry: !!company.industry, sizeRange: !!company.sizeRange, country: !!company.country, website: !!company.website, location: !!company.location }),
+      },
+    });
+
+    // ── 16d: Upsert StrategicInsight (existing) ──
     const insight = await db.strategicInsight.create({
       data: {
         companyId,
         insightType: 'OPPORTUNITY',
-        summary: `Pipeline complete for ${company.rawName}. ${company.signals?.length || 0} signals detected, ${company.signalCapabilityMatches?.length || 0} capability matches found.`,
-        confidenceScore: typeof winResult?.probability === 'number' ? Math.round(winResult.probability) : 50,
+        summary: `Pipeline complete for ${company.rawName}. ${signals.length} signals, ${matches.length} matches, win prob ${Math.round(winProb)}%.`,
+        confidenceScore: Math.round(winProb),
         generatedBy: 'PIPELINE',
-        keyThemes: JSON.stringify(['pipeline_run', 'dual_intelligence']),
+        keyThemes: JSON.stringify(['pipeline_run', 'dual_intelligence', 'account_brief', 'account_score']),
       },
     });
 
-    // Upsert AIEngagementStrategy
+    // ── 16e: Upsert AIEngagementStrategy (existing + enriched) ──
     await db.aIEngagementStrategy.create({
       data: {
         companyId,
         strategicInsightId: insight.id,
-        conversationAngles: JSON.stringify((strat.talkingPoints as string[]) || []),
-        situationAssessment: JSON.stringify({ stage: 'pipeline_generated' }),
-        riskFactors: JSON.stringify((strat.objectionHandling as string[]) || []),
+        conversationAngles: JSON.stringify({
+          talkingPoints: (strat.talkingPoints as string[]) || [],
+          openingAngle: strat.openingAngle || null,
+          objectionHandling: (strat.objectionHandling as string[]) || [],
+          recommendedApproach: strat.recommendedApproach || 'email',
+        }),
+        situationAssessment: JSON.stringify({
+          stage: 'pipeline_generated',
+          caseStudies: caseStudies.slice(0, 3).map(c => ({ id: c.id, title: c.title, score: c.score })),
+          solutions: solutions.slice(0, 5).map(s => ({ id: s.id, title: s.title, score: s.score })),
+          competitivePositioning: positioning,
+          recommendedActions: actions.slice(0, 5).map(a => ({ action: a.action, priority: a.priority, timeline: a.timeline })),
+        }),
+        riskFactors: JSON.stringify(signals.filter(s => s.severity === 'critical').map(s => ({ signal: s.title, severity: s.severity }))),
         recommendedEntry: JSON.stringify({ approach: strat.recommendedApproach || 'email' }),
         firstMeetingObjective: 'discovery',
         generatedBy: 'PIPELINE',
       },
     });
 
-    // Create AI Insight for the pipeline run
+    // ── 16f: Create AIInsight with full evidence chain ──
     await createInsight({
       companyId,
       type: 'RECOMMENDATION',
       title: `Full Pipeline Complete: ${company.rawName}`,
-      description: `20-stage intelligence pipeline completed. ${stages.filter(s => s.status === 'completed').length}/${stages.length} stages succeeded. Win probability: ${typeof winResult?.probability === 'number' ? Math.round(winResult.probability) + '%' : 'N/A'}.`,
-      evidence: stages.filter(s => s.status === 'completed').slice(0, 5).map(s => ({
-        source: 'pipeline',
-        snippet: `Stage ${s.name}: completed in ${s.durationMs}ms`,
-        reliability: 0.9,
-      })),
-      confidenceScore: 80,
-      impactScore: 70,
-      urgencyScore: 50,
-      recommendedAction: 'Review capability matches and executive brief. Prioritize high-score opportunities.',
+      description: `Intelligence pipeline completed. ${stages.filter(s => s.status === 'completed').length}/${stages.length} stages succeeded. Win probability: ${Math.round(winProb)}%. Score: ${scoreCategory}.`,
+      evidence: [
+        ...stages.filter(s => s.status === 'completed').slice(0, 5).map(s => ({
+          source: 'pipeline',
+          snippet: `Stage ${s.name}: completed in ${s.durationMs}ms`,
+          reliability: 0.9,
+        })),
+        ...(signals.slice(0, 3).map(s => ({
+          source: 'signal',
+          snippet: `[${s.signalType}] ${s.title} (confidence: ${s.confidence})`,
+          reliability: s.confidence,
+        })) as Array<{ source: string; snippet: string; reliability: number }>),
+        ...(matches.slice(0, 3).map(m => ({
+          source: 'capability_match',
+          snippet: `Match: ${m.capabilityId} (score: ${m.matchScore}) — ${m.reason || ''}`,
+          reliability: m.matchScore,
+        })) as Array<{ source: string; snippet: string; reliability: number }>),
+      ],
+      confidenceScore: Math.round(winProb),
+      impactScore: Math.round(winProb * 0.8),
+      urgencyScore: signals.some(s => s.severity === 'critical') ? 90 : signals.some(s => s.severity === 'high') ? 70 : 40,
+      recommendedAction: (actions[0]?.action as string) || 'Review capability matches and executive brief.',
+      reasoning: `Win probability ${Math.round(winProb)}% based on ${signals.length} signals, ${matches.length} capability matches, ${evidence.length} evidence records, ${totalContacts} contacts. Category: ${scoreCategory}.`,
       sourceType: 'pipeline',
       sourceRoute: '/api/intelligence/full-pipeline',
     });
 
-    return { insightId: insight.id, persisted: true };
+    // ── 16g: Update Company.intelligenceScore ──
+    await db.company.update({
+      where: { id: companyId },
+      data: { intelligenceScore: Math.round(winProb) },
+    });
+
+    return {
+      accountBriefCreated: true,
+      accountScoreCreated: true,
+      intelligenceHealthCreated: true,
+      strategicInsightId: insight.id,
+      persisted: true,
+      scoreCategory,
+    };
   }));
 
   // ── Build final response ──
@@ -672,8 +892,24 @@ ${capabilities.map(c => `- ${c.title} (match: ${Math.round(c.score * 100)}%)`).j
   const convResult = stages.find(s => s.name === 'conversation_strategy')?.result as Record<string, unknown> | null;
   const briefResult = stages.find(s => s.name === 'executive_brief')?.result as Record<string, unknown> | null;
   const winResult = stages.find(s => s.name === 'win_probability')?.result as Record<string, unknown> | null;
+  const fusionStageResult = stages.find(s => s.name === 'intelligence_fusion')?.result as Record<string, unknown> | null;
 
-  const pipelineRun: PipelineRun = {
+  // ── Update PipelineRun record ──
+  await db.pipelineRun.update({
+    where: { id: pipelineRun.id },
+    data: {
+      status: failedStages > 0 ? 'partial' : 'completed',
+      completedStages,
+      failedStages,
+      skippedStages,
+      stageResults: JSON.stringify(stages.map(s => ({ name: s.name, status: s.status, durationMs: s.durationMs, error: s.error }))),
+      durationMs: Date.now() - pipelineStart,
+      completedAt: new Date(),
+      aiCallsMade: stages.filter(s => ['case_study_matching', 'solution_matching', 'competitive_positioning', 'win_probability', 'recommended_actions', 'conversation_strategy', 'executive_brief'].includes(s.name)).length,
+    },
+  }).catch(() => { /* non-blocking */ });
+
+  const pipelineResponse: PipelineRun = {
     id: pipelineId,
     companyId,
     totalStages: stages.length,
@@ -688,7 +924,7 @@ ${capabilities.map(c => `- ${c.title} (match: ${Math.round(c.score * 100)}%)`).j
     success: true,
     companyId,
     companyName: company.rawName,
-    pipelineRun,
+    pipelineRun: pipelineResponse,
     accountStrategy: {
       capabilityMatches: capMatchResult || {},
       caseStudies: caseStudyResult || {},
@@ -698,6 +934,7 @@ ${capabilities.map(c => `- ${c.title} (match: ${Math.round(c.score * 100)}%)`).j
       conversationStrategy: convResult?.strategy || {},
       executiveBrief: briefResult?.brief || '',
       winProbability: winResult || {},
+      intelligenceFusion: fusionStageResult || {},
     },
   });
 }

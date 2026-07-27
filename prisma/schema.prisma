@@ -141,6 +141,10 @@ model Company {
   agentOrchestrations      AgentOrchestration[]
   learningEvents          LearningEvent[]
 
+  // Phase 10: Pipeline Tracking & Fusion
+  pipelineRuns             PipelineRun[]
+  fusionResults            FusionResult[]
+
   @@index([domain])
   @@index([normalizedName])
   @@index([industry])
@@ -2325,4 +2329,141 @@ model KnowledgeChunk {
   @@index([embeddingId])
   @@index([contentHash])
   @@unique([documentId, chunkIndex])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PHASE 9: PIPELINE EXECUTION TRACKING & COST ACCOUNTING
+// ═══════════════════════════════════════════════════════════════════════
+
+// Stores the execution record of every pipeline run for a company.
+// Enables cost tracking, dedup detection, and performance monitoring.
+
+model PipelineRun {
+  id                String   @id @default(cuid())
+  companyId         String
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Execution metadata
+  pipelineType      String   @default("full")       // full | enrich | capability_only | fusion
+  status            String   @default("running")    // running | completed | failed | partial
+
+  // Stage tracking
+  totalStages       Int      @default(16)
+  completedStages  Int      @default(0)
+  failedStages      Int      @default(0)
+  skippedStages     Int      @default(0)
+
+  // Stage results (JSON: StageResult[])
+  stageResults      String   @default("[]")
+
+  // Cost tracking
+  aiCallsMade       Int      @default(0)
+  tavilyCallsMade   Int      @default(0)
+  embeddingCallsMade Int    @default(0)
+  estimatedCostUsd  Float    @default(0)
+  totalTokensUsed   Int      @default(0)
+
+  // Timing
+  startedAt         DateTime @default(now())
+  completedAt       DateTime?
+  durationMs        Int?
+
+  // Output references
+  accountBriefId    String?
+  accountScoreId    String?
+  strategicInsightId String?
+
+  @@index([companyId])
+  @@index([status])
+  @@index([startedAt])
+  @@index([companyId, startedAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PHASE 10: INTELLIGENCE FUSION LAYER
+// ═══════════════════════════════════════════════════════════════════════
+
+// Records the fusion of external intelligence (signals, evidence) with
+// internal intelligence (capabilities, case studies) to produce opportunity intelligence.
+// This is the "external × internal = opportunity" equation.
+
+model FusionResult {
+  id                String   @id @default(cuid())
+  companyId         String
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // What was fused
+  signalIds         String   @default("[]")    // JSON: string[]
+  capabilityIds     String   @default("[]")    // JSON: string[]
+  evidenceIds       String   @default("[]")    // JSON: string[]
+
+  // Fusion output
+  fusionType        String                     // signal_capability | evidence_case_study | signal_solution | full_fusion
+  fusionScore       Float    @default(0)       // 0-1 overall alignment score
+  businessProblem   String?                     // identified business problem
+  recommendedCapability String?                // which capability to position
+  relevantCaseStudy String?                   // which case study to reference
+  proofPoints       String   @default("[]")    // JSON: string[] — supporting proof points
+
+  // Explainability
+  reasoningChain    String   @default("[]")    // JSON: { step, input, output, confidence }[]
+  confidenceScore   Float    @default(0)       // 0-1
+  evidenceStrength  Float    @default(0)       // 0-1
+
+  // Status
+  status            String   @default("active") // active | consumed | expired
+  expiresAt         DateTime?
+
+  createdAt         DateTime @default(now())
+
+  @@index([companyId])
+  @@index([fusionType])
+  @@index([fusionScore])
+  @@index([status])
+  @@index([companyId, fusionType])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PHASE 11: AI COST TRACKING & BUDGET
+// ═══════════════════════════════════════════════════════════════════════
+
+// Tracks every AI call for cost accounting and budget enforcement.
+
+model AICallLog {
+  id                String   @id @default(cuid())
+
+  // What was called
+  provider          String                     // gemini | groq | zai | nvidia
+  model             String                     // specific model name
+  tier              String                     // deep | smart | fast
+  genType           String                     // company_enrichment | capability_matching | etc.
+
+  // Attribution
+  companyId         String?
+  contactId         String?
+  pipelineRunId     String?
+
+  // Token usage
+  promptTokens      Int      @default(0)
+  completionTokens  Int      @default(0)
+  totalTokens       Int      @default(0)
+
+  // Cost
+  estimatedCostUsd  Float    @default(0)
+
+  // Outcome
+  success           Boolean  @default(true)
+  error             String?
+  durationMs        Int?
+
+  // Cache
+  wasCached         Boolean  @default(false)
+
+  createdAt         DateTime @default(now())
+
+  @@index([companyId])
+  @@index([genType])
+  @@index([provider])
+  @@index([createdAt])
+  @@index([companyId, createdAt])
 }

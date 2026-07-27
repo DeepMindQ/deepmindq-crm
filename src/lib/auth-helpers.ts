@@ -21,6 +21,7 @@ export const PUBLIC_PATH_PREFIXES: string[] = [
   '/api/webhooks/',       // Incoming webhooks (Stripe, etc.)
   '/api/seed',            // Seed data
   '/login',
+  '/demo',                // Investor demo landing page
   '/favicon.ico',
   '/_next/static',
   '/_next/image',

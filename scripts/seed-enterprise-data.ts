@@ -1,197 +1,714 @@
+/**
+ * Enterprise Demo Dataset Seeding Script
+ * ======================================
+ * Creates a realistic enterprise-scale dataset for Phase D validation:
+ *   - 100 companies across 6 industries
+ *   - 500+ contacts with diverse roles/seniorities
+ *   - 1000+ signals across all signal types
+ *   - 200+ evidence records
+ *   - 30+ opportunities with capability matches
+ *   - 10 capability assets
+ *
+ * Usage: npx tsx scripts/seed-enterprise-data.ts
+ */
+
 import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
-function makeId() { return Math.random().toString(36).substring(2, 15) + Date.now().toString(36); }
-function daysAgo(n: number) { return new Date(Date.now() - n * 86400000); }
-function rand(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
 
-const INDUSTRIES = ['Banking & Financial Services','Insurance','Manufacturing','Healthcare & Pharma','Government & Public Sector','Technology'];
+const db = new PrismaClient();
 
-const COMPANY_NAMES: Record<string, string[]> = {
-  'Banking & Financial Services': ['Meridian Capital Bank','Atlas National Financial','Pacific Trust Holdings','Sterling Commercial Bank','Apex Financial Group','Continental Banking Corp','Harborside Financial','Ironwood Capital','Northstar Banking','Crescent Valley Bank','Summit Financial Services','Redwood National Bank','Coastal Commerce Bank','Evergreen Financial','Liberty Trust Corporation','Silver Lake Banking','Cascadia Financial','Prairie National Bank','Blue Ridge Capital','Grandview Financial'],
-  'Insurance': ['Sentinel Insurance Group','Guardian Shield Insurance','Prudential Life Insurance','Atlas Casualty Group','Pacific Coast Insurance','Heritage Life Insurance','Pinnacle Insurance Corp','Cornerstone Insurance','Liberty Mutual Re','Monarch Insurance Holdings','Atlas Reinsurance','Evergreen Casualty','Summit Insurance Group','Sterling Life Insurance','Continental Insurance'],
-  'Manufacturing': ['Titan Industries','Precision Manufacturing Corp','Atlas Heavy Industries','Cascadia Manufacturing','Summit Industrial','Ironworks Manufacturing','Pacific Steel Corp','Meridian Aerospace','Liberty Electronics','Coastal Industrial','Redwood Manufacturing','Northstar Engineering','Evergreen Industrial','Silver Lake Precision','Blue Ridge Manufacturing'],
-  'Healthcare & Pharma': ['Meridian Health Systems','Pacific Health Corp','Atlas Pharmaceuticals','Sentinel Healthcare','Cascadia Health','Summit Medical Center','Guardian Pharma','Pinnacle Health Systems','Heritage BioPharma','Continental Healthcare','Northstar Medical','Evergreen Pharma','Silver Lake Health','Blue Ridge Health Systems','Redwood Medical Center'],
-  'Government & Public Sector': ['Federal Technology Agency','Department of Digital Services','National Data Authority','State of Cascadia IT','Metro Government Services','Federal Cloud Initiative','National Cybersecurity Center','State Digital Transformation Office','Federal Health IT Agency','Metro Data Analytics Office','National Infrastructure Authority','State Compliance Agency','Federal Intelligence Systems','Metro Citizen Services','National Records Administration'],
-  'Technology': ['Nexus Cloud Platform','Quantum Data Systems','Atlas AI Corporation','Sentinel Cybersecurity','Cascadia Software','Summit AI Labs','Ironcloud Infrastructure','Pacific Data Corp','Meridian Tech Solutions','Liberty Cloud Services','Coastal Analytics','Redwood Systems','Northstar AI','Evergreen Software','Silver Lake Technologies'],
+// ─── Industry Data ─────────────────────────────────────────────────────────
+
+const INDUSTRIES = [
+  'Financial Services',
+  'Healthcare',
+  'SaaS / Technology',
+  'Manufacturing',
+  'Retail / E-Commerce',
+  'Energy / Utilities',
+] as const;
+
+const COMPANY_TEMPLATES: Record<string, { prefix: string; domains: string[]; sizes: string[]; locations: string[] }> = {
+  'Financial Services': {
+    prefix: 'Fin',
+    domains: ['capitalone.com', 'jpmorgan.com', 'goldmansachs.com', 'fidelity.com', 'mastercard.com',
+      'stripe.com', 'plaid.com', 'robinhood.com', 'sofi.com', 'chime.com',
+      'bnymellon.com', 'blackrock.com', 'visa.com', 'paypal.com', 'intuit.com', 'adp.com'],
+    sizes: ['1001-5000', '5001-10000', '10001+'],
+    locations: ['New York, NY', 'San Francisco, CA', 'Charlotte, NC', 'Chicago, IL', 'London, UK'],
+  },
+  'Healthcare': {
+    prefix: 'Med',
+    domains: ['epic.com', 'cerner.com', 'athenahealth.com', 'vareva.com', 'phreesia.com',
+      'tempus.com', 'flatiron.com', 'verily.com', 'color.com', '23andme.com',
+      'unitedhealth.com', 'cvshealth.com', 'labcorp.com', 'questdiagnostics.com', 'biogen.com', 'moderna.com'],
+    sizes: ['501-1000', '1001-5000', '5001-10000'],
+    locations: ['Boston, MA', 'San Francisco, CA', 'Minneapolis, MN', 'Nashville, TN', 'Philadelphia, PA'],
+  },
+  'SaaS / Technology': {
+    prefix: 'Tech',
+    domains: ['snowflake.com', 'databricks.com', 'confluent.io', 'hashicorp.com', 'datadog.com',
+      'gitlab.com', 'circleci.com', 'launchdarkly.com', 'segment.com', 'twilio.com',
+      'slack.com', 'asana.com', 'notion.so', 'figma.com', 'canva.com', 'zoom.us'],
+    sizes: ['51-200', '201-500', '501-1000', '1001-5000'],
+    locations: ['San Francisco, CA', 'Seattle, WA', 'Austin, TX', 'New York, NY', 'Denver, CO'],
+  },
+  'Manufacturing': {
+    prefix: 'Mfg',
+    domains: ['siemens.com', 'ge.com', 'honeywell.com', 'rockwellautomation.com', 'ptc.com',
+      'fanuc.com', 'abb.com', 'schneider-electric.com', 'dassault.com', 'ansys.com',
+      'cat.com', 'deere.com', 'boeing.com', 'lockheedmartin.com', 'northropgrumman.com', 'rtx.com'],
+    sizes: ['5001-10000', '10001+'],
+    locations: ['Detroit, MI', 'Chicago, IL', 'Atlanta, GA', 'Houston, TX', 'Cincinnati, OH'],
+  },
+  'Retail / E-Commerce': {
+    prefix: 'Retail',
+    domains: ['shopify.com', 'stripe.com', 'bigcommerce.com', 'salesforce.com', 'adobe.com',
+      'amazon.com', 'walmart.com', 'target.com', 'ebay.com', 'etsy.com',
+      'wayfair.com', 'chewy.com', 'instacart.com', 'doordash.com', 'uber.com', 'airbnb.com'],
+    sizes: ['1001-5000', '5001-10000', '10001+'],
+    locations: ['New York, NY', 'San Francisco, CA', 'Seattle, WA', 'Austin, TX', 'Chicago, IL'],
+  },
+  'Energy / Utilities': {
+    prefix: 'Energy',
+    domains: ['nexteraenergy.com', 'exelon.com', 'dominionenergy.com', 'duke-energy.com', 'southernco.com',
+      'shell.com', 'bp.com', 'equinor.com', 'vestas.com', 'ensenada.com',
+      'ge.com', 'schneider-electric.com', 'siemens-energy.com', 'hitachienergy.com', 'powin.com', 'fluence.com'],
+    sizes: ['1001-5000', '5001-10000', '10001+'],
+    locations: ['Houston, TX', 'Denver, CO', 'Atlanta, GA', 'Charlotte, NC', 'Phoenix, AZ'],
+  },
 };
 
-const SIGNALS_BY_INDUSTRY: Record<string, string[]> = {
-  'Banking & Financial Services': ['Cloud migration to AWS/Azure announced','Core banking system modernization RFP','AI fraud detection platform evaluation','Open banking API initiative launched','Hired VP of Digital Banking','New CIO appointed','Cybersecurity audit triggered','$200M digital transformation budget','Data lake consolidation project','Mobile banking platform upgrade','Regulatory compliance automation','Blockchain pilot for payments','Risk management platform RFP','Customer 360 initiative started','Hired 40 cloud engineers','New Head of Data Analytics','Real-time payments upgrade','Hired Chief Data Officer'],
-  'Insurance': ['Claims automation platform evaluation','AI-powered underwriting initiative','Legacy system modernization plan','Hired VP Claims Technology','New CTO from insurtech','Telematics platform expansion','Regulatory reporting automation','Customer portal modernization RFP','Hired Head of Actuarial Data Science','Cloud infrastructure migration','Data warehouse modernization','Fraud detection AI pilot','$150M technology investment','New VP Digital Customer Experience','Expanded data engineering team'],
-  'Manufacturing': ['Industry 4.0 digital transformation','IoT platform for predictive maintenance','SAP S/4HANA migration','Supply chain digitization','Hired VP Smart Manufacturing','New CTO appointed','Robotics automation expansion','Quality management system upgrade','Digital twin implementation','ERP cloud migration RFP','Hired 30 data engineers','Energy management optimization','Shop floor analytics platform','Hired Head of Operational Technology','Cybersecurity assessment for OT'],
-  'Healthcare & Pharma': ['EHR system interoperability upgrade','AI diagnostic platform evaluation','Telehealth platform expansion','Hired VP Clinical Informatics','HIPAA compliance automation','Precision medicine data platform','Revenue cycle modernization','Patient engagement platform RFP','Hired Chief Data Officer','Cloud migration for PHI workloads','Clinical trial management upgrade','Population health analytics','Hired Head of Health IT Security','Drug discovery AI platform'],
-  'Government & Public Sector': ['FedRAMP cloud migration','Zero-trust cybersecurity implementation','Data center consolidation','Hired Deputy CIO','Citizen services digital transformation','AI-powered fraud detection','Open data platform','Hired Chief Data Officer','Legacy system modernization RFP','Cybersecurity workforce expansion','Hired 20 cloud security engineers','Interagency data sharing platform'],
-  'Technology': ['Kubernetes platform migration','AI/ML infrastructure buildout','Hired VP AI/ML Engineering','Data mesh architecture adoption','Microservices decomposition','New CTO hired from FAANG','Hired 60 platform engineers','Observability platform upgrade','Edge computing deployment','Real-time analytics platform','Hired Head of Platform Engineering','$300M Series E raised','Security posture improvement'],
+const CONTACT_ROLES: Record<string, { roles: string[]; seniorities: string[] }> = {
+  'Financial Services': {
+    roles: ['Chief Information Officer', 'Chief Technology Officer', 'Chief Data Officer', 'VP of Engineering', 'VP of Digital Transformation',
+      'Director of Data Analytics', 'Head of Cloud Architecture', 'Director of Cybersecurity', 'Head of Risk Technology', 'VP of Operations'],
+    seniorities: ['c_suite', 'c_suite', 'c_suite', 'vp', 'vp', 'director', 'director', 'director', 'director', 'vp'],
+  },
+  'Healthcare': {
+    roles: ['Chief Information Officer', 'Chief Technology Officer', 'VP of Engineering', 'Director of Health IT',
+      'Head of Data Science', 'Chief Digital Officer', 'Director of Clinical Informatics', 'VP of Innovation',
+      'Head of Interoperability', 'Director of Compliance Technology'],
+    seniorities: ['c_suite', 'c_suite', 'vp', 'director', 'director', 'c_suite', 'director', 'vp', 'director', 'director'],
+  },
+  'SaaS / Technology': {
+    roles: ['Chief Technology Officer', 'VP of Engineering', 'Head of Platform', 'Director of Infrastructure',
+      'VP of Product', 'Head of DevOps', 'Staff Engineer', 'Engineering Manager', 'Principal Architect', 'VP of Security'],
+    seniorities: ['c_suite', 'vp', 'director', 'director', 'vp', 'director', 'individual', 'manager', 'director', 'vp'],
+  },
+  'Manufacturing': {
+    roles: ['Chief Digital Officer', 'VP of Manufacturing Technology', 'Director of Industrial IoT',
+      'Head of Supply Chain Analytics', 'VP of Operations', 'Director of Quality Systems',
+      'Head of Automation', 'Chief Information Officer', 'VP of Engineering', 'Director of ERP Systems'],
+    seniorities: ['c_suite', 'vp', 'director', 'director', 'vp', 'director', 'director', 'c_suite', 'vp', 'director'],
+  },
+  'Retail / E-Commerce': {
+    roles: ['Chief Technology Officer', 'VP of E-Commerce', 'Head of Data Analytics', 'Director of Supply Chain',
+      'VP of Digital', 'Chief Marketing Officer', 'Director of Customer Experience', 'Head of AI/ML',
+      'VP of Operations', 'Director of Mobile Engineering'],
+    seniorities: ['c_suite', 'vp', 'director', 'director', 'vp', 'c_suite', 'director', 'director', 'vp', 'director'],
+  },
+  'Energy / Utilities': {
+    roles: ['Chief Information Officer', 'VP of Grid Technology', 'Director of Smart Grid',
+      'Head of Renewable Analytics', 'Chief Sustainability Officer', 'VP of Engineering',
+      'Director of SCADA Systems', 'Head of Cybersecurity', 'VP of Operations', 'Director of Asset Management'],
+    seniorities: ['c_suite', 'vp', 'director', 'director', 'c_suite', 'vp', 'director', 'director', 'vp', 'director'],
+  },
 };
 
-const TITLES_BY_INDUSTRY: Record<string, string[]> = {
-  'Banking & Financial Services': ['CIO','CTO','VP Digital Transformation','VP Engineering','Head of Data','Chief Data Officer','CISO','VP Risk Management','Head of Compliance','VP Digital Channels','Director of Core Banking','Head of API Platform'],
-  'Insurance': ['CTO','VP Claims Technology','Head of Data Analytics','CISO','VP Digital Transformation','Chief Actuary','VP Underwriting Technology','Head of IT Infrastructure','Director of Data Engineering','VP Customer Experience'],
-  'Manufacturing': ['VP Engineering','CTO','Head of Operations','VP Supply Chain','Director of Manufacturing IT','VP Quality','Head of Operational Technology','Director of IoT','VP Plant Operations','Head of Digital Manufacturing','CIO','VP Enterprise Architecture'],
-  'Healthcare & Pharma': ['CIO','VP Clinical Informatics','Chief Data Officer','VP Revenue Cycle','Head of Interoperability','CISO','Director of Health Analytics','VP Digital Health','Head of Precision Medicine','VP IT Infrastructure'],
-  'Government & Public Sector': ['CTO','Deputy CIO','Program Manager IT','Chief Data Officer','Cybersecurity Director','Director of Cloud Services','Head of Enterprise Architecture','VP of Digital Services','IT Security Manager','Director of Data Analytics'],
-  'Technology': ['CTO','VP Engineering','VP Product','Head of AI/ML','CISO','VP Sales Engineering','Director of Platform','Head of DevOps','VP Infrastructure','Chief Architect'],
+const FIRST_NAMES = [
+  'Sarah', 'Michael', 'Jennifer', 'David', 'Lisa', 'James', 'Maria', 'Robert', 'Patricia', 'John',
+  'Emily', 'William', 'Amanda', 'Richard', 'Jessica', 'Thomas', 'Ashley', 'Daniel', 'Stephanie', 'Christopher',
+  'Rachel', 'Andrew', 'Nicole', 'Kevin', 'Lauren', 'Brian', 'Michelle', 'Jason', 'Kimberly', 'Ryan',
+  'Samantha', 'Nathan', 'Elizabeth', 'Marcus', 'Olivia', 'Alex', 'Megan', 'Jordan', 'Taylor', 'Priya',
+  'Arjun', 'Wei', 'Yuki', 'Carlos', 'Fatima', 'Aisha', 'Kofi', 'Omar', 'Vikram', 'Deepa',
+];
+
+const LAST_NAMES = [
+  'Johnson', 'Williams', 'Chen', 'Patel', 'Anderson', 'Kim', 'Garcia', 'Martinez', 'Brown', 'Davis',
+  'Wilson', 'Taylor', 'Thomas', 'Moore', 'Jackson', 'White', 'Harris', 'Thompson', 'Lee', 'Clark',
+  'Robinson', 'Lewis', 'Walker', 'Hall', 'Allen', 'Young', 'King', 'Wright', 'Scott', 'Torres',
+  'Nguyen', 'Hill', 'Flores', 'Green', 'Adams', 'Baker', 'Gonzalez', 'Nelson', 'Carter', 'Mitchell',
+  'Perez', 'Roberts', 'Turner', 'Phillips', 'Campbell', 'Parker', 'Evans', 'Edwards', 'Collins', 'Stewart',
+];
+
+const SIGNAL_TYPES = ['funding', 'hiring', 'leadership_change', 'tech_change', 'news', 'mention', 'partnership', 'expansion'] as const;
+
+const SIGNAL_TEMPLATES: Record<string, { titles: string[]; descriptions: string[]; severities: string[]; businessImpacts: string[]; recommendedActions: string[]; timingWindows: string[]; meaningCategories: string[] }> = {
+  funding: {
+    titles: [
+      'raises $50M Series C to expand platform',
+      'closes $120M growth round led by Sequoia',
+      'secures $25M Series B for market expansion',
+      'raises $80M at $500M valuation',
+      'closes $200M funding round for AI initiatives',
+    ],
+    descriptions: [
+      'Company has raised significant capital for growth initiatives, indicating budget availability for technology investments.',
+      'Growth funding signals expansion plans and openness to new vendor relationships.',
+      'Series funding validates business model and creates technology modernization budget.',
+    ],
+    severities: ['medium', 'high'],
+    businessImpacts: [
+      'High — newly funded companies actively seek technology solutions to deploy capital effectively',
+      'Medium — funding provides budget runway for vendor evaluation and procurement',
+    ],
+    recommendedActions: [
+      'Position solution as a capital-efficient way to accelerate their growth mandate within 30 days',
+      'Schedule executive discussion to understand their deployment priorities for the new capital',
+    ],
+    timingWindows: ['within_30_days', 'within_7_days'],
+    meaningCategories: ['budget_available', 'growth_pressure'],
+  },
+  hiring: {
+    titles: [
+      'hiring 25 engineers for cloud platform team',
+      'posted 15 new roles in data engineering',
+      'expanding AI/ML team with 20 new hires',
+      'hiring VP of Engineering to lead digital transformation',
+      'opening new R&D center with 50 positions',
+    ],
+    descriptions: [
+      'Rapid team expansion indicates growth phase and technology investment priorities.',
+      'Hiring signals operational scaling needs — tools and platforms must keep pace.',
+    ],
+    severities: ['medium', 'low'],
+    businessImpacts: [
+      'Medium — growing teams need scalable platforms and automation tools',
+      'Low — hiring signals long-term growth but may not have immediate budget pressure',
+    ],
+    recommendedActions: [
+      'Position as a scaling enabler that grows with their team — outreach to hiring manager',
+      'Research their growth plans and propose automation that multiplies team productivity',
+    ],
+    timingWindows: ['within_30_days', 'within_90_days'],
+    meaningCategories: ['growth_pressure', 'tech_dissatisfaction'],
+  },
+  leadership_change: {
+    titles: [
+      'appoints new Chief Information Officer',
+      'names new VP of Engineering from Google',
+      'hires Chief Data Officer to lead AI strategy',
+      'promotes VP of Digital Transformation to COO',
+      'brings in new CTO to modernize platform',
+    ],
+    descriptions: [
+      'New executive leadership often reassesses vendor relationships within first 90 days. This is a prime engagement window.',
+      'Leadership change creates opportunity for fresh vendor evaluation and relationship reset.',
+    ],
+    severities: ['high', 'critical'],
+    businessImpacts: [
+      'High — new executives actively seek trusted technology partners and reassess existing vendor landscape',
+      'Critical — C-level change signals strategic pivot, creating vendor evaluation window',
+    ],
+    recommendedActions: [
+      'Research new executive background, craft personalized introduction within 7 days',
+      'Map shared connections and prepare case study materials aligned to their likely priorities',
+    ],
+    timingWindows: ['within_7_days', 'within_30_days'],
+    meaningCategories: ['leadership_openness', 'vendor_evaluation'],
+  },
+  tech_change: {
+    titles: [
+      'announces migration to Azure AI platform',
+      'adopts Kubernetes for container orchestration',
+      'launches data lake modernization initiative',
+      'implements zero-trust security architecture',
+      'begins SAP S/4HANA migration project',
+    ],
+    descriptions: [
+      'Technology migration signals dissatisfaction with current solutions and openness to complementary tools.',
+      'Major platform changes create integration needs and consulting opportunities.',
+    ],
+    severities: ['high', 'medium'],
+    businessImpacts: [
+      'High — technology migration creates immediate integration and consulting opportunities',
+      'Medium — platform change signals long-term architecture evolution and vendor reassessment',
+    ],
+    recommendedActions: [
+      'Lead with technical value proposition targeting the architecture team within 14 days',
+      'Position integration expertise relevant to their chosen platform — prepare technical discovery call',
+    ],
+    timingWindows: ['within_14_days', 'within_30_days'],
+    meaningCategories: ['tech_dissatisfaction', 'vendor_evaluation'],
+  },
+  news: {
+    titles: [
+      'featured in Forbes for digital innovation',
+      'wins industry award for customer experience',
+      'announces strategic partnership with Microsoft',
+      'hosts annual developer conference with 10K attendees',
+      'publishes open-source framework for data governance',
+    ],
+    descriptions: [
+      'Positive news coverage indicates company momentum and marketing openness.',
+      'Industry recognition provides conversation starters for outreach.',
+    ],
+    severities: ['low', 'medium'],
+    businessImpacts: [
+      'Medium — positive momentum creates warm outreach opportunity',
+      'Low — general news provides conversational context but limited buying signal',
+    ],
+    recommendedActions: [
+      'Reference recent achievement in outreach to build rapport and credibility',
+      'Use news mention as conversation opener for warm introduction email',
+    ],
+    timingWindows: ['within_30_days', 'within_90_days'],
+    meaningCategories: ['growth_pressure', 'unknown'],
+  },
+  mention: {
+    titles: [
+      'mentioned in Gartner Magic Quadrant report',
+      'cited in industry analyst research note',
+      'referenced in regulatory compliance guidance',
+      'featured in trade publication case study',
+      'discussed at industry conference keynote',
+    ],
+    descriptions: [
+      'Industry mention indicates market visibility and potential compliance/regulatory awareness.',
+      'Analyst coverage often precedes technology evaluation cycles.',
+    ],
+    severities: ['low', 'medium'],
+    businessImpacts: [
+      'Medium — analyst mention may trigger technology evaluation cycle',
+      'Low — industry mention provides contextual awareness',
+    ],
+    recommendedActions: [
+      'Monitor for follow-up signals — analyst mentions often precede RFP processes',
+      'Prepare relevant case study if the mention relates to your solution area',
+    ],
+    timingWindows: ['within_90_days', 'ongoing'],
+    meaningCategories: ['compliance_requirement', 'unknown'],
+  },
+  partnership: {
+    titles: [
+      'partners with AWS for cloud transformation',
+      'joins Microsoft AI partner program',
+      'announces strategic alliance with Deloitte',
+      'integrates with Salesforce platform',
+      'launches joint venture with Siemens',
+    ],
+    descriptions: [
+      'New partnership signals ecosystem strategy and creates integration/co-sell opportunities.',
+      'Partnership often indicates budget allocation and technology roadmap direction.',
+    ],
+    severities: ['medium', 'high'],
+    businessImpacts: [
+      'Medium — partnership creates ecosystem entry point and co-sell opportunity',
+      'High — strategic partnership signals budget and roadmap alignment',
+    ],
+    recommendedActions: [
+      'Position complementary capabilities that enhance their new partnership ecosystem',
+      'Identify co-sell opportunities through the partnership channel',
+    ],
+    timingWindows: ['within_30_days', 'within_90_days'],
+    meaningCategories: ['vendor_evaluation', 'growth_pressure'],
+  },
+  expansion: {
+    titles: [
+      'opens new office in London for European expansion',
+      'expands into healthcare vertical with new division',
+      'launches operations in Asia-Pacific market',
+      'acquires startup to enter AI analytics space',
+      'establishes new innovation lab in Austin',
+    ],
+    descriptions: [
+      'Geographic or vertical expansion creates new technology requirements and vendor needs.',
+      'Expansion signals growth phase and operational scaling challenges.',
+    ],
+    severities: ['medium', 'high'],
+    businessImpacts: [
+      'Medium — expansion creates infrastructure and platform needs in new markets',
+      'High — new market entry often requires fresh technology stack evaluation',
+    ],
+    recommendedActions: [
+      'Position as a scalable platform that supports multi-region/multi-vertical operations',
+      'Research their expansion target market and prepare relevant case studies',
+    ],
+    timingWindows: ['within_30_days', 'within_90_days'],
+    meaningCategories: ['growth_pressure', 'budget_available'],
+  },
 };
 
-const FIRST_NAMES = ['James','Sarah','Michael','Emily','David','Jennifer','Robert','Amanda','William','Jessica','Richard','Lauren','Thomas','Stephanie','Christopher','Nicole','Daniel','Rachel','Matthew','Megan','Andrew','Elizabeth','Joshua','Samantha','Kevin','Catherine','Brian','Olivia','Steven','Victoria','Marcus','Priya','Chen','Arun','Mei','Raj','Anita','Vikram','Sunita','Wei','Yuki','Hiroshi','Kenji','Akiko','Carlos','Maria','Elena','Ahmed','Fatima','Omar','Leila'];
-const LAST_NAMES = ['Anderson','Martinez','Thompson','Nakamura','Patel','Williams','Chen','Kim','Rodriguez','Singh','O\'Brien','Mueller','Svensson','Kowalski','Petrov','Yamamoto','Gupta','Lopez','Johansson','Takahashi','Costa','Park','Zhang','Al-Rashid','Nair','Fernandez','Ivanov','Morales','Sullivan','Huang'];
+const EVIDENCE_TEMPLATES = [
+  { field: 'revenue', sources: ['sec.gov', 'bloomberg.com', 'reuters.com'], qualities: ['premium', 'premium', 'standard'] },
+  { field: 'employeeCount', sources: ['linkedin.com', 'crunchbase.com', 'company website'], qualities: ['standard', 'standard', 'standard'] },
+  { field: 'techStack', sources: ['stackshare.io', 'builtwith.com', 'job postings'], qualities: ['standard', 'standard', 'low'] },
+  { field: 'fundingHistory', sources: ['crunchbase.com', 'pitchbook.com', 'techcrunch.com'], qualities: ['premium', 'premium', 'standard'] },
+  { field: 'industrySegment', sources: ['industry reports', 'company website', 'news articles'], qualities: ['standard', 'standard', 'low'] },
+  { field: 'keyPartnerships', sources: ['press releases', 'news articles', 'conference announcements'], qualities: ['standard', 'standard', 'low'] },
+  { field: 'growthRate', sources: ['linkedin.com', 'crunchbase.com', 'news articles'], qualities: ['standard', 'standard', 'low'] },
+  { field: 'cloudInfrastructure', sources: ['job postings', 'tech blogs', 'cloud marketplace listings'], qualities: ['standard', 'low', 'low'] },
+];
 
-function genCompany(name: string, industry: string, idx: number) {
-  const short = name.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 12);
-  const size = idx < 5 ? 'enterprise' : idx < 15 ? 'mid-market' : 'smb';
-  return {
-    id: makeId(), rawName: name, normalizedName: name, domain: `${short}.com`,
-    industry, sizeRange: size, website: `https://${short}.com`, location: pick(['New York, NY','San Francisco, CA','Chicago, IL','Dallas, TX','Boston, MA','Atlanta, GA','Washington, DC','Seattle, WA']),
-    internalSummary: `${name} is a ${size} ${industry} company. ${size === 'enterprise' ? 'Fortune 1000 eligible with 5000+ employees and $500M+ revenue.' : size === 'mid-market' ? 'Mid-market company with 500-5000 employees.' : 'Growing SMB with 50-500 employees.'} Active in modernization and digital transformation.`,
-    intelligenceScore: idx < 5 ? 5 : idx < 15 ? rand(3, 4) : rand(1, 3),
-    status: 'prospect', source: 'enterprise-seed', tags: '[]',
-  };
+const CAPABILITY_ASSETS = [
+  { title: 'Cloud Migration Factory', summary: 'End-to-end cloud migration service from assessment through execution with automated tooling.', category: 'solution', technology: 'AWS,Azure,GCP', industry: 'Cross-Industry', businessProblem: 'Legacy system modernization', keywords: '["cloud migration", "modernization", "lift-and-shift", "refactoring"]' },
+  { title: 'Data & Analytics Platform', summary: 'Enterprise data platform implementation with real-time analytics, data governance, and ML pipeline integration.', category: 'solution', technology: 'Snowflake,Databricks,dbt', industry: 'Cross-Industry', businessProblem: 'Data silos and analytics maturity', keywords: '["data platform", "analytics", "data lake", "BI", "data governance"]' },
+  { title: 'AI/ML Operations (MLOps)', summary: 'Production ML pipeline deployment, model governance, and AI operations for enterprise scale.', category: 'solution', technology: 'Kubernetes,TensorFlow,MLflow', industry: 'Cross-Industry', businessProblem: 'ML model deployment and governance', keywords: '["machine learning", "AI operations", "MLOps", "model governance"]' },
+  { title: 'Cybersecurity Assessment', summary: 'Comprehensive security posture assessment with zero-trust architecture design and implementation.', category: 'service_line', technology: 'CrowdStrike,Palo Alto,Zscaler', industry: 'Cross-Industry', businessProblem: 'Security vulnerabilities and compliance', keywords: '["cybersecurity", "zero trust", "security assessment", "compliance"]' },
+  { title: 'Digital Transformation Advisory', summary: 'Strategic advisory for enterprise digital transformation including roadmap, governance, and change management.', category: 'service_line', technology: 'Cross-Platform', industry: 'Cross-Industry', businessProblem: 'Lack of digital strategy and execution', keywords: '["digital transformation", "strategy", "advisory", "change management"]' },
+  { title: 'Enterprise Integration Platform', summary: 'API management and enterprise integration platform for connecting legacy systems with modern applications.', category: 'solution', technology: 'MuleSoft,Kong,Apigee', industry: 'Cross-Industry', businessProblem: 'System integration and API management', keywords: '["integration", "API management", "middleware", "SOA"]' },
+  { title: 'DevOps & CI/CD Acceleration', summary: 'DevOps maturity assessment and CI/CD pipeline modernization for faster, more reliable software delivery.', category: 'accelerator', technology: 'Jenkins,GitHub Actions,Azure DevOps', industry: 'Cross-Industry', businessProblem: 'Slow and unreliable software delivery', keywords: '["DevOps", "CI/CD", "automation", "pipeline"]' },
+  { title: 'Regulatory Compliance Solution', summary: 'Industry-specific compliance automation for GDPR, HIPAA, SOX, and PCI-DSS requirements.', category: 'solution', technology: 'Cross-Platform', industry: 'Financial Services,Healthcare', businessProblem: 'Regulatory compliance overhead', keywords: '["compliance", "regulatory", "GDPR", "HIPAA", "SOX"]' },
+  { title: 'Customer Experience Platform', summary: 'Omnichannel customer experience platform with personalization, analytics, and journey orchestration.', category: 'solution', technology: 'Salesforce,Adobe,Segment', industry: 'Retail / E-Commerce', businessProblem: 'Fragmented customer experience', keywords: '["customer experience", "CX", "personalization", "omnichannel"]' },
+  { title: 'Smart Manufacturing IoT', summary: 'Industrial IoT platform for predictive maintenance, quality monitoring, and supply chain optimization.', category: 'solution', technology: 'Azure IoT,AWS IoT,OSIsoft', industry: 'Manufacturing,Energy / Utilities', businessProblem: 'Operational inefficiency and downtime', keywords: '["IoT", "smart manufacturing", "predictive maintenance", "IIoT"]' },
+];
+
+// ─── Helper Functions ───────────────────────────────────────────────────────
+
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function genContact(companyId: string, industry: string, titles: string[], companyDomain: string) {
-  const fn = pick(FIRST_NAMES), ln = pick(LAST_NAMES);
-  const name = `${fn} ${ln}`, title = pick(titles);
-  const statusRoll = Math.random();
-  const status = statusRoll < 0.55 ? 'imported' : statusRoll < 0.75 ? 'contacted' : statusRoll < 0.87 ? 'replied' : statusRoll < 0.95 ? 'active' : 'archived';
-  return {
-    id: makeId(), rawName: name, normalizedName: name,
-    email: `${fn.toLowerCase()}.${ln.toLowerCase()}@${companyDomain}`,
-    title, role: title.match(/vp/i) ? 'VP' : title.match(/chief|cio|cdo/i) ? 'C-Suite' : title.match(/director|head/i) ? 'Director' : title.match(/manager/i) ? 'Manager' : 'Staff',
-    linkedinUrl: null, phone: null, companyId, batchId: 'enterprise-seed',
-    leadScore: title.match(/chief|cio/i) ? rand(70, 95) : title.match(/vp|vice/i) ? rand(55, 85) : title.match(/director|head/i) ? rand(40, 70) : rand(20, 55),
-    companyFitScore: rand(40, 90), engagementScore: (status === 'replied' || status === 'active') ? rand(30, 60) : rand(0, 30), enrichmentScore: rand(30, 80),
-    status, consentStatus: 'opted_in', isSuppressed: false,
-  };
+function pickN<T>(arr: T[], n: number): T[] {
+  const shuffled = [...arr].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, n);
 }
 
-function genSignal(companyId: string, signals: string[], industry: string) {
-  const title = pick(signals);
-  let signalType = 'news', severity: 'low' as string, impact: 'medium' as string;
-  if (title.match(/migrat|cloud|kubernetes|azure|aws|sap|erp|iot/i)) { signalType = 'tech_change'; impact = 'high'; }
-  else if (title.match(/hired|hiring|expanded|team/i)) { signalType = 'hiring'; impact = 'medium'; }
-  else if (title.match(/new cto|new cio|new vp|appointed/i)) { signalType = 'leadership_change'; impact = 'high'; }
-  else if (title.match(/fund|series|\$|budget/i)) { signalType = 'funding'; impact = 'high'; }
-  else if (title.match(/breach|violation|layoff|risk/i)) { signalType = 'risk'; severity = pick(['high', 'critical']); impact = 'high'; }
-  const source = signalType === 'funding' ? pick(['Press Release', 'Bloomberg']) : signalType === 'hiring' ? pick(['LinkedIn', 'Job Posting']) : pick(['LinkedIn', 'Press Release', 'TechCrunch', 'Industry Report']);
-  return {
-    id: makeId(), companyId, title, description: `${title} at a ${industry} company.`,
-    signalType, severity, impact,
-    businessImpact: signalType === 'tech_change' ? 'Technology change creates vendor evaluation opportunity' : signalType === 'hiring' ? 'Hiring indicates growth phase and budget' : signalType === 'leadership_change' ? 'New leadership may reset vendor relationships within 90 days' : signalType === 'funding' ? 'Funding signals budget availability' : 'Signal indicates potential buying interest',
-    recommendedAction: signalType === 'tech_change' ? 'Approach CTO with relevant tech value proposition' : signalType === 'hiring' ? 'Position as scaling solution' : signalType === 'leadership_change' ? 'Engage new executive within 90 days' : 'Monitor and enrich intelligence',
-    timingWindow: severity === 'critical' ? 'immediate' : impact === 'high' ? 'this_week' : pick(['this_month', 'this_quarter']),
-    source, sourceUrl: null, signalDate: daysAgo(rand(1, 90)), status: 'active', confidence: rand(60, 95) / 100,
-  };
+function randomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-async function seed(reset = false) {
-  console.log('🚀 Starting enterprise seed...');
-  if (reset) {
-    console.log('🗑️  Clearing...');
-    try { await prisma.evidence.deleteMany({}); } catch {}
-    try { await prisma.opportunityRecommendation.deleteMany({}); } catch {}
-    try { await prisma.companySignal.deleteMany({}); } catch {}
-    try { await prisma.contact.deleteMany({}); } catch {}
-    try { await prisma.company.deleteMany({}); } catch {}
-  }
+function randomDate(daysBack: number): Date {
+  const now = new Date();
+  const offset = randomInt(0, daysBack) * 24 * 60 * 60 * 1000;
+  return new Date(now.getTime() - offset);
+}
 
-  // Companies
-  const allCompanies: any[] = [];
-  for (const [industry, names] of Object.entries(COMPANY_NAMES)) {
-    for (let i = 0; i < names.length; i++) allCompanies.push(genCompany(names[i], industry, i));
-  }
-  console.log(`Creating ${allCompanies.length} companies...`);
-  for (const c of allCompanies) { try { await prisma.company.create({ data: c }); } catch(e) {} }
+function randomDateRange(daysBackMin: number, daysBackMax: number): Date {
+  const now = new Date();
+  const offset = randomInt(daysBackMin, daysBackMax) * 24 * 60 * 60 * 1000;
+  return new Date(now.getTime() - offset);
+}
 
-  // Fetch
-  const companies = await prisma.company.findMany({ select: { id: true, rawName: true, industry: true, domain: true } });
-  console.log(`Created ${companies.length} companies`);
+function generateEmail(first: string, last: string, domain: string, uniqueId: number): string {
+  const patterns = [
+    `${first.toLowerCase()}.${last.toLowerCase()}.${uniqueId}@${domain}`,
+    `${first.toLowerCase()}.${last.toLowerCase()}_${uniqueId}@${domain}`,
+    `${first[0].toLowerCase()}${last.toLowerCase()}${uniqueId}@${domain}`,
+    `${first.toLowerCase()}${uniqueId}@${domain}`,
+  ];
+  return patterns[uniqueId % patterns.length];
+}
 
-  // Contacts
-  console.log('Creating contacts...');
-  let contactCount = 0;
-  for (const company of companies) {
-    const industry = company.industry || 'Technology';
-    const titles = TITLES_BY_INDUSTRY[industry] || ['VP Engineering', 'CTO'];
-    const count = rand(4, 7);
+// ─── Main Seed Function ───────────────────────────────────────────────────
+
+async function seedEnterpriseData() {
+  console.log('🌱 Enterprise Demo Dataset Seeding');
+  console.log('================================');
+  const startTime = Date.now();
+
+  // Step 0: Create ImportBatch for contacts
+  console.log('\n📦 Creating import batch...');
+  const batch = await db.importBatch.create({
+    data: {
+      fileName: 'enterprise-seed-dataset.csv',
+      fileHash: `seed_${Date.now()}`,
+      totalRows: 0,
+      acceptedRows: 0,
+      status: 'completed',
+    },
+  });
+
+  // Step 1: Create 100 companies across 6 industries
+  console.log('\n🏢 Creating 100 companies...');
+  const companies: { id: string; name: string; industry: string; domain: string; index: number }[] = [];
+  const companiesPerIndustry = Math.floor(100 / INDUSTRIES.length); // ~16 per industry
+
+  for (const industry of INDUSTRIES) {
+    const template = COMPANY_TEMPLATES[industry];
+    const count = industry === INDUSTRIES[INDUSTRIES.length - 1]
+      ? 100 - companiesPerIndustry * (INDUSTRIES.length - 1)
+      : companiesPerIndustry;
+
     for (let i = 0; i < count; i++) {
-      try { await prisma.contact.create({ data: genContact(company.id, industry, titles, company.domain || 'company.com') }); contactCount++; } catch {}
-    }
-  }
-  console.log(`Created ${contactCount} contacts`);
+      const name = `${template.prefix}${String(i + 1).padStart(2, '0')} Corp`;
+      const domain = template.domains[i % template.domains.length];
+      const sizeRange = pick(template.sizes);
+      const location = pick(template.locations);
+      const tags = JSON.stringify([industry.toLowerCase().replace(/[\/\s]/g, '-')]);
+      const intScore = randomInt(1, 5);
+      const statuses = ['prospect', 'researching', 'active', 'engaged'];
+      const lifecycleStages = ['discovery', 'qualification', 'proposal', 'negotiation'];
 
-  // Signals
-  console.log('Creating signals...');
-  let signalCount = 0;
-  for (const company of companies) {
-    const industry = company.industry || 'Technology';
-    const signals = SIGNALS_BY_INDUSTRY[industry] || ['New initiative detected'];
-    const companyIdx = allCompanies.findIndex(c => c.rawName === company.rawName);
-    const count = companyIdx < 5 ? rand(12, 16) : companyIdx < 20 ? rand(8, 12) : rand(4, 8);
-    for (let i = 0; i < count; i++) {
-      try { await prisma.companySignal.create({ data: genSignal(company.id, signals, industry) }); signalCount++; } catch {}
-    }
-  }
-  console.log(`Created ${signalCount} signals`);
-
-  // Opportunities
-  console.log('Creating opportunities...');
-  let oppCount = 0;
-  const topCompanies = allCompanies.filter((_, i) => i < 35);
-  for (const comp of topCompanies) {
-    const created = companies.find(c => c.rawName === comp.rawName);
-    if (!created) continue;
-    try {
-      await prisma.opportunityRecommendation.create({
+      const company = await db.company.create({
         data: {
-          id: makeId(), companyId: created.id,
-          opportunityTitle: pick(['Cloud Platform Migration Deal','AI Governance Solution','Data Platform Modernization','Security Operations Center','Digital Transformation Initiative','Revenue Intelligence Platform','Supply Chain Optimization','Customer Analytics Platform']),
-          opportunityScore: rand(50, 85), confidenceScore: rand(30, 80) / 100,
-          stage: pick(['discovery','qualification','proposal','negotiation']),
-          estimatedValue: rand(50, 500) * 1000, probability: rand(20, 70),
-          status: 'active', createdAt: daysAgo(rand(1, 60)), updatedAt: new Date(),
+          rawName: name,
+          normalizedName: name.toLowerCase(),
+          domain,
+          industry,
+          sizeRange,
+          location,
+          country: location.includes('UK') ? 'United Kingdom' : 'United States',
+          website: `https://${domain}`,
+          tags,
+          status: pick(statuses),
+          lifecycleStage: pick(lifecycleStages),
+          intelligenceScore: intScore,
+          engagementScore: randomInt(0, 80),
+          source: 'manual',
         },
-      }); oppCount++;
-    } catch {}
-  }
-  console.log(`Created ${oppCount} opportunities`);
+      });
 
-  // Evidence
-  console.log('Creating evidence...');
-  let evCount = 0;
-  for (const company of companies.slice(0, 60)) {
-    const count = rand(2, 5);
-    for (let i = 0; i < count; i++) {
-      try {
-        await prisma.evidence.create({
-          data: {
-            id: makeId(), companyId: company.id,
-            sourceName: pick(['TechCrunch','Bloomberg','Reuters','LinkedIn','SEC Filing','Industry Report','Company Website','Press Release']),
-            sourceTitle: `${company.rawName} ${pick(['announces','launches','expands','modernizes','invests in'])} initiative`,
-            sourceUrl: `https://example.com/news/${makeId()}`,
-            extractedField: pick(['technology_stack','hiring_trend','revenue_growth','market_expansion','partnership']),
-            extractedValue: pick(['Cloud-native adoption','Hiring data engineers','15% YoY growth','New market entry','Strategic partnership']),
-            snippet: `Evidence from ${company.rawName}: Active technology modernization program.`,
-            confidence: rand(60, 95) / 100, createdAt: daysAgo(rand(1, 60)),
-          },
-        }); evCount++;
-      } catch {}
+      companies.push({ id: company.id, name: company.rawName, industry, domain, index: companies.length });
     }
   }
-  console.log(`Created ${evCount} evidence records`);
+  console.log(`   ✅ Created ${companies.length} companies`);
+
+  // Step 2: Create 500+ contacts
+  console.log('\n👤 Creating 500+ contacts...');
+  let contactCount = 0;
+
+  for (const company of companies) {
+    const roleConfig = CONTACT_ROLES[company.industry];
+    const numContacts = randomInt(4, 7); // 4-7 per company
+
+    for (let i = 0; i < numContacts; i++) {
+      const firstName = pick(FIRST_NAMES);
+      const lastName = pick(LAST_NAMES);
+      const roleIndex = i % roleConfig.roles.length;
+      const role = roleConfig.roles[roleIndex];
+      const email = generateEmail(firstName, lastName, company.domain, contactCount);
+      const leadScore = randomInt(20, 95);
+      const statuses = ['imported', 'cleaned', 'contacted', 'replied', 'active'];
+      const status = pick(statuses);
+
+      await db.contact.create({
+        data: {
+          rawName: `${firstName} ${lastName}`,
+          normalizedName: `${firstName} ${lastName}`.toLowerCase(),
+          email,
+          title: role,
+          location: company.location?.split(',')[0],
+          companyId: company.id,
+          batchId: batch.id,
+          leadScore,
+          status,
+          consentStatus: pick(['unknown', 'opted_in']),
+          emailHealth: pick(['unknown', 'valid']),
+          companyFitScore: randomInt(30, 90),
+          engagementScore: randomInt(0, 70),
+          enrichmentScore: randomInt(20, 80),
+          source: pick(['linkedin', 'event', 'manual', 'inbound']),
+        },
+      });
+      contactCount++;
+    }
+  }
+  console.log(`   ✅ Created ${contactCount} contacts`);
+
+  // Step 3: Create 1000+ signals
+  console.log('\n📡 Creating 1000+ signals...');
+  let signalCount = 0;
+  const signalIdsByCompany: Map<string, string[]> = new Map();
+
+  for (const company of companies) {
+    const numSignals = randomInt(8, 15); // 8-15 per company
+    const companySignalIds: string[] = [];
+
+    for (let i = 0; i < numSignals; i++) {
+      const signalType = pick(SIGNAL_TYPES as unknown as string[]);
+      const template = SIGNAL_TEMPLATES[signalType] || SIGNAL_TEMPLATES.news;
+      const title = `${company.name} ${pick(template.titles)}`;
+      const signalDate = randomDateRange(1, 90);
+      const confidence = Math.round((randomInt(40, 95)) / 100 * 100) / 100;
+
+      const signal = await db.companySignal.create({
+        data: {
+          companyId: company.id,
+          signalType,
+          title,
+          description: pick(template.descriptions),
+          source: pick(['LinkedIn', 'TechCrunch', 'Bloomberg', 'SEC Filing', 'Press Release', 'Crunchbase', 'Reuters']),
+          sourceUrl: `https://example.com/signal/${signalType}/${Date.now() + signalCount}`,
+          severity: pick(template.severities),
+          impact: pick(['high', 'medium', 'low']),
+          signalDate,
+          confidence,
+          businessImpact: pick(template.businessImpacts),
+          recommendedAction: pick(template.recommendedActions),
+          timingWindow: pick(template.timingWindows),
+          meaningCategory: pick(template.meaningCategories),
+          status: pick(['detected', 'validated', 'active']),
+          sourceQuality: pick(['premium', 'standard', 'standard', 'low']),
+        },
+      });
+
+      companySignalIds.push(signal.id);
+      signalCount++;
+    }
+    signalIdsByCompany.set(company.id, companySignalIds);
+  }
+  console.log(`   ✅ Created ${signalCount} signals`);
+
+  // Step 4: Create 200+ evidence records
+  console.log('\n📄 Creating 200+ evidence records...');
+  let evidenceCount = 0;
+
+  for (const company of companies) {
+    const numEvidence = randomInt(1, 4); // 1-4 per company
+
+    for (let i = 0; i < numEvidence; i++) {
+      const tmpl = pick(EVIDENCE_TEMPLATES);
+      const confidence = Math.round((randomInt(50, 95)) / 100 * 100) / 100;
+
+      await db.evidence.create({
+        data: {
+          companyId: company.id,
+          sourceUrl: `https://${pick(tmpl.sources)}/${company.domain}/${tmpl.field}`,
+          sourceTitle: `${company.name} ${tmpl.field} data`,
+          sourceName: pick(tmpl.sources),
+          snippet: `Extracted ${tmpl.field} data for ${company.name} from ${pick(tmpl.sources)}`,
+          extractedField: tmpl.field,
+          extractedValue: tmpl.field === 'revenue' ? `$${randomInt(10, 500)}M` :
+            tmpl.field === 'employeeCount' ? String(randomInt(200, 50000)) :
+            tmpl.field === 'growthRate' ? `${randomInt(10, 80)}%` : 'Detected',
+          relevanceScore: confidence,
+          confidence,
+          sourceQualityTier: pick(tmpl.qualities),
+          status: 'active',
+        },
+      });
+      evidenceCount++;
+    }
+  }
+  console.log(`   ✅ Created ${evidenceCount} evidence records`);
+
+  // Step 5: Create capability assets
+  console.log('\n🔧 Creating capability assets...');
+  const capabilities: { id: string; title: string }[] = [];
+
+  for (const asset of CAPABILITY_ASSETS) {
+    const created = await db.capabilityAsset.create({
+      data: {
+        title: asset.title,
+        summary: asset.summary,
+        category: asset.category,
+        technology: asset.technology,
+        industry: asset.industry,
+        businessProblem: asset.businessProblem,
+        keywords: asset.keywords,
+        isActive: true,
+      },
+    });
+    capabilities.push({ id: created.id, title: created.title });
+  }
+  console.log(`   ✅ Created ${capabilities.length} capability assets`);
+
+  // Step 6: Create SignalCapabilityMatches + Opportunities for top companies
+  console.log('\n🎯 Creating opportunities (30+)...');
+  let opportunityCount = 0;
+  let matchCount = 0;
+
+  // Pick top ~50 companies for matches and ~25 for opportunities
+  const topCompanies = companies.slice(0, 50);
+
+  for (const company of topCompanies) {
+    const signalIds = signalIdsByCompany.get(company.id) || [];
+    if (signalIds.length === 0) continue;
+
+    // Create 1-3 capability matches per company
+    const numMatches = randomInt(1, 3);
+
+    for (let i = 0; i < numMatches; i++) {
+      const signalId = pick(signalIds);
+      const capability = pick(capabilities);
+      const matchScore = Math.round((randomInt(50, 95)) / 100 * 100) / 100;
+
+      const match = await db.signalCapabilityMatch.create({
+        data: {
+          companyId: company.id,
+          signalId,
+          capabilityId: capability.id,
+          matchScore: matchScore,
+          reason: `Signal "${signalId.slice(0, 8)}" indicates need for ${capability.title} — ${company.industry} company showing active ${pick(SIGNAL_TYPES as unknown as string[])} signals`,
+          businessProblem: `Company requires ${capability.title.toLowerCase()} to support their ${company.industry.toLowerCase()} operations`,
+          expectedOutcome: `Improved efficiency and reduced operational costs through ${capability.title}`,
+          salesAngle: `Position ${capability.title} as proven solution in ${company.industry} with measurable ROI`,
+        },
+      });
+
+      // Create opportunity recommendation (for ~30 total)
+      if (opportunityCount < 35 && matchCount < 50) {
+        const priorities = ['high', 'medium', 'medium', 'low'];
+        const statusList = ['pending_review', 'accepted', 'monitored'];
+
+        await db.opportunityRecommendation.create({
+          data: {
+            companyId: company.id,
+            signalId,
+            capabilityMatchId: match.id,
+            opportunityTitle: `${capability.title} for ${company.name}`,
+            businessTrigger: `${company.name} signals indicate readiness for ${capability.title.toLowerCase()}`,
+            whyNow: `Active ${pick(SIGNAL_TYPES as unknown as string[])} signals + ${company.industry} industry momentum create immediate engagement window`,
+            businessProblem: `${company.name} faces challenges requiring ${capability.title.toLowerCase()} — identified through intelligence monitoring`,
+            recommendedCapability: capability.title,
+            recommendedStakeholders: JSON.stringify(['CTO', 'VP Engineering', 'CIO']),
+            suggestedConversation: `Discuss ${capability.title} implementation roadmap and align to their ${company.industry.toLowerCase()} priorities`,
+            confidenceScore: matchScore,
+            freshnessScore: randomInt(70, 95),
+            matchScore,
+            opportunityScore: randomInt(55, 92),
+            priority: pick(priorities),
+            status: pick(statusList),
+          },
+        });
+        opportunityCount++;
+      }
+      matchCount++;
+    }
+  }
+  console.log(`   ✅ Created ${matchCount} capability matches + ${opportunityCount} opportunities`);
+
+  // Step 7: Create pursuits for a subset of accepted opportunities
+  console.log('\n📈 Creating pursuits...');
+  const acceptedOpps = await db.opportunityRecommendation.findMany({
+    where: { status: 'accepted' },
+    take: 15,
+  });
+
+  let pursuitCount = 0;
+  for (const opp of acceptedOpps) {
+    await db.pursuit.create({
+      data: {
+        opportunityId: opp.id,
+        companyId: opp.companyId,
+        priority: pick(['high', 'medium']),
+        status: pick(['active', 'active', 'active', 'paused']),
+        nextAction: pick([
+          'Schedule discovery call with CTO',
+          'Prepare technical proposal',
+          'Send case study materials',
+          'Arrange product demo',
+          'Follow up on initial conversation',
+        ]),
+        nextActionAt: randomDateRange(-7, 14),
+        outcomeStage: pick(['discovery', 'qualification', 'proposal', 'negotiation']),
+      },
+    });
+    pursuitCount++;
+  }
+  console.log(`   ✅ Created ${pursuitCount} pursuits`);
 
   // Summary
-  const c = await prisma.company.count(), co = await prisma.contact.count(), s = await prisma.companySignal.count(), o = await prisma.opportunityRecommendation.count(), e = await prisma.evidence.count();
-  console.log(`\n✅ Enterprise dataset seeded!`);
-  console.log(`   Companies: ${c} | Contacts: ${co} | Signals: ${s} | Opportunities: ${o} | Evidence: ${e}`);
-
-  // Top 5 hottest
-  const hot = await prisma.companySignal.groupBy({ by: ['companyId'], _count: { id: true }, orderBy: { _count: { id: 'desc' } }, take: 5 });
-  console.log('\n🔥 Top 5 Hottest:');
-  for (const h of hot) {
-    const comp = companies.find(c => c.id === h.companyId);
-    console.log(`   ${comp?.rawName || h.companyId} — ${h._count.id} signals`);
-  }
+  const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+  console.log('\n═══════════════════════════════════════');
+  console.log(`✅ Enterprise Dataset Seeded in ${duration}s`);
+  console.log(`   Companies:  ${companies.length}`);
+  console.log(`   Contacts:   ${contactCount}`);
+  console.log(`   Signals:    ${signalCount}`);
+  console.log(`   Evidence:   ${evidenceCount}`);
+  console.log(`   Capabilities: ${capabilities.length}`);
+  console.log(`   Matches:    ${matchCount}`);
+  console.log(`   Opportunities: ${opportunityCount}`);
+  console.log(`   Pursuits:   ${pursuitCount}`);
+  console.log('═══════════════════════════════════════');
 }
 
-seed(process.argv.includes('--reset')).catch(e => { console.error('❌', e); process.exit(1); }).finally(() => prisma.$disconnect());
+seedEnterpriseData()
+  .catch((err) => {
+    console.error('❌ Seed failed:', err);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await db.$disconnect();
+  });

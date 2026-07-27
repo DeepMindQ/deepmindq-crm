@@ -278,6 +278,7 @@ async function generateDeterministicBriefing(
   contactId: string | null,
   buyerProfile: BuyerProfile,
   chain: EvidenceChain,
+  industry?: string | null,
 ): Promise<{
   talkingPoints: TalkingPoint[];
   questionsToAsk: QuestionToAsk[];
@@ -301,6 +302,32 @@ async function generateDeterministicBriefing(
   const topicsToAvoid: string[] = [];
   const postMeetingActions: string[] = [];
   const preparationChecklist: string[] = [];
+
+  // Industry-aware priority adjustments
+  const industryLower = (industry || '').toLowerCase();
+  const INDUSTRY_PRIORITIES: Record<string, string[]> = {
+    'fintech|financial services|banking|insurance': ['Regulatory compliance', 'Fraud prevention', 'Customer trust', 'Digital transformation'],
+    'healthcare|health tech|pharma|biotech|medical': ['Patient outcomes', 'HIPAA compliance', 'Clinical efficiency', 'Data interoperability'],
+    'saas|software|cloud|technology': ['Product velocity', 'Platform reliability', 'Developer productivity', 'Customer retention'],
+    'manufacturing|industrial|logistics|supply chain': ['Operational efficiency', 'Supply chain resilience', 'Quality control', 'Cost reduction'],
+    'retail|e-commerce|consumer goods': ['Customer experience', 'Omnichannel strategy', 'Inventory optimization', 'Revenue growth'],
+    'education|edtech|higher education': ['Student outcomes', 'Accessibility', 'Scalability', 'Content engagement'],
+    'energy|utilities|oil & gas|renewable': ['Sustainability targets', 'Operational safety', 'Grid reliability', 'Regulatory compliance'],
+    'government|public sector|defense': ['Citizen services', 'Security clearance', 'Legacy modernization', 'Compliance mandates'],
+    'media|entertainment|gaming|publishing': ['Content monetization', 'User engagement', 'Platform scalability', 'Data-driven personalization'],
+    'telecom|communications|5g|networking': ['Network reliability', 'Customer churn', '5G deployment', 'Service innovation'],
+  };
+
+  const industryPriorities = Object.entries(INDUSTRY_PRIORITIES).find(
+    ([key]) => industryLower.includes(key) || key.split('|').some(k => industryLower.includes(k.trim()))
+  );
+
+  if (industryPriorities && buyerProfile.detectedPriorities.length < 3) {
+    const extras = industryPriorities[1].filter(
+      p => !buyerProfile.detectedPriorities.includes(p)
+    );
+    buyerProfile.detectedPriorities.push(...extras.slice(0, 2));
+  }
 
   // Load recent signals
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -482,6 +509,8 @@ async function generateDeterministicBriefing(
 
   const valuePropositionAngle = buyerProfile.detectedPriorities.length > 0
     ? `Position as the solution that directly addresses ${buyerProfile.detectedPriorities[0]} challenges at ${companyName}`
+    : industry
+    ? `Position as a platform that drives measurable outcomes in the ${industry} sector`
     : `Position as a platform that drives measurable outcomes for ${companyName}'s industry`;
 
   // Meeting objective
@@ -707,6 +736,7 @@ export const ConversationEngine = {
     // Step 3: Generate deterministic briefing
     const briefing = await generateDeterministicBriefing(
       companyName, companyId, contactId ?? null, buyerProfile, chain,
+      company.industry,
     );
 
     // Step 4: Calculate confidence

@@ -359,7 +359,7 @@ export async function loadIndexFromDB(): Promise<void> {
           snippet: emb.sourceText.slice(0, 200),
         });
       } catch (err) {
-        logger.error(`[retrieval-engine] failed to parse embedding for' ${emb.entityId}`);
+        logger.error(`[retrieval-engine] failed to parse embedding for ${emb.entityId}`);
       }
     }
     logger.info(`[retrieval-engine] loaded ${inMemoryIndex.size} embeddings from DB`);

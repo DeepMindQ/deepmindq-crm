@@ -53,10 +53,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: otpResult.error || 'Failed to send OTP' }, { status: 500 });
     }
 
+    const isDev = process.env.NODE_ENV === 'development';
     return NextResponse.json({
       success: true,
-      message: otpResult.devCode ? 'Password verified. OTP generated (email not configured).' : 'Password verified. OTP sent to your email.',
-      ...(otpResult.devCode ? { devCode: otpResult.devCode } : {}),
+      message: isDev && otpResult.devCode ? 'Password verified. OTP generated (dev mode).' : 'Password verified. OTP sent to your email.',
+      ...(isDev && otpResult.devCode ? { devCode: otpResult.devCode } : {}),
     });
   } catch (error) {
     console.error('[auth/login] Error:', error);

@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
     // Send OTP for email verification
     const otpResult = await requestOtp(normalizedEmail, 'login');
 
+    const isDev = process.env.NODE_ENV === 'development';
     return NextResponse.json({
       success: true,
       data: {
@@ -65,10 +66,10 @@ export async function POST(request: NextRequest) {
         name: user.name,
         email: user.email,
       },
-      message: otpResult.devCode
-        ? 'Account created. OTP generated (email not configured).'
+      message: isDev && otpResult.devCode
+        ? 'Account created. OTP generated (dev mode).'
         : 'Account created. Please verify your email with the OTP sent.',
-      ...(otpResult.devCode ? { devCode: otpResult.devCode } : {}),
+      ...(isDev && otpResult.devCode ? { devCode: otpResult.devCode } : {}),
     });
   } catch (error) {
     console.error('[auth/register] Error:', error);

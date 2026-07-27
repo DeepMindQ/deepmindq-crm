@@ -214,11 +214,17 @@ export async function requestOtp(
     console.log(`[OTP] DEV — Code for ${normalizedEmail}: ${code}`);
   }
 
-  // If email was NOT sent — single-user system: return code in response as fallback
-  // This is safe because the system is restricted to one authorized user only.
+  // If email was NOT sent
   if (!emailSent) {
-    console.log(`[OTP] Email not configured. Returning code for single-user fallback. Code: ${code}`);
-    return { success: true, devCode: code };
+    const isDev = process.env.NODE_ENV === 'development';
+    if (isDev) {
+      // Local dev: return code for convenience
+      console.log(`[OTP] DEV — Email not configured. Returning code: ${code}`);
+      return { success: true, devCode: code };
+    }
+    // Production: email MUST work — don't expose the code
+    console.error(`[OTP] PRODUCTION — Email send failed and no devCode fallback. EMAIL_API_KEY must be configured.`);
+    return { success: false, error: 'Authentication service is temporarily unavailable. Please try again later.' };
   }
 
   return { success: true };

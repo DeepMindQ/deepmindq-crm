@@ -5,8 +5,8 @@ import { cookies } from 'next/headers';
 // Current User — DeepMindQ Enterprise
 //
 // Returns current user if valid session exists.
-// If DB is unreachable but a valid cookie exists (single-user system),
-// returns the authorized user profile.
+// Production: DB failure = service unavailable (no bypass).
+// Dev: Falls back to cookie-only auth for convenience.
 // ═══════════════════════════════════════════════════════════════
 
 export async function GET() {
@@ -25,7 +25,7 @@ export async function GET() {
 
     try {
       // Try full DB-based session validation
-      const { getCurrentSession, AuthError } = await import('@/lib/session');
+      const { getCurrentSession } = await import('@/lib/session');
       const user = await getCurrentSession();
 
       if (user) {
@@ -34,10 +34,14 @@ export async function GET() {
 
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     } catch (dbError) {
-      // DB failed — fallback: if cookie exists and looks valid, consider authenticated
-      // (Safe: single-user system)
-      console.error('[auth/me] DB error, using fallback auth:', dbError instanceof Error ? dbError.message : dbError);
+      console.error('[auth/me] DB error:', dbError instanceof Error ? dbError.message : dbError);
 
+      // In production, DB failure = auth unavailable
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 503 });
+      }
+
+      // Local dev fallback: if cookie exists, treat as authenticated
       return NextResponse.json({
         user: {
           id: 'shanker-001',

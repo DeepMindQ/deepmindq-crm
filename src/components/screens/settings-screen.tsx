@@ -1099,7 +1099,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
       });
       const data = await res.json();
       if (!res.ok) { showToast(data.error || 'Failed to send OTP'); return; }
-      if (data.devCode) setProfileDevCode(data.devCode);
+      if (data.devCode) setProfileDevCode(data.devCode); // Dev mode only — server won't send in production
       setProfileOtpPurpose(purpose);
       setProfileOtpSent(true);
       setProfileOtpCode('');

@@ -37,26 +37,37 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: result.error }, { status });
       }
 
+      // NEVER return devCode in production — OTP must go to email only
+      const isDev = process.env.NODE_ENV === 'development';
+
       const response: Record<string, unknown> = {
         success: true,
-        message: result.devCode ? 'Verification code generated' : 'OTP sent to your email',
+        message: isDev && result.devCode ? 'Verification code generated (dev mode)' : 'OTP sent to your email',
       };
 
-      if (result.devCode) {
+      // Only expose code in LOCAL development, never in production
+      if (isDev && result.devCode) {
         response.devCode = result.devCode;
       }
 
       return NextResponse.json(response);
     } catch (dbError) {
-      // DB failed — generate code directly as fallback (safe: single-user)
-      console.error('[auth/request-otp] DB error, using fallback:', dbError instanceof Error ? dbError.message : dbError);
+      console.error('[auth/request-otp] DB error:', dbError instanceof Error ? dbError.message : dbError);
 
+      // In production, do NOT expose OTP — return error so user knows email isn't configured
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json(
+          { error: 'Authentication service is temporarily unavailable. Please try again later.' },
+          { status: 503 }
+        );
+      }
+
+      // Local dev fallback only
       const code = generateFallbackOtp();
-
       return NextResponse.json({
         success: true,
         devCode: code,
-        message: 'Verification code generated',
+        message: 'Verification code generated (dev fallback)',
       });
     }
   } catch (error) {
@@ -65,7 +76,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Cryptographically random 6-digit code fallback
 function generateFallbackOtp(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(4));
   const num = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];

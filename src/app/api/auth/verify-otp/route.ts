@@ -78,23 +78,27 @@ export async function POST(request: NextRequest) {
         needsPassword: result.needsPassword,
       });
     } catch (dbError) {
-      // DB failed — create fallback session (safe: single-user system)
-      console.error('[auth/verify-otp] DB error, using fallback session:', dbError instanceof Error ? dbError.message : dbError);
+      console.error('[auth/verify-otp] DB error:', dbError instanceof Error ? dbError.message : dbError);
 
-      // For the single-user system, accept any valid-looking code format
-      // and create a session directly
+      // In production, DB failure means auth is unavailable — don't bypass
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json(
+          { error: 'Authentication service is temporarily unavailable. Please try again later.' },
+          { status: 503 }
+        );
+      }
+
+      // Local dev fallback: accept any code for the authorized email
       if (purpose === 'login') {
         const fallbackToken = generateFallbackToken();
-
         const cookieStore = await cookies();
         cookieStore.set('dmq_session', fallbackToken, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
+          secure: false,
           sameSite: 'lax',
           path: '/',
-          maxAge: 30 * 24 * 60 * 60, // 30 days
+          maxAge: 30 * 24 * 60 * 60,
         });
-
         return NextResponse.json({
           success: true,
           needsPassword: false,

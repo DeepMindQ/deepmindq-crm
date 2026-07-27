@@ -45,7 +45,7 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [devCode, setDevCode] = useState<string | null>(null);
+  const [devCode, setDevCode] = useState<string | null>(null); // Dev-mode only (never shown in production)
   const [countdown, setCountdown] = useState(0);
   const [otpSentTo, setOtpSentTo] = useState('');
   const [needsPassword, setNeedsPassword] = useState(false);
@@ -99,6 +99,7 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
         return;
       }
 
+      // Only capture devCode in development mode
       if (data.devCode) setDevCode(data.devCode);
       setOtpSentTo(email.toLowerCase().trim());
       setStep('otp');
@@ -140,6 +141,7 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
         return;
       }
 
+      // Only capture devCode in development mode
       if (data.devCode) setDevCode(data.devCode);
       setOtpSentTo(email.toLowerCase().trim());
       setStep('otp');
@@ -503,14 +505,14 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                     </InputOTP>
                   </div>
 
-                  {devCode && (
+                  {devCode && process.env.NODE_ENV === 'development' && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       className="bg-gradient-to-br from-amber-500/15 to-amber-600/5 border border-amber-500/30 rounded-2xl p-5 text-center space-y-3"
                     >
                       <p className="text-amber-300/90 text-sm font-medium">
-                        Your verification code:
+                        DEV MODE — Your verification code:
                       </p>
                       <p className="font-mono font-bold text-3xl tracking-[0.3em]" style={{ color: C.goldLight }}>
                         {devCode}
@@ -526,7 +528,25 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                         </button>
                       </div>
                       <p className="text-amber-500/50 text-[11px]">
-                        Email delivery not configured yet — use this code to login
+                        Dev mode only — code will be sent to email in production
+                      </p>
+                    </motion.div>
+                  )}
+
+                  {!devCode && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-gradient-to-br from-blue-500/10 to-indigo-600/5 border border-blue-500/20 rounded-2xl p-4 text-center space-y-2"
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <Mail className="w-4 h-4 text-blue-400" />
+                        <p className="text-blue-300/90 text-sm font-medium">
+                          Check your email
+                        </p>
+                      </div>
+                      <p className="text-blue-400/60 text-xs">
+                        We sent a 6-digit verification code to <span className="font-medium text-blue-300">{otpSentTo}</span>
                       </p>
                     </motion.div>
                   )}

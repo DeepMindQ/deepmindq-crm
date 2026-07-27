@@ -136,6 +136,11 @@ model Company {
   engagementStrategies     AIEngagementStrategy[]
   aiInsights              AIInsight[]
 
+  // Phase 9: Enterprise Reasoning Engine
+  reasoningContext         ReasoningContext?
+  agentOrchestrations      AgentOrchestration[]
+  learningEvents          LearningEvent[]
+
   @@index([domain])
   @@index([normalizedName])
   @@index([industry])
@@ -355,13 +360,17 @@ model ContactNote {
   @@index([contactId])
 }
 
-// ── Capability Library (per SDD Section 10) ──
+// ── Capability Library (per SDD Section 10) — AI Memory System Core ──
+// The SINGLE source of truth for ALL organizational knowledge.
+// Every knowledge type flows into this model, gets embedded, and becomes
+// searchable by every AI engine. Nothing should remain outside this graph.
 
 model CapabilityAsset {
   id                 String  @id @default(cuid())
   title              String
   summary            String
-  category           String // service_line, solution, accelerator, technology, case_study, proof_point, objection_response, cta
+  // 25+ knowledge categories — the complete AI knowledge graph
+  category           String // service_line | solution | accelerator | technology | case_study | proof_point | objection_response | cta | proposal | email_template | battle_card | pricing_strategy | rfp_response | sales_deck | discovery_question | methodology | architecture_document | competitive_intel | win_loss_analysis | certification | partnership | sme_knowledge | gtm_asset | lesson_learned | whitepaper | blog | delivery_capability | industry_expertise | ip_framework | customer_communication | meeting_note
   serviceLine        String?
   targetIndustries   String? // JSON: ["Financial Services", "Healthcare"]
   targetRoles        String?
@@ -402,6 +411,7 @@ model CapabilityAsset {
   updatedAt DateTime @updatedAt
 
   signalCapabilityMatches SignalCapabilityMatch[]
+  knowledgeDocuments    KnowledgeDocument[]
 
   @@index([category])
   @@index([serviceLine])
@@ -1957,4 +1967,362 @@ model EngineRun {
   @@index([companyId])
   @@index([contactId])
   @@index([createdAt(sort: Desc)])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PHASE 9: ENTERPRISE REASONING ENGINE — Cumulative Reasoning Context
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Instead of running isolated pipeline stages, DeepMindQ now builds a
+// CUMULATIVE reasoning context per company. Each step reasons on top of
+// all previous steps. The full context is persisted and reused.
+//
+// THE REASONING CHAIN (30+ steps):
+//   1-3:   Company Profile → Industry Context → Market Position
+//   4-6:   Technology Landscape → Existing Vendors → Digital Maturity
+//   7-9:   Funding & Financials → Growth Trajectory → Risk Signals
+//   10-12: Leadership & Org → Buying Committee Map → Key Decision Makers
+//   13-15: Strategic Initiatives → Pain Areas → Business Problems
+//   16-18: Signal Analysis → Signal Meaning → Opportunity Windows
+//   19-21: Internal Capability Match → Case Study Match → Accelerator Match
+//   22-24: Delivery Experience → Pricing Alignment → Proposal Components
+//   25-27: Win Probability → Competitive Position → Objection Prep
+//   28-30: Conversation Strategy → Next Best Action → Engagement Plan
+// ═══════════════════════════════════════════════════════════════════════
+
+model ReasoningContext {
+  id                 String   @id @default(cuid())
+  companyId          String   @unique
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // The cumulative reasoning state — JSON blob containing the full
+  // reasoning chain with each step's output and evidence references.
+  // Structure: { steps: [{ id, name, output, evidence, confidence }], summary }
+  reasoningState     String   @default("{}")
+
+  // High-level derived outputs (computed from reasoning state)
+  overallConfidence  Float    @default(0)       // 0-1 composite confidence
+  winProbability     Float?                     // 0-1 estimated win probability
+  opportunityScore   Float?                     // 0-100 composite opportunity score
+  recommendedActions String   @default("[]")    // JSON: [{ action, reason, priority, timing }]
+  matchedCapabilities String  @default("[]")   // JSON: [{ capabilityId, score, reason }]
+  matchedCaseStudies String   @default("[]")   // JSON: [{ caseStudyId, relevance, outcome }]
+  competitivePosition String   @default("{}")  // JSON: { position, strengths, weaknesses, threats }
+
+  // Pipeline metadata
+  status             String   @default("empty") // empty | building | ready | stale | failed
+  totalSteps         Int      @default(0)       // completed reasoning steps
+  totalAIcalls       Int      @default(0)       // AI calls made
+  totalTokensUsed    Int      @default(0)
+  totalCostUsd       Float    @default(0)
+  buildDurationMs    Int?                        // total build time
+
+  // Freshness — auto-stale after 7 days, re-buildable on demand
+  builtAt            DateTime?
+  staleAt            DateTime?
+  lastRebuiltAt      DateTime?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  steps              ReasoningStep[]
+  agentOrchestrations AgentOrchestration[]
+
+  @@index([companyId])
+  @@index([status])
+  @@index([overallConfidence])
+  @@index([builtAt])
+  @@index([staleAt])
+}
+
+model ReasoningStep {
+  id                 String   @id @default(cuid())
+  reasoningContextId String
+  reasoningContext   ReasoningContext @relation(fields: [reasoningContextId], references: [id], onDelete: Cascade)
+
+  // Step identity
+  stepNumber         Int                        // ordered position in reasoning chain
+  stepName           String                     // e.g. "company_profile", "signal_analysis", "capability_match"
+  stepGroup          String                     // external_intel | internal_match | fusion | strategy
+
+  // Step output — what this step concluded
+  output             String                     // JSON: the structured output of this step
+  summary            String?                    // human-readable 1-2 sentence summary
+
+  // Evidence — what this step used
+  evidenceIds        String   @default("[]")    // JSON: string[] — IDs of evidence used
+  knowledgeIds       String   @default("[]")    // JSON: string[] — IDs of CapabilityAssets referenced
+
+  // Confidence & cost
+  confidence         Float    @default(0.5)      // 0-1 confidence in this step's output
+  aiCalls            Int      @default(0)
+  tokensUsed         Int      @default(0)
+  costUsd            Float    @default(0)
+  durationMs         Int?
+
+  // Dependencies — this step reads output from previous steps
+  dependsOnSteps     String   @default("[]")    // JSON: stepNumber[] — which steps this builds on
+
+  createdAt          DateTime @default(now())
+
+  @@unique([reasoningContextId, stepNumber])
+  @@index([reasoningContextId])
+  @@index([stepName])
+  @@index([stepGroup])
+  @@index([confidence])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PHASE 10: MULTI-AGENT ORCHESTRATION
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Coordinates specialist agents to work together on a single company
+// analysis. Each agent is a specialist (Research, Capability Matching,
+// Scoring, Strategy, etc.) that contributes to the shared ReasoningContext.
+//
+// KEY DESIGN: Agents share ONE ReasoningContext. They read from it and
+// write to it. No duplicate AI calls. No disconnected workflows.
+// ═══════════════════════════════════════════════════════════════════════
+
+model AgentOrchestration {
+  id                  String   @id @default(cuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  reasoningContextId  String?  // links to the shared ReasoningContext
+  reasoningContext    ReasoningContext? @relation(fields: [reasoningContextId], references: [id], onDelete: SetNull)
+
+  // Orchestration metadata
+  triggerType         String   @default("manual") // manual | signal_detected | scheduled | enrichment
+  triggerSignalId     String?  // which signal triggered this orchestration
+  status              String   @default("pending") // pending | running | completed | failed | cancelled
+
+  // Agent execution plan — JSON: [{ agent, step, dependsOn, status }]
+  executionPlan       String   @default("[]")
+
+  // Aggregate stats
+  totalAgents        Int      @default(0)
+  completedAgents     Int      @default(0)
+  failedAgents        Int      @default(0)
+  totalDurationMs     Int      @default(0)
+  totalAIcalls        Int      @default(0)
+  totalTokensUsed     Int      @default(0)
+  totalCostUsd        Float    @default(0)
+
+  // Output reference
+  outputSummary       String   @default("{}") // JSON: summary of orchestration output
+
+  startedAt           DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  agentRuns           AgentRun[]
+
+  @@index([companyId])
+  @@index([status])
+  @@index([triggerType])
+  @@index([createdAt])
+}
+
+model AgentRun {
+  id                  String   @id @default(cuid())
+  orchestrationId     String
+  orchestration       AgentOrchestration @relation(fields: [orchestrationId], references: [id], onDelete: Cascade)
+
+  // Agent identity
+  agentName           String   // research | capability_matcher | scorer | strategist | conversation | proposal | executive_brief | fusion | learning | health_check
+  agentType           String   // foundation | composition | specialist
+
+  // Agent task
+  task                String   // what this agent was asked to do
+  inputContext        String   @default("{}") // JSON: context from ReasoningContext used as input
+  output              String?  // JSON: agent's structured output
+
+  // Execution
+  status              String   @default("pending") // pending | running | completed | failed | skipped
+  dependsOn           String   @default("[]") // JSON: agentName[] — which agents must complete first
+
+  // Cost tracking
+  aiCalls             Int      @default(0)
+  tokensUsed          Int      @default(0)
+  costUsd             Float    @default(0)
+  durationMs          Int?
+
+  // Errors
+  error               String?
+
+  startedAt           DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime @default(now())
+
+  @@index([orchestrationId])
+  @@index([agentName])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PHASE 11: AI COST OPTIMIZATION — Response Caching
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Caches AI responses keyed by prompt hash + context hash.
+// Before making any AI call, check cache first.
+// Reduces NVIDIA/Tavily/LLM costs by 60-80% for repeated analyses.
+// ═══════════════════════════════════════════════════════════════════════
+
+model AICache {
+  id              String   @id @default(cuid())
+  // SHA-256 hash of (systemPrompt + userPrompt + contextFingerprint)
+  cacheKey        String   @unique
+  // What was cached
+  systemPrompt    String
+  userPrompt      String
+  contextHash     String   // hash of the context data used (companyId + signals + evidence)
+  response        String   // the LLM response text
+  modelUsed       String
+  tier            String   // deep | smart | fast
+
+  // Cost savings
+  tokensUsed      Int      @default(0)
+  costUsd         Float    @default(0)
+  hitCount        Int      @default(0) // how many times this cache was hit
+  lastHitAt       DateTime?
+
+  // TTL — cache expires after 7 days for signals, 30 days for static knowledge
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+
+  @@index([cacheKey])
+  @@index([expiresAt])
+  @@index([modelUsed])
+  @@index([hitCount(sort: Desc)])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PHASE 12: CONTINUOUS LEARNING LOOP
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Every interaction (win, loss, feedback, email reply, meeting note)
+// creates a LearningEvent that updates the organizational memory.
+// Knowledge from HSBC engagement auto-reusable for next bank prospect.
+// ═══════════════════════════════════════════════════════════════════════
+
+model LearningEvent {
+  id                String   @id @default(cuid())
+  companyId         String?
+  company           Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // What happened
+  eventType         String   // win | loss | feedback_positive | feedback_negative | email_replied | meeting_held | proposal_sent | objection_raised | competitive_loss | new_case_study | methodology_improved | pricing_updated | lesson_learned
+  source            String   // system | user | ai_recommendation | email | calendar
+  description       String   // what happened
+
+  // What was learned
+  learnedInsight    String   // the extracted insight / lesson
+  applicableContext String   @default("{}") // JSON: { industry, companySize, technology, role, serviceLine } — when this learning applies
+  applicableTags    String   @default("[]") // JSON: string[] — tags for matching
+
+  // Knowledge creation — did this event create new organizational knowledge?
+  createdCapabilityAssetId String? // if this created a new CapabilityAsset
+  updatedCapabilityAssetId String? // if this updated an existing one
+
+  // Quality
+  confidence        Float    @default(0.5) // 0-1 how confident we are in this learning
+  verified          Boolean  @default(false) // has a human verified this learning?
+
+  // Reusability tracking
+  reuseCount        Int      @default(0) // how many times this learning was reused
+  lastReusedAt      DateTime?
+
+  // Feedback on the learning itself
+  feedback          String?  // positive | negative | needs_refinement
+  feedbackNote      String?
+
+  createdAt         DateTime @default(now())
+
+  @@index([companyId])
+  @@index([eventType])
+  @@index([confidence])
+  @@index([reuseCount(sort: Desc)])
+  @@index([verified])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PHASE 13: KNOWLEDGE CHUNKING — Document Ingestion Pipeline
+// ═══════════════════════════════════════════════════════════════════════
+//
+// When documents (proposals, whitepapers, case studies, emails, etc.)
+// are uploaded, they're chunked, classified, summarized, embedded,
+// and linked to the knowledge graph. Each chunk is independently
+// searchable and retrievable.
+// ═══════════════════════════════════════════════════════════════════════
+
+model KnowledgeDocument {
+  id                String   @id @default(cuid())
+  title             String
+  documentType      String   // proposal | whitepaper | case_study | email | meeting_note | rfp_response | sales_deck | methodology | architecture_doc | competitive_report
+  sourceUrl         String?
+  sourceType        String   @default("upload") // upload | email | crm | website | manual
+  originalContent   String   // full original text
+  contentHash       String   // SHA-256 for dedup detection
+  metadata          String   @default("{}") // JSON: { author, date, client, project, industry, technology }
+
+  // Processing status
+  status            String   @default("pending") // pending | extracting | chunking | classifying | embedding | linking | completed | failed
+  processingError   String?
+  totalChunks       Int      @default(0)
+  processedChunks   Int      @default(0)
+
+  // Link to parent CapabilityAsset (if this document IS a capability)
+  capabilityAssetId String?
+  capabilityAsset   CapabilityAsset? @relation(fields: [capabilityAssetId], references: [id], onDelete: SetNull)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  chunks            KnowledgeChunk[]
+
+  @@index([documentType])
+  @@index([status])
+  @@index([contentHash])
+  @@index([capabilityAssetId])
+  @@index([createdAt])
+}
+
+model KnowledgeChunk {
+  id                String   @id @default(cuid())
+  documentId        String
+  document          KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  // Chunk content
+  chunkIndex        Int                          // position within document
+  content           String                       // the chunk text
+  summary           String?                      // AI-generated summary
+  keywords          String   @default("[]")       // JSON: string[] — extracted keywords
+
+  // Classification
+  category          String?                      // knowledge category (service_line, case_study, etc.)
+  subCategory       String?                      // finer classification
+  industry          String?                      // applicable industry
+  technology        String?                      // applicable technology
+  relevanceScore    Float    @default(0.5)       // 0-1 how relevant this chunk is
+
+  // Embedding reference
+  embeddingId       String?                      // links to Embedding table
+  contentHash       String                       // SHA-256 for cache/dedup
+
+  // Metadata
+  metadata          String   @default("{}")      // JSON: { page, section, speaker, topic }
+
+  createdAt         DateTime @default(now())
+
+  @@index([documentId])
+  @@index([chunkIndex])
+  @@index([category])
+  @@index([industry])
+  @@index([technology])
+  @@index([embeddingId])
+  @@index([contentHash])
+  @@unique([documentId, chunkIndex])
 }

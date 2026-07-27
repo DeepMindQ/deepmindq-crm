@@ -6,6 +6,7 @@ export type ViewId =
   | 'ai-command-center'
   | 'revenue-intelligence'
   | 'signal-intelligence'
+  | 'internal-intelligence'
   // AI ENGINES
   | 'account-intelligence'
   | 'conversation-planner'

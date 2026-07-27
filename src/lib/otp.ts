@@ -110,20 +110,26 @@ export async function requestOtp(
     return { success: false, error: 'Invalid email format' };
   }
 
-  // Upsert user (create if not exists)
+  // Single-user enforcement: only allow authorized email
+  const AUTHORIZED_EMAIL = 'shanker001@gmail.com';
+  if (normalizedEmail !== AUTHORIZED_EMAIL) {
+    return { success: false, error: 'This workspace is restricted to authorized personnel only.' };
+  }
+
+  // Find user — do NOT create for unauthorized emails
   let user = await db.user.findUnique({ where: { email: normalizedEmail } });
 
   if (!user) {
-    // For 'change_email' purpose, don't create a new user
-    if (purpose === 'change_email') {
-      return { success: false, error: 'User not found' };
-    }
+    // Auto-create the authorized user if they don't exist yet
     user = await db.user.create({
       data: {
         email: normalizedEmail,
-        name: normalizedEmail.split('@')[0],
+        name: 'Shanker',
+        role: 'admin',
+        isActive: true,
       },
     });
+    console.log(`[OTP] Auto-created authorized user: ${normalizedEmail}`);
   }
 
   if (!user.isActive) {
@@ -208,15 +214,9 @@ export async function requestOtp(
     console.log(`[OTP] DEV — Code for ${normalizedEmail}: ${code}`);
   }
 
-  // If email was NOT sent — return devCode as fallback in dev/non-production environments
+  // If email was NOT sent — fail closed (no devCode in production)
   if (!emailSent) {
-    const isDev = process.env.NODE_ENV !== 'production' || process.env.ENABLE_DEV_AUTH_BYPASS === 'true';
-    if (isDev) {
-      console.warn(`[OTP] DEV — Email not configured. Returning code in response for ${normalizedEmail}: ${code}`);
-      return { success: true, devCode: code };
-    }
-    // Production: fail closed (enterprise security)
-    console.error(`[OTP] Email send failed and no fallback available for ${normalizedEmail}.`);
+    console.error(`[OTP] Email send failed for ${normalizedEmail}.`);
     return { success: false, error: 'Email service not available. Please contact support.' };
   }
 

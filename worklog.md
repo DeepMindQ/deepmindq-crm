@@ -148,3 +148,36 @@ Stage Summary:
 - Files created: src/app/api/intelligence/sprint1/route.ts, scripts/validate-sprint1-direct.ts
 - Note: auth-helpers.ts has temporary public paths for sprint1 and companies (remove for production)
 - Note: schema.prisma temporarily switched to SQLite (switch back to PostgreSQL for production)
+---
+Task ID: S2-1
+Agent: Main Agent (direct, no subagents)
+Task: Wire Sprint 2 API route + validation (association engine, confidence engine, knowledge versioning)
+
+Work Log:
+- Created `/api/intelligence/sprint2` POST route (src/app/api/intelligence/sprint2/route.ts)
+  - Accepts `{ companyId: string }`, runs full Sprint 2 pipeline
+  - Step 1: Duplicate detection via Jaccard similarity (>= 0.6 threshold)
+  - Step 2: Conflict detection (contradiction, confidence divergence, temporal drift)
+  - Step 3: Auto-create duplicate associations
+  - Step 4: Confidence recalculation (source 35%, freshness 35%, content 30%)
+  - Step 5: Association retrieval and summary
+  - Returns: duplicates, conflicts, confidence breakdown, associations, metadata
+- Cleaned up auth-helpers.ts: removed temporary public paths for sprint1/companies
+- Created validation script: scripts/validate-sprint2-direct.ts
+  - Seeds 5 test IntelligenceObject records per company (near-duplicate pair, contradiction pair, old data, long content)
+  - Tests 14 validation checks across all 4 Sprint 2 engines:
+    - Association: duplicate detection, specific pair match, Jaccard score, auto-association, retrieval
+    - Confidence: composite scoring, freshness decay, persistence, DB update, old data penalty
+    - Knowledge: versioning snapshot, version history
+    - Conflicts: detection, contradiction identification
+  - Auto-cleans all test objects and associations after validation
+
+Stage Summary:
+- **5/5 companies PASSED all 14/14 checks**
+  - Duplicate detection: Jaccard 93.8% on near-duplicate pair
+  - Conflict detection: 3 conflicts per company (2 temporal + 1 contradiction)
+  - Confidence: 71% composite (source 75%, freshness 85%, content 50%)
+  - Old data penalty: 194.5 days → 0% freshness score
+  - Knowledge versioning: snapshots created and retrieved correctly
+- Files created: src/app/api/intelligence/sprint2/route.ts, scripts/validate-sprint2-direct.ts
+- Files modified: src/lib/auth-helpers.ts (cleanup)

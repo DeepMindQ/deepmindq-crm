@@ -99,19 +99,10 @@ function classifyCompanySize(sizeRange: string | null | undefined): CompanySizeT
   }
   if (s.includes('enterprise') || s === '10000+' || s === '50000+') return 'enterprise';
 
-  // Sprint 1: Small company tier (<200 employees)
-  const smallNum = n.match(/(\d{1,3})/);
-  if (smallNum) {
-    const num = parseInt(smallNum[1], 10);
-    if (num < 200) return 'small';
-  }
-  if (s.includes('1-10') || s.includes('11-50') || s.includes('51-200') ||
-      s.includes('1-49') || s.includes('50-99') || s.includes('100-199') ||
-      s === '1-200') {
-    return 'small';
-  }
-
   // Mid-market: 200–5000 employees
+  // Check mid-market FIRST before small, because "Mid-Market (1,000-5,000)" contains
+  // numbers that look like small-company ranges if checked in wrong order
+  if (s.includes('mid-market') || s.includes('mid market')) return 'mid_market';
   if (/\d{3,4}/.test(n)) {
     const num = parseInt(n.match(/(\d{3,4})/)?.[1] || '0', 10);
     if (num >= 200 && num <= 5000) return 'mid_market';
@@ -122,6 +113,19 @@ function classifyCompanySize(sizeRange: string | null | undefined): CompanySizeT
       s === '200-2000' || s === '1,001-5,000') {
     return 'mid_market';
   }
+
+  // Small: <200 employees (check AFTER mid-market)
+  const smallNum = n.match(/(\d{1,3})/);
+  if (smallNum) {
+    const num = parseInt(smallNum[1], 10);
+    if (num < 200) return 'small';
+  }
+  if (s.includes('1-10') || s.includes('11-50') || s.includes('51-200') ||
+      s.includes('1-49') || s.includes('50-99') || s.includes('100-199') ||
+      s === '1-200' || s.includes('nov') || s.includes('jan')) {
+    return 'small';
+  }
+
   return 'default';
 }
 

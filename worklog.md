@@ -247,3 +247,26 @@ Stage Summary:
 - All tabs now consume real data from alignment composition API
 - Architecture Phase B ready: UI/API contract compatible with future Intelligence Engine upgrades
 - Pushed to GitHub: ff51f8e
+
+---
+Task ID: 7
+Agent: Main Agent (No Subagents)
+Task: Step 1 — Gold Standard Company Intelligence Workspace
+
+Work Log:
+- Created /src/lib/intelligence-types.ts: frozen Intelligence Object contract (CompanyIntelligence, IntelligenceObject, EvidenceState, TemporalConfidence, ExecutiveBriefData)
+- Evolved /api/companies/[id]/alignment to v2: returns full CompanyIntelligence with evidence states (confirmed/inferred/unknown), temporal tracking, freshness indicators, reasoning chains
+- Created /api/companies/[id]/brief: Executive Brief generator — one-page shareable intelligence summary for internal adoption
+- Created /api/companies/[id]/feedback: Human intelligence feedback API (accurate/outdated/incorrect) using existing IntelligenceValidation schema — no migration
+- Redesigned Company Workspace: narrative-first Intelligence Space with 6 sections (Executive Understanding, Signals & Evidence, Capability Alignment, Stakeholders, Actions, Intelligence History)
+- Every intelligence item shows: evidence state, confidence, freshness, reasoning, human feedback controls
+- Intelligence reveal choreography: staged motion (200ms-400ms delays), not instant load
+- Executive Brief modal with copy-to-clipboard for VP sharing
+- Build compiles clean (36.7s, 0 errors)
+
+Stage Summary:
+- 5 files changed, 1597 insertions, 1193 deletions
+- New: intelligence-types.ts, brief/route.ts, feedback/route.ts
+- Updated: alignment/route.ts (v2), company-workspace.tsx (full rewrite)
+- Phase B ready: UI consumes Intelligence Objects, source can evolve without redesign
+- Pushed to GitHub: f2d2af8

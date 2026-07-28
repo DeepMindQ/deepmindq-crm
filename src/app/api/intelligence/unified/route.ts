@@ -140,7 +140,7 @@ export async function POST(request: Request) {
       }),
 
       // Internal: Account strategy
-      db.accountStrategy.findUnique({
+      db.accountStrategy.findFirst({
         where: { companyId },
         select: { swotAnalysis: true, stakeholderMap: true, keyInitiatives: true },
       }),
@@ -159,16 +159,24 @@ export async function POST(request: Request) {
       }),
     ])
 
-    // Extract internal memory signals via connector
-    let internalMemorySignals = []
+    let internalMemorySignals: Array<{
+      signalType: string
+      title: string
+      description: string
+      source: string
+      confidence: number
+      businessImpact: string
+      recommendedAction: string
+      severity: string
+    }> = []
     try {
       const { extractInternalMemorySignals } = await import('@/lib/intelligence-sources/internal-memory-connector')
       const memResult = await extractInternalMemorySignals(companyId)
       internalMemorySignals = memResult.signals.slice(0, 15).map(s => ({
         signalType: s.signalType,
-        title: s.title,
-        description: s.description,
-        source: s.source,
+        title: s.signal,
+        description: s.evidence,
+        source: s.sourceName,
         confidence: Math.round(s.confidence * 100),
         businessImpact: s.businessImpact,
         recommendedAction: s.recommendedAction,
@@ -313,7 +321,7 @@ export async function POST(request: Request) {
         orderBy: { generatedAt: 'desc' },
       })
       const seen = new Set<string>()
-      const uniqueActions = []
+      const uniqueActions: Array<{ type: string; summary: string; priority: number; confidence: number; generatedAt: Date }> = []
       for (const a of actions) {
         if (seen.has(a.actionType)) continue
         seen.add(a.actionType)

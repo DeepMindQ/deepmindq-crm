@@ -20,6 +20,7 @@ export const PUBLIC_PATH_PREFIXES: string[] = [
   '/api/setup-db',         // DB schema setup (initial deployment)
   '/api/webhooks/',       // Incoming webhooks (Stripe, etc.)
   '/api/seed',            // Seed data
+  '/api/intelligence/',    // Sprint 1/2/3 intelligence pipeline (dev)
   '/login',
   '/favicon.ico',
   '/_next/static',

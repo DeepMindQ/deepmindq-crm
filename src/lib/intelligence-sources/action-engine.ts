@@ -343,7 +343,7 @@ async function gatherCompanyContext(companyId: string): Promise<ActionContext> {
     }),
 
     // Sprint 3A: Account strategy
-    db.accountStrategy.findUnique({
+    db.accountStrategy.findFirst({
       where: { companyId },
       select: { swotAnalysis: true, stakeholderMap: true, keyInitiatives: true },
     }),
@@ -356,9 +356,9 @@ async function gatherCompanyContext(companyId: string): Promise<ActionContext> {
     const memResult = await extractInternalMemorySignals(companyId)
     internalSignals = memResult.signals.slice(0, 20).map(s => ({
       signalType: s.signalType,
-      title: s.title,
-      description: s.description,
-      source: s.source,
+      title: s.signal,
+      description: s.evidence,
+      source: s.sourceName,
       confidence: s.confidence,
       businessImpact: s.businessImpact,
       recommendedAction: s.recommendedAction,
@@ -386,7 +386,7 @@ async function gatherCompanyContext(companyId: string): Promise<ActionContext> {
       createdAt: cn.createdAt,
     })),
     timelineEvents,
-    humanIntelligence,
+    humanIntelligence: humanIntel,
     accountStrategy,
     internalSignals,
   }

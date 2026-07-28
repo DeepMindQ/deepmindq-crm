@@ -240,8 +240,9 @@ model Contact {
   segments            SegmentContact[]
   sequenceEnrollments SequenceEnrollment[]
   aiInsights          AIInsight[]
-
-  @@index([email])
+  aiGenerationAudits  AIGenerationAudit[]
+  aiCallLogs          AICallLog[]
+  jobs                 Job[]
   @@index([companyId])
   @@index([status])
   @@index([batchId])
@@ -313,6 +314,14 @@ model Company {
   // Email Sequences linked to this company
   emailSequences           EmailSequence[]
   conversationPlans         ConversationPlan[]
+  accountStrategies        AccountStrategy[]
+  jobs                     Job[]
+
+  // Phase 1.3: @relation back-fields
+  aiGenerationAudits       AIGenerationAudit[]
+  aiCallLogs               AICallLog[]
+  aiUsageLogs              AIUsageLog[]
+  intelligenceActions      IntelligenceActionHistory[]
 
   // Phase 9: Enterprise Reasoning Engine
   reasoningContext         ReasoningContext?
@@ -349,6 +358,7 @@ model ImportBatch {
   updatedAt        DateTime @updatedAt
 
   contacts Contact[]
+  jobs     Job[]
 
   @@index([status])
   @@index([createdAt])
@@ -502,6 +512,7 @@ model Evidence {
   createdAt         DateTime  @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  job     Job?    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([extractedField])
@@ -960,6 +971,8 @@ model AccountStrategy {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   @@index([companyId])
   @@index([status])
   @@index([createdAt])
@@ -983,8 +996,9 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  otpCodes OtpCode[]
-  sessions Session[]
+  otpCodes    OtpCode[]
+  sessions    Session[]
+  aiUsageLogs AIUsageLog[]
 
   @@index([email])
   @@index([isActive])
@@ -1254,6 +1268,12 @@ model Job {
 
   logs JobLog[]
 
+  // Phase 1.3: @relation for FK fields (was previously unmodeled)
+  company    Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact    Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  batch      ImportBatch? @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  evidence   Evidence[]
+
   @@index([type])
   @@index([status])
   @@index([companyId])
@@ -1302,6 +1322,10 @@ model AIGenerationAudit {
   promptVersion          String? // governance prompt version hash for reproducibility
   inputParams            Json?  @default("{}") // JSON: the input parameters (sanitized, no PII)
   createdAt              DateTime @default(now())
+
+  // Phase 1.3: @relation for FK fields
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@index([generationType])
   @@index([companyId])
@@ -2619,6 +2643,9 @@ model PipelineRun {
   accountScoreId    String?
   strategicInsightId String?
 
+  // Phase 1.3: @relation back-field
+  aiCallLogs AICallLog[]
+
   @@index([companyId])
   @@index([status])
   @@index([startedAt])
@@ -2707,6 +2734,11 @@ model AICallLog {
 
   createdAt         DateTime @default(now())
 
+  // Phase 1.3: @relation for FK fields
+  company     Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact     Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  pipelineRun PipelineRun? @relation(fields: [pipelineRunId], references: [id], onDelete: Cascade)
+
   @@index([companyId])
   @@index([genType])
   @@index([provider])
@@ -2746,6 +2778,10 @@ model AIUsageLog {
   status          String   @default("success") // success, failed, degraded
   createdAt       DateTime @default(now())
 
+  // Phase 1.3: @relation for FK fields
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([feature])
   @@index([provider])
   @@index([companyId])
@@ -2765,6 +2801,9 @@ model IntelligenceActionHistory {
   evidenceIds   String   // JSON array of evidence/signal IDs referenced
   supersededAt  DateTime? // When a newer action replaced this one
   createdAt     DateTime @default(now())
+
+  // Phase 1.3: @relation for FK field
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, actionType])
   @@index([companyId, createdAt])

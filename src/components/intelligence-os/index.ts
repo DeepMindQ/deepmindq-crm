@@ -5,3 +5,4 @@ export { KnowledgeWorkspace } from './knowledge-workspace';
 export { CapabilityWorkspace } from './capability-workspace';
 export { IntelligenceBriefing } from './intelligence-briefing';
 export { IntelligenceSearch } from './intelligence-search';
+export { ProgressiveDisclosure } from './progressive-disclosure';

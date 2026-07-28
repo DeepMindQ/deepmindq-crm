@@ -11,13 +11,13 @@ import { lazy } from 'react';
 type ScreenComponent = React.LazyExoticComponent<React.ComponentType<any>> | React.FC<any>;
 
 /* ── Intelligence OS Screens (new layer) ── */
-const CommandCenterScreen = lazy(() => import('@/components/intelligence-os/command-center'));
-const ActivationWorkspaceScreen = lazy(() => import('@/components/intelligence-os/activation-workspace'));
-const CompanyWorkspaceScreen = lazy(() => import('@/components/intelligence-os/company-workspace'));
-const KnowledgeWorkspaceScreen = lazy(() => import('@/components/intelligence-os/knowledge-workspace'));
-const CapabilityWorkspaceScreen = lazy(() => import('@/components/intelligence-os/capability-workspace'));
-const IntelligenceBriefingScreen = lazy(() => import('@/components/intelligence-os/intelligence-briefing'));
-const IntelligenceSearchScreen = lazy(() => import('@/components/intelligence-os/intelligence-search'));
+const CommandCenterScreen = lazy(() => import('@/components/intelligence-os/command-center').then(m => ({ default: m.CommandCenter })));
+const ActivationWorkspaceScreen = lazy(() => import('@/components/intelligence-os/activation-workspace').then(m => ({ default: m.ActivationWorkspace })));
+const CompanyWorkspaceScreen = lazy(() => import('@/components/intelligence-os/company-workspace').then(m => ({ default: m.CompanyWorkspace })));
+const KnowledgeWorkspaceScreen = lazy(() => import('@/components/intelligence-os/knowledge-workspace').then(m => ({ default: m.KnowledgeWorkspace })));
+const CapabilityWorkspaceScreen = lazy(() => import('@/components/intelligence-os/capability-workspace').then(m => ({ default: m.CapabilityWorkspace })));
+const IntelligenceBriefingScreen = lazy(() => import('@/components/intelligence-os/intelligence-briefing').then(m => ({ default: m.IntelligenceBriefing })));
+const IntelligenceSearchScreen = lazy(() => import('@/components/intelligence-os/intelligence-search').then(m => ({ default: m.IntelligenceSearch })));
 
 /* ── Primary nav screens (legacy, accessible) ── */
 const DashboardScreen = lazy(() => import('@/components/screens/dashboard-screen'));

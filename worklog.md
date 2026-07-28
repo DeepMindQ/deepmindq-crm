@@ -189,3 +189,38 @@ Stage Summary:
 - Batch enrichment endpoint already exists at POST /api/intelligence/enrich-batch (no changes needed)
 - TypeScript compiles clean
 - Ready for Step 2: Product DNA
+
+---
+Task ID: 5
+Agent: Main Agent (No Subagents — user requested direct execution)
+Task: Build Intelligence OS Layer — new product operating model
+
+Work Log:
+- Read entire codebase: nav-config, screen-map, store, app-shell, page.tsx, providers, globals.css, package.json
+- Understood existing 5-section navigation with 40+ screens
+- Designed Intelligence OS architecture: INTELLIGENCE / WORKSPACES / ADMINISTRATION (3-section model)
+- Built 7 new Intelligence OS screens:
+  1. /src/components/intelligence-os/command-center.tsx — "What should I focus on today?"
+  2. /src/components/intelligence-os/activation-workspace.tsx — Flexible intelligence expansion, not a wizard
+  3. /src/components/intelligence-os/intelligence-briefing.tsx — The "magic moment" workspace transformation
+  4. /src/components/intelligence-os/company-workspace.tsx — Unified intelligence context (6 tabs)
+  5. /src/components/intelligence-os/knowledge-workspace.tsx — Capabilities + Knowledge unified view
+  6. /src/components/intelligence-os/capability-workspace.tsx — Detailed capability library with category filter
+  7. /src/components/intelligence-os/intelligence-search.tsx — Ask any question, get structured results
+- Updated /src/lib/nav-config.ts — New 3-section navigation (INTELLIGENCE / WORKSPACES / ADMINISTRATION)
+- Updated /src/lib/store.ts — Added new ViewIds + intelligenceActivated state flag
+- Updated /src/lib/screen-map.tsx — Registered 7 new Intelligence OS screens with lazy loading
+- Updated /src/app/page.tsx — Changed default hash from #dashboard to #command-center
+- Fixed Badge import in intelligence-search.tsx
+- Fixed lazy import wrappers (named exports use .then(m => ({ default: m.X })) pattern)
+- Production build compiles clean: ✓ Compiled successfully in 41s
+
+Stage Summary:
+- Intelligence OS layer is live
+- New navigation model: One business question → One intelligence workspace
+- Activation workspace doubles as "Expand Intelligence" after activation
+- Company Workspace eliminates fragmentation: all intelligence under one context
+- Empty engine behavior preserved: Command Center shows activation CTA when no data
+- Legacy 40+ screens preserved and accessible via internal navigation (not in nav)
+- Backend frozen — no new API endpoints needed
+- Product model transformed: Data Objects → Intelligence → Decision → Action

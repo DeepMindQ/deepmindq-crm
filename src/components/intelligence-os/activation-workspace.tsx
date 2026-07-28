@@ -2,62 +2,63 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Cpu, Building2, BookOpen, ArrowRight, Loader2 } from 'lucide-react';
+import {
+  Upload, Cpu, Building2, BookOpen, ArrowRight, Loader2,
+  CheckCircle2, Brain, Zap, Plus, FileSpreadsheet, Database,
+  Link2, RefreshCw,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAppStore } from '@/lib/store';
+
+/* ═══════════════════════════════════════════════════
+   Activation Workspace
+   "Teach DeepMindQ" — not a wizard, an intelligence relationship
+   Always-available, not one-time setup
+   ═══════════════════════════════════════════════════ */
 
 interface IntelligenceCounts {
   capabilities: number;
   accounts: number;
   signals: number;
-}
-
-interface CompanyBrief {
-  id: string;
-  name: string;
-  signalCount: number;
-  topSignal: string;
-  intelligenceScore: number;
+  knowledge: number;
 }
 
 interface UploadResult {
+  success?: boolean;
+  count?: number;
+  message?: string;
   capabilitiesCreated?: number;
   accountsCreated?: number;
-  message?: string;
 }
 
 export function ActivationWorkspace() {
-  const [counts, setCounts] = useState<IntelligenceCounts>({ capabilities: 0, accounts: 0, signals: 0 });
+  const { intelligenceActivated, setActiveView, setIntelligenceActivated } = useAppStore();
+  const [counts, setCounts] = useState<IntelligenceCounts>({ capabilities: 0, accounts: 0, signals: 0, knowledge: 0 });
   const [uploadingChannel, setUploadingChannel] = useState<string | null>(null);
   const [uploadResults, setUploadResults] = useState<Record<string, UploadResult>>({});
   const [error, setError] = useState<string | null>(null);
-  const [enriching, setEnriching] = useState(false);
-  const [briefing, setBriefing] = useState<{ companies: CompanyBrief[]; totalSignals: number } | null>(null);
-  const [showBriefing, setShowBriefing] = useState(false);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const fetchCounts = useCallback(async () => {
     try {
-      const [capRes, compRes] = await Promise.all([
+      const [capRes, compRes, sigRes] = await Promise.all([
         fetch('/api/capabilities'),
         fetch('/api/companies?limit=1'),
+        fetch('/api/signals'),
       ]);
       const capData = await capRes.json();
       const compData = await compRes.json();
-      const capCount = Array.isArray(capData) ? capData.length : capData.data?.length ?? 0;
-      const compCount = compData.stats?.total ?? compData.total ?? (Array.isArray(compData.data) ? compData.data.length : 0);
+      const sigData = await sigRes.json();
       setCounts({
-        capabilities: capCount,
-        accounts: compCount,
-        signals: 0,
+        capabilities: Array.isArray(capData) ? capData.length : capData.data?.length ?? 0,
+        accounts: compData.stats?.total ?? compData.total ?? (Array.isArray(compData.data) ? compData.data.length : 0),
+        signals: Array.isArray(sigData) ? sigData.length : sigData.data?.length ?? 0,
+        knowledge: 0,
       });
-    } catch {
-      // Silent fail on count fetch
-    }
+    } catch { /* silent */ }
   }, []);
 
-  useEffect(() => {
-    fetchCounts();
-  }, [fetchCounts]);
+  useEffect(() => { fetchCounts(); }, [fetchCounts]);
 
   const handleFileUpload = async (channel: string, file: File) => {
     setUploadingChannel(channel);
@@ -69,293 +70,210 @@ export function ActivationWorkspace() {
       const res = await fetch(endpoint, { method: 'POST', body: formData });
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
-      setUploadResults((prev) => ({ ...prev, [channel]: data }));
+      setUploadResults(prev => ({ ...prev, [channel]: { success: true, count: data.capabilitiesCreated ?? data.accountsCreated ?? data.count ?? 0, message: data.message } }));
       await fetchCounts();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
+      setUploadResults(prev => ({ ...prev, [channel]: { success: false, message: err instanceof Error ? err.message : 'Upload failed' } }));
     } finally {
       setUploadingChannel(null);
     }
   };
 
-  const handleActivateIntelligence = async () => {
-    setEnriching(true);
-    setError(null);
-    try {
-      const compRes = await fetch('/api/companies?limit=100');
-      const compData = await compRes.json();
-      const companies = compData.data ?? compData ?? [];
-      const ids = companies.map((c: any) => c.id).filter(Boolean);
-      if (ids.length === 0) {
-        setError('No accounts found to enrich.');
-        setEnriching(false);
-        return;
-      }
-      const enrichRes = await fetch('/api/intelligence/enrich-batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyIds: ids }),
-      });
-      if (!enrichRes.ok) throw new Error('Enrichment failed');
-      const enrichData = await enrichRes.json();
-      const enrichedCompanies = (enrichData.results ?? enrichData.data ?? companies).map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        signalCount: c.signalCount ?? c._count?.signals ?? 0,
-        topSignal: c.topSignal ?? 'Intelligence signal detected',
-        intelligenceScore: c.intelligenceScore ?? c.score ?? 0,
-      }));
-      const totalSignals = enrichedCompanies.reduce((sum: number, c: CompanyBrief) => sum + c.signalCount, 0);
-      setBriefing({ companies: enrichedCompanies, totalSignals });
-      setShowBriefing(true);
-      await fetchCounts();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Enrichment failed');
-    } finally {
-      setEnriching(false);
-    }
-  };
-
   const canActivate = counts.capabilities > 0 && counts.accounts > 0;
 
+  const handleActivate = () => {
+    setIntelligenceActivated(true);
+    setActiveView('intelligence-briefing');
+  };
+
   const channels = [
-    {
-      key: 'capabilities',
-      label: 'Capabilities',
-      description: 'Upload services, solutions, case studies, proof points',
-      icon: Cpu,
-      result: uploadResults.capabilities,
-    },
-    {
-      key: 'accounts',
-      label: 'Accounts',
-      description: 'Upload strategic accounts for intelligence analysis',
-      icon: Building2,
-      result: uploadResults.accounts,
-    },
-    {
-      key: 'knowledge',
-      label: 'Knowledge',
-      description: 'Upload documents for context enrichment',
-      icon: BookOpen,
-      result: uploadResults.knowledge,
-      disabled: true,
-    },
+    { key: 'capabilities', label: 'Capabilities', description: 'Upload services, solutions, case studies, proof points', icon: Cpu, accept: '.json,.csv' },
+    { key: 'accounts', label: 'Accounts', description: 'Upload strategic accounts for intelligence analysis', icon: Building2, accept: '.json,.csv,.xlsx' },
+    { key: 'knowledge', label: 'Knowledge', description: 'Upload documents, proposals, win/loss learning, market information', icon: BookOpen, accept: '.json,.csv,.pdf,.docx', disabled: true },
   ];
 
   return (
-    <div className="ios-background min-h-screen flex flex-col">
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full max-w-2xl"
-        >
-          <div className="text-center mb-12">
-            <h1 className="text-2xl font-semibold tracking-tight" style={{ color: 'var(--ios-text-primary)' }}>
-              DeepMindQ
-            </h1>
-            <p className="text-xs uppercase tracking-[0.2em] mt-2" style={{ color: 'var(--ios-text-muted)' }}>
-              Enterprise Intelligence Operating System
-            </p>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">
+            {intelligenceActivated ? 'Expand Intelligence' : 'Activate Intelligence'}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {intelligenceActivated
+              ? 'Add new data to make the intelligence engine smarter.'
+              : 'Teach DeepMindQ about your business. Upload capabilities and accounts.'}
+          </p>
+        </div>
+        {intelligenceActivated && (
+          <Button variant="outline" size="sm" onClick={() => setActiveView('command-center')} className="gap-1.5 text-xs">
+            <Brain className="w-3.5 h-3.5" />
+            Command Center
+          </Button>
+        )}
+      </div>
 
-          <div className="text-center mb-10">
-            <h2 className="text-xl font-medium" style={{ color: 'var(--ios-text-primary)' }}>
-              Teach DeepMindQ about your business.
-            </h2>
-            <p className="text-sm mt-3 max-w-md mx-auto" style={{ color: 'var(--ios-text-secondary)' }}>
-              Upload your capabilities, accounts, and knowledge. The engine starts understanding immediately.
-            </p>
+      {/* Intelligence Status Bar */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="section-container p-4"
+      >
+        <div className="flex items-center gap-6 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Brain className="w-4 h-4 text-primary" />
+            <span className="text-xs font-medium text-muted-foreground">DeepMindQ understands:</span>
           </div>
+          {[
+            { label: 'Capabilities', value: counts.capabilities, color: '#8B5CF6' },
+            { label: 'Accounts', value: counts.accounts, color: '#2563EB' },
+            { label: 'Signals', value: counts.signals, color: '#F59E0B' },
+            { label: 'Knowledge', value: counts.knowledge, color: '#06B6D4' },
+          ].map(item => (
+            <div key={item.label} className="flex items-center gap-2">
+              <span className={`text-sm font-semibold tabular-nums ${item.value > 0 ? 'text-foreground' : 'text-muted-foreground/40'}`}>
+                {item.value}
+              </span>
+              <span className="text-xs text-muted-foreground">{item.label}</span>
+            </div>
+          ))}
+          {canActivate && (
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="ml-auto">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+                <CheckCircle2 className="w-3 h-3" />
+                Ready to activate
+              </span>
+            </motion.div>
+          )}
+        </div>
+      </motion.div>
 
-          <div className="flex flex-col gap-4 mb-10">
-            {channels.map((ch, i) => {
-              const Icon = ch.icon;
-              const isUploading = uploadingChannel === ch.key;
-              return (
-                <motion.div
-                  key={ch.key}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 + i * 0.08, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  <div
-                    className={`ios-card-interactive p-5 ${ch.disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
-                    onClick={() => {
-                      if (ch.disabled) return;
-                      fileInputRefs.current[ch.key]?.click();
-                    }}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ background: 'var(--ios-bg-elevated)' }}
-                      >
-                        <Icon size={18} style={{ color: 'var(--ios-accent)' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-medium" style={{ color: 'var(--ios-text-primary)' }}>
-                            {ch.label}
-                          </span>
-                          {isUploading && <span className="intel-pulse text-xs" style={{ color: 'var(--ios-accent)' }}>Processing...</span>}
-                          {ch.disabled && <span className="text-xs" style={{ color: 'var(--ios-text-muted)' }}>Coming soon</span>}
-                        </div>
-                        <p className="text-xs mt-1" style={{ color: 'var(--ios-text-secondary)' }}>
-                          {ch.description}
-                        </p>
-                        {ch.result && !isUploading && (
-                          <motion.p
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="text-xs mt-2"
-                            style={{ color: 'var(--ios-confidence-high)' }}
-                          >
-                            {ch.result.message || ch.result.capabilitiesCreated !== undefined
-                              ? `Understood: ${ch.result.capabilitiesCreated ?? ch.result.accountsCreated ?? 0} records processed`
-                              : 'Processed successfully'}
-                          </motion.p>
-                        )}
-                      </div>
-                      {!ch.disabled && !isUploading && (
-                        <Upload size={16} style={{ color: 'var(--ios-text-muted)' }} />
+      {/* Upload Channels */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {channels.map((ch, i) => {
+          const Icon = ch.icon;
+          const isUploading = uploadingChannel === ch.key;
+          const result = uploadResults[ch.key];
+          return (
+            <motion.div
+              key={ch.key}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08 }}
+            >
+              <div
+                className={`section-container p-5 h-full ${ch.disabled ? 'opacity-50 cursor-not-allowed' : 'card-interactive cursor-pointer'}`}
+                onClick={() => {
+                  if (ch.disabled || isUploading) return;
+                  fileInputRefs.current[ch.key]?.click();
+                }}
+              >
+                <div className="flex items-start gap-3.5 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-primary/8 flex items-center justify-center shrink-0">
+                    <Icon className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-foreground">{ch.label}</h3>
+                      {isUploading && (
+                        <motion.span
+                          animate={{ opacity: [0.4, 1, 0.4] }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                          className="text-[10px] text-primary font-medium"
+                        >
+                          Processing...
+                        </motion.span>
+                      )}
+                      {ch.disabled && (
+                        <span className="text-[10px] text-muted-foreground bg-gray-100 px-1.5 py-0.5 rounded">Coming soon</span>
                       )}
                     </div>
-                    <input
-                      ref={(el) => { fileInputRefs.current[ch.key] = el; }}
-                      type="file"
-                      accept=".json,.csv"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleFileUpload(ch.key, file);
-                        e.target.value = '';
-                      }}
-                    />
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-
-          {error && (
-            <div className="mb-6 p-3 rounded-lg text-xs" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--ios-confidence-low)', border: '1px solid rgba(239,68,68,0.2)' }}>
-              {error}
-            </div>
-          )}
-
-          <AnimatePresence>
-            {!showBriefing && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-center"
-              >
-                <div
-                  className="inline-flex items-center gap-6 px-6 py-3 rounded-full"
-                  style={{ background: 'var(--ios-bg-secondary)', border: '1px solid var(--ios-border)' }}
-                >
-                  <span className="text-xs" style={{ color: 'var(--ios-text-muted)' }}>DeepMindQ now understands:</span>
-                  <span className="text-sm font-medium tabular-nums" style={{ color: 'var(--ios-text-primary)' }}>
-                    {counts.capabilities} capabilities
-                  </span>
-                  <span className="text-xs" style={{ color: 'var(--ios-text-muted)' }}>|</span>
-                  <span className="text-sm font-medium tabular-nums" style={{ color: 'var(--ios-text-primary)' }}>
-                    {counts.accounts} accounts
-                  </span>
-                  <span className="text-xs" style={{ color: 'var(--ios-text-muted)' }}>|</span>
-                  <span className="text-sm font-medium tabular-nums" style={{ color: 'var(--ios-text-primary)' }}>
-                    {counts.signals} intelligence signals
-                  </span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {canActivate && !showBriefing && (
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                className="flex justify-center mt-8"
-              >
-                <Button
-                  onClick={handleActivateIntelligence}
-                  disabled={enriching}
-                  className="gap-2 px-6"
-                  style={{ background: 'var(--ios-accent)', color: 'white' }}
-                >
-                  {enriching ? (
-                    <span className="intel-pulse">Activating Intelligence...</span>
-                  ) : (
-                    <>
-                      Activate Intelligence
-                      <ArrowRight size={14} />
-                    </>
-                  )}
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {showBriefing && briefing && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-10 intel-reveal"
-              >
-                <div className="ios-card p-6">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--ios-accent)' }}>
-                    Intelligence Briefing
-                  </h3>
-                  <p className="text-sm mb-6" style={{ color: 'var(--ios-text-secondary)' }}>
-                    After analyzing {counts.accounts} accounts, DeepMindQ identified {briefing.totalSignals} intelligence signals.
-                  </p>
-                  <div className="flex flex-col gap-3 mb-8">
-                    {briefing.companies.slice(0, 10).map((company) => (
-                      <div
-                        key={company.id}
-                        className="flex items-center justify-between py-3 px-4 rounded-lg"
-                        style={{ background: 'var(--ios-bg-secondary)' }}
-                      >
-                        <div>
-                          <p className="text-sm font-medium" style={{ color: 'var(--ios-text-primary)' }}>{company.name}</p>
-                          <p className="text-xs mt-0.5" style={{ color: 'var(--ios-text-secondary)' }}>{company.topSignal}</p>
-                        </div>
-                        <div className="text-right flex-shrink-0 ml-4">
-                          <p className="text-lg font-semibold tabular-nums" style={{ color: 'var(--ios-text-primary)' }}>{company.signalCount}</p>
-                          <p className="text-xs" style={{ color: 'var(--ios-text-muted)' }}>signals</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs mb-4" style={{ color: 'var(--ios-text-secondary)' }}>
-                      Your intelligence is active. Continue to the Command Center to see prioritized recommendations.
-                    </p>
-                    <Button
-                      onClick={() => {
-                        const { useAppStore } = require('@/lib/store');
-                        useAppStore.getState().setActiveView('intelligence-briefing');
-                      }}
-                      className="gap-2"
-                      style={{ background: 'var(--ios-accent)', color: 'white' }}
-                    >
-                      Continue to Command Center
-                      <ArrowRight size={14} />
-                    </Button>
+                    <p className="text-xs text-muted-foreground mt-1">{ch.description}</p>
                   </div>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
+
+                {/* Upload result feedback */}
+                {result && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className={`text-xs px-3 py-2 rounded-lg mt-2 ${result.success ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}
+                  >
+                    {result.success
+                      ? `Processed: ${result.count} records`
+                      : result.message || 'Upload failed'}
+                  </motion.div>
+                )}
+
+                {!ch.disabled && !isUploading && (
+                  <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
+                    <Upload className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">
+                      Upload {ch.accept.split(',').join(', ')}
+                    </span>
+                  </div>
+                )}
+
+                <input
+                  ref={(el) => { fileInputRefs.current[ch.key] = el; }}
+                  type="file"
+                  accept={ch.accept}
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(ch.key, file);
+                    e.target.value = '';
+                  }}
+                />
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
+
+      {/* Error */}
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-3 rounded-xl text-xs bg-red-50 text-red-600 border border-red-100"
+        >
+          {error}
+        </motion.div>
+      )}
+
+      {/* Activate Button */}
+      <AnimatePresence>
+        {canActivate && !intelligenceActivated && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="flex justify-center pt-4"
+          >
+            <Button onClick={handleActivate} size="lg" className="gap-2 px-8">
+              <Zap className="w-4 h-4" />
+              Activate Intelligence
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Already activated notice */}
+      {intelligenceActivated && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center pt-2 pb-4"
+        >
+          <p className="text-xs text-muted-foreground">
+            Intelligence is active. Continue adding data to expand your intelligence coverage.
+          </p>
+        </motion.div>
+      )}
     </div>
   );
 }

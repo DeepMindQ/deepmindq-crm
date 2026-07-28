@@ -702,7 +702,7 @@ export default function HomePage() {
       const res = await fetch('/api/auth/me');
       if (res.ok) {
         setLoggedIn(true);
-        window.location.hash = '#dashboard';
+        window.location.hash = '#command-center';
         return;
       }
     } catch { /* fall through */ }

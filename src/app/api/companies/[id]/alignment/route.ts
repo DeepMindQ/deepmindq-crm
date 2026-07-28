@@ -259,7 +259,8 @@ function composeNeedObjects(
         priority: avgConfidence >= 70 ? 'high' as const : avgConfidence >= 50 ? 'medium' as const : 'low' as const,
       };
     })
-    .sort((a, b) => b.confidence - a.confidence);
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 5);
 }
 
 function composeCapabilityMatchObjects(
@@ -340,7 +341,7 @@ function composeCapabilityMatchObjects(
     }
   }
 
-  return matches.sort((a, b) => b.confidence - a.confidence);
+  return matches.sort((a, b) => b.confidence - a.confidence).slice(0, 4);
 }
 
 function composeActionObjects(
@@ -352,8 +353,13 @@ function composeActionObjects(
 ): IntelligenceObject[] {
   const actions: IntelligenceObject[] = [];
 
-  // High-severity signals → immediate actions
-  for (const so of signalObjects.filter(s => s.priority === 'high')) {
+  // High-severity signals → immediate actions (cap at 3 highest)
+  const highSignalActions = signalObjects
+    .filter(s => s.priority === 'high')
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 3);
+
+  for (const so of highSignalActions) {
     actions.push({
       id: `action-signal-${so.id}`,
       type: 'action',
@@ -393,8 +399,13 @@ function composeActionObjects(
     });
   }
 
-  // High-score contacts → engage
-  for (const c of contacts.filter(c => c.leadScore >= 70)) {
+  // High-score contacts → engage (top 2 only)
+  const topContacts = contacts
+    .filter(c => c.leadScore >= 70)
+    .sort((a, b) => (b.leadScore || 0) - (a.leadScore || 0))
+    .slice(0, 2);
+
+  for (const c of topContacts) {
     const fb = feedbackMap.get(`capability_match:contact-${c.id}`);
     actions.push({
       id: `action-contact-${c.id}`,
@@ -436,7 +447,7 @@ function composeActionObjects(
   return actions.sort((a, b) => {
     const p = { high: 0, medium: 1, low: 2 };
     return (p[a.priority!] || 2) - (p[b.priority!] || 2);
-  }).slice(0, 10);
+  }).slice(0, 6);
 }
 
 function classifyStakeholderType(title: string): string {
@@ -507,7 +518,7 @@ function composeStakeholderObjects(
   const topCapability = topCapabilityMatch?.title;
   const hasTopMatch = Boolean(topCapabilityMatch);
 
-  return contacts.slice(0, 8).map(c => {
+  return contacts.slice(0, 6).map(c => {
     const stakeholderType = classifyStakeholderType(c.title || c.role || '');
     const whyImportant = composeWhyImportant(c, company.rawName, signalCategories);
     const engagementStatus = composeEngagementStatus(c.lastContactedAt);
@@ -554,20 +565,34 @@ function composeExecutiveUnderstanding(
 
   const highSignals = signals.filter(s => s.priority === 'high');
   const avgConfidence = Math.round(signals.reduce((sum, s) => sum + s.confidence, 0) / signals.length);
-  const signalTypes = [...new Set(signals.map(s => s.category).filter(Boolean))];
+  const signalTypes = [...new Set(signals.map(s => s.category).filter((c): c is string => Boolean(c)))];
   
-  const headline = highSignals.length > 0
-    ? `${highSignals.length} high-priority signal${highSignals.length !== 1 ? 's' : ''} detected for ${company.rawName}`
-    : `${signals.length} intelligence signal${signals.length !== 1 ? 's' : ''} active for ${company.rawName}`;
+  // Build a sharp headline from the top signals
+  const topCritical = signals.filter(s => s.priority === 'high').slice(0, 2);
+  const headline = topCritical.length >= 2
+    ? `${company.rawName} — ${topCritical[0].title.split(/for |—/)[0].trim().slice(0, 60)}; ${topCritical[1].title.split(/for |—/)[0].trim().slice(0, 60)}`
+    : highSignals.length > 0
+      ? `${highSignals.length} high-priority signal${highSignals.length !== 1 ? 's' : ''} for ${company.rawName}`
+      : `${signals.length} intelligence signal${signals.length !== 1 ? 's' : ''} active for ${company.rawName}`;
 
-  let narrative = `${company.rawName} shows active intelligence across ${signalTypes.length} categories: ${signalTypes.join(', ')}. `;
+  // Build narrative that answers Why Now + Why Us + What To Do
+  const typeLabels = signalTypes.map(t => t.replace(/_/g, ' ')).join(', ');
+  let narrative = `${company.rawName} shows active intelligence across ${signalTypes.length} categories: ${typeLabels}. `;
   
-  if (matches.length > 0) {
-    narrative += `${matches.length} capabilities align with detected needs — strongest match: "${matches[0].title}" at ${matches[0].confidence}% confidence. `;
+  if (highSignals.length > 0) {
+    const topEvidence = highSignals[0];
+    narrative += `The most critical signal is "${topEvidence.title}" at ${topEvidence.confidence}% confidence`;
+    if (topEvidence.whyItMatters) narrative += ` — ${topEvidence.whyItMatters.toLowerCase()}`;
+    narrative += '. ';
   }
   
-  if (actions.filter(a => a.priority === 'high').length > 0) {
-    narrative += `${actions.filter(a => a.priority === 'high').length} high-priority actions recommended.`;
+  if (matches.length > 0) {
+    narrative += `${matches.length} capabilit${matches.length !== 1 ? 'ies match' : 'y matches'} detected needs — strongest: "${matches[0].title}" at ${matches[0].confidence}%. `;
+  }
+  
+  const highActions = actions.filter(a => a.priority === 'high');
+  if (highActions.length > 0) {
+    narrative += `${highActions.length} high-priority action${highActions.length !== 1 ? 's' : ''} recommended, starting with: "${highActions[0].whatToDo || highActions[0].title}".`;
   }
 
   const evidenceState = signals.some(s => s.evidenceState === 'confirmed')

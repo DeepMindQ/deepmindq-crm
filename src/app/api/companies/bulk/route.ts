@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import type { CompanyStatus } from '@prisma/client';
 import { NextResponse } from 'next/server';
 
 /* ═══════════════════════════════════════════════════
@@ -48,18 +49,18 @@ export async function POST(request: Request) {
       /* ── Update Status ── */
       case 'updateStatus': {
         const { status } = body as { status: string };
+        const validStatuses: CompanyStatus[] = ['prospect', 'researching', 'active', 'engaged', 'paused', 'archived', 'closed_won', 'closed_lost'];
         if (!status) {
           return NextResponse.json({ error: 'status is required for updateStatus action' }, { status: 400 });
         }
 
-        const validStatuses = ['prospect', 'researching', 'active', 'engaged', 'paused', 'closed_won', 'closed_lost'];
-        if (!validStatuses.includes(status)) {
+        if (!validStatuses.includes(status as CompanyStatus)) {
           return NextResponse.json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` }, { status: 400 });
         }
 
         const updateResult = await db.company.updateMany({
           where: { id: { in: validIds } },
-          data: { status, lastActivityAt: new Date() },
+          data: { status: status as CompanyStatus, lastActivityAt: new Date() },
         });
 
         result = { updated: updateResult.count, action: 'updateStatus', status };

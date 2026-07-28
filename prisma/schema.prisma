@@ -45,6 +45,7 @@ enum CompanySource {
   manual
   crm
   webhook
+  demo
 }
 
 enum ContactStatus {
@@ -176,6 +177,8 @@ enum ImportBatchStatus {
   processing
   completed
   archived
+  cancelled
+  failed
 }
 
 // ── Core Entities (per SDD Section 5) ──

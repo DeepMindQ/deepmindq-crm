@@ -1,61 +1,57 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * POST /api/setup-db — Run prisma migrate deploy to apply migrations.
  *
- * ⚠️ SECURITY: This endpoint is gated by SETUP_TOKEN environment variable.
- * To use: POST with header X-Setup-Token matching SETUP_TOKEN env var.
+ * ⚠️ SECURITY: This endpoint is DOUBLE-GATED:
+ *   1. SETUP_TOKEN env var must be configured
+ *   2. X-Setup-Token request header must match SETUP_TOKEN
+ *   If either is missing/mismatched → 403
  *
- * Production flow:
- *   1. First deployment: Uses db push to create tables from schema
- *   2. Subsequent: Uses migrate deploy to apply migration files
- *
- * Uses migrate deploy (not db push) to ensure:
- *   - Migration history is maintained
- *   - Rollback is possible
- *   - No silent data loss from --accept-data-loss
- *
- * For first-time setup with no migration history, falls back to db push.
+ * GET /api/setup-db — Always returns 404.
+ *   Setup status is NOT publicly queryable.
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const setupToken = process.env.SETUP_TOKEN;
+
+  // Gate 1: env var must exist
+  if (!setupToken) {
+    return NextResponse.json(
+      { success: false, error: 'Endpoint disabled.' },
+      { status: 403 }
+    );
+  }
+
+  // Gate 2: request must carry matching token
+  const requestToken = request.headers.get('X-Setup-Token');
+  if (!requestToken || requestToken !== setupToken) {
+    return NextResponse.json(
+      { success: false, error: 'Invalid or missing token.' },
+      { status: 403 }
+    );
+  }
+
   try {
-    const setupToken = process.env.SETUP_TOKEN;
-
-    if (!setupToken) {
-      return NextResponse.json(
-        { success: false, error: 'SETUP_TOKEN environment variable is not configured. This endpoint is disabled.' },
-        { status: 403 }
-      );
-    }
-
-    // Dynamic import to avoid loading child_process unless needed
-    const { execSync } = await import('child_process');
-    const path = await import('path');
-
     if (!process.env.DATABASE_URL) {
       return NextResponse.json(
-        { success: false, error: 'DATABASE_URL environment variable is not set.' },
+        { success: false, error: 'DATABASE_URL not set.' },
         { status: 400 }
       );
     }
 
+    const { execSync } = await import('child_process');
+    const path = await import('path');
+    const fs = await import('fs');
+
     const prismaBin = path.resolve(process.cwd(), 'node_modules/.bin/prisma');
     const cwd = path.resolve(process.cwd());
-
-    // Check if migrations directory has migration files
-    const fs = await import('fs');
     const migrationsDir = path.join(cwd, 'prisma', 'migrations');
     const hasMigrations = fs.existsSync(migrationsDir) &&
       fs.readdirSync(migrationsDir).some((f: string) => f.endsWith('.sql'));
 
-    let command: string;
-    if (hasMigrations) {
-      // Use migrate deploy — applies pending migrations safely
-      command = `"${prismaBin}" migrate deploy`;
-    } else {
-      // First-time setup — use db push to create initial schema
-      command = `"${prismaBin}" db push --accept-data-loss`;
-    }
+    const command = hasMigrations
+      ? `"${prismaBin}" migrate deploy`
+      : `"${prismaBin}" db push --accept-data-loss`;
 
     const result = execSync(command, {
       cwd,
@@ -66,7 +62,7 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
-      message: hasMigrations ? 'Database migrations applied successfully.' : 'Initial database schema created.',
+      message: hasMigrations ? 'Migrations applied.' : 'Schema created.',
       method: hasMigrations ? 'migrate deploy' : 'db push',
       output: result.trim(),
     });
@@ -75,7 +71,6 @@ export async function POST() {
       ? String((error as { stderr?: string }).stderr)
       : '';
     const message = error instanceof Error ? error.message : 'Unknown error';
-
     return NextResponse.json({
       success: false,
       error: 'Database setup failed.',
@@ -85,11 +80,7 @@ export async function POST() {
   }
 }
 
+// GET returns 404 — no information leakage
 export async function GET() {
-  return NextResponse.json({
-    configured: !!process.env.DATABASE_URL && !!process.env.SETUP_TOKEN,
-    hint: process.env.SETUP_TOKEN
-      ? 'Setup endpoint is token-protected. POST with X-Setup-Token header.'
-      : 'SETUP_TOKEN is NOT set. This endpoint is disabled.',
-  });
+  return NextResponse.json({ error: 'Not found.' }, { status: 404 });
 }

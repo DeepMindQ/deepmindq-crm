@@ -373,8 +373,8 @@ function SignalCard({
 }) {
   const cfg = typeConfig[signal.type] ?? defaultTypeConfig;
   const TypeIcon = cfg.icon;
-  const confidence = signal.confidence ?? Math.round(
-    (signal.severity === 'high' ? 82 : signal.severity === 'medium' ? 62 : 38) + Math.random() * 10
+  const confidence = signal.confidence ?? (
+    signal.severity === 'high' ? 82 : signal.severity === 'medium' ? 62 : 38
   );
   const displaySev = getDisplaySeverity(signal.severity, confidence);
   const sevCfg = severityConfig[displaySev];

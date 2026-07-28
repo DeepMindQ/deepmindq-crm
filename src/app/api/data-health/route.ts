@@ -62,7 +62,7 @@ interface DataHealthResponse {
   }
 }
 
-const NOT_ARCHIVED = { not: 'archived' }
+const NOT_ARCHIVED = { not: 'archived' } as const
 
 /* ── Helper: compute a 0-100 percentage safely ── */
 function pct(numerator: number, denominator: number): number {

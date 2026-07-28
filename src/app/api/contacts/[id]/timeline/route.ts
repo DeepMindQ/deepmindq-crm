@@ -78,7 +78,7 @@ export async function GET(
     });
 
     for (const draft of drafts) {
-      if (draft.status === 'pending_review' || draft.status === 'pending') {
+      if (draft.status === 'pending_review' || draft.status === 'draft') {
         timeline.push({
           type: 'draft_created',
           title: 'Draft Created',

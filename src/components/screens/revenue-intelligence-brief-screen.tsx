@@ -770,7 +770,7 @@ export default function RevenueIntelligenceBriefScreen({
                 <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar">
                   {sources.map((src, i) => (
                     <div key={i} className="flex items-start gap-3 p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
-                      <EvidenceBadge source={sourceTypeFromUrl(src.url)} confidence={75 + Math.floor(Math.random() * 20)} className="shrink-0" />
+                      <EvidenceBadge source={sourceTypeFromUrl(src.url)} confidence={null} className="shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{src.title}</p>
                         <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{src.snippet}</p>

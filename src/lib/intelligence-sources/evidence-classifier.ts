@@ -132,6 +132,29 @@ const SIGNAL_PATTERNS: SignalPattern[] = [
     businessImpactTemplate: 'Company announcement may indicate strategic direction change, product evolution, or market positioning relevant to engagement',
     actionTemplate: 'Review announcement details for capability alignment; incorporate into account narrative',
   },
+  // Phase 2A: New signal types — people_change and technology_adoption
+  {
+    type: 'people_change',
+    keywords: ['vp', 'vice president', 'director', 'head of', 'senior director', 'managing director', 'general manager', 'chief of staff', 'department head', 'appointed', 'promoted to', 'joined', 'left', 'departed', 'moved to', 'hired as', 'named'],
+    titlePhrases: ['appointed', 'named', 'joins as', 'promoted to', 'hired as', 'new vp', 'new director', 'head of'],
+    confidence: 0.70,
+    severity: 'medium',
+    timingWindow: 'within_21_days',
+    meaningCategory: 'organizational_shift',
+    businessImpactTemplate: 'Organizational change at the VP/Director level often precedes new initiatives, budget reallocation, or technology evaluation — indicates a window of strategic openness',
+    actionTemplate: 'Map the new hire or departure to organizational priorities; identify how their role connects to our capability domain; prepare informed outreach within the first 30 days',
+  },
+  {
+    type: 'technology_adoption',
+    keywords: ['implements', 'adopting', 'deploying', 'standardizes on', 'migrates to', 'chooses', 'selects', 'partners with', 'integrates', 'cloud-native', 'kubernetes', 'snowflake', 'databricks', 'terraform', 'github actions', 'jenkins', 'datadog', 'splunk', 'servicenow', 'salesforce', 'hubspot', 'workday', 'sap', 'oracle cloud', 'aws', 'azure devops', 'gcp'],
+    titlePhrases: ['adopts', 'migrates to', 'implements', 'standardizes on', 'selects', 'partners with'],
+    confidence: 0.75,
+    severity: 'medium',
+    timingWindow: 'within_30_days',
+    meaningCategory: 'tech_dissatisfaction',
+    businessImpactTemplate: 'Active technology adoption signals investment in capability gaps and potential dissatisfaction with legacy tools — strong indicator of buying intent for complementary solutions',
+    actionTemplate: 'Map adopted technology to our integration and competitive landscape; identify complementary or replacement opportunities; engage the technical decision-maker leading the adoption',
+  },
 ];
 
 // ─── Source Reliability Scoring ───────────────────────────────
@@ -308,6 +331,8 @@ function mapSignalToStakeholder(signalType: string): string {
     partnership: 'Business Development — assess partnership implications and co-sell potential',
     acquisition: 'Account Executive — immediate assessment of organizational impact on existing pipeline',
     news: 'Account Executive — incorporate into account narrative and next touchpoint',
+    people_change: 'Sales Development Rep — research the new hire/departure and map to organizational priorities; prepare context-aware outreach',
+    technology_adoption: 'Solution Architect — analyze adopted technology stack for integration, competitive displacement, or complementary opportunities',
   };
   return mapping[signalType] || 'Account Executive — assess and determine engagement strategy';
 }

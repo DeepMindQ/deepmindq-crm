@@ -23,6 +23,40 @@ import { db } from '@/lib/db';
 import { webSearch } from '@/lib/ai-copilot/ai-caller';
 import { classifyEvidence, scoreSourceReliability, type RawEvidenceInput } from './evidence-classifier';
 
+// ─── Search Provider Interface (Phase B swap point) ──────
+//
+// The collector depends on THIS interface, not on webSearch directly.
+// Phase 2A: Default implementation uses z-ai-web-dev-sdk webSearch.
+// Phase B:   Replace with API connectors, enterprise data feeds, etc.
+//
+// The intelligence pipeline should not change when the source changes.
+
+export interface SearchResult {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+export interface SearchProvider {
+  search(query: string, maxResults: number): Promise<SearchResult[]>;
+}
+
+/**
+ * Default search provider backed by z-ai-web-dev-sdk webSearch.
+ * This is the Phase 2A concrete implementation of SearchProvider.
+ */
+class WebSearchProvider implements SearchProvider {
+  async search(query: string, maxResults: number): Promise<SearchResult[]> {
+    return webSearch(query, maxResults).catch(err => {
+      console.error(`[search-provider] webSearch failed for "${query.substring(0, 60)}":`, err);
+      return [];
+    });
+  }
+}
+
+/** Default singleton — used when no custom provider is injected */
+const defaultSearchProvider = new WebSearchProvider();
+
 // ─── Types ─────────────────────────────────────────────
 
 export interface IntelligenceCollectionResult {
@@ -37,11 +71,9 @@ export interface IntelligenceCollectionResult {
   duration: number;
 }
 
-interface RawSearchResult {
-  title: string;
-  url: string;
-  snippet: string;
-}
+// RawSearchResult kept as alias for internal use
+// (RawSearchResult is used in the collection pipeline internals)
+type RawSearchResult = SearchResult;
 
 // ─── Company Size Classification ────────────────────────────────
 
@@ -253,11 +285,7 @@ async function createSignalFromEvidence(
   }
 }
 
-function scoreSourceReliability(sourceName: string | null, sourceUrl: string | null) {
-  return (classifyEvidence as any).scoreSourceReliability
-    ? (classifyEvidence as any).scoreSourceReliability(sourceName, sourceUrl)
-    : { score: 0.5, quality: 'low' as const };
-}
+// scoreSourceReliability is now imported from evidence-classifier at module level (line 24)
 
 function computeExpiry(referenceDate: string, signalType: string): Date {
   const halfLife = SIGNAL_HALF_LIVES[signalType] || 30;
@@ -277,10 +305,25 @@ function computeExpiry(referenceDate: string, signalType: string): Date {
  * @param maxResultsPerQuery - Max search results per query (default 5)
  * @returns Collection result with counts and any errors
  */
+export interface CollectionOptions {
+  maxResultsPerQuery?: number;
+  /**
+   * Inject a custom SearchProvider for Phase B data source replacement.
+   * If omitted, the default z-ai-web-dev-sdk webSearch provider is used.
+   */
+  searchProvider?: SearchProvider;
+}
+
 export async function collectIntelligenceForCompany(
   companyId: string,
-  maxResultsPerQuery: number = 5
+  optionsOrMaxResults: number | CollectionOptions = 5
 ): Promise<IntelligenceCollectionResult> {
+  // Normalize: accept either a plain number (backward compat) or full options
+  const opts: CollectionOptions = typeof optionsOrMaxResults === 'number'
+    ? { maxResultsPerQuery: optionsOrMaxResults }
+    : optionsOrMaxResults;
+  const maxResultsPerQuery = opts.maxResultsPerQuery ?? 5;
+  const searchProvider = opts.searchProvider || defaultSearchProvider;
   const startTime = Date.now();
   const result: IntelligenceCollectionResult = {
     companyId,
@@ -312,10 +355,7 @@ export async function collectIntelligenceForCompany(
     // Build size-adaptive queries
     const queries = buildSearchQueries(company.rawName, company.domain, company.sizeRange);
     const searchBatches = await Promise.all(
-      queries.map(q => webSearch(q, maxResultsPerQuery).catch(err => {
-        console.error(`[intel-collector] Search failed for "${q}":`, err);
-        return [] as RawSearchResult[];
-      }))
+      queries.map(q => searchProvider.search(q, maxResultsPerQuery))
     );
 
     // Deduplicate by URL
@@ -402,11 +442,11 @@ export async function collectIntelligenceForCompany(
  */
 export async function collectIntelligenceBatch(
   companyIds: string[],
-  maxResultsPerQuery: number = 5
+  optionsOrMaxResults: number | CollectionOptions = 5
 ): Promise<IntelligenceCollectionResult[]> {
   const results: IntelligenceCollectionResult[] = [];
   for (const companyId of companyIds) {
-    const result = await collectIntelligenceForCompany(companyId, maxResultsPerQuery);
+    const result = await collectIntelligenceForCompany(companyId, optionsOrMaxResults);
     results.push(result);
   }
   return results;

@@ -38,6 +38,9 @@ export const SIGNAL_HALF_LIVES: Record<string, number> = {
   regulatory: 90,
   financial_pressure: 21,
   mention: 7,
+  // Phase 2A: New signal types
+  people_change: 35,          // VP/Director org changes remain relevant ~5 weeks
+  technology_adoption: 45,    // Tech adoption signals are strategic, slow to decay
   // Default for unknown types
   _default: 30,
 };

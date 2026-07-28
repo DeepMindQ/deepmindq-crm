@@ -1,10 +1,14 @@
 /**
- * POST /api/intelligence/collect-news
+ * POST /api/intelligence/collect-external
  *
- * ⚠️ DEPRECATED — Use /api/intelligence/collect-external instead.
+ * Phase 2A: External Intelligence Collection trigger endpoint.
  *
- * This endpoint is preserved for backward compatibility during the
- * Phase 2A transition. It delegates to the renamed collector module.
+ * Accepts a companyId (or array of companyIds) and runs the external
+ * intelligence collection pipeline. Returns collection results with counts.
+ *
+ * No UI changes required — this is a backend-only pipeline.
+ *
+ * This replaces the deprecated /api/intelligence/collect-news endpoint.
  */
 
 import { NextResponse } from 'next/server';
@@ -41,9 +45,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ results, summary });
   } catch (error) {
-    console.error('[collect-news] DEPRECATED — Use /api/intelligence/collect-external. Error:', error);
+    console.error('[collect-external] Error:', error);
     return NextResponse.json(
-      { error: 'News collection failed', details: error instanceof Error ? error.message : String(error) },
+      { error: 'Intelligence collection failed', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

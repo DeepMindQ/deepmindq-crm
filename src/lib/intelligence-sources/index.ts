@@ -29,3 +29,8 @@ export * from './intelligence-timeline';
 export * from './connector-scheduler';
 export * from './intelligence-alerts';
 export * from './analytics-dashboard';
+// Phase 2A: External Intelligence Collection & Classification
+export { collectIntelligenceForCompany, collectIntelligenceBatch } from './external-intelligence-collector';
+export type { IntelligenceCollectionResult, SearchResult, SearchProvider, CollectionOptions } from './external-intelligence-collector';
+export { classifyEvidence, batchClassifyEvidence, buildReasoningChain, scoreSourceReliability } from './evidence-classifier';
+export type { ClassifiedSignal, RawEvidenceInput } from './evidence-classifier';

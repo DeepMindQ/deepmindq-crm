@@ -156,3 +156,33 @@ Stage Summary:
 - 0 schema changes
 - 0 UI changes
 - Ready for Microsoft Gold Standard validation
+
+---
+Task ID: 2
+Agent: Main Orchestrator
+Task: Execute all 7 pending Phase 2A code changes
+
+Work Log:
+- Explored full codebase state via subagent: identified broken import, missing route, hacky cast, missing barrel exports
+- Fixed collect-news/route.ts broken import (was importing from non-existent news-collector.ts)
+- Created new /api/intelligence/collect-external/route.ts with proper imports from external-intelligence-collector
+- Deprecated collect-news/route.ts with backward-compatible delegation
+- Added external-intelligence-collector and evidence-classifier to intelligence-sources/index.ts barrel exports
+- Fixed hacky `(classifyEvidence as any).scoreSourceReliability` — removed local override, uses proper import at line 24
+- Added `people_change` signal pattern (VP/Director org changes, keywords: vp, director, head of, appointed, etc.)
+- Added `technology_adoption` signal pattern (tech stack adoption, keywords: implements, adopts, kubernetes, snowflake, etc.)
+- Updated mapSignalToStakeholder with people_change and technology_adoption mappings
+- Added half-lives: people_change=35d, technology_adoption=45d to SIGNAL_HALF_LIVES
+- Updated alignment route buildDefaultWhyItMatters with 2 new signal type reasoning chains
+- Updated alignment route buildDefaultAction with 2 new signal type action templates
+- Updated estimateBusinessRelevance to classify people_change and technology_adoption as medium relevance
+- Extracted SearchProvider interface + CollectionOptions from collector for Phase B swap point
+- Collector now accepts `optionsOrMaxResults: number | CollectionOptions` (backward compatible)
+- TypeScript compilation passes with 0 errors
+
+Stage Summary:
+- All 7 pending code changes executed successfully
+- 10 signal types now supported (original 8 + people_change + technology_adoption)
+- Collector fully decoupled from webSearch via SearchProvider interface
+- 0 TypeScript errors, 0 schema changes, 0 breaking changes
+- Ready for validation with Microsoft (enterprise) and mid-market companies

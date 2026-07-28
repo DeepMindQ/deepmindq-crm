@@ -873,6 +873,9 @@ function buildDefaultWhyItMatters(signalType: string, companyName: string, recen
     acquisition: `Acquisition activity at ${companyName} signals major organizational change — technology consolidation and budget restructuring likely`,
     news: `Recent announcement from ${companyName} may reveal strategic priorities relevant to engagement timing`,
     mention: `${companyName} market activity detected — may indicate evolving competitive landscape`,
+    // Phase 2A: New signal types
+    people_change: `VP/Director-level organizational change at ${companyName} often signals upcoming strategy shifts, new initiative funding, or technology evaluation — the new hire's background reveals organizational priorities`,
+    technology_adoption: `${companyName} is actively investing in new technology, indicating both budget availability and specific capability gaps — complementary or competitive to our solution portfolio`,
   };
   return impacts[signalType] || `${signalType.replace(/_/g, ' ')} signal detected at ${companyName} — further analysis recommended`;
 }
@@ -894,6 +897,9 @@ function buildDefaultAction(signalType: string, companyName: string): string {
     partnership: `Assess partnership implications for ${companyName} competitive landscape`,
     acquisition: `Immediately assess acquisition impact on ${companyName} pipeline and contract stability`,
     news: `Incorporate announcement into ${companyName} account narrative and next touchpoint`,
+    // Phase 2A: New signal types
+    people_change: `Research the new hire/departure background and priorities at ${companyName}; map their role to our capability domain; prepare context-aware outreach within 30 days`,
+    technology_adoption: `Map ${companyName}'s adopted technology to our integration and competitive landscape; identify complementary, replacement, or co-exist opportunities; engage the technical decision-maker`,
   };
   return actions[signalType] || `Assess ${signalType.replace(/_/g, ' ')} signal for ${companyName} engagement strategy`;
 }
@@ -905,7 +911,7 @@ function buildDefaultAction(signalType: string, companyName: string): string {
 function estimateBusinessRelevance(signal: any, capabilities: any[]): number {
   // High-relevance signal types
   const highRelevanceTypes = ['funding', 'acquisition', 'expansion', 'leadership_change'];
-  const mediumRelevanceTypes = ['hiring', 'tech_change', 'partnership'];
+  const mediumRelevanceTypes = ['hiring', 'tech_change', 'partnership', 'people_change', 'technology_adoption'];
   const lowRelevanceTypes = ['news', 'mention'];
 
   if (highRelevanceTypes.includes(signal.signalType)) return 0.8;

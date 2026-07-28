@@ -6,9 +6,16 @@
  *
  * This is the bridge between the heavy IntelligenceObject pipeline and the
  * lightweight, actionable CompanySignal table that scoring and UI consume.
+ *
+ * Sprint 1 Enhancement:
+ *   - Integrates three-date model for every signal created
+ *   - Uses normalizeType() from signal-type-mapping for canonical taxonomy
+ *   - No more signalDate: null — every signal gets the best available date
  */
 
 import { db } from '@/lib/db'
+import { normalizeType, type CanonicalSignalType } from './signal-type-mapping'
+import { buildThreeDateModel, getBestDateForFreshness, serializeThreeDateModel, dateModelQuality } from './three-date-model'
 
 type TimingWindow =
   | 'immediate' | 'within_7_days' | 'within_30_days' | 'within_90_days' | 'ongoing' | 'expired'
@@ -33,6 +40,10 @@ interface SignalCreationInput {
   severity?: 'low' | 'medium' | 'high' | 'critical'
   signalDate?: Date | null
   sourceReference?: string
+  // Sprint 1: Three-date model fields
+  snippet?: string
+  publishedDate?: string | null
+  discoveryDate?: string
 }
 
 interface SignalCreationResult {
@@ -42,14 +53,19 @@ interface SignalCreationResult {
 }
 
 export function classifySignalType(text: string): string {
+  // Sprint 1: Delegate to the canonical taxonomy normalizer
+  // First do a quick classification, then normalize to canonical type
   const lower = text.toLowerCase()
-  if (/\$[\d,.]+(?:m|b|illion|illion)/i.test(text) || /\bfunding\b|\bseries [a-z]\b|\braised\b|\brevenue\b/i.test(lower)) return 'funding'
-  if (/\bhiring\b|\brecruiting\b|\bjob(s| posting)?\b/i.test(lower)) return 'hiring'
-  if (/\bceo\b|\bcto\b|\bcio\b|\bcfo\b|\bvp\b|\bleadership\b|\bdeparted\b|\bstepped down\b/i.test(lower)) return 'leadership'
-  if (/\bcloud\b|\bmigrat\w*\b|\baws\b|\bgcp\b|\bazure\b|\bkubernetes\b|\bdocker\b/i.test(lower)) return 'tech_change'
-  if (/\bpartner\w*\b|\balliance\b|\bjoint venture\b/i.test(lower)) return 'partnership'
-  if (/\bexpanding\b|\bexpansion\b|\bgrowth\b/i.test(lower)) return 'expansion'
-  return 'news'
+  let rawType = 'news'
+  if (/\$[\d,.]+(?:m|b|illion|illion)/i.test(text) || /\bfunding\b|\bseries [a-z]\b|\braised\b|\brevenue\b/i.test(lower)) rawType = 'funding'
+  else if (/\bhiring\b|\brecruiting\b|\bjob(s| posting)?\b/i.test(lower)) rawType = 'hiring'
+  else if (/\bceo\b|\bcto\b|\bcio\b|\bcfo\b|\bvp\b|\bleadership\b|\bdeparted\b|\bstepped down\b/i.test(lower)) rawType = 'leadership'
+  else if (/\bcloud\b|\bmigrat\w*\b|\baws\b|\bgcp\b|\bazure\b|\bkubernetes\b|\bdocker\b/i.test(lower)) rawType = 'tech_change'
+  else if (/\bpartner\w*\b|\balliance\b|\bjoint venture\b/i.test(lower)) rawType = 'partnership'
+  else if (/\bexpanding\b|\bexpansion\b|\bgrowth\b/i.test(lower)) rawType = 'expansion'
+  else if (/\bacquir\w*\b|\bmerger\b|\bbuyout\b/i.test(lower)) rawType = 'acquisition'
+  // Sprint 1: Normalize to ensure canonical type
+  return normalizeType(rawType, text)
 }
 
 export function inferSeverity(
@@ -106,8 +122,22 @@ export async function createSignalFromIntelligenceObject(
       return { success: true, signalId: existing.id }
     }
 
-    const signalType = input.signalType || classifySignalType(input.signal)
+    // Sprint 1: Normalize signal type to canonical taxonomy
+    const signalType = input.signalType
+      ? normalizeType(input.signalType, input.signal, input.evidence)
+      : classifySignalType(input.signal)
     const severity = input.severity || inferSeverity(input.confidence, input.businessImpact, input.timing)
+
+    // Sprint 1: Build three-date model for every signal
+    const discoveryDate = input.discoveryDate || new Date().toISOString()
+    const dates = buildThreeDateModel({
+      publishedDate: input.publishedDate || null,
+      snippet: input.snippet || input.signal || '',
+      url: input.sourceUrl || null,
+      discoveryDate,
+    })
+    const bestDate = getBestDateForFreshness(dates)
+    const dateQuality = dateModelQuality(dates)
 
     const signal = await db.companySignal.create({
       data: {
@@ -120,7 +150,9 @@ export async function createSignalFromIntelligenceObject(
         severity,
         impact: severity === 'critical' || severity === 'high' ? 'high' : severity === 'medium' ? 'medium' : 'low',
         confidence: input.confidence / 100,
-        signalDate: input.signalDate || null,
+        signalDate: new Date(bestDate), // Sprint 1: Never null — always best available date
+        // Sprint 1: Store sourcePublishedDate in publicationDate field
+        publicationDate: dates.sourcePublishedDate ? new Date(dates.sourcePublishedDate) : null,
         businessImpact: input.businessImpact,
         recommendedAction: input.recommendedAction,
         timingWindow: input.timing,
@@ -188,5 +220,9 @@ export function intelligenceObjectToSignalInput(
     signalType: (metadata.signalType as string) || classifySignalType(obj.content),
     signalDate: obj.capturedAt || undefined,
     sourceReference: `intelligence-object:${obj.companyId}`,
+    // Sprint 1: Pass through fields for three-date model
+    snippet: obj.content.substring(0, 200),
+    publishedDate: obj.capturedAt?.toISOString() || null,
+    discoveryDate: new Date().toISOString(),
   }
 }

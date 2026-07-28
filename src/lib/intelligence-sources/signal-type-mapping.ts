@@ -48,9 +48,12 @@ export function isCanonicalType(type: string): type is CanonicalSignalType {
 
 /** All known legacy/DB signal types that need mapping */
 const LEGACY_TYPES = new Set([
+  // Original DB types
   'business', 'technology', 'external', 'relationship', 'mention', 'signal',
   'unknown', 'other', 'general', 'info', 'alert', 'enrichment', 'research',
   'web_search', 'api', 'integration', 'insight', 'market', 'financial',
+  // Old signal-types.ts types removed in Sprint 1
+  'product', 'regulatory', 'financial_pressure',
 ]);
 
 export function isLegacyType(type: string): boolean {
@@ -71,6 +74,11 @@ const DIRECT_MAPPINGS: Record<string, CanonicalSignalType> = {
   market: 'news',
   financial: 'news',
 
+  // Old signal-types.ts legacy types → closest canonical
+  product: 'news',           // Product launches are announcements
+  regulatory: 'news',        // Regulatory changes are news events
+  financial_pressure: 'news', // Financial pressure signals → news
+
   // Technology cluster → default to tech_change (more specific than technology_adoption)
   technology: 'tech_change',
 
@@ -78,6 +86,9 @@ const DIRECT_MAPPINGS: Record<string, CanonicalSignalType> = {
   research: 'news',
   web_search: 'news',
   enrichment: 'news',
+  api: 'tech_change',
+  integration: 'tech_change',
+  insight: 'news',
 
   // Default fallback
   unknown: 'news',

@@ -266,3 +266,27 @@ Stage Summary:
 - Three-date model: Active in evidence storage (serialized in extractedValue JSON)
 - All 11 success criteria met except the size classifier bug
 
+---
+Task ID: 2
+Agent: Main Orchestrator
+Task: Sprint 1 Integration — Wire all 7 modules into a unified pipeline
+
+Work Log:
+- Audited existing Sprint 1 foundation: three-date-model.ts, signal-type-mapping.ts, mid-market-sensor.ts, ai-evidence-engine.ts, reasoning-engine.ts, adaptive-intelligence.ts, sprint1/route.ts — all built but with critical integration gaps
+- P0 FIX: Unified signal-types.ts with Sprint 1 10-type taxonomy — removed legacy PRODUCT, REGULATORY, FINANCIAL_PRESSURE, MENTION; added PEOPLE_CHANGE, TECH_CHANGE, TECHNOLOGY_ADOPTION
+- P0 FIX: Wired three-date model into signal-creator.ts — every signal now gets best available date (eventDate > sourcePublishedDate > discoveryDate), no more signalDate:null
+- P0 FIX: Updated signal-type-mapping.ts to handle ALL legacy types including product, regulatory, financial_pressure, api, integration, insight
+- P1 FIX: AI evidence engine now auto-enabled for premium sources and enterprise tier (not just manual toggle)
+- P1 FIX: Collector stores publicationDate in CompanySignal.publicationDate field for downstream freshness ranking
+- P1 FIX: Sprint1 API route passes publicationDate → sourcePublishedDate to reasoning engine
+- Created sprint1-validation-v2.ts: 90 unit tests across 5 modules — ALL PASS
+- Created sprint1-modules.test.ts: 122 vitest unit tests — ALL PASS
+- Full TypeScript compilation: 0 errors
+
+Stage Summary:
+- All 7 Sprint 1 tasks now fully integrated: three-date model, signal taxonomy, mid-market sensor, AI engine, evidence→reasoning, adaptive density, validation
+- 212 total tests (90 validation + 122 unit) — 100% pass rate
+- signalDate:null bug FIXED — every signal gets best available date
+- Signal type mismatch FIXED — unified 10-type taxonomy with bidirectional legacy mapping
+- AI classifier ACTIVE for premium sources and enterprise tier
+- Zero TypeScript compilation errors

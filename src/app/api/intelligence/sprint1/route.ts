@@ -158,6 +158,8 @@ export async function POST(request: Request) {
           recommendedAction: s.recommendedAction,
           timingWindow: s.timingWindow,
           meaningCategory: s.meaningCategory,
+          // Sprint 1: Pass publicationDate for three-date freshness ranking
+          sourcePublishedDate: s.publicationDate?.toISOString() || null,
         }));
 
         const density = assessSignalDensity(signalInputs, {

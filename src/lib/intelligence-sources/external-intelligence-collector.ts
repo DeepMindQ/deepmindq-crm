@@ -277,6 +277,8 @@ async function createSignalFromEvidence(
         severity: classified.severity,
         impact: classified.severity === 'critical' || classified.severity === 'high' ? 'high' : classified.severity === 'medium' ? 'medium' : 'low',
         signalDate: new Date(bestRefDate),
+        // Sprint 1: Store sourcePublishedDate for freshness ranking
+        publicationDate: dates.sourcePublishedDate ? new Date(dates.sourcePublishedDate) : null,
         confidence: classified.confidence,
         sourceQuality: scoreSourceReliability(evidence.sourceName, evidence.sourceUrl).quality,
         evidenceIds: evidenceId ? JSON.stringify([evidenceId]) : '[]',
@@ -351,15 +353,22 @@ async function processResult(
   const evidenceId = await storeRawEvidence(companyId, evidence, sourceReliability, dates);
   if (evidenceId) resultObj.evidenceCollected++;
 
-  // Classify: AI with rule fallback
+  // Classify: Sprint 1 — AI is default for high-value signals, rules for bulk
   let classified: ClassifiedSignal | null;
-  if (useAI) {
+  const shouldUseAI = useAI || (!useAI && (
+    // Auto-enable AI for premium sources and enterprise/mid-market signals
+    sourceReliability.quality === 'premium' ||
+    resultObj.companySizeTier === 'enterprise'
+  ));
+
+  if (shouldUseAI) {
     classified = await classifyEvidenceWithAI(evidence);
     if (classified) {
       resultObj.aiClassifiedCount++;
     } else {
-      // AI failed, should not happen since classifyEvidenceWithAI falls back to rules
-      resultObj.ruleClassifiedCount++;
+      // AI failed — fallback to rules
+      classified = classifyEvidence(evidence);
+      if (classified) resultObj.ruleClassifiedCount++;
     }
   } else {
     classified = classifyEvidence(evidence);
@@ -382,12 +391,12 @@ async function processResult(
 export interface CollectionOptions {
   maxResultsPerQuery?: number;
   searchProvider?: SearchProvider;
-  /**
-   * Sprint 1: Toggle AI classification.
-   * When true, uses AI Evidence Engine with rule-based fallback.
-   * When false, uses rule-based classification only (faster, no LLM cost).
-   * Default: false (rule-based for production stability)
-   */
+/**
+ * Sprint 1: Toggle AI classification.
+ * When true: AI Evidence Engine for ALL signals.
+ * When false (default): AI is auto-enabled for premium sources and enterprise tier.
+ *                Rule-based for standard/low sources and small/default tiers.
+ */
   useAIClassification?: boolean;
 }
 

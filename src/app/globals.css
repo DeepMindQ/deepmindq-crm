@@ -512,3 +512,89 @@
     @apply text-xs font-medium text-slate-500 uppercase tracking-wider;
   }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   Intelligence OS Design Tokens
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --ios-bg-primary: #0a0c10;
+  --ios-bg-secondary: #0f1219;
+  --ios-bg-card: #141821;
+  --ios-bg-card-hover: #1a1f2b;
+  --ios-bg-elevated: #1e2433;
+  --ios-border: #1e2535;
+  --ios-border-hover: #2a3348;
+  --ios-text-primary: #e8ecf4;
+  --ios-text-secondary: #8892a8;
+  --ios-text-muted: #5a6478;
+  --ios-accent: #3b82f6;
+  --ios-accent-dim: #2563eb;
+  --ios-confidence-high: #10b981;
+  --ios-confidence-medium: #f59e0b;
+  --ios-confidence-low: #ef4444;
+  --ios-signal: #3b82f6;
+  --ios-opportunity: #8b5cf6;
+  --ios-intelligence: #06b6d4;
+}
+
+.ios-background {
+  background: var(--ios-bg-primary);
+  color: var(--ios-text-primary);
+}
+
+@layer components {
+  .ios-card {
+    background: var(--ios-bg-card);
+    border: 1px solid var(--ios-border);
+    border-radius: 12px;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  .ios-card:hover {
+    border-color: var(--ios-border-hover);
+    background: var(--ios-bg-card-hover);
+  }
+  .ios-card-interactive {
+    background: var(--ios-bg-card);
+    border: 1px solid var(--ios-border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+  }
+  .ios-card-interactive:hover {
+    border-color: var(--ios-accent);
+    background: var(--ios-bg-card-hover);
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes intelPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+.intel-pulse {
+  animation: intelPulse 2s ease-in-out infinite;
+}
+
+@keyframes intelReveal {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.intel-reveal {
+  animation: intelReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@layer components {
+  .confidence-bar {
+    height: 3px;
+    border-radius: 2px;
+    background: var(--ios-border);
+    overflow: hidden;
+  }
+  .confidence-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}

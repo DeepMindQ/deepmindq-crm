@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
+<style>
+  @page {
+    size: 794px 1123px;
+    margin: 0;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 794px;
+    height: 1123px;
+    background: #f2f2f1;
+    font-family: 'Inter', sans-serif;
+  }
+  .cover-page {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+  /* Layer 1: Background */
+  .layer-1 {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 1;
+  }
+  .grid-pattern {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(79,72,52,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,72,52,0.04) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+  .anchor-block {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 12%;
+    background: linear-gradient(180deg, #4f4834 0%, #7a725b 100%);
+  }
+  .accent-bar {
+    display: none;
+  }
+  /* Layer 2: Structure lines */
+  .layer-2 {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+  }
+  .divider-top {
+    position: absolute;
+    left: 20%;
+    right: 8%;
+    top: 20%;
+    height: 1px;
+    background: rgba(212,206,187,0.5);
+  }
+  .divider-bottom {
+    position: absolute;
+    left: 20%;
+    right: 8%;
+    top: 83%;
+    height: 1px;
+    background: rgba(212,206,187,0.5);
+  }
+  /* Layer 3: Content */
+  .layer-3 {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+  }
+  .kicker {
+    position: absolute;
+    left: 20%;
+    top: 14%;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 4px;
+    color: rgba(140,138,131,0.7);
+    text-transform: uppercase;
+  }
+  .hero-title {
+    position: absolute;
+    left: 20%;
+    top: 24%;
+    width: 60%;
+    font-family: 'Playfair Display', serif;
+    font-size: 40px;
+    font-weight: 900;
+    line-height: 1.12;
+    color: #23221f;
+  }
+  .hero-title .accent {
+    color: #96771b;
+  }
+  .summary {
+    position: absolute;
+    left: 20%;
+    top: 53%;
+    width: 55%;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: rgba(35,34,31,0.72);
+  }
+  .meta-block {
+    position: absolute;
+    left: 20%;
+    top: 72%;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: rgba(140,138,131,0.8);
+    line-height: 1.8;
+  }
+  .meta-block .label {
+    font-weight: 600;
+    color: #85774b;
+  }
+  .footer-tag {
+    position: absolute;
+    left: 20%;
+    bottom: 6%;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 2px;
+    color: rgba(140,138,131,0.5);
+    text-transform: uppercase;
+  }
+  /* Stats row */
+  .stats-row {
+    position: absolute;
+    left: 20%;
+    top: 65%;
+    display: flex;
+    gap: 40px;
+  }
+  .stat-item {
+    text-align: left;
+  }
+  .stat-number {
+    font-family: 'Inter', sans-serif;
+    font-size: 32px;
+    font-weight: 900;
+    color: #96771b;
+    line-height: 1;
+  }
+  .stat-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(140,138,131,0.7);
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="cover-page">
+  <!-- Layer 1: Background -->
+  <div class="layer-1">
+    <div class="grid-pattern"></div>
+    <div class="anchor-block"></div>
+  </div>
+  <!-- Layer 2: Structure -->
+  <div class="layer-2">
+    <div class="divider-top"></div>
+    <div class="divider-bottom"></div>
+    <div class="accent-bar"></div>
+  </div>
+  <!-- Layer 3: Content -->
+  <div class="layer-3">
+    <div class="kicker">Product Readiness Checkpoint</div>
+    <div class="hero-title">DeepMindQ<br>Intelligence Layer</div>
+    <div class="summary">
+      Enterprise intelligent memory for B2B revenue intelligence.
+      Sprint 1 and Sprint 2 validation complete.
+      3 company intelligence briefings with the 10-Minute Understanding Test.
+    </div>
+    <div class="stats-row">
+      <div class="stat-item">
+        <div class="stat-number">3</div>
+        <div class="stat-label">Companies</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number">31</div>
+        <div class="stat-label">Signals Detected</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number">150x</div>
+        <div class="stat-label">Speed Gain</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number">5/5</div>
+        <div class="stat-label">Validation Pass</div>
+      </div>
+    </div>
+    <div class="meta-block">
+      <span class="label">Prepared:</span> July 28, 2026<br>
+      <span class="label">Status:</span> Sprint 2 Complete | Sprint 3 Ready<br>
+      <span class="label">Classification:</span> Internal Product Document
+    </div>
+    <div class="footer-tag">Confidential | DeepMindQ Intelligence Platform</div>
+  </div>
+</div>
+</body>
+</html>

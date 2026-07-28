@@ -23,3 +23,28 @@ Stage Summary:
 - Key security fix: /api/reset (DB wipe) completely removed; /api/setup-db now token-gated
 - Key data integrity fix: No more Math.random() in production intelligence scores
 - Key UX fix: Dashboard engagement chart now derived from real contact status counts
+
+---
+Task ID: phase-1
+Agent: Super Z (Main)
+Task: PHASE 1 — LLM Caller Unification
+
+Work Log:
+- Audited all 3 competing LLM callers: ai-caller.ts (274 lines, Z.ai SDK + quality gates), zai-helpers.ts (370 lines, direct provider chain), llm-helper.ts (87 lines, revenue narrative)
+- Created unified src/lib/llm-client.ts (595 lines) merging all 3 callers
+- Preserved every function signature: callAI, callLLM, webSearch, parallelWebSearch, sdkWebSearch, extractJSON, tavilyAIAnswer, verifyEmailBasic, revenueLLMCall, generateExecutiveSummary, generateEngagementApproach, getZAI, resetZAI
+- Migrated 24 consumer files (14 static imports + 8 dynamic imports + 2 llm-helper consumers)
+- Deleted 3 old files: zai-helpers.ts, ai-copilot/ai-caller.ts, revenue-intelligence/llm-helper.ts
+- Added temperature field to CallAIOptions (fixed 1 pre-existing TS error in website-monitor)
+- Updated comments in ai-config.ts, sprint1/route.ts, model-router.ts to reference llm-client
+- Verified zero broken imports with ripgrep
+- TypeScript build: 21 errors — all pre-existing Prisma schema mismatches, zero migration-related
+- Committed and pushed to GitHub
+
+Stage Summary:
+- Net code reduction: -136 lines (733 deleted, 595 created + 268 import path changes)
+- 27 files changed: 630 insertions, 766 deletions
+- GitHub commit: 9729e48 pushed to main
+- Key architectural win: Single entry point for ALL AI calls in the system
+- Zero regressions: No migration-related TypeScript errors
+- All quality gates, usage tracking, retry/backoff logic preserved in unified module

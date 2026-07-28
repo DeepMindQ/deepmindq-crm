@@ -2,38 +2,43 @@ import { create } from 'zustand';
 
 export type ViewId =
   // INTELLIGENCE
+  | 'command-center'
+  | 'accounts'
+  | 'intelligence-search'
+  // WORKSPACES
+  | 'company-workspace'
+  | 'knowledge-workspace'
+  | 'capability-workspace'
+  // ADMINISTRATION
+  | 'import'
+  | 'analytics'
+  | 'settings'
+  | 'data-health'
+  | 'ai-health'
+  | 'audit'
+  // Intelligence OS Screens
+  | 'activation-workspace'
+  | 'intelligence-briefing'
+  // Detail views
+  | 'company-detail'
+  | 'contact-detail'
+  // ── Legacy (mapped in screen-map for backward compat) ──
   | 'dashboard'
   | 'ai-command-center'
   | 'revenue-intelligence'
   | 'signal-intelligence'
   | 'internal-intelligence'
-  // AI ENGINES
   | 'account-intelligence'
   | 'conversation-planner'
-  // ACCOUNTS
   | 'companies'
   | 'contacts'
   | 'opportunities'
   | 'segments'
-  // PIPELINE & ENGAGEMENT
   | 'pipeline'
   | 'sequences'
   | 'email-studio'
   | 'inbox'
-  // OPERATIONS
-  | 'import'
-  | 'analytics'
   | 'knowledge'
-  | 'ai-health'
-  // SETTINGS
-  | 'settings'
-  | 'audit'
-  | 'data-health'
-  | 'duplicates'
-  // Detail views
-  | 'company-detail'
-  | 'contact-detail'
-  // ── Legacy aliases (mapped in screen-map, will be removed) ──
   | 'leads'
   | 'email-generation'
   | 'contact-profile'
@@ -47,7 +52,6 @@ export type ViewId =
   | 'capability-library'
   | 'mind-map'
   | 'prompt-templates'
-  | 'command-center'
   | 'playbooks'
   | 'opportunity-radar'
   | 'conversation-studio'
@@ -76,6 +80,7 @@ export type ViewId =
   | 'intelligence-knowledge'
   | 'ai-strategy'
   | 'demo-experience'
+  | 'duplicates'
   | 'builder';
 
 interface AppState {
@@ -85,21 +90,24 @@ interface AppState {
   selectedCompanyId: string | null;
   selectedDraftId: string | null;
   companyStatusFilter: string;
+  intelligenceActivated: boolean;
   setActiveView: (view: ViewId) => void;
   toggleSidebar: () => void;
   setSelectedContactId: (id: string | null) => void;
   setSelectedCompanyId: (id: string | null) => void;
   setSelectedDraftId: (id: string | null) => void;
   setCompanyStatusFilter: (filter: string) => void;
+  setIntelligenceActivated: (v: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  activeView: 'dashboard',
+  activeView: 'command-center',
   sidebarCollapsed: false,
   selectedContactId: null,
   selectedCompanyId: null,
   selectedDraftId: null,
   companyStatusFilter: 'all',
+  intelligenceActivated: false,
   setActiveView: (view) => set({ activeView: view }),
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
@@ -107,4 +115,5 @@ export const useAppStore = create<AppState>((set) => ({
   setSelectedCompanyId: (id) => set({ selectedCompanyId: id }),
   setSelectedDraftId: (id) => set({ selectedDraftId: id }),
   setCompanyStatusFilter: (filter) => set({ companyStatusFilter: filter }),
+  setIntelligenceActivated: (v) => set({ intelligenceActivated: v }),
 }));

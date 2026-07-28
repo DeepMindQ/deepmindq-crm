@@ -1,17 +1,19 @@
 /* ═══════════════════════════════════════════════════
    Navigation Configuration
    
-   Enterprise-grade 5-section navigation.
+   Intelligence OS — Enterprise-grade 3-section navigation.
    Single source of truth for sidebar structure.
+   
+   INTELLIGENCE → Business questions, daily operations
+   WORKSPACES   → Deep contextual intelligence
+   ADMIN        → Enterprise operations
    ═══════════════════════════════════════════════════ */
 
 import {
-  LayoutDashboard, Sparkles, Radar,
-  Building2, Users, Target, Kanban,
-  GitBranch, FileText, Mail,
-  Upload, BarChart3, Brain, Activity,
-  Settings, ScrollText, Shield, Copy,
-  Cpu, Crosshair, MessageSquareText, Network,
+  LayoutDashboard, Cpu, Building2, Search,
+  Brain, BookOpen, Layers,
+  Settings, Shield, Database, Plug, Activity,
+  ChevronRight, BarChart3,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -19,6 +21,7 @@ export interface NavItem {
   label: string;
   icon: React.ElementType;
   badgeCount?: number;
+  isNew?: boolean;
 }
 
 export interface NavSection {
@@ -33,69 +36,34 @@ export const NAV_SECTIONS: NavSection[] = [
     heading: 'INTELLIGENCE',
     defaultOpen: true,
     items: [
-      { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { key: 'ai-command-center', label: 'AI Command Center', icon: Cpu },
-      { key: 'revenue-intelligence', label: 'Revenue Intelligence', icon: Sparkles },
-      { key: 'signal-intelligence', label: 'Signal Intelligence', icon: Radar },
+      { key: 'command-center', label: 'Command Center', icon: LayoutDashboard, isNew: true },
+      { key: 'accounts', label: 'Accounts', icon: Building2 },
+      { key: 'intelligence-search', label: 'Intelligence Search', icon: Search },
     ],
   },
 
-  /* ── AI ENGINES ── */
+  /* ── WORKSPACES ── */
   {
-    heading: 'AI ENGINES',
-    defaultOpen: false,
+    heading: 'WORKSPACES',
+    defaultOpen: true,
     items: [
-      { key: 'account-intelligence', label: 'Account Intelligence', icon: Crosshair },
-      { key: 'internal-intelligence', label: 'Internal Intelligence', icon: Network },
-      { key: 'conversation-planner', label: 'Conversation Planner', icon: MessageSquareText },
+      { key: 'company-workspace', label: 'Company Workspace', icon: Layers, isNew: true },
+      { key: 'knowledge-workspace', label: 'Knowledge & Capabilities', icon: Brain, isNew: true },
+      { key: 'capability-workspace', label: 'Capability Workspace', icon: Cpu, isNew: true },
     ],
   },
 
-  /* ── ACCOUNTS ── */
+  /* ── ADMINISTRATION ── */
   {
-    heading: 'ACCOUNTS',
+    heading: 'ADMINISTRATION',
     defaultOpen: false,
     items: [
-      { key: 'companies', label: 'Companies', icon: Building2 },
-      { key: 'contacts', label: 'Stakeholders', icon: Users },
-      { key: 'opportunities', label: 'Opportunities', icon: Target },
-      { key: 'segments', label: 'Segments', icon: Kanban },
-    ],
-  },
-
-  /* ── PIPELINE & ENGAGEMENT ── */
-  {
-    heading: 'PIPELINE & ENGAGEMENT',
-    defaultOpen: false,
-    items: [
-      { key: 'pipeline', label: 'Pipeline', icon: GitBranch },
-      { key: 'sequences', label: 'Sequences', icon: GitBranch },
-      { key: 'email-studio', label: 'Email Studio', icon: FileText },
-      { key: 'inbox', label: 'Replies & Bounces', icon: Mail, badgeCount: 0 },
-    ],
-  },
-
-  /* ── OPERATIONS ── */
-  {
-    heading: 'OPERATIONS',
-    defaultOpen: false,
-    items: [
-      { key: 'import', label: 'Import', icon: Upload },
+      { key: 'import', label: 'Data Management', icon: Database },
       { key: 'analytics', label: 'Analytics', icon: BarChart3 },
-      { key: 'knowledge', label: 'Knowledge Base', icon: Brain },
-      { key: 'ai-health', label: 'AI Health', icon: Activity },
-    ],
-  },
-
-  /* ── SETTINGS ── */
-  {
-    heading: 'SETTINGS',
-    defaultOpen: false,
-    items: [
       { key: 'settings', label: 'Settings', icon: Settings },
-      { key: 'audit', label: 'Audit Log', icon: ScrollText },
-      { key: 'data-health', label: 'Data Health', icon: Shield },
-      { key: 'duplicates', label: 'Duplicates', icon: Copy },
+      { key: 'data-health', label: 'Integrations', icon: Plug },
+      { key: 'ai-health', label: 'System Health', icon: Activity },
+      { key: 'audit', label: 'Audit Log', icon: Shield },
     ],
   },
 ];

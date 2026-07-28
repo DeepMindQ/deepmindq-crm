@@ -55,7 +55,7 @@ export function IntelligenceBriefing() {
             name: c.name,
             signalCount: c._count?.signals ?? c.signalCount ?? 0,
             topSignal: c.topSignal ?? 'Intelligence analysis complete',
-            intelligenceScore: c.score ?? c.intelligenceScore ?? Math.floor(Math.random() * 40 + 60),
+            intelligenceScore: c.score ?? c.intelligenceScore ?? 0,
             industry: c.industry,
           }))
           .sort((a: any, b: any) => b.intelligenceScore - a.intelligenceScore);

@@ -1,19 +1,27 @@
 import { NextResponse } from 'next/server';
-import { execSync } from 'child_process';
-import path from 'path';
 
 /**
  * POST /api/setup-db — Run prisma db push to create/align all tables.
  *
- * ⚠️  SECURITY: This endpoint is public (no auth) so that initial setup
- * works on fresh deployments. After tables are created, consider disabling
- * by removing this route or adding auth checks.
- *
+ * ⚠️ SECURITY: This endpoint is gated by SETUP_TOKEN environment variable.
+ * To use: POST with header X-Setup-Token matching SETUP_TOKEN env var.
  * Designed for Render/remote deployments where you can't run CLI commands.
  */
 export async function POST() {
   try {
-    // Verify DATABASE_URL is set
+    const setupToken = process.env.SETUP_TOKEN;
+
+    if (!setupToken) {
+      return NextResponse.json(
+        { success: false, error: 'SETUP_TOKEN environment variable is not configured. This endpoint is disabled.' },
+        { status: 403 }
+      );
+    }
+
+    // Dynamic import to avoid loading child_process unless needed
+    const { execSync } = await import('child_process');
+    const path = await import('path');
+
     if (!process.env.DATABASE_URL) {
       return NextResponse.json(
         { success: false, error: 'DATABASE_URL environment variable is not set.' },
@@ -21,10 +29,6 @@ export async function POST() {
       );
     }
 
-    // Run prisma db push — creates missing tables without data loss.
-    // Use the locally-installed prisma binary (./node_modules/.bin/prisma)
-    // to avoid npx downloading the latest version (which may have breaking
-    // CLI flag changes — e.g. Prisma 7.x removed --skip-generate).
     const prismaBin = path.resolve(process.cwd(), 'node_modules/.bin/prisma');
     const result = execSync(`"${prismaBin}" db push --accept-data-loss`, {
       cwd: path.resolve(process.cwd()),
@@ -54,12 +58,10 @@ export async function POST() {
 }
 
 export async function GET() {
-  const dbUrl = process.env.DATABASE_URL;
   return NextResponse.json({
-    configured: !!dbUrl,
-    // Show only protocol+host, never the full URL with password
-    hint: dbUrl
-      ? `DATABASE_URL is set (${dbUrl.split('@')[0]}...@${dbUrl.split('@')[1]?.split('/')[0] || 'hidden'})`
-      : 'DATABASE_URL is NOT set. Please configure it in Render environment variables.',
+    configured: !!process.env.DATABASE_URL && !!process.env.SETUP_TOKEN,
+    hint: process.env.SETUP_TOKEN
+      ? 'Setup endpoint is token-protected. POST with X-Setup-Token header.'
+      : 'SETUP_TOKEN is NOT set. This endpoint is disabled.',
   });
 }

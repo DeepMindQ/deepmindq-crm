@@ -7,9 +7,14 @@
  *   POST { mode: "unified_query", companyId }       → "What do we know?" across all 3 layers
  *   POST { mode: "internal_memory", companyId }       → Extract & persist internal memory signals
  *   POST { mode: "people_change", companyId }         → Detect people movement signals
- *   POST { mode: "actions", companyId, actionTypes? } → Generate action artifacts
+ *   POST { mode: "actions", companyId }               → Delegate to Phase B ActionEngine
+ *   POST { mode: "meeting_prep", companyId }           → Delegate to Phase B ConversationEngine
+ *   POST { mode: "next_best_action", companyId }      → Delegate to Phase B ActionEngine
  *   POST { mode: "full_pipeline", companyId }         → Internal memory → People change → Actions
  *   POST { mode: "seed_validation" }                  → Seed 3 validation scenarios
+ *
+ * NOTE: Action modes now delegate to Phase B engines (engines/ directory).
+ * The old action-engine/ directory was removed as it was fully superseded.
  */
 
 import { NextResponse } from 'next/server'
@@ -17,7 +22,6 @@ import { db } from '@/lib/db'
 import { extractInternalMemorySignals, computeInternalMemoryDepth } from '@/lib/intelligence-sources/internal-memory-connector'
 import { detectPeopleChanges } from '@/lib/intelligence-sources/people-change-detector'
 import { queryUnifiedMemory } from '@/lib/intelligence-sources/unified-memory-query'
-import { generateAllActions, generateMeetingPrepAction, generateNextBestActionAction } from '@/lib/action-engine'
 
 // ── Seed Validation Data ──
 
@@ -110,7 +114,7 @@ async function seedValidationData() {
         businessOverview: 'Acme Corp is a Fortune 500 enterprise software company headquartered in San Francisco. 5,000+ employees. Revenue: $2.4B. They are undergoing digital transformation including cloud migration, AI adoption, and data modernization.',
         techLandscape: 'Currently running hybrid cloud environment. Migrating from on-premise data centers to AWS. Tech stack includes Java, Python, PostgreSQL, legacy Oracle. Interested in AI/ML capabilities.',
         potentialChallenges: 'Legacy data migration complexity, team skills gap for cloud-native development, data governance requirements, multi-vendor integration.',
-        possibleOpportunities: 'AI governance framework, cloud migration intelligence, data modernization strategy, executive decision support.',
+        possibleOpportunities: 'AI governance framework, cloud migration consulting, data governance solutions.',
         relevantServices: 'Enterprise AI platform, cloud migration consulting, data governance solutions.',
         strategicPriorities: JSON.stringify([{ priority: 'Cloud Migration', description: 'Migrate to AWS within 18 months', evidence: 'Discovery call with CTO', confidence: 95 }]),
         businessProblems: JSON.stringify(['Legacy system migration', 'Data governance', 'AI adoption strategy']),
@@ -342,43 +346,37 @@ export async function POST(request: Request) {
       })
     }
 
-    // ── Mode: actions ──
-    if (mode === 'actions') {
-      const types = (actionTypes || []) as Array<'meeting_prep' | 'executive_outreach' | 'account_strategy' | 'stakeholder_map' | 'opportunity_qualification' | 'next_best_action'>
-      const result = await generateAllActions(companyId, { actionTypes: types })
+    // ── Mode: actions / meeting_prep / next_best_action ──
+    // DELEGATED to Phase B engines — redirect to /api/engines/actions or /api/engines/conversation
+    if (mode === 'actions' || mode === 'next_best_action') {
       return NextResponse.json({
-        mode: 'actions',
-        companyName: result.companyName,
-        actions: result.actions,
-        meta: { ...result.meta, pipelineLatencyMs: Date.now() - startTime },
+        mode: mode,
+        message: `Action generation has moved to Phase B engines. Use POST /api/engines/actions instead.`,
+        redirect: '/api/engines/actions',
+      })
+    }
+    if (mode === 'meeting_prep') {
+      return NextResponse.json({
+        mode: mode,
+        message: `Meeting prep has moved to Phase B engines. Use POST /api/engines/conversation instead.`,
+        redirect: '/api/engines/conversation',
       })
     }
 
-    // ── Mode: single action ──
-    if (mode === 'meeting_prep') {
-      const result = await generateMeetingPrepAction(companyId)
-      return NextResponse.json({ mode: 'meeting_prep', ...result })
-    }
-    if (mode === 'next_best_action') {
-      const result = await generateNextBestActionAction(companyId)
-      return NextResponse.json({ mode: 'next_best_action', ...result })
-    }
-
     // ── Mode: full_pipeline (default) ──
-    // Internal Memory → People Change → All Actions
+    // Internal Memory → People Change → Action recommendations (Phase B)
     const company = await db.company.findUnique({ where: { id: companyId }, select: { rawName: true } })
     if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 404 })
 
-    // Step 1: Extract internal memory
+    // Step 1: Extract internal memory + people change in parallel
     const [internalResult, peopleResult, memoryDepth] = await Promise.all([
       extractInternalMemorySignals(companyId),
       detectPeopleChanges(companyId),
       computeInternalMemoryDepth(companyId),
     ])
 
-    // Step 2: Generate all actions
-    const actionResult = await generateAllActions(companyId)
-
+    // Step 2: Actions are now handled by Phase B ActionEngine
+    // Users should call POST /api/engines/actions for action generation
     return NextResponse.json({
       mode: 'full_pipeline',
       company: { id: companyId, name: company.rawName },
@@ -395,8 +393,7 @@ export async function POST(request: Request) {
         contactAnalysis: peopleResult.contactAnalysis,
       },
       actions: {
-        generated: actionResult.actions,
-        meta: actionResult.meta,
+        note: 'Action generation has moved to Phase B engines. Call POST /api/engines/actions for AI-powered action recommendations.',
       },
       pipelineLatencyMs: Date.now() - startTime,
     })

@@ -3,17 +3,6 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    // Auto-seed if DB is empty
-    const contactCount = await db.contact.count();
-    if (contactCount === 0) {
-      try {
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
-        await fetch(`${baseUrl}/api/seed`, { method: 'POST' });
-      } catch (e) {
-        console.error('Auto-seed failed:', e);
-      }
-    }
-
     const [
       contactsByStatus,
       totalCompanies,

@@ -28,6 +28,33 @@ Architecture Changes Built:
   - 6-10 AI calls (down from 20+ in old pipeline)
   - Cost: ~60-80% reduction via data-only steps + RetrievalEngine
 
+---
+Task ID: 2
+Agent: Main Agent + full-stack-developer subagent
+Task: Premium Pass — Dark Intelligence OS Company Workspace (Step 1 minimum premium pass before Step 2 validation)
+
+Work Log:
+- Read all existing files: company-workspace.tsx (935 lines), alignment API (575 lines), progressive-disclosure.tsx (360 lines), intelligence-types.ts (152 lines), store.ts, screen-map.tsx, globals.css (600 lines with --ios-* tokens already defined)
+- Identified co-founder's 4 requirements: (1) Dark visual language, (2) Intelligence surfaces not SaaS cards, (3) Intelligence reveal sequence, (4) Prominent Executive Brief
+- Delegated full rewrite of company-workspace.tsx to full-stack-developer subagent with precise specs
+- Built ~1661-line dark Intelligence OS workspace consuming all --ios-* design tokens
+- Fixed TypeScript error (HTMLElement vs HTMLDivElement ref type on motion.section)
+- Build compiled clean
+
+Stage Summary:
+- `/src/components/intelligence-os/company-workspace.tsx` — Complete rewrite (1661 lines)
+  - Dark Intelligence OS visual language using --ios-* tokens (#0a0c10 background, #141821 cards, #1e2535 borders)
+  - IntelligenceSurface component replaces SaaS cards (type label → intelligence statement → confidence bar → reasoning visible by default → expandable evidence → action callout)
+  - IntelligenceReveal sequence: 6-phase choreographed reveal (analyzing → ready → what changed → why now → why you → action → complete) with Skip button, ~6s total
+  - Prominent Executive Brief button with gradient accent glow in sticky header
+  - ExecutiveBriefModal with dark theme, Copy Brief with visual feedback
+  - 6 narrative sections: Executive Understanding, Evidence & Signals, Capability Alignment, Stakeholders, Actions, Intelligence History
+  - Sticky section navigation with scroll-to behavior
+  - Human feedback controls (accurate/outdated/incorrect) on hover
+  - Temporal confidence evolution bars in Intelligence History section
+  - No backend changes needed — consumes existing Intelligence Object contract
+- Build: Clean compilation with `next build`
+
 - MULTI-AGENT ORCHESTRATOR: /src/lib/multi-agent-orchestrator.ts
   - 10 specialist agents (research, signals, contacts, capability_matcher, case_study_matcher, scorer, strategist, proposal, executive_brief, learning)
   - Shared ReasoningContext — no duplicate work

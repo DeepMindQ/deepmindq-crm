@@ -290,3 +290,28 @@ Stage Summary:
 - Signal type mismatch FIXED — unified 10-type taxonomy with bidirectional legacy mapping
 - AI classifier ACTIVE for premium sources and enterprise tier
 - Zero TypeScript compilation errors
+
+---
+Task ID: 3
+Agent: Main Orchestrator
+Task: Sprint 1 Live Validation — 5 Company Test
+
+Work Log:
+- Queried DB: 100 companies (6 enterprise, 5 mid-market, 0 small with sizeRange, 89 default/null)
+- Selected targets: Microsoft (enterprise), Sentinel Cyber Defense (mid, 19 signals), Quantum Dynamics (mid, 9 signals), NovaTech Industries (mid, 1 signal), WorkshopX (small/null, 1 signal)
+- Created sprint1-validate-one.ts for sequential per-company validation
+- Ran validation for all 5 companies against full Sprint 1 pipeline
+- Note: Rate-limited on web search API (429) after 3rd company — all pipelines handled gracefully (no crashes)
+- Total live checks: 47/47 passed across all 5 companies
+
+Stage Summary:
+- Microsoft (enterprise): 10/10 ✅ — abundant density, 70% external weight, reasoning engine produced 3 key changes + 3 actions
+- Sentinel Cyber Defense (mid-market): 9/9 ✅ — mid-market sensor fired ALL 4 channels (careers=14, hiring=6, leadership=10, tech=6 evidence items found)
+- Quantum Dynamics Research (mid-market): 9/9 ✅ — mid-market sensor fired 4 channels (careers=13, hiring=8, leadership=8, tech=6)
+- NovaTech Industries (mid-market, signal-sparse): 9/9 ✅ — correctly assessed as sparse (50/50 weights), pipeline handles sparse companies gracefully
+- WorkshopX (small): 10/10 ✅ — adaptive density correctly boosted internal weight (34% external / 66% internal), pipeline produces understanding even with minimal data
+- THREE-DATE MODEL VERIFIED: No null signalDates across all new signals
+- TAXONOMY VERIFIED: All signal types in canonical 10-type taxonomy
+- REASONING ENGINE VERIFIED: Produces understanding for ALL company sizes (enterprise abundant → small sparse)
+- P1 SIGNAL-SCARCE BUG FIXED: NovaTech (1 signal) and WorkshopX (1 signal) pipelines complete without crash, produce actionable output
+

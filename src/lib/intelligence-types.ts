@@ -75,6 +75,20 @@ export interface IntelligenceObject {
   priority?: 'high' | 'medium' | 'low';
   category?: string;
   timing?: string; // "immediate" | "within_7_days" | "within_30_days" | "within_90_days" | "ongoing"
+
+  // Phase 2A: Intelligence Origin — trust & transparency
+  // Every intelligence item should clearly know where it came from.
+  // This becomes a major enterprise differentiator: "DeepMindQ knew this because..."
+  origin?: {
+    type: 'customer_uploaded' | 'enrichment' | 'external_discovery' | 'human_validation' | 'ai_reasoning';
+    source?: string;    // Specific source name (e.g., "Reuters", "company website")
+    collectedAt?: string; // ISO date when this intelligence was acquired
+  };
+
+  // Phase 2A: Intelligence Ranking Score
+  // Composite ranking based on confidence, freshness, source quality,
+  // business relevance, and capability relevance.
+  rankingScore?: number; // 0-100
 }
 
 export interface CompanyIntelligence {
@@ -131,6 +145,10 @@ export interface CompanyIntelligence {
     version: string;
     futureReady: boolean;
   };
+
+  // Phase 2A: What changed recently? — answers the executive question
+  // "What changed recently that should affect my sales strategy?"
+  recentChanges?: string;
 }
 
 export interface ExecutiveBriefData {

@@ -7,6 +7,12 @@ import type {
   EvidenceSource,
   TemporalConfidence,
 } from '@/lib/intelligence-types';
+import {
+  computeIntelligenceRanking,
+  computeFreshnessState,
+  sourceQualityWeight,
+  type IntelligenceRankingResult,
+} from '@/lib/scoring/freshness-ranking';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    GET /api/companies/[id]/alignment — Read-Only Composition Layer (v2)
@@ -50,15 +56,41 @@ function computeTemporal(confidence: number, createdAt: string): TemporalConfide
   };
 }
 
-function computeFreshness(createdAt: string, signalDate?: string | null): {
+function computeFreshness(createdAt: string, signalDate?: string | null, signalType?: string): {
   lastEnriched: string;
   staleness: 'fresh' | 'aging' | 'stale' | 'unknown';
 } {
   const date = signalDate ? new Date(signalDate) : new Date(createdAt);
-  const ageDays = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24);
+  // Phase 2A: Use half-life-based staleness from freshness-ranking
+  const state = signalType
+    ? computeFreshnessState(signalDate, createdAt, signalType)
+    : null;
+  const staleness = state?.staleness ?? 'unknown';
+  // Map 'expired' to 'stale' for the IntelligenceObject contract
   return {
     lastEnriched: date.toISOString(),
-    staleness: ageDays <= 7 ? 'fresh' : ageDays <= 30 ? 'aging' : ageDays <= 90 ? 'stale' : 'stale',
+    staleness: staleness === 'expired' ? 'stale' as const : staleness,
+  };
+}
+
+/**
+ * Phase 2A: Derive intelligence origin from signal source field.
+ * Maps the CompanySignal.source string to the IntelligenceObject.origin type.
+ */
+function deriveOrigin(signal: any): IntelligenceObject['origin'] {
+  const src = (signal.source || '').toLowerCase();
+  let type: IntelligenceObject['origin'] extends { type: infer T } | undefined ? (T extends string ? T : never) : 'enrichment';
+  if (src === 'external_discovery') type = 'external_discovery';
+  else if (src === 'customer_upload' || src === 'csv_upload' || src === 'excel_upload') type = 'customer_uploaded';
+  else if (src === 'human_submission' || src === 'human') type = 'human_validation';
+  else if (src === 'ai_reasoning' || src === 'ai') type = 'ai_reasoning';
+  else if (src.includes('web_search') || src.includes('research') || src.includes('enrich')) type = 'enrichment';
+  else type = 'enrichment';
+
+  return {
+    type,
+    source: signal.sourceUrl ? new URL(signal.sourceUrl.startsWith('http') ? signal.sourceUrl : `https://${signal.sourceUrl}`).hostname.replace('www.', '') : signal.source || undefined,
+    collectedAt: signal.extractedAt instanceof Date ? signal.extractedAt.toISOString() : signal.extractedAt,
   };
 }
 
@@ -110,10 +142,21 @@ export async function GET(
       }
     }
 
+    // ── Phase 2A: Pre-compute intelligence rankings for all signals ──
+    // Signals compete on 5 dimensions: confidence, freshness, source quality,
+    // business relevance, and capability relevance.
+    const signalRankings = new Map<string, IntelligenceRankingResult>();
+    for (const signal of signals) {
+      // Estimate business/capability relevance from signal type
+      const bizRel = estimateBusinessRelevance(signal, capabilities);
+      const capRel = estimateCapabilityRelevance(signal, capabilities);
+      signalRankings.set(signal.id, rankSignalWithRecord(signal, bizRel, capRel));
+    }
+
     // ── Compose Intelligence Objects ──
-    const signalObjects = composeSignalObjects(signals, company, feedbackMap);
-    const needObjects = composeNeedObjects(signalObjects, company);
-    const capabilityMatchObjects = composeCapabilityMatchObjects(needObjects, capabilities, signals, company, feedbackMap);
+    const signalObjects = composeSignalObjects(signals, company, feedbackMap, signalRankings);
+    const needObjects = composeNeedObjects(signalObjects, company, signalRankings);
+    const capabilityMatchObjects = composeCapabilityMatchObjects(needObjects, capabilities, signals, company, feedbackMap, signalRankings);
     const actionObjects = composeActionObjects(company, signalObjects, capabilityMatchObjects, contacts, feedbackMap);
     const stakeholderObjects = composeStakeholderObjects(contacts, company, signalObjects, capabilityMatchObjects[0]);
 
@@ -127,6 +170,10 @@ export async function GET(
 
     // ── Technology Profile ──
     const technology = composeTechnologyProfile(company, signalObjects);
+
+    // ── Phase 2A: Build recentChanges narrative ──
+    // Answers: "What changed recently that should affect my sales strategy?"
+    const recentChanges = composeRecentChanges(signalObjects, company);
 
     const response: CompanyIntelligence = {
       company: {
@@ -148,7 +195,8 @@ export async function GET(
       signalCount: signals.length,
       capabilityCount: capabilities.length,
       contactCount: contacts.length,
-      _meta: { source: 'composition_layer', version: '2.0', futureReady: true },
+      _meta: { source: 'composition_layer', version: '2.1', futureReady: true },
+      recentChanges,
     };
 
     return NextResponse.json(response);
@@ -165,9 +213,10 @@ export async function GET(
 function composeSignalObjects(
   signals: any[],
   company: any,
-  feedbackMap: Map<string, { status: 'accurate' | 'outdated' | 'incorrect'; reason?: string }>
+  feedbackMap: Map<string, { status: 'accurate' | 'outdated' | 'incorrect'; reason?: string }>,
+  signalRankings: Map<string, IntelligenceRankingResult>
 ): IntelligenceObject[] {
-  return signals.map(signal => {
+  const objects = signals.map(signal => {
     const confidence = Math.round((signal.confidence ?? 0.5) * 100);
     const evidenceState = determineEvidenceState(
       Boolean(signal.source || signal.sourceUrl),
@@ -175,28 +224,46 @@ function composeSignalObjects(
       false
     );
     const fb = feedbackMap.get(`signal_meaning:${signal.id}`);
+    const ranking = signalRankings.get(signal.id);
+
+    // Phase 2A: Enhanced reasoning chain
+    // Populate the 4 W's with actual intelligence reasoning
+    const reasoningChain = buildSignalReasoningChain(signal, company, ranking);
 
     return {
       id: signal.id,
-      type: 'signal',
+      type: 'signal' as const,
       title: signal.title,
       subtitle: signal.description || undefined,
-      whatChanged: signal.title,
-      whyItMatters: signal.businessImpact || `Signal of type "${signal.signalType}" detected for ${company.rawName}`,
+      whatChanged: reasoningChain.whatHappened,
+      whyItMatters: reasoningChain.whyItMatters,
+      whyWeRelevant: reasoningChain.whyWeRelevant,
+      whatToDo: reasoningChain.whatToDo,
       evidenceState,
       confidence,
-      reasoning: `${signal.signalType.replace(/_/g, ' ')} signal detected${signal.description ? ': ' + signal.description : ''}. Severity: ${signal.severity}.`,
+      reasoning: reasoningChain.fullReasoning,
       evidence: [
         ...(signal.source ? [{ source: signal.source, snippet: signal.title, url: signal.sourceUrl, date: signal.signalDate?.toISOString(), state: evidenceState }] : []),
       ].filter(Boolean) as EvidenceSource[],
-      freshness: computeFreshness(signal.createdAt, signal.signalDate),
-      temporal: computeTemporal(confidence, signal.createdAt),
+      freshness: computeFreshness(
+        signal.createdAt instanceof Date ? signal.createdAt.toISOString() : signal.createdAt,
+        signal.signalDate?.toISOString() ?? null,
+        signal.signalType
+      ),
+      temporal: computeTemporal(confidence, signal.createdAt instanceof Date ? signal.createdAt.toISOString() : signal.createdAt),
       category: signal.signalType,
       priority: signal.severity === 'critical' || signal.severity === 'high' ? 'high' as const : signal.severity === 'medium' ? 'medium' as const : 'low' as const,
       timing: signal.timingWindow || undefined,
       feedback: fb ? { status: fb.status, updatedAt: new Date().toISOString(), reason: fb.reason } : undefined,
+      // Phase 2A: Intelligence origin
+      origin: deriveOrigin(signal),
+      // Phase 2A: Intelligence ranking score
+      rankingScore: ranking?.rankingScore,
     };
   });
+
+  // Phase 2A: Sort by intelligence ranking (freshness-weighted), not just createdAt
+  return objects.sort((a, b) => (b.rankingScore ?? 0) - (a.rankingScore ?? 0));
 }
 
 const SIGNAL_TO_NEED_MAP: Record<string, string[]> = {
@@ -212,7 +279,8 @@ const SIGNAL_TO_NEED_MAP: Record<string, string[]> = {
 
 function composeNeedObjects(
   signalObjects: IntelligenceObject[],
-  company: any
+  company: any,
+  signalRankings?: Map<string, IntelligenceRankingResult>
 ): IntelligenceObject[] {
   if (signalObjects.length === 0) return [];
 
@@ -259,7 +327,7 @@ function composeNeedObjects(
         priority: avgConfidence >= 70 ? 'high' as const : avgConfidence >= 50 ? 'medium' as const : 'low' as const,
       };
     })
-    .sort((a, b) => b.confidence - a.confidence)
+    .sort((a, b) => ((b as any).rankingScore ?? b.confidence) - ((a as any).rankingScore ?? a.confidence))
     .slice(0, 5);
 }
 
@@ -268,7 +336,8 @@ function composeCapabilityMatchObjects(
   capabilities: any[],
   signals: any[],
   company: any,
-  feedbackMap: Map<string, { status: 'accurate' | 'outdated' | 'incorrect'; reason?: string }>
+  feedbackMap: Map<string, { status: 'accurate' | 'outdated' | 'incorrect'; reason?: string }>,
+  signalRankings?: Map<string, IntelligenceRankingResult>
 ): IntelligenceObject[] {
   if (capabilities.length === 0 || needs.length === 0) return [];
 
@@ -341,7 +410,18 @@ function composeCapabilityMatchObjects(
     }
   }
 
-  return matches.sort((a, b) => b.confidence - a.confidence).slice(0, 4);
+  // Phase 2A: Add ranking score to capability matches based on signal rankings
+  for (const match of matches) {
+    const relatedSignals = match.relatedSignals || [];
+    if (relatedSignals.length > 0 && signalRankings) {
+      const avgSignalRanking = relatedSignals
+        .map(id => signalRankings.get(id)?.rankingScore ?? 0)
+        .reduce((sum, s) => sum + s, 0) / relatedSignals.length;
+      (match as any).rankingScore = Math.round(match.confidence * 0.6 + avgSignalRanking * 0.4);
+    }
+  }
+
+  return matches.sort((a, b) => ((b as any).rankingScore ?? b.confidence) - ((a as any).rankingScore ?? a.confidence)).slice(0, 4);
 }
 
 function composeActionObjects(
@@ -725,4 +805,210 @@ function composeTechnologyProfile(
     techDescription: rc?.techLandscape || null,
     techSignals: enhancedTechSignals,
   };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Phase 2A: Enhanced Reasoning Chain + Intelligence Ranking Helpers
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Build the 5-step reasoning chain for a signal.
+ * This is the deterministic version of the chain that makes DeepMindQ
+ * feel like it "understands" the intelligence.
+ *
+ * Chain:
+ *   1. What happened?        → the signal event
+ *   2. Why does it matter?   → business impact
+ *   3. Why are we relevant?  → capability connection
+ *   4. Who should act?      → stakeholder mapping
+ *   5. What should we do?    → recommended action
+ */
+function buildSignalReasoningChain(
+  signal: any,
+  company: any,
+  ranking?: IntelligenceRankingResult
+): {
+  whatHappened: string;
+  whyItMatters: string;
+  whyWeRelevant: string;
+  whatToDo: string;
+  fullReasoning: string;
+} {
+  const signalType = signal.signalType || 'unknown';
+  const signalLabel = signalType.replace(/_/g, ' ');
+  const ageDays = Math.floor((Date.now() - new Date(signal.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+  const recencyLabel = ageDays === 0 ? 'today' : ageDays === 1 ? 'yesterday' : ageDays <= 7 ? `${ageDays} days ago` : ageDays <= 30 ? `${Math.floor(ageDays / 7)} weeks ago` : `${Math.floor(ageDays / 30)} months ago`;
+
+  // 1. What happened?
+  const whatHappened = signal.businessImpact
+    ? signal.title
+    : `${signal.title} (detected ${recencyLabel})`;
+
+  // 2. Why does it matter?
+  const whyItMatters = signal.businessImpact || buildDefaultWhyItMatters(signalType, company.rawName, recencyLabel);
+
+  // 3. Why are we relevant?
+  const whyWeRelevant = buildWhyWeRelevant(signalType, company.rawName, signal.recommendedAction);
+
+  // 4. What should we do?
+  const whatToDo = signal.recommendedAction || buildDefaultAction(signalType, company.rawName);
+
+  // Build full reasoning text
+  const freshnessNote = ranking
+    ? ` Intelligence ranking: ${ranking.rankingScore}/100 (freshness: ${ranking.freshness.staleness}, ${ranking.freshness.daysSinceSignal}d old).`
+    : '';
+  const fullReasoning = `${signalLabel.charAt(0).toUpperCase() + signalLabel.slice(1)} signal detected ${recencyLabel} for ${company.rawName}. Severity: ${signal.severity}.${freshnessNote}`;
+
+  return { whatHappened, whyItMatters, whyWeRelevant, whatToDo, fullReasoning };
+}
+
+function buildDefaultWhyItMatters(signalType: string, companyName: string, recency: string): string {
+  const impacts: Record<string, string> = {
+    funding: `Recent funding event at ${companyName} indicates available budget and active investment phase — prime window for vendor engagement`,
+    hiring: `Active hiring at ${companyName} signals growth trajectory and potential resource gaps that may require external solutions`,
+    leadership_change: `Leadership change at ${companyName} creates a strategic inflection point — new executives often re-evaluate vendor relationships`,
+    expansion: `Operational expansion at ${companyName} signals infrastructure and service needs for new markets`,
+    tech_change: `Technology change at ${companyName} may indicate dissatisfaction with current solutions or active modernization — key opportunity window`,
+    partnership: `Partnership activity at ${companyName} may indicate ecosystem building with integration requirements`,
+    acquisition: `Acquisition activity at ${companyName} signals major organizational change — technology consolidation and budget restructuring likely`,
+    news: `Recent announcement from ${companyName} may reveal strategic priorities relevant to engagement timing`,
+    mention: `${companyName} market activity detected — may indicate evolving competitive landscape`,
+  };
+  return impacts[signalType] || `${signalType.replace(/_/g, ' ')} signal detected at ${companyName} — further analysis recommended`;
+}
+
+function buildWhyWeRelevant(signalType: string, companyName: string, recommendedAction?: string | null): string {
+  if (recommendedAction) {
+    return `Our capabilities align with the needs created by this ${signalType.replace(/_/g, ' ')} activity at ${companyName}`;
+  }
+  return `This ${signalType.replace(/_/g, ' ')} activity at ${companyName} may indicate needs aligned with our solutions`;
+}
+
+function buildDefaultAction(signalType: string, companyName: string): string {
+  const actions: Record<string, string> = {
+    funding: `Prioritize ${companyName} outreach — budget allocation phase creates high receptivity for solutions`,
+    hiring: `Research specific role requirements at ${companyName} to identify capability alignment`,
+    leadership_change: `Prepare tailored outreach to new leadership at ${companyName} — first 90 days are critical`,
+    expansion: `Position relevant capabilities for ${companyName}'s expansion requirements`,
+    tech_change: `Map technology change at ${companyName} to relevant capabilities; prepare technical conversation`,
+    partnership: `Assess partnership implications for ${companyName} competitive landscape`,
+    acquisition: `Immediately assess acquisition impact on ${companyName} pipeline and contract stability`,
+    news: `Incorporate announcement into ${companyName} account narrative and next touchpoint`,
+  };
+  return actions[signalType] || `Assess ${signalType.replace(/_/g, ' ')} signal for ${companyName} engagement strategy`;
+}
+
+/**
+ * Estimate business relevance of a signal (0-1).
+ * Higher for signals that directly indicate buying intent or urgent need.
+ */
+function estimateBusinessRelevance(signal: any, capabilities: any[]): number {
+  // High-relevance signal types
+  const highRelevanceTypes = ['funding', 'acquisition', 'expansion', 'leadership_change'];
+  const mediumRelevanceTypes = ['hiring', 'tech_change', 'partnership'];
+  const lowRelevanceTypes = ['news', 'mention'];
+
+  if (highRelevanceTypes.includes(signal.signalType)) return 0.8;
+  if (mediumRelevanceTypes.includes(signal.signalType)) return 0.6;
+  if (lowRelevanceTypes.includes(signal.signalType)) return 0.3;
+
+  // Boost if has explicit business impact
+  if (signal.businessImpact && signal.businessImpact.length > 30) return 0.7;
+
+  return 0.5;
+}
+
+/**
+ * Estimate capability relevance of a signal (0-1).
+ * Checks if signal keywords overlap with our capability library.
+ */
+function estimateCapabilityRelevance(signal: any, capabilities: any[]): number {
+  if (capabilities.length === 0) return 0.3;
+
+  const signalText = `${signal.title} ${signal.description} ${signal.signalType}`.toLowerCase();
+  const capTexts = capabilities.map(c =>
+    `${c.title} ${c.summary} ${c.keywords} ${c.businessProblem} ${c.solution}`.toLowerCase()
+  );
+
+  // Quick overlap check
+  const signalWords = signalText.split(/\s+/).filter(w => w.length > 3);
+  let maxOverlap = 0;
+
+  for (const capText of capTexts) {
+    const overlap = signalWords.filter(w => capText.includes(w)).length;
+    maxOverlap = Math.max(maxOverlap, overlap);
+  }
+
+  if (maxOverlap >= 3) return 0.9;
+  if (maxOverlap >= 2) return 0.6;
+  if (maxOverlap >= 1) return 0.4;
+  return 0.2;
+}
+
+/**
+ * Convenience wrapper for ranking a raw DB signal record.
+ */
+function rankSignalWithRecord(
+  signal: any,
+  businessRelevance: number,
+  capabilityRelevance: number
+): IntelligenceRankingResult {
+  return computeIntelligenceRanking({
+    confidence: Math.round((signal.confidence ?? 0.5) * 100),
+    signalDate: signal.signalDate?.toISOString?.() ?? null,
+    createdAt: signal.createdAt instanceof Date ? signal.createdAt.toISOString() : String(signal.createdAt),
+    signalType: signal.signalType,
+    sourceQuality: signal.sourceQuality || 'standard',
+    businessRelevance,
+    capabilityRelevance,
+  });
+}
+
+/**
+ * Phase 2A: Compose the "recent changes" narrative.
+ *
+ * Answers the executive question:
+ * "What changed recently that should affect my sales strategy?"
+ *
+ * Focuses on the top-ranked fresh signals — the ones that are driving
+ * the intelligence right now, not historical baseline data.
+ */
+function composeRecentChanges(
+  signalObjects: IntelligenceObject[],
+  company: any
+): string {
+  if (signalObjects.length === 0) {
+    return `No recent intelligence changes detected for ${company.rawName}.`;
+  }
+
+  // Get fresh signals sorted by ranking
+  const freshSignals = signalObjects
+    .filter(s => s.freshness.staleness === 'fresh' || s.freshness.staleness === 'aging')
+    .sort((a, b) => (b.rankingScore ?? 0) - (a.rankingScore ?? 0))
+    .slice(0, 5);
+
+  if (freshSignals.length === 0) {
+    // No fresh signals — report on the top-ranked regardless of staleness
+    const top = signalObjects.slice(0, 3);
+    if (top.length === 0) return `No recent intelligence changes detected for ${company.rawName}.`;
+    return `Most recent intelligence for ${company.rawName}: ${top.map(s => s.title).join('; ')}. Consider running external news collection to refresh intelligence.`;
+  }
+
+  // Build narrative from fresh signals
+  const parts: string[] = [];
+
+  if (freshSignals[0]) {
+    const top = freshSignals[0];
+    parts.push(`The most significant recent change: "${top.whatChanged || top.title}"`);
+    if (top.whyItMatters) parts.push(`This matters because ${top.whyItMatters.toLowerCase().charAt(0) + top.whyItMatters.toLowerCase().slice(1)}`);
+    if (top.whatToDo) parts.push(`Recommended action: ${top.whatToDo}`);
+    if (top.origin) parts.push(`Intelligence source: ${top.origin.type.replace(/_/g, ' ')}${top.origin.source ? ` (${top.origin.source})` : ''}`);
+  }
+
+  if (freshSignals.length > 1) {
+    const others = freshSignals.slice(1, 4).map(s => s.title);
+    parts.push(`Other recent signals: ${others.join('; ')}`);
+  }
+
+  return parts.join('. ') + '.';
 }

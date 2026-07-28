@@ -275,6 +275,12 @@ function IntelligenceSurface({
   const typeConf = TYPE_CONFIG[item.type] || TYPE_CONFIG.signal;
   const TypeIcon = typeConf.icon;
   const accentColor = typeConf.color;
+  const roleColor = item.type === 'stakeholder' && item.category
+    ? item.category === 'Decision Maker' ? '#ef4444'
+      : item.category === 'Influencer' ? '#f59e0b'
+        : item.category === 'Team Member' ? '#06b6d4'
+          : IOS.textMuted
+    : undefined;
 
   return (
     <motion.div
@@ -297,6 +303,14 @@ function IntelligenceSurface({
             </span>
           </div>
           <div className="flex items-center gap-2">
+            {roleColor && item.category && (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wide"
+                style={{ background: `${roleColor}12`, color: roleColor, border: `1px solid ${roleColor}25` }}
+              >
+                {item.category}
+              </span>
+            )}
             <EvidenceStateBadge state={item.evidenceState} />
             {item.priority === 'high' && (
               <span
@@ -518,6 +532,7 @@ const SIGNAL_GROUPS = [
   { key: 'technology', label: 'Technology Signals', icon: Cpu, accent: '#06b6d4', categories: ['tech_change'] },
   { key: 'business', label: 'Business Signals', icon: Briefcase, accent: IOS.confHigh, categories: ['funding', 'expansion', 'partnership'] },
   { key: 'external', label: 'External Signals', icon: Newspaper, accent: IOS.signal, categories: ['news', 'mention', 'leadership_change'] },
+  { key: 'relationship', label: 'Relationship Signals', icon: Users, accent: '#8b5cf6', categories: ['hiring'] },
 ];
 
 function groupSignalsByCategory(signals: IntelligenceObject[]) {
@@ -527,13 +542,13 @@ function groupSignalsByCategory(signals: IntelligenceObject[]) {
   for (const group of SIGNAL_GROUPS) {
     const matched = signals.filter(s => s.category && group.categories.includes(s.category));
     if (matched.length === 0) continue;
-    const top = matched[0];
+    const topConfidence = Math.max(...matched.map(s => s.confidence));
     groups.push({
       key: group.key,
       label: group.label,
       icon: group.icon,
       accent: group.accent,
-      summary: top.whyItMatters || top.title || `${matched.length} ${group.key} signal${matched.length !== 1 ? 's' : ''} detected`,
+      summary: `${matched.length} signal${matched.length !== 1 ? 's' : ''} · highest confidence ${topConfidence}%`,
       signals: matched,
     });
   }
@@ -567,6 +582,7 @@ interface FlattenedEvidence {
   state: EvidenceState;
   parentTitle: string;
   parentType: string;
+  parentConfidence: number;
 }
 
 function collectAllEvidence(intel: CompanyIntelligence): FlattenedEvidence[] {
@@ -589,6 +605,7 @@ function collectAllEvidence(intel: CompanyIntelligence): FlattenedEvidence[] {
         state: ev.state,
         parentTitle: obj.title,
         parentType: label,
+        parentConfidence: obj.confidence,
       });
     }
   }
@@ -1638,6 +1655,47 @@ export function CompanyWorkspace() {
               </div>
             )}
 
+            {/* Technology → Business Meaning translation */}
+            {intelligence.technology.knownTech.length > 0 && intelligence.capabilityMatches.length > 0 && (
+              <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${IOS.border}` }}>
+                <p className="text-[9px] font-bold tracking-[0.12em] uppercase mb-2" style={{ color: IOS.textMuted }}>
+                  Technology → Capability Relevance
+                </p>
+                {(() => {
+                  const techLower = intelligence.technology.knownTech.map(t => t.toLowerCase());
+                  const relevantCaps = intelligence.capabilityMatches
+                    .filter(m => {
+                      const capText = [m.title, m.subtitle, m.reasoning].filter(Boolean).join(' ').toLowerCase();
+                      return techLower.some(tech => capText.includes(tech));
+                    })
+                    .slice(0, 3);
+                  if (relevantCaps.length === 0) return (
+                    <p className="text-xs leading-relaxed" style={{ color: IOS.textSecondary }}>
+                      Their technology stack suggests potential alignment with your capabilities. Further enrichment will strengthen the connection analysis.
+                    </p>
+                  );
+                  return (
+                    <div className="space-y-2">
+                      {relevantCaps.map(cap => (
+                        <div key={cap.id} className="flex items-start gap-2 px-3 py-2 rounded-lg"
+                          style={{ background: 'rgba(6,182,212,0.06)', border: `1px solid rgba(6,182,212,0.15)` }}>
+                          <Cpu className="w-3 h-3 shrink-0 mt-0.5" style={{ color: '#06b6d4' }} />
+                          <div>
+                            <p className="text-xs font-medium" style={{ color: IOS.textPrimary }}>
+                              {cap.title} — {cap.confidence}% match
+                            </p>
+                            <p className="text-[10px] mt-0.5" style={{ color: IOS.textSecondary }}>
+                              {cap.whyWeRelevant || cap.whyItMatters}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
             {/* Tech description */}
             {intelligence.technology.techDescription && (
               <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${IOS.border}` }}>
@@ -1923,8 +1981,25 @@ export function CompanyWorkspace() {
                                 <span className="text-[10px]" style={{ color: IOS.textMuted }}>
                                   Source: {ev.source}
                                 </span>
+                                {ev.date && (
+                                  <span className="text-[10px]" style={{ color: `${IOS.textMuted}60` }}>
+                                    {new Date(ev.date).toLocaleDateString()}
+                                  </span>
+                                )}
+                                <span
+                                  className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                                  style={{ background: `${IOS.accent}10`, color: IOS.accent }}
+                                >
+                                  {ev.parentType}
+                                </span>
+                                <span
+                                  className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                                  style={{ background: getConfidenceBg(ev.parentConfidence), color: getConfidenceColor(ev.parentConfidence) }}
+                                >
+                                  {ev.parentConfidence}%
+                                </span>
                                 <span className="text-[10px]" style={{ color: `${IOS.textMuted}60` }}>
-                                  From: {ev.parentTitle}
+                                  Linked: {ev.parentTitle}
                                 </span>
                                 {ev.url && (
                                   <a href={ev.url} target="_blank" rel="noopener noreferrer"

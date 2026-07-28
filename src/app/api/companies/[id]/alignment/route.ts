@@ -624,6 +624,44 @@ function composePositioning(
   };
 }
 
+const TECH_TO_BUSINESS_MAP: Record<string, string> = {
+  'cloud': 'Cloud infrastructure investment indicates modernization budget and platform migration opportunity',
+  'aws': 'AWS usage suggests cloud-native capabilities and potential for managed service partnerships',
+  'azure': 'Azure adoption signals Microsoft ecosystem alignment and enterprise integration needs',
+  'gcp': 'Google Cloud usage indicates data/AI investment and modern engineering practices',
+  'kubernetes': 'Container orchestration maturity signals sophisticated DevOps culture and platform engineering',
+  'docker': 'Container adoption indicates CI/CD maturity and infrastructure-as-code readiness',
+  'react': 'React frontend suggests modern web engineering practices and component-driven architecture',
+  'angular': 'Angular adoption indicates enterprise-scale frontend standards and TypeScript proficiency',
+  'node': 'Node.js usage signals JavaScript-first engineering and real-time capability needs',
+  'python': 'Python adoption indicates data science, AI/ML investment, or backend services',
+  'machine learning': 'ML investment signals data-driven culture and AI product development',
+  'ai': 'AI adoption indicates forward-looking technology strategy and intelligent automation needs',
+  'terraform': 'Infrastructure-as-code adoption signals mature DevOps and cloud governance',
+  'snowflake': 'Snowflake usage indicates enterprise data warehousing and analytics investment',
+  'salesforce': 'Salesforce adoption signals CRM-centric operations and potential integration needs',
+  'sap': 'SAP usage indicates enterprise ERP and large-scale business process management',
+  'service': 'Service-oriented architecture indicates microservices adoption and API-first strategy',
+  'api': 'API-first strategy suggests integration partnerships and platform extensibility needs',
+  'security': 'Security tooling investment indicates compliance requirements and risk management priority',
+  'data': 'Data infrastructure investment signals analytics-driven culture and BI platform needs',
+};
+
+function composeTechnologyBusinessInsights(knownTech: string[]): string[] {
+  const techLower = knownTech.map(t => t.toLowerCase().trim());
+  const insights: string[] = [];
+  const seen = new Set<string>();
+  for (const tech of techLower) {
+    for (const [key, insight] of Object.entries(TECH_TO_BUSINESS_MAP)) {
+      if (tech.includes(key) && !seen.has(key)) {
+        seen.add(key);
+        insights.push(insight);
+      }
+    }
+  }
+  return insights;
+}
+
 function composeTechnologyProfile(
   company: any,
   signalObjects: IntelligenceObject[]
@@ -644,10 +682,22 @@ function composeTechnologyProfile(
     techStack.length > 10 ? 'advanced' : techStack.length > 5 ? 'high' : techStack.length > 2 ? 'medium' : 'low'
   );
 
+  // Enhance tech signals with business meaning translation
+  const enhancedTechSignals = techSignals.map(signal => {
+    const businessInsights = composeTechnologyBusinessInsights(techStack);
+    const relevantInsight = signal.title
+      ? businessInsights.find(i => signal.title.toLowerCase().split(/\s+/).some(w => i.toLowerCase().includes(w)))
+      : undefined;
+    return {
+      ...signal,
+      whyItMatters: relevantInsight || signal.whyItMatters || `Technology change at ${company.rawName} may indicate evolving infrastructure needs`,
+    };
+  });
+
   return {
     knownTech: [...new Set(techStack)],
     digitalMaturity: maturity,
     techDescription: rc?.techLandscape || null,
-    techSignals,
+    techSignals: enhancedTechSignals,
   };
 }

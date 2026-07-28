@@ -14,7 +14,7 @@
 
 import { db } from '@/lib/db'
 import { webSearch } from '@/lib/llm-client'
-import { callAI } from '@/lib/llm-client'
+import { ModelRouter } from '@/lib/engines/model-router'
 
 export interface CompetitiveIntelResult {
   competitorName: string
@@ -64,7 +64,7 @@ export async function collectCompetitiveIntel(competitorName: string): Promise<C
   }> = []
 
   try {
-    const aiResult = await callAI({
+    const llmResult = await ModelRouter.complete({
       systemPrompt: `You are a competitive intelligence analyst. Extract recent competitive events from search results. Classify each event into one of: ${COMPETITOR_EVENT_TYPES.join(', ')}. Be factual.`,
       userPrompt: `Competitor: ${competitorName}
 
@@ -79,10 +79,13 @@ Extract competitive events as JSON array:
   "sourceUrl": "url or null",
   "sourceName": "publication name or null"
 }]`,
-      feature: 'competitive-intel-collection',
+      tier: 'smart',
+      genType: 'competitive_intel_collection',
+      maxTokens: 4096,
+      temperature: 0.3,
     })
 
-    const cleaned = (aiResult.raw || '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+    const cleaned = (llmResult.text || '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
     const match = cleaned.match(/\[[\s\S]*\]/)
     if (match) events = JSON.parse(match[0])
   } catch (err) {
@@ -100,15 +103,18 @@ Extract competitive events as JSON array:
     let impactAnalysis: string | null = null
     if (affectedAccounts.length > 0) {
       try {
-        const impactResult = await callAI({
+        const impactResult = await ModelRouter.complete({
           systemPrompt: 'You are a B2B revenue intelligence analyst. Analyze how a competitive event affects specific prospect accounts.',
           userPrompt: `Competitive Event: ${event.eventTitle} — ${event.eventSummary}
 Affected Accounts: ${affectedAccounts.map(a => a.rawName).join(', ')}
 
 What should the sales team do for each affected account? Be specific and actionable.`,
-          feature: 'competitive-impact-analysis',
+          tier: 'smart',
+          genType: 'competitive_impact_analysis',
+          maxTokens: 2048,
+          temperature: 0.5,
         })
-        impactAnalysis = impactResult.raw
+        impactAnalysis = impactResult.text
       } catch {
         impactAnalysis = null
       }

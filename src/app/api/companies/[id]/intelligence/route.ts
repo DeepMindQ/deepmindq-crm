@@ -85,9 +85,10 @@ async function webSearch(query: string, num = 5) {
 }
 
 async function aiChat(systemPrompt: string, userPrompt: string): Promise<{ raw: string; quality?: import('@/lib/ai-copilot/quality-gates').QualityReport }> {
-  const { callAI } = await import('@/lib/llm-client');
-  const result = await callAI({ systemPrompt, userPrompt, feature: 'company_intelligence', runQualityCheck: true });
-  return { raw: result.raw, quality: result.quality };
+  const { ModelRouter } = await import('@/lib/engines/model-router');
+  const result = await ModelRouter.complete({ systemPrompt, userPrompt, tier: 'smart', genType: 'company_intelligence', maxTokens: 4096, temperature: 0.7 });
+  if (!result.success) throw new Error(result.error ?? 'ModelRouter failed');
+  return { raw: result.text };
 }
 
 /**

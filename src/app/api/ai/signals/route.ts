@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { apiError, apiSuccess, safeInt } from '@/lib/apiHelpers'
 import { randomUUID } from 'crypto'
 import { sdkWebSearch, type WebSearchResult } from '@/lib/llm-client'
-import { governedAICallAggregate } from '@/lib/ai-governance'
+import { ModelRouter } from '@/lib/engines/model-router'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -119,12 +119,15 @@ async function callLLM(
   systemPrompt: string,
   userPrompt: string,
 ): Promise<string> {
-  const result = await governedAICallAggregate({
+  const result = await ModelRouter.complete({
     systemPrompt,
     userPrompt,
-    feature: 'signal_scanning',
+    tier: 'smart',
+    genType: 'signal_scanning',
+    maxTokens: 4096,
+    temperature: 0.5,
   })
-  return result.text
+  return result.success ? result.text : ''
 }
 
 // ---------------------------------------------------------------------------

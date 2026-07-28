@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { createInsight } from '@/lib/ai-insight-service'
-import { callAI, sdkWebSearch } from '@/lib/llm-client'
+import { sdkWebSearch } from '@/lib/llm-client'
+import { ModelRouter } from '@/lib/engines/model-router'
 
 // ---------------------------------------------------------------------------
 // Types — VP Sales-Ready Executive Brief
@@ -120,8 +121,16 @@ async function webSearch(query: string): Promise<Array<{ title: string; url: str
 }
 
 async function callLLM(systemPrompt: string, userPrompt: string): Promise<{ raw: string; quality?: import('@/lib/ai-copilot/quality-gates').QualityReport }> {
-  const result = await callAI({ systemPrompt, userPrompt, feature: 'account_brief', runQualityCheck: true });
-  return { raw: result.raw, quality: result.quality };
+  const result = await ModelRouter.complete({
+    systemPrompt,
+    userPrompt,
+    tier: 'deep',
+    genType: 'account_brief',
+    maxTokens: 8192,
+    temperature: 0.7,
+  })
+  if (!result.success) throw new Error(result.error ?? 'ModelRouter failed')
+  return { raw: result.text }
 }
 
 // ---------------------------------------------------------------------------

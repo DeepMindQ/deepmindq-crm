@@ -12,7 +12,7 @@
  */
 
 import { db } from '@/lib/db'
-import { callAI } from '@/lib/llm-client'
+import { ModelRouter } from '@/lib/engines/model-router'
 import { webSearch } from '@/lib/llm-client'
 
 export interface PeopleEnrichmentResult {
@@ -105,19 +105,22 @@ Extract the following as JSON:
   "decisionAuthority": "executive|vp|director|manager|individual_contributor|unknown"
 }`
 
-  let result: Partial<PeopleEnrichmentResult> = {}
+  let enrichmentData: Partial<PeopleEnrichmentResult> = {}
   try {
-    const aiResult = await callAI({
+    const llmResult = await ModelRouter.complete({
       systemPrompt,
       userPrompt,
-      feature: 'people-enrichment',
+      tier: 'smart',
+      genType: 'people_enrichment',
+      maxTokens: 2048,
+      temperature: 0.3,
       companyId: contact.companyId,
     })
 
-    const cleaned = (aiResult.raw || '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+    const cleaned = (llmResult.text || '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
     if (jsonMatch) {
-      result = JSON.parse(jsonMatch[0])
+      enrichmentData = JSON.parse(jsonMatch[0])
     }
   } catch (err) {
     console.warn(`[people-enrichment] AI extraction failed for ${contact.rawName}:`, err)
@@ -125,15 +128,15 @@ Extract the following as JSON:
 
   const enrichment: PeopleEnrichmentResult = {
     contactId,
-    headline: result.headline || null,
-    currentRole: result.currentRole || contact.title || null,
-    currentCompany: result.currentCompany || contact.company?.name || null,
-    location: result.location || null,
-    profileSummary: result.profileSummary || null,
-    skills: Array.isArray(result.skills) ? result.skills : [],
-    experienceHighlights: Array.isArray(result.experienceHighlights) ? result.experienceHighlights : [],
-    buyingSignals: Array.isArray(result.buyingSignals) ? result.buyingSignals : [],
-    decisionAuthority: result.decisionAuthority || estimateAuthority(contact.title || ''),
+    headline: enrichmentData.headline || null,
+    currentRole: enrichmentData.currentRole || contact.title || null,
+    currentCompany: enrichmentData.currentCompany || contact.company?.name || null,
+    location: enrichmentData.location || null,
+    profileSummary: enrichmentData.profileSummary || null,
+    skills: Array.isArray(enrichmentData.skills) ? enrichmentData.skills : [],
+    experienceHighlights: Array.isArray(enrichmentData.experienceHighlights) ? enrichmentData.experienceHighlights : [],
+    buyingSignals: Array.isArray(enrichmentData.buyingSignals) ? enrichmentData.buyingSignals : [],
+    decisionAuthority: enrichmentData.decisionAuthority || estimateAuthority(contact.title || ''),
     estimatedSeniority: estimateSeniority(contact.title || ''),
     confidence: searchResults.length > 0 ? 0.6 : 0.3,
     source: 'web-search+ai',

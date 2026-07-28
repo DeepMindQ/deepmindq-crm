@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sdkWebSearch } from '@/lib/llm-client';
+import { ModelRouter } from '@/lib/engines/model-router';
 
 // POST /api/research-agent — Deep research on company or person
 export async function POST(req: NextRequest) {
@@ -14,16 +16,9 @@ export async function POST(req: NextRequest) {
 
     let aiResult: string;
     try {
-      const ZAI = (await import('z-ai-web-dev-sdk')).default;
-      const { ensureZaiConfig } = await import('@/lib/zai-config');
-      await ensureZaiConfig();
-      const zai: any = await ZAI.create();
-
-      // First do web search, then LLM synthesis
-      const searchResult = await zai.functions.invoke('web_search', { query });
-      const searchContext = Array.isArray(searchResult?.results)
-        ? searchResult.results.map((r: any) => `${r.title}: ${r.snippet || r.content || ''}`).join('\n')
-        : (typeof searchResult === 'string' ? searchResult : JSON.stringify(searchResult));
+      // First do web search via llm-client, then LLM synthesis via ModelRouter
+      const searchResults = await sdkWebSearch(query, 10);
+      const searchContext = searchResults.map(r => `${r.title}: ${r.snippet}`).join('\n');
 
       const systemContext = isCompany
         ? `You are a senior business intelligence analyst at a top-tier strategy firm. Your research reports are used by sales teams to prepare for high-value B2B outreach. You write with specificity, citing exact figures, dates, names, and sources. You never use vague filler like "the company has demonstrated consistent growth" — instead you say "Revenue grew 34% YoY to $180M in FY2024 per their Q4 earnings filing." If you cannot find specific data, explicitly say "Not publicly available" rather than guessing.`
@@ -79,14 +74,15 @@ ICON OPTIONS for sections: "Building2" "DollarSign" "Cpu" "Users" "Newspaper" "T
 
 Include 4-6 sections. Match the icon to the section topic.`;
 
-      const completion = await zai.chat.completions.create({
-        messages: [
-          { role: 'system', content: `You have access to the following web search results for context:\n\n${searchContext}\n\nUse this context to provide specific, verifiable information. If the search results don't contain enough detail, say so explicitly.` },
-          { role: 'user', content: prompt },
-        ],
-        thinking: { type: 'disabled' },
+      const result = await ModelRouter.complete({
+        systemPrompt: `You have access to the following web search results for context:\n\n${searchContext}\n\nUse this context to provide specific, verifiable information. If the search results don't contain enough detail, say so explicitly.`,
+        userPrompt: prompt,
+        tier: 'deep',
+        genType: 'deep_research',
+        maxTokens: 8192,
+        temperature: 0.5,
       });
-      aiResult = completion.choices?.[0]?.message?.content || '';
+      aiResult = result.success ? result.text : '';
     } catch (sdkError) {
       console.error('AI SDK error:', sdkError);
       return NextResponse.json(

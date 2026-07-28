@@ -795,7 +795,7 @@ export async function preFlightCheck(context: GovernanceContext): Promise<{
 // This is the ONLY approved way for AI routes to call the LLM.
 // No AI route should call callLLM() directly — all calls MUST go through this.
 
-import { callLLM } from '@/lib/llm-client';
+import { ModelRouter } from '@/lib/engines/model-router';
 
 interface GovernedAICallParams {
   /** Generation type for governance config lookup (e.g. 'email_draft', 'insights') */
@@ -954,7 +954,18 @@ export async function governedAICall(
 
   let response: string | null = null;
   try {
-    response = await callLLM(governedSystemPrompt, governedUserPrompt);
+    const result = await ModelRouter.complete({
+      systemPrompt: governedSystemPrompt,
+      userPrompt: governedUserPrompt,
+      tier: 'smart',
+      genType: generationType || 'governed_ai_call',
+      maxTokens: 4096,
+      temperature: 0.7,
+      companyId,
+      contactId,
+    });
+    if (!result.success) throw new Error(result.error ?? 'ModelRouter failed');
+    response = result.text;
   } catch (llmErr) {
     console.error(
       `[ai-governance] LLM call failed for ${generationType}:`,
@@ -1052,7 +1063,16 @@ export async function governedAICallAggregate(params: {
 
   let response: string | null = null;
   try {
-    response = await callLLM(governedSystemPrompt, userPrompt);
+    const result = await ModelRouter.complete({
+      systemPrompt: governedSystemPrompt,
+      userPrompt,
+      tier: 'smart',
+      genType: generationType || 'governed_aggregate_call',
+      maxTokens: 4096,
+      temperature: 0.7,
+    });
+    if (!result.success) throw new Error(result.error ?? 'ModelRouter failed');
+    response = result.text;
   } catch (llmErr) {
     console.error(
       `[ai-governance] Aggregate LLM call failed for ${generationType}:`,

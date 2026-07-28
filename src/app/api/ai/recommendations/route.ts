@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { apiSuccess, apiError } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
 import { createInsights } from '@/lib/ai-insight-service'
+import { ModelRouter } from '@/lib/engines/model-router'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -335,19 +336,16 @@ function parseAIResponse(raw: string, originals: Recommendation[]): Recommendati
 async function enhanceWithAI(recs: Recommendation[]): Promise<Recommendation[]> {
   if (recs.length === 0) return recs
 
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then((m) => m.default).then((Z) => Z.create())
-
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: RECOMMENDATION_SYSTEM_PROMPT },
-      { role: 'user', content: buildAIUserPrompt(recs) },
-    ],
-    thinking: { type: 'disabled' },
+  const result = await ModelRouter.complete({
+    systemPrompt: RECOMMENDATION_SYSTEM_PROMPT,
+    userPrompt: buildAIUserPrompt(recs),
+    tier: 'smart',
+    genType: 'recommendation_enhancement',
+    maxTokens: 4096,
+    temperature: 0.5,
   })
 
-  const raw = completion.choices?.[0]?.message?.content ?? ''
+  const raw = result.success ? result.text : ''
 
   if (!raw || raw.length < 10) {
     console.warn('[ai/recommendations] AI returned empty or too-short response, using rule-based fallback')

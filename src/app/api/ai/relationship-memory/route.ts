@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { apiSuccess, apiError } from '@/lib/apiHelpers'
 import { format } from 'date-fns'
-import { getZAI } from '@/lib/llm-client'
+import { ModelRouter } from '@/lib/engines/model-router'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -103,19 +103,20 @@ function eventTypeToDisplay(eventType: string): InteractionType {
 }
 
 // ---------------------------------------------------------------------------
-// LLM helper — delegates to unified llm-client (Phase 2 consolidation)
+// LLM helper — routed through ModelRouter (Phase 2.2)
 // ---------------------------------------------------------------------------
 
 async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const zai = await getZAI()
-  const completion = await zai.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
+  const result = await ModelRouter.complete({
+    systemPrompt,
+    userPrompt,
+    tier: 'smart',
+    genType: 'relationship_memory',
+    maxTokens: 4096,
+    temperature: 0.7,
   })
-  return completion.choices?.[0]?.message?.content ?? ''
+  if (!result.success) throw new Error(result.error ?? 'ModelRouter failed')
+  return result.text
 }
 
 // ---------------------------------------------------------------------------

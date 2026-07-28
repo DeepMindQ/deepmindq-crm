@@ -1,25 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
+import { ModelRouter } from '@/lib/engines/model-router'
 
 // ---------------------------------------------------------------------------
-// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
+// LLM helper — routed through ModelRouter (Phase 2.2)
 // ---------------------------------------------------------------------------
 
 type LLMResult = { subject: string; body: string } | null
 
 async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
+  const result = await ModelRouter.complete({
+    systemPrompt,
+    userPrompt,
+    tier: 'smart',
+    genType: 'contact_email_generation',
+    maxTokens: 2048,
+    temperature: 0.7,
   })
-  return completion.choices?.[0]?.message?.content ?? ''
+  if (!result.success) throw new Error(result.error ?? 'ModelRouter failed')
+  return result.text
 }
 
 // ---------------------------------------------------------------------------

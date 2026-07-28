@@ -48,13 +48,11 @@ interface PipelineStats {
 
 /* ══════════════════════════════════════════════════════════════════════════
    AI-POWERED INSIGHTS (Primary Path)
+   Phase 2.2: Routed through ModelRouter + llm-client
    ══════════════════════════════════════════════════════════════════════════ */
 
-async function createZAI() {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  return import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-}
+import { sdkWebSearch } from '@/lib/llm-client'
+import { ModelRouter } from '@/lib/engines/model-router'
 
 /**
  * Fetch live industry trend context via web search.
@@ -65,19 +63,11 @@ async function fetchIndustryTrends(topIndustries: { industry: string; count: num
   if (topIndustries.length === 0) return ''
 
   try {
-    const ZAI = await createZAI()
     const topThree = topIndustries.slice(0, 3).map(i => i.industry)
     const query = `B2B sales and outreach trends 2025 for ${topThree.join(', ')} industries`
-    const results = await ZAI.functions.invoke('web_search', { query, num: 5 })
+    const results = await sdkWebSearch(query, 5)
 
-    // results may be an array of items or an object with a results array
-    const items: Array<{ title?: string; snippet?: string; url?: string }> = Array.isArray(results)
-      ? results
-      : Array.isArray((results as Record<string, unknown>)?.results)
-        ? (results as Record<string, unknown>).results as typeof items
-        : []
-
-    const snippets = items
+    const snippets = results
       .slice(0, 5)
       .map(r => r.snippet ? '[' + (r.title ?? 'Article') + '] ' + r.snippet : null)
       .filter(Boolean)
@@ -96,7 +86,6 @@ async function fetchIndustryTrends(topIndustries: { industry: string; count: num
  * a structured InsightsResponse out of the JSON it returns.
  */
 async function buildAIInsights(stats: PipelineStats, trendContext: string): Promise<InsightsResponse> {
-  const ZAI = await createZAI()
 
   const healthRate = stats.totalContacts > 0
     ? Math.round((stats.healthyEmails / stats.totalContacts) * 100)
@@ -173,19 +162,16 @@ async function buildAIInsights(stats: PipelineStats, trendContext: string): Prom
     instructionsBlock,
   ].join('\n')
 
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      {
-        role: 'assistant',
-        content:
-          'You are a sales intelligence analyst. You respond ONLY with valid JSON matching the requested schema. No markdown, no commentary.',
-      },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
+  const completion = await ModelRouter.complete({
+    systemPrompt: 'You are a sales intelligence analyst. You respond ONLY with valid JSON matching the requested schema. No markdown, no commentary.',
+    userPrompt,
+    tier: 'deep',
+    genType: 'pipeline_insights',
+    maxTokens: 4096,
+    temperature: 0.5,
   })
 
-  const raw = completion.choices?.[0]?.message?.content ?? ''
+  const raw = completion.success ? completion.text : ''
 
   // Extract JSON — handle potential markdown fences or leading/trailing whitespace
   const jsonMatch = raw.match(/\{[\s\S]*\}/)

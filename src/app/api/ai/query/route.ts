@@ -1,22 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-import { getZAI, extractJSON } from '@/lib/llm-client'
+import { extractJSON } from '@/lib/llm-client'
+import { ModelRouter } from '@/lib/engines/model-router'
 
 // ---------------------------------------------------------------------------
-// LLM helper — delegates to unified llm-client (Phase 2 consolidation)
+// LLM helper — routed through ModelRouter (Phase 2.2)
 // ---------------------------------------------------------------------------
 
 async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const zai = await getZAI()
-  const completion = await zai.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
+  const result = await ModelRouter.complete({
+    systemPrompt,
+    userPrompt,
+    tier: 'smart',
+    genType: 'ai_query',
+    maxTokens: 4096,
+    temperature: 0.7,
   })
-  return completion.choices?.[0]?.message?.content ?? ''
+  if (!result.success) throw new Error(result.error ?? 'ModelRouter failed')
+  return result.text
 }
 
 // ---------------------------------------------------------------------------

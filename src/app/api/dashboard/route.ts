@@ -44,14 +44,14 @@ export async function GET() {
 
     // Format contacts by status into a record
     const statusCounts: Record<string, number> = {};
-    for (const group of contactsByStatus as any[]) {
-      statusCounts[group.status] = group._count.status;
+    for (const group of contactsByStatus) {
+      statusCounts[group.status as string] = group._count.status;
     }
 
     // Format email health distribution
     const healthCounts: Record<string, number> = {};
-    for (const group of emailHealthDistribution as any[]) {
-      healthCounts[group.emailHealth] = group._count.emailHealth;
+    for (const group of emailHealthDistribution) {
+      healthCounts[group.emailHealth as string] = group._count.emailHealth;
     }
 
     return NextResponse.json({

@@ -50,7 +50,7 @@ export async function POST() {
   try {
     const contacts = await db.contact.findMany({
       where: {
-        email: { not: null } as any,
+        email: { not: null },
         emailHealth: 'unknown',
       },
       select: { id: true, email: true },
@@ -89,7 +89,7 @@ export async function POST() {
 
     // Check if more remain
     const remaining = await db.contact.count({
-      where: { emailHealth: 'unknown' } as any,
+      where: { emailHealth: 'unknown' },
     });
 
     return NextResponse.json({

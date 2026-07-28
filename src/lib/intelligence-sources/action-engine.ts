@@ -509,8 +509,13 @@ const GROUND_RULES = `GROUND RULES — YOU MUST FOLLOW THESE:
 6. Assign realistic priority and confidence scores based on available evidence quality.`
 
 async function callAIForAction(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { callLLM } = await import('@/lib/llm-client')
-  return callLLM(systemPrompt, userPrompt)
+  const { governedAICallAggregate } = await import('@/lib/ai-governance')
+  const result = await governedAICallAggregate({
+    systemPrompt,
+    userPrompt,
+    feature: 'action_engine',
+  })
+  return result.text
 }
 
 function parseJSONResponse(raw: string): Record<string, unknown> {

@@ -36,25 +36,19 @@ Respond in JSON only:
 
 async function classifyWithLLM(evidence: RawEvidenceInput): Promise<ClassifiedSignal | null> {
   try {
-    const { getZAI } = await import('@/lib/llm-client');
-    const zai = await getZAI();
+    const { governedAICallAggregate } = await import('@/lib/ai-governance');
 
     const userMessage = `Classify:\nHeadline: ${evidence.headline}\nSnippet: ${evidence.snippet}\nSource: ${evidence.sourceName || 'unknown'}\nURL: ${evidence.sourceUrl || 'unknown'}`;
 
-    const response = await zai.chat.completions.create({
-      model: 'default',
-      messages: [
-        { role: 'system', content: CLASSIFICATION_SYSTEM_PROMPT },
-        { role: 'user', content: userMessage },
-      ],
-      temperature: 0.1,
-      max_tokens: 500,
+    const result = await governedAICallAggregate({
+      systemPrompt: CLASSIFICATION_SYSTEM_PROMPT,
+      userPrompt: userMessage,
+      feature: 'evidence_classification',
     });
 
-    const content = response.choices?.[0]?.message?.content;
-    if (!content) return null;
+    if (!result.text) return null;
 
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
 
     const parsed = JSON.parse(jsonMatch[0]);

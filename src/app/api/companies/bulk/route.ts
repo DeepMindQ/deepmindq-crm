@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       select: { id: true, tags: true },
     });
 
-    const foundIds = new Set(existingCompanies.map((c: any) => c.id));
+    const foundIds = new Set(existingCompanies.map((c) => c.id));
     const missingIds = companyIds.filter((id: string) => !foundIds.has(id));
     const validIds = companyIds.filter((id: string) => foundIds.has(id));
 
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No valid company IDs provided' }, { status: 400 });
     }
 
-    let result: Record<string, any> = {};
+    let result: Record<string, unknown> = {};
 
     switch (action) {
       /* ── Update Status ── */
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
         for (const company of existingCompanies) {
           let currentTags: string[] = [];
           try {
-            currentTags = JSON.parse((company as any).tags || '[]');
+            currentTags = JSON.parse(company.tags || '[]');
           } catch {
             currentTags = [];
           }
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
           if (!currentTags.includes(tagToAdd)) {
             currentTags.push(tagToAdd);
             await db.company.update({
-              where: { id: (company as any).id },
+              where: { id: company.id },
               data: { tags: JSON.stringify(currentTags) },
             });
             updatedCount++;
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
         for (const company of existingCompanies) {
           let currentTags: string[] = [];
           try {
-            currentTags = JSON.parse((company as any).tags || '[]');
+            currentTags = JSON.parse(company.tags || '[]');
           } catch {
             currentTags = [];
           }
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
           const filtered = currentTags.filter((t: string) => t !== tagToRemove);
           if (filtered.length !== currentTags.length) {
             await db.company.update({
-              where: { id: (company as any).id },
+              where: { id: company.id },
               data: { tags: JSON.stringify(filtered) },
             });
             updatedCount++;

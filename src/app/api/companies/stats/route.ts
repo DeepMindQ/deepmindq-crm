@@ -74,19 +74,19 @@ export async function GET() {
 
     // Transform groupBy results into key-value maps
     const byStatus: Record<string, number> = {};
-    for (const item of byStatusRaw as any[]) {
-      byStatus[item.status] = item._count.status;
+    for (const item of byStatusRaw) {
+      byStatus[item.status as string] = item._count.status;
     }
 
     const byIndustry: Record<string, number> = {};
-    for (const item of byIndustryRaw as any[]) {
+    for (const item of byIndustryRaw) {
       if (item.industry) {
         byIndustry[item.industry] = item._count.industry;
       }
     }
 
     const bySize: Record<string, number> = {};
-    for (const item of bySizeRaw as any[]) {
+    for (const item of bySizeRaw) {
       if (item.sizeRange) {
         bySize[item.sizeRange] = item._count.sizeRange;
       }
@@ -99,8 +99,8 @@ export async function GET() {
       bySize,
       enriched: enrichedCount,
       withNotes: withNotesCount,
-      avgIntelligenceScore: Math.round((avgScoreRaw as any)._avg.intelligenceScore || 0),
-      topCompanies: topCompanies.map((c: any) => ({
+      avgIntelligenceScore: Math.round((avgScoreRaw as { _avg: { intelligenceScore: number } })._avg.intelligenceScore || 0),
+      topCompanies: topCompanies.map((c) => ({
         ...c,
         contactCount: c._count.contacts,
         noteCount: c._count.notes,

@@ -39,6 +39,8 @@ import { ModelRouter } from './model-router';
 import { GroundingEngine, renderChainForPrompt } from './grounding-engine';
 import { RetrievalEngine } from './retrieval-engine';
 import type { EvidenceChain, EvidenceGap, GroundingContext } from './grounding-engine';
+import { runQualityGates, formatQualityReportForLog } from '@/lib/ai-copilot/quality-gates';
+import type { QualityReport } from '@/lib/ai-copilot/quality-gates';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -118,6 +120,8 @@ export interface Brief {
   success: boolean;
   /** Error message if !success */
   error: string | null;
+  /** Quality gate report from ai-copilot quality gates (Phase 2 absorption) */
+  qualityReport?: QualityReport;
 }
 
 // ─── Brief Type Configurations ──────────────────────────────────────────
@@ -636,6 +640,19 @@ export const SynthesisEngine = {
       llmCostUsd: completion.costUsd,
     });
 
+    // Run quality gates on the output (Phase 2: absorbed from ai-copilot)
+    let qualityReport: QualityReport | undefined;
+    try {
+      const outputObj = JSON.parse(completion.text) as Record<string, unknown>;
+      qualityReport = runQualityGates(outputObj, warnings.length === 0);
+      logger.info(formatQualityReportForLog(qualityReport));
+      if (qualityReport.overallStatus === 'fail') {
+        warnings.push(`Quality gate FAILED (score: ${qualityReport.overallScore}/100)`);
+      }
+    } catch {
+      // Quality gates need parseable JSON — skip for non-JSON output
+    }
+
     return {
       type: request.briefType,
       content: completion.text,
@@ -652,6 +669,7 @@ export const SynthesisEngine = {
       warnings,
       success: true,
       error: null,
+      qualityReport,
     };
   },
 };

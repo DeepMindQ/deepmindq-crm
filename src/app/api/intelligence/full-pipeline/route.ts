@@ -145,22 +145,22 @@ export async function GET(request: NextRequest) {
       },
       internalKnowledge: capabilityStats,
       intelligenceFusion: {
-        fusionResultsCount: (company as any).fusionResults?.length || 0,
-        topFusions: ((company as any).fusionResults || []).slice(0, 3).map((f: any) => ({
-          fusionType: f.fusionType,
-          fusionScore: f.fusionScore,
-          recommendedCapability: f.recommendedCapability,
-          businessProblem: f.businessProblem,
-          confidenceScore: f.confidenceScore,
+        fusionResultsCount: company.fusionResults?.length || 0,
+        topFusions: (company.fusionResults || []).slice(0, 3).map((f) => ({
+          fusionType: f.fusionType ?? '',
+          fusionScore: f.fusionScore ?? 0,
+          recommendedCapability: f.recommendedCapability ?? '',
+          businessProblem: f.businessProblem ?? '',
+          confidenceScore: f.confidenceScore ?? 0,
         })),
       },
       pipelineHistory: {
-        totalRuns: (company as any).pipelineRuns?.length || 0,
-        lastRun: ((company as any).pipelineRuns || [])[0] ? {
-          status: ((company as any).pipelineRuns as any[])[0].status,
-          completedStages: ((company as any).pipelineRuns as any[])[0].completedStages,
-          durationMs: ((company as any).pipelineRuns as any[])[0].durationMs,
-          aiCallsMade: ((company as any).pipelineRuns as any[])[0].aiCallsMade,
+        totalRuns: company.pipelineRuns?.length || 0,
+        lastRun: company.pipelineRuns?.[0] ? {
+          status: company.pipelineRuns[0].status ?? '',
+          completedStages: company.pipelineRuns[0].completedStages ?? '',
+          durationMs: company.pipelineRuns[0].durationMs ?? 0,
+          aiCallsMade: company.pipelineRuns[0].aiCallsMade ?? 0,
         } : null,
       },
       topOpportunities: company.opportunityRecommendations.slice(0, 3).map(o => ({

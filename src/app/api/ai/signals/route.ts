@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, safeInt } from '@/lib/apiHelpers'
 import { randomUUID } from 'crypto'
-import { getZAI, sdkWebSearch, type WebSearchResult } from '@/lib/llm-client'
+import { sdkWebSearch, type WebSearchResult } from '@/lib/llm-client'
+import { governedAICallAggregate } from '@/lib/ai-governance'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -106,27 +107,24 @@ function setCache(companyId: string | null, limit: number, data: SignalsResponse
 }
 
 // ---------------------------------------------------------------------------
-// SDK helpers — delegate to unified llm-client (Phase 2 consolidation)
+// SDK helpers — delegate to unified llm-client + governance (Phase 2)
 // ---------------------------------------------------------------------------
 
-async function webSearch(_zai: unknown, query: string, num = 5): Promise<RawSearchResult[]> {
+async function webSearch(query: string, num = 5): Promise<RawSearchResult[]> {
   const results = await sdkWebSearch(query, num)
   return results.map((r, i) => toRawSearchResult(r, i))
 }
 
 async function callLLM(
-  zai: Awaited<ReturnType<typeof getZAI>>,
   systemPrompt: string,
   userPrompt: string,
 ): Promise<string> {
-  const completion = await zai.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
+  const result = await governedAICallAggregate({
+    systemPrompt,
+    userPrompt,
+    feature: 'signal_scanning',
   })
-  return completion.choices?.[0]?.message?.content ?? ''
+  return result.text
 }
 
 // ---------------------------------------------------------------------------
@@ -296,12 +294,12 @@ interface ScanCompanyResult {
   rawResults: RawSearchResult[]
 }
 
-async function scanCompany(zai: Awaited<ReturnType<typeof getZAI>>, company: CompanyRow): Promise<ScanCompanyResult> {
+async function scanCompany(company: CompanyRow): Promise<ScanCompanyResult> {
   const queries = buildSearchQueries(company.normalizedName)
 
   // Run all 3 searches in parallel, tolerate individual failures
   const searchSettled = await Promise.allSettled(
-    queries.map((q) => webSearch(zai, q, 5)),
+    queries.map((q) => webSearch(q, 5)),
   )
 
   const allResults: RawSearchResult[] = []
@@ -323,7 +321,7 @@ async function scanCompany(zai: Awaited<ReturnType<typeof getZAI>>, company: Com
   // Ask LLM to analyze
   try {
     const userPrompt = buildAnalysisPrompt(company.normalizedName, allResults)
-    const llmResponse = await callLLM(zai, SIGNAL_SYSTEM_PROMPT, userPrompt)
+    const llmResponse = await callLLM(SIGNAL_SYSTEM_PROMPT, userPrompt)
     const rawSignals = parseLLMSignals(llmResponse)
 
     return {
@@ -384,8 +382,6 @@ export async function GET(request: NextRequest) {
   if (cached) return apiSuccess(cached)
 
   try {
-    const zai = await getZAI()
-
     // Fetch companies to scan
     let companies: CompanyRow[]
 
@@ -412,7 +408,7 @@ export async function GET(request: NextRequest) {
 
     // Scan each company — use allSettled so one failure doesn't kill the batch
     const scanSettled = await Promise.allSettled(
-      companies.map((c) => scanCompany(zai, c)),
+      companies.map((c) => scanCompany(c)),
     )
 
     const allSignals: ParsedSignal[] = []

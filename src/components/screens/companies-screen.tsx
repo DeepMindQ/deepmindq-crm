@@ -499,8 +499,16 @@ export default function CompaniesScreen() {
                                 <DropdownMenuItem onClick={() => goTo(c.id)}><Eye size={14} className="mr-2" />View</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => { setEditing(c); setDlgOpen(true); }}><Pencil size={14} className="mr-2" />Edit</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => {
-                                  toast.loading('AI research…', { id: 'ai' });
-                                  fetchApi(`/api/ai/account-brief?companyId=${c.id}`).then(({ data: d }) => { toast.success('AI brief generated!', { id: 'ai' }); goTo(c.id); }).catch(() => toast.error('AI research failed', { id: 'ai' }));
+                                  toast.loading('Generating executive brief…', { id: 'ai' });
+                                  fetch(`/api/engines/brief`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ briefType: 'account_brief', companyId: c.id, depth: 'standard' }),
+                                  }).then(async (r) => {
+                                    const { data } = await r.json();
+                                    toast.success('Executive brief generated!', { id: 'ai' });
+                                    goTo(c.id);
+                                  }).catch(() => toast.error('Brief generation failed', { id: 'ai' }));
                                 }}><Sparkles size={14} className="mr-2" />AI Research</DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem className="text-red-600" onClick={() => setDeleteId(c.id)}><Trash2 size={14} className="mr-2" />Delete</DropdownMenuItem>

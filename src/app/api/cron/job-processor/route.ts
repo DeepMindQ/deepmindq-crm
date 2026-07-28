@@ -48,24 +48,14 @@ export async function GET(request: Request) {
     }
 
     // Step 3: Evidence lifecycle management
-    try {
-      const { runEvidenceLifecycle } = await import('@/lib/intelligence-sources/evidence-lifecycle');
-      const lifecycleStats = await runEvidenceLifecycle();
-      results.evidenceLifecycle = lifecycleStats;
-    } catch (err) {
-      console.warn('[cron] Evidence lifecycle failed:', err);
-      results.evidenceLifecycle = { error: 'Evidence lifecycle not available' };
-    }
+    // (evidence-lifecycle module removed in Phase 2 — evidence lifecycle
+    //  is now handled inline by freshness-manager)
+    results.evidenceLifecycle = { skipped: 'Module consolidated into freshness-manager' };
 
     // Step 4: Cross-account signal propagation
-    try {
-      const { propagateCrossAccountSignals } = await import('@/lib/intelligence-sources/cross-account-propagation');
-      const propagated = await propagateCrossAccountSignals();
-      results.crossAccountPropagation = propagated;
-    } catch (err) {
-      console.warn('[cron] Cross-account propagation failed:', err);
-      results.crossAccountPropagation = { error: 'Propagation not available' };
-    }
+    // (cross-account-propagation module removed in Phase 2 — cross-account
+    //  patterns are detected on-demand via detectCrossAccountPatterns)
+    results.crossAccountPropagation = { skipped: 'Module removed — use on-demand detection' };
 
     // Step 5: Run scheduled intelligence connectors
     try {

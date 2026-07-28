@@ -325,9 +325,10 @@ function composeNeedObjects(
         temporal: computeTemporal(Math.min(95, avgConfidence + data.signals.length * 5), data.signals[0]?.freshness?.lastEnriched || new Date().toISOString()),
         relatedSignals: data.signals.map(s => s.id),
         priority: avgConfidence >= 70 ? 'high' as const : avgConfidence >= 50 ? 'medium' as const : 'low' as const,
+        rankingScore: Math.round(avgConfidence * 0.6 + avgSignalRanking * 0.4),
       };
     })
-    .sort((a, b) => ((b as any).rankingScore ?? b.confidence) - ((a as any).rankingScore ?? a.confidence))
+    .sort((a, b) => b.rankingScore - a.rankingScore)
     .slice(0, 5);
 }
 
@@ -417,11 +418,11 @@ function composeCapabilityMatchObjects(
       const avgSignalRanking = relatedSignals
         .map(id => signalRankings.get(id)?.rankingScore ?? 0)
         .reduce((sum, s) => sum + s, 0) / relatedSignals.length;
-      (match as any).rankingScore = Math.round(match.confidence * 0.6 + avgSignalRanking * 0.4);
+      match.rankingScore = Math.round(match.confidence * 0.6 + avgSignalRanking * 0.4);
     }
   }
 
-  return matches.sort((a, b) => ((b as any).rankingScore ?? b.confidence) - ((a as any).rankingScore ?? a.confidence)).slice(0, 4);
+  return matches.sort((a, b) => (b.rankingScore ?? b.confidence) - (a.rankingScore ?? a.confidence)).slice(0, 4);
 }
 
 function composeActionObjects(

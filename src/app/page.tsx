@@ -237,9 +237,11 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
 
   const activeLabel = SCREEN_LABELS[activeScreen] || 'DeepMindQ';
 
-  // Breadcrumb trail
+  // Breadcrumb trail — context-aware for Intelligence OS workspaces
   const breadcrumbs = [
-    ...(selectedCompanyId
+    ...(activeScreen === 'company-workspace' && selectedCompanyId
+      ? [{ label: 'Command Center', key: 'command-center' }, { label: 'Company Workspace' }]
+      : selectedCompanyId
       ? [{ label: 'Companies', key: 'companies' }, { label: 'Company Detail' }]
       : selectedContactId
       ? [{ label: 'Contacts', key: 'contacts' }, { label: 'Contact Detail' }]
@@ -625,8 +627,24 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
 
         {/* Screen Content */}
         <main className="flex-1 p-4 sm:p-6">
-          {/* Company Detail (overlay) */}
-          {selectedCompanyId ? (
+          {/*
+            Routing priority:
+            1. Intelligence OS screens (company-workspace) handle selectedCompanyId internally
+            2. Legacy Company Detail overlay — only for non-workspace views
+            3. Contact Detail overlay
+            4. Default: render activeScreen from SCREEN_MAP
+          */}
+          {activeScreen === 'company-workspace' ? (
+            <AnimatePresence mode="wait">
+              <PageTransition key="company-workspace">
+                <ScreenErrorBoundary name="Company Workspace">
+                  <Suspense fallback={<ScreenLoader />}>
+                    <LazyComponent navigateTo={navigateTo} />
+                  </Suspense>
+                </ScreenErrorBoundary>
+              </PageTransition>
+            </AnimatePresence>
+          ) : selectedCompanyId ? (
             <PageTransition key="company-detail">
               <Suspense fallback={<ScreenLoader />}>
                 <ScreenErrorBoundary name="Company Detail">

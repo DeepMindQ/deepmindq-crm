@@ -457,7 +457,7 @@ async function gatherStats(): Promise<PipelineStats> {
     db.company.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
     db.contact.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo }, status: { not: 'archived' } } }),
     db.contact.count({ where: { emailHealth: 'valid', lastCheckedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
-    db.company.count({ where: { lifecycleStage: { notIn: ['closed', 'closed_won', 'closed_lost'] } } }),
+    db.company.count({ where: { lifecycleStage: { not: 'closed' } } }),
     // Group companies by industry, take top 5
     db.company.groupBy({
       by: ['industry'],

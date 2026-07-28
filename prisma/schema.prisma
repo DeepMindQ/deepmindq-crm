@@ -14,11 +14,13 @@ datasource db {
 // ═══════════════════════════════════════════════════════════════════════════
 
 enum CompanyStatus {
+  new
   prospect
   researching
   active
   engaged
   paused
+  archived
   closed_won
   closed_lost
 }
@@ -46,6 +48,8 @@ enum CompanySource {
 }
 
 enum ContactStatus {
+  active
+  engaged
   imported
   cleaned
   duplicate
@@ -84,11 +88,15 @@ enum SignalType {
   funding
   hiring
   leadership_change
+  leadership
   tech_change
+  technology
   news
   mention
   partnership
   expansion
+  people_change
+  internal_memory
 }
 
 enum SignalSeverity {
@@ -156,6 +164,7 @@ enum JobStatus {
 }
 
 enum DraftStatus {
+  draft
   pending_review
   approved
   rejected

@@ -7,8 +7,21 @@ import { randomUUID } from 'crypto'
 // Types
 // ---------------------------------------------------------------------------
 
+// Local input types from the signal generation pipeline — mapped to Prisma SignalType on persist
 type SignalType = 'hiring' | 'leadership' | 'investment' | 'technology' | 'expansion'
 type SignalPriority = 'high' | 'medium' | 'low'
+
+// Map local signal type names to Prisma SignalType enum values
+function mapToPrismaSignalType(localType: SignalType) {
+  const mapping: Record<SignalType, 'funding' | 'leadership_change' | 'tech_change' | 'hiring' | 'expansion'> = {
+    investment: 'funding',
+    leadership: 'leadership_change',
+    technology: 'tech_change',
+    hiring: 'hiring',
+    expansion: 'expansion',
+  }
+  return mapping[localType] || 'news'
+}
 
 interface RawSearchResult {
   url: string
@@ -331,7 +344,7 @@ async function persistSignalsToDb(signals: ParsedSignal[]): Promise<void> {
   await db.companySignal.createMany({
     data: signals.map(s => ({
       companyId: s.companyId,
-      signalType: s.type,
+      signalType: mapToPrismaSignalType(s.type),
       title: s.title,
       description: s.description,
       source: s.source,
@@ -342,7 +355,7 @@ async function persistSignalsToDb(signals: ParsedSignal[]): Promise<void> {
       // Intelligence Object fields (Wave 8A)
       businessImpact: s.businessImpact,
       recommendedAction: s.recommendedAction,
-      timingWindow: s.timing,
+      timingWindow: s.timing as 'immediate' | 'within_7_days' | 'within_30_days' | 'within_90_days' | 'ongoing' | 'expired' | null,
       expiresAt: s.expiresAt ? new Date(s.expiresAt) : null,
       status: 'detected',
     })),

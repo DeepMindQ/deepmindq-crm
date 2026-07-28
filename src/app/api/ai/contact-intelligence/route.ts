@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         linkedinUrl: contact.linkedinUrl,
         phone: contact.phone,
         location: contact.location,
-        enrichmentData: contact.enrichmentData,
+        enrichmentData: contact.enrichmentData ? JSON.stringify(contact.enrichmentData) : null,
         company: contact.company ? {
           industry: contact.company.industry,
           sizeRange: contact.company.sizeRange,
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
         linkedinUrl: c.linkedinUrl,
         phone: c.phone,
         location: c.location,
-        enrichmentData: c.enrichmentData,
+        enrichmentData: c.enrichmentData ? JSON.stringify(c.enrichmentData) : null,
         company: c.company ? {
           industry: c.company.industry,
           sizeRange: c.company.sizeRange,
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
       const breakdown = calculateLeadScore({
         title: c.title, role: c.role, emailHealth: c.emailHealth,
         emailHealthScore: c.emailHealthScore, linkedinUrl: c.linkedinUrl,
-        phone: c.phone, location: c.location, enrichmentData: c.enrichmentData,
+        phone: c.phone, location: c.location, enrichmentData: c.enrichmentData ? JSON.stringify(c.enrichmentData) : null,
         company: c.company ? { industry: c.company.industry, sizeRange: c.company.sizeRange, researchCard: null } : null,
       });
       await db.contact.update({ where: { id: c.id }, data: { leadScore: breakdown.total } });

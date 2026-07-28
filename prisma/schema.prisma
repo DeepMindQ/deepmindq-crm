@@ -1706,7 +1706,7 @@ model IntelligenceObject {
   sourceUrl           String?
   capturedAt          DateTime? // when the source was published/captured
   originalConfidence  Float                     @default(0.5) // 0-1 initial confidence from acquisition
-  confidenceBreakdown String?                   @default("{}") // JSON: {sourceQuality, freshness, validation, evidenceAgreement}
+  confidenceBreakdown  Json?                     @default("{}") // JSON: {sourceQuality, freshness, validation, evidenceAgreement}
   status              String                    @default("new") // new, processing, active, stale, superseded, archived, rejected, pending_evidence_mapping
   evidenceId          String? // reference to downstream Evidence record (upstream lineage)
   createdAt           DateTime                  @default(now())
@@ -1925,13 +1925,13 @@ model AccountBrief {
   company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   summary               String // LLM-generated executive summary
   accountHealth         String   @default("unknown") // high, medium, low, unknown
-  keySignals            String   @default("[]") // JSON: { signal, type, confidence }[]
-  themes                String   @default("[]") // JSON: { name, description, evidenceIds[] }[]
-  recentChanges         String   @default("[]") // JSON: { change, date, source }[]
-  opportunityAreas      String   @default("[]") // JSON: string[]
-  risks                 String   @default("[]") // JSON: string[]
+  keySignals            Json     @default("[]") // JSON: { signal, type, confidence }[]
+  themes                Json     @default("[]") // JSON: { name, description, evidenceIds[] }[]
+  recentChanges         Json     @default("[]") // JSON: { change, date, source }[]
+  opportunityAreas      Json     @default("[]") // JSON: string[]
+  risks                 Json     @default("[]") // JSON: string[]
   recommendedEngagement String // LLM-generated engagement approach
-  evidenceReferences    String   @default("[]") // JSON: { evidenceId, snippet }[]
+  evidenceReferences    Json     @default("[]") // JSON: { evidenceId, snippet }[]
   confidence            Float    @default(0) // 0-1
   generatedAt           DateTime @default(now())
   generatedBy           String   @default("system")
@@ -1949,7 +1949,7 @@ model OpportunitySignal {
   title                 String
   description           String
   matchedPattern        String // the keyword/pattern that triggered this signal
-  sourceIntelligenceIds String   @default("[]") // JSON: string[] — traceable to IntelligenceObject IDs
+  sourceIntelligenceIds Json     @default("[]") // JSON: string[] — traceable to IntelligenceObject IDs
   score                 Float    @default(0) // 0-100
   confidence            Float    @default(0.5) // 0-1
   status                String   @default("NEW") // NEW, REVIEWED, ACTIONED, DISMISSED
@@ -1969,7 +1969,7 @@ model AccountScore {
   companyId      String   @unique
   company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   score          Float // 0-100 overall
-  scoreBreakdown String   @default("{}") // JSON: { intelligenceCoverage, signalStrength, freshness, strategicFit, overallScore }
+  scoreBreakdown        Json     @default("{}") // JSON: { intelligenceCoverage, signalStrength, freshness, strategicFit, overallScore }
   category       String   @default("NURTURE") // HOT_ACCOUNT, WARM_ACCOUNT, NURTURE, AT_RISK
   calculatedAt   DateTime @default(now())
 
@@ -1993,9 +1993,9 @@ model StrategicInsight {
 
   insightType        String // STRATEGIC_SHIFT | OPPORTUNITY | RISK | PATTERN_EMERGED
   summary            String // concise human-readable insight summary
-  keyThemes          String @default("[]") // JSON: string[]
-  reasoningSummary   String @default("{}") // JSON: { observations: string[], interpretation: string, confidenceFactors: string[] }
-  supportingEvidence String @default("[]") // JSON: { evidenceId: string, relevance: string, quote: string }[]
+  keyThemes          Json    @default("[]") // JSON: string[]
+  reasoningSummary   Json    @default("{}") // JSON: { observations: string[], interpretation: string, confidenceFactors: string[] }
+  supportingEvidence Json    @default("[]") // JSON: { evidenceId: string, relevance: string, quote: string }[]
   confidenceScore    Int    @default(0) // 0-100
 
   generatedBy String    @default("LLM") // LLM | HYBRID | MANUAL
@@ -2023,11 +2023,11 @@ model AIEngagementStrategy {
   strategicInsightId String
   strategicInsight   StrategicInsight @relation(fields: [strategicInsightId], references: [id], onDelete: Cascade)
 
-  situationAssessment   String @default("{}") // JSON: { currentPhase, keyDrivers: string[], maturityLevel }
-  recommendedEntry      String @default("{}") // JSON: { role, rationale, department }
+  situationAssessment   Json    @default("{}") // JSON: { currentPhase, keyDrivers: string[], maturityLevel }
+  recommendedEntry      Json    @default("{}") // JSON: { role, rationale, department }
   firstMeetingObjective String @default("discovery") // discovery | technical | executive_alignment
-  conversationAngles    String @default("[]") // JSON: { angle, talkingPoints: string[] }[]
-  riskFactors           String @default("[]") // JSON: { risk, severity, mitigation }[]
+  conversationAngles    Json    @default("[]") // JSON: { angle, talkingPoints: string[] }[]
+  riskFactors           Json    @default("[]") // JSON: { risk, severity, mitigation }[]
   priorityScore         Int    @default(0) // 0-100
 
   generatedBy String    @default("LLM")
@@ -2272,16 +2272,16 @@ model ReasoningContext {
   // The cumulative reasoning state — JSON blob containing the full
   // reasoning chain with each step's output and evidence references.
   // Structure: { steps: [{ id, name, output, evidence, confidence }], summary }
-  reasoningState     String   @default("{}")
+  reasoningState     Json    @default("{}")
 
   // High-level derived outputs (computed from reasoning state)
   overallConfidence  Float    @default(0)       // 0-1 composite confidence
   winProbability     Float?                     // 0-1 estimated win probability
   opportunityScore   Float?                     // 0-100 composite opportunity score
-  recommendedActions String   @default("[]")    // JSON: [{ action, reason, priority, timing }]
-  matchedCapabilities String  @default("[]")   // JSON: [{ capabilityId, score, reason }]
-  matchedCaseStudies String   @default("[]")   // JSON: [{ caseStudyId, relevance, outcome }]
-  competitivePosition String   @default("{}")  // JSON: { position, strengths, weaknesses, threats }
+  recommendedActions Json    @default("[]")    // JSON: [{ action, reason, priority, timing }]
+  matchedCapabilities Json    @default("[]")   // JSON: [{ capabilityId, score, reason }]
+  matchedCaseStudies Json    @default("[]")   // JSON: [{ caseStudyId, relevance, outcome }]
+  competitivePosition Json    @default("{}")  // JSON: { position, strengths, weaknesses, threats }
 
   // Pipeline metadata
   status             String   @default("empty") // empty | building | ready | stale | failed
@@ -2320,12 +2320,12 @@ model ReasoningStep {
   stepGroup          String                     // external_intel | internal_match | fusion | strategy
 
   // Step output — what this step concluded
-  output             String                     // JSON: the structured output of this step
+  output             Json                       // JSON: the structured output of this step
   summary            String?                    // human-readable 1-2 sentence summary
 
   // Evidence — what this step used
-  evidenceIds        String   @default("[]")    // JSON: string[] — IDs of evidence used
-  knowledgeIds       String   @default("[]")    // JSON: string[] — IDs of CapabilityAssets referenced
+  evidenceIds        Json     @default("[]")    // JSON: string[] — IDs of evidence used
+  knowledgeIds       Json     @default("[]")    // JSON: string[] — IDs of CapabilityAssets referenced
 
   // Confidence & cost
   confidence         Float    @default(0.5)      // 0-1 confidence in this step's output
@@ -2335,7 +2335,7 @@ model ReasoningStep {
   durationMs         Int?
 
   // Dependencies — this step reads output from previous steps
-  dependsOnSteps     String   @default("[]")    // JSON: stepNumber[] — which steps this builds on
+  dependsOnSteps     Json     @default("[]")    // JSON: stepNumber[] — which steps this builds on
 
   createdAt          DateTime @default(now())
 
@@ -2383,7 +2383,7 @@ model AgentOrchestration {
   totalCostUsd        Float    @default(0)
 
   // Output reference
-  outputSummary       String   @default("{}") // JSON: summary of orchestration output
+  outputSummary       Json    @default("{}") // JSON: summary of orchestration output
 
   startedAt           DateTime?
   completedAt         DateTime?
@@ -2409,12 +2409,12 @@ model AgentRun {
 
   // Agent task
   task                String   // what this agent was asked to do
-  inputContext        String   @default("{}") // JSON: context from ReasoningContext used as input
-  output              String?  // JSON: agent's structured output
+  inputContext        Json    @default("{}") // JSON: context from ReasoningContext used as input
+  output              Json?  // JSON: agent's structured output
 
   // Execution
   status              String   @default("pending") // pending | running | completed | failed | skipped
-  dependsOn           String   @default("[]") // JSON: agentName[] — which agents must complete first
+  dependsOn           Json    @default("[]") // JSON: agentName[] — which agents must complete first
 
   // Cost tracking
   aiCalls             Int      @default(0)
@@ -2666,9 +2666,9 @@ model FusionResult {
   company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // What was fused
-  signalIds         String   @default("[]")    // JSON: string[]
-  capabilityIds     String   @default("[]")    // JSON: string[]
-  evidenceIds       String   @default("[]")    // JSON: string[]
+  signalIds         Json    @default("[]")    // JSON: string[]
+  capabilityIds     Json    @default("[]")    // JSON: string[]
+  evidenceIds       Json    @default("[]")    // JSON: string[]
 
   // Fusion output
   fusionType        String                     // signal_capability | evidence_case_study | signal_solution | full_fusion
@@ -2676,10 +2676,10 @@ model FusionResult {
   businessProblem   String?                     // identified business problem
   recommendedCapability String?                // which capability to position
   relevantCaseStudy String?                   // which case study to reference
-  proofPoints       String   @default("[]")    // JSON: string[] — supporting proof points
+  proofPoints       Json    @default("[]")    // JSON: string[] — supporting proof points
 
   // Explainability
-  reasoningChain    String   @default("[]")    // JSON: { step, input, output, confidence }[]
+  reasoningChain    Json    @default("[]")    // JSON: { step, input, output, confidence }[]
   confidenceScore   Float    @default(0)       // 0-1
   evidenceStrength  Float    @default(0)       // 0-1
 

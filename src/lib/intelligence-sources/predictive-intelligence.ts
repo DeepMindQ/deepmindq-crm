@@ -41,15 +41,21 @@ interface SignalHistory {
   trend: 'accelerating' | 'stable' | 'decelerating';
 }
 
+import { normalizeSignalType, type CanonicalSignalType } from './signal-type-mapping';
+
 function analyzeSignalHistory(signals: {
   signalType: string;
+  title?: string;
+  description?: string | null;
   createdAt: Date | string;
 }[]): Map<string, SignalHistory> {
   const grouped = new Map<string, Date[]>();
+  // Sprint 1: Normalize signal types before grouping
   for (const s of signals) {
-    const dates = grouped.get(s.signalType) || [];
+    const normalizedType = normalizeSignalType(s.signalType, s.title, s.description || undefined).normalizedType;
+    const dates = grouped.get(normalizedType) || [];
     dates.push(s.createdAt instanceof Date ? s.createdAt : new Date(s.createdAt));
-    grouped.set(s.signalType, dates);
+    grouped.set(normalizedType, dates);
   }
 
   const history = new Map<string, SignalHistory>();
@@ -193,6 +199,7 @@ export function generatePredictions(signals: {
   id: string;
   signalType: string;
   title: string;
+  description?: string | null;
   createdAt: Date | string;
   signalDate: Date | string | null;
   confidence: number;

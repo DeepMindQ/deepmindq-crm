@@ -28,18 +28,22 @@ export interface CrossAccountInsight {
   detectedAt: string;
 }
 
+import { normalizeSignalType, type CanonicalSignalType } from './signal-type-mapping';
+
 interface AccountSignalAggregate {
   companyId: string;
   companyName: string;
   industry: string | null;
   signalType: string;
   title: string;
+  description?: string | null;
   createdAt: Date | string;
   confidence: number;
 }
 
 /**
  * Analyze signals across multiple accounts to detect portfolio-wide patterns.
+ * Sprint 1: Signal types are normalized before analysis.
  */
 export function detectCrossAccountPatterns(
   accountSignals: AccountSignalAggregate[]
@@ -49,9 +53,15 @@ export function detectCrossAccountPatterns(
   const insights: CrossAccountInsight[] = [];
   const now = new Date();
 
+  // Sprint 1: Normalize signal types for cross-account analysis
+  const normalizedSignals = accountSignals.map(s => ({
+    ...s,
+    normalizedType: normalizeSignalType(s.signalType, s.title, s.description || undefined).normalizedType,
+  }));
+
   // ── Pattern 1: Industry trend ─────────────────────────────
-  const byIndustry = new Map<string, AccountSignalAggregate[]>();
-  for (const s of accountSignals) {
+  const byIndustry = new Map<string, typeof normalizedSignals>();
+  for (const s of normalizedSignals) {
     if (s.industry) {
       const list = byIndustry.get(s.industry) || [];
       list.push(s);
@@ -63,14 +73,14 @@ export function detectCrossAccountPatterns(
     if (signals.length < 3) continue;
     const companiesByType = new Map<string, Set<string>>();
     for (const s of signals) {
-      const companies = companiesByType.get(s.signalType) || new Set();
+      const companies = companiesByType.get(s.normalizedType) || new Set();
       companies.add(s.companyId);
-      companiesByType.set(s.signalType, companies);
+      companiesByType.set(s.normalizedType, companies);
     }
 
     for (const [signalType, companies] of companiesByType) {
       if (companies.size < 3) continue;
-      const matching = signals.filter(s => s.signalType === signalType);
+      const matching = signals.filter(s => s.normalizedType === signalType);
       insights.push({
         pattern: 'industry_trend',
         description: `${companies.size} ${industry} companies show ${signalType.replace(/_/g, ' ')} signals — potential industry trend`,
@@ -87,7 +97,7 @@ export function detectCrossAccountPatterns(
   }
 
   // ── Pattern 2: Technology wave ────────────────────────────
-  const techSignals = accountSignals.filter(s => s.signalType === 'technology_adoption');
+  const techSignals = normalizedSignals.filter(s => s.normalizedType === 'technology_adoption');
   if (techSignals.length >= 3) {
     insights.push({
       pattern: 'technology_wave',
@@ -104,12 +114,12 @@ export function detectCrossAccountPatterns(
 
   // ── Pattern 3: Segment opportunity ───────────────────────
   const buyingTypes = new Set(['funding', 'hiring', 'tech_change', 'technology_adoption', 'expansion']);
-  const buyingSignals = accountSignals.filter(s => buyingTypes.has(s.signalType));
+  const buyingSignals = normalizedSignals.filter(s => buyingTypes.has(s.normalizedType));
   const accountMap = new Map<string, { name: string; count: number; types: Set<string> }>();
   for (const s of buyingSignals) {
     const existing = accountMap.get(s.companyId) || { name: s.companyName, count: 0, types: new Set<string>() };
     existing.count++;
-    existing.types.add(s.signalType);
+    existing.types.add(s.normalizedType);
     accountMap.set(s.companyId, existing);
   }
   const hotAccounts = Array.from(accountMap.entries()).filter(([_, d]) => d.count >= 2 && d.types.size >= 2);

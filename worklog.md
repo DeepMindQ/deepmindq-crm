@@ -211,3 +211,34 @@ Stage Summary:
 - Phase 2B: Complete (correlation + AI engine)
 - Phase 2C: Complete (predictions + learning + monitoring + cross-account)
 - 0 TypeScript errors, 0 schema changes, 0 breaking changes
+
+---
+Task ID: S1-1
+Agent: Main Orchestrator (Sprint 1)
+Task: Sprint 1 — Full implementation per locked product vision
+
+Work Log:
+- Built signal taxonomy normalization layer (signal-type-mapping.ts) — bidirectional mapping from legacy types (business, technology, external, relationship) to 10-type canonical taxonomy (hiring, funding, tech_change, etc.) using contextual keyword analysis
+- Built three-date evidence model (three-date-model.ts) — eventDate + discoveryDate + sourcePublishedDate with extraction from snippets, URL patterns, relative time strings; serialized into Evidence extractedValue JSON
+- Enhanced freshness-ranking.ts to accept sourcePublishedDate as priority date; added date quality multiplier (up to +5%)
+- Built mid-market intelligence sensor (mid-market-sensor.ts) — 4-channel sensor: careers, hiring, leadership, technology; 20+ targeted queries; parallel channel execution with dedup
+- Rewrote external-intelligence-collector.ts with Sprint 1 enhancements: three-date model in evidence storage, AI classification toggle (useAIClassification option), mid-market sensor integration for 200-5000 companies, small company tier (<200 employees), new fields in CollectionResult (aiClassifiedCount, ruleClassifiedCount, dateQualityAvg, midMarketChannels)
+- Built reasoning engine (reasoning-engine.ts) — Evidence → Understanding → Recommendation pipeline; CompanyUnderstanding output with executiveSummary, keyChanges, trajectory, recommendedActions; signal richness/trajectory detection
+- Built adaptive intelligence module (adaptive-intelligence.ts) — signal density assessment (abundant/moderate/sparse/minimal), external/internal weight ratio computation, intelligence template selection
+- Applied type mapping to 2B engines: cross-signal-correlation.ts normalizes types before pattern detection; predictive-intelligence.ts normalizes types in signal history analysis
+- Applied type mapping to 2C engines: cross-account-intelligence.ts normalizes types for industry trend, technology wave, and segment opportunity detection
+- Created Sprint 1 unified API (POST /api/intelligence/sprint1) — combines collection + density assessment + reasoning into single endpoint
+- Updated barrel exports (index.ts) with all Sprint 1 modules
+- TypeScript compilation: 0 errors
+- 0 schema changes, 0 breaking changes
+
+Stage Summary:
+- 7 new files created, 5 existing files modified
+- P0 Unblocker: Signal type mapping layer unblocks all 2B/2C engines from legacy type mismatch
+- Three-date model: All evidence now carries eventDate + discoveryDate + sourcePublishedDate
+- Mid-market sensor: 4 channels (careers, hiring, leadership, technology) for 200-5000 employee companies
+- AI Evidence Engine: Wired into collection pipeline with toggle (useAIClassification option)
+- Reasoning engine: Evidence → Understanding → Recommendation (not data dumps)
+- Adaptive intelligence: External/internal weight ratio adapts to signal density
+- Validation matrix ready: enterprise + mid-market + small company tiers
+

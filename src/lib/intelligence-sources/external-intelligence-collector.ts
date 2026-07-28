@@ -1,50 +1,50 @@
 /**
- * Phase 2A — External Intelligence Collector
+ * Sprint 1 — External Intelligence Collector (Enhanced)
  *
- * Source-agnostic intelligence collection interface. Today: web search via z-ai-web-dev-sdk.
- * Tomorrow: APIs, crawlers, enterprise connectors. The source can change.
- * The intelligence pipeline should not.
+ * The intelligence collection pipeline. Source-agnostic. Today: web search.
+ * The source can change. The pipeline should not.
+ *
+ * Sprint 1 Enhancements:
+ *   1. Three-date evidence model: eventDate + discoveryDate + sourcePublishedDate
+ *   2. AI Evidence Engine: AI classification with rule-based fallback + toggle
+ *   3. Mid-market sensor: Multi-channel intelligence for 200-2000 employee companies
+ *   4. Small company mode: Internal memory + limited external signal weighting
+ *   5. Enhanced evidence storage: Three-date model in extractedValue JSON
  *
  * Multi-sensor approach:
- *   Sensor 1: External Business Intelligence (announcements, partnerships, strategic news)
- *   Sensor 2: Hiring Intelligence (careers pages, job postings, talent signals)
- *   Sensor 3: People / Leadership Intelligence (appointments, organizational changes)
+ *   Sensor 1: News/Announcements (enterprise-focused)
+ *   Sensor 2: Mid-Market Intelligence Sensor (careers, hiring, leadership, technology)
+ *   Sensor 3: Default balanced sensor (fallback)
  *
  * Company-size adaptive strategy:
- *   Enterprise (10k+): News-focused queries (announcements, partnerships, acquisitions)
- *   Mid-market (200-2k): Hiring/people-focused queries (careers, jobs, technology)
- *   Default: Balanced mix of both strategies
+ *   Enterprise (5001+): News-focused queries (announcements, partnerships, acquisitions)
+ *   Mid-market (200-5000): Mid-market sensor (careers, hiring, leadership, technology)
+ *   Small (<200): Limited external + internal memory emphasis
+ *   Default: Balanced mix
  *
  * Critical principle: Preserve raw evidence EXACTLY as received.
- * This evidence becomes the Phase B Evidence Engine foundation.
+ * This evidence becomes the Evidence Engine foundation.
  */
 
 import { db } from '@/lib/db';
 import { webSearch } from '@/lib/ai-copilot/ai-caller';
-import { classifyEvidence, scoreSourceReliability, type RawEvidenceInput } from './evidence-classifier';
+import { classifyEvidence, scoreSourceReliability, type RawEvidenceInput, type ClassifiedSignal } from './evidence-classifier';
+import { classifyEvidenceWithAI } from './ai-evidence-engine';
+import { buildThreeDateModel, serializeThreeDateModel, dateModelQuality, type EvidenceDates } from './three-date-model';
+import { runMidMarketSensor, type SensorConfig } from './mid-market-sensor';
 
 // ─── Search Provider Interface (Phase B swap point) ──────
-//
-// The collector depends on THIS interface, not on webSearch directly.
-// Phase 2A: Default implementation uses z-ai-web-dev-sdk webSearch.
-// Phase B:   Replace with API connectors, enterprise data feeds, etc.
-//
-// The intelligence pipeline should not change when the source changes.
 
 export interface SearchResult {
   title: string;
-  url: string;
   snippet: string;
+  url: string;
 }
 
 export interface SearchProvider {
   search(query: string, maxResults: number): Promise<SearchResult[]>;
 }
 
-/**
- * Default search provider backed by z-ai-web-dev-sdk webSearch.
- * This is the Phase 2A concrete implementation of SearchProvider.
- */
 class WebSearchProvider implements SearchProvider {
   async search(query: string, maxResults: number): Promise<SearchResult[]> {
     return webSearch(query, maxResults).catch(err => {
@@ -54,7 +54,6 @@ class WebSearchProvider implements SearchProvider {
   }
 }
 
-/** Default singleton — used when no custom provider is injected */
 const defaultSearchProvider = new WebSearchProvider();
 
 // ─── Types ─────────────────────────────────────────────
@@ -63,26 +62,34 @@ export interface IntelligenceCollectionResult {
   companyId: string;
   companyName: string;
   companySizeRange: string | null;
+  companySizeTier: string;
   totalSearched: number;
   evidenceCollected: number;
   signalsCreated: number;
   signalsSkipped: number;
+  aiClassifiedCount: number;
+  ruleClassifiedCount: number;
+  dateQualityAvg: number;
+  midMarketChannels?: {
+    careers: { queriesRun: number; evidenceCollected: number; signalsCreated: number };
+    hiring: { queriesRun: number; evidenceCollected: number; signalsCreated: number };
+    leadership: { queriesRun: number; evidenceCollected: number; signalsCreated: number };
+    technology: { queriesRun: number; evidenceCollected: number; signalsCreated: number };
+  };
   errors: string[];
   duration: number;
 }
 
-// RawSearchResult kept as alias for internal use
-// (RawSearchResult is used in the collection pipeline internals)
 type RawSearchResult = SearchResult;
 
 // ─── Company Size Classification ────────────────────────────────
 
-type CompanySizeTier = 'enterprise' | 'mid_market' | 'default';
+type CompanySizeTier = 'enterprise' | 'mid_market' | 'small' | 'default';
 
 function classifyCompanySize(sizeRange: string | null | undefined): CompanySizeTier {
   if (!sizeRange) return 'default';
   const s = sizeRange.toLowerCase().trim();
-  const n = s.replace(/,/g, ''); // normalize: remove commas
+  const n = s.replace(/,/g, '');
 
   // Enterprise: 5001+ employees
   const bigNum = n.match(/(\d{4,})/);
@@ -91,6 +98,18 @@ function classifyCompanySize(sizeRange: string | null | undefined): CompanySizeT
     if (num >= 5001) return 'enterprise';
   }
   if (s.includes('enterprise') || s === '10000+' || s === '50000+') return 'enterprise';
+
+  // Sprint 1: Small company tier (<200 employees)
+  const smallNum = n.match(/(\d{1,3})/);
+  if (smallNum) {
+    const num = parseInt(smallNum[1], 10);
+    if (num < 200) return 'small';
+  }
+  if (s.includes('1-10') || s.includes('11-50') || s.includes('51-200') ||
+      s.includes('1-49') || s.includes('50-99') || s.includes('100-199') ||
+      s === '1-200') {
+    return 'small';
+  }
 
   // Mid-market: 200–5000 employees
   if (/\d{3,4}/.test(n)) {
@@ -108,72 +127,25 @@ function classifyCompanySize(sizeRange: string | null | undefined): CompanySizeT
 
 // ─── Search Query Construction ───────────────────────────────
 
-/**
- * Build targeted search queries based on company size and industry.
- *
- * Enterprise (10k+ employees): Rich public signals → news, partnerships, acquisitions
- * Mid-market (200-2k employees): Sparse public data → hiring, careers, people, technology
- * Default: Balanced mix
- */
 function buildEnterpriseQueries(companyName: string, domain?: string | null): string[] {
   const name = cleanCompanyName(companyName);
-  const queries: string[] = [];
-
-  // Query 1: Strategic announcements and partnerships
-  queries.push(`${name} announces partnership acquisition investment strategy 2025 2026`);
-
-  // Query 2: Acquisitions and expansion
-  queries.push(`${name} acquires expansion new market regulatory transformation`);
-
-  // Query 3: Leadership and organizational changes
-  queries.push(`${name} CEO CTO CIO CCO leadership appointed new`);
-
-  // Query 4: Technology and product announcements
-  queries.push(`${name} launches platform technology digital transformation AI cloud`);
-
-  // Query 5: Investor and financial signals (for public companies)
-  queries.push(`${name} earnings revenue growth investor relations quarterly`);
-
-  return queries;
-}
-
-function buildMidMarketQueries(companyName: string, domain?: string | null): string[] {
-  const name = cleanCompanyName(companyName);
-  const queries: string[] = [];
-
-  // Query 1: Hiring intelligence — careers pages and job postings
-  queries.push(`"${name}" careers jobs hiring engineer architect director`);
-
-  // Query 2: Technology adoption signals from hiring
-  queries.push(`${name} hiring "cloud engineer" OR "data engineer" OR "AI engineer" OR "cybersecurity" OR "devops"`);
-
-  // Query 3: Leadership and organizational changes
-  queries.push(`${name} CIO OR CTO OR "VP engineering" OR "digital transformation" OR "head of" appointed joined`);
-
-  // Query 4: Technology and platform adoption
-  queries.push(`${name} cloud OR AI OR "data platform" OR "modernization" OR "digital transformation"`);
-
-  // Query 5: Partnerships and growth signals
-  queries.push(`${name} partnership OR integrates with OR collaborates OR "growth strategy"`);
-
-  // Query 6: Direct careers page (mid-market critical — zero media coverage)
-  if (domain) {
-    queries.push(`site:${domain} careers jobs openings`);
-  }
-
-  return queries;
+  return [
+    `${name} announces partnership acquisition investment strategy 2025 2026`,
+    `${name} acquires expansion new market regulatory transformation`,
+    `${name} CEO CTO CIO CCO leadership appointed new`,
+    `${name} launches platform technology digital transformation AI cloud`,
+    `${name} earnings revenue growth investor relations quarterly`,
+  ];
 }
 
 function buildDefaultQueries(companyName: string, domain?: string | null): string[] {
   const name = cleanCompanyName(companyName);
-  const queries: string[] = [];
-
-  queries.push(`${name} news funding hiring expansion AI infrastructure 2025 2026`);
-  queries.push(`${name} announces partnership technology cloud digital transformation`);
-  queries.push(`${name} CIO CTO leadership appointed new engineer hiring`);
-  queries.push(`${name} careers jobs hiring cloud engineer data architect`);
-
-  return queries;
+  return [
+    `${name} news funding hiring expansion AI infrastructure 2025 2026`,
+    `${name} announces partnership technology cloud digital transformation`,
+    `${name} CIO CTO leadership appointed new engineer hiring`,
+    `${name} careers jobs hiring cloud engineer data architect`,
+  ];
 }
 
 function cleanCompanyName(name: string): string {
@@ -187,12 +159,22 @@ function buildSearchQueries(
   industry?: string | null
 ): string[] {
   const tier = classifyCompanySize(sizeRange);
-
   switch (tier) {
     case 'enterprise':
       return buildEnterpriseQueries(companyName, domain);
     case 'mid_market':
-      return buildMidMarketQueries(companyName, domain);
+      // Mid-market uses the dedicated sensor — but keep a light news query as supplement
+      const name = cleanCompanyName(companyName);
+      return [
+        `${name} news partnership acquisition investment`,
+        `${name} announces technology cloud AI digital transformation`,
+      ];
+    case 'small':
+      // Small companies get minimal external queries — focus on what's available
+      const sName = cleanCompanyName(companyName);
+      return [
+        `${sName} hiring jobs careers news`,
+      ];
     default:
       return buildDefaultQueries(companyName, domain);
   }
@@ -213,12 +195,13 @@ async function isDuplicateSignal(companyId: string, headline: string): Promise<b
   return existing !== null;
 }
 
-// ─── Evidence Storage ────────────────────────────────────
+// ─── Evidence Storage (Sprint 1: Three-Date Enhanced) ───
 
 async function storeRawEvidence(
   companyId: string,
   evidence: RawEvidenceInput,
-  sourceReliability: { score: number; quality: 'premium' | 'standard' | 'low' }
+  sourceReliability: { score: number; quality: 'premium' | 'standard' | 'low' },
+  dates: EvidenceDates
 ): Promise<string | null> {
   try {
     const existingEvidence = await db.evidence.findFirst({
@@ -244,10 +227,12 @@ async function storeRawEvidence(
           sourceReliabilityScore: sourceReliability.score,
           sourceQuality: sourceReliability.quality,
           origin: 'external_discovery',
+          // Sprint 1: Three-date model serialized in extractedValue
+          ...serializeThreeDateModel(dates),
         }),
         relevanceScore: sourceReliability.score,
         confidence: sourceReliability.score * 0.8,
-        sourceDate: evidence.publishedDate ? new Date(evidence.publishedDate) : null,
+        sourceDate: dates.sourcePublishedDate ? new Date(dates.sourcePublishedDate) : (dates.eventDate ? new Date(dates.eventDate) : null),
         sourceQualityTier: sourceReliability.quality,
         status: 'active',
       },
@@ -259,19 +244,24 @@ async function storeRawEvidence(
   }
 }
 
-// ─── Signal Creation ──────────────────────────────────
+// ─── Signal Creation (Sprint 1: Enhanced) ──────────────
 
 import { SIGNAL_HALF_LIVES } from '@/lib/scoring/freshness-ranking';
 
 async function createSignalFromEvidence(
   companyId: string,
-  classified: ReturnType<typeof classifyEvidence>,
+  classified: ClassifiedSignal,
   evidence: RawEvidenceInput,
-  evidenceId: string | null
+  evidenceId: string | null,
+  dates: EvidenceDates
 ): Promise<string | null> {
   if (!classified) return null;
 
   try {
+    // Sprint 1: Use best available date for signalDate
+    const signalDate = dates.eventDate || dates.sourcePublishedDate || dates.discoveryDate;
+    const bestRefDate = signalDate;
+
     const signal = await db.companySignal.create({
       data: {
         companyId,
@@ -282,7 +272,7 @@ async function createSignalFromEvidence(
         sourceUrl: evidence.sourceUrl,
         severity: classified.severity,
         impact: classified.severity === 'critical' || classified.severity === 'high' ? 'high' : classified.severity === 'medium' ? 'medium' : 'low',
-        signalDate: evidence.publishedDate ? new Date(evidence.publishedDate) : new Date(evidence.collectionDate),
+        signalDate: new Date(bestRefDate),
         confidence: classified.confidence,
         sourceQuality: scoreSourceReliability(evidence.sourceName, evidence.sourceUrl).quality,
         evidenceIds: evidenceId ? JSON.stringify([evidenceId]) : '[]',
@@ -290,7 +280,7 @@ async function createSignalFromEvidence(
         recommendedAction: classified.recommendedAction,
         timingWindow: classified.timingWindow,
         meaningCategory: classified.meaningCategory,
-        expiresAt: computeExpiry(evidence.publishedDate || evidence.collectionDate, classified.signalType),
+        expiresAt: computeExpiry(bestRefDate, classified.signalType),
         status: 'active',
       },
     });
@@ -301,54 +291,141 @@ async function createSignalFromEvidence(
   }
 }
 
-// scoreSourceReliability is now imported from evidence-classifier at module level (line 24)
-
 function computeExpiry(referenceDate: string, signalType: string): Date {
   const halfLife = SIGNAL_HALF_LIVES[signalType] || 30;
   const expiryDays = halfLife * 2;
   return new Date(new Date(referenceDate).getTime() + expiryDays * 24 * 60 * 60 * 1000);
 }
 
+// ─── Evidence Processing Pipeline ──────────────────────
+
+/**
+ * Process a raw search result through the full Sprint 1 pipeline:
+ *   1. Extract dates (three-date model)
+ *   2. Classify (AI with rule fallback)
+ *   3. Store evidence
+ *   4. Create signal
+ */
+async function processResult(
+  companyId: string,
+  result: RawSearchResult,
+  discoveryDate: string,
+  useAI: boolean,
+  resultObj: IntelligenceCollectionResult
+): Promise<void> {
+  // Build three-date model
+  const dates = buildThreeDateModel({
+    snippet: result.snippet,
+    url: result.url,
+    discoveryDate,
+  });
+
+  // Build evidence input
+  const evidence: RawEvidenceInput = {
+    headline: result.title,
+    snippet: result.snippet,
+    sourceName: null,
+    sourceUrl: result.url,
+    publishedDate: dates.sourcePublishedDate,
+    collectionDate: discoveryDate,
+  };
+
+  // Extract source name from URL
+  try {
+    const urlObj = new URL(result.url.startsWith('http') ? result.url : `https://${result.url}`);
+    evidence.sourceName = urlObj.hostname.replace('www.', '');
+  } catch { /* ignore */ }
+
+  // Dedup check
+  const isDup = await isDuplicateSignal(companyId, evidence.headline);
+  if (isDup) { resultObj.signalsSkipped++; return; }
+
+  // Score source reliability
+  const sourceReliability = scoreSourceReliability(evidence.sourceName, evidence.sourceUrl);
+
+  // Store raw evidence with three-date model
+  const evidenceId = await storeRawEvidence(companyId, evidence, sourceReliability, dates);
+  if (evidenceId) resultObj.evidenceCollected++;
+
+  // Classify: AI with rule fallback
+  let classified: ClassifiedSignal | null;
+  if (useAI) {
+    classified = await classifyEvidenceWithAI(evidence);
+    if (classified) {
+      resultObj.aiClassifiedCount++;
+    } else {
+      // AI failed, should not happen since classifyEvidenceWithAI falls back to rules
+      resultObj.ruleClassifiedCount++;
+    }
+  } else {
+    classified = classifyEvidence(evidence);
+    if (classified) resultObj.ruleClassifiedCount++;
+  }
+
+  if (!classified) { resultObj.signalsSkipped++; return; }
+
+  // Create signal with three-date context
+  const signalId = await createSignalFromEvidence(companyId, classified, evidence, evidenceId, dates);
+  if (signalId) {
+    resultObj.signalsCreated++;
+  } else {
+    resultObj.signalsSkipped++;
+  }
+}
+
 // ─── Main Collection Function ────────────────────────────────
+
+export interface CollectionOptions {
+  maxResultsPerQuery?: number;
+  searchProvider?: SearchProvider;
+  /**
+   * Sprint 1: Toggle AI classification.
+   * When true, uses AI Evidence Engine with rule-based fallback.
+   * When false, uses rule-based classification only (faster, no LLM cost).
+   * Default: false (rule-based for production stability)
+   */
+  useAIClassification?: boolean;
+}
 
 /**
  * Collect external intelligence for a single company.
  *
- * This is the primary entry point for the Phase 2A intelligence pipeline.
- * Adapts collection strategy based on company size.
+ * Sprint 1 Pipeline:
+ *   1. Determine company size tier
+ *   2. For enterprise: news-focused search queries
+ *   3. For mid-market: news supplement + dedicated mid-market sensor
+ *   4. For small: minimal external + internal memory emphasis note
+ *   5. For all: three-date model, AI classification (optional), evidence storage
  *
  * @param companyId - The company to collect intelligence for
- * @param maxResultsPerQuery - Max search results per query (default 5)
- * @returns Collection result with counts and any errors
+ * @param optionsOrMaxResults - Options or legacy maxResults number
+ * @returns Collection result with counts, channel breakdown, and any errors
  */
-export interface CollectionOptions {
-  maxResultsPerQuery?: number;
-  /**
-   * Inject a custom SearchProvider for Phase B data source replacement.
-   * If omitted, the default z-ai-web-dev-sdk webSearch provider is used.
-   */
-  searchProvider?: SearchProvider;
-}
-
 export async function collectIntelligenceForCompany(
   companyId: string,
   optionsOrMaxResults: number | CollectionOptions = 5
 ): Promise<IntelligenceCollectionResult> {
-  // Normalize: accept either a plain number (backward compat) or full options
   const opts: CollectionOptions = typeof optionsOrMaxResults === 'number'
     ? { maxResultsPerQuery: optionsOrMaxResults }
     : optionsOrMaxResults;
   const maxResultsPerQuery = opts.maxResultsPerQuery ?? 5;
   const searchProvider = opts.searchProvider || defaultSearchProvider;
+  const useAI = opts.useAIClassification ?? false;
   const startTime = Date.now();
+  const discoveryDate = new Date().toISOString();
+
   const result: IntelligenceCollectionResult = {
     companyId,
     companyName: '',
     companySizeRange: null,
+    companySizeTier: 'default',
     totalSearched: 0,
     evidenceCollected: 0,
     signalsCreated: 0,
     signalsSkipped: 0,
+    aiClassifiedCount: 0,
+    ruleClassifiedCount: 0,
+    dateQualityAvg: 0,
     errors: [],
     duration: 0,
   };
@@ -356,7 +433,7 @@ export async function collectIntelligenceForCompany(
   try {
     const company = await db.company.findUnique({
       where: { id: companyId },
-      select: { id: true, rawName: true, domain: true, sizeRange: true },
+      select: { id: true, rawName: true, domain: true, sizeRange: true, industry: true },
     });
 
     if (!company) {
@@ -367,86 +444,125 @@ export async function collectIntelligenceForCompany(
 
     result.companyName = company.rawName;
     result.companySizeRange = company.sizeRange;
+    const sizeTier = classifyCompanySize(company.sizeRange);
+    result.companySizeTier = sizeTier;
 
-    // Build size-adaptive queries
-    const queries = buildSearchQueries(company.rawName, company.domain, company.sizeRange);
+    // ── Phase 1: News-style search queries (enterprise + supplement for mid/small) ──
+    const queries = buildSearchQueries(company.rawName, company.domain, company.sizeRange, company.industry);
 
-    // Execute sequentially with 2s stagger to avoid rate limiting (429)
-    const searchBatches: RawSearchResult[][] = [];
-    for (let i = 0; i < queries.length; i++) {
-      try {
-        const results = await searchProvider.search(queries[i], maxResultsPerQuery);
-        searchBatches.push(results);
-        if (i < queries.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
+    if (queries.length > 0) {
+      const searchBatches: RawSearchResult[][] = [];
+      for (let i = 0; i < queries.length; i++) {
+        try {
+          const results = await searchProvider.search(queries[i], maxResultsPerQuery);
+          searchBatches.push(results);
+          if (i < queries.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        } catch (err) {
+          console.error(`[intel-collector] Query ${i + 1}/${queries.length} failed:`, err);
+          searchBatches.push([]);
         }
-      } catch (err) {
-        console.error(`[intel-collector] Query ${i + 1}/${queries.length} failed:`, err);
-        searchBatches.push([]);
+      }
+
+      // Deduplicate by URL
+      const seenUrls = new Set<string>();
+      const allResults: RawSearchResult[] = [];
+      for (const batch of searchBatches) {
+        for (const item of batch) {
+          if (item.url && !seenUrls.has(item.url)) {
+            seenUrls.add(item.url);
+            allResults.push(item);
+          }
+        }
+      }
+
+      result.totalSearched += allResults.length;
+
+      // Process each result through Sprint 1 pipeline
+      for (const item of allResults) {
+        try {
+          await processResult(companyId, item, discoveryDate, useAI, result);
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          result.errors.push(`Error processing "${item.title.substring(0, 50)}": ${msg}`);
+        }
       }
     }
 
-    // Deduplicate by URL
-    const seenUrls = new Set<string>();
-    const allResults: RawSearchResult[] = [];
-    for (const batch of searchBatches) {
-      for (const item of batch) {
-        if (item.url && !seenUrls.has(item.url)) {
-          seenUrls.add(item.url);
-          allResults.push(item);
-        }
-      }
-    }
-
-    result.totalSearched = allResults.length;
-
-    if (allResults.length === 0) {
-      result.errors.push('No search results found');
-      result.duration = Date.now() - startTime;
-      return result;
-    }
-
-    // Process each result
-    for (const item of allResults) {
+    // ── Phase 2: Mid-Market Sensor (only for mid-market tier) ──
+    if (sizeTier === 'mid_market') {
       try {
-        const evidence: RawEvidenceInput = {
-          headline: item.title,
-          snippet: item.snippet,
-          sourceName: null,
-          sourceUrl: item.url,
-          publishedDate: null,
-          collectionDate: new Date().toISOString(),
+        const sensorConfig: SensorConfig = {
+          companyId,
+          companyName: company.rawName,
+          domain: company.domain,
+          industry: company.industry,
+          sizeRange: company.sizeRange,
+          searchProvider,
+          maxResultsPerQuery: Math.min(maxResultsPerQuery, 3), // Fewer per query for mid-market (more queries)
         };
 
-        // Extract source name from URL
-        try {
-          const urlObj = new URL(item.url);
-          evidence.sourceName = urlObj.hostname.replace('www.', '');
-        } catch { /* ignore */ }
+        const sensorResult = await runMidMarketSensor(sensorConfig);
 
-        // Dedup check
-        const isDup = await isDuplicateSignal(companyId, evidence.headline);
-        if (isDup) { result.signalsSkipped++; continue; }
+        // Process mid-market sensor evidence through the same pipeline
+        for (const processed of sensorResult.processedEvidence) {
+          if (!processed.classified) continue;
 
-        // Store raw evidence (Phase B foundation)
-        const sourceReliability = scoreSourceReliability(evidence.sourceName, evidence.sourceUrl);
-        const evidenceId = await storeRawEvidence(companyId, evidence, sourceReliability);
-        if (evidenceId) result.evidenceCollected++;
+          // Dedup check against existing signals
+          const isDup = await isDuplicateSignal(companyId, processed.evidence.headline);
+          if (isDup) { result.signalsSkipped++; continue; }
 
-        // Classify evidence → signal
-        const classified = classifyEvidence(evidence);
-        if (!classified) { result.signalsSkipped++; continue; }
+          // Store evidence
+          const evidenceId = await storeRawEvidence(
+            companyId,
+            processed.evidence,
+            processed.sourceReliability,
+            processed.dates
+          );
+          if (evidenceId) result.evidenceCollected++;
 
-        // Create CompanySignal
-        const signalId = await createSignalFromEvidence(companyId, classified, evidence, evidenceId);
-        if (signalId) {
-          result.signalsCreated++;
-        } else {
-          result.signalsSkipped++;
+          // Create signal
+          const signalId = await createSignalFromEvidence(
+            companyId,
+            processed.classified,
+            processed.evidence,
+            evidenceId,
+            processed.dates
+          );
+          if (signalId) {
+            result.signalsCreated++;
+          } else {
+            result.signalsSkipped++;
+          }
         }
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        result.errors.push(`Error processing "${item.title.substring(0, 50)}": ${msg}`);
+
+        // Track channel breakdown
+        result.midMarketChannels = {
+          careers: sensorResult.channelResults.careers,
+          hiring: sensorResult.channelResults.hiring,
+          leadership: sensorResult.channelResults.leadership,
+          technology: sensorResult.channelResults.technology,
+        };
+
+        result.totalSearched += sensorResult.processedEvidence.length;
+        if (useAI) {
+          result.aiClassifiedCount += sensorResult.processedEvidence.filter(r => r.classified).length;
+        } else {
+          result.ruleClassifiedCount += sensorResult.processedEvidence.filter(r => r.classified).length;
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        result.errors.push(`Mid-market sensor error: ${msg}`);
+      }
+    }
+
+    // ── Phase 3: Small company note ──
+    if (sizeTier === 'small') {
+      // For small companies, we accept that external signals may be minimal.
+      // The reasoning engine will weight internal memory more heavily.
+      if (result.signalsCreated === 0) {
+        result.errors.push(`Small company tier: Limited external signals. Recommend combining with internal memory for intelligence.`);
       }
     }
 
@@ -480,7 +596,7 @@ export async function collectIntelligenceBatch(
   return results;
 }
 
-// Re-export for backward compatibility during transition
+// Re-export for backward compatibility
 export const collectNewsForCompany = collectIntelligenceForCompany;
 export const collectNewsBatch = collectIntelligenceBatch;
 export type NewsCollectionResult = IntelligenceCollectionResult;

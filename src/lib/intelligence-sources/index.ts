@@ -29,6 +29,7 @@ export * from './intelligence-timeline';
 export * from './connector-scheduler';
 export * from './intelligence-alerts';
 export * from './analytics-dashboard';
+
 // Phase 2A: External Intelligence Collection & Classification
 export { collectIntelligenceForCompany, collectIntelligenceBatch } from './external-intelligence-collector';
 export type { IntelligenceCollectionResult, SearchResult, SearchProvider, CollectionOptions } from './external-intelligence-collector';
@@ -49,3 +50,37 @@ export { detectCrossAccountPatterns } from './cross-account-intelligence';
 export type { CrossAccountInsight, CrossAccountPattern } from './cross-account-intelligence';
 export { runMonitoringCheck, runMonitoringBatch } from './autonomous-monitor';
 export type { IntelligenceAlert, AlertSeverity, AlertType } from './autonomous-monitor';
+
+// Sprint 1: Signal Taxonomy Normalization (P0 Unblocker)
+export {
+  normalizeSignalType, normalizeType, normalizeSignalTypes, groupByCanonicalType,
+  isCanonicalType, isLegacyType,
+  CANONICAL_SIGNAL_TYPES,
+} from './signal-type-mapping';
+export type { CanonicalSignalType, TypeMappingResult } from './signal-type-mapping';
+
+// Sprint 1: Three-Date Evidence Model
+export {
+  buildThreeDateModel, getBestDateForFreshness, dateModelQuality,
+  extractPublishedDateFromSnippet, extractDateFromUrl, serializeThreeDateModel,
+} from './three-date-model';
+export type { EvidenceDates } from './three-date-model';
+
+// Sprint 1: Mid-Market Intelligence Sensor
+export { runMidMarketSensor } from './mid-market-sensor';
+export type { SensorConfig } from './mid-market-sensor';
+
+// Sprint 1: Reasoning Engine
+export {
+  generateCompanyUnderstanding,
+} from './reasoning-engine';
+export type {
+  ReasoningInput, SignalInput, InternalContext, CapabilityInput,
+  CompanyUnderstanding, KeyChange, ActionRecommendation,
+} from './reasoning-engine';
+
+// Sprint 1: Adaptive Intelligence Density
+export {
+  assessSignalDensity, getIntelligenceTemplate,
+} from './adaptive-intelligence';
+export type { SignalDensity, DensityAssessment } from './adaptive-intelligence';

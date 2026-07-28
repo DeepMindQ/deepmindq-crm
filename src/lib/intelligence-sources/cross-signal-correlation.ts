@@ -132,10 +132,13 @@ const PATTERN_DEFINITIONS: PatternDefinition[] = [
  * @param signals - Company signals to analyze
  * @returns Array of detected correlation insights, sorted by confidence
  */
+import { normalizeSignalType, type CanonicalSignalType } from './signal-type-mapping';
+
 export function detectCorrelations(signals: {
   id: string;
   signalType: string;
   title: string;
+  description?: string | null;
   severity: string;
   createdAt: Date | string;
   signalDate: Date | string | null;
@@ -146,17 +149,25 @@ export function detectCorrelations(signals: {
   const now = Date.now();
   const insights: CorrelationInsight[] = [];
 
-  // Group signals by type
-  const byType = new Map<string, typeof signals>();
-  for (const s of signals) {
-    const existing = byType.get(s.signalType) || [];
+  // Sprint 1: Normalize signal types before grouping
+  // This is the P0 fix — old DB types (business, technology, external) are now
+  // contextually mapped to the 10-type taxonomy (hiring, funding, tech_change, etc.)
+  const normalizedSignals = signals.map(s => ({
+    ...s,
+    normalizedType: normalizeSignalType(s.signalType, s.title, s.description || undefined).normalizedType,
+  }));
+
+  // Group signals by NORMALIZED type
+  const byType = new Map<string, typeof normalizedSignals>();
+  for (const s of normalizedSignals) {
+    const existing = byType.get(s.normalizedType) || [];
     existing.push(s);
-    byType.set(s.signalType, existing);
+    byType.set(s.normalizedType, existing);
   }
 
   // Check each pattern definition
   for (const pattern of PATTERN_DEFINITIONS) {
-    const matchingSignals: typeof signals = [];
+    const matchingSignals: typeof normalizedSignals = [];
     const matchingTypes = new Set<string>();
 
     for (const reqType of pattern.requiredTypes) {

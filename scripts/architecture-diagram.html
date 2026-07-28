@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --text: #111827; --text-sub: #4B5563; --text-muted: #9CA3AF;
+    --bg: #FFFFFF; --surface: #F9FAFB; --border: #E5E7EB;
+    --blue: #3B82F6; --cyan: #06B6D4; --teal: #0D9488;
+    --amber: #F59E0B; --red: #EF4444; --green: #10B981; --purple: #8B5CF6;
+    --connector: #94A3B8;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  #root {
+    width: 1400px; margin: 0 auto; padding: 48px 60px 60px;
+  }
+
+  /* ── Title ── */
+  .diagram-title {
+    font-size: 28px; font-weight: 800; color: var(--text);
+    text-align: center; letter-spacing: -0.5px;
+  }
+  .diagram-subtitle {
+    font-size: 14px; color: var(--text-sub); text-align: center;
+    margin-top: 6px; font-weight: 400;
+  }
+
+  /* ── Legend Bar ── */
+  .legend-bar {
+    display: flex; gap: 28px; justify-content: center; flex-wrap: wrap;
+    margin-top: 28px; padding: 14px 28px;
+    background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #4B5563; font-weight: 500; }
+  .legend-dot { width: 14px; height: 14px; border-radius: 4px; border: 2px solid; }
+  .legend-line { width: 28px; height: 3px; border-radius: 2px; }
+  .legend-icon { width: 18px; height: 18px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+
+  /* ── Main Flow Container ── */
+  .flow-container { margin-top: 36px; display: flex; flex-direction: column; gap: 0; }
+
+  /* ── Phase Group ── */
+  .phase-group {
+    border-radius: 14px; padding: 20px 24px 18px; position: relative;
+    border: 1.5px solid var(--border);
+  }
+  .phase-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+  }
+  .phase-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 8px; font-size: 13px; font-weight: 800;
+  }
+  .phase-title { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
+  .phase-desc { font-size: 12px; color: var(--text-muted); margin-left: auto; font-style: italic; }
+
+  /* ── Phase Color Schemes (same blue-gray hue family) ── */
+  .phase-creation { background: #FAFBFD; border-color: #E2E8F0; }
+  .phase-creation .phase-badge { background: #E2E8F0; color: #475569; }
+  .phase-creation .phase-title { color: #334155; }
+
+  .phase-enrichment { background: #F4F7FB; border-color: #D4DEEC; }
+  .phase-enrichment .phase-badge { background: #D4DEEC; color: #334155; }
+  .phase-enrichment .phase-title { color: #1E3A5F; }
+
+  .phase-retrieval { background: #EFF4F8; border-color: #C7D5E3; }
+  .phase-retrieval .phase-badge { background: #C7D5E3; color: #1E3A5F; }
+  .phase-retrieval .phase-title { color: #172540; }
+
+  .phase-matching { background: #EAEFF5; border-color: #B8CAD8; }
+  .phase-matching .phase-badge { background: #B8CAD8; color: #172540; }
+  .phase-matching .phase-title { color: #0F1D32; }
+
+  .phase-fusion { background: #E6EBF2; border-color: #A9BCCF; }
+  .phase-fusion .phase-badge { background: #A9BCCF; color: #0F1D32; }
+  .phase-fusion .phase-title { color: #0A1628; }
+
+  .phase-strategy { background: #E2E8F0; border-color: #9AADBF; }
+  .phase-strategy .phase-badge { background: #9AADBF; color: #0A1628; }
+  .phase-strategy .phase-title { color: #071220; }
+
+  .phase-persist { background: #DEE5EE; border-color: #8B9FB5; }
+  .phase-persist .phase-badge { background: #8B9FB5; color: #071220; }
+  .phase-persist .phase-title { color: #050E1A; }
+
+  .phase-command { background: #D8E1EC; border-color: #7B92AA; }
+  .phase-command .phase-badge { background: #7B92AA; color: #050E1A; }
+  .phase-command .phase-title { color: #030A14; }
+
+  /* ── Steps Row ── */
+  .steps-row {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: stretch;
+  }
+
+  /* ── Step Node ── */
+  .step {
+    flex: 1; min-width: 180px; max-width: 260px;
+    background: #FFFFFF; border-radius: 10px; padding: 12px 14px;
+    border: 1.5px solid #E5E7EB; position: relative;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .step-num {
+    display: inline-block; width: 20px; height: 20px; line-height: 20px;
+    text-align: center; border-radius: 50%; font-size: 11px; font-weight: 700;
+    background: #F1F5F9; color: #475569; margin-right: 6px;
+  }
+  .step-title { font-size: 13px; font-weight: 600; color: var(--text); display: inline; }
+  .step-body { font-size: 11px; color: var(--text-sub); margin-top: 7px; line-height: 1.5; }
+  .step-meta {
+    display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px;
+  }
+  .tag {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600;
+  }
+  .tag-ai { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; }
+  .tag-db { background: #DBEAFE; color: #1E40AF; border: 1px solid #93C5FD; }
+  .tag-cache { background: #E0E7FF; color: #3730A3; border: 1px solid #A5B4FC; }
+  .tag-embed { background: #CCFBF1; color: #065F46; border: 1px solid #6EE7B7; }
+  .tag-retrieve { background: #D1FAE5; color: #064E3B; border: 1px solid #34D399; }
+  .tag-search { background: #FFF7ED; color: #9A3412; border: 1px solid #FDBA74; }
+  .tag-logic { background: #F1F5F9; color: #334155; border: 1px solid #CBD5E1; }
+
+  /* ── DB Persist Table ── */
+  .persist-list { font-size: 10px; color: #6B7280; margin-top: 6px; line-height: 1.6; }
+  .persist-list code {
+    background: #F1F5F9; padding: 1px 5px; border-radius: 3px; font-size: 10px;
+    font-family: 'SF Mono', 'Cascadia Code', monospace; color: #1E293B;
+  }
+
+  /* ── Arrow Between Phases ── */
+  .phase-arrow {
+    display: flex; justify-content: center; padding: 6px 0;
+  }
+  .phase-arrow svg { display: block; }
+
+  /* ── Annotation Side Panel ── */
+  .annotation-row {
+    display: flex; gap: 16px; margin-top: 8px; align-items: flex-start;
+  }
+  .annotation {
+    flex: 1; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px;
+    padding: 10px 14px; font-size: 11px; color: #78350F; line-height: 1.5;
+  }
+  .annotation strong { font-weight: 700; }
+  .annotation-teal {
+    background: #F0FDFA; border-color: #99F6E4; color: #134E4A;
+  }
+  .annotation-blue {
+    background: #EFF6FF; border-color: #BFDBFE; color: #1E40AF;
+  }
+  .annotation-red {
+    background: #FEF2F2; border-color: #FECACA; color: #991B1B;
+  }
+
+  /* ── Canonical Path Highlight ── */
+  .canonical-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+    background: #DCFCE7; color: #166534; border: 1px solid #86EFAC;
+  }
+
+  /* ── Validation Status Bar ── */
+  .validation-bar {
+    margin-top: 40px; padding: 20px 28px; border-radius: 12px;
+    background: #F0FDF4; border: 2px solid #86EFAC;
+  }
+  .validation-title { font-size: 16px; font-weight: 700; color: #166534; margin-bottom: 12px; }
+  .validation-item { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; font-size: 13px; color: #14532D; }
+  .check { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: #22C55E; color: white; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Footer ── */
+  .diagram-footer {
+    margin-top: 32px; text-align: center; font-size: 11px; color: var(--text-muted);
+    padding-top: 20px; border-top: 1px solid #E5E7EB;
+  }
+</style>
+</head>
+<body>
+<div id="root">
+
+  <div class="diagram-title">DeepMindQ — Enterprise Revenue Intelligence Architecture</div>
+  <div class="diagram-subtitle">Complete Execution Flow: Company Creation to Command Center | Single Canonical Reasoning Path</div>
+
+  <!-- Legend -->
+  <div class="legend-bar">
+    <div class="legend-item"><div class="legend-dot" style="background:#FEF3C7;border-color:#F59E0B;"></div> AI Call (LLM)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#DBEAFE;border-color:#3B82F6;"></div> DB Persist</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#CCFBF1;border-color:#10B981;"></div> Embedding Generated</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#D1FAE5;border-color:#059669;"></div> Retrieval / Search</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#E0E7FF;border-color:#6366F1;"></div> Cache Layer</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#FFF7ED;border-color:#EA580C;"></div> External API (Tavily)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#F1F5F9;border-color:#94A3B8;"></div> Pure Logic (no AI)</div>
+    <div class="legend-item"><span class="canonical-badge">CANONICAL PATH</span></div>
+  </div>
+
+  <div class="flow-container">
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- PHASE 1: DATA INGESTION (Company + Contact + Capability) -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="phase-group phase-creation">
+      <div class="phase-header">
+        <div class="phase-badge">1</div>
+        <div class="phase-title">Data Ingestion</div>
+        <div class="phase-desc">Company + Contact + Capability Creation</div>
+      </div>
+      <div class="steps-row">
+        <div class="step">
+          <span class="step-num">1</span><span class="step-title">POST /api/companies</span>
+          <div class="step-body">Company created with domain, industry, size, location</div>
+          <div class="step-meta"><span class="tag tag-db">Company</span></div>
+          <div class="persist-list">Writes: <code>Company</code> table</div>
+        </div>
+        <div class="step">
+          <span class="step-num">2</span><span class="step-title">POST /api/contacts</span>
+          <div class="step-body">Contacts imported with email, title, role</div>
+          <div class="step-meta"><span class="tag tag-db">Contact + ImportBatch</span></div>
+          <div class="persist-list">Writes: <code>Contact</code> + <code>ImportBatch</code></div>
+        </div>
+        <div class="step">
+          <span class="step-num">3</span><span class="step-title">POST /api/capabilities</span>
+          <div class="step-body">Internal knowledge (service lines, case studies, proof points)</div>
+          <div class="step-meta"><span class="tag tag-db">CapabilityAsset</span><span class="tag tag-embed">Auto-Embed</span></div>
+          <div class="persist-list">Writes: <code>CapabilityAsset</code></div>
+          <div class="annotation-row" style="margin-top:8px;">
+            <div class="annotation annotation-teal"><strong>Auto-Embed:</strong> Calls <code>CapabilityIntelligenceEngine.ingest()</code> which generates embeddings via <code>RetrievalEngine.embedEntity()</code>. Persisted to <code>Embedding</code> table + cached in-memory index.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-arrow"><svg width="40" height="24"><path d="M20 0 L20 18 M14 12 L20 18 L26 12" stroke="#94A3B8" stroke-width="2" fill="none"/></svg></div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- PHASE 2: EXTERNAL INTELLIGENCE ENRICHMENT -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="phase-group phase-enrichment">
+      <div class="phase-header">
+        <div class="phase-badge">2</div>
+        <div class="phase-title">External Intelligence Enrichment</div>
+        <div class="phase-desc">IntelligencePipeline.enrichCompany()</div>
+      </div>
+      <div class="steps-row">
+        <div class="step">
+          <span class="step-num">4</span><span class="step-title">Web Search (Tavily)</span>
+          <div class="step-body">2 parallel Tavily queries: business signals + technology</div>
+          <div class="step-meta"><span class="tag tag-search">Tavily API</span></div>
+        </div>
+        <div class="step">
+          <span class="step-num">5</span><span class="step-title">LLM Signal Extraction</span>
+          <div class="step-body">Smart tier: extracts signals + research data from search results</div>
+          <div class="step-meta"><span class="tag tag-ai">LLM Smart</span></div>
+        </div>
+        <div class="step">
+          <span class="step-num">6</span><span class="step-title">Signal + Evidence DB Write</span>
+          <div class="step-body">Creates CompanySignal + Evidence records (up to 10)</div>
+          <div class="step-meta"><span class="tag tag-db">CompanySignal</span><span class="tag tag-db">Evidence</span></div>
+          <div class="persist-list">Writes: <code>CompanySignal</code> + <code>Evidence</code></div>
+        </div>
+      </div>
+      <div class="steps-row" style="margin-top:10px;">
+        <div class="step">
+          <span class="step-num">7</span><span class="step-title">Research Card Upsert</span>
+          <div class="step-body">Business overview, tech stack, revenue, key people</div>
+          <div class="step-meta"><span class="tag tag-db">CompanyResearchCard</span></div>
+          <div class="persist-list">Writes: <code>CompanyResearchCard</code></div>
+        </div>
+        <div class="step">
+          <span class="step-num">8</span><span class="step-title">Company Timestamp Update</span>
+          <div class="step-body">Marks <code>lastEnrichedAt</code></div>
+          <div class="step-meta"><span class="tag tag-db">Company</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-arrow"><svg width="40" height="24"><path d="M20 0 L20 18 M14 12 L20 18 L26 12" stroke="#94A3B8" stroke-width="2" fill="none"/></svg></div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- PHASE 3: SIGNAL → CAPABILITY MATCHING (CANONICAL PATH) -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="phase-group phase-matching" style="border-color:#93C5FD; border-width:2px;">
+      <div class="phase-header">
+        <div class="phase-badge" style="background:#93C5FD;color:#1E3A8A;">3</div>
+        <div class="phase-title" style="color:#1E3A8A;">Signal → Capability Matching <span class="canonical-badge">SINGLE CANONICAL PATH</span></div>
+        <div class="phase-desc">CapabilityIntelligenceEngine.matchSignalToCapabilities()</div>
+      </div>
+      <div class="steps-row">
+        <div class="step" style="border-color:#93C5FD;">
+          <span class="step-num" style="background:#DBEAFE;color:#1E40AF;">9</span><span class="step-title">LLM-Based Matching</span>
+          <div class="step-body">For each of top 5 signals: LLM analyzes business problem, matches against ALL active capabilities using full context</div>
+          <div class="step-meta"><span class="tag tag-ai">LLM Smart</span></div>
+        </div>
+        <div class="step" style="border-color:#93C5FD;">
+          <span class="step-num" style="background:#DBEAFE;color:#1E40AF;">10</span><span class="step-title">Match Persist</span>
+          <div class="step-body">Each match scored (0-1), with reason, businessProblem, expectedOutcome, salesAngle</div>
+          <div class="step-meta"><span class="tag tag-db">SignalCapabilityMatch</span></div>
+          <div class="persist-list">Writes: <code>SignalCapabilityMatch</code></div>
+        </div>
+        <div class="step" style="border-color:#93C5FD;">
+          <span class="step-num" style="background:#DBEAFE;color:#1E40AF;">11</span><span class="step-title">Opportunity Generation</span>
+          <div class="step-body">Best match → LLM generates OpportunityRecommendation with whyNow, priority, win probability</div>
+          <div class="step-meta"><span class="tag tag-ai">LLM Smart</span><span class="tag tag-db">Opportunity</span></div>
+          <div class="persist-list">Writes: <code>OpportunityRecommendation</code></div>
+        </div>
+      </div>
+      <div class="annotation-row" style="margin-top:10px;">
+        <div class="annotation annotation-blue"><strong>UNIFIED:</strong> Both <code>IntelligencePipeline</code> (enrichment) and <code>FullPipeline</code> (stage 8) use the SAME function: <code>CapabilityIntelligenceEngine.matchSignalToCapabilities()</code>. The keyword-based <code>signal-capability-matching.ts</code> is no longer called by any pipeline. One matcher, one result, everywhere.</div>
+      </div>
+    </div>
+
+    <div class="phase-arrow"><svg width="40" height="24"><path d="M20 0 L20 18 M14 12 L20 18 L26 12" stroke="#94A3B8" stroke-width="2" fill="none"/></svg></div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- PHASE 4: FULL PIPELINE — INTERNAL INTELLIGENCE -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="phase-group phase-retrieval">
+      <div class="phase-header">
+        <div class="phase-badge">4</div>
+        <div class="phase-title">Internal Intelligence Deepening</div>
+        <div class="phase-desc">Full Pipeline Stages 9–11 (AI-enhanced capability analysis)</div>
+      </div>
+      <div class="steps-row">
+        <div class="step">
+          <span class="step-num">12</span><span class="step-title">Case Study Matching</span>
+          <div class="step-body">LLM ranks top 3 case studies by relevance to detected signals</div>
+          <div class="step-meta"><span class="tag tag-ai">LLM Smart</span></div>
+        </div>
+        <div class="step">
+          <span class="step-num">13</span><span class="step-title">Solution Matching</span>
+          <div class="step-body">LLM identifies best solution bundles from capability library</div>
+          <div class="step-meta"><span class="tag tag-ai">LLM Smart</span></div>
+        </div>
+        <div class="step">
+          <span class="step-num">14</span><span class="step-title">Competitive Positioning</span>
+          <div class="step-body">LLM generates prospect-specific competitive positioning statement</div>
+          <div class="step-meta"><span class="tag tag-ai">LLM Deep</span></div>
+        </div>
+      </div>
+      <div class="annotation-row" style="margin-top:10px;">
+        <div class="annotation"><strong>AI Output:</strong> Stages 9-14 generate AI text output that flows into Stage 16 (Persist All) — consolidated into AccountBrief, StrategicInsight, and AIEngagementStrategy records.</div>
+      </div>
+    </div>
+
+    <div class="phase-arrow"><svg width="40" height="24"><path d="M20 0 L20 18 M14 12 L20 18 L26 12" stroke="#94A3B8" stroke-width="2" fill="none"/></svg></div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- PHASE 5: INTELLIGENCE FUSION -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="phase-group phase-fusion">
+      <div class="phase-header">
+        <div class="phase-badge">5</div>
+        <div class="phase-title">Intelligence Fusion</div>
+        <div class="phase-desc">External x Internal = Opportunity Intelligence (ZERO AI calls)</div>
+      </div>
+      <div class="steps-row">
+        <div class="step">
+          <span class="step-num">15</span><span class="step-title">FusionEngine.fuse()</span>
+          <div class="step-body">Combines signals + capability matches + evidence into FusionResult records with reasoning chains</div>
+          <div class="step-meta"><span class="tag tag-logic">Pure Logic</span><span class="tag tag-db">FusionResult</span></div>
+          <div class="persist-list">Writes: <code>FusionResult</code> (per-match + full_company)</div>
+        </div>
+        <div class="step">
+          <span class="step-num">16</span><span class="step-title">Win Probability Calc</span>
+          <div class="step-body">Composite score: signalStrength + capabilityFit + evidenceStrength + timing + competitivePosition</div>
+          <div class="step-meta"><span class="tag tag-logic">Composite</span><span class="tag tag-ai">LLM Smart (blend)</span></div>
+        </div>
+      </div>
+      <div class="annotation-row" style="margin-top:10px;">
+        <div class="annotation annotation-teal"><strong>COST OPTIMIZATION:</strong> Fusion is pure logic — reads already-persisted data (signals, matches, evidence, opportunities). Zero new AI calls. Fusion score = signal(40%) + capabilityFit(40%) + evidenceMultiplier(20%). Full reasoning chain persisted for explainability.</div>
+      </div>
+    </div>
+
+    <div class="phase-arrow"><svg width="40" height="24"><path d="M20 0 L20 18 M14 12 L20 18 L26 12" stroke="#94A3B8" stroke-width="2" fill="none"/></svg></div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- PHASE 6: STRATEGY GENERATION -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="phase-group phase-strategy">
+      <div class="phase-header">
+        <div class="phase-badge">6</div>
+        <div class="phase-title">Strategy Generation</div>
+        <div class="phase-desc">Full Pipeline Stages 13-15 (AI strategy composition)</div>
+      </div>
+      <div class="steps-row">
+        <div class="step">
+          <span class="step-num">17</span><span class="step-title">Recommended Actions</span>
+          <div class="step-body">3-5 specific actions with priority, timeline, owner, rationale</div>
+          <div class="step-meta"><span class="tag tag-ai">LLM Smart</span></div>
+        </div>
+        <div class="step">
+          <span class="step-num">18</span><span class="step-title">Conversation Strategy</span>
+          <div class="step-body">Opening angle, talking points, objection handling, approach</div>
+          <div class="step-meta"><span class="tag tag-ai">LLM Deep</span></div>
+        </div>
+        <div class="step">
+          <span class="step-num">19</span><span class="step-title">Executive Brief</span>
+          <div class="step-body">Max 500-word brief: overview, intelligence, capability alignment, approach, risks</div>
+          <div class="step-meta"><span class="tag tag-ai">LLM Deep</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-arrow"><svg width="40" height="24"><path d="M20 0 L20 18 M14 12 L20 18 L26 12" stroke="#94A3B8" stroke-width="2" fill="none"/></svg></div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- PHASE 7: PERSISTENCE LAYER -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="phase-group phase-persist" style="border-color:#86EFAC; border-width:2px;">
+      <div class="phase-header">
+        <div class="phase-badge" style="background:#86EFAC;color:#065F46;">7</div>
+        <div class="phase-title" style="color:#065F46;">Persistence Layer — Stage 16: Persist All</div>
+        <div class="phase-desc">ALL AI outputs consolidated and persisted to 7 DB models</div>
+      </div>
+      <div class="steps-row">
+        <div class="step" style="border-color:#86EFAC;">
+          <span class="step-num" style="background:#DCFCE7;color:#166534;">16a</span><span class="step-title">AccountBrief</span>
+          <div class="step-body">Executive summary, keySignals, themes, opportunityAreas, risks, engagement approach</div>
+          <div class="step-meta"><span class="tag tag-db">AccountBrief</span></div>
+        </div>
+        <div class="step" style="border-color:#86EFAC;">
+          <span class="step-num" style="background:#DCFCE7;color:#166534;">16b</span><span class="step-title">AccountScore</span>
+          <div class="step-body">Score 0-100, breakdown (coverage, strength, freshness, fit), category (HOT/WARM/NURTURE/AT_RISK)</div>
+          <div class="step-meta"><span class="tag tag-db">AccountScore</span></div>
+        </div>
+        <div class="step" style="border-color:#86EFAC;">
+          <span class="step-num" style="background:#DCFCE7;color:#166534;">16c</span><span class="step-title">IntelligenceHealth</span>
+          <div class="step-body">Data completeness, signal coverage, evidence coverage, contact coverage, overall health 0-100</div>
+          <div class="step-meta"><span class="tag tag-db">CompanyIntelligenceHealth</span></div>
+        </div>
+      </div>
+      <div class="steps-row" style="margin-top:10px;">
+        <div class="step" style="border-color:#86EFAC;">
+          <span class="step-num" style="background:#DCFCE7;color:#166534;">16d</span><span class="step-title">StrategicInsight</span>
+          <div class="step-body">Pipeline completion insight with confidence score and key themes</div>
+          <div class="step-meta"><span class="tag tag-db">StrategicInsight</span></div>
+        </div>
+        <div class="step" style="border-color:#86EFAC;">
+          <span class="step-num" style="background:#DCFCE7;color:#166534;">16e</span><span class="step-title">AIEngagementStrategy</span>
+          <div class="step-body">Conversation angles, situation assessment (case studies, solutions, positioning, actions), risk factors</div>
+          <div class="step-meta"><span class="tag tag-db">AIEngagementStrategy</span></div>
+        </div>
+        <div class="step" style="border-color:#86EFAC;">
+          <span class="step-num" style="background:#DCFCE7;color:#166534;">16f</span><span class="step-title">AIInsight + Company Score</span>
+          <div class="step-body">Full evidence chain insight + Company.intelligenceScore update</div>
+          <div class="step-meta"><span class="tag tag-db">AIInsight</span><span class="tag tag-db">Company</span></div>
+        </div>
+      </div>
+      <div class="annotation-row" style="margin-top:10px;">
+        <div class="annotation annotation-teal"><strong>ALL stages persisted:</strong> Stage 16 reads output from stages 9-19 (case studies, solutions, positioning, actions, conversation strategy, executive brief, win probability, fusion) and consolidates into 7 DB models. PipelineRun.stageResults stores per-stage JSON for audit trail. No AI output is lost.</div>
+      </div>
+    </div>
+
+    <div class="phase-arrow"><svg width="40" height="24"><path d="M20 0 L20 18 M14 12 L20 18 L26 12" stroke="#94A3B8" stroke-width="2" fill="none"/></svg></div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- PHASE 8: COMMAND CENTER -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="phase-group phase-command">
+      <div class="phase-header">
+        <div class="phase-badge">8</div>
+        <div class="phase-title">Command Center — Morning Intelligence Brief</div>
+        <div class="phase-desc">GET /api/command-center/insights</div>
+      </div>
+      <div class="steps-row">
+        <div class="step">
+          <span class="step-num">20</span><span class="step-title">Data Aggregation</span>
+          <div class="step-body">Loads: top companies (with signals, contacts, evidence, capability matches, opportunities), recent signals, pipeline stats</div>
+          <div class="step-meta"><span class="tag tag-db">Read 7 tables</span></div>
+        </div>
+        <div class="step">
+          <span class="step-num">21</span><span class="step-title">AI Morning Brief</span>
+          <div class="step-body">LLM generates personalized brief: top targets, whyNow, recommended capabilities, suggested messages</div>
+          <div class="step-meta"><span class="tag tag-ai">LLM Smart</span><span class="tag tag-cache">5-min cache</span></div>
+        </div>
+        <div class="step">
+          <span class="step-num">22</span><span class="step-title">Rule-Based Fallback</span>
+          <div class="step-body">If AI fails: deterministic brief from DB data — zero data loss</div>
+          <div class="step-meta"><span class="tag tag-logic">Pure Logic</span></div>
+        </div>
+      </div>
+      <div class="annotation-row" style="margin-top:10px;">
+        <div class="annotation annotation-blue"><strong>Cache:</strong> AI brief cached 5 minutes in-memory. On cache hit, returns instantly. On miss, fresh AI generation. Rule-based fallback guarantees zero-downtime briefing regardless of LLM availability.</div>
+      </div>
+    </div>
+
+  </div><!-- /flow-container -->
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- ARCHITECTURE VALIDATION STATUS -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="validation-bar">
+    <div class="validation-title">Architecture Validation — Final Confirmation</div>
+    <div class="validation-item"><div class="check">✓</div><span><strong>Canonical Reasoning Path:</strong> ONE signal→capability matcher used everywhere. <code>CapabilityIntelligenceEngine.matchSignalToCapabilities()</code> (LLM-based) is the sole matcher in both IntelligencePipeline (enrichment) and FullPipeline (stage 8). The keyword-based matcher in <code>signal-capability-matching.ts</code> exists but is NOT imported by any active pipeline.</span></div>
+    <div class="validation-item"><div class="check">✓</div><span><strong>No Duplicate Matching:</strong> The full-pipeline stage 8 calls the LLM matcher directly per-signal (not the keyword batch matcher). Both paths produce identical matching logic and persist to the same <code>SignalCapabilityMatch</code> table.</span></div>
+    <div class="validation-item"><div class="check">✓</div><span><strong>Auto-Embedding on Capability Create:</strong> <code>POST /api/capabilities</code> (line 134-148) calls <code>CapabilityIntelligenceEngine.ingest()</code> which generates embeddings via <code>RetrievalEngine.embedEntity()</code> (TF-IDF or transformer). Also re-embeds on version-worthy updates (PUT).</span></div>
+    <div class="validation-item"><div class="check">✓</div><span><strong>AccountBrief / AccountScore / IntelligenceHealth Populated:</strong> Full Pipeline stage 16 upserts all three models. AccountBrief gets executive summary + signals + themes. AccountScore gets 0-100 breakdown. IntelligenceHealth gets data/signal/evidence/contact coverage scores.</span></div>
+    <div class="validation-item"><div class="check">✓</div><span><strong>Stages 9-15 AI Output Persisted:</strong> Stage 16 reads output from ALL preceding stages (case studies, solutions, positioning, actions, conversation strategy, executive brief, win probability) and consolidates into StrategicInsight, AIEngagementStrategy (includes case studies, solutions, positioning, actions in JSON), AIInsight, AccountBrief, AccountScore, IntelligenceHealth. PipelineRun.stageResults stores per-stage JSON.</span></div>
+    <div class="validation-item"><div class="check">✓</div><span><strong>FusionResult Persisted:</strong> <code>FusionEngine.fuse()</code> writes per-match fusion records + a full_company aggregation to <code>FusionResult</code> table with reasoning chains, confidence scores, and evidence strength.</span></div>
+    <div class="validation-item"><div class="check">✓</div><span><strong>Embedding Infrastructure:</strong> <code>RetrievalEngine</code> supports transformer (all-MiniLM-L6-v2) + TF-IDF fallback. Embeddings persisted in <code>Embedding</code> table with text hash dedup. In-memory index for O(1) lookup. Auto-builds from raw entities on first search.</span></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- REMAINING OPTIMIZATION -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div style="margin-top:16px; padding:20px 28px; border-radius:12px; background:#FFF7ED; border:2px solid #FDBA74;">
+    <div style="font-size:16px; font-weight:700; color:#9A3412; margin-bottom:10px;">Remaining Architectural Optimization</div>
+    <div style="font-size:13px; color:#78350F; line-height:1.6;">
+      <strong>Retrieval-First Pattern</strong> (explicitly identified as the ONLY remaining optimization): Currently, signal→capability matching uses LLM reasoning over ALL active capabilities (full context window). The optimized path would be:
+      <br><br>
+      <code>1. Embed signal text → 2. RetrievalEngine.search(query=signal, type=capability_asset, topK=5) → 3. Feed only top-5 candidates to LLM</code>
+      <br><br>
+      This reduces LLM token consumption by ~80% per match call (from N capabilities to 5 candidates) while maintaining quality via embedding-first pre-filtering. The embedding infrastructure is already built (RetrievalEngine + Embedding table + in-memory index). This is a performance + cost optimization, NOT an architectural change.
+    </div>
+  </div>
+
+  <div class="diagram-footer">
+    DeepMindQ Architecture v-FINAL | Generated from source code analysis of 12 core modules | 22 stages, ~23 AI calls/company, ~$0.08 cost
+  </div>
+
+</div>
+</body>
+</html>

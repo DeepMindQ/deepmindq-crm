@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { computeContentHash } from '@/lib/doc-parsers';
+import { CapabilityIntelligenceEngine } from '@/lib/capability-intelligence-engine';
 
 /* ═══════════════════════════════════════════════════
    POST /api/capabilities/import
@@ -27,7 +28,12 @@ function parseCSV(text: string): Record<string, string>[] {
   });
 }
 
-const VALID_CATEGORIES = ['service_line', 'case_study', 'proof_point', 'objection_response', 'cta'];
+const VALID_CATEGORIES = [
+  'service_line', 'solution', 'accelerator', 'case_study', 'proof_point',
+  'objection_response', 'cta', 'technology', 'industry_expertise',
+  'whitepaper', 'blog', 'sales_deck', 'proposal_template', 'ip_platform',
+  'certification', 'delivery_capability', 'messaging',
+];
 
 export async function POST(request: Request) {
   try {
@@ -100,14 +106,25 @@ export async function POST(request: Request) {
         const content = String(asset.content || '');
         const hash = content ? computeContentHash(content) : null;
 
-        await db.capabilityAsset.create({
+        const createdAsset = await db.capabilityAsset.create({
           data: {
             title,
             summary,
             category: validCategory,
             serviceLine: asset.serviceLine ? String(asset.serviceLine) : null,
-            targetIndustries: asset.targetIndustries ? String(asset.targetIndustries) : null,
-            targetRoles: asset.targetRoles ? String(asset.targetRoles) : null,
+            solution: asset.solution ? String(asset.solution) : null,
+            accelerator: asset.accelerator ? String(asset.accelerator) : null,
+            technology: asset.technology ? String(asset.technology) : null,
+            industry: asset.industry ? String(asset.industry) : null,
+            businessProblem: asset.businessProblem ? String(asset.businessProblem) : null,
+            customerOutcome: asset.customerOutcome ? String(asset.customerOutcome) : null,
+            differentiator: asset.differentiator ? String(asset.differentiator) : null,
+            targetIndustries: asset.targetIndustries
+              ? (typeof asset.targetIndustries === 'string' ? asset.targetIndustries : JSON.stringify(asset.targetIndustries))
+              : null,
+            targetRoles: asset.targetRoles
+              ? (typeof asset.targetRoles === 'string' ? asset.targetRoles : JSON.stringify(asset.targetRoles))
+              : null,
             problems: asset.problems ? String(asset.problems) : null,
             evidence: asset.evidence ? String(asset.evidence) : null,
             content: content || null,
@@ -118,6 +135,12 @@ export async function POST(request: Request) {
             version: 1,
           },
         });
+
+        // Auto-embed so imported capabilities enter the vector index
+        try {
+          await CapabilityIntelligenceEngine.embedExisting(createdAsset.id);
+        } catch { /* non-blocking: embedding failure doesn't prevent import */ }
+
         created++;
       } catch (err) {
         errors++;

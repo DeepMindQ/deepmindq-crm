@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { templates as _templatesStore } from '../store';
+import { templates as _templatesStore } from '@/lib/prompt-templates-store';
 
 /* ═══════════════════════════════════════════════════════════════
    PATCH — Update a template by ID

@@ -63,6 +63,11 @@ export async function proxy(request: NextRequest) {
   // ─────────────────────────────────────────────────────────
   applySecurityHeaders(response);
 
+  // ── 1. DEMO MODE bypass — skip auth when env var is set ──
+  if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+    return response;
+  }
+
   // ── 2. Skip auth for public paths ──────────────────────
   if (isPublicPath(pathname)) {
     // Still apply rate limiting to public auth APIs

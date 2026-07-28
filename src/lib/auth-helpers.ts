@@ -22,6 +22,7 @@ export const PUBLIC_PATH_PREFIXES: string[] = [
   '/api/seed',            // Seed data
   '/api/intelligence/',    // Sprint 1/2/3 intelligence pipeline (dev)
   '/login',
+  '/demo',                // Investor demo landing page
   '/favicon.ico',
   '/_next/static',
   '/_next/image',

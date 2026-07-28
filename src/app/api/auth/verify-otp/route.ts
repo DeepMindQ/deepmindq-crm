@@ -5,8 +5,12 @@ import { cookies } from 'next/headers';
 // ═══════════════════════════════════════════════════════════════
 // Single-User OTP Verification — DeepMindQ Enterprise
 //
-// Verifies OTP code against DB first, then in-memory cache.
-// Creates session on success. Works even if DB is down.
+// 1. Read OTP hash from httpOnly cookie (set by request-otp)
+// 2. Hash the user-submitted code
+// 3. Compare hashes — if match, create session
+//
+// Works 100% with zero DB dependency. Cookie survives across
+// all serverless instances. OTP only ever goes to email.
 // ═══════════════════════════════════════════════════════════════
 
 const AUTHORIZED_EMAIL = 'shanker001@gmail.com';
@@ -17,6 +21,13 @@ const schema = z.object({
   code: z.string().length(6, 'Code must be 6 digits'),
   purpose: z.enum(['login', 'set_password', 'change_email', 'change_password', 'update_profile']),
 });
+
+async function hashOtp(code: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(`dmq:${code}`);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 function generateToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
@@ -40,107 +51,101 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    let otpValid = false;
-    let userId = 'shanker-001';
-    let needsPassword = false;
+    // === Read OTP hash from cookie ===
+    const cookieStore = await cookies();
+    const storedHash = cookieStore.get('dmq_otp_hash')?.value;
+    const attemptsStr = cookieStore.get('dmq_otp_attempts')?.value;
+    const attempts = attemptsStr ? parseInt(attemptsStr, 10) : 0;
 
-    // Method 1: Try DB verification
-    try {
-      const { db } = await import('@/lib/db');
-      const otp = await db.otpCode.findFirst({
-        where: {
-          email: normalizedEmail,
-          code,
-          purpose,
-          verified: false,
-          expiresAt: { gt: new Date() },
-        },
-        include: { user: true },
-      });
-
-      if (otp) {
-        if (otp.attempts >= MAX_ATTEMPTS) {
-          await db.otpCode.update({ where: { id: otp.id }, data: { verified: true } });
-          return NextResponse.json({ error: 'Too many attempts. Please request a new code.' }, { status: 401 });
-        }
-        await db.otpCode.update({ where: { id: otp.id }, data: { verified: true, attempts: { increment: 1 } } });
-        otpValid = true;
-        userId = otp.userId || 'shanker-001';
-        needsPassword = !otp.user?.hasPassword;
-
-        // Update last login
-        try {
-          await db.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });
-        } catch { /* non-critical */ }
-      }
-    } catch (dbErr) {
-      console.warn('[auth/verify-otp] DB check failed, trying in-memory cache:', dbErr instanceof Error ? dbErr.message : dbErr);
+    if (!storedHash) {
+      return NextResponse.json({ error: 'No verification code found. Please request a new one.' }, { status: 401 });
     }
 
-    // Method 2: Check in-memory cache (fallback when DB is down)
-    if (!otpValid) {
+    // Check attempts
+    if (attempts >= MAX_ATTEMPTS) {
+      cookieStore.delete('dmq_otp_hash');
+      cookieStore.delete('dmq_otp_attempts');
+      return NextResponse.json({ error: 'Too many attempts. Please request a new code.' }, { status: 401 });
+    }
+
+    // Increment attempts
+    cookieStore.set('dmq_otp_attempts', String(attempts + 1), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 10 * 60,
+    });
+
+    // === Hash submitted code and compare ===
+    const submittedHash = await hashOtp(code);
+
+    if (submittedHash !== storedHash) {
+      // Also try DB as secondary check
       try {
-        const { otpCache } = await import('@/lib/otp-cache');
-        const cacheKey = `${normalizedEmail}:${purpose}`;
-        const cached = otpCache.get(cacheKey);
-
-        if (cached && cached.code === code && cached.expiresAt > Date.now()) {
-          if (cached.attempts >= MAX_ATTEMPTS) {
-            otpCache.delete(cacheKey);
-            return NextResponse.json({ error: 'Too many attempts. Please request a new code.' }, { status: 401 });
-          }
-          cached.attempts += 1;
-          if (cached.attempts >= MAX_ATTEMPTS) {
-            otpCache.delete(cacheKey);
-          }
-          otpValid = true;
-          console.log('[auth/verify-otp] OTP verified via in-memory cache');
+        const { db } = await import('@/lib/db');
+        const otp = await db.otpCode.findFirst({
+          where: { email: normalizedEmail, code, purpose, verified: false, expiresAt: { gt: new Date() } },
+          include: { user: true },
+        });
+        if (otp) {
+          await db.otpCode.update({ where: { id: otp.id }, data: { verified: true } });
+          // Clear OTP cookies and create session
+          cookieStore.delete('dmq_otp_hash');
+          cookieStore.delete('dmq_otp_attempts');
+          const token = generateToken();
+          cookieStore.set('dmq_session', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 30 * 24 * 60 * 60,
+          });
+          return NextResponse.json({
+            success: true,
+            needsPassword: !otp.user?.hasPassword,
+            user: { id: otp.userId || 'shanker-001', email: normalizedEmail },
+          });
         }
-      } catch (cacheErr) {
-        console.error('[auth/verify-otp] Cache check failed:', cacheErr);
-      }
-    }
+      } catch { /* DB failed */ }
 
-    if (!otpValid) {
       return NextResponse.json({ error: 'Invalid or expired code' }, { status: 401 });
     }
 
-    // Create session
-    if (purpose === 'login') {
-      const token = generateToken();
-      const cookieStore = await cookies();
-      cookieStore.set('dmq_session', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 30 * 24 * 60 * 60, // 30 days
+    // === CODE MATCHES — create session ===
+    cookieStore.delete('dmq_otp_hash');
+    cookieStore.delete('dmq_otp_attempts');
+
+    const token = generateToken();
+    cookieStore.set('dmq_session', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60,
+    });
+
+    // Also mark in DB (best effort)
+    try {
+      const { db } = await import('@/lib/db');
+      await db.otpCode.updateMany({
+        where: { email: normalizedEmail, code, purpose, verified: false },
+        data: { verified: true },
       });
-
-      // Try to persist session in DB
-      try {
-        const { db } = await import('@/lib/db');
-        await db.session.create({
-          data: {
-            userId,
-            token,
-            userAgent: request.headers.get('user-agent') || null,
-            ipAddress: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          },
-        });
-      } catch (dbErr) {
-        console.warn('[auth/verify-otp] Session DB storage failed (cookie is still set):', dbErr instanceof Error ? dbErr.message : dbErr);
-      }
-
-      return NextResponse.json({
-        success: true,
-        needsPassword,
-        user: { id: userId, email: normalizedEmail },
+      await db.session.create({
+        data: {
+          userId: 'shanker-001',
+          token,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        },
       });
-    }
+    } catch { /* non-critical */ }
 
-    return NextResponse.json({ success: true, userId, needsPassword });
+    return NextResponse.json({
+      success: true,
+      needsPassword: false,
+      user: { id: 'shanker-001', email: normalizedEmail },
+    });
   } catch (error) {
     console.error('[auth/verify-otp] Error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

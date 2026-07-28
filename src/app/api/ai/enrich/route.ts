@@ -37,8 +37,10 @@ const CONTACT_FIELDS = [
 ] as const
 
 // ---------------------------------------------------------------------------
-// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
+// LLM helper — uses ModelRouter (correct engine path)
 // ---------------------------------------------------------------------------
+
+import { ModelRouter } from '@/lib/engines/model-router';
 
 interface EnrichmentSuggestion {
   field: string
@@ -47,17 +49,15 @@ interface EnrichmentSuggestion {
 }
 
 async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  })
-  return completion.choices?.[0]?.message?.content ?? ''
+  const result = await ModelRouter.complete({
+    systemPrompt,
+    userPrompt,
+    tier: 'smart',
+    maxTokens: 2048,
+    genType: 'ai_enrich',
+  });
+  if (!result.success) throw new Error(result.error || 'LLM call failed');
+  return result.text;
 }
 
 function parseEnrichmentResponse(text: string): EnrichmentSuggestion[] {

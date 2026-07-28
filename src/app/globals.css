@@ -68,51 +68,51 @@
   --color-info-muted: #BFDBFE;
 
   /* Elevation system */
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
-  --shadow-raised: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
-  --shadow-overlay: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
-  --shadow-modal: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.04);
-  --shadow-float: 0 0 0 1px rgb(0 0 0 / 0.03), 0 8px 16px rgb(0 0 0 / 0.08);
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.08);
+  --shadow-raised: 0 1px 3px 0 rgb(0 0 0 / 0.12), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-overlay: 0 10px 15px -3px rgb(0 0 0 / 0.16), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+  --shadow-modal: 0 20px 25px -5px rgb(0 0 0 / 0.2), 0 8px 10px -6px rgb(0 0 0 / 0.08);
+  --shadow-float: 0 0 0 1px rgb(0 0 0 / 0.06), 0 8px 16px rgb(0 0 0 / 0.16);
 }
 
 :root {
   --radius: 0.5rem;
   color-scheme: light;
 
-  /* Core */
-  --background: #FAFAFA;
-  --foreground: #111827;
+  /* Core — Intelligence OS Dark */
+  --background: #0a0c10;
+  --foreground: #e8ecf4;
 
   /* Card */
-  --card: #FFFFFF;
-  --card-foreground: #111827;
+  --card: #141821;
+  --card-foreground: #e8ecf4;
 
   /* Popover */
-  --popover: #FFFFFF;
-  --popover-foreground: #111827;
+  --popover: #1e2433;
+  --popover-foreground: #e8ecf4;
 
   /* Primary — Enterprise Intelligence Blue */
   --primary: #2563EB;
   --primary-foreground: #FFFFFF;
 
   /* Secondary */
-  --secondary: #F1F5F9;
-  --secondary-foreground: #334155;
+  --secondary: #1e2433;
+  --secondary-foreground: #e8ecf4;
 
   /* Muted */
-  --muted: #F3F4F6;
-  --muted-foreground: #6B7280;
+  --muted: #1e2535;
+  --muted-foreground: #8892a8;
 
-  /* Accent — Sophisticated Teal/Sky */
-  --accent: #E0F2FE;
-  --accent-foreground: #0C4A6E;
+  /* Accent — Intelligence Blue for dark theme */
+  --accent: rgba(59,130,246,0.1);
+  --accent-foreground: #93C5FD;
 
   /* Destructive */
-  --destructive: #DC2626;
+  --destructive: #EF4444;
 
   /* Border & Input */
-  --border: #E5E7EB;
-  --input: #E5E7EB;
+  --border: #1e2535;
+  --input: #1e2535;
 
   /* Ring — Enterprise Blue */
   --ring: #2563EB;
@@ -176,7 +176,8 @@
     scroll-behavior: smooth;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    background: #0a0c10;
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -192,11 +193,11 @@
   .tabular-nums { font-variant-numeric: tabular-nums; }
 }
 
-/* ── Card Elevation System ── */
+/* ── Card Elevation System (Dark) ── */
 @layer components {
   .card-rest {
     box-shadow: var(--shadow-xs);
-    border: 1px solid #E5E7EB;
+    border: 1px solid var(--border);
     transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
   .card-rest:hover {
@@ -204,14 +205,14 @@
   }
   .card-interactive {
     box-shadow: var(--shadow-xs);
-    border: 1px solid #E5E7EB;
+    border: 1px solid var(--border);
     transition: box-shadow 0.2s ease, transform 0.15s ease, border-color 0.2s ease;
     cursor: pointer;
   }
   .card-interactive:hover {
     box-shadow: var(--shadow-raised);
     transform: translateY(-1px);
-    border-color: #93C5FD;
+    border-color: var(--ios-border-hover);
   }
   .elevation-overlay { box-shadow: var(--shadow-overlay); }
   .elevation-modal { box-shadow: var(--shadow-modal); }
@@ -265,11 +266,11 @@
   display: none;
 }
 
-/* ── Premium Scrollbar ── */
+/* ── Premium Scrollbar (Dark) ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+::-webkit-scrollbar-thumb { background: #2a3348; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3b4a63; }
 
 /* ── Toast Hierarchy ── */
 [data-sonner-toast][data-type="success"] {
@@ -288,7 +289,7 @@
     transition: background-color 0.15s ease;
   }
   .table-row-hover:hover {
-    background-color: #EFF6FF;
+    background-color: rgba(59,130,246,0.05);
   }
 }
 
@@ -297,25 +298,25 @@
   /* Alternating rows for all data tables */
   [data-slot="table-body"] > tr:nth-child(even),
   tbody > tr:nth-child(even) {
-    background-color: rgba(0, 0, 0, 0.015);
+    background-color: rgba(0, 0, 0, 0.06);
   }
   /* Table header styling */
   [data-slot="table-header"],
   thead th {
-    background-color: #F9FAFB;
+    background-color: var(--ios-bg-elevated);
     font-weight: 600;
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.025em;
-    color: #6B7280;
-    border-bottom: 1px solid #E5E7EB;
+    color: #8892a8;
+    border-bottom: 1px solid var(--ios-border);
   }
   /* Table cell defaults */
   [data-slot="table-cell"],
   tbody td {
-    border-bottom: 1px solid #F3F4F6;
+    border-bottom: 1px solid var(--ios-border);
     font-size: 0.8125rem;
-    color: #374151;
+    color: #e8ecf4;
   }
   /* Remove border from last row */
   tbody > tr:last-child td {
@@ -323,46 +324,46 @@
   }
 }
 
-/* ── Section Container — gives pages visual structure ── */
+/* ── Section Container (Dark) ── */
 @layer components {
   .section-container {
-    background: #FFFFFF;
-    border: 1px solid #E5E7EB;
+    background: var(--ios-bg-card);
+    border: 1px solid var(--ios-border);
     border-radius: 12px;
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.08);
     overflow: hidden;
   }
   .section-container > .section-header,
   .section-container > [class*="flex"][class*="items-center"][class*="justify-between"] {
     padding: 16px 20px;
-    border-bottom: 1px solid #F3F4F6;
+    border-bottom: 1px solid var(--ios-border);
   }
 }
 
-/* ── Stat Card — polished metric display ── */
+/* ── Stat Card (Dark) ── */
 @layer components {
   .stat-card {
-    background: #FFFFFF;
-    border: 1px solid #E5E7EB;
+    background: var(--ios-bg-card);
+    border: 1px solid var(--ios-border);
     border-radius: 12px;
     padding: 16px 20px;
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.08);
     transition: box-shadow 0.2s ease, border-color 0.2s ease;
   }
   .stat-card:hover {
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
-    border-color: #D1D5DB;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.12), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+    border-color: var(--ios-border-hover);
   }
 }
 
-/* ── Filter Bar — toolbar row above tables ── */
+/* ── Filter Bar (Dark) ── */
 @layer components {
   .filter-bar {
-    background: #FFFFFF;
-    border: 1px solid #E5E7EB;
+    background: var(--ios-bg-card);
+    border: 1px solid var(--ios-border);
     border-radius: 12px;
     padding: 12px 16px;
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.08);
   }
 }
 
@@ -510,5 +511,91 @@
   }
   .exec-stat-label {
     @apply text-xs font-medium text-slate-500 uppercase tracking-wider;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   Intelligence OS Design Tokens
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --ios-bg-primary: #0a0c10;
+  --ios-bg-secondary: #0f1219;
+  --ios-bg-card: #141821;
+  --ios-bg-card-hover: #1a1f2b;
+  --ios-bg-elevated: #1e2433;
+  --ios-border: #1e2535;
+  --ios-border-hover: #2a3348;
+  --ios-text-primary: #e8ecf4;
+  --ios-text-secondary: #8892a8;
+  --ios-text-muted: #5a6478;
+  --ios-accent: #3b82f6;
+  --ios-accent-dim: #2563eb;
+  --ios-confidence-high: #10b981;
+  --ios-confidence-medium: #f59e0b;
+  --ios-confidence-low: #ef4444;
+  --ios-signal: #3b82f6;
+  --ios-opportunity: #8b5cf6;
+  --ios-intelligence: #06b6d4;
+}
+
+.ios-background {
+  background: var(--ios-bg-primary);
+  color: var(--ios-text-primary);
+}
+
+@layer components {
+  .ios-card {
+    background: var(--ios-bg-card);
+    border: 1px solid var(--ios-border);
+    border-radius: 12px;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  .ios-card:hover {
+    border-color: var(--ios-border-hover);
+    background: var(--ios-bg-card-hover);
+  }
+  .ios-card-interactive {
+    background: var(--ios-bg-card);
+    border: 1px solid var(--ios-border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+  }
+  .ios-card-interactive:hover {
+    border-color: var(--ios-accent);
+    background: var(--ios-bg-card-hover);
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes intelPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+.intel-pulse {
+  animation: intelPulse 2s ease-in-out infinite;
+}
+
+@keyframes intelReveal {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.intel-reveal {
+  animation: intelReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@layer components {
+  .confidence-bar {
+    height: 3px;
+    border-radius: 2px;
+    background: var(--ios-border);
+    overflow: hidden;
+  }
+  .confidence-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   }
 }

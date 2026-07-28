@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { templates, generateId } from './store';
+import { templates, generateId } from '@/lib/prompt-templates-store';
 
-/* ═══════════════════════════════════════════════════════════════
-   GET — List all templates (optionally filtered by category)
-   ═══════════════════════════════════════════════════════════════ */
+const now = () => new Date().toISOString();
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -17,10 +15,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(result);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   POST — Create a new template
-   ═══════════════════════════════════════════════════════════════ */
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -32,7 +26,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const now = () => new Date().toISOString();
     const newTemplate = {
       id: generateId(),
       name: body.name.trim(),

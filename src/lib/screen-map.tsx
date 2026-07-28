@@ -17,6 +17,7 @@ const RevenueIntelligenceScreen = lazy(() => import('@/components/screens/revenu
 const SignalIntelligenceScreen = lazy(() => import('@/components/screens/signal-intelligence-screen'));
 const AccountIntelligenceScreen = lazy(() => import('@/components/screens/account-intelligence-screen'));
 const ConversationPlannerScreen = lazy(() => import('@/components/screens/conversation-planner-screen'));
+const ActionCenterScreen = lazy(() => import('@/components/screens/action-center-screen'));
 const CompaniesScreen = lazy(() => import('@/components/screens/companies-screen'));
 const ContactsScreen = lazy(() => import('@/components/screens/contacts-screen'));
 const OpportunitiesScreen = lazy(() => import('@/components/screens/opportunities-screen'));
@@ -101,6 +102,7 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   // AI ENGINES
   'account-intelligence': AccountIntelligenceScreen,
   'conversation-planner': ConversationPlannerScreen,
+  'action-center': ActionCenterScreen,
   // ACCOUNTS
   companies: CompaniesScreen,
   contacts: ContactsScreen,

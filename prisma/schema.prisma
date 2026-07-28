@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider  = "sqlite"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 // ── Core Entities (per SDD Section 5) ──
@@ -135,6 +134,7 @@ model Company {
   strategicInsights        StrategicInsight[]
   engagementStrategies     AIEngagementStrategy[]
   aiInsights              AIInsight[]
+  actionArtifacts          ActionArtifact[]
 
   @@index([domain])
   @@index([normalizedName])
@@ -1880,6 +1880,70 @@ model AIInsight {
   @@index([impactScore])
   @@index([createdAt(sort: Desc)])
   @@index([companyId, type, status])
+  @@index([expiresAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  SPRINT 3: ACTION GENERATION — Intelligence → Outcomes
+// ═══════════════════════════════════════════════════════════════════════
+//
+// ActionArtifact stores AI-generated action recommendations produced by
+// the Sprint 3 action engine. Each record represents one of six action types:
+//   1. meeting_prep       — Executive summary + talking points + discovery questions
+//   2. executive_outreach  — Who to approach + why + personalized messaging
+//   3. account_strategy    — Business priorities + solution alignment + risks
+//   4. stakeholder_map     — Decision makers + influencers + relationship intel
+//   5. opportunity_qual    — Buying signals + timing + strategic fit + confidence
+//   6. next_best_action    — THE answer: "What should I do next and why?"
+//
+// Every recommendation is traceable to evidence (signal IDs, evidence IDs,
+// contact IDs). AI interprets existing data — it never invents.
+
+model ActionArtifact {
+  id                    String   @id @default(cuid())
+  companyId             String
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Which of the 6 action types this artifact represents
+  actionType            String   // meeting_prep | executive_outreach | account_strategy | stakeholder_map | opportunity_qualification | next_best_action
+
+  // Executive summary — 2-3 sentence TL;DR of the action
+  summary               String
+
+  // Full structured output — JSON with action-type-specific schema
+  // meeting_prep:       { executiveSummary, keyChanges, talkingPoints, discoveryQuestions, icebreakers }
+  // executive_outreach: { targets: [{ name, title, reason, approach, messaging }] }
+  // account_strategy:   { priorities, solutionAlignment, risks, blockers, opportunityAreas }
+  // stakeholder_map:    { decisionMakers, influencers, champions, relationships }
+  // opportunity_qual:   { buyingSignals, timing, strategicFit, confidenceScore, verdict }
+  // next_best_action:   { action, reason, urgency, effort, expectedOutcome, evidenceLinks }
+  content               String   // JSON string
+
+  // Priority scoring
+  priorityScore         Int      @default(0)  // 0-100
+  confidence            Float    @default(0)  // 0-1
+
+  // Evidence traceability — every claim links back to source data
+  // JSON: [{ type: "signal"|"evidence"|"contact"|"insight", id: string, snippet: string }]
+  evidenceReferences    String   @default("[]")
+
+  // How many source signals/artifacts fed into this generation
+  sourceSignalCount     Int      @default(0)
+  sourceContactCount    Int      @default(0)
+
+  // Lifecycle
+  status                String   @default("draft") // draft | approved | executed | expired | superseded
+  expiresAt             DateTime?
+  generatedBy           String   @default("sprint3_engine")
+  generatedAt           DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([actionType])
+  @@index([companyId, actionType])
+  @@index([priorityScore(sort: Desc)])
+  @@index([status])
+  @@index([generatedAt(sort: Desc)])
   @@index([expiresAt])
 }
 

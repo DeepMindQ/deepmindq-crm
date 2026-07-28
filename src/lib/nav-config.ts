@@ -12,6 +12,7 @@ import {
   Upload, BarChart3, Brain, Activity,
   Settings, ScrollText, Shield, Copy,
   Cpu, Crosshair, MessageSquareText,
+  Zap,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -47,6 +48,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: 'account-intelligence', label: 'Account Intelligence', icon: Crosshair },
       { key: 'conversation-planner', label: 'Conversation Planner', icon: MessageSquareText },
+      { key: 'action-center', label: 'Action Center', icon: Zap },
     ],
   },
 

@@ -46,8 +46,8 @@ export function classifySignalType(text: string): string {
   if (/\$[\d,.]+(?:m|b|illion|illion)/i.test(text) || /\bfunding\b|\bseries [a-z]\b|\braised\b|\brevenue\b/i.test(lower)) return 'funding'
   if (/\bhiring\b|\brecruiting\b|\bjob(s| posting)?\b/i.test(lower)) return 'hiring'
   if (/\bceo\b|\bcto\b|\bcio\b|\bcfo\b|\bvp\b|\bleadership\b|\bdeparted\b|\bstepped down\b/i.test(lower)) return 'leadership'
-  if (/\bcloud\b|\bmigrat\w*\b|\baws\b|\bgcp\b|\bazure\b|\bkubernetes\b|\bdocker\b/i.test(lower)) return 'tech_change'
   if (/\bpartner\w*\b|\balliance\b|\bjoint venture\b/i.test(lower)) return 'partnership'
+  if (/\bcloud\b|\bmigrat\w*\b|\baws\b|\bgcp\b|\bazure\b|\bkubernetes\b|\bdocker\b/i.test(lower)) return 'tech_change'
   if (/\bexpanding\b|\bexpansion\b|\bgrowth\b/i.test(lower)) return 'expansion'
   return 'news'
 }

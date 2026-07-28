@@ -154,19 +154,15 @@ export async function tavilyAIAnswer(query: string): Promise<string> {
   if (!searchProvider) return ''
 
   try {
-    const response = await fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: searchProvider.apiKey,
-        query,
-        max_results: 5,
-        search_depth: 'advanced',
-        include_answer: true,
-      }),
+    const response = await tavilyFetchWithBackoff({
+      api_key: searchProvider.apiKey,
+      query,
+      max_results: 5,
+      search_depth: 'advanced',
+      include_answer: true,
     })
 
-    if (!response.ok) return ''
+    if (!response || !response.ok) return ''
 
     const data = await response.json()
     return data.answer || ''
@@ -189,6 +185,47 @@ interface TavilyResult {
   answer?: string
 }
 
+// ---------------------------------------------------------------------------
+// Retry with exponential backoff — absorbs transient 429s from Tavily
+// ---------------------------------------------------------------------------
+
+const TAVILY_MAX_RETRIES = 3
+const TAVILY_BASE_DELAY_MS = 1000 // 1s → 2s → 4s
+
+async function tavilyFetchWithBackoff(body: Record<string, unknown>): Promise<Response | null> {
+  let lastError: Error | null = null
+
+  for (let attempt = 0; attempt < TAVILY_MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+
+      if (response.ok) return response
+
+      // Only retry on 429 (rate limit) or 5xx (server error)
+      if (response.status === 429 || response.status >= 500) {
+        const delay = TAVILY_BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 200
+        console.warn(`[tavily] ${response.status} on attempt ${attempt + 1}/${TAVILY_MAX_RETRIES}, retrying in ${Math.round(delay)}ms`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+        continue
+      }
+
+      // 4xx (not 429) — don't retry, caller handles
+      return response
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err))
+      const delay = TAVILY_BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 200
+      console.warn(`[tavily] network error on attempt ${attempt + 1}/${TAVILY_MAX_RETRIES}: ${lastError.message}, retrying in ${Math.round(delay)}ms`)
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
+
+  return null
+}
+
 /**
  * Invoke Tavily web search and return normalized results.
  * Drop-in replacement for the old Z.AI web_search function.
@@ -201,18 +238,18 @@ export async function webSearch(query: string, num = 10): Promise<WebSearchResul
   }
 
   try {
-    const response = await fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: searchProvider.apiKey,
-        query,
-        max_results: Math.min(num, 10),
-        search_depth: 'basic',
-        include_answer: false,
-      }),
+    const response = await tavilyFetchWithBackoff({
+      api_key: searchProvider.apiKey,
+      query,
+      max_results: Math.min(num, 10),
+      search_depth: 'basic',
+      include_answer: false,
     })
 
+    if (!response) {
+      console.error('[webSearch] Tavily unavailable after retries')
+      return []
+    }
     if (!response.ok) {
       const errorText = await response.text()
       console.error('[webSearch] Tavily API error:', response.status, errorText)

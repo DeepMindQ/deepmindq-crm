@@ -92,11 +92,10 @@ export async function logAIUsage(
         modelUsed: record.model,
         promptVersion: null,
         outputSummary: `${record.feature}: ${record.status} (${record.totalTokens} tokens)`,
-        evidenceIdsUsed: '[]',
-        signalIdsUsed: '[]',
-        capabilityAssetIdsUsed: '[]',
+        evidenceIdsUsed: [],
+        signalIdsUsed: [],
+        capabilityAssetIdsUsed: [],
         governancePassed: record.status === 'success',
-      } as any,
     });
 
     console.log('[ai-copilot:usage-tracker] Usage record persisted successfully');
@@ -132,8 +131,8 @@ export async function getUsageStats(days: number = 30): Promise<{
     const records = await db.aIGenerationAudit.findMany({
       where: {
         generatedAt: { gte: since },
-      } as any,
-      orderBy: { generatedAt: 'asc' } as any,
+      },
+      orderBy: { generatedAt: 'asc' },
     });
 
     // Aggregate totals
@@ -144,7 +143,7 @@ export async function getUsageStats(days: number = 30): Promise<{
     const byModel: Record<string, { calls: number; cost: number; tokens: number }> = {};
     const dailyMap = new Map<string, { calls: number; cost: number }>();
 
-    for (const record of records as any[]) {
+    for (const record of records) {
       totalCalls++;
       totalCost += record.estimatedCost ?? 0;
       totalTokens += record.totalTokens ?? 0;

@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
  * 3. Update intelligence freshness scores
  * 4. Run evidence lifecycle management
  * 5. Propagate cross-account signals
+ * 6. Run scheduled intelligence connectors
  *
  * Vercel Cron config is in vercel.json (crons array).
  * Set CRON_SECRET env var in Vercel to secure this endpoint.
@@ -64,6 +65,16 @@ export async function GET(request: Request) {
     } catch (err) {
       console.warn('[cron] Cross-account propagation failed:', err);
       results.crossAccountPropagation = { error: 'Propagation not available' };
+    }
+
+    // Step 5: Run scheduled intelligence connectors
+    try {
+      const { runAllDueConnectors } = await import('@/lib/intelligence-sources/connector-scheduler');
+      const connectorResult = await runAllDueConnectors();
+      results.connectors = connectorResult;
+    } catch (err) {
+      console.warn('[cron] Connector scheduling failed:', err);
+      results.connectors = { error: 'Connector scheduler not available' };
     }
 
     const duration = Date.now() - startTime;

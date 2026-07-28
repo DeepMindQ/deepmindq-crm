@@ -346,7 +346,16 @@ export default function RevenueIntelligenceBriefScreen({
     }, 4000);
 
     try {
-      const res = await fetch(`/api/ai/account-brief?companyId=${selectedCompany.id}`);
+      const res = await fetch(`/api/engines/brief`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: selectedCompany.id,
+          briefType: 'account_brief',
+          depth: 'standard',
+          audience: 'sales',
+        }),
+      });
       if (res.ok) {
         const data = await res.json();
         const briefData = data.data ?? data;

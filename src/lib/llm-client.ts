@@ -578,7 +578,7 @@ async function trackUsage(
   try {
     const { logAIUsage } = await import('@/lib/ai-copilot/usage-tracker')
     await logAIUsage({
-      feature: feature as any,
+      feature: feature,
       model: 'unknown',
       companyId: companyId ?? null,
       contactId: contactId ?? null,
@@ -588,7 +588,7 @@ async function trackUsage(
       estimatedCost: 0,
       status: errorMessage ? 'failed' : 'success',
       errorMessage: errorMessage ?? undefined,
-    } as any)
+    })
   } catch {
     // Usage tracking is best-effort — never throw
   }

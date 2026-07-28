@@ -13,10 +13,7 @@
 import { db } from '@/lib/db';
 import { detectSignalsForCompany, getSignalsForCompany } from './signal-extraction';
 import { calculateAccountScore } from './account-scoring';
-import {
-  generateExecutiveSummary,
-  generateEngagementApproach,
-} from '@/lib/llm-client';
+import { complete } from '@/lib/engines/model-router';
 import { ALL_CATEGORIES, FRESHNESS_CONFIG } from '@/lib/intelligence-sources';
 import { getCompanyKnowledge } from '@/lib/intelligence-sources/knowledge-fabric';
 
@@ -334,7 +331,11 @@ export async function generateBrief(
   });
 
   // Executive summary
-  let summary = await generateExecutiveSummary(structuredContext);
+  let summary: string;
+  try {
+    const summaryResult = await complete({ systemPrompt: 'You are an executive intelligence analyst...', userPrompt: structuredContext, tier: 'smart', feature: 'account_brief_summary' });
+    summary = summaryResult.success ? summaryResult.text || '' : '';
+  } catch { summary = ''; }
   if (!summary || summary.trim().length === 0) {
     summary = buildFallbackSummary(
       company.rawName,
@@ -347,9 +348,12 @@ export async function generateBrief(
   }
 
   // Engagement approach
-  let recommendedEngagement = await generateEngagementApproach(
-    structuredContext,
-  );
+  let recommendedEngagement: string;
+  try {
+    const engageResult = await complete({ systemPrompt: 'You are a B2B sales strategist...', userPrompt: structuredContext, tier: 'fast', feature: 'account_brief_engagement' });
+    recommendedEngagement = engageResult.success ? engageResult.text || '' : '';
+  } catch { recommendedEngagement = ''; }
+  // Fallback to template
   if (!recommendedEngagement || recommendedEngagement.trim().length === 0) {
     const topSignalTitle =
       keySignals.length > 0

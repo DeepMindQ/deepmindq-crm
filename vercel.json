@@ -1,8 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": [
-    "bom1"
-  ],
+  "regions": ["bom1"],
   "env": {
     "NEXT_TELEMETRY_DISABLED": "1"
   },
@@ -11,6 +9,12 @@
     "autoAlias": true,
     "silent": true
   },
+  "crons": [
+    {
+      "path": "/api/cron/job-processor",
+      "schedule": "0 6 * * *"
+    }
+  ],
   "services": {
     "deepmindq-crm": {
       "root": ".",

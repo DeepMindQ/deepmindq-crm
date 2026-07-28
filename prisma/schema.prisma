@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider  = "sqlite"
+  provider  = "postgresql"
   url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // ── Core Entities (per SDD Section 5) ──
@@ -2530,4 +2531,140 @@ model AICallLog {
   @@index([provider])
   @@index([createdAt])
   @@index([companyId, createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Phase 9: Production Intelligence Layer — New Models
+// ═══════════════════════════════════════════════════════════════════════
+
+// DB-backed email templates (replaces filesystem custom-templates.json)
+model CustomEmailTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  subject     String
+  body        String
+  category    String   @default("custom")
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// AI usage tracking — persist cost estimates from ai-caller
+model AIUsageLog {
+  id              String   @id @default(cuid())
+  feature         String   // meeting-prep, nba, signal-classification, etc.
+  provider        String   // nvidia, fireworks, groq, gemini
+  model           String
+  promptTokens    Int      @default(0)
+  completionTokens Int     @default(0)
+  totalTokens     Int      @default(0)
+  estimatedCost   Float    @default(0)
+  durationMs      Int      @default(0)
+  companyId       String?
+  userId          String?
+  status          String   @default("success") // success, failed, degraded
+  createdAt       DateTime @default(now())
+
+  @@index([feature])
+  @@index([provider])
+  @@index([companyId])
+  @@index([createdAt])
+}
+
+// Intelligence action history — version tracking for recommendations
+model IntelligenceActionHistory {
+  id            String   @id @default(cuid())
+  companyId     String
+  actionType    String   // meeting_prep, next_best_action, account_strategy, etc.
+  summary       String   // AI-generated summary
+  content       String   // Full JSON content of the action
+  confidence    Float    @default(0)
+  signalCount   Int      @default(0)
+  contactCount  Int      @default(0)
+  evidenceIds   String   // JSON array of evidence/signal IDs referenced
+  supersededAt  DateTime? // When a newer action replaced this one
+  createdAt     DateTime @default(now())
+
+  @@index([companyId, actionType])
+  @@index([companyId, createdAt])
+  @@index([createdAt])
+}
+
+// Intelligence freshness tracking
+model CompanyIntelligenceFreshness {
+  id               String   @id @default(cuid())
+  companyId        String   @unique
+  lastRefreshAt    DateTime @default(now())
+  lastSignalCount  Int      @default(0)
+  lastEvidenceCount Int     @default(0)
+  freshnessScore   Float    @default(1.0) // 1.0 = fresh, decays over time
+  degradationLevel String   @default("fresh") // fresh, aging, stale
+  nextRefreshAt    DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([freshnessScore])
+  @@index([degradationLevel])
+  @@index([nextRefreshAt])
+}
+
+// LinkedIn/People profile enrichment cache
+model PeopleProfileEnrichment {
+  id               String   @id @default(cuid())
+  contactId        String   @unique
+  linkedinUrl      String?
+  headline         String?
+  currentCompany   String?
+  currentTitle     String?
+  location         String?
+  profileSummary   String?  // AI-generated summary of profile
+  skills           String?  // JSON array of skills
+  experienceHighlights String? // JSON array of key experiences
+  sourceProvider   String?  // apollo, proxycurl, manual
+  rawProfileData   String?  // Full raw response for re-processing
+  enrichedAt       DateTime @default(now())
+  confidenceScore  Float    @default(0)
+  status           String   @default("pending") // pending, enriched, failed, outdated
+
+  @@index([status])
+  @@index([enrichedAt])
+}
+
+// Website change detection — page snapshots
+model WebsiteSnapshot {
+  id          String   @id @default(cuid())
+  companyId   String
+  pageUrl     String
+  pageType    String   @default("homepage") // homepage, pricing, careers, about, blog
+  contentHash String   // SHA-256 of page content for change detection
+  contentText String?  // Extracted text content
+  pageTitle   String?
+  detectedChanges String? // JSON array of detected changes
+  status      String   @default("active") // active, archived
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, pageType])
+  @@index([contentHash])
+  @@index([createdAt])
+}
+
+// Competitive intelligence signals
+model CompetitiveSignal {
+  id              String   @id @default(cuid())
+  competitorName  String
+  eventTitle      String
+  eventType       String  // product_launch, pricing_change, partnership, acquisition, hiring, leadership
+  eventSummary    String
+  sourceUrl       String?
+  sourceName      String?
+  detectedAt      DateTime @default(now())
+  impactAnalysis  String? // AI analysis of which accounts this affects
+  affectedAccounts String? // JSON array of company IDs that should see this signal
+  status          String   @default("active") // active, processed, dismissed
+  createdAt       DateTime @default(now())
+
+  @@index([competitorName])
+  @@index([eventType])
+  @@index([status])
+  @@index([createdAt])
 }

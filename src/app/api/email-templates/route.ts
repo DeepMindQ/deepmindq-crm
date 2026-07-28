@@ -1,13 +1,10 @@
 import { NextRequest } from 'next/server'
-import { readFile, writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { createEmailTemplateSchema } from '@/lib/validations'
+import { db } from '@/lib/db'
 import type { EmailTemplate } from '@/lib/types'
 
-// ---------------------------------------------------------------------------
 // Built-in templates (read-only, always returned)
-// ---------------------------------------------------------------------------
 const BUILTIN_TEMPLATES: EmailTemplate[] = [
   {
     id: 'builtin-cold-outreach',
@@ -65,89 +62,39 @@ const BUILTIN_TEMPLATES: EmailTemplate[] = [
   },
 ]
 
-// ---------------------------------------------------------------------------
-// Custom templates file storage
-// ---------------------------------------------------------------------------
-const TEMPLATES_FILE = join(process.cwd(), 'db', 'custom-templates.json')
-
-interface CustomTemplateRecord {
-  id: string
-  name: string
-  subject: string
-  body: string
-  category: string
-  description: string | null
-  createdAt: string
-  updatedAt: string
+function dbToTemplate(r: { id: string; name: string; subject: string; body: string; category: string; description: string | null }): EmailTemplate {
+  return { id: r.id, name: r.name, subject: r.subject, body: r.body, category: r.category, description: r.description, isBuiltIn: false }
 }
 
-async function readCustomTemplates(): Promise<CustomTemplateRecord[]> {
-  try {
-    const raw = await readFile(TEMPLATES_FILE, 'utf-8')
-    return JSON.parse(raw) as CustomTemplateRecord[]
-  } catch {
-    return []
-  }
-}
-
-async function writeCustomTemplates(templates: CustomTemplateRecord[]): Promise<void> {
-  const dir = join(process.cwd(), 'db')
-  await mkdir(dir, { recursive: true })
-  await writeFile(TEMPLATES_FILE, JSON.stringify(templates, null, 2), 'utf-8')
-}
-
-function customToTemplate(r: CustomTemplateRecord): EmailTemplate {
-  return {
-    id: r.id,
-    name: r.name,
-    subject: r.subject,
-    body: r.body,
-    category: r.category,
-    description: r.description,
-    isBuiltIn: false,
-  }
-}
-
-// ---------------------------------------------------------------------------
-// GET /api/email-templates — List all templates (built-in + custom)
-// ---------------------------------------------------------------------------
+// GET /api/email-templates
 export async function GET() {
   try {
-    const customs = await readCustomTemplates()
-    const all: EmailTemplate[] = [
-      ...BUILTIN_TEMPLATES,
-      ...customs.map(customToTemplate),
-    ]
+    const customs = await db.customEmailTemplate.findMany({ orderBy: { createdAt: 'desc' } })
+    const all: EmailTemplate[] = [...BUILTIN_TEMPLATES, ...customs.map(dbToTemplate)]
     return apiSuccess({ templates: all, total: all.length })
   } catch {
     return apiError('Failed to fetch templates')
   }
 }
 
-// ---------------------------------------------------------------------------
-// POST /api/email-templates — Create a custom template
-// ---------------------------------------------------------------------------
+// POST /api/email-templates
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const data = validateBody(createEmailTemplateSchema, body)
     if (data instanceof Response) return data
 
-    const customs = await readCustomTemplates()
-    const newTemplate: CustomTemplateRecord = {
-      id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: data.name,
-      subject: data.subject,
-      body: data.body,
-      category: data.category || 'custom',
-      description: data.description || null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-    customs.push(newTemplate)
-    await writeCustomTemplates(customs)
+    const created = await db.customEmailTemplate.create({
+      data: {
+        name: data.name,
+        subject: data.subject,
+        body: data.body,
+        category: data.category || 'custom',
+        description: data.description || null,
+      },
+    })
 
-    return apiSuccess(customToTemplate(newTemplate), 201)
+    return apiSuccess(dbToTemplate(created), 201)
   } catch {
     return apiError('Failed to create template')
   }

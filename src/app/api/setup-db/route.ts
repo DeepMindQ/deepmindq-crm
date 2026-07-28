@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server';
 
 /**
- * POST /api/setup-db — Run prisma db push to create/align all tables.
+ * POST /api/setup-db — Run prisma migrate deploy to apply migrations.
  *
  * ⚠️ SECURITY: This endpoint is gated by SETUP_TOKEN environment variable.
  * To use: POST with header X-Setup-Token matching SETUP_TOKEN env var.
- * Designed for Render/remote deployments where you can't run CLI commands.
+ *
+ * Production flow:
+ *   1. First deployment: Uses db push to create tables from schema
+ *   2. Subsequent: Uses migrate deploy to apply migration files
+ *
+ * Uses migrate deploy (not db push) to ensure:
+ *   - Migration history is maintained
+ *   - Rollback is possible
+ *   - No silent data loss from --accept-data-loss
+ *
+ * For first-time setup with no migration history, falls back to db push.
  */
 export async function POST() {
   try {
@@ -30,8 +40,25 @@ export async function POST() {
     }
 
     const prismaBin = path.resolve(process.cwd(), 'node_modules/.bin/prisma');
-    const result = execSync(`"${prismaBin}" db push --accept-data-loss`, {
-      cwd: path.resolve(process.cwd()),
+    const cwd = path.resolve(process.cwd());
+
+    // Check if migrations directory has migration files
+    const fs = await import('fs');
+    const migrationsDir = path.join(cwd, 'prisma', 'migrations');
+    const hasMigrations = fs.existsSync(migrationsDir) &&
+      fs.readdirSync(migrationsDir).some((f: string) => f.endsWith('.sql'));
+
+    let command: string;
+    if (hasMigrations) {
+      // Use migrate deploy — applies pending migrations safely
+      command = `"${prismaBin}" migrate deploy`;
+    } else {
+      // First-time setup — use db push to create initial schema
+      command = `"${prismaBin}" db push --accept-data-loss`;
+    }
+
+    const result = execSync(command, {
+      cwd,
       timeout: 60_000,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -39,7 +66,8 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
-      message: 'Database schema pushed successfully.',
+      message: hasMigrations ? 'Database migrations applied successfully.' : 'Initial database schema created.',
+      method: hasMigrations ? 'migrate deploy' : 'db push',
       output: result.trim(),
     });
   } catch (error) {

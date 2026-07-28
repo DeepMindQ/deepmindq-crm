@@ -15,14 +15,17 @@ export const CSRF_TOKEN_HEADER = 'x-csrf-token';
 
 // ── Public Route Patterns (exempt from auth) ────────────
 // These path prefixes are always accessible without authentication.
+// NOTE: /api/setup-db is now token-gated (Phase 0).
+// NOTE: /api/seed should NOT be public — seed data is a destructive operation.
+// NOTE: /api/intelligence/* requires auth — intelligence is premium data.
 export const PUBLIC_PATH_PREFIXES: string[] = [
   '/api/auth/',
-  '/api/setup-db',         // DB schema setup (initial deployment)
-  '/api/webhooks/',       // Incoming webhooks (Stripe, etc.)
-  '/api/seed',            // Seed data
-  '/api/intelligence/',    // Sprint 1/2/3 intelligence pipeline (dev)
+  '/api/webhooks/',
+  '/api/tracking/',
+  '/api/unsubscribe',
+  '/api/cron/',
   '/login',
-  '/demo',                // Investor demo landing page
+  '/demo',
   '/favicon.ico',
   '/_next/static',
   '/_next/image',

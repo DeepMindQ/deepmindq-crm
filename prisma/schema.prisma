@@ -457,7 +457,7 @@ model EmailSequence {
   isActive    Boolean @default(true)
 
   // Phase 4 C1: Signal-driven sequence intelligence
-  companyId                String? // Which company this sequence targets
+  company                Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   triggerSignalId          String? // Which buying signal triggered this
   triggerCapabilityMatchId String? // Which capability match drove the strategy
   triggerReason            String? // AI-generated rationale: why this company, why now, why this capability

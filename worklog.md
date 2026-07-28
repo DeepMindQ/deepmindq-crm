@@ -321,3 +321,28 @@ Stage Summary:
 - Updated: alignment/route.ts (v2), company-workspace.tsx (full rewrite)
 - Phase B ready: UI consumes Intelligence Objects, source can evolve without redesign
 - Pushed to GitHub: f2d2af8
+
+---
+Task ID: 1
+Agent: main
+Task: Gold Standard Seed + 6-Dimension Microsoft Validation
+
+Work Log:
+- Read and analyzed existing gold-standard seed route (had schema mismatches)
+- Created standalone seed script (scripts/seed-gold-standard-direct.ts) matching actual Prisma schema
+- Fixed multiple schema issues: no size/stage fields in Company, no fullName/department in Contact, no title in Evidence, no description in CapabilityAsset (uses summary), Contact requires batch relation
+- Successfully seeded Microsoft Corporation with: 11 signals (3 tech, 3 biz, 3 ext, 2 rel), 7 contacts (3 DM, 2 INF, 2 TM), 8 capabilities, 8 evidence entries, research card with 18 tech stack items
+- Ran 6-dimension validation (scripts/validate-microsoft.ts)
+- Committed and pushed all changes
+
+Stage Summary:
+- Gold Standard seed: COMPLETE — Microsoft fully seeded in Neon PostgreSQL
+- 6-Dimension Validation: COMPLETE
+  - Dim 1 (Exec Understanding): PASS — top signals by confidence, business context, 11 signals + 8 evidence + 7 contacts
+  - Dim 2 (Story Quality): PASS — all 11/11 signals have source URL and date, 8 evidence backing
+  - Dim 3 (Evidence Trust): PASS — 6 premium + 2 standard sources, all with confidence scores, dates, snippets, URLs
+  - Dim 4 (Intelligence Density): PASS — 19 capability matches, Signal→Confidence→Evidence→Action pattern
+  - Dim 5 (Exec Brief Test): PASS — 92/100 score, 3 decision makers identified, Scott Guthrie top DM
+  - Dim 6 (Gap ID): 8 honest gaps identified (no live feeds, keyword matching, synthetic dates, no freshness model, template reasoning, no cross-company, missing enrichment, no competitive intel)
+- Key files: scripts/seed-gold-standard-direct.ts, scripts/validate-microsoft.ts
+- Next: Fix gold-standard API route schema, then Phase 2 (10-company validation)

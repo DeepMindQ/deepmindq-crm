@@ -81,15 +81,26 @@ type CompanySizeTier = 'enterprise' | 'mid_market' | 'default';
 
 function classifyCompanySize(sizeRange: string | null | undefined): CompanySizeTier {
   if (!sizeRange) return 'default';
-  const s = sizeRange.toLowerCase();
-  // Enterprise patterns
-  if (s.includes('10000') || s.includes('10,000') || s.includes('10001') || s.includes('10,001') ||
-      s.includes('50000') || s.includes('50,000') || s === '10000+' || s === '50000+') {
-    return 'enterprise';
+  const s = sizeRange.toLowerCase().trim();
+  const n = s.replace(/,/g, ''); // normalize: remove commas
+
+  // Enterprise: 5001+ employees
+  const bigNum = n.match(/(\d{4,})/);
+  if (bigNum) {
+    const num = parseInt(bigNum[1], 10);
+    if (num >= 5001) return 'enterprise';
   }
-  // Mid-market patterns
-  if (s.includes('200') || s.includes('500') || s.includes('1000') || s.includes('2,000') ||
-      s === '200-500' || s === '500-1000' || s === '1000-2000' || s === '200-2000') {
+  if (s.includes('enterprise') || s === '10000+' || s === '50000+') return 'enterprise';
+
+  // Mid-market: 200–5000 employees
+  if (/\d{3,4}/.test(n)) {
+    const num = parseInt(n.match(/(\d{3,4})/)?.[1] || '0', 10);
+    if (num >= 200 && num <= 5000) return 'mid_market';
+  }
+  if (s.includes('200') || s.includes('500') || s.includes('1,001') || s.includes('1001') ||
+      s.includes('5,000') || s.includes('5000') || s.includes('2,000') || s.includes('2000') ||
+      s.includes('1000') || s === '200-500' || s === '500-1000' || s === '1000-2000' ||
+      s === '200-2000' || s === '1,001-5,000') {
     return 'mid_market';
   }
   return 'default';
@@ -144,6 +155,11 @@ function buildMidMarketQueries(companyName: string, domain?: string | null): str
 
   // Query 5: Partnerships and growth signals
   queries.push(`${name} partnership OR integrates with OR collaborates OR "growth strategy"`);
+
+  // Query 6: Direct careers page (mid-market critical — zero media coverage)
+  if (domain) {
+    queries.push(`site:${domain} careers jobs openings`);
+  }
 
   return queries;
 }
@@ -354,9 +370,21 @@ export async function collectIntelligenceForCompany(
 
     // Build size-adaptive queries
     const queries = buildSearchQueries(company.rawName, company.domain, company.sizeRange);
-    const searchBatches = await Promise.all(
-      queries.map(q => searchProvider.search(q, maxResultsPerQuery))
-    );
+
+    // Execute sequentially with 2s stagger to avoid rate limiting (429)
+    const searchBatches: RawSearchResult[][] = [];
+    for (let i = 0; i < queries.length; i++) {
+      try {
+        const results = await searchProvider.search(queries[i], maxResultsPerQuery);
+        searchBatches.push(results);
+        if (i < queries.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } catch (err) {
+        console.error(`[intel-collector] Query ${i + 1}/${queries.length} failed:`, err);
+        searchBatches.push([]);
+      }
+    }
 
     // Deduplicate by URL
     const seenUrls = new Set<string>();

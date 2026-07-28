@@ -34,3 +34,18 @@ export { collectIntelligenceForCompany, collectIntelligenceBatch } from './exter
 export type { IntelligenceCollectionResult, SearchResult, SearchProvider, CollectionOptions } from './external-intelligence-collector';
 export { classifyEvidence, batchClassifyEvidence, buildReasoningChain, scoreSourceReliability } from './evidence-classifier';
 export type { ClassifiedSignal, RawEvidenceInput } from './evidence-classifier';
+
+// Phase 2B: Cross-Signal Correlation & AI Evidence Engine
+export { detectCorrelations } from './cross-signal-correlation';
+export type { CorrelationInsight, CorrelationPattern } from './cross-signal-correlation';
+export { classifyEvidenceWithAI, batchClassifyEvidenceWithAI, classifyEvidenceRule } from './ai-evidence-engine';
+
+// Phase 2C: Predictive Intelligence, Learning Loop, Cross-Account & Monitoring
+export { generatePredictions } from './predictive-intelligence';
+export type { IntelligencePrediction, PredictionType } from './predictive-intelligence';
+export { recordSignalFeedback, computeLearningInsights } from './learning-loop';
+export type { SignalFeedback, LearningInsight, FeedbackType } from './learning-loop';
+export { detectCrossAccountPatterns } from './cross-account-intelligence';
+export type { CrossAccountInsight, CrossAccountPattern } from './cross-account-intelligence';
+export { runMonitoringCheck, runMonitoringBatch } from './autonomous-monitor';
+export type { IntelligenceAlert, AlertSeverity, AlertType } from './autonomous-monitor';

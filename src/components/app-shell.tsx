@@ -359,7 +359,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#0a0c10]">
       <Sidebar />
       <div
         className={`

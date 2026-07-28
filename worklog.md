@@ -55,6 +55,30 @@ Stage Summary:
   - No backend changes needed — consumes existing Intelligence Object contract
 - Build: Clean compilation with `next build`
 
+---
+Task ID: 3
+Agent: Main Agent
+Task: Phase 1A — Close Experience Gaps + Phase 1B — Platform Visual Language
+
+Work Log:
+- Phase 1A: Added 4 experience gaps to Company Workspace
+  - Signal Categorization: Created groupSignalsByCategory() helper + SIGNAL_GROUPS config (Technology/Business/External). Signals render grouped with category headers showing intelligence summaries.
+  - Technology Intelligence Section: New section rendering intelligence.technology data — digital maturity assessment, known tech as business narrative, tech change signals as Intelligence Surfaces.
+  - Evidence Library: New section collecting ALL evidence across ALL intelligence objects into chronological timeline grouped by month.
+  - Stakeholder Intelligence Enhancement (API): Enhanced composeStakeholderObjects() with title-based classification, signal-aware reasoning, engagement status, recommended actions.
+  - Animation Audit: Already applied (boxShadow: none, no gaming effects).
+- Phase 1B: Applied dark Intelligence OS visual language to entire platform
+  - globals.css: Updated :root variables to dark, elevation system, component classes, table styles, scrollbar
+  - app-shell.tsx: Dark main content background
+- Build: Clean compilation
+
+Stage Summary:
+Files changed:
+- company-workspace.tsx — Added signal categorization, technology section, evidence library
+- alignment/route.ts — Enhanced stakeholder composition
+- globals.css — Full dark theme conversion
+- app-shell.tsx — Dark content background
+
 - MULTI-AGENT ORCHESTRATOR: /src/lib/multi-agent-orchestrator.ts
   - 10 specialist agents (research, signals, contacts, capability_matcher, case_study_matcher, scorer, strategist, proposal, executive_brief, learning)
   - Shared ReasoningContext — no duplicate work

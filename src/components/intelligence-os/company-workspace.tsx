@@ -9,7 +9,7 @@ import {
   TrendingUp, TrendingDown, Minus, Layers,
   FileText, BarChart3, ThumbsUp, ThumbsDown,
   ChevronDown, ChevronUp, X, Copy, Check,
-  Activity, Radar, Radio,
+  Activity, Radar, Radio, Server, BookOpen, Cpu, Newspaper, Briefcase,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import type { CompanyIntelligence, IntelligenceObject, EvidenceState, ExecutiveBriefData } from '@/lib/intelligence-types';
@@ -284,15 +284,9 @@ function IntelligenceSurface({
       className="group relative ios-card overflow-hidden"
       style={{
         borderLeft: `2px solid ${accentColor}`,
-        boxShadow: `0 0 20px ${accentColor}06`,
+        boxShadow: 'none',
       }}
     >
-      {/* Glow on hover */}
-      <div
-        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-        style={{ boxShadow: `inset 0 0 30px ${accentColor}08` }}
-      />
-
       <div className="relative p-5">
         {/* Type label + evidence state row */}
         <div className="flex items-center justify-between mb-3">
@@ -517,6 +511,101 @@ function SectionHeader({
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   Signal Categorization — Grouped intelligence, not flat list
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const SIGNAL_GROUPS = [
+  { key: 'technology', label: 'Technology Signals', icon: Cpu, accent: '#06b6d4', categories: ['tech_change'] },
+  { key: 'business', label: 'Business Signals', icon: Briefcase, accent: IOS.confHigh, categories: ['funding', 'expansion', 'partnership'] },
+  { key: 'external', label: 'External Signals', icon: Newspaper, accent: IOS.signal, categories: ['news', 'mention', 'leadership_change'] },
+];
+
+function groupSignalsByCategory(signals: IntelligenceObject[]) {
+  if (signals.length === 0) return [];
+  const groups: Array<{ key: string; label: string; icon: React.ElementType; accent: string; summary: string; signals: IntelligenceObject[] }> = [];
+
+  for (const group of SIGNAL_GROUPS) {
+    const matched = signals.filter(s => s.category && group.categories.includes(s.category));
+    if (matched.length === 0) continue;
+    const top = matched[0];
+    groups.push({
+      key: group.key,
+      label: group.label,
+      icon: group.icon,
+      accent: group.accent,
+      summary: top.whyItMatters || top.title || `${matched.length} ${group.key} signal${matched.length !== 1 ? 's' : ''} detected`,
+      signals: matched,
+    });
+  }
+
+  // Uncategorized remainder
+  const categorized = new Set(SIGNAL_GROUPS.flatMap(g => g.categories));
+  const remainder = signals.filter(s => !s.category || !categorized.has(s.category));
+  if (remainder.length > 0) {
+    groups.push({
+      key: 'other',
+      label: 'Other Signals',
+      icon: Zap,
+      accent: IOS.textMuted,
+      summary: `${remainder.length} additional signal${remainder.length !== 1 ? 's' : ''}`,
+      signals: remainder,
+    });
+  }
+
+  return groups;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Evidence Library — Centralized trust surface
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+interface FlattenedEvidence {
+  snippet: string;
+  source: string;
+  url?: string;
+  date?: string;
+  state: EvidenceState;
+  parentTitle: string;
+  parentType: string;
+}
+
+function collectAllEvidence(intel: CompanyIntelligence): FlattenedEvidence[] {
+  const all: FlattenedEvidence[] = [];
+  const sources = [
+    ...intel.signals.map(s => ({ obj: s, label: s.type })),
+    ...intel.needs.map(n => ({ obj: n, label: n.type })),
+    ...intel.capabilityMatches.map(m => ({ obj: m, label: m.type })),
+    ...intel.actions.map(a => ({ obj: a, label: a.type })),
+    ...intel.stakeholders.map(s => ({ obj: s, label: s.type })),
+    ...(intel.technology?.techSignals || []).map(s => ({ obj: s, label: 'technology' })),
+  ];
+  for (const { obj, label } of sources) {
+    for (const ev of obj.evidence) {
+      all.push({
+        snippet: ev.snippet,
+        source: ev.source,
+        url: ev.url,
+        date: ev.date,
+        state: ev.state,
+        parentTitle: obj.title,
+        parentType: label,
+      });
+    }
+  }
+  return all.sort((a, b) => {
+    if (a.date && b.date) return new Date(b.date).getTime() - new Date(a.date).getTime();
+    if (a.date) return -1;
+    if (b.date) return 1;
+    return 0;
+  });
+}
+
+function formatMonthYear(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    Intelligence Reveal Sequence — The 10-second moment
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -690,6 +779,22 @@ function IntelligenceReveal({
                   {intelligence.capabilityMatches.length} matches
                 </span>
               </div>
+              {topSignal?.evidence.slice(0, 3).length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <span className="text-[9px] font-bold tracking-[0.15em] uppercase" style={{ color: IOS.textMuted }}>
+                    Detected because:
+                  </span>
+                  <div className="space-y-1.5 mt-2">
+                    {topSignal.evidence.slice(0, 3).map((ev, i) => (
+                      <div key={i} className="flex items-start gap-2 px-3 py-2 rounded-lg"
+                        style={{ background: IOS.bgCard, border: `1px solid ${IOS.border}` }}>
+                        <Check className="w-3 h-3 shrink-0 mt-0.5" style={{ color: IOS.confHigh }} />
+                        <span className="text-xs" style={{ color: IOS.textSecondary }}>{ev.snippet}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -1018,14 +1123,16 @@ function BriefSection({ label, count, children }: { label: string; count?: numbe
    Main Company Workspace
    ═══════════════════════════════════════════════════════════════════════════ */
 
-type Section = 'executive' | 'evidence' | 'alignment' | 'stakeholders' | 'actions' | 'history';
+type Section = 'executive' | 'evidence' | 'technology' | 'alignment' | 'stakeholders' | 'actions' | 'evidence-library' | 'history';
 
 const SECTIONS: { key: Section; label: string; icon: React.ElementType; accent: string }[] = [
   { key: 'executive',    label: 'Understanding',        icon: Brain,     accent: IOS.accent },
   { key: 'evidence',     label: 'Signals & Evidence',    icon: Zap,       accent: IOS.signal },
+  { key: 'technology',   label: 'Technology',            icon: Server,    accent: '#06b6d4' },
   { key: 'alignment',    label: 'Capability Alignment',  icon: Target,    accent: IOS.confHigh },
   { key: 'stakeholders', label: 'Stakeholders',          icon: Users,     accent: IOS.intelligence },
   { key: 'actions',      label: 'Actions',              icon: Sparkles,  accent: IOS.opportunity },
+  { key: 'evidence-library', label: 'Evidence Library',  icon: BookOpen,  accent: IOS.confMedium },
   { key: 'history',      label: 'Intelligence History',  icon: BarChart3, accent: '#06b6d4' },
 ];
 
@@ -1083,7 +1190,7 @@ export function CompanyWorkspace() {
   }, []);
 
   const sectionRefs = useRef<Record<Section, HTMLElement | null>>({
-    executive: null, evidence: null, alignment: null, stakeholders: null, actions: null, history: null,
+    executive: null, evidence: null, technology: null, alignment: null, stakeholders: null, actions: null, 'evidence-library': null, history: null,
   });
 
   const scrollToSection = (section: Section) => {
@@ -1435,20 +1542,122 @@ export function CompanyWorkspace() {
           )}
         </motion.section>
 
-        {/* ═══ SECTION 2: Evidence & Signals ═══ */}
+        {/* ═══ SECTION 2: Evidence & Signals — Categorized ═══ */}
         <section
           ref={(el) => { sectionRefs.current.evidence = el; }}
           id="section-evidence"
         >
-          <SectionHeader icon={Zap} title="Evidence & Signals" count={intelligence.signals.length} accent={IOS.signal} />
+          <SectionHeader icon={Zap} title="Signals & Evidence" count={intelligence.signals.length} accent={IOS.signal} />
           {intelligence.signals.length === 0 ? (
             <div className="ios-card p-12 text-center">
               <Zap className="w-8 h-8 mx-auto mb-3" style={{ color: `${IOS.signal}30` }} />
               <p className="text-sm" style={{ color: IOS.textSecondary }}>No signals detected. Run intelligence enrichment to discover opportunities.</p>
             </div>
           ) : (
+            <div className="space-y-6">
+              {groupSignalsByCategory(intelligence.signals).map((group) => (
+                <div key={group.key}>
+                  {/* Category header with intelligence summary */}
+                  <div className="flex items-center gap-3 mb-3 px-1">
+                    <div
+                      className="w-7 h-7 rounded-lg flex items-center justify-center"
+                      style={{ background: `${group.accent}12`, border: `1px solid ${group.accent}20` }}
+                    >
+                      <group.icon className="w-3.5 h-3.5" style={{ color: group.accent }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[10px] font-bold tracking-[0.12em] uppercase" style={{ color: group.accent }}>
+                        {group.label}
+                      </span>
+                      <span
+                        className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums"
+                        style={{ background: `${group.accent}12`, color: group.accent }}
+                      >
+                        {group.signals.length}
+                      </span>
+                    </div>
+                    <p className="text-[10px] italic truncate max-w-xs" style={{ color: IOS.textMuted }}>
+                      {group.summary}
+                    </p>
+                  </div>
+                  {/* Signals in this group */}
+                  <div className="space-y-3">
+                    {group.signals.map((signal, i) => (
+                      <IntelligenceSurface
+                        key={signal.id}
+                        item={signal}
+                        companyId={selectedCompanyId}
+                        showTemporal
+                        delay={i * 0.04}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ═══ SECTION 2.5: Technology Intelligence ═══ */}
+        <section
+          ref={(el) => { sectionRefs.current.technology = el; }}
+          id="section-technology"
+        >
+          <SectionHeader icon={Server} title="Technology Intelligence" accent="#06b6d4" />
+
+          {/* Digital Maturity + Tech Landscape */}
+          <div className="ios-card p-5 mb-4" style={{ borderLeft: `2px solid #06b6d4` }}>
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div>
+                <p className="text-[9px] font-bold tracking-[0.2em] uppercase" style={{ color: '#06b6d4' }}>
+                  Digital Maturity
+                </p>
+                <p className="text-lg font-bold capitalize mt-1" style={{ color: IOS.textPrimary }}>
+                  {intelligence.technology.digitalMaturity || 'Unknown'}
+                </p>
+              </div>
+              {intelligence.technology.techSignals.length > 0 && (
+                <span
+                  className="text-[9px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: 'rgba(6,182,212,0.1)', color: '#06b6d4' }}
+                >
+                  {intelligence.technology.techSignals.length} change signal{intelligence.technology.techSignals.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+
+            {/* Known Tech — business context, not tag cloud */}
+            {intelligence.technology.knownTech.length > 0 && (
+              <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${IOS.border}` }}>
+                <p className="text-[9px] font-bold tracking-[0.12em] uppercase mb-2" style={{ color: IOS.textMuted }}>
+                  Known Technology Landscape
+                </p>
+                <p className="text-xs leading-relaxed" style={{ color: IOS.textSecondary }}>
+                  {intelligence.company.name} operates with {intelligence.technology.knownTech.slice(0, 8).join(', ')}{intelligence.technology.knownTech.length > 8 ? ` and ${intelligence.technology.knownTech.length - 8} more technologies` : ''}. {intelligence.technology.digitalMaturity === 'advanced' ? 'This suggests significant infrastructure investment and platform maturity, creating opportunities for modernization and integration capabilities.' : intelligence.technology.digitalMaturity === 'high' ? 'Strong technology foundation indicates readiness for advanced solutions and platform partnerships.' : 'Growing technology adoption signals increasing openness to new tools and platform investments.'}
+                </p>
+              </div>
+            )}
+
+            {/* Tech description */}
+            {intelligence.technology.techDescription && (
+              <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${IOS.border}` }}>
+                <p className="text-[9px] font-bold tracking-[0.12em] uppercase mb-2" style={{ color: IOS.textMuted }}>
+                  Technology Assessment
+                </p>
+                <p className="text-xs leading-relaxed" style={{ color: IOS.textSecondary }}>
+                  {intelligence.technology.techDescription}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Tech Signals as Intelligence Surfaces */}
+          {intelligence.technology.techSignals.length > 0 && (
             <div className="space-y-3">
-              {intelligence.signals.map((signal, i) => (
+              <p className="text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: IOS.textMuted }}>
+                Technology Change Signals
+              </p>
+              {intelligence.technology.techSignals.map((signal, i) => (
                 <IntelligenceSurface
                   key={signal.id}
                   item={signal}
@@ -1457,6 +1666,13 @@ export function CompanyWorkspace() {
                   delay={i * 0.04}
                 />
               ))}
+            </div>
+          )}
+
+          {intelligence.technology.knownTech.length === 0 && intelligence.technology.techSignals.length === 0 && (
+            <div className="ios-card p-12 text-center">
+              <Server className="w-8 h-8 mx-auto mb-3" style={{ color: 'rgba(6,182,212,0.3)' }} />
+              <p className="text-sm" style={{ color: IOS.textSecondary }}>No technology intelligence available yet. Enrich account to discover technology landscape.</p>
             </div>
           )}
         </section>
@@ -1650,6 +1866,86 @@ export function CompanyWorkspace() {
               </p>
             </div>
           )}
+        </section>
+
+        {/* ═══ SECTION 7: Evidence Library — Centralized Trust Surface ═══ */}
+        <section
+          ref={(el) => { sectionRefs.current['evidence-library'] = el; }}
+          id="section-evidence-library"
+        >
+          <SectionHeader icon={BookOpen} title="Evidence Library" accent={IOS.confMedium} />
+          {(() => {
+            const allEvidence = collectAllEvidence(intelligence);
+            if (allEvidence.length === 0) {
+              return (
+                <div className="ios-card p-12 text-center">
+                  <BookOpen className="w-8 h-8 mx-auto mb-3" style={{ color: `${IOS.confMedium}30` }} />
+                  <p className="text-sm" style={{ color: IOS.textSecondary }}>No evidence collected yet. Evidence accumulates as intelligence signals are detected.</p>
+                </div>
+              );
+            }
+
+            // Group by month
+            const byMonth = new Map<string, FlattenedEvidence[]>();
+            for (const ev of allEvidence) {
+              const key = ev.date ? formatMonthYear(ev.date) : 'Undated';
+              if (!byMonth.has(key)) byMonth.set(key, []);
+              byMonth.get(key)!.push(ev);
+            }
+
+            return (
+              <div className="space-y-6">
+                <p className="text-[10px] italic px-1" style={{ color: IOS.textMuted }}>
+                  {allEvidence.length} evidence entries across {intelligence.signalCount} signals, {intelligence.capabilityMatches.length} capability matches, and {intelligence.stakeholders.length} stakeholders
+                </p>
+                {Array.from(byMonth.entries()).map(([month, items]) => (
+                  <div key={month}>
+                    <p className="text-[10px] font-bold tracking-[0.15em] uppercase mb-3 px-1" style={{ color: IOS.textSecondary }}>
+                      {month}
+                    </p>
+                    <div className="space-y-2">
+                      {items.map((ev, i) => (
+                        <div
+                          key={`${month}-${i}`}
+                          className="ios-card px-4 py-3"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                              style={{ background: `${IOS.accent}10`, border: `1px solid ${IOS.accent}15` }}
+                            >
+                              <Check className="w-2.5 h-2.5" style={{ color: IOS.accent }} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium leading-relaxed" style={{ color: IOS.textPrimary }}>
+                                {ev.snippet}
+                              </p>
+                              <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                <span className="text-[10px]" style={{ color: IOS.textMuted }}>
+                                  Source: {ev.source}
+                                </span>
+                                <span className="text-[10px]" style={{ color: `${IOS.textMuted}60` }}>
+                                  From: {ev.parentTitle}
+                                </span>
+                                {ev.url && (
+                                  <a href={ev.url} target="_blank" rel="noopener noreferrer"
+                                    className="text-[10px] font-medium flex items-center gap-0.5 transition-colors"
+                                    style={{ color: IOS.accent }}
+                                  >
+                                    <ExternalLink className="w-2 h-2" /> View
+                                  </a>
+                                )}
+                                <EvidenceStateBadge state={ev.state} />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </section>
 
         {/* Bottom spacer for sticky nav */}

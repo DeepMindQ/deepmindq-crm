@@ -115,7 +115,7 @@ export async function GET(
     const needObjects = composeNeedObjects(signalObjects, company);
     const capabilityMatchObjects = composeCapabilityMatchObjects(needObjects, capabilities, signals, company, feedbackMap);
     const actionObjects = composeActionObjects(company, signalObjects, capabilityMatchObjects, contacts, feedbackMap);
-    const stakeholderObjects = composeStakeholderObjects(contacts, company);
+    const stakeholderObjects = composeStakeholderObjects(contacts, company, signalObjects, capabilityMatchObjects[0]);
 
     // ── Executive Understanding ──
     const executiveUnderstanding = composeExecutiveUnderstanding(
@@ -439,23 +439,101 @@ function composeActionObjects(
   }).slice(0, 10);
 }
 
-function composeStakeholderObjects(contacts: any[], company: any): IntelligenceObject[] {
-  return contacts.slice(0, 8).map(c => ({
-    id: `stakeholder-${c.id}`,
-    type: 'stakeholder' as const,
-    title: c.rawName,
-    subtitle: c.title || c.role || 'Stakeholder',
-    evidenceState: c.leadScore >= 70 ? 'confirmed' : 'inferred',
-    confidence: c.leadScore || 50,
-    reasoning: `Contact at ${company.rawName}. Lead score: ${c.leadScore}. ${c.title || c.role || 'Role unknown'}.`,
-    evidence: [{
-      source: 'CRM Data',
-      snippet: `${c.title || c.role || 'Unknown role'}${c.assignedTo ? ` — Assigned: ${c.assignedTo}` : ''}`,
-      state: 'confirmed',
-    }],
-    freshness: computeFreshness(c.lastContactedAt?.toISOString() || c.updatedAt?.toISOString() || new Date().toISOString()),
-    priority: c.leadScore >= 80 ? 'high' : c.leadScore >= 50 ? 'medium' : 'low',
-  }));
+function classifyStakeholderType(title: string): string {
+  const t = (title || '').toLowerCase();
+  const decisionMakerKeywords = ['ceo', 'cto', 'cio', 'ciso', 'cfo', 'coo', 'president', 'vp', 'vice president', 'svp', 'evp', 'chief'];
+  const influencerKeywords = ['director', 'head', 'lead', 'principal', 'architect'];
+  const teamMemberKeywords = ['manager', 'associate', 'analyst', 'consultant', 'coordinator', 'specialist', 'engineer', 'developer'];
+
+  if (decisionMakerKeywords.some(kw => t.includes(kw))) return 'Decision Maker';
+  if (influencerKeywords.some(kw => t.includes(kw))) return 'Influencer';
+  if (teamMemberKeywords.some(kw => t.includes(kw))) return 'Team Member';
+  return 'Stakeholder';
+}
+
+function composeWhyImportant(contact: any, companyName: string, signalCategories: Set<string>): string {
+  const title = (contact.title || contact.role || '').toLowerCase();
+  const isTech = /engineering|technology|tech|it |information|development|cloud|data|security|platform/.test(title);
+  const isCLevel = /ceo|cto|cio|cfo|coo|ciso|chief|president/.test(title);
+  const isHR = /hr |human resource|people|talent|recruit/.test(title);
+  const isVP = /vp |vice president|svp|evp/.test(title);
+
+  if (signalCategories.has('tech_change') && isTech) return 'Owns technology transformation area';
+  if (signalCategories.has('funding') && isCLevel) return 'Likely involved in investment decisions';
+  if (signalCategories.has('hiring') && (isHR || isVP)) return 'Driving talent acquisition';
+  if (signalCategories.has('leadership_change') && isCLevel) return 'New leadership — strategic direction shift likely';
+  if (signalCategories.has('expansion') && isCLevel) return 'Driving geographic growth strategy';
+  if (signalCategories.has('partnership') && (isCLevel || isVP)) return 'Potential partnership decision maker';
+
+  if (isCLevel) return `Key decision maker at ${companyName}`;
+  if (isTech) return `Technology leadership at ${companyName}`;
+  return `Identified stakeholder at ${companyName}`;
+}
+
+function composeEngagementStatus(lastContactedAt: Date | null): string {
+  if (!lastContactedAt) return 'No engagement in last 90 days';
+  const daysAgo = Math.floor((Date.now() - lastContactedAt.getTime()) / (1000 * 60 * 60 * 24));
+  if (daysAgo <= 7) return 'Active engagement';
+  if (daysAgo <= 45) return `Recent engagement (${daysAgo} days ago)`;
+  return `No recent engagement (last ${daysAgo} days ago)`;
+}
+
+function composeRecommendedAction(
+  stakeholderType: string,
+  hasTopMatch: boolean,
+  topCapability: string | undefined,
+  contact: any,
+  engagementStatus: string
+): string {
+  if (stakeholderType === 'Decision Maker' && hasTopMatch && topCapability) {
+    return `Executive outreach: position ${topCapability} as strategic solution`;
+  }
+  if (stakeholderType === 'Influencer' && hasTopMatch && topCapability) {
+    return `Technical conversation: demonstrate ${topCapability} value`;
+  }
+  if (engagementStatus.startsWith('No ') && (contact.leadScore || 50) >= 70) {
+    return 'Priority re-engagement';
+  }
+  return 'Monitor and identify engagement opportunity';
+}
+
+function composeStakeholderObjects(
+  contacts: any[],
+  company: any,
+  signalObjects: IntelligenceObject[],
+  topCapabilityMatch?: IntelligenceObject
+): IntelligenceObject[] {
+  const signalCategories = new Set(signalObjects.map(s => s.category).filter((c): c is string => Boolean(c)));
+  const topCapability = topCapabilityMatch?.title;
+  const hasTopMatch = Boolean(topCapabilityMatch);
+
+  return contacts.slice(0, 8).map(c => {
+    const stakeholderType = classifyStakeholderType(c.title || c.role || '');
+    const whyImportant = composeWhyImportant(c, company.rawName, signalCategories);
+    const engagementStatus = composeEngagementStatus(c.lastContactedAt);
+    const recommendedAction = composeRecommendedAction(
+      stakeholderType, hasTopMatch, topCapability, c, engagementStatus
+    );
+
+    return {
+      id: `stakeholder-${c.id}`,
+      type: 'stakeholder' as const,
+      title: c.rawName,
+      subtitle: engagementStatus,
+      category: stakeholderType,
+      whatToDo: recommendedAction,
+      evidenceState: c.leadScore >= 70 ? 'confirmed' : 'inferred',
+      confidence: c.leadScore || 50,
+      reasoning: whyImportant,
+      evidence: [{
+        source: 'CRM Data',
+        snippet: `${c.title || c.role || 'Unknown role'} — ${stakeholderType}${c.assignedTo ? ` — Assigned: ${c.assignedTo}` : ''}`,
+        state: 'confirmed',
+      }],
+      freshness: computeFreshness(c.lastContactedAt?.toISOString() || c.updatedAt?.toISOString() || new Date().toISOString()),
+      priority: c.leadScore >= 80 ? 'high' : c.leadScore >= 50 ? 'medium' : 'low',
+    };
+  });
 }
 
 function composeExecutiveUnderstanding(

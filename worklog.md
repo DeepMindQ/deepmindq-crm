@@ -224,3 +224,26 @@ Stage Summary:
 - Legacy 40+ screens preserved and accessible via internal navigation (not in nav)
 - Backend frozen — no new API endpoints needed
 - Product model transformed: Data Objects → Intelligence → Decision → Action
+
+---
+Task ID: 6
+Agent: Main Agent (No Subagents)
+Task: Build the Cockpit — Progressive Disclosure, Alignment API, Company Workspace, Command Center
+
+Work Log:
+- Pushed all previous work (8 commits) to GitHub
+- Vercel deployment skipped (no token in environment — likely auto-deploys from GitHub)
+- Created ProgressiveDisclosure component: reusable L1→L2→L3→L4 pattern with confidence rings, evidence layers, and related signals. No fake intelligence.
+- Created /api/companies/[id]/alignment: read-only composition endpoint that combines Company → Signals → Business Needs → Capability Library → Capability Match → Evidence → Confidence. Response shaped in business language, not database objects.
+- Rebuilt Company Workspace with all 3 tabs: Technology Intelligence (tech stack, digital maturity, change signals), Capability Alignment (needs→matches→positioning with Progressive Disclosure), Actions (prioritized with confidence scores).
+- Evolved Command Center from flat metrics to intelligence briefing: cross-account insights, account briefings with needs/match/action counts, confidence scores on every action.
+- Updated barrel exports for intelligence-os components.
+- Build compiles clean (37.8s, 0 errors).
+
+Stage Summary:
+- 5 files changed, 1808 insertions, 123 deletions
+- New: progressive-disclosure.tsx, alignment/route.ts
+- Updated: company-workspace.tsx, command-center.tsx, index.ts
+- All tabs now consume real data from alignment composition API
+- Architecture Phase B ready: UI/API contract compatible with future Intelligence Engine upgrades
+- Pushed to GitHub: ff51f8e

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
+import { getZAI } from '@/lib/llm-client'
 
 // ---------------------------------------------------------------------------
-// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
+// LLM helper — delegates to unified llm-client (Phase 2 consolidation)
 // ---------------------------------------------------------------------------
 
 interface ChatMessage {
@@ -12,10 +13,8 @@ interface ChatMessage {
 }
 
 async function callAI(systemPrompt: string, messages: ChatMessage[]): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-  const completion = await ZAI.chat.completions.create({
+  const zai = await getZAI()
+  const completion = await zai.chat.completions.create({
     messages: [
       { role: 'assistant', content: systemPrompt },
       ...messages,

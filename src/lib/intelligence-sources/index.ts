@@ -4,6 +4,13 @@
  * Public API for the intelligence acquisition layer.
  * Import from '@/lib/intelligence-sources' to access types,
  * interfaces, base classes, and connector implementations.
+ *
+ * Phase 2: Removed dead modules (zero consumers):
+ *   - acquisition-engine, adaptive-intelligence, analytics-dashboard
+ *   - cross-account-propagation, evidence-lifecycle, knowledge-versioning
+ *   - reasoning-engine (deleted in prior cleanup)
+ *
+ * Retained: three-date-model, signal-type-mapping (have internal consumers)
  */
 
 export * from './types';
@@ -17,18 +24,16 @@ export { resolveCompany, confirmResolution, createUnverifiedCompany } from './co
 export { adaptToEvidence } from './evidence-adapter';
 export * from './job-queue';
 export * from './knowledge-fabric';
-export * from './acquisition-engine';
-// Sprint 2: Intelligence Fabric Layer
+
+// Intelligence Fabric Layer
 export * from './association-engine';
 export * from './confidence-engine';
-export * from './knowledge-versioning';
-export * from './source-governance';
-// Sprint 3: Human Intelligence, Timeline, Scheduler, Alerts, Analytics
+
+// Human Intelligence, Timeline, Scheduler, Alerts
 export * from './human-intelligence';
 export * from './intelligence-timeline';
 export * from './connector-scheduler';
 export * from './intelligence-alerts';
-export * from './analytics-dashboard';
 
 // Phase 2A: External Intelligence Collection & Classification
 export { collectIntelligenceForCompany, collectIntelligenceBatch } from './external-intelligence-collector';
@@ -51,7 +56,7 @@ export type { CrossAccountInsight, CrossAccountPattern } from './cross-account-i
 export { runMonitoringCheck, runMonitoringBatch } from './autonomous-monitor';
 export type { IntelligenceAlert, AlertSeverity, AlertType } from './autonomous-monitor';
 
-// Sprint 1: Signal Taxonomy Normalization (P0 Unblocker)
+// Signal Taxonomy Normalization
 export {
   normalizeSignalType, normalizeType, normalizeSignalTypes, groupByCanonicalType,
   isCanonicalType, isLegacyType,
@@ -59,28 +64,13 @@ export {
 } from './signal-type-mapping';
 export type { CanonicalSignalType, TypeMappingResult } from './signal-type-mapping';
 
-// Sprint 1: Three-Date Evidence Model
+// Three-Date Evidence Model
 export {
   buildThreeDateModel, getBestDateForFreshness, dateModelQuality,
   extractPublishedDateFromSnippet, extractDateFromUrl, serializeThreeDateModel,
 } from './three-date-model';
 export type { EvidenceDates } from './three-date-model';
 
-// Sprint 1: Mid-Market Intelligence Sensor
+// Mid-Market Intelligence Sensor
 export { runMidMarketSensor } from './mid-market-sensor';
 export type { SensorConfig } from './mid-market-sensor';
-
-// Sprint 1: Reasoning Engine
-export {
-  generateCompanyUnderstanding,
-} from './reasoning-engine';
-export type {
-  ReasoningInput, SignalInput, InternalContext, CapabilityInput,
-  CompanyUnderstanding, KeyChange, ActionRecommendation,
-} from './reasoning-engine';
-
-// Sprint 1: Adaptive Intelligence Density
-export {
-  assessSignalDensity, getIntelligenceTemplate,
-} from './adaptive-intelligence';
-export type { SignalDensity, DensityAssessment } from './adaptive-intelligence';

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers';
+import { getZAI, sdkWebSearch } from '@/lib/llm-client';
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -52,34 +53,16 @@ interface ConversationPlan {
 }
 
 // ---------------------------------------------------------------------------
-// SDK helpers
+// SDK helpers — delegate to unified llm-client (Phase 2 consolidation)
 // ---------------------------------------------------------------------------
 
-async function createZAI(): Promise<any> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  return import('z-ai-web-dev-sdk').then((m) => m.default).then((Z) => Z.create());
-}
-
 async function webSearch(query: string): Promise<WebSearchResult[]> {
-  try {
-    const zai: any = await createZAI();
-    const results = await zai.functions.invoke('web_search', { query, num: 5 });
-    return (results || [])
-      .slice(0, 5)
-      .map((r: Record<string, string>) => ({
-        title: r.name || '',
-        url: r.url || '',
-        snippet: r.snippet || '',
-      }));
-  } catch (e) {
-    console.error('[conversation-plan] Web search failed:', e);
-    return [];
-  }
+  const results = await sdkWebSearch(query, 5)
+  return results.map(r => ({ title: r.title || r.name || '', url: r.url, snippet: r.snippet }))
 }
 
 async function aiChat(systemPrompt: string, userPrompt: string): Promise<string> {
-  const zai: any = await createZAI();
+  const zai = await getZAI()
   const completion = await zai.chat.completions.create({
     messages: [
       { role: 'assistant', content: systemPrompt },

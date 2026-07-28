@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { apiSuccess, apiError } from '@/lib/apiHelpers'
 import { format } from 'date-fns'
+import { getZAI } from '@/lib/llm-client'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -102,14 +103,12 @@ function eventTypeToDisplay(eventType: string): InteractionType {
 }
 
 // ---------------------------------------------------------------------------
-// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
+// LLM helper — delegates to unified llm-client (Phase 2 consolidation)
 // ---------------------------------------------------------------------------
 
 async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-  const completion = await ZAI.chat.completions.create({
+  const zai = await getZAI()
+  const completion = await zai.chat.completions.create({
     messages: [
       { role: 'assistant', content: systemPrompt },
       { role: 'user', content: userPrompt },

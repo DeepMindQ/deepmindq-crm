@@ -96,6 +96,7 @@ export async function logAIUsage(
         signalIdsUsed: [],
         capabilityAssetIdsUsed: [],
         governancePassed: record.status === 'success',
+      },
     });
 
     console.log('[ai-copilot:usage-tracker] Usage record persisted successfully');

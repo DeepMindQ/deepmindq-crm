@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
+import { getZAI, sdkWebSearch, extractJSON } from '@/lib/llm-client';
 
 // ── Types ──
 
@@ -32,30 +33,16 @@ function setCache(companyId: string, data: Record<string, unknown>) {
   cache.set(companyId, { data, expiresAt: Date.now() + CACHE_TTL_MS });
 }
 
-// ── Z-AI SDK helpers ──
+// ── SDK helpers — delegate to unified llm-client (Phase 2 consolidation) ──
 
 async function webSearch(query: string, num = 10): Promise<WebResult[]> {
-  try {
-    const { ensureZaiConfig } = await import('@/lib/zai-config');
-    await ensureZaiConfig();
-    const ZAI: any = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
-    const results = await ZAI.functions.invoke('web_search', { query, num });
-    return (results || [])
-      .slice(0, num)
-      .map((r: Record<string, string>) => ({
-        title: r.name || '',
-        url: r.url || '',
-        snippet: r.snippet || '',
-      }));
-  } catch (e) {
-    console.error('[suggested-contacts] Web search failed:', e);
-    return [];
-  }
+  const results = await sdkWebSearch(query, num)
+  return results.map(r => ({ title: r.title || r.name || '', url: r.url, snippet: r.snippet }))
 }
 
 async function aiChat(systemPrompt: string, userPrompt: string): Promise<string> {
-  const ZAI: any = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create());
-  const completion = await ZAI.chat.completions.create({
+  const zai = await getZAI()
+  const completion = await zai.chat.completions.create({
     messages: [
       { role: 'assistant', content: systemPrompt },
       { role: 'user', content: userPrompt },

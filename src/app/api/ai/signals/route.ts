@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, safeInt } from '@/lib/apiHelpers'
 import { randomUUID } from 'crypto'
+import { getZAI, sdkWebSearch, type WebSearchResult } from '@/lib/llm-client'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,6 +32,19 @@ interface RawSearchResult {
   rank: number
   date?: string
   favicon?: string
+}
+
+// Map llm-client WebSearchResult to local RawSearchResult shape
+function toRawSearchResult(r: WebSearchResult, i: number): RawSearchResult {
+  return {
+    url: r.url,
+    name: r.name || r.title,
+    snippet: r.snippet,
+    host_name: r.host_name || '',
+    rank: r.rank ?? i,
+    date: r.date,
+    favicon: r.favicon,
+  }
 }
 
 interface ParsedSignal {
@@ -92,19 +106,12 @@ function setCache(companyId: string | null, limit: number, data: SignalsResponse
 }
 
 // ---------------------------------------------------------------------------
-// SDK helpers (backend only)
+// SDK helpers — delegate to unified llm-client (Phase 2 consolidation)
 // ---------------------------------------------------------------------------
 
-async function getZAI() {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then((m) => m.default)
-  return ZAI.create()
-}
-
-async function webSearch(zai: Awaited<ReturnType<typeof getZAI>>, query: string, num = 5): Promise<RawSearchResult[]> {
-  const results = await zai.functions.invoke('web_search', { query, num })
-  return Array.isArray(results) ? results : []
+async function webSearch(_zai: unknown, query: string, num = 5): Promise<RawSearchResult[]> {
+  const results = await sdkWebSearch(query, num)
+  return results.map((r, i) => toRawSearchResult(r, i))
 }
 
 async function callLLM(

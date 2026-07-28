@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-// Prisma types removed — db proxy handles queries
+import { getZAI, extractJSON } from '@/lib/llm-client'
 
 // ---------------------------------------------------------------------------
-// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
+// LLM helper — delegates to unified llm-client (Phase 2 consolidation)
 // ---------------------------------------------------------------------------
 
 async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI: any = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-  const completion = await ZAI.chat.completions.create({
+  const zai = await getZAI()
+  const completion = await zai.chat.completions.create({
     messages: [
       { role: 'assistant', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -19,31 +17,6 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
     thinking: { type: 'disabled' },
   })
   return completion.choices?.[0]?.message?.content ?? ''
-}
-
-// ---------------------------------------------------------------------------
-// JSON extraction (tolerant of markdown fences)
-// ---------------------------------------------------------------------------
-
-function extractJson(raw: string): unknown {
-  const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
-
-  try {
-    return JSON.parse(cleaned)
-  } catch {
-    // fall through
-  }
-
-  const match = cleaned.match(/\{[\s\S]*\}/)
-  if (match) {
-    try {
-      return JSON.parse(match[0])
-    } catch {
-      // fall through
-    }
-  }
-
-  return null
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +121,7 @@ export async function POST(request: NextRequest) {
     try {
       const rawResponse = await callAI(QUERY_SYSTEM_PROMPT, query)
 
-      const parsed = extractJson(rawResponse)
+      const parsed = extractJSON(rawResponse)
       if (parsed && typeof parsed === 'object' && 'entityType' in parsed) {
         const result = await executeQuery(parsed as Record<string, unknown>, query)
         return apiSuccess(result)

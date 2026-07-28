@@ -73,6 +73,13 @@ interface Sprint3FullResponse {
     contactCount: number
     evidenceCount: number
     insightCount: number
+    // Sprint 3A: Internal memory counts
+    companyNotesCount: number
+    contactNotesCount: number
+    timelineEventsCount: number
+    internalSignalsCount: number
+    humanIntelCount: number
+    intelligenceBalance: 'external_heavy' | 'internal_heavy' | 'balanced' | 'empty'
   }
   actions: ActionArtifactResponse[]
   meta: {
@@ -149,11 +156,64 @@ interface ActionContext {
     summary: string
     confidenceScore: number
   }>
+  // Sprint 3A: Internal memory context
+  companyNotes: Array<{
+    id: string
+    title: string
+    category: string
+    body: string
+    author: string | null
+    createdAt: Date
+  }>
+  contactNotes: Array<{
+    id: string
+    contactName: string
+    contactTitle: string | null
+    body: string
+    createdAt: Date
+  }>
+  timelineEvents: Array<{
+    id: string
+    eventType: string
+    title: string
+    description: string | null
+    createdAt: Date
+  }>
+  humanIntelligence: Array<{
+    id: string
+    content: string
+    summary: string | null
+    category: string | null
+    priority: string
+    submittedBy: string
+    createdAt: Date
+  }>
+  accountStrategy: {
+    swotAnalysis: string | null
+    stakeholderMap: string | null
+    keyInitiatives: string | null
+  } | null
+  internalSignals: Array<{
+    signalType: string
+    title: string
+    description: string
+    source: string
+    confidence: number
+    businessImpact: string
+    recommendedAction: string
+    timing: string
+    severity: string
+  }>
 }
 
 /**
- * Gather all available context for a company from Sprint 1/2 outputs.
+ * Gather all available context for a company from Sprint 1/2 + Sprint 3A outputs.
  * This is the data foundation for all 6 action generators.
+ *
+ * Sources:
+ *   - External: signals (Sprint 1), evidence, research card, strategic insights
+ *   - Internal: company notes, contact notes, timeline events, human intel
+ *   - People: contacts, account strategy, internal memory signals (Sprint 3A)
  */
 async function gatherCompanyContext(companyId: string): Promise<ActionContext> {
   const company = await db.company.findUnique({
@@ -175,90 +235,139 @@ async function gatherCompanyContext(companyId: string): Promise<ActionContext> {
 
   if (!company) throw new Error(`Company ${companyId} not found`)
 
-  // Fetch active signals (Sprint 1/2 output)
-  const signals = await db.companySignal.findMany({
-    where: {
-      companyId,
-      status: { in: ['detected', 'validated', 'active'] },
-    },
-    orderBy: { confidence: 'desc' },
-    take: 30,
-    select: {
-      id: true,
-      signalType: true,
-      title: true,
-      description: true,
-      severity: true,
-      confidence: true,
-      businessImpact: true,
-      recommendedAction: true,
-      timingWindow: true,
-      signalDate: true,
-      sourceUrl: true,
-      createdAt: true,
-    },
-  })
+  // Parallel fetch of all context sources
+  const [
+    // External intelligence (Sprint 1/2)
+    signals,
+    evidence,
+    researchCard,
+    insights,
+    // CRM contacts
+    contacts,
+    // Sprint 3A: Internal memory
+    companyNotes,
+    contactNotesData,
+    timelineEvents,
+    humanIntel,
+    accountStrategy,
+  ] = await Promise.all([
+    // Active signals (Sprint 1/2 output)
+    db.companySignal.findMany({
+      where: { companyId, status: { in: ['detected', 'validated', 'active'] } },
+      orderBy: { confidence: 'desc' },
+      take: 30,
+      select: {
+        id: true, signalType: true, title: true, description: true,
+        severity: true, confidence: true, businessImpact: true,
+        recommendedAction: true, timingWindow: true, signalDate: true,
+        sourceUrl: true, createdAt: true,
+      },
+    }),
 
-  // Fetch contacts with highest lead scores
-  const contacts = await db.contact.findMany({
-    where: { companyId },
-    orderBy: { leadScore: 'desc' },
-    take: 20,
-    select: {
-      id: true,
-      rawName: true,
-      email: true,
-      title: true,
-      role: true,
-      location: true,
-      leadScore: true,
-      status: true,
-    },
-  })
+    // Recent evidence
+    db.evidence.findMany({
+      where: { companyId, status: 'active' },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: {
+        id: true, sourceUrl: true, sourceTitle: true, snippet: true,
+        extractedField: true, confidence: true, sourceDate: true,
+      },
+    }),
 
-  // Fetch recent evidence
-  const evidence = await db.evidence.findMany({
-    where: { companyId, status: 'active' },
-    orderBy: { createdAt: 'desc' },
-    take: 20,
-    select: {
-      id: true,
-      sourceUrl: true,
-      sourceTitle: true,
-      snippet: true,
-      extractedField: true,
-      confidence: true,
-      sourceDate: true,
-    },
-  })
+    // Research card
+    db.companyResearchCard.findUnique({
+      where: { companyId },
+      select: {
+        businessOverview: true, techStack: true, keyPeople: true,
+        recentNews: true, revenue: true, employeeCount: true,
+        strategicPriorities: true, businessProblems: true,
+      },
+    }),
 
-  // Fetch research card
-  const researchCard = await db.companyResearchCard.findUnique({
-    where: { companyId },
-    select: {
-      businessOverview: true,
-      techStack: true,
-      keyPeople: true,
-      recentNews: true,
-      revenue: true,
-      employeeCount: true,
-      strategicPriorities: true,
-      businessProblems: true,
-    },
-  })
+    // Strategic insights
+    db.strategicInsight.findMany({
+      where: { companyId },
+      orderBy: { confidenceScore: 'desc' },
+      take: 10,
+      select: { id: true, insightType: true, summary: true, confidenceScore: true },
+    }),
 
-  // Fetch strategic insights
-  const insights = await db.strategicInsight.findMany({
-    where: { companyId },
-    orderBy: { confidenceScore: 'desc' },
-    take: 10,
-    select: {
-      id: true,
-      insightType: true,
-      summary: true,
-      confidenceScore: true,
-    },
-  })
+    // Contacts
+    db.contact.findMany({
+      where: { companyId },
+      orderBy: { leadScore: 'desc' },
+      take: 20,
+      select: {
+        id: true, rawName: true, email: true, title: true,
+        role: true, location: true, leadScore: true, status: true,
+      },
+    }),
+
+    // Sprint 3A: Company notes (meeting, call, discovery, research)
+    db.companyNote.findMany({
+      where: { companyId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: { id: true, title: true, category: true, body: true, author: true, createdAt: true },
+    }),
+
+    // Sprint 3A: Contact notes
+    db.contactNote.findMany({
+      where: { contact: { companyId } },
+      orderBy: { createdAt: 'desc' },
+      take: 15,
+      select: {
+        id: true, body: true, createdAt: true,
+        contact: { select: { rawName: true, title: true } },
+      },
+    }),
+
+    // Sprint 3A: Timeline events
+    db.companyTimelineEvent.findMany({
+      where: { companyId },
+      orderBy: { createdAt: 'desc' },
+      take: 15,
+      select: { id: true, eventType: true, title: true, description: true, createdAt: true },
+    }),
+
+    // Sprint 3A: Human intelligence
+    db.humanIntelligenceInbox.findMany({
+      where: { companyId, status: { in: ['pending', 'reviewed', 'approved', 'converted'] } },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        id: true, content: true, summary: true, category: true,
+        priority: true, submittedBy: true, createdAt: true,
+      },
+    }),
+
+    // Sprint 3A: Account strategy
+    db.accountStrategy.findUnique({
+      where: { companyId },
+      select: { swotAnalysis: true, stakeholderMap: true, keyInitiatives: true },
+    }),
+  ])
+
+  // Extract internal memory signals using the connector
+  let internalSignals: ActionContext['internalSignals'] = []
+  try {
+    const { extractInternalMemorySignals } = await import('./internal-memory-connector')
+    const memResult = await extractInternalMemorySignals(companyId)
+    internalSignals = memResult.signals.slice(0, 20).map(s => ({
+      signalType: s.signalType,
+      title: s.title,
+      description: s.description,
+      source: s.source,
+      confidence: s.confidence,
+      businessImpact: s.businessImpact,
+      recommendedAction: s.recommendedAction,
+      timing: s.timing,
+      severity: s.severity,
+    }))
+  } catch (err) {
+    console.warn('[action-engine] Internal memory extraction failed:', err instanceof Error ? err.message : err)
+  }
 
   return {
     companyId,
@@ -268,6 +377,18 @@ async function gatherCompanyContext(companyId: string): Promise<ActionContext> {
     evidence,
     researchCard,
     insights,
+    companyNotes,
+    contactNotes: contactNotesData.map(cn => ({
+      id: cn.id,
+      contactName: cn.contact.rawName,
+      contactTitle: cn.contact.title,
+      body: cn.body,
+      createdAt: cn.createdAt,
+    })),
+    timelineEvents,
+    humanIntelligence,
+    accountStrategy,
+    internalSignals,
   }
 }
 
@@ -314,6 +435,69 @@ function formatInsightsForPrompt(insights: ActionContext['insights']): string {
     .join('\n')
 }
 
+// Sprint 3A: Internal memory formatters
+
+function formatCompanyNotesForPrompt(notes: ActionContext['companyNotes']): string {
+  if (notes.length === 0) return 'No internal notes or meeting records.'
+  return notes
+    .slice(0, 10)
+    .map((n, i) => {
+      const daysAgo = Math.floor((Date.now() - n.createdAt.getTime()) / 86400000)
+      return `${i + 1}. [${n.category.toUpperCase()}] ${n.title || 'Untitled'} (${daysAgo}d ago, by ${n.author || 'unknown'})\n   ${n.body.substring(0, 200)}`
+    })
+    .join('\n\n')
+}
+
+function formatContactNotesForPrompt(notes: ActionContext['contactNotes']): string {
+  if (notes.length === 0) return 'No contact-level notes.'
+  return notes
+    .slice(0, 8)
+    .map((n, i) => {
+      const daysAgo = Math.floor((Date.now() - n.createdAt.getTime()) / 86400000)
+      return `${i + 1}. ${n.contactName} (${n.contactTitle || 'Unknown role'}) — ${daysAgo}d ago\n   ${n.body.substring(0, 150)}`
+    })
+    .join('\n\n')
+}
+
+function formatTimelineForPrompt(events: ActionContext['timelineEvents']): string {
+  if (events.length === 0) return 'No timeline events.'
+  return events
+    .slice(0, 10)
+    .map((e, i) => {
+      const daysAgo = Math.floor((Date.now() - e.createdAt.getTime()) / 86400000)
+      return `${i + 1}. [${e.eventType}] ${e.title} (${daysAgo}d ago)${e.description ? `\n   ${e.description.substring(0, 100)}` : ''}`
+    })
+    .join('\n')
+}
+
+function formatHumanIntelligenceForPrompt(intel: ActionContext['humanIntelligence']): string {
+  if (intel.length === 0) return 'No human-submitted intelligence.'
+  return intel
+    .slice(0, 5)
+    .map((h, i) => {
+      return `${i + 1}. [${h.priority.toUpperCase()}] ${h.summary || h.content.substring(0, 100)} (submitted by ${h.submittedBy})`
+    })
+    .join('\n')
+}
+
+function formatInternalSignalsForPrompt(signals: ActionContext['internalSignals']): string {
+  if (signals.length === 0) return 'No internal memory signals detected.'
+  return signals
+    .slice(0, 10)
+    .map((s, i) => {
+      return `${i + 1}. [${s.signalType.toUpperCase()}] ${s.title}\n   Impact: ${s.businessImpact}\n   Action: ${s.recommendedAction}\n   Confidence: ${Math.round(s.confidence * 100)}% | Severity: ${s.severity}\n   Source: ${s.source}`
+    })
+    .join('\n\n')
+}
+
+function formatAccountStrategyForPrompt(strategy: ActionContext['accountStrategy']): string {
+  if (!strategy) return 'No account strategy on file.'
+  const parts: string[] = []
+  if (strategy.swotAnalysis) parts.push(`SWOT: ${strategy.swotAnalysis.substring(0, 300)}`)
+  if (strategy.keyInitiatives) parts.push(`Key Initiatives: ${strategy.keyInitiatives.substring(0, 300)}`)
+  return parts.length > 0 ? parts.join('\n') : 'Account strategy exists but has no content.'
+}
+
 // ─── AI Call Helper ─────────────────────────────────────────────
 
 const GROUND_RULES = `GROUND RULES — YOU MUST FOLLOW THESE:
@@ -356,23 +540,36 @@ async function generateMeetingPrep(ctx: ActionContext): Promise<{ content: Recor
   const signalText = formatSignalsForPrompt(ctx.signals)
   const researchText = formatResearchForPrompt(ctx.researchCard)
   const contactText = formatContactsForPrompt(ctx.contacts)
+  const notesText = formatCompanyNotesForPrompt(ctx.companyNotes)
+  const contactNotesText = formatContactNotesForPrompt(ctx.contactNotes)
+  const internalSignalsText = formatInternalSignalsForPrompt(ctx.internalSignals)
+  const strategyText = formatAccountStrategyForPrompt(ctx.accountStrategy)
+
+  // Adjust confidence based on data richness
+  const totalDataPoints = ctx.signals.length + ctx.companyNotes.length + ctx.contactNotes.length +
+    ctx.internalSignals.length + (ctx.researchCard ? 1 : 0)
+  const baseConfidence = totalDataPoints >= 10 ? 0.85 : totalDataPoints >= 5 ? 0.75 : 0.60
 
   const systemPrompt = `${GROUND_RULES}
 
 You are a B2B sales enablement specialist preparing a meeting brief for an account executive.
 Your brief helps the AE walk into a meeting fully informed and ready to have a strategic conversation.
 
+IMPORTANT: Combine BOTH external intelligence (news, signals) AND internal memory (notes, previous meetings,
+contact observations, human intel). Internal memory is often MORE valuable for small/mid-market companies.
+
 OUTPUT FORMAT: Valid JSON only.
 {
-  "executiveSummary": "2-3 sentence overview of the company and why we're meeting",
-  "keyBusinessChanges": ["change 1", "change 2", "change 3"],
+  "executiveSummary": "2-3 sentence overview combining external signals AND internal memory",
+  "keyBusinessChanges": ["change from external OR internal sources"],
+  "previousInteractions": ["summary of past meetings, calls, notes from CRM"],
   "talkingPoints": [
-    { "point": "Specific talking point", "evidence": "Which signal/data supports this", "goal": "What you want to achieve" }
+    { "point": "Specific talking point", "evidence": "Which signal/note/data supports this", "goal": "What you want to achieve" }
   ],
   "discoveryQuestions": [
-    { "question": "Open-ended discovery question", "rationale": "Why ask this now", "signalRef": "Related signal" }
+    { "question": "Open-ended discovery question", "rationale": "Why ask this now", "signalRef": "Related signal or note" }
   ],
-  "icebreakers": ["personalized icebreaker based on company news or contact"],
+  "icebreakers": ["personalized icebreaker based on company news, previous interactions, or contact"],
   "riskAreas": ["potential objections or concerns to prepare for"],
   "recommendedObjective": "What the AE should aim to achieve in this meeting"
 }`
@@ -384,23 +581,37 @@ Industry: ${ctx.company.industry || 'Unknown'}
 Size: ${ctx.company.sizeRange || 'Unknown'}
 Country: ${ctx.company.country || 'Unknown'}
 
+=== EXTERNAL INTELLIGENCE ===
 COMPANY RESEARCH:
 ${researchText}
 
 ACTIVE SIGNALS (${ctx.signals.length}):
 ${signalText}
 
+=== INTERNAL MEMORY ===
+INTERNAL NOTES & MEETINGS (${ctx.companyNotes.length}):
+${notesText}
+
+CONTACT OBSERVATIONS (${ctx.contactNotes.length}):
+${contactNotesText}
+
+INTERNAL MEMORY SIGNALS (${ctx.internalSignals.length}):
+${internalSignalsText}
+
+ACCOUNT STRATEGY:
+${strategyText}
+
 KEY CONTACTS (${ctx.contacts.length}):
 ${contactText}
 
-Generate the meeting prep brief.`
+Generate the meeting prep brief combining external and internal intelligence.`
 
   const raw = await callAIForAction(systemPrompt, userPrompt)
   const content = parseJSONResponse(raw)
   return {
     content,
     summary: String(content.executiveSummary || content.recommendedObjective || 'Meeting preparation brief generated'),
-    confidence: 0.8,
+    confidence: baseConfidence,
   }
 }
 
@@ -693,14 +904,33 @@ async function generateNextBestAction(
   const stakeholder = previousActions.get('stakeholder_map')
   const qualification = previousActions.get('opportunity_qualification')
 
+  const internalSignalsText = formatInternalSignalsForPrompt(ctx.internalSignals)
+  const notesText = formatCompanyNotesForPrompt(ctx.companyNotes)
+  const contactNotesText = formatContactNotesForPrompt(ctx.contactNotes)
+  const timelineText = formatTimelineForPrompt(ctx.timelineEvents)
+
+  // Determine intelligence balance for confidence calibration
+  const externalCount = ctx.signals.length
+  const internalCount = ctx.internalSignals.length + ctx.companyNotes.length + ctx.contactNotes.length
+  const hasBothSources = externalCount > 0 && internalCount > 0
+  const isInternalHeavy = internalCount > externalCount
+  const balanceNote = hasBothSources
+    ? 'INTELLIGENCE BALANCE: Both external signals and internal memory available — high confidence'
+    : isInternalHeavy
+    ? 'INTELLIGENCE BALANCE: Primarily internal memory (common for small/mid-market companies) — moderate-high confidence'
+    : 'INTELLIGENCE BALANCE: Primarily external signals — standard confidence'
+
   const systemPrompt = `${GROUND_RULES}
 
 You are a B2B sales intelligence system. Your job is to answer ONE question:
 "What should the salesperson do next, and why?"
 
-You are given the outputs of 5 analysis modules. Synthesize them into a single,
-prioritized, actionable recommendation. This is the MOST IMPORTANT output —
-it must be clear, specific, and immediately actionable.
+You are given the outputs of 5 analysis modules PLUS internal memory data.
+Synthesize everything into a single, prioritized, actionable recommendation.
+
+CRITICAL: Do not ignore internal memory. For many companies (especially small/mid-market),
+internal notes, meeting records, and contact observations are MORE valuable than external
+news signals. Always prioritize the most recent and highest-confidence data regardless of source.
 
 OUTPUT FORMAT: Valid JSON only.
 {
@@ -710,12 +940,12 @@ OUTPUT FORMAT: Valid JSON only.
     "person": "Who to target (name or role)",
     "company": "Company name"
   },
-  "reason": "2-3 sentence rationale — why this action, why now",
+  "reason": "2-3 sentence rationale — why this action, why now. Reference both external signals AND internal memory.",
   "urgency": "immediate|today|this_week|this_month",
   "effort": "low|medium|high",
   "expectedOutcome": "What success looks like",
   "evidenceLinks": [
-    { "type": "signal|contact|insight", "reference": "Brief reference to supporting data" }
+    { "type": "signal|contact|insight|internal_note|contact_note|timeline", "reference": "Brief reference to supporting data" }
   ],
   "alternativeActions": [
     { "action": "What else could be done", "priority": 2, "reason": "Why this is second priority" }
@@ -729,6 +959,8 @@ OUTPUT FORMAT: Valid JSON only.
 COMPANY: ${ctx.company.rawName}
 Industry: ${ctx.company.industry || 'Unknown'}
 Size: ${ctx.company.sizeRange || 'Unknown'}
+
+${balanceNote}
 
 === MEETING PREP SUMMARY ===
 ${meetingPrep?.summary || 'Not generated'}
@@ -753,13 +985,25 @@ ${qualification?.summary || 'Not generated'}
 Verdict: ${qualification?.content?.verdict || 'N/A'}
 Next step: ${qualification?.content?.nextStep || 'N/A'}
 
-=== TOP 3 ACTIVE SIGNALS ===
+=== TOP EXTERNAL SIGNALS (${ctx.signals.length}) ===
 ${ctx.signals.slice(0, 3).map((s, i) => `${i + 1}. ${s.title} (${s.signalType}) — ${s.businessImpact || 'No impact assessed'}`).join('\n')}
+
+=== INTERNAL MEMORY SIGNALS (${ctx.internalSignals.length}) ===
+${internalSignalsText}
+
+=== RECENT NOTES & MEETINGS (${ctx.companyNotes.length}) ===
+${notesText}
+
+=== CONTACT OBSERVATIONS (${ctx.contactNotes.length}) ===
+${contactNotesText}
+
+=== RECENT ACTIVITY TIMELINE (${ctx.timelineEvents.length}) ===
+${timelineText}
 
 === TOP CONTACTS ===
 ${ctx.contacts.slice(0, 3).map((c, i) => `${i + 1}. ${c.rawName} (${c.title || c.role || 'Unknown'}) — Lead Score: ${c.leadScore}`).join('\n')}
 
-What should the salesperson do NEXT and why?`
+What should the salesperson do NEXT and why? Ground your answer in BOTH external and internal intelligence.`
 
   const raw = await callAIForAction(systemPrompt, userPrompt)
   const content = parseJSONResponse(raw)
@@ -918,6 +1162,14 @@ export async function generateCompanyActions(companyId: string): Promise<Sprint3
   // Step 4: Build response
   const actions: ActionArtifactResponse[] = []
 
+  // Calculate intelligence balance
+  const externalCount = ctx.signals.length
+  const internalCount = ctx.internalSignals.length + ctx.companyNotes.length + ctx.contactNotes.length
+  const intelligenceBalance: Sprint3FullResponse['context']['intelligenceBalance'] =
+    externalCount === 0 && internalCount === 0 ? 'empty' :
+    internalCount > externalCount * 2 ? 'internal_heavy' :
+    externalCount > internalCount * 2 ? 'external_heavy' : 'balanced'
+
   for (const actionType of ACTION_TYPES) {
     const prev = previousActions.get(actionType)
     if (prev) {
@@ -952,6 +1204,12 @@ export async function generateCompanyActions(companyId: string): Promise<Sprint3
       contactCount: ctx.contacts.length,
       evidenceCount: ctx.evidence.length,
       insightCount: ctx.insights.length,
+      companyNotesCount: ctx.companyNotes.length,
+      contactNotesCount: ctx.contactNotes.length,
+      timelineEventsCount: ctx.timelineEvents.length,
+      internalSignalsCount: ctx.internalSignals.length,
+      humanIntelCount: ctx.humanIntelligence.length,
+      intelligenceBalance,
     },
     actions,
     meta: {

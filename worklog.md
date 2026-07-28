@@ -181,3 +181,25 @@ Stage Summary:
   - Knowledge versioning: snapshots created and retrieved correctly
 - Files created: src/app/api/intelligence/sprint2/route.ts, scripts/validate-sprint2-direct.ts
 - Files modified: src/lib/auth-helpers.ts (cleanup)
+---
+Task ID: S2-1-confirm
+Agent: Main Agent (direct)
+Task: Confirm Sprint 2 validation by re-running after session continuation
+
+Work Log:
+- Session continued from context overflow; verified all Sprint 2 files exist
+- Confirmed auth-helpers.ts cleanup (temp public paths removed)
+- Confirmed Sprint 2 API route at /api/intelligence/sprint2/route.ts (252 lines)
+- Confirmed validation script at scripts/validate-sprint2-direct.ts (467 lines)
+- Ran npx tsx scripts/validate-sprint2-direct.ts — full execution
+- All 5 companies passed all 14 checks
+
+Stage Summary:
+- **5/5 companies PASSED all 14/14 checks** (re-confirmed)
+  - Jaccard duplicate detection: 93.8% similarity on near-duplicate pair
+  - Conflict detection: 3 per company (2 temporal + 1 contradiction)
+  - Confidence: 71% composite (source 75%, freshness 85%, content 50%)
+  - Old data penalty: 194.5 days → 0% freshness
+  - Knowledge versioning: snapshots + history retrieval working
+- Sprint 1 + Sprint 2 pipelines are both fully operational
+- Remaining cleanup: schema.prisma still on SQLite (switch to PostgreSQL for production)

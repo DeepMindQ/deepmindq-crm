@@ -1,19 +1,66 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import type {
+  CompanyIntelligence,
+  IntelligenceObject,
+  EvidenceState,
+  EvidenceSource,
+  TemporalConfidence,
+} from '@/lib/intelligence-types';
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   GET /api/companies/[id]/alignment — Read-Only Composition Layer
+   GET /api/companies/[id]/alignment — Read-Only Composition Layer (v2)
    
-   This endpoint does NOT generate new intelligence.
-   It combines existing signals, capabilities, and company data
-   into a business-language alignment response.
+   Returns Intelligence Objects — the frozen UI/API contract.
    
-   Architecture-ready for Phase B Intelligence Engine upgrades.
-   UI/API contract remains compatible when deeper intelligence plugs in.
+   Every intelligence item has:
+   - Evidence state: confirmed | inferred | unknown
+   - Confidence: 0-100
+   - Freshness tracking
+   - Reasoning chain
    
-   Response shaped around user's decision:
-   "Why should I approach this account and why are we a fit?"
+   Architecture-ready for Phase B. The UI consumes Intelligence Objects.
+   The source of intelligence can evolve without redesign.
    ═══════════════════════════════════════════════════════════════════════════ */
+
+function determineEvidenceState(
+  hasDirectEvidence: boolean,
+  hasSourceUrl: boolean,
+  hasMultipleSignals: boolean
+): EvidenceState {
+  if (hasDirectEvidence && hasSourceUrl) return 'confirmed';
+  if (hasDirectEvidence || hasMultipleSignals) return 'inferred';
+  return 'unknown';
+}
+
+function computeTemporal(confidence: number, createdAt: string): TemporalConfidence {
+  const ageDays = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24);
+  // Lightweight: previous is estimated as lower if recent, higher confidence tends to rise
+  const previous = Math.max(0, confidence - (ageDays < 7 ? 15 : ageDays < 30 ? 10 : 5));
+  const trend: TemporalConfidence['trend'] = 
+    confidence > previous + 10 ? 'rising' : 
+    confidence < previous - 10 ? 'declining' : 'stable';
+  
+  return {
+    current: Math.round(confidence),
+    previous: Math.round(previous),
+    lastUpdated: new Date(createdAt).toISOString(),
+    changeReason: ageDays < 7 ? 'Recent signals detected' : ageDays < 30 ? 'Ongoing monitoring' : 'Historical baseline',
+    trend,
+  };
+}
+
+function computeFreshness(createdAt: string, signalDate?: string | null): {
+  lastEnriched: string;
+  staleness: 'fresh' | 'aging' | 'stale' | 'unknown';
+} {
+  const date = signalDate ? new Date(signalDate) : new Date(createdAt);
+  const ageDays = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24);
+  return {
+    lastEnriched: date.toISOString(),
+    staleness: ageDays <= 7 ? 'fresh' : ageDays <= 30 ? 'aging' : ageDays <= 90 ? 'stale' : 'stale',
+  };
+}
 
 export async function GET(
   _request: Request,
@@ -22,14 +69,11 @@ export async function GET(
   try {
     const { id: companyId } = await params;
 
-    // 1. Fetch company
     const company = await db.company.findUnique({
       where: { id: companyId },
       include: {
         researchCard: true,
-        _count: {
-          select: { signals: true, contacts: true, notes: true },
-        },
+        _count: { select: { signals: true, contacts: true, notes: true } },
       },
     });
 
@@ -37,102 +81,123 @@ export async function GET(
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    // 2. Fetch company signals
-    const signals = await db.companySignal.findMany({
-      where: { companyId },
-      orderBy: { createdAt: 'desc' },
-    });
+    const [signals, capabilities, contacts, validations] = await Promise.all([
+      db.companySignal.findMany({
+        where: { companyId },
+        orderBy: { createdAt: 'desc' },
+      }),
+      db.capabilityAsset.findMany({ where: { isActive: true } }),
+      db.contact.findMany({
+        where: { companyId },
+        orderBy: { leadScore: 'desc' },
+        take: 10,
+      }),
+      db.intelligenceValidation.findMany({
+        where: { companyId },
+        orderBy: { validatedAt: 'desc' },
+        take: 20,
+      }),
+    ]);
 
-    // 3. Fetch active capabilities
-    const capabilities = await db.capabilityAsset.findMany({
-      where: { isActive: true },
-    });
+    // Build feedback map from validations
+    const feedbackMap = new Map<string, { status: 'accurate' | 'outdated' | 'incorrect'; reason?: string }>();
+    for (const v of validations) {
+      const key = `${v.artifactType}:${v.artifactId}`;
+      if (!feedbackMap.has(key)) {
+        const status = v.accuracy === 'accurate' ? 'accurate' as const :
+          v.accuracy === 'inaccurate' ? 'incorrect' as const : 'outdated' as const;
+        feedbackMap.set(key, { status, reason: v.feedback || undefined });
+      }
+    }
 
-    // 4. Fetch top contacts for this company
-    const contacts = await db.contact.findMany({
-      where: { companyId },
-      orderBy: { leadScore: 'desc' },
-      take: 10,
-    });
+    // ── Compose Intelligence Objects ──
+    const signalObjects = composeSignalObjects(signals, company, feedbackMap);
+    const needObjects = composeNeedObjects(signalObjects, company);
+    const capabilityMatchObjects = composeCapabilityMatchObjects(needObjects, capabilities, signals, company, feedbackMap);
+    const actionObjects = composeActionObjects(company, signalObjects, capabilityMatchObjects, contacts, feedbackMap);
+    const stakeholderObjects = composeStakeholderObjects(contacts, company);
 
-    // ── Composition: Signals → Detected Business Needs ──
-    const businessNeeds = composeBusinessNeeds(signals, company);
-
-    // ── Composition: Needs + Capabilities → Capability Matches ──
-    const capabilityMatches = composeCapabilityMatches(
-      businessNeeds,
-      capabilities,
-      signals,
-      company
+    // ── Executive Understanding ──
+    const executiveUnderstanding = composeExecutiveUnderstanding(
+      company, signalObjects, capabilityMatchObjects, actionObjects
     );
 
-    // ── Composition: Matches + Company context → Recommended Positioning ──
-    const recommendedPositioning = composePositioning(
-      company,
-      businessNeeds,
-      capabilityMatches,
-      contacts
-    );
+    // ── Positioning ──
+    const positioning = composePositioning(company, needObjects, capabilityMatchObjects, contacts);
 
-    // ── Technology Intelligence from research card + signals ──
-    const technologyProfile = composeTechnologyProfile(company, signals);
+    // ── Technology Profile ──
+    const technology = composeTechnologyProfile(company, signalObjects);
 
-    // ── Actions derived from signals + matches ──
-    const recommendedActions = composeActions(
-      company,
-      signals,
-      capabilityMatches,
-      contacts
-    );
-
-    return NextResponse.json({
-      company: company.rawName,
-      industry: company.industry,
-      domain: company.domain,
-      intelligenceScore: company.intelligenceScore ?? 0,
-
-      // Business needs detected from signals
-      needs: businessNeeds,
-
-      // How our capabilities match their needs
-      capabilityMatches,
-
-      // Strategic positioning recommendation
-      recommendedPositioning,
-
-      // Technology stack intelligence
-      technology: technologyProfile,
-
-      // Concrete next steps
-      actions: recommendedActions,
-
-      // Metadata
+    const response: CompanyIntelligence = {
+      company: {
+        id: company.id,
+        name: company.rawName,
+        industry: company.industry,
+        domain: company.domain,
+        intelligenceScore: company.intelligenceScore ?? 0,
+      },
+      executiveUnderstanding,
+      signals: signalObjects,
+      needs: needObjects,
+      capabilityMatches: capabilityMatchObjects,
+      actions: actionObjects,
+      stakeholders: stakeholderObjects,
+      positioning,
+      technology,
+      generatedAt: new Date().toISOString(),
       signalCount: signals.length,
       capabilityCount: capabilities.length,
       contactCount: contacts.length,
-      generatedAt: new Date().toISOString(),
+      _meta: { source: 'composition_layer', version: '2.0', futureReady: true },
+    };
 
-      // Phase B compatibility: these fields will be populated by
-      // the future Intelligence Engine (Evidence Engine, Knowledge Graph, etc.)
-      // Today they are derived from existing data.
-      _meta: {
-        source: 'composition_layer',
-        version: '1.0',
-        futureReady: true,
-      },
-    });
+    return NextResponse.json(response);
   } catch (error) {
-    console.error('[alignment] Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to compose alignment' },
-      { status: 500 }
-    );
+    console.error('[alignment-v2] Error:', error);
+    return NextResponse.json({ error: 'Failed to compose alignment' }, { status: 500 });
   }
 }
 
 /* ═══════════════════════════════════════════════════
-   Signal → Business Need Mapping
-   ═══════════════════════════════════════════════════ */
+   Compose Intelligence Objects from raw data
+   ═══════════════════════════════════════ */
+
+function composeSignalObjects(
+  signals: any[],
+  company: any,
+  feedbackMap: Map<string, { status: 'accurate' | 'outdated' | 'incorrect'; reason?: string }>
+): IntelligenceObject[] {
+  return signals.map(signal => {
+    const confidence = Math.round((signal.confidence ?? 0.5) * 100);
+    const evidenceState = determineEvidenceState(
+      Boolean(signal.source || signal.sourceUrl),
+      Boolean(signal.sourceUrl),
+      false
+    );
+    const fb = feedbackMap.get(`signal_meaning:${signal.id}`);
+
+    return {
+      id: signal.id,
+      type: 'signal',
+      title: signal.title,
+      subtitle: signal.description || undefined,
+      whatChanged: signal.title,
+      whyItMatters: signal.businessImpact || `Signal of type "${signal.signalType}" detected for ${company.rawName}`,
+      evidenceState,
+      confidence,
+      reasoning: `${signal.signalType.replace(/_/g, ' ')} signal detected${signal.description ? ': ' + signal.description : ''}. Severity: ${signal.severity}.`,
+      evidence: [
+        ...(signal.source ? [{ source: signal.source, snippet: signal.title, url: signal.sourceUrl, date: signal.signalDate?.toISOString(), state: evidenceState }] : []),
+      ].filter(Boolean) as EvidenceSource[],
+      freshness: computeFreshness(signal.createdAt, signal.signalDate),
+      temporal: computeTemporal(confidence, signal.createdAt),
+      category: signal.signalType,
+      priority: signal.severity === 'critical' || signal.severity === 'high' ? 'high' as const : signal.severity === 'medium' ? 'medium' as const : 'low' as const,
+      timing: signal.timingWindow || undefined,
+      feedback: fb ? { status: fb.status, updatedAt: new Date().toISOString(), reason: fb.reason } : undefined,
+    };
+  });
+}
 
 const SIGNAL_TO_NEED_MAP: Record<string, string[]> = {
   funding: ['Growth capital available', 'Expanding operations', 'Scaling infrastructure'],
@@ -145,405 +210,366 @@ const SIGNAL_TO_NEED_MAP: Record<string, string[]> = {
   expansion: ['Geographic growth', 'New market entry', 'Localization needs'],
 };
 
-function composeBusinessNeeds(
-  signals: any[],
+function composeNeedObjects(
+  signalObjects: IntelligenceObject[],
   company: any
-): Array<{
-  need: string;
-  confidence: number;
-  signalTypes: string[];
-  signalCount: number;
-  evidence: string[];
-  detectedAt: string;
-}> {
-  if (signals.length === 0) return [];
+): IntelligenceObject[] {
+  if (signalObjects.length === 0) return [];
 
-  const needMap = new Map<string, { signals: any[]; types: Set<string> }>();
+  const needMap = new Map<string, { signals: IntelligenceObject[]; types: Set<string>; totalConfidence: number }>();
 
-  for (const signal of signals) {
-    const mappedNeeds = SIGNAL_TO_NEED_MAP[signal.signalType] || [];
+  for (const so of signalObjects) {
+    const mappedNeeds = SIGNAL_TO_NEED_MAP[so.category || ''] || [];
     for (const need of mappedNeeds) {
       if (!needMap.has(need)) {
-        needMap.set(need, { signals: [], types: new Set() });
+        needMap.set(need, { signals: [], types: new Set(), totalConfidence: 0 });
       }
       const entry = needMap.get(need)!;
-      entry.signals.push(signal);
-      entry.types.add(signal.signalType);
+      entry.signals.push(so);
+      entry.types.add(so.category || 'unknown');
+      entry.totalConfidence += so.confidence;
     }
-
-    // Also map the signal title directly if no mapping exists
-    if (mappedNeeds.length === 0 && signal.title) {
-      const need = signal.title;
-      if (!needMap.has(need)) {
-        needMap.set(need, { signals: [], types: new Set() });
+    // Map signal title as a need if no mapping
+    if (mappedNeeds.length === 0 && so.title) {
+      if (!needMap.has(so.title)) {
+        needMap.set(so.title, { signals: [so], types: new Set([so.category || 'unknown']), totalConfidence: so.confidence });
       }
-      const entry = needMap.get(need)!;
-      entry.signals.push(signal);
-      entry.types.add(signal.signalType);
     }
   }
 
   return Array.from(needMap.entries())
-    .map(([need, data]) => ({
-      need,
-      confidence: Math.min(
-        95,
-        40 + (data.signals.length * 15) + (data.types.size * 10)
-      ),
-      signalTypes: Array.from(data.types),
-      signalCount: data.signals.length,
-      evidence: data.signals.map(s =>
-        s.description || `${s.signalType}: ${s.title}`
-      ),
-      detectedAt: data.signals[0]?.createdAt || new Date().toISOString(),
-    }))
+    .map(([need, data]) => {
+      const avgConfidence = Math.round(data.totalConfidence / data.signals.length);
+      const hasSources = data.signals.some(s => s.evidence.some(e => e.url));
+      const evidenceState = determineEvidenceState(data.signals.length > 1, hasSources, data.signals.length > 2);
+
+      return {
+        id: `need-${need.replace(/\s+/g, '-').toLowerCase()}`,
+        type: 'need' as const,
+        title: need,
+        whatChanged: data.signals.map(s => s.title).join('; '),
+        whyItMatters: `${data.signals.length} signal${data.signals.length !== 1 ? 's' : ''} from ${Array.from(data.types).join(', ')} indicate this business need for ${company.rawName}`,
+        evidenceState,
+        confidence: Math.min(95, avgConfidence + data.signals.length * 5),
+        reasoning: `Detected through ${Array.from(data.types).join(', ')} signal analysis. ${data.signals.length} active signals contribute to this assessment.`,
+        evidence: data.signals.flatMap(s => s.evidence),
+        freshness: computeFreshness(data.signals[0]?.freshness?.lastEnriched || new Date().toISOString()),
+        temporal: computeTemporal(Math.min(95, avgConfidence + data.signals.length * 5), data.signals[0]?.freshness?.lastEnriched || new Date().toISOString()),
+        relatedSignals: data.signals.map(s => s.id),
+        priority: avgConfidence >= 70 ? 'high' as const : avgConfidence >= 50 ? 'medium' as const : 'low' as const,
+      };
+    })
     .sort((a, b) => b.confidence - a.confidence);
 }
 
-/* ═══════════════════════════════════════════════════
-   Needs + Capabilities → Match Scoring
-   ═══════════════════════════════════════════════════ */
-
-function composeCapabilityMatches(
-  needs: Array<{ need: string; confidence: number; evidence: string[] }>,
+function composeCapabilityMatchObjects(
+  needs: IntelligenceObject[],
   capabilities: any[],
   signals: any[],
-  company: any
-): Array<{
-  capability: string;
-  capabilityId: string;
-  category: string;
-  matchConfidence: number;
-  matchedNeeds: string[];
-  supportingEvidence: string[];
-  summary: string;
-}> {
+  company: any,
+  feedbackMap: Map<string, { status: 'accurate' | 'outdated' | 'incorrect'; reason?: string }>
+): IntelligenceObject[] {
   if (capabilities.length === 0 || needs.length === 0) return [];
 
-  // Simple keyword/semantic matching between needs and capabilities
-  // Phase B will replace this with Knowledge Graph + vector similarity
-  const matches: Array<{
-    capability: string;
-    capabilityId: string;
-    category: string;
-    matchConfidence: number;
-    matchedNeeds: string[];
-    supportingEvidence: string[];
-    summary: string;
-  }> = [];
+  const matches: IntelligenceObject[] = [];
 
   for (const cap of capabilities) {
     const capText = [
       cap.title, cap.summary, cap.solution, cap.technology,
       cap.industry, cap.businessProblem, cap.customerOutcome,
       cap.differentiator, cap.keywords, cap.problems,
-      cap.targetIndustries, cap.technology,
+      cap.targetIndustries,
     ].filter(Boolean).join(' ').toLowerCase();
 
-    const companyText = [
-      company.industry, company.domain, company.sizeRange,
-      company.country, company.location,
-    ].filter(Boolean).join(' ').toLowerCase();
+    const companyText = [company.industry, company.domain, company.sizeRange, company.country].filter(Boolean).join(' ').toLowerCase();
+    const signalText = signals.map(s => `${s.title} ${s.description} ${s.signalType}`).filter(Boolean).join(' ').toLowerCase();
 
-    const signalText = signals
-      .map(s => `${s.title} ${s.description} ${s.signalType}`)
-      .filter(Boolean)
-      .join(' ').toLowerCase();
-
-    let bestMatchScore = 0;
+    let bestScore = 0;
     const matchedNeeds: string[] = [];
-    const allEvidence: string[] = [];
+    const allEvidence: EvidenceSource[] = [];
 
     for (const need of needs) {
-      const needWords = need.need.toLowerCase().split(/\s+/);
-      const overlapCount = needWords.filter(w =>
-        w.length > 3 && (capText.includes(w) || signalText.includes(w))
-      ).length;
-
-      const needText = need.need.toLowerCase();
+      const needWords = need.title.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+      const overlapCount = needWords.filter(w => capText.includes(w) || signalText.includes(w)).length;
+      const needText = need.title.toLowerCase();
       const directMatch = capText.includes(needText) || signalText.includes(needText);
       const partialMatch = overlapCount >= 2;
 
       let score = 0;
-      if (directMatch) score = 85 + need.confidence * 0.1;
-      else if (partialMatch) score = 50 + (overlapCount / needWords.length) * 30 + need.confidence * 0.05;
+      if (directMatch) score = 80 + need.confidence * 0.15;
+      else if (partialMatch) score = 45 + (overlapCount / Math.max(needWords.length, 1)) * 30 + need.confidence * 0.1;
 
-      // Industry alignment boost
       if (cap.targetIndustries && company.industry) {
         if (cap.targetIndustries.toLowerCase().includes(company.industry.toLowerCase())) {
-          score += 10;
-          allEvidence.push(`Industry alignment: ${cap.targetIndustries}`);
+          score += 8;
+          allEvidence.push({ source: 'Industry Alignment', snippet: cap.targetIndustries, state: 'confirmed' });
         }
       }
 
-      if (score > 30) {
-        bestMatchScore = Math.max(bestMatchScore, score);
-        matchedNeeds.push(need.need);
+      if (score > 25) {
+        bestScore = Math.max(bestScore, score);
+        matchedNeeds.push(need.title);
         allEvidence.push(...need.evidence.slice(0, 2));
       }
     }
 
-    if (bestMatchScore > 30) {
+    if (bestScore > 25) {
+      const matchConfidence = Math.min(99, Math.round(bestScore));
+      const evidenceState = determineEvidenceState(matchedNeeds.length > 1, allEvidence.some(e => e.url), allEvidence.length > 2);
+      const fb = feedbackMap.get(`capability_match:${cap.id}`);
+
       matches.push({
-        capability: cap.title,
-        capabilityId: cap.id,
+        id: `match-${cap.id}`,
+        type: 'capability_match',
+        title: cap.title,
+        subtitle: cap.summary || undefined,
+        whyItMatters: `Matches ${matchedNeeds.length} detected need${matchedNeeds.length !== 1 ? 's' : ''}: ${matchedNeeds[0]}${matchedNeeds.length > 1 ? ` +${matchedNeeds.length - 1} more` : ''}`,
+        whyWeRelevant: cap.differentiator || `${cap.category} capability aligned with ${company.rawName}'s current business trajectory`,
+        whatToDo: cap.customerOutcome ? `Position ${cap.title.toLowerCase()} as a solution for ${cap.customerOutcome.toLowerCase()}` : `Engage ${company.rawName} on ${cap.title.toLowerCase()}`,
+        evidenceState,
+        confidence: matchConfidence,
+        reasoning: `${matchConfidence}% match based on keyword/signal analysis against ${matchedNeeds.length} business needs. ${cap.category} category.`,
+        evidence: allEvidence.slice(0, 6),
+        freshness: computeFreshness(cap.updatedAt?.toISOString() || cap.createdAt?.toISOString() || new Date().toISOString()),
+        relatedCapabilities: [cap.id],
+        relatedSignals: needs.filter(n => matchedNeeds.includes(n.title)).flatMap(n => n.relatedSignals || []),
         category: cap.category,
-        matchConfidence: Math.min(99, Math.round(bestMatchScore)),
-        matchedNeeds,
-        supportingEvidence: [...new Set(allEvidence)].slice(0, 5),
-        summary: cap.summary || '',
+        priority: matchConfidence > 70 ? 'high' as const : matchConfidence > 45 ? 'medium' as const : 'low' as const,
+        feedback: fb ? { status: fb.status, updatedAt: new Date().toISOString(), reason: fb.reason } : undefined,
       });
     }
   }
 
-  return matches.sort((a, b) => b.matchConfidence - a.matchConfidence);
+  return matches.sort((a, b) => b.confidence - a.confidence);
 }
 
-/* ═══════════════════════════════════════════════════
-   Positioning Recommendation
-   ═══════════════════════════════════════════════════ */
-
-function composePositioning(
+function composeActionObjects(
   company: any,
-  needs: Array<{ need: string; confidence: number }>,
-  matches: Array<{ capability: string; matchedNeeds: string[]; matchConfidence: number }>,
-  contacts: any[]
-): {
-  message: string;
-  angle: string;
-  targetStakeholders: Array<{ role: string; reason: string }>;
-  strengthScore: number;
-  topMatches: string[];
-} {
-  if (matches.length === 0) {
+  signalObjects: IntelligenceObject[],
+  matchObjects: IntelligenceObject[],
+  contacts: any[],
+  feedbackMap: Map<string, { status: 'accurate' | 'outdated' | 'incorrect'; reason?: string }>
+): IntelligenceObject[] {
+  const actions: IntelligenceObject[] = [];
+
+  // High-severity signals → immediate actions
+  for (const so of signalObjects.filter(s => s.priority === 'high')) {
+    actions.push({
+      id: `action-signal-${so.id}`,
+      type: 'action',
+      title: `Follow up: ${so.title}`,
+      whatChanged: so.title,
+      whyItMatters: so.whyItMatters,
+      whatToDo: `Investigate and act on ${so.category?.replace(/_/g, ' ')} signal for ${company.rawName}`,
+      evidenceState: so.evidenceState,
+      confidence: so.confidence,
+      reasoning: so.reasoning,
+      evidence: so.evidence,
+      freshness: so.freshness,
+      temporal: so.temporal,
+      priority: 'high',
+      timing: so.timing || 'within_7_days',
+      relatedSignals: [so.id],
+    });
+  }
+
+  // Top match → engagement action
+  if (matchObjects.length > 0) {
+    const top = matchObjects[0];
+    actions.push({
+      id: `action-match-${top.id}`,
+      type: 'action',
+      title: `Position "${top.title}" to ${company.rawName}`,
+      whyWeRelevant: top.whyWeRelevant,
+      whatToDo: `Engage ${company.rawName} decision-makers with ${top.title.toLowerCase()} approach`,
+      evidenceState: top.evidenceState,
+      confidence: top.confidence,
+      reasoning: `Top capability match at ${top.confidence}%. ${top.whyItMatters || ''}`,
+      evidence: top.evidence,
+      freshness: top.freshness,
+      priority: top.confidence > 70 ? 'high' : 'medium',
+      timing: 'within_14_days',
+      relatedCapabilities: top.relatedCapabilities,
+    });
+  }
+
+  // High-score contacts → engage
+  for (const c of contacts.filter(c => c.leadScore >= 70)) {
+    const fb = feedbackMap.get(`capability_match:contact-${c.id}`);
+    actions.push({
+      id: `action-contact-${c.id}`,
+      type: 'action',
+      title: `Reach out to ${c.rawName}`,
+      subtitle: c.title || c.role || 'Stakeholder',
+      whatToDo: `Engage ${c.rawName} at ${company.rawName}`,
+      evidenceState: c.leadScore >= 85 ? 'confirmed' : 'inferred',
+      confidence: c.leadScore,
+      reasoning: `High lead score (${c.leadScore}), ${c.title || c.role || 'identified stakeholder'} at ${company.rawName}`,
+      evidence: [{
+        source: 'Contact Intelligence',
+        snippet: `${c.rawName} — ${c.title || c.role || 'Unknown role'} — Score: ${c.leadScore}`,
+        state: c.leadScore >= 85 ? 'confirmed' : 'inferred',
+      }],
+      freshness: computeFreshness(c.lastContactedAt?.toISOString() || c.updatedAt?.toISOString() || new Date().toISOString()),
+      priority: c.leadScore >= 85 ? 'high' : 'medium',
+      relatedContacts: [c.id],
+      feedback: fb ? { status: fb.status, updatedAt: new Date().toISOString(), reason: fb.reason } : undefined,
+    });
+  }
+
+  // No signals → research
+  if (signalObjects.length === 0) {
+    actions.push({
+      id: 'action-research',
+      type: 'action',
+      title: `Enrich ${company.rawName} with intelligence analysis`,
+      whatToDo: 'Run enrichment to discover opportunities and signals',
+      evidenceState: 'unknown',
+      confidence: 40,
+      reasoning: 'No signals detected — intelligence enrichment needed',
+      evidence: [],
+      freshness: computeFreshness(company.lastEnrichedAt?.toISOString() || new Date().toISOString()),
+      priority: 'medium',
+    });
+  }
+
+  return actions.sort((a, b) => {
+    const p = { high: 0, medium: 1, low: 2 };
+    return (p[a.priority!] || 2) - (p[b.priority!] || 2);
+  }).slice(0, 10);
+}
+
+function composeStakeholderObjects(contacts: any[], company: any): IntelligenceObject[] {
+  return contacts.slice(0, 8).map(c => ({
+    id: `stakeholder-${c.id}`,
+    type: 'stakeholder' as const,
+    title: c.rawName,
+    subtitle: c.title || c.role || 'Stakeholder',
+    evidenceState: c.leadScore >= 70 ? 'confirmed' : 'inferred',
+    confidence: c.leadScore || 50,
+    reasoning: `Contact at ${company.rawName}. Lead score: ${c.leadScore}. ${c.title || c.role || 'Role unknown'}.`,
+    evidence: [{
+      source: 'CRM Data',
+      snippet: `${c.title || c.role || 'Unknown role'}${c.assignedTo ? ` — Assigned: ${c.assignedTo}` : ''}`,
+      state: 'confirmed',
+    }],
+    freshness: computeFreshness(c.lastContactedAt?.toISOString() || c.updatedAt?.toISOString() || new Date().toISOString()),
+    priority: c.leadScore >= 80 ? 'high' : c.leadScore >= 50 ? 'medium' : 'low',
+  }));
+}
+
+function composeExecutiveUnderstanding(
+  company: any,
+  signals: IntelligenceObject[],
+  matches: IntelligenceObject[],
+  actions: IntelligenceObject[]
+): CompanyIntelligence['executiveUnderstanding'] {
+  if (signals.length === 0) {
     return {
-      message: 'No capability alignment detected yet. Upload capabilities to enable positioning intelligence.',
-      angle: 'general',
-      targetStakeholders: [],
-      strengthScore: 0,
-      topMatches: [],
+      headline: `${company.rawName} — No active intelligence signals`,
+      narrative: `Intelligence enrichment has not yet been performed for ${company.rawName}. Upload capabilities and run enrichment to activate intelligence.`,
+      evidenceState: 'unknown',
+      overallConfidence: 0,
+      temporal: { current: 0, previous: 0, lastUpdated: new Date().toISOString(), trend: 'new' },
     };
   }
 
-  const topMatches = matches.slice(0, 3);
-  const avgConfidence = topMatches.reduce((sum, m) => sum + m.matchConfidence, 0) / topMatches.length;
+  const highSignals = signals.filter(s => s.priority === 'high');
+  const avgConfidence = Math.round(signals.reduce((sum, s) => sum + s.confidence, 0) / signals.length);
+  const signalTypes = [...new Set(signals.map(s => s.category).filter(Boolean))];
+  
+  const headline = highSignals.length > 0
+    ? `${highSignals.length} high-priority signal${highSignals.length !== 1 ? 's' : ''} detected for ${company.rawName}`
+    : `${signals.length} intelligence signal${signals.length !== 1 ? 's' : ''} active for ${company.rawName}`;
 
-  const topCapability = topMatches[0].capability;
-  const allNeeds = [...new Set(topMatches.flatMap(m => m.matchedNeeds))];
+  let narrative = `${company.rawName} shows active intelligence across ${signalTypes.length} categories: ${signalTypes.join(', ')}. `;
+  
+  if (matches.length > 0) {
+    narrative += `${matches.length} capabilities align with detected needs — strongest match: "${matches[0].title}" at ${matches[0].confidence}% confidence. `;
+  }
+  
+  if (actions.filter(a => a.priority === 'high').length > 0) {
+    narrative += `${actions.filter(a => a.priority === 'high').length} high-priority actions recommended.`;
+  }
 
-  const message = `Position as a ${topCapability.toLowerCase()} partner for ${company.rawName}. ` +
-    (allNeeds.length > 0
-      ? `Their current needs around ${allNeeds[0].toLowerCase()} indicate strong alignment.`
-      : '');
+  const evidenceState = signals.some(s => s.evidenceState === 'confirmed')
+    ? 'confirmed' : signals.some(s => s.evidenceState === 'inferred') ? 'inferred' : 'unknown';
 
-  const angles = ['technical-advisor', 'strategic-partner', 'cost-optimizer', 'innovation-driver'];
-  const angle = avgConfidence > 75 ? 'strategic-partner' : avgConfidence > 55 ? 'technical-advisor' : 'cost-optimizer';
+  return {
+    headline,
+    narrative,
+    evidenceState,
+    overallConfidence: avgConfidence,
+    temporal: computeTemporal(avgConfidence, signals[0]?.freshness?.lastEnriched || new Date().toISOString()),
+  };
+}
+
+function composePositioning(
+  company: any,
+  needs: IntelligenceObject[],
+  matches: IntelligenceObject[],
+  contacts: any[]
+): CompanyIntelligence['positioning'] {
+  if (matches.length === 0) {
+    return {
+      message: 'No capability alignment detected yet.',
+      angle: 'general',
+      strengthScore: 0,
+      targetStakeholders: [],
+      topCapabilities: [],
+    };
+  }
+
+  const top = matches.slice(0, 3);
+  const avgConf = Math.round(top.reduce((s, m) => s + m.confidence, 0) / top.length);
+  const allNeeds = [...new Set(top.flatMap(m => m.whyItMatters?.split(/[:;]/).slice(0, 2) || []))].filter(Boolean);
 
   const stakeholders: Array<{ role: string; reason: string }> = [];
-  if (contacts.length > 0) {
-    const seen = new Set<string>();
-    for (const c of contacts.slice(0, 5)) {
-      const role = c.title || c.role || 'Unknown';
-      if (!seen.has(role)) {
-        seen.add(role);
-        stakeholders.push({
-          role,
-          reason: c.leadScore > 70
-            ? `High scoring contact (${c.leadScore})`
-            : 'Identified stakeholder',
-        });
-      }
+  const seen = new Set<string>();
+  for (const c of contacts.slice(0, 5)) {
+    const role = c.title || c.role || 'Unknown';
+    if (!seen.has(role)) {
+      seen.add(role);
+      stakeholders.push({
+        role,
+        reason: c.leadScore > 70 ? `High scoring contact (${c.leadScore})` : 'Identified stakeholder',
+      });
     }
   }
 
   return {
-    message,
-    angle,
+    message: `Position as a ${top[0].title.toLowerCase()} partner for ${company.rawName}. ${allNeeds[0] ? `Active need: ${allNeeds[0].trim()}.` : ''}`,
+    angle: avgConf > 75 ? 'strategic-partner' : avgConf > 55 ? 'technical-advisor' : 'cost-optimizer',
+    strengthScore: avgConf,
     targetStakeholders: stakeholders.slice(0, 4),
-    strengthScore: Math.round(avgConfidence),
-    topMatches: topMatches.map(m => m.capability),
+    topCapabilities: top.map(m => m.title),
   };
 }
 
-/* ═══════════════════════════════════════════════════
-   Technology Profile from Research Card + Signals
-   ═══════════════════════════════════════════════════ */
-
 function composeTechnologyProfile(
   company: any,
-  signals: any[]
-): {
-  knownTech: string[];
-  techSignals: Array<{ signal: string; type: string; date: string; confidence: number }>;
-  digitalMaturity: string;
-  techDescription: string | null;
-} {
+  signalObjects: IntelligenceObject[]
+): CompanyIntelligence['technology'] {
   const techStack: string[] = [];
-  const techSignals: Array<{ signal: string; type: string; date: string; confidence: number }> = [];
+  const techSignals = signalObjects.filter(s => s.category === 'tech_change');
 
-  // Extract tech from research card
-  if (company.researchCard?.techStack) {
-    const techStr = company.researchCard.techStack;
-    if (Array.isArray(techStr)) {
-      techStack.push(...techStr);
-    } else if (typeof techStr === 'string') {
-      techStack.push(...techStr.split(',').map(t => t.trim()).filter(Boolean));
-    }
+  const rc = company.researchCard;
+  if (rc?.techStack) {
+    const ts = typeof rc.techStack === 'string' ? rc.techStack : JSON.stringify(rc.techStack);
+    techStack.push(...ts.split(',').map(t => t.trim()).filter(Boolean));
+  }
+  if (rc?.techLandscape && typeof rc.techLandscape === 'string') {
+    techStack.push(...rc.techLandscape.split(',').map(t => t.trim()).filter(Boolean));
   }
 
-  if (company.researchCard?.techLandscape) {
-    const landscape = company.researchCard.techLandscape;
-    if (typeof landscape === 'string') {
-      techStack.push(...landscape.split(',').map(t => t.trim()).filter(Boolean));
-    }
-  }
-
-  // Extract tech signals
-  for (const signal of signals) {
-    if (signal.signalType === 'tech_change') {
-      techSignals.push({
-        signal: signal.title,
-        type: signal.signalType,
-        date: signal.createdAt,
-        confidence: signal.severity === 'high' ? 80 : signal.severity === 'medium' ? 60 : 40,
-      });
-    }
-  }
-
-  // Determine digital maturity
-  const maturity = company.researchCard?.digitalMaturity || (
-    techStack.length > 10 ? 'advanced' :
-    techStack.length > 5 ? 'high' :
-    techStack.length > 2 ? 'medium' : 'low'
+  const maturity = (rc?.digitalMaturity as string) || (
+    techStack.length > 10 ? 'advanced' : techStack.length > 5 ? 'high' : techStack.length > 2 ? 'medium' : 'low'
   );
 
   return {
     knownTech: [...new Set(techStack)],
+    digitalMaturity: maturity,
+    techDescription: rc?.techLandscape || null,
     techSignals,
-    digitalMaturity: maturity as string,
-    techDescription: company.researchCard?.techLandscape || null,
   };
-}
-
-/* ═══════════════════════════════════════════════════
-   Actions derived from signals + matches + contacts
-   ═══════════════════════════════════════════════════ */
-
-function composeActions(
-  company: any,
-  signals: any[],
-  matches: Array<{ capability: string; matchedNeeds: string[]; matchConfidence: number }>,
-  contacts: any[]
-): Array<{
-  action: string;
-  type: 'engage' | 'research' | 'prepare' | 'monitor';
-  priority: 'high' | 'medium' | 'low';
-  reason: string;
-  capability?: string;
-  contact?: string;
-  confidence: number;
-}> {
-  const actions: Array<{
-    action: string;
-    type: 'engage' | 'research' | 'prepare' | 'monitor';
-    priority: 'high' | 'medium' | 'low';
-    reason: string;
-    capability?: string;
-    contact?: string;
-    confidence: number;
-  }> = [];
-
-  // High-severity signals → immediate actions
-  for (const signal of signals.filter(s => s.severity === 'high' || s.severity === 'critical')) {
-    actions.push({
-      action: `Follow up on: ${signal.title}`,
-      type: 'engage',
-      priority: signal.severity === 'critical' ? 'high' : 'medium',
-      reason: `High-severity ${signal.signalType.replace('_', ' ')} signal detected`,
-      confidence: 80,
-    });
-  }
-
-  // Top capability match → engagement action
-  if (matches.length > 0) {
-    const topMatch = matches[0];
-    actions.push({
-      action: `Position "${topMatch.capability}" to ${company.rawName}`,
-      type: 'engage',
-      priority: topMatch.matchConfidence > 70 ? 'high' : 'medium',
-      reason: `${topMatch.matchConfidence}% confidence alignment on: ${topMatch.matchedNeeds.join(', ')}`,
-      capability: topMatch.capability,
-      confidence: topMatch.matchConfidence,
-    });
-
-    // Secondary match → prepare action
-    if (matches.length > 1) {
-      actions.push({
-        action: `Prepare "${matches[1].capability}" case study for outreach`,
-        type: 'prepare',
-        priority: 'medium',
-        reason: `${matches[1].matchConfidence}% match on: ${matches[1].matchedNeeds.join(', ')}`,
-        capability: matches[1].capability,
-        confidence: matches[1].matchConfidence,
-      });
-    }
-  }
-
-  // High-score contacts → engage
-  for (const contact of contacts.filter(c => c.leadScore >= 70)) {
-    actions.push({
-      action: `Reach out to ${contact.rawName} (${contact.title || contact.role || 'stakeholder'})`,
-      type: 'engage',
-      priority: contact.leadScore >= 85 ? 'high' : 'medium',
-      reason: `High lead score (${contact.leadScore}), direct access to decision maker`,
-      contact: contact.rawName,
-      confidence: contact.leadScore,
-    });
-  }
-
-  // No signals → research action
-  if (signals.length === 0) {
-    actions.push({
-      action: `Enrich ${company.rawName} with intelligence analysis`,
-      type: 'research',
-      priority: 'medium',
-      reason: 'No signals detected — run enrichment to discover opportunities',
-      confidence: 50,
-    });
-  }
-
-  // No matches → upload capabilities
-  if (matches.length === 0 && signals.length > 0) {
-    actions.push({
-      action: 'Upload capabilities to enable alignment scoring',
-      type: 'prepare',
-      priority: 'low',
-      reason: 'Signals detected but no capabilities in the library to match against',
-      confidence: 40,
-    });
-  }
-
-  // Monitor action for active signals
-  if (signals.length > 0) {
-    const recentSignals = signals.filter(s => {
-      const age = Date.now() - new Date(s.createdAt).getTime();
-      return age < 7 * 24 * 60 * 60 * 1000; // last 7 days
-    });
-    if (recentSignals.length > 3) {
-      actions.push({
-        action: `Monitor ${company.rawName} — ${recentSignals.length} active signals in the last 7 days`,
-        type: 'monitor',
-        priority: 'low',
-        reason: 'High signal velocity indicates active change — watch for timing windows',
-        confidence: 60,
-      });
-    }
-  }
-
-  return actions
-    .sort((a, b) => {
-      const priorityOrder = { high: 0, medium: 1, low: 2 };
-      return priorityOrder[a.priority] - priorityOrder[b.priority];
-    })
-    .slice(0, 8);
 }

@@ -8,6 +8,167 @@ datasource db {
   directUrl = env("DIRECT_DATABASE_URL")
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 1.4: Prisma Enums — Prevent typos from reaching the database.
+// Core status fields used across the product.
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum CompanyStatus {
+  prospect
+  researching
+  active
+  engaged
+  paused
+  closed_won
+  closed_lost
+}
+
+enum CompanyLifecycleStage {
+  discovery
+  qualification
+  proposal
+  negotiation
+  closed
+}
+
+enum CompanyPriorityTier {
+  HOT
+  ACTIVE
+  NURTURE
+  LOW
+}
+
+enum CompanySource {
+  import
+  manual
+  crm
+  webhook
+}
+
+enum ContactStatus {
+  imported
+  cleaned
+  duplicate
+  drafted
+  queued
+  sent
+  replied
+  bounced
+  suppressed
+  archived
+}
+
+enum ContactConsentStatus {
+  unknown
+  opted_in
+  opted_out
+}
+
+enum ContactEmailHealth {
+  unknown
+  valid
+  risky
+  invalid
+}
+
+enum ContactSource {
+  linkedin
+  event
+  referral
+  cold_list
+  inbound
+  manual
+}
+
+enum SignalType {
+  funding
+  hiring
+  leadership_change
+  tech_change
+  news
+  mention
+  partnership
+  expansion
+}
+
+enum SignalSeverity {
+  low
+  medium
+  high
+  critical
+}
+
+enum SignalImpact {
+  high
+  medium
+  low
+}
+
+enum SignalStatus {
+  detected
+  validated
+  active
+  aging
+  expired
+  archived
+}
+
+enum SignalTimingWindow {
+  immediate
+  within_7_days
+  within_30_days
+  within_90_days
+  ongoing
+  expired
+}
+
+enum SignalMeaningCategory {
+  budget_available
+  leadership_openness
+  tech_dissatisfaction
+  growth_pressure
+  compliance_requirement
+  vendor_evaluation
+  unknown
+}
+
+enum SignalSourceQuality {
+  premium
+  standard
+  low
+}
+
+enum JobType {
+  enrichment
+  research
+  scoring
+  signal_detection
+  email_generation
+}
+
+enum JobStatus {
+  pending
+  queued
+  running
+  completed
+  failed
+  cancelled
+}
+
+enum DraftStatus {
+  pending_review
+  approved
+  rejected
+  sent
+}
+
+enum ImportBatchStatus {
+  staged
+  processing
+  completed
+  archived
+}
+
 // ── Core Entities (per SDD Section 5) ──
 
 model Contact {
@@ -23,10 +184,10 @@ model Contact {
   location          String?
   companyId         String
   batchId           String
-  consentStatus     String    @default("unknown") // unknown, opted_in, opted_out
-  emailHealth       String    @default("unknown") // unknown, valid, risky, invalid
+  consentStatus     ContactConsentStatus @default(unknown) // unknown, opted_in, opted_out
+  emailHealth       ContactEmailHealth @default(unknown) // unknown, valid, risky, invalid
   emailHealthScore  Int       @default(0)
-  status            String    @default("imported") // imported, cleaned, duplicate, drafted, queued, sent, replied, bounced, suppressed, archived
+  status            ContactStatus @default(imported) // imported, cleaned, duplicate, drafted, queued, sent, replied, bounced, suppressed, archived
   leadScore         Int       @default(0)
   isSuppressed      Boolean   @default(false)
   suppressionReason String?
@@ -39,8 +200,8 @@ model Contact {
   enrichmentScore   Int   @default(0)
   aiConversionScore Float @default(0)
 
-  // L-03: Enrichment data (JSON string)
-  enrichmentData String?
+  // L-03: Enrichment data (JSON)
+  enrichmentData Json?
 
   // L-12: GDPR consent tracking
   consentSource String? // form, list_purchase, manual, double_opt_in
@@ -51,7 +212,7 @@ model Contact {
   assignedTo String?
 
   // L-15: Lead source tracking
-  source String? // linkedin, event, referral, cold_list, inbound, manual
+  source ContactSource? // linkedin, event, referral, cold_list, inbound, manual
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -88,20 +249,20 @@ model Company {
   country              String?
   website              String?
   internalSummary      String?
-  tags                 String    @default("[]") // JSON array of tag strings
-  status               String    @default("prospect") // prospect, researching, active, engaged, paused, closed_won, closed_lost
-  lifecycleStage       String    @default("discovery") // discovery, qualification, proposal, negotiation, closed
+  tags                 Json @default("[]") // JSON array of tag strings
+  status               CompanyStatus @default(prospect) // prospect, researching, active, engaged, paused, closed_won, closed_lost
+  lifecycleStage       CompanyLifecycleStage @default(discovery) // discovery, qualification, proposal, negotiation, closed
   assignedTo           String?
   intelligenceScore    Int       @default(0) // 0-100 composite score (from intelligence-contract.ts)
   engagementScore      Int       @default(0) // 0-100 based on email opens/replies/clicks
   // Phase 5: Account Prioritization (separate from intelligenceScore)
   // Nullable: only set when explicitly computed. NOT same as intelligenceScore.
   accountPriorityScore Float? // Phase 5: 0-100 sales priority score
-  priorityTier         String? // Phase 5: HOT | ACTIVE | NURTURE | LOW
+  priorityTier         CompanyPriorityTier? // Phase 5: HOT | ACTIVE | NURTURE | LOW
   priorityComputedAt   DateTime? // Phase 5: last computation timestamp
   lastEnrichedAt       DateTime?
   lastActivityAt       DateTime?
-  source               String    @default("import") // import, manual, crm, webhook
+  source               CompanySource @default(import) // import, manual, crm, webhook
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
@@ -137,6 +298,10 @@ model Company {
   aiInsights              AIInsight[]
   actionArtifacts          ActionArtifact[]
 
+  // Email Sequences linked to this company
+  emailSequences           EmailSequence[]
+  conversationPlans         ConversationPlan[]
+
   // Phase 9: Enterprise Reasoning Engine
   reasoningContext         ReasoningContext?
   agentOrchestrations      AgentOrchestration[]
@@ -166,7 +331,7 @@ model ImportBatch {
   duplicateRows    Int      @default(0)
   invalidRows      Int      @default(0)
   questionableRows Int      @default(0)
-  status           String   @default("staged") // staged, processing, completed, archived
+  status           ImportBatchStatus @default(staged) // staged, processing, completed, archived
   mappingProfile   String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -192,28 +357,28 @@ model CompanyResearchCard {
   revenue          String?
   employeeCount    String?
   fundingStage     String?
-  techStack        String? // JSON string
-  socialProfiles   String? // JSON string
+  techStack        Json? // JSON string
+  socialProfiles   Json? // JSON string
   enrichmentSource String?
   enrichmentDate   DateTime?
-  fieldConfidence  String? // JSON: {"revenue":0.9,"employeeCount":0.7,...} — per-field confidence from Phase 3
+  fieldConfidence  Json? // JSON: {"revenue":0.9,"employeeCount":0.7,...} — per-field confidence from Phase 3
 
   // Phase 3: Research engine fields
   industry   String?
   website    String?
-  keyPeople  String? @default("[]") // JSON: [{name, title, department, linkedInUrl, source}]
-  recentNews String? @default("[]") // JSON: [{title, snippet, source, url, signalType, impact}]
+  keyPeople  Json? @default("[]") // JSON: [{name, title, department, linkedInUrl, source}]
+  recentNews Json? @default("[]") // JSON: [{title, snippet, source, url, signalType, impact}]
 
   // Phase 3 Hardening: Structured Technology Landscape
-  structuredTechLandscape String? @default("{}") // JSON: {cloud:[], data:[], ai:[], applications:[]}
+  structuredTechLandscape Json? @default("{}") // JSON: {cloud:[], data:[], ai:[], applications:[]}
 
   // Phase 3 Hardening: Strategic Priorities
-  strategicPriorities String? @default("[]") // JSON: [{priority, description, evidence, confidence}]
+  strategicPriorities Json? @default("[]") // JSON: [{priority, description, evidence, confidence}]
 
   // Phase 3 Hardening: Capability Matching Inputs
-  businessProblems    String? @default("[]") // JSON: ["problem1", "problem2"]
-  transformationAreas String? @default("[]") // JSON: ["area1", "area2"]
-  technologyThemes    String? @default("[]") // JSON: ["theme1", "theme2"]
+  businessProblems    Json? @default("[]") // JSON: ["problem1", "problem2"]
+  transformationAreas Json? @default("[]") // JSON: ["area1", "area2"]
+  technologyThemes    Json? @default("[]") // JSON: ["theme1", "theme2"]
 
   // Phase 3 Hardening: Category-specific Freshness Timestamps
   profileFreshnessAt DateTime? // when company profile data was last verified
@@ -247,13 +412,13 @@ model CompanyNote {
 model CompanySignal {
   id                 String    @id @default(cuid())
   companyId          String
-  signalType         String // funding, hiring, leadership_change, tech_change, news, mention, partnership, expansion
+  signalType         SignalType // funding, hiring, leadership_change, tech_change, news, mention, partnership, expansion
   title              String
   description        String?
   source             String?
   sourceUrl          String?
-  severity           String    @default("medium") // low, medium, high, critical
-  impact             String    @default("medium") // high, medium, low — sales opportunity impact
+  severity           SignalSeverity @default(medium) // low, medium, high, critical
+  impact             SignalImpact @default(medium) // high, medium, low — sales opportunity impact
   signalDate         DateTime? // when the signal event occurred (not when we detected it)
   extractedAt        DateTime  @default(now()) // when our system detected/stored it
   confidence         Float     @default(0.5) // 0-1 confidence score from research engine
@@ -265,21 +430,21 @@ model CompanySignal {
   techRequirement    String? // e.g. "AWS, Python, Data Engineering"
   serviceRequirement String? // e.g. "Implementation, Managed Services"
   matchingCapability String? // ID of matched CapabilityAsset
-  sourceQuality      String    @default("standard") // premium, standard, low
-  evidenceIds        String    @default("[]") // JSON array of Evidence IDs supporting this signal
+  sourceQuality      SignalSourceQuality @default(standard) // premium, standard, low
+  evidenceIds        Json @default("[]") // JSON array of Evidence IDs supporting this signal
   // Track C: Signal meaning — buying stage implication inferred from signal attributes
-  meaningCategory    String? // budget_available, leadership_openness, tech_dissatisfaction, growth_pressure, compliance_requirement, vendor_evaluation, unknown
+  meaningCategory    SignalMeaningCategory? // budget_available, leadership_openness, tech_dissatisfaction, growth_pressure, compliance_requirement, vendor_evaluation, unknown
 
   // ═══ Intelligence Object Framework (Wave 8A) ═══
   // Every signal must carry these 4 fields to be a complete Intelligence Object.
   // This is the platform DNA — all AI output references this standard.
   businessImpact    String? // "High — indicates $2M cloud migration budget" | "Medium — hiring spree signals growth" | "Low — general news mention"
   recommendedAction String? // "Position cloud optimization assessment within 30 days" | "Schedule technical discovery call with CTO"
-  timingWindow      String? // "immediate" | "within_7_days" | "within_30_days" | "within_90_days" | "ongoing" | "expired"
+  timingWindow      SignalTimingWindow? // "immediate" | "within_7_days" | "within_30_days" | "within_90_days" | "ongoing" | "expired"
   expiresAt         DateTime? // When this signal's intelligence value decays to zero (NULL = never expires)
 
   isRead    Boolean  @default(false)
-  status    String   @default("detected") // detected, validated, active, aging, expired, archived
+  status    SignalStatus   @default(detected) // detected, validated, active, aging, expired, archived
   createdAt DateTime @default(now())
 
   company                    Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -342,7 +507,7 @@ model CompanyTimelineEvent {
   eventType   String // email_sent, email_opened, email_replied, email_bounced, note_added, enrichment, status_change, signal, contact_added, research_saved
   title       String
   description String?
-  metadata    String?  @default("{}") // JSON with event-specific data
+  metadata    Json?  @default("{}") // JSON with event-specific data
   createdAt   DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -457,7 +622,8 @@ model EmailSequence {
   isActive    Boolean @default(true)
 
   // Phase 4 C1: Signal-driven sequence intelligence
-  company                Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId                String?
+  company                  Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   triggerSignalId          String? // Which buying signal triggered this
   triggerCapabilityMatchId String? // Which capability match drove the strategy
   triggerReason            String? // AI-generated rationale: why this company, why now, why this capability
@@ -527,7 +693,7 @@ model Draft {
   sourceSnippetsUsed String?
   assumptionFlags    String?
   reviewNotes        String?
-  status             String  @default("pending_review") // pending_review, approved, rejected, sent
+  status             DraftStatus  @default(pending_review) // pending_review, approved, rejected, sent
   rejectReason       String?
 
   // E-06: Email thread tracking
@@ -725,17 +891,20 @@ model AuditLog {
 
 model ConversationPlan {
   id            String   @id @default(cuid())
-  companyName   String
+  companyId     String?
+  companyName   String   // denormalized for display — authoritative link is companyId
+  company       Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   executiveRole String
   executiveName String?
   industry      String?
   context       String?
   capabilities  String?
-  plan          String // JSON string of the full ApiPlan object
+  plan          Json // JSON string of the full ApiPlan object
   generatedAt   DateTime @default(now())
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  @@index([companyId])
   @@index([companyName])
   @@index([createdAt])
 }
@@ -750,7 +919,7 @@ model Playbook {
   targetIndustry    String?
   targetRole        String?
   targetCompanySize String?
-  steps             String // JSON array: [{title, description, tips, order}]
+  steps             Json // JSON array: [{title, description, tips, order}]
   aiTips            String? // AI-generated engagement tips
   isActive          Boolean  @default(true)
   usageCount        Int      @default(0)
@@ -770,9 +939,9 @@ model AccountStrategy {
   title               String
   objective           String?
   currentSituation    String?
-  swotAnalysis        String? // JSON: {strengths, weaknesses, opportunities, threats}
-  keyInitiatives      String? // JSON array: [{title, owner, status, dueDate}]
-  stakeholderMap      String? // JSON: {champions, influencers, blockers, decisionMakers}
+  swotAnalysis        Json? // JSON: {strengths, weaknesses, opportunities, threats}
+  keyInitiatives      Json? // JSON array: [{title, owner, status, dueDate}]
+  stakeholderMap      Json? // JSON: {champions, influencers, blockers, decisionMakers}
   competitivePosition String? // JSON
   nextSteps           String?
   status              String   @default("draft") // draft, active, review, completed, archived
@@ -815,7 +984,7 @@ model OtpCode {
   email     String // email this OTP was sent to
   code      String // 6-digit code
   purpose   String // login, set_password, change_email, change_password, update_profile
-  metadata  String?  @default("{}") // JSON: e.g. { newEmail: "..." } for change_email
+  metadata  Json?  @default("{}") // JSON: e.g. { newEmail: "..." } for change_email
   verified  Boolean  @default(false)
   attempts  Int      @default(0)
   expiresAt DateTime
@@ -1041,8 +1210,8 @@ model DataQualityScore {
 
 model Job {
   id        String  @id @default(cuid())
-  type      String // enrichment, research, scoring, signal_detection, email_generation
-  status    String  @default("pending") // pending, queued, running, completed, failed, cancelled
+  type      JobType // enrichment, research, scoring, signal_detection, email_generation
+  status    JobStatus  @default(pending) // pending, queued, running, completed, failed, cancelled
   priority  Int     @default(5) // 1 (highest) – 10 (lowest)
   companyId String? // optional: entity this job operates on
   contactId String? // optional: for contact-level jobs
@@ -1051,11 +1220,11 @@ model Job {
   // Progress tracking
   progress    Int     @default(0) // 0-100 overall progress
   currentStep String? // human-readable current step label
-  stepDetail  String? // JSON: { step, progress, message } for sub-step tracking
+  stepDetail  Json? // JSON: { step, progress, message } for sub-step tracking
 
   // Input / Output
-  payload   String? // JSON: job input parameters
-  result    String? // JSON: job output / result data
+  payload   Json? // JSON: job input parameters
+  result    Json? // JSON: job output / result data
   error     String? // error message if failed
   errorCode String? // machine-readable error code for retry classification
 
@@ -1109,17 +1278,17 @@ model AIGenerationAudit {
   companyId              String? // linked company (if applicable)
   contactId              String? // linked contact (if applicable)
   researchContextVersion String? // snapshot of freshness.score at generation time
-  evidenceIdsUsed        String   @default("[]") // JSON: ["evidence_id_1", "evidence_id_2"]
-  signalIdsUsed          String   @default("[]") // JSON: ["signal_id_1"]
-  capabilityAssetIdsUsed String   @default("[]") // JSON: ["asset_id_1"]
+  evidenceIdsUsed        Json   @default("[]") // JSON: ["evidence_id_1", "evidence_id_2"]
+  signalIdsUsed          Json   @default("[]") // JSON: ["signal_id_1"]
+  capabilityAssetIdsUsed Json   @default("[]") // JSON: ["asset_id_1"]
   researchConfidence     Float    @default(0) // 0-1 average field confidence at generation time
   freshnessScore         Int      @default(0) // 0-100 freshness at generation time
   governancePassed       Boolean  @default(true) // did it pass confidence gates?
-  governanceChecks       String?  @default("{}") // JSON: {email: {research: true, capability: true, freshness: true}, ...}
+  governanceChecks       Json?  @default("{}") // JSON
   outputSummary          String? // brief summary of what was generated (not full output)
   modelUsed              String? // which LLM model was used
   promptVersion          String? // governance prompt version hash for reproducibility
-  inputParams            String?  @default("{}") // JSON: the input parameters (sanitized, no PII)
+  inputParams            Json?  @default("{}") // JSON: the input parameters (sanitized, no PII)
   createdAt              DateTime @default(now())
 
   @@index([generationType])
@@ -1478,7 +1647,7 @@ model ConnectorRun {
   recordsAcquired Int       @default(0)
   errorsCount     Int       @default(0)
   errorMessage    String?
-  metadata        String    @default("{}") // JSON: run-specific data (URLs fetched, rows processed, etc.)
+  metadata        Json    @default("{}") // JSON: run-specific data (URLs fetched, rows processed, etc.)
   createdAt       DateTime  @default(now())
 
   @@index([connectorId])
@@ -1497,7 +1666,7 @@ model IntelligenceObject {
   origin              String // csv_upload, excel_upload, website_scrape, rss_feed, human_submission
   content             String // full intelligence content
   summary             String? // abbreviated summary
-  metadata            String                    @default("{}") // JSON: category, title, tags, custom fields
+  metadata            Json                    @default("{}") // JSON: category, title, tags, custom fields
   sourceUrl           String?
   capturedAt          DateTime? // when the source was published/captured
   originalConfidence  Float                     @default(0.5) // 0-1 initial confidence from acquisition
@@ -1576,7 +1745,7 @@ model IntelligenceAssociation {
   target          IntelligenceObject @relation("AssocTarget", fields: [targetId], references: [id], onDelete: Cascade)
   associationType String // duplicate, contradicts, supports, extends, mentions_same_entity
   confidence      Float              @default(0.5) // 0-1, how confident the association is
-  metadata        String             @default("{}") // JSON: {reason, field, overlap, ...}
+  metadata        Json             @default("{}") // JSON: {reason, field, overlap, ...}
   resolved        Boolean            @default(false) // has this association been reviewed/resolved?
   resolvedAt      DateTime?
   resolvedAction  String? // merged, dismissed, superseded, manual
@@ -1650,7 +1819,7 @@ model HumanIntelligenceInbox {
   reviewNotes          String? // reviewer comments
   intelligenceObjectId String? // FK → IntelligenceObject after conversion
   priority             String    @default("normal") // low, normal, high, critical
-  tags                 String    @default("[]") // JSON array of string tags
+  tags                 Json @default("[]") // JSON array of string tags
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
@@ -1932,7 +2101,7 @@ model ActionArtifact {
   // stakeholder_map:    { decisionMakers, influencers, champions, relationships }
   // opportunity_qual:   { buyingSignals, timing, strategicFit, confidenceScore, verdict }
   // next_best_action:   { action, reason, urgency, effort, expectedOutcome, evidenceLinks }
-  content               String   // JSON string
+  content               Json   // JSON: structured output with action-type-specific schema
 
   // Priority scoring
   priorityScore         Int      @default(0)  // 0-100
@@ -1940,7 +2109,7 @@ model ActionArtifact {
 
   // Evidence traceability — every claim links back to source data
   // JSON: [{ type: "signal"|"evidence"|"contact"|"insight", id: string, snippet: string }]
-  evidenceReferences    String   @default("[]")
+  evidenceReferences    Json   @default("[]")
 
   // How many source signals/artifacts fed into this generation
   sourceSignalCount     Int      @default(0)
@@ -2005,9 +2174,9 @@ model EngineRun {
   // Composition ID — links related runs (e.g. one compositionId per chat session)
   compositionId   String?
   // Brief summary of the input (JSON: { briefType, companyId, ... })
-  inputSummary    String  
+  inputSummary    Json
   // Brief summary of the output (JSON: { wordCount, confidence, ... })
-  outputSummary   String  
+  outputSummary   Json  
   // Engine-level confidence (0-1)
   confidence      Float    @default(0)
   // Wall-clock duration

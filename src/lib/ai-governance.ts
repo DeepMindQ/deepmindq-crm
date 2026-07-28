@@ -795,7 +795,7 @@ export async function preFlightCheck(context: GovernanceContext): Promise<{
 // This is the ONLY approved way for AI routes to call the LLM.
 // No AI route should call callLLM() directly — all calls MUST go through this.
 
-import { callLLM } from '@/lib/zai-helpers';
+import { callLLM } from '@/lib/llm-client';
 
 interface GovernedAICallParams {
   /** Generation type for governance config lookup (e.g. 'email_draft', 'insights') */

@@ -98,8 +98,8 @@ export async function POST(request: Request) {
       `${name} ${industry} competitors market landscape partnerships`,
     ]
 
-    // 3. Parallel web search (with backoff via zai-helpers)
-    const { parallelWebSearch } = await import('@/lib/ai-copilot/ai-caller')
+    // 3. Parallel web search (with backoff via llm-client)
+    const { parallelWebSearch } = await import('@/lib/llm-client')
     const searchResults = await parallelWebSearch(searchQueries, 5)
 
     const webContext = searchResults
@@ -156,7 +156,7 @@ Return JSON:
 }`
 
     // Use governed AI caller
-    const { callAI } = await import('@/lib/ai-copilot/ai-caller')
+    const { callAI } = await import('@/lib/llm-client')
     const aiResult = await callAI({
       systemPrompt,
       userPrompt,

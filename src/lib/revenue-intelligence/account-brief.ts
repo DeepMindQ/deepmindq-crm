@@ -16,7 +16,7 @@ import { calculateAccountScore } from './account-scoring';
 import {
   generateExecutiveSummary,
   generateEngagementApproach,
-} from './llm-helper';
+} from '@/lib/llm-client';
 import { ALL_CATEGORIES, FRESHNESS_CONFIG } from '@/lib/intelligence-sources';
 import { getCompanyKnowledge } from '@/lib/intelligence-sources/knowledge-fabric';
 

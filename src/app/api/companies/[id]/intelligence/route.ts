@@ -80,12 +80,12 @@ interface EnhancedAiInsights {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 async function webSearch(query: string, num = 5) {
-  const { webSearch: search } = await import('@/lib/ai-copilot/ai-caller');
+  const { webSearch: search } = await import('@/lib/llm-client');
   return search(query, num);
 }
 
 async function aiChat(systemPrompt: string, userPrompt: string): Promise<{ raw: string; quality?: import('@/lib/ai-copilot/quality-gates').QualityReport }> {
-  const { callAI } = await import('@/lib/ai-copilot/ai-caller');
+  const { callAI } = await import('@/lib/llm-client');
   const result = await callAI({ systemPrompt, userPrompt, feature: 'company_intelligence', runQualityCheck: true });
   return { raw: result.raw, quality: result.quality };
 }

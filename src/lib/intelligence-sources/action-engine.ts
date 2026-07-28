@@ -509,7 +509,7 @@ const GROUND_RULES = `GROUND RULES — YOU MUST FOLLOW THESE:
 6. Assign realistic priority and confidence scores based on available evidence quality.`
 
 async function callAIForAction(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { callLLM } = await import('@/lib/zai-helpers')
+  const { callLLM } = await import('@/lib/llm-client')
   return callLLM(systemPrompt, userPrompt)
 }
 

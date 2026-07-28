@@ -13,8 +13,8 @@
  */
 
 import { db } from '@/lib/db'
-import { webSearch } from '@/lib/ai-copilot/ai-caller'
-import { callAI } from '@/lib/ai-copilot/ai-caller'
+import { webSearch } from '@/lib/llm-client'
+import { callAI } from '@/lib/llm-client'
 
 export interface CompetitiveIntelResult {
   competitorName: string

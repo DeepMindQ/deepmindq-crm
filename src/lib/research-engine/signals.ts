@@ -16,7 +16,7 @@
  */
 
 import { db } from '@/lib/db';
-import { extractJSON, type NewsSignal } from '@/lib/zai-helpers';
+import { extractJSON, type NewsSignal } from '@/lib/llm-client';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { CANONICAL_SIGNAL_TYPE_LIST, normalizeSignalType } from '@/lib/signal-types';
 

@@ -14,7 +14,7 @@
  * every number is bounded.
  */
 
-import { extractJSON } from '@/lib/zai-helpers';
+import { extractJSON } from '@/lib/llm-client';
 import type {
   StrategicInsightOutput,
   EngagementStrategyOutput,

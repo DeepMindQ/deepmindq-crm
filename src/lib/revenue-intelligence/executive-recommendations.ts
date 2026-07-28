@@ -10,7 +10,7 @@
 import { db } from '@/lib/db';
 import { getSignalsForCompany } from './signal-extraction';
 import { getAccountScore } from './account-scoring';
-import { revenueLLMCall } from './llm-helper';
+import { revenueLLMCall } from '@/lib/llm-client';
 import { KEYWORD_TO_CATEGORY } from './signal-patterns';
 
 // ─── Exported Interfaces ───────────────────────────────────────────────

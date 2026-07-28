@@ -27,7 +27,7 @@
  */
 
 import { db } from '@/lib/db';
-import { webSearch } from '@/lib/ai-copilot/ai-caller';
+import { webSearch } from '@/lib/llm-client';
 import { classifyEvidence, scoreSourceReliability, type RawEvidenceInput, type ClassifiedSignal } from './evidence-classifier';
 import { classifyEvidenceWithAI } from './ai-evidence-engine';
 import { buildThreeDateModel, serializeThreeDateModel, dateModelQuality, type EvidenceDates } from './three-date-model';

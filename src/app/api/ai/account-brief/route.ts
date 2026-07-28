@@ -116,17 +116,17 @@ const briefCache = new Map<string, { data: CachedBrief; expiresAt: number }>()
 type ZAIInstance = any
 
 async function createZAI() {
-  const { getZAI } = await import('@/lib/ai-copilot/ai-caller');
+  const { getZAI } = await import('@/lib/llm-client');
   return getZAI();
 }
 
 async function webSearch(zai: ZAIInstance, query: string): Promise<Array<{ title: string; url: string; snippet: string }>> {
-  const { webSearch: search } = await import('@/lib/ai-copilot/ai-caller');
+  const { webSearch: search } = await import('@/lib/llm-client');
   return search(query, 10);
 }
 
 async function callLLM(zai: ZAIInstance, systemPrompt: string, userPrompt: string): Promise<{ raw: string; quality?: import('@/lib/ai-copilot/quality-gates').QualityReport }> {
-  const { callAI } = await import('@/lib/ai-copilot/ai-caller');
+  const { callAI } = await import('@/lib/llm-client');
   const result = await callAI({ systemPrompt, userPrompt, feature: 'account_brief', runQualityCheck: true });
   return { raw: result.raw, quality: result.quality };
 }

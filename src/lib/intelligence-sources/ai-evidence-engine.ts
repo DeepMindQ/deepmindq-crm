@@ -36,7 +36,7 @@ Respond in JSON only:
 
 async function classifyWithLLM(evidence: RawEvidenceInput): Promise<ClassifiedSignal | null> {
   try {
-    const { getZAI } = await import('@/lib/ai-copilot/ai-caller');
+    const { getZAI } = await import('@/lib/llm-client');
     const zai = await getZAI();
 
     const userMessage = `Classify:\nHeadline: ${evidence.headline}\nSnippet: ${evidence.snippet}\nSource: ${evidence.sourceName || 'unknown'}\nURL: ${evidence.sourceUrl || 'unknown'}`;

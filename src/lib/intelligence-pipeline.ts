@@ -21,8 +21,8 @@
  */
 
 import { db } from '@/lib/db';
-import { webSearch } from '@/lib/zai-helpers';
-import { extractJSON } from '@/lib/zai-helpers';
+import { webSearch } from '@/lib/llm-client';
+import { extractJSON } from '@/lib/llm-client';
 import { ModelRouter } from '@/lib/engines/model-router';
 
 // ─── Types ──────────────────────────────────────────────────────────────

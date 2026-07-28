@@ -12,7 +12,7 @@
  */
 
 import { db } from '@/lib/db';
-import { extractJSON } from '@/lib/zai-helpers';
+import { extractJSON } from '@/lib/llm-client';
 import { governedAICall } from '@/lib/ai-governance';
 import { buildStrategyPrompt } from './prompt-builder';
 import type {

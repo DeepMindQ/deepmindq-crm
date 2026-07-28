@@ -67,7 +67,7 @@ export interface SensorConfig {
 // ─── Default Search Provider ───────────────────────────────────
 
 async function createDefaultSearchProvider(): Promise<SearchProvider> {
-  const { webSearch } = await import('@/lib/ai-copilot/ai-caller');
+  const { webSearch } = await import('@/lib/llm-client');
   return {
     async search(query: string, maxResults: number): Promise<SearchResult[]> {
       return webSearch(query, maxResults).catch(err => {

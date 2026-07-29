@@ -1,4 +1,4 @@
-# DeepMindQ — AI-Powered Revenue Intelligence CRM
+# DeepMindQ — AI-Powered Revenue Intelligence
 
 > **"The goal is not to build more screens. The goal is that every screen becomes powered by reliable AI intelligence."**
 

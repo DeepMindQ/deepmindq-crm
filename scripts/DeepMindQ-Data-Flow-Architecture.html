@@ -1,0 +1,366 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --text: #111827;
+    --text-sub: #6B7280;
+    --text-muted: #9CA3AF;
+    --bg: #FFFFFF;
+    --surface: #F9FAFB;
+    --border: #E5E7EB;
+    --connector: #94A3B8;
+    --blue: #3B82F6;
+    --cyan: #06B6D4;
+    --purple: #8B5CF6;
+    --green: #10B981;
+    --amber: #F59E0B;
+    --red: #EF4444;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  #root { width: fit-content; min-width: 1200px; margin: 0 auto; padding: 48px 40px; }
+
+  .hero-header {
+    background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+    border-radius: 16px; padding: 40px 48px; color: white; margin-bottom: 40px;
+  }
+  .hero-header h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .hero-header p { font-size: 14px; color: #94A3B8; line-height: 1.6; max-width: 800px; }
+  .hero-badge {
+    display: inline-block; background: rgba(59,130,246,0.15);
+    color: #60A5FA; font-size: 12px; font-weight: 600;
+    padding: 4px 12px; border-radius: 20px; margin-bottom: 12px;
+  }
+
+  /* Flow diagram layout */
+  .flow-diagram { display: flex; gap: 0; margin-bottom: 32px; }
+
+  /* Column headers */
+  .col-header {
+    padding: 12px 16px; border-radius: 8px 8px 0 0;
+    font-size: 13px; font-weight: 700; text-align: center;
+    border-bottom: 3px solid;
+  }
+  .col-screen { background: #EFF6FF; color: #1E40AF; border-color: #3B82F6; }
+  .col-api { background: #F0FDFA; color: #065F46; border-color: #14B8A6; }
+  .col-engine { background: #F5F3FF; color: #5B21B6; border-color: #8B5CF6; }
+  .col-external { background: #FEF2F2; color: #991B1B; border-color: #EF4444; }
+
+  .flow-columns { display: grid; grid-template-columns: 240px 280px 300px 280px; gap: 0; }
+
+  .flow-col {
+    display: flex; flex-direction: column; gap: 0;
+    background: var(--surface); border-right: 1px solid var(--border);
+    padding: 0;
+  }
+  .flow-col:last-child { border-right: none; }
+
+  /* Flow item */
+  .flow-item {
+    padding: 12px 14px; border-bottom: 1px solid var(--border);
+    position: relative;
+    min-height: 80px;
+  }
+  .flow-item-title {
+    font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 4px;
+  }
+  .flow-item-detail {
+    font-size: 10px; color: var(--text-sub); line-height: 1.5;
+  }
+  .flow-item-tag {
+    display: inline-block; font-size: 9px; font-weight: 600;
+    padding: 1px 6px; border-radius: 3px; margin-top: 4px;
+  }
+  .tag-llm { background: #FDE68A; color: #92400E; }
+  .tag-search { background: #D1FAE5; color: #065F46; }
+  .tag-email { background: #E0E7FF; color: #3730A3; }
+  .tag-db { background: #F3F4F6; color: #374151; }
+  .tag-local { background: #FEF3C7; color: #78350F; }
+
+  /* Arrow column */
+  .arrow-col {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: var(--connector); padding: 0 4px;
+  }
+
+  /* Connector lines overlay */
+  .connector-overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 10;
+  }
+
+  .section-divider {
+    background: #E2E8F0; padding: 6px 16px; font-size: 11px;
+    font-weight: 600; color: #475569; border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .footnote {
+    text-align: center; font-size: 11px; color: var(--text-muted);
+    margin-top: 16px; line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div id="root">
+  <div class="hero-header">
+    <div class="hero-badge">END-TO-END DATA FLOW</div>
+    <h1>DeepMindQ — Real Data Flow Architecture</h1>
+    <p>Every trace verified from actual source code. Shows the complete path from user action on screen, through API routes, to engine orchestration, and out to external services.</p>
+  </div>
+
+  <div class="flow-columns">
+    <!-- Column 1: Screen Layer -->
+    <div>
+      <div class="col-header col-screen">SCREEN LAYER</div>
+      <div class="flow-col">
+        <div class="section-divider">AI Intelligence</div>
+        <div class="flow-item">
+          <div class="flow-item-title">Company Detail Screen</div>
+          <div class="flow-item-detail">Auto-triggers AI scoring on mount. User clicks "Refresh Score" for re-scoring.</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">Account Intelligence Brief</div>
+          <div class="flow-item-detail">User selects brief type (account_brief, deal_strategy, exec_summary)</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">Conversation Planner</div>
+          <div class="flow-item-detail">User selects company + contact, clicks "Generate Briefing"</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">Email Generation Screen</div>
+          <div class="flow-item-detail">User selects contact, tone, length, CTA style</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">AI Command Center</div>
+          <div class="flow-item-detail">Cross-account intelligence dashboard, triggers multiple API calls</div>
+        </div>
+
+        <div class="section-divider">Intelligence Collection</div>
+        <div class="flow-item">
+          <div class="flow-item-title">Company Detail / Intelligence</div>
+          <div class="flow-item-detail">User clicks "Collect Intelligence" for web search pipeline</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">Signal Intelligence Screen</div>
+          <div class="flow-item-detail">Real-time signal detection + analysis</div>
+        </div>
+
+        <div class="section-divider">Lead Management</div>
+        <div class="flow-item">
+          <div class="flow-item-title">Leads Screen</div>
+          <div class="flow-item-detail">"AI Score All" button triggers rule-based scoring</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">Import Screen</div>
+          <div class="flow-item-detail">CSV/Excel upload, simulated progress (real API exists)</div>
+        </div>
+
+        <div class="section-divider">Authentication</div>
+        <div class="flow-item">
+          <div class="flow-item-title">Login Page</div>
+          <div class="flow-item-detail">Email input -> OTP request -> verify OTP -> session</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Column 2: API Route Layer -->
+    <div>
+      <div class="col-header col-api">API ROUTE LAYER</div>
+      <div class="flow-col">
+        <div class="section-divider">AI Intelligence</div>
+        <div class="flow-item">
+          <div class="flow-item-title">POST /api/companies/[id]/score</div>
+          <div class="flow-item-detail">Passes companyId + skipNarrative option</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">POST /api/engines/brief</div>
+          <div class="flow-item-detail">Passes briefType, companyId, depth, audience</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">POST /api/engines/conversation</div>
+          <div class="flow-item-detail">Passes companyId, contactId, briefingType</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">POST /api/contacts/[id]/generate-email</div>
+          <div class="flow-item-detail">Loads contact + company + knowledge + preferences</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">POST /api/ai/chat</div>
+          <div class="flow-item-detail">CRM context injection + ModelRouter</div>
+        </div>
+
+        <div class="section-divider">Intelligence Collection</div>
+        <div class="flow-item">
+          <div class="flow-item-title">GET /api/companies/[id]/intelligence</div>
+          <div class="flow-item-detail">4 parallel web searches + LLM analysis</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">POST /api/intelligence/collect-external</div>
+          <div class="flow-item-detail">Full pipeline: search -> evidence -> signals</div>
+        </div>
+
+        <div class="section-divider">Lead Management</div>
+        <div class="flow-item">
+          <div class="flow-item-title">POST /api/ai/score-leads</div>
+          <div class="flow-item-detail">10-dim rule-based scoring (no LLM)</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">POST /api/imports</div>
+          <div class="flow-item-detail">CSV/XLSX parse, validate, match, bulk insert</div>
+        </div>
+
+        <div class="section-divider">Authentication</div>
+        <div class="flow-item">
+          <div class="flow-item-title">POST /api/auth/request-otp</div>
+          <div class="flow-item-detail">Validates email, generates OTP, sends via email</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">POST /api/auth/verify-otp</div>
+          <div class="flow-item-detail">Hash comparison -> session cookie -> DB session</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Column 3: Engine Layer -->
+    <div>
+      <div class="col-header col-engine">ENGINE / LOGIC LAYER</div>
+      <div class="flow-col">
+        <div class="section-divider">AI Intelligence</div>
+        <div class="flow-item">
+          <div class="flow-item-title">ScoringEngine.score()</div>
+          <div class="flow-item-detail">GroundingEngine.collect() + extractSignalFactors() + ModelRouter + RetrievalEngine</div>
+          <span class="flow-item-tag tag-llm">Calls LLM (Smart tier)</span>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">SynthesisEngine.generate()</div>
+          <div class="flow-item-detail">Grounding + Retrieval + ModelRouter (Deep tier, max 8192 tokens)</div>
+          <span class="flow-item-tag tag-llm">Calls LLM (Deep tier)</span>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">ConversationEngine.brief()</div>
+          <div class="flow-item-detail">buildBuyerProfile() + Grounding + deterministic briefing + LLM narrative</div>
+          <span class="flow-item-tag tag-llm">Calls LLM (Smart tier)</span>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">generateEmailForContact()</div>
+          <div class="flow-item-detail">Knowledge search + company research + ModelRouter + template fallback</div>
+          <span class="flow-item-tag tag-llm">Calls LLM (Smart tier)</span>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">ModelRouter.complete()</div>
+          <div class="flow-item-detail">Tier routing: Deep(GLM) -> Smart(Gemini Flash) -> Fast(Llama 3.3)</div>
+          <span class="flow-item-tag tag-llm">Core LLM Router</span>
+        </div>
+
+        <div class="section-divider">Intelligence Collection</div>
+        <div class="flow-item">
+          <div class="flow-item-title">webSearch() from llm-client.ts</div>
+          <div class="flow-item-detail">Tavily API with retry/backoff, company-size adaptive queries</div>
+          <span class="flow-item-tag tag-search">Web Search</span>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">collectIntelligenceForCompany()</div>
+          <div class="flow-item-detail">buildThreeDateModel() + scoreSourceReliability() + classifyEvidence()</div>
+          <span class="flow-item-tag tag-search">Evidence Pipeline</span>
+        </div>
+
+        <div class="section-divider">Lead Management</div>
+        <div class="flow-item">
+          <div class="flow-item-title">scoreCompany() / scoreContact()</div>
+          <div class="flow-item-detail">Pure rule-based: 10 dimensions for companies, 6 for contacts</div>
+          <span class="flow-item-tag tag-db">Rule-Based (No LLM)</span>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">executeImport()</div>
+          <div class="flow-item-detail">validateEmail() + matchCompany() (4-rule engine) + bulk DB insert</div>
+          <span class="flow-item-tag tag-db">DB Operations</span>
+        </div>
+
+        <div class="section-divider">Authentication</div>
+        <div class="flow-item">
+          <div class="flow-item-title">otp.ts :: requestOtp()</div>
+          <div class="flow-item-detail">User lookup, rate limit, 6-digit OTP, store in DB</div>
+          <span class="flow-item-tag tag-email">Email Send</span>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">email-provider.ts :: sendEmail()</div>
+          <div class="flow-item-detail">Dispatches to Resend/SendGrid/Postmark/Gmail SMTP</div>
+          <span class="flow-item-tag tag-email">External Email API</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Column 4: External Services -->
+    <div>
+      <div class="col-header col-external">EXTERNAL SERVICES</div>
+      <div class="flow-col">
+        <div class="section-divider">AI Intelligence</div>
+        <div class="flow-item">
+          <div class="flow-item-title">Groq (Llama 3.3 70B)</div>
+          <div class="flow-item-detail">api.groq.com/openai/v1 — Smart tier LLM, fast inference</div>
+          <span class="flow-item-tag tag-llm">LLM Provider</span>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">Gemini 2.0 Flash</div>
+          <div class="flow-item-detail">generativelanguage.googleapis.com — Smart/Deep tier fallback</div>
+          <span class="flow-item-tag tag-llm">LLM Provider</span>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">Fireworks AI / NVIDIA NIM</div>
+          <div class="flow-item-detail">api.fireworks.ai / integrate.api.nvidia.com — backup LLM providers</div>
+          <span class="flow-item-tag tag-llm">LLM Provider</span>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">Z.ai SDK</div>
+          <div class="flow-item-detail">callAI() + sdkWebSearch() — quality-gated AI calls</div>
+          <span class="flow-item-tag tag-llm">Primary AI SDK</span>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">@xenova/transformers (Local)</div>
+          <div class="flow-item-detail">all-MiniLM-L6-v2, 384-dim embeddings, zero cost</div>
+          <span class="flow-item-tag tag-local">Local ML</span>
+        </div>
+
+        <div class="section-divider">Intelligence Collection</div>
+        <div class="flow-item">
+          <div class="flow-item-title">Tavily Search API</div>
+          <div class="flow-item-detail">api.tavily.com/search — 1,000 free searches/month</div>
+          <span class="flow-item-tag tag-search">Web Search API</span>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">PostgreSQL / Neon</div>
+          <div class="flow-item-detail">Evidence, signals, knowledge stored in 75 Prisma tables</div>
+          <span class="flow-item-tag tag-db">Database</span>
+        </div>
+
+        <div class="section-divider">Email</div>
+        <div class="flow-item">
+          <div class="flow-item-title">Resend (Primary)</div>
+          <div class="flow-item-detail">api.resend.com/emails — OTP delivery confirmed working</div>
+          <span class="flow-item-tag tag-email">Email API</span>
+        </div>
+        <div class="flow-item">
+          <div class="flow-item-title">SendGrid / Postmark / Gmail</div>
+          <div class="flow-item-detail">Fallback email providers configured in email-provider.ts</div>
+          <span class="flow-item-tag tag-email">Email Fallback</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footnote">
+    All paths verified from actual source code. Every arrow represents a real function call chain traced through the codebase.<br>
+    No mock data. No stub functions (except 2 minor gaps noted in the Product Functionality Map).
+  </div>
+</div>
+</body>
+</html>

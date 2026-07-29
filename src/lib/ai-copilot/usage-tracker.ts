@@ -1,4 +1,3 @@
-// @ts-nocheck — Future feature: references Prisma models not yet in schema. Remove after DB migration.
 /**
  * AI Revenue Copilot — Usage Tracker
  *
@@ -128,9 +127,9 @@ export async function getUsageStats(days: number = 30): Promise<{
 
     const records = await db.aIGenerationAudit.findMany({
       where: {
-        generatedAt: { gte: since },
+        createdAt: { gte: since },
       },
-      orderBy: { generatedAt: 'asc' },
+      orderBy: { createdAt: 'asc' },
     });
 
     // Aggregate totals
@@ -143,32 +142,33 @@ export async function getUsageStats(days: number = 30): Promise<{
 
     for (const record of records) {
       totalCalls++;
-      totalCost += record.estimatedCost ?? 0;
-      totalTokens += record.totalTokens ?? 0;
+      const inputParams = record.inputParams as Record<string, unknown> | null;
+      totalCost += (inputParams?.estimatedCost as number) ?? 0;
+      totalTokens += (inputParams?.totalTokens as number) ?? 0;
 
       // By feature
-      const feature = record.feature ?? 'unknown';
+      const feature = record.generationType ?? 'unknown';
       if (!byFeature[feature]) {
         byFeature[feature] = { calls: 0, cost: 0, tokens: 0 };
       }
       byFeature[feature].calls++;
-      byFeature[feature].cost += record.estimatedCost ?? 0;
-      byFeature[feature].tokens += record.totalTokens ?? 0;
+      byFeature[feature].cost += (inputParams?.estimatedCost as number) ?? 0;
+      byFeature[feature].tokens += (inputParams?.totalTokens as number) ?? 0;
 
       // By model
-      const model = record.model ?? 'unknown';
+      const model = record.modelUsed ?? 'unknown';
       if (!byModel[model]) {
         byModel[model] = { calls: 0, cost: 0, tokens: 0 };
       }
       byModel[model].calls++;
-      byModel[model].cost += record.estimatedCost ?? 0;
-      byModel[model].tokens += record.totalTokens ?? 0;
+      byModel[model].cost += (inputParams?.estimatedCost as number) ?? 0;
+      byModel[model].tokens += (inputParams?.totalTokens as number) ?? 0;
 
       // Daily trend
-      const dateKey = (record.generatedAt ?? record.createdAt ?? new Date()).toISOString().slice(0, 10); // YYYY-MM-DD
+      const dateKey = (record.createdAt ?? new Date()).toISOString().slice(0, 10); // YYYY-MM-DD
       const daily = dailyMap.get(dateKey) ?? { calls: 0, cost: 0 };
       daily.calls++;
-      daily.cost += record.estimatedCost ?? 0;
+      daily.cost += (inputParams?.estimatedCost as number) ?? 0;
       dailyMap.set(dateKey, daily);
     }
 

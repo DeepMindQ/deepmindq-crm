@@ -204,3 +204,21 @@ export interface GuardrailCheck {
   message: string;
   severity: 'error' | 'warning';
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  QUALITY REPORT — AI output quality assessment
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface QualityReport {
+  overallScore: number; // 0-100
+  overallStatus: 'pass' | 'fail' | 'warning';
+  objectCompleteness: number; // 0-100
+  gates: Array<{ name: string; passed: boolean; details: string }>;
+  timestamp: Date;
+  guardrails: GuardrailCheck[];
+  evidenceCheck?: { passed: boolean; score: number; details: string };
+  hallucinationCheck?: { passed: boolean; score: number; details: string };
+  accuracyCheck?: { passed: boolean; score: number; details: string };
+  specificityCheck?: { passed: boolean; score: number; details: string };
+  assessedAt?: Date;
+}

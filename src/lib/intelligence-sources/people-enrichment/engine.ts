@@ -1,4 +1,3 @@
-// @ts-nocheck — Future feature: references Prisma models not yet in schema. Remove after DB migration.
 /**
  * Phase 9: People Profile Enrichment Engine
  *
@@ -63,13 +62,13 @@ export async function enrichContactProfile(contactId: string): Promise<PeopleEnr
   // Get contact info
   const contact = await db.contact.findUnique({
     where: { id: contactId },
-    include: { company: { select: { name: true, website: true, industry: true } } },
+    include: { company: { select: { rawName: true, website: true, industry: true } } },
   })
 
   if (!contact) throw new Error(`Contact ${contactId} not found`)
 
   // Search for public profile information
-  const searchQuery = `${contact.rawName} ${contact.title || ''} ${contact.company?.name || ''} LinkedIn profile career background`
+  const searchQuery = `${contact.rawName} ${contact.title || ''} ${contact.company?.rawName || ''} LinkedIn profile career background`
   let searchResults: Array<{ title: string; url: string; snippet: string }> = []
 
   try {
@@ -88,7 +87,7 @@ export async function enrichContactProfile(contactId: string): Promise<PeopleEnr
 
   const userPrompt = `Contact: ${contact.rawName}
 Title: ${contact.title || 'Unknown'}
-Company: ${contact.company?.name || 'Unknown'}
+Company: ${contact.company?.rawName || 'Unknown'}
 Industry: ${contact.company?.industry || 'Unknown'}
 
 Search Results:
@@ -132,7 +131,7 @@ Extract the following as JSON:
     contactId,
     headline: enrichmentData.headline || null,
     currentRole: enrichmentData.currentRole || contact.title || null,
-    currentCompany: enrichmentData.currentCompany || contact.company?.name || null,
+    currentCompany: enrichmentData.currentCompany || contact.company?.rawName || null,
     location: enrichmentData.location || null,
     profileSummary: enrichmentData.profileSummary || null,
     skills: Array.isArray(enrichmentData.skills) ? enrichmentData.skills : [],

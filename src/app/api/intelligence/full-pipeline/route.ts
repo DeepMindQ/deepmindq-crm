@@ -1,4 +1,3 @@
-// @ts-nocheck — References Prisma models/enums not in current schema. Remove after DB migration.
 /**
  * POST /api/intelligence/full-pipeline
  * GET  /api/intelligence/full-pipeline?companyId=xxx
@@ -20,6 +19,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 import { ModelRouter } from '@/lib/engines/model-router';
 import { CapabilityIntelligenceEngine } from '@/lib/capability-intelligence-engine';
 import { FusionEngine } from '@/lib/fusion-engine';
@@ -245,7 +245,7 @@ export async function POST(request: NextRequest) {
   stages.push(await runStage('contact_intelligence', async () => {
     const totalContacts = await db.contact.count({ where: { companyId } });
     const withTitle = await db.contact.count({ where: { companyId, title: { not: null } } });
-    const enriched = await db.contact.count({ where: { companyId, enrichmentData: { not: null } } });
+    const enriched = await db.contact.count({ where: { companyId, enrichmentData: { not: Prisma.JsonNull } } });
     return {
       total: totalContacts,
       withTitle,

@@ -1,4 +1,3 @@
-// @ts-nocheck — Future feature: references Prisma models not yet in schema. Remove after DB migration.
 /**
  * MultiAgentOrchestrator — Phase 10: Coordinated Agent System
  * ==========================================================
@@ -213,7 +212,7 @@ async function executeAgent(
       }
 
       case 'proposal': {
-        output = priorOutput; // Proposal assembly from prior context
+        output = typeof priorOutput === 'string' ? priorOutput : JSON.stringify(priorOutput);
         break;
       }
 

@@ -1,4 +1,3 @@
-// @ts-nocheck — References Prisma models/enums not in current schema. Remove after DB migration.
 import { db } from '@/lib/db';
 import type { CompanyStatus } from '@prisma/client';
 import { NextResponse } from 'next/server';
@@ -83,7 +82,7 @@ export async function POST(request: Request) {
         for (const company of existingCompanies) {
           let currentTags: string[] = [];
           try {
-            currentTags = JSON.parse(company.tags || '[]');
+            currentTags = JSON.parse((company.tags || '[]') as string);
           } catch {
             currentTags = [];
           }
@@ -115,7 +114,7 @@ export async function POST(request: Request) {
         for (const company of existingCompanies) {
           let currentTags: string[] = [];
           try {
-            currentTags = JSON.parse(company.tags || '[]');
+            currentTags = JSON.parse((company.tags || '[]') as string);
           } catch {
             currentTags = [];
           }

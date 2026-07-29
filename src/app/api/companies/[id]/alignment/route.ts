@@ -1,4 +1,3 @@
-// @ts-nocheck — References Prisma models/enums not in current schema. Remove after DB migration.
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
@@ -327,7 +326,7 @@ function composeNeedObjects(
         temporal: computeTemporal(Math.min(95, avgConfidence + data.signals.length * 5), data.signals[0]?.freshness?.lastEnriched || new Date().toISOString()),
         relatedSignals: data.signals.map(s => s.id),
         priority: avgConfidence >= 70 ? 'high' as const : avgConfidence >= 50 ? 'medium' as const : 'low' as const,
-        rankingScore: Math.round(avgConfidence * 0.6 + avgSignalRanking * 0.4),
+        rankingScore: Math.round(avgConfidence * 0.6 + avgConfidence * 0.4),
       };
     })
     .sort((a, b) => b.rankingScore - a.rankingScore)

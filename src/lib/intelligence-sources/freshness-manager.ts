@@ -1,4 +1,3 @@
-// @ts-nocheck — Future feature: references Prisma models not yet in schema. Remove after DB migration.
 /**
  * Phase 9: Intelligence Freshness Manager
  *
@@ -33,7 +32,7 @@ const FRESHNESS_THRESHOLDS = {
 export async function getFreshnessStatus(companyId: string): Promise<FreshnessStatus | null> {
   const company = await db.company.findUnique({
     where: { id: companyId },
-    select: { name: true },
+    select: { rawName: true },
   })
   if (!company) return null
 
@@ -41,7 +40,7 @@ export async function getFreshnessStatus(companyId: string): Promise<FreshnessSt
     where: { companyId },
   })
 
-  const signalCount = await db.signal.count({ where: { companyId, status: 'active' } })
+  const signalCount = await db.companySignal.count({ where: { companyId, status: 'active' } })
   const evidenceCount = await db.evidence.count({ where: { companyId, status: { in: ['active', 'aging'] } } })
 
   const lastRefresh = freshness?.lastRefreshAt || null
@@ -55,7 +54,7 @@ export async function getFreshnessStatus(companyId: string): Promise<FreshnessSt
 
   return {
     companyId,
-    companyName: company.name,
+    companyName: company.rawName,
     degradationLevel,
     freshnessScore: score,
     lastRefreshAt: lastRefresh,
@@ -70,11 +69,11 @@ export async function getFreshnessStatus(companyId: string): Promise<FreshnessSt
  * Update freshness after intelligence collection
  */
 export async function updateFreshnessAfterCollection(companyId: string): Promise<void> {
-  const signalCount = await db.signal.count({ where: { companyId, status: 'active' } })
+  const signalCount = await db.companySignal.count({ where: { companyId, status: 'active' } })
   const evidenceCount = await db.evidence.count({ where: { companyId, status: { in: ['active', 'aging'] } } })
 
   // Get most recent signal
-  const latestSignal = await db.signal.findFirst({
+  const latestSignal = await db.companySignal.findFirst({
     where: { companyId, status: 'active' },
     orderBy: { createdAt: 'desc' },
     select: { createdAt: true },

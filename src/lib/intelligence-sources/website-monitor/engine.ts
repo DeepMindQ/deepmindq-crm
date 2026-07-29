@@ -1,4 +1,3 @@
-// @ts-nocheck — Future feature: references Prisma models not yet in schema. Remove after DB migration.
 /**
  * Phase 9: Website Change Detection Engine
  *
@@ -127,7 +126,7 @@ Focus on: pricing changes, new job listings, leadership mentions, product launch
  * Monitor all pages for a company
  */
 export async function monitorCompanyWebsite(companyId: string): Promise<WebsiteChangeResult[]> {
-  const company = await db.company.findUnique({ where: { id: companyId }, select: { website: true, name: true } })
+  const company = await db.company.findUnique({ where: { id: companyId }, select: { website: true, rawName: true } })
   if (!company?.website) return []
 
   const baseUrl = company.website.replace(/\/$/, '')

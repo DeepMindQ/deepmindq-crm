@@ -1,4 +1,3 @@
-// @ts-nocheck — References Prisma models/enums not in current schema. Remove after DB migration.
 import { promises as dns } from 'dns';
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
@@ -52,8 +51,8 @@ export async function POST() {
   try {
     const contacts = await db.contact.findMany({
       where: {
-        email: { not: null },
-        emailHealth: 'unknown',
+        email: { not: '' },
+        emailHealth: 'unknown' as const,
       },
       select: { id: true, email: true },
       take: 50,
@@ -72,7 +71,7 @@ export async function POST() {
         await db.contact.update({
           where: { id: contact.id },
           data: {
-            emailHealth: result.health,
+            emailHealth: result.health as 'unknown' | 'valid' | 'risky' | 'invalid',
             emailHealthScore: result.score,
             lastCheckedAt: new Date(),
           },

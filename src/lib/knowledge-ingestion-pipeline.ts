@@ -1,4 +1,3 @@
-// @ts-nocheck — Future feature: references Prisma models not yet in schema. Remove after DB migration.
 /**
  * KnowledgeIngestionPipeline — Phase 13: Document Ingestion & AI Memory
  * =====================================================================

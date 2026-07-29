@@ -1,4 +1,3 @@
-// @ts-nocheck — Future feature: references Prisma models not yet in schema. Remove after DB migration.
 /**
  * Phase 9: Competitive Intelligence Engine
  *
@@ -161,16 +160,16 @@ async function findAffectedAccounts(competitorName: string, eventSummary: string
   // Strategy 1: Check company research cards for competitor mentions
   const companiesWithCompetitor = await db.company.findMany({
     where: {
-      researchCard: { not: null },
+      researchCard: { isNot: null },
     },
-    select: { id: true, rawName: true, researchCard: true },
+    include: { researchCard: true },
     take: 20,
   })
 
   // Filter client-side for JSON field matching
   const filtered = companiesWithCompetitor.filter(c => {
     try {
-      const rc = typeof c.researchCard === 'string' ? JSON.parse(c.researchCard) : (c.researchCard || {})
+      const rc = c.researchCard || {} as any
       const techStack = (rc.techStack || '').toLowerCase()
       const competitors = (rc.competitors || []).join(' ').toLowerCase()
       const search = competitorName.toLowerCase()
@@ -206,15 +205,15 @@ async function findAffectedAccounts(competitorName: string, eventSummary: string
 export async function runCompetitiveScan(): Promise<CompetitiveIntelResult[]> {
   // Extract competitor names from all company data
   const allCompanies = await db.company.findMany({
-    select: { id: true, rawName: true, researchCard: true },
-    where: { researchCard: { not: null } },
+    include: { researchCard: true },
+    where: { researchCard: { isNot: null } },
     take: 50,
   })
 
   const competitorNames = new Set<string>()
   for (const company of allCompanies) {
     try {
-      const rc = typeof company.researchCard === 'string' ? JSON.parse(company.researchCard) : (company.researchCard || {})
+      const rc = company.researchCard || {} as any
       const competitors = rc.competitors || []
       for (const c of competitors) {
         if (typeof c === 'string') competitorNames.add(c)

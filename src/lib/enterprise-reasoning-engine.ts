@@ -1,4 +1,3 @@
-// @ts-nocheck — Future feature: references Prisma models not yet in schema. Remove after DB migration.
 /**
  * EnterpriseReasoningEngine — Phase 9: Cumulative Reasoning System
  * ==============================================================
@@ -228,7 +227,7 @@ async function executeStep(
         const rc = await db.companyResearchCard.findUnique({ where: { companyId } });
         if (!rc) return { ...defaults, summary: 'No technology data available', confidence: 0.2 };
         let techLandscape: unknown = {};
-        try { techLandscape = JSON.parse(rc.structuredTechLandscape || '{}'); } catch { /* empty */ }
+        try { techLandscape = JSON.parse(rc.structuredTechLandscape as string || '{}'); } catch { /* empty */ }
         const output = { structuredTechLandscape: techLandscape, techStack: rc.techStack };
         return { output: JSON.stringify(output), summary: `Tech landscape: ${rc.techStack ? 'data available' : 'no data'}`, confidence: rc.techStack ? 0.7 : 0.3, evidenceIds: [], knowledgeIds: [], aiCalls: 0, tokensUsed: 0, costUsd: 0, durationMs: Date.now() - started };
       }
@@ -256,7 +255,7 @@ async function executeStep(
       case 'leadership_org': {
         const rc = await db.companyResearchCard.findUnique({ where: { companyId } });
         let keyPeople: unknown[] = [];
-        if (rc) { try { keyPeople = JSON.parse(rc.keyPeople || '[]'); } catch { /* empty */ } }
+        if (rc) { try { keyPeople = JSON.parse(rc.keyPeople as string || '[]'); } catch { /* empty */ } }
         const contacts = await db.contact.findMany({ where: { companyId }, take: 20, orderBy: { leadScore: 'desc' } });
         const output = { keyPeople, contacts: contacts.map(c => ({ name: c.normalizedName, title: c.title, role: c.role, email: c.email, leadScore: c.leadScore })) };
         return { output: JSON.stringify(output), summary: `${keyPeople.length} key people, ${contacts.length} contacts`, confidence: keyPeople.length > 0 ? 0.7 : 0.3, evidenceIds: [], knowledgeIds: [], aiCalls: 0, tokensUsed: 0, costUsd: 0, durationMs: Date.now() - started };

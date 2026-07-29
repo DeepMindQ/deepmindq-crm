@@ -1,4 +1,3 @@
-// @ts-nocheck — Future feature: references Prisma models not yet in schema. Remove after DB migration.
 /**
  * Intelligence Fusion Engine — External × Internal = Opportunity Intelligence
  * ========================================================================
@@ -266,8 +265,8 @@ export const FusionEngine = {
       businessProblem: r.businessProblem,
       recommendedCapability: r.recommendedCapability,
       relevantCaseStudy: r.relevantCaseStudy,
-      proofPoints: JSON.parse(r.proofPoints || '[]'),
-      reasoningChain: JSON.parse(r.reasoningChain || '[]'),
+      proofPoints: JSON.parse(r.proofPoints as string || '[]'),
+      reasoningChain: JSON.parse(r.reasoningChain as string || '[]'),
       confidenceScore: r.confidenceScore,
       evidenceStrength: r.evidenceStrength,
     }));

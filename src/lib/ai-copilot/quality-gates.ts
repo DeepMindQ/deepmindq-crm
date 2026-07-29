@@ -1,4 +1,3 @@
-// @ts-nocheck — Future feature: references Prisma models not yet in schema. Remove after DB migration.
 /**
  * AI Quality Gates — 4-Check System
  *
@@ -13,7 +12,7 @@
  *   4. Specificity      — Are there enough named entities? (automatable → flag for review)
  */
 
-import type { QualityReport } from './types'
+import type { GuardrailCheck } from './types'
 
 // ── Inline completeness check (was in deleted intelligence-object.ts) ─
 function intelligenceObjectCompleteness(obj: Record<string, unknown>): number {

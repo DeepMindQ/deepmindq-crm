@@ -1,4 +1,3 @@
-// @ts-nocheck — References Prisma models/enums not in current schema. Remove after DB migration.
 /**
  * AICacheLayer — Phase 11: AI Response Caching & Cost Optimization
  * ================================================================

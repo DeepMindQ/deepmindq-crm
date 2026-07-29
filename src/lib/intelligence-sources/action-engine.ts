@@ -19,7 +19,7 @@
  */
 
 import { db } from '@/lib/db'
-import { ModelRouter } from '@/lib/engines/model-router'
+import { governedAICall } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -511,15 +511,16 @@ const GROUND_RULES = `GROUND RULES — YOU MUST FOLLOW THESE:
 6. Assign realistic priority and confidence scores based on available evidence quality.`
 
 async function callAIForAction(systemPrompt: string, userPrompt: string): Promise<string> {
-  const result = await ModelRouter.complete({
+  const result = await governedAICall({
+    generationType: 'action_engine',
     systemPrompt,
     userPrompt,
     tier: 'smart',
-    genType: 'action_engine',
     maxTokens: 4096,
     temperature: 0.5,
+    enforceGovernance: false,
   })
-  return result.success ? result.text : ''
+  return result.success ? (result.response ?? '') : ''
 }
 
 function parseJSONResponse(raw: string): Record<string, unknown> {

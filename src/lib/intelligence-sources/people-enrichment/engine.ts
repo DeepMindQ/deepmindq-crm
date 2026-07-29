@@ -12,7 +12,7 @@
  */
 
 import { db } from '@/lib/db'
-import { ModelRouter } from '@/lib/engines/model-router'
+import { governedAICall } from '@/lib/ai-governance'
 import { webSearch } from '@/lib/llm-client'
 import { logger } from '@/lib/logger';
 
@@ -108,17 +108,18 @@ Extract the following as JSON:
 
   let enrichmentData: Partial<PeopleEnrichmentResult> = {}
   try {
-    const llmResult = await ModelRouter.complete({
+    const llmResult = await governedAICall({
+      generationType: 'people_enrichment',
       systemPrompt,
       userPrompt,
       tier: 'smart',
-      genType: 'people_enrichment',
       maxTokens: 2048,
       temperature: 0.3,
       companyId: contact.companyId,
+      enforceGovernance: false,
     })
 
-    const cleaned = (llmResult.text || '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+    const cleaned = (llmResult.response ?? '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
     if (jsonMatch) {
       enrichmentData = JSON.parse(jsonMatch[0])

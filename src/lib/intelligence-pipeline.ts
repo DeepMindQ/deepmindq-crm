@@ -23,7 +23,7 @@
 import { db } from '@/lib/db';
 import { webSearch } from '@/lib/llm-client';
 import { extractJSON } from '@/lib/llm-client';
-import { ModelRouter } from '@/lib/engines/model-router';
+import { governedAICall } from '@/lib/ai-governance';
 import type { SignalType, SignalSeverity, SignalImpact } from '@prisma/client';
 import { logger } from '@/lib/logger';
 
@@ -216,14 +216,15 @@ ${searchContext}
 
 Analyze these search results and extract ALL actionable intelligence signals and company research data.`;
 
-    const llmResult = await ModelRouter.complete({
+    const llmResult = await governedAICall({
+      generationType: 'company_enrichment',
       systemPrompt: ENRICHMENT_SYSTEM_PROMPT,
       userPrompt,
       tier: 'smart',
       maxTokens: 4096,
       temperature: 0.3, // Lower temperature for factual extraction
-      genType: 'company_enrichment',
       companyId,
+      enforceGovernance: false,
     });
 
     if (!llmResult.success) {
@@ -235,14 +236,14 @@ Analyze these search results and extract ALL actionable intelligence signals and
         evidenceCreated: 0,
         researchCardUpdated: false,
         score: null,
-        error: llmResult.error || 'LLM call failed',
+        error: llmResult.rejectionReason || 'LLM call failed',
         searchQueriesRun: queries.length,
         llmProviderUsed: 'none',
       };
     }
 
     // Parse LLM response
-    const parsed = extractJSON(llmResult.text) as {
+    const parsed = extractJSON(llmResult.response ?? '') as {
       signals?: LLMSignal[];
       research?: LLMResearchData;
     } | null;
@@ -266,7 +267,7 @@ Analyze these search results and extract ALL actionable intelligence signals and
         score: null,
         error: 'Failed to parse LLM response structure',
         searchQueriesRun: queries.length,
-        llmProviderUsed: llmResult.modelUsed,
+        llmProviderUsed: 'governed',
       };
     }
 
@@ -396,7 +397,7 @@ Analyze these search results and extract ALL actionable intelligence signals and
       researchCardUpdated: !!parsed.research,
       score: null, // ScoringEngine computes separately
       searchQueriesRun: queries.length,
-      llmProviderUsed: llmResult.modelUsed,
+      llmProviderUsed: 'governed',
       capabilitiesMatched,
       opportunitiesGenerated,
     };

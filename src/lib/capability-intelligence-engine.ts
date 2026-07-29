@@ -37,7 +37,7 @@
 
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { ModelRouter, type CompletionResult } from '@/lib/engines/model-router';
+import { governedAICall } from '@/lib/ai-governance';
 import { RetrievalEngine, embedEntity, type RetrievalResult } from '@/lib/engines/retrieval-engine';
 
 // ─── Types ──────────────────────────────────────────────────────────────
@@ -565,25 +565,26 @@ ${capabilityContext}
 
 Match this signal to the most relevant capabilities.`;
 
-      const llmResult = await ModelRouter.complete({
+      const llmResult = await governedAICall({
+        generationType: 'capability_matching',
         systemPrompt,
         userPrompt,
         tier: 'smart',
         maxTokens: 3000,
         temperature: 0.3,
-        genType: 'capability_matching',
         companyId,
+        enforceGovernance: false,
       });
 
       if (!llmResult.success) {
-        logger.warn(`[capability-engine] LLM matching failed: ${llmResult.error}`);
-        return { success: false, companyId, signalId, matches: [], error: llmResult.error };
+        logger.warn(`[capability-engine] LLM matching failed: ${llmResult.rejectionReason}`);
+        return { success: false, companyId, signalId, matches: [], error: llmResult.rejectionReason };
       }
 
       // Parse matches
       const matches: SignalMatchResult['matches'] = [];
       try {
-        const cleaned = llmResult.text.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+        const cleaned = (llmResult.response ?? '').replace(/```json?\n?/g, '').replace(/```/g, '').trim();
         const parsed = JSON.parse(cleaned);
 
         if (Array.isArray(parsed)) {
@@ -788,22 +789,23 @@ EVIDENCE RECORDS: ${company.evidence.length} pieces of evidence
 
 Generate the opportunity recommendation.`;
 
-      const llmResult = await ModelRouter.complete({
+      const llmResult = await governedAICall({
+        generationType: 'opportunity_generation',
         systemPrompt,
         userPrompt,
         tier: 'smart',
         maxTokens: 3000,
         temperature: 0.3,
-        genType: 'opportunity_generation',
         companyId,
+        enforceGovernance: false,
       });
 
       if (!llmResult.success) {
-        return { success: false, error: llmResult.error };
+        return { success: false, error: llmResult.rejectionReason };
       }
 
       // Parse and persist
-      const cleaned = llmResult.text.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+      const cleaned = (llmResult.response ?? '').replace(/```json?\n?/g, '').replace(/```/g, '').trim();
       const parsed = JSON.parse(cleaned);
 
       const opportunity = await db.opportunityRecommendation.create({
@@ -958,14 +960,15 @@ OPPORTUNITIES: ${company.opportunityRecommendations.length} generated
 
 Analyze win probability.`;
 
-      const llmResult = await ModelRouter.complete({
+      const llmResult = await governedAICall({
+        generationType: 'win_probability',
         systemPrompt,
         userPrompt,
         tier: 'fast',
         maxTokens: 1000,
         temperature: 0.3,
-        genType: 'win_probability',
         companyId,
+        enforceGovernance: false,
       });
 
       let competitivePosition = 50; // default
@@ -975,7 +978,7 @@ Analyze win probability.`;
 
       if (llmResult.success) {
         try {
-          const cleaned = llmResult.text.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+          const cleaned = (llmResult.response ?? '').replace(/```json?\n?/g, '').replace(/```/g, '').trim();
           const parsed = JSON.parse(cleaned);
           competitivePosition = typeof parsed.competitivePosition === 'number'
             ? Math.min(100, Math.max(0, parsed.competitivePosition))
@@ -999,7 +1002,7 @@ Analyze win probability.`;
       // Use LLM probability if it was parsed and seems reasonable
       if (llmResult.success) {
         try {
-          const cleaned = llmResult.text.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+          const cleaned = (llmResult.response ?? '').replace(/```json?\n?/g, '').replace(/```/g, '').trim();
           const parsed = JSON.parse(cleaned);
           if (typeof parsed.probability === 'number') {
             const llmProb = Math.min(100, Math.max(0, parsed.probability));

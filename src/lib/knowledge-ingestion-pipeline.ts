@@ -28,7 +28,7 @@
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { RetrievalEngine } from '@/lib/engines/retrieval-engine';
-import { ModelRouter } from '@/lib/engines/model-router';
+import { governedAICall } from '@/lib/ai-governance';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -173,15 +173,16 @@ export const KnowledgeIngestionPipeline = {
         // Step 3: Classify using AI (batch — classify every 5th chunk for cost)
         if (chunk.index % 5 === 0 || chunks.length <= 5) {
           try {
-            const completion = await ModelRouter.complete({
+            const completion = await governedAICall({
+              generationType: 'knowledge_classify',
               systemPrompt: `Classify this knowledge chunk into one of these categories: service_line, solution, accelerator, case_study, proof_point, objection_response, proposal, battle_card, pricing_strategy, rfp_response, sales_deck, discovery_question, methodology, architecture_document, competitive_intel, win_loss_analysis, certification, partnership, sme_knowledge, gtm_asset, lesson_learned, whitepaper, blog, delivery_capability, industry_expertise, ip_framework, customer_communication, meeting_note. Return ONLY the category name.`,
               userPrompt: `Document: ${params.title}\nType: ${params.documentType}\nChunk: ${chunk.content.slice(0, 500)}`,
               tier: 'fast',
               maxTokens: 50,
-              genType: 'knowledge_classify',
+              enforceGovernance: false,
             });
             if (completion.success) {
-              const category = completion.text.trim().split('\n')[0].trim();
+              const category = (completion.response ?? '').trim().split('\n')[0].trim();
               const validCategories = ['service_line', 'solution', 'accelerator', 'case_study', 'proof_point', 'objection_response', 'proposal', 'battle_card', 'pricing_strategy', 'rfp_response', 'sales_deck', 'discovery_question', 'methodology', 'architecture_document', 'competitive_intel', 'win_loss_analysis', 'certification', 'partnership', 'sme_knowledge', 'gtm_asset', 'lesson_learned', 'whitepaper', 'blog', 'delivery_capability', 'industry_expertise', 'ip_framework', 'customer_communication', 'meeting_note'];
               const validatedCategory = validCategories.includes(category) ? category : params.documentType;
               await db.knowledgeChunk.update({

@@ -13,7 +13,7 @@
 
 import { db } from '@/lib/db'
 import { webSearch } from '@/lib/llm-client'
-import { ModelRouter } from '@/lib/engines/model-router'
+import { governedAICall } from '@/lib/ai-governance'
 import crypto from 'crypto'
 import { logger } from '@/lib/logger';
 
@@ -77,7 +77,8 @@ export async function detectWebsiteChange(
   // Change detected — analyze with AI
   let detectedChanges: string[] = []
   try {
-    const llmResult = await ModelRouter.complete({
+    const llmResult = await governedAICall({
+      generationType: 'website_change_analysis',
       systemPrompt: 'You are a B2B sales intelligence analyst. Analyze website content changes and identify business-relevant signals. Be specific and factual.',
       userPrompt: `Previous content: "${latestSnapshot.contentText?.slice(0, 500) || 'No previous content'}"
 New content: "${currentContent.slice(0, 500)}"
@@ -87,13 +88,13 @@ What changed? List specific business-relevant changes as a JSON array:
 
 Focus on: pricing changes, new job listings, leadership mentions, product launches, partnerships, growth indicators.`,
       tier: 'fast',
-      genType: 'website_change_analysis',
       maxTokens: 1500,
       temperature: 0.2,
       companyId,
+      enforceGovernance: false,
     })
 
-    const cleaned = (llmResult.text || '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+    const cleaned = (llmResult.response ?? '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
     const match = cleaned.match(/\[[\s\S]*\]/)
     if (match) detectedChanges = JSON.parse(match[0])
   } catch {

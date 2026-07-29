@@ -10,7 +10,7 @@
 import { db } from '@/lib/db';
 import { getSignalsForCompany } from './signal-extraction';
 import { getAccountScore } from './account-scoring';
-import { ModelRouter } from '@/lib/engines/model-router';
+import { governedAICall } from '@/lib/ai-governance';
 import { KEYWORD_TO_CATEGORY } from './signal-patterns';
 
 // ─── Exported Interfaces ───────────────────────────────────────────────
@@ -122,8 +122,8 @@ async function polishReason(
       `Recommended focus: ${focusArea}`,
     ].join('\n');
 
-    const completion = await ModelRouter.complete({ systemPrompt: ENGAGEMENT_WORDING_PROMPT, userPrompt, tier: 'fast', genType: 'revenue_engagement_wording' });
-    if (completion.success && completion.text && completion.text.trim().length > 0) return completion.text.trim();
+    const completion = await governedAICall({ generationType: 'revenue_engagement_wording', systemPrompt: ENGAGEMENT_WORDING_PROMPT, userPrompt, tier: 'fast', enforceGovernance: false });
+    if (completion.success && completion.response && completion.response.trim().length > 0) return completion.response.trim();
     return template;
   } catch {
     return template;

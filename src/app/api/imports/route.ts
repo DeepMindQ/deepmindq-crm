@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/apiHelpers";
 import crypto from "crypto";
 import * as XLSX from "xlsx";
+import { validateEmail, validationToContactFields } from "@/lib/email-validator";
+import { matchCompany, extractCorporateDomain } from "@/lib/company-matcher";
 
 // ---------------------------------------------------------------------------
 // CSV helpers
@@ -296,13 +298,22 @@ async function executeImport(body: ExecuteBody) {
     title: string | undefined;
     phone: string | undefined;
     location: string | undefined;
+    website: string | undefined;
     companyNormalizedName: string;
     contactNormalizedName: string;
+    emailDomain: string | undefined | null;
   }
 
   const validRecords: ParsedRecord[] = [];
   let invalid = 0;
   let intraDuplicates = 0;
+  let emailRejected = 0; // disposable/invalid emails
+  const emailValidationResults = new Map<string, Awaited<ReturnType<typeof validateEmail>>>();
+
+  // ── Email Validation Pass (before dedup) ──
+  // Validate all emails first — reject disposable/invalid before processing
+  const allEmailsInImport = rows.map(row => val(row, "email")).filter(Boolean) as string[];
+  const emailValidationMap = new Map<string, Awaited<ReturnType<typeof validateEmail>>>();
 
   for (const row of rows) {
     const companyName = val(row, "companyName");
@@ -314,6 +325,29 @@ async function executeImport(body: ExecuteBody) {
     }
 
     const email = val(row, "email");
+
+    // ── EMAIL QUALITY VALIDATION ──
+    if (email) {
+      // Check cache first
+      if (emailValidationMap.has(email)) {
+        const cachedResult = emailValidationMap.get(email)!;
+        if (!cachedResult.isValid || cachedResult.status === 'disposable') {
+          emailRejected++;
+          continue; // Skip disposable/invalid emails entirely
+        }
+      } else {
+        // Validate (DNS checks happen here)
+        const validationResult = await validateEmail(email);
+        emailValidationMap.set(email, validationResult);
+        emailValidationResults.set(email, validationResult);
+
+        if (!validationResult.isValid || validationResult.status === 'disposable') {
+          emailRejected++;
+          continue; // Skip disposable/invalid emails entirely
+        }
+      }
+    }
+
     const companyNorm = normalizeName(companyName);
     const contactNorm = normalizeName(contactName);
 
@@ -321,12 +355,10 @@ async function executeImport(body: ExecuteBody) {
     if (email) contactEmails.add(email);
 
     // Intra-import dedup check
-    // 1. Global email uniqueness
     if (email && intraImportEmailDedup.has(email)) {
       intraDuplicates++;
       continue;
     }
-    // 2. Per-company: same normalized contact name
     const nameKey = `${companyNorm}:${contactNorm}`;
     if (intraImportNameDedup.has(nameKey)) {
       intraDuplicates++;
@@ -336,6 +368,9 @@ async function executeImport(body: ExecuteBody) {
     if (email) intraImportEmailDedup.add(email);
     intraImportNameDedup.set(nameKey, validRecords.length);
 
+    // Extract domain from email for company matching
+    const emailDomain = email ? extractCorporateDomain(email) : undefined;
+
     validRecords.push({
       companyName,
       contactName,
@@ -343,8 +378,10 @@ async function executeImport(body: ExecuteBody) {
       title: val(row, "jobTitle") || undefined,
       phone: val(row, "phone") || undefined,
       location: val(row, "location") || undefined,
+      website: val(row, "website") || undefined,
       companyNormalizedName: companyNorm,
       contactNormalizedName: contactNorm,
+      emailDomain,
     });
   }
 
@@ -395,30 +432,49 @@ async function executeImport(body: ExecuteBody) {
 
   // ── Phase 3: Classify records and collect new companies/contacts ──
 
-  const newCompanies: Map<string, { id: string; rawName: string; normalizedName: string }> = new Map();
-  const newContacts: { companyId: string; batchId: string; rawName: string; normalizedName: string; email: string; title: string | null; phone: string | null; location: string | null }[] = [];
+  const newCompanies: Map<string, { id: string; rawName: string; normalizedName: string; domain: string | null }> = new Map();
+  const newContacts: { companyId: string; batchId: string; rawName: string; normalizedName: string; email: string; title: string | null; phone: string | null; location: string | null; emailHealth: string; emailHealthScore: number; isSuppressed: boolean; suppressionReason: string | null }[] = [];
   let duplicates = 0; // cross-import duplicates (already in DB)
   let accepted = 0;
 
   for (const rec of validRecords) {
-    // Resolve company ID
-    let companyId = companyByRawName.get(rec.companyName);
+    // ── INTELLIGENT COMPANY MATCHING (4-rule engine) ──
+    let companyId: string | undefined;
+    let matchRule: string | undefined;
+
+    // Rule 1-4: Use the intelligent matching engine
+    const matchResult = await matchCompany({
+      companyName: rec.companyName,
+      email: rec.email,
+      website: rec.website || rec.emailDomain ? `https://${rec.emailDomain}` : undefined,
+    });
+
+    if (matchResult.matched && matchResult.match) {
+ companyId = matchResult.match.companyId;
+      matchRule = matchResult.match.matchRule;
+    }
+
+    // Fallback: check existing lookup maps (raw name + normalized name)
     if (!companyId) {
-      companyId = companyByNormalizedName.get(rec.companyNormalizedName);
+      companyId = companyByRawName.get(rec.companyName);
+      if (!companyId) {
+        companyId = companyByNormalizedName.get(rec.companyNormalizedName);
+      }
     }
 
     let wasCreated = false;
 
     if (!companyId) {
-      // Create company ID in-memory (will be batch-inserted)
       companyId = `co_${newCompanies.size}_${Date.now()}`;
+      // Extract domain from email for the new company
+      const domain = rec.emailDomain || null;
       newCompanies.set(companyId, {
         id: companyId,
         rawName: rec.companyName,
         normalizedName: rec.companyNormalizedName,
+        domain,
       });
       wasCreated = true;
-      // Also update lookup maps for subsequent records
       companyByRawName.set(rec.companyName, companyId);
       companyByNormalizedName.set(rec.companyNormalizedName, companyId);
     }
@@ -436,6 +492,12 @@ async function executeImport(body: ExecuteBody) {
       continue;
     }
 
+    // ── EMAIL HEALTH from validation results ──
+    const emailValidation = rec.email ? emailValidationResults.get(rec.email) : null;
+    const emailFields = emailValidation
+      ? validationToContactFields(emailValidation)
+      : { emailHealth: 'unknown', emailHealthScore: 0, isSuppressed: false, suppressionReason: null };
+
     newContacts.push({
       companyId,
       batchId,
@@ -445,6 +507,10 @@ async function executeImport(body: ExecuteBody) {
       title: rec.title || null,
       phone: rec.phone || null,
       location: rec.location || null,
+      emailHealth: emailFields.emailHealth,
+      emailHealthScore: emailFields.emailHealthScore,
+      isSuppressed: emailFields.isSuppressed,
+      suppressionReason: emailFields.suppressionReason,
     });
 
     accepted++;
@@ -464,6 +530,7 @@ async function executeImport(body: ExecuteBody) {
       const companyPayload = [...newCompanies.values()].map((c) => ({
         rawName: c.rawName,
         normalizedName: c.normalizedName,
+        domain: c.domain || undefined,
       }));
       // Insert in chunks of 100 to avoid query size limits
       const CHUNK = 100;
@@ -568,6 +635,14 @@ async function executeImport(body: ExecuteBody) {
     accepted,
     duplicates: duplicates + intraDuplicates,
     invalid,
-    totalProcessed: accepted + duplicates + intraDuplicates + invalid,
+    emailRejected,
+    emailValidationSummary: {
+      valid: [...emailValidationResults.values()].filter(v => v.status === 'valid').length,
+      personal: [...emailValidationResults.values()].filter(v => v.status === 'personal').length,
+      role: [...emailValidationResults.values()].filter(v => v.status === 'role').length,
+      disposable: [...emailValidationResults.values()].filter(v => v.status === 'disposable').length,
+      invalidDomain: [...emailValidationResults.values()].filter(v => v.status === 'invalid').length,
+    },
+    totalProcessed: accepted + duplicates + intraDuplicates + invalid + emailRejected,
   });
 }

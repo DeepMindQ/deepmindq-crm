@@ -164,7 +164,7 @@ export interface EnhancedBriefOutput {
 //  AI USAGE TRACKING — Cost and usage metrics
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export type AIUsageFeature = 'REASONING' | 'STRATEGY' | 'BRIEF_ENHANCEMENT';
+export type AIUsageFeature = 'REASONING' | 'STRATEGY' | 'BRIEF_ENHANCEMENT' | string;
 
 export interface AIUsageRecord {
   companyId: string | null;

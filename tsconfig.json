@@ -46,6 +46,7 @@
     "**/__tests__",
     "vitest.config.ts",
     "src/lib/mock-data.ts",
-    "src/lib/demo-data.ts"
+    "src/lib/demo-data.ts",
+    ".next"
   ]
 }

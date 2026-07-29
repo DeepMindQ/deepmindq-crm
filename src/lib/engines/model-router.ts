@@ -34,7 +34,7 @@
  *   composition engine can include in its own result object.
  */
 
-import { callLLM } from '@/lib/zai-helpers';
+import { callLLM } from '@/lib/llm-client';
 import { getLLMChain, getProviderConfig } from '@/lib/ai-config';
 import { logger } from '@/lib/logger';
 import { logAIUsage, estimateCost } from '@/lib/ai-copilot/usage-tracker';
@@ -232,7 +232,7 @@ export const ModelRouter = {
         logger.info(`[model-router] trying provider: ${provider.label}`);
         // Use callLLM with this provider's config — it handles Gemini variants
         // and provider-specific quirks. We pass system+user prompts and let
-        // zai-helpers manage the actual HTTP call.
+        // llm-client manages the actual HTTP call.
         const text = await callLLM(params.systemPrompt, params.userPrompt);
 
         if (!text || text.trim().length === 0) {

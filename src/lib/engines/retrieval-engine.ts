@@ -71,7 +71,7 @@ export interface RetrievalStats {
 
 const MODEL_NAME = 'Xenova/all-MiniLM-L6-v2';
 const EMBEDDING_DIM = 384;
-const MAX_INDEX_SIZE = 10_000;
+const MAX_INDEX_SIZE = 100_000;
 
 // ─── Lazy-loaded Transformer Pipeline ──────────────────────────────────
 

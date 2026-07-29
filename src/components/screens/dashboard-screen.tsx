@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+// recharts removed — engagement chart replaced with real aggregate stat panel (Phase 0.4)
 import {
   Building2, Users, FileText, Send, Mail, TrendingUp, TrendingDown,
   ChevronRight, Zap, UserPlus, Eye, MessageSquare, AlertTriangle,
@@ -134,25 +134,7 @@ function StatCard({ icon: Icon, label, value, suffix, trend, bc, delay }: {
   );
 }
 
-/* ═══════════════════════════════════════════════════
-   Chart Tooltip
-   ═══════════════════════════════════════════════════ */
-function ChartTip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-lg border px-3 py-2 text-xs space-y-1"
-      style={{ background: '#FFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
-      <p className="font-semibold text-foreground">{label}</p>
-      {payload.map((p: any) => (
-        <p key={p.dataKey} className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-          <span className="text-muted-foreground capitalize">{p.dataKey}</span>
-          <span className="font-bold tabular-nums text-foreground ml-auto">{p.value}</span>
-        </p>
-      ))}
-    </div>
-  );
-}
+// ChartTip removed — no longer used after Phase 0.4 fake data cleanup
 
 /* ═══════════════════════════════════════════════════
    Quick Action Card
@@ -250,16 +232,18 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
   ];
   const funnelMax = Math.max(funnelStages[0].count, 1);
 
-  const baseOpen = Math.round(totalLeads * 0.012);
-  const engagementData = [
-    { day: 'Mon', opens: Math.round(baseOpen * 0.9), clicks: Math.round(baseOpen * 0.28), replies: Math.round(baseOpen * 0.04) },
-    { day: 'Tue', opens: Math.round(baseOpen * 1.1), clicks: Math.round(baseOpen * 0.35), replies: Math.round(baseOpen * 0.06) },
-    { day: 'Wed', opens: baseOpen, clicks: Math.round(baseOpen * 0.30), replies: Math.round(baseOpen * 0.05) },
-    { day: 'Thu', opens: Math.round(baseOpen * 1.3), clicks: Math.round(baseOpen * 0.45), replies: Math.round(baseOpen * 0.09) },
-    { day: 'Fri', opens: Math.round(baseOpen * 1.2), clicks: Math.round(baseOpen * 0.41), replies: Math.round(baseOpen * 0.07) },
-    { day: 'Sat', opens: Math.round(baseOpen * 0.5), clicks: Math.round(baseOpen * 0.18), replies: Math.round(baseOpen * 0.02) },
-    { day: 'Sun', opens: Math.round(baseOpen * 0.4), clicks: Math.round(baseOpen * 0.13), replies: Math.round(baseOpen * 0.01) },
-  ];
+  // Engagement snapshot — REAL totals only, no fabricated daily breakdowns.
+  // Per-day email event tracking is not yet wired up; until it is, we show
+  // the honest aggregate count (sent / replied / bounced) instead of
+  // multiplying by fake coefficients.
+  const repliedCount = dashData?.contactsByStatus?.replied || 0;
+  const bouncedCount = dashData?.contactsByStatus?.bounced || 0;
+  const engagementSummary = {
+    sent,
+    replied: repliedCount,
+    bounced: bouncedCount,
+    openRate: sent > 0 ? ((repliedCount / sent) * 100).toFixed(1) : '0.0',
+  };
 
   const maxContacts = topCompanies.length > 0 ? Math.max(...topCompanies.map(c => c.contactCount)) : 1;
   const maxSegContacts = segments.length > 0 ? Math.max(...segments.map(s => s._count?.contacts || 0)) : 1;
@@ -431,7 +415,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
         </div>
       </motion.div>
 
-      {/* ═══════ 4. ENGAGEMENT CHART (60%) + TOP COMPANIES (40%) ═══════ */}
+      {/* ═══════ 4. ENGAGEMENT SNAPSHOT (60%) + TOP COMPANIES (40%) ═══════ */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         <motion.div className="lg:col-span-3 rounded-xl overflow-hidden" style={glassPanel}
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3 }}>
@@ -446,22 +430,23 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: '#10B981' }} />Replies</span>
             </div>
           </div>
-          <div className="px-3 pb-4 pt-2" style={{ height: 260 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={engagementData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gO" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(0,0,0,0.06)" /><stop offset="100%" stopColor="rgba(255,255,255,0)" /></linearGradient>
-                  <linearGradient id="gC" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(212,175,55,0.35)" /><stop offset="100%" stopColor="rgba(212,175,55,0)" /></linearGradient>
-                  <linearGradient id="gR" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(16,185,129,0.35)" /><stop offset="100%" stopColor="rgba(16,185,129,0)" /></linearGradient>
-                </defs>
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#71717A', fontSize: 11 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#71717A', fontSize: 11 }} />
-                <Tooltip content={<ChartTip />} />
-                <Area type="monotone" dataKey="opens" stroke="rgba(0, 0, 0, 0.25)" fill="url(#gO)" strokeWidth={2} />
-                <Area type="monotone" dataKey="clicks" stroke={gold} fill="url(#gC)" strokeWidth={2} />
-                <Area type="monotone" dataKey="replies" stroke="#10B981" fill="url(#gR)" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="px-5 pb-5 pt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Sent</p>
+              <p className="text-2xl font-bold text-foreground tabular-nums mt-1">{engagementSummary.sent}</p>
+            </div>
+            <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Replied</p>
+              <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: '#10B981' }}>{engagementSummary.replied}</p>
+            </div>
+            <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Bounced</p>
+              <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: '#EF4444' }}>{engagementSummary.bounced}</p>
+            </div>
+            <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Reply Rate</p>
+              <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: gold }}>{engagementSummary.openRate}%</p>
+            </div>
           </div>
         </motion.div>
 

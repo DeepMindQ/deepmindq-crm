@@ -346,7 +346,16 @@ export default function RevenueIntelligenceBriefScreen({
     }, 4000);
 
     try {
-      const res = await fetch(`/api/ai/account-brief?companyId=${selectedCompany.id}`);
+      const res = await fetch(`/api/engines/brief`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: selectedCompany.id,
+          briefType: 'account_brief',
+          depth: 'standard',
+          audience: 'sales',
+        }),
+      });
       if (res.ok) {
         const data = await res.json();
         const briefData = data.data ?? data;
@@ -770,7 +779,7 @@ export default function RevenueIntelligenceBriefScreen({
                 <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar">
                   {sources.map((src, i) => (
                     <div key={i} className="flex items-start gap-3 p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
-                      <EvidenceBadge source={sourceTypeFromUrl(src.url)} confidence={75 + Math.floor(Math.random() * 20)} className="shrink-0" />
+                      <EvidenceBadge source={sourceTypeFromUrl(src.url)} confidence={undefined} className="shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{src.title}</p>
                         <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{src.snippet}</p>

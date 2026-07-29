@@ -269,7 +269,7 @@ export async function updateAIConfig(updates: Partial<AIFullConfig>): Promise<AI
 
 /**
  * Get a specific provider's real API key.
- * Used by zai-helpers.ts for actual AI calls.
+ * Used by llm-client.ts for actual AI calls.
  */
 export async function getProviderKey(providerId: string): Promise<string> {
   await ensureLoaded();

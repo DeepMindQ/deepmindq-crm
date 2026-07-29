@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
+import { ModelRouter } from '@/lib/engines/model-router'
 
 /* ── In-memory cache (5 minutes) ── */
 let cachedResult: { data: DataHealthResponse; ts: number } | null = null
@@ -62,7 +63,7 @@ interface DataHealthResponse {
   }
 }
 
-const NOT_ARCHIVED = { not: 'archived' }
+const NOT_ARCHIVED = { not: 'archived' } as const
 
 /* ── Helper: compute a 0-100 percentage safely ── */
 function pct(numerator: number, denominator: number): number {
@@ -70,19 +71,17 @@ function pct(numerator: number, denominator: number): number {
   return Math.round((numerator / denominator) * 100)
 }
 
-/* ── AI helper using z-ai-web-dev-sdk ── */
+/* ── AI helper — routed through ModelRouter (Phase 2.2) ── */
 async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
+  const result = await ModelRouter.complete({
+    systemPrompt,
+    userPrompt,
+    tier: 'smart',
+    genType: 'data_health_analysis',
+    maxTokens: 4096,
+    temperature: 0.3,
   })
-  return completion.choices?.[0]?.message?.content ?? ''
+  return result.success ? result.text : ''
 }
 
 /* ── Parse a JSON array from LLM output, with fallback ── */

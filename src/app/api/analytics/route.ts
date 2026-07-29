@@ -12,17 +12,6 @@ const EMPTY_RESPONSE = {
 
 export async function GET() {
   try {
-    // Auto-seed if DB is empty
-    const contactCount = await db.contact.count();
-    if (contactCount === 0) {
-      try {
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
-        await fetch(`${baseUrl}/api/seed`, { method: 'POST' });
-      } catch (e) {
-        console.error('Auto-seed failed:', e);
-      }
-    }
-
     // ── Fetch all needed data in parallel ──
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);

@@ -139,7 +139,7 @@ export async function POST(request: Request) {
         select: { id: true, content: true, summary: true, priority: true, submittedBy: true, createdAt: true },
       }),
 
-      // Internal: Account strategy (companyId is not @unique, use findFirst)
+      // Internal: Account strategy
       db.accountStrategy.findFirst({
         where: { companyId },
         select: { swotAnalysis: true, stakeholderMap: true, keyInitiatives: true },
@@ -169,9 +169,9 @@ export async function POST(request: Request) {
       const memResult = await extractInternalMemorySignals(companyId)
       internalMemorySignals = memResult.signals.slice(0, 15).map(s => ({
         signalType: s.signalType,
-        title: s.title,
-        description: s.description,
-        source: s.source,
+        title: s.signal,
+        description: s.evidence,
+        source: s.sourceName,
         confidence: Math.round(s.confidence * 100),
         businessImpact: s.businessImpact,
         recommendedAction: s.recommendedAction,

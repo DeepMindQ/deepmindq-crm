@@ -18,7 +18,7 @@
  */
 
 import { db } from '@/lib/db';
-import { webSearch, extractJSON, type KeyPerson, type NewsSignal } from '@/lib/zai-helpers';
+import { webSearch, extractJSON, type KeyPerson, type NewsSignal } from '@/lib/llm-client';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { storeEvidenceFromResults, cleanupOldEvidence, linkEvidenceToFields, type FieldConfidence, type RawEvidence } from './evidence';
 import { detectSignals, storeSignals, type DetectedSignal, type SignalDetectionResult } from './signals';
@@ -295,7 +295,7 @@ Extract accurate company data as JSON. Ground everything in the search results a
   // Fallback: Tavily AI answer
   if (!extractedData || typeof extractedData !== 'object') {
     try {
-      const { tavilyAIAnswer } = await import('@/lib/zai-helpers');
+      const { tavilyAIAnswer } = await import('@/lib/llm-client');
       const answer = await tavilyAIAnswer(`${companyName} ${domain || ''} revenue employees funding industry overview`);
       if (answer) {
         extractedData = {

@@ -98,8 +98,8 @@ export async function POST(request: Request) {
       `${name} ${industry} competitors market landscape partnerships`,
     ]
 
-    // 3. Parallel web search (with backoff via zai-helpers)
-    const { parallelWebSearch } = await import('@/lib/ai-copilot/ai-caller')
+    // 3. Parallel web search (with backoff via llm-client)
+    const { parallelWebSearch } = await import('@/lib/llm-client')
     const searchResults = await parallelWebSearch(searchQueries, 5)
 
     const webContext = searchResults
@@ -155,19 +155,19 @@ Return JSON:
   ]
 }`
 
-    // Use governed AI caller
-    const { callAI } = await import('@/lib/ai-copilot/ai-caller')
-    const aiResult = await callAI({
+    // Use ModelRouter (Phase 2.2)
+    const { ModelRouter } = await import('@/lib/engines/model-router')
+    const result = await ModelRouter.complete({
       systemPrompt,
       userPrompt,
-      feature: 'sprint1_intelligence',
+      tier: 'smart',
+      genType: 'sprint1_intelligence',
+      maxTokens: 4096,
+      temperature: 0.7,
       companyId: company.id,
-      runQualityCheck: true,
-      maxRetries: 2,
-      timeoutMs: 90000,
     })
 
-    if (!aiResult.success || !aiResult.raw) {
+    if (!result.success || !result.text) {
       return NextResponse.json({
         company: {
           id: company.id,
@@ -177,7 +177,7 @@ Return JSON:
           sizeRange: company.sizeRange,
           country: company.country,
         },
-        reasoning: `AI classification failed: ${aiResult.error || 'empty response'}`,
+        reasoning: `AI classification failed: ${result.error || 'empty response'}`,
         signals: [],
         meta: {
           webSourcesFetched: searchResults.length,
@@ -195,12 +195,12 @@ Return JSON:
       reasoning?: string
       overallConfidence?: number
       signals?: Array<Record<string, unknown>>
-    } = aiResult.parsed as any || {}
+    } = {}
 
     // Fallback parse
     if (!parsed.signals) {
       try {
-        const cleaned = aiResult.raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+        const cleaned = result.text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
         const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
         if (jsonMatch) parsed = JSON.parse(jsonMatch[0])
       } catch {
@@ -297,7 +297,7 @@ Return JSON:
       signals: rankedSignals,
       meta: {
         webSourcesFetched: searchResults.length,
-        aiModelUsed: aiResult.success,
+        aiModelUsed: result.success,
         signalsCreated,
         signalsUpdated,
         pipelineLatencyMs: Date.now() - startTime,

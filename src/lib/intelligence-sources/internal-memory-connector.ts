@@ -1,783 +1,843 @@
 /**
- * Internal Memory Connector — Sprint 3A
+ * Sprint 3A: Internal Memory Connector
  *
- * Converts internal CRM data (notes, timeline events, meeting records,
- * human intelligence submissions) into the same IntelligenceObject format
- * that external sources produce. This ensures the Action Engine treats
- * internal memory as a first-class intelligence source.
+ * The "ChatGPT memory layer for accounts" — feeds ALL internal CRM data
+ * (meeting notes, sales notes, emails, timeline events, account strategies,
+ * human intelligence) into the intelligence pipeline as first-class signals.
  *
- * Why this matters:
- *   - Small companies (<200 employees) often have ZERO external signals
- *   - The strongest intelligence for SMBs comes from CRM history:
- *     meeting notes, sales observations, email interactions, past deals
- *   - Without this connector, Action Engine says "no signals found"
- *   - With it, Action Engine sees internal memory equally alongside web search
+ * This is the critical bridge that makes DeepMindQ powerful for ALL company sizes,
+ * not just enterprises with abundant public information.
  *
- * Signal types produced:
- *   - internal_note       — Sales observations, call notes, general CRM notes
- *   - internal_meeting    — Meeting records with outcomes and action items
- *   - internal_interaction — Email replies, engagement signals
- *   - internal_human_intel — Human-submitted intelligence from inbox
- *   - people_change        — Contact role changes, status changes, new hires
- *   - relationship_shift   — Champion left, new contact, engagement change
+ * Memory Sources:
+ * 1. CompanyNote — sales notes, meeting summaries, research, SWOT, competitive
+ * 2. ContactNote — per-contact interaction notes, buying signals
+ * 3. EmailEvent — reply/bounce/open tracking → engagement signals
+ * 4. CompanyTimelineEvent — all account activity events
+ * 5. HumanIntelligenceInbox — human-submitted intelligence
+ * 6. AccountStrategy — SWOT analysis, stakeholder maps, competitive position
  *
- * Architecture:
- *   CRM Data → InternalMemoryConnector → IntelligenceObject → Evidence → CompanySignal
- *   (same pipeline as external sources, just different origin)
+ * Output: RawIntelligenceObject[] ready for the acquisition pipeline
  */
 
 import { db } from '@/lib/db'
+import type { RawIntelligenceObject } from './types'
+import { classifySignalType } from './signal-creator'
+import { createSignalFromIntelligenceObject } from './signal-creator'
 
-// ─── Types ──────────────────────────────────────────────────────
+// ── Internal Memory Types ──
+
+export type InternalMemorySource =
+  | 'company_note'
+  | 'contact_note'
+  | 'email_engagement'
+  | 'timeline_event'
+  | 'human_intelligence'
+  | 'account_strategy'
+  | 'person_change'
+
+export interface InternalMemoryItem {
+  source: InternalMemorySource
+  companyId: string
+  content: string
+  summary?: string
+  signalDate?: Date
+  category?: string
+  metadata?: Record<string, unknown>
+  confidence?: number // override default confidence for this source
+}
+
+// ── Source Confidence Weights ──
+// Internal memory from humans is high confidence; system-detected signals are moderate
+
+const MEMORY_SOURCE_CONFIDENCE: Record<InternalMemorySource, number> = {
+  company_note: 0.90,        // Human-written sales notes — high trust
+  contact_note: 0.85,        // Per-contact interaction notes
+  email_engagement: 0.80,   // System-tracked email events
+  timeline_event: 0.75,      // System-recorded activity
+  human_intelligence: 0.95,  // Deliberately submitted intel — highest trust
+  account_strategy: 0.92,   // Strategic analysis — high trust
+  person_change: 0.80,      // People movement signals
+}
+
+// ── Main Connector Function ──
+
+/**
+ * Extract ALL internal memory for a company and convert to intelligence objects.
+ * This is the single entry point for the internal memory layer.
+ */
+export async function extractInternalMemory(
+  companyId: string
+): Promise<{ items: InternalMemoryItem[]; sourceBreakdown: Record<string, number> }> {
+  const items: InternalMemoryItem[] = []
+  const breakdown: Record<string, number> = {}
+
+  // ── 1. Company Notes ──
+  const companyNotes = await db.companyNote.findMany({
+    where: { companyId },
+    orderBy: { updatedAt: 'desc' },
+    take: 50,
+  })
+  for (const note of companyNotes) {
+    const signalContent = buildCompanyNoteIntelligence(note)
+    items.push({
+      source: 'company_note',
+      companyId,
+      content: signalContent.content,
+      summary: signalContent.summary,
+      signalDate: note.updatedAt,
+      category: noteCategoryToKnowledge(note.category),
+      metadata: {
+        noteId: note.id,
+        noteCategory: note.category,
+        author: note.author,
+        pinned: note.pinned,
+        noteAge: Math.floor((Date.now() - note.updatedAt.getTime()) / 86400000),
+      },
+    })
+    breakdown.company_note = (breakdown.company_note || 0) + 1
+  }
+
+  // ── 2. Contact Notes ──
+  const contacts = await db.contact.findMany({
+    where: { companyId, status: { not: 'archived' } },
+    select: {
+      id: true,
+      rawName: true,
+      title: true,
+      role: true,
+      email: true,
+      status: true,
+      leadScore: true,
+      engagementScore: true,
+      lastContactedAt: true,
+      companyFitScore: true,
+      notes: {
+        orderBy: { updatedAt: 'desc' },
+        take: 10,
+      },
+      _count: { select: { replies: true, events: true } },
+    },
+    take: 30,
+    orderBy: { leadScore: 'desc' },
+  })
+
+  for (const contact of contacts) {
+    // Contact-level intelligence
+    const contactIntel = buildContactIntelligence(contact)
+    if (contactIntel) {
+      items.push({
+        source: 'contact_note',
+        companyId,
+        content: contactIntel.content,
+        summary: contactIntel.summary,
+        signalDate: contact.lastContactedAt || undefined,
+        category: 'Stakeholders',
+        metadata: {
+          contactId: contact.id,
+          contactName: contact.rawName,
+          contactTitle: contact.title,
+          contactStatus: contact.status,
+          leadScore: contact.leadScore,
+          engagementScore: contact.engagementScore,
+          replyCount: contact._count.replies,
+          emailEventCount: contact._count.events,
+        },
+      })
+      breakdown.contact_note = (breakdown.contact_note || 0) + 1
+    }
+
+    // Individual contact notes
+    for (const note of contact.notes) {
+      if (note.body && note.body.trim().length > 10) {
+        items.push({
+          source: 'contact_note',
+          companyId,
+          content: `[${contact.rawName} (${contact.title || 'No title'})] ${note.body}`,
+          summary: `Note about ${contact.rawName}: ${note.body.substring(0, 100)}`,
+          signalDate: note.updatedAt,
+          category: 'Conversations',
+          metadata: {
+            contactNoteId: note.id,
+            contactId: contact.id,
+            contactName: contact.rawName,
+          },
+        })
+        breakdown.contact_note = (breakdown.contact_note || 0) + 1
+      }
+    }
+  }
+
+  // ── 3. Email Engagement Signals ──
+  const emailEvents = await db.emailEvent.findMany({
+    where: {
+      contact: { companyId },
+      createdAt: { gte: new Date(Date.now() - 90 * 86400000) }, // last 90 days
+    },
+    include: {
+      contact: { select: { rawName: true, title: true, email: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  })
+
+  const emailSummary = buildEmailEngagementSignal(emailEvents)
+  if (emailSummary) {
+    items.push({
+      source: 'email_engagement',
+      companyId,
+      content: emailSummary.content,
+      summary: emailSummary.summary,
+      signalDate: emailSummary.latestDate,
+      category: 'Conversations',
+      metadata: {
+        totalEvents: emailEvents.length,
+        replyCount: emailSummary.replyCount,
+        bounceCount: emailSummary.bounceCount,
+        openCount: emailSummary.openCount,
+        activeContacts: emailSummary.activeContacts,
+      },
+    })
+    breakdown.email_engagement = (breakdown.email_engagement || 0) + 1
+  }
+
+  // ── 4. Company Timeline Events ──
+  const timelineEvents = await db.companyTimelineEvent.findMany({
+    where: { companyId },
+    orderBy: { createdAt: 'desc' },
+    take: 30,
+  })
+
+  for (const event of timelineEvents) {
+    const eventIntel = buildTimelineEventIntelligence(event)
+    items.push({
+      source: 'timeline_event',
+      companyId,
+      content: eventIntel.content,
+      summary: eventIntel.summary,
+      signalDate: event.createdAt,
+      category: timelineEventToKnowledge(event.eventType),
+      metadata: {
+        timelineEventId: event.id,
+        eventType: event.eventType,
+      },
+    })
+    breakdown.timeline_event = (breakdown.timeline_event || 0) + 1
+  }
+
+  // ── 5. Human Intelligence Inbox ──
+  const humanIntel = await db.humanIntelligenceInbox.findMany({
+    where: {
+      companyId,
+      status: { in: ['approved', 'reviewed', 'pending'] },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  })
+
+  for (const intel of humanIntel) {
+    items.push({
+      source: 'human_intelligence',
+      companyId,
+      content: `[HUMAN INTEL - ${intel.priority.toUpperCase()}] ${intel.content}`,
+      summary: intel.summary || intel.content.substring(0, 150),
+      signalDate: intel.createdAt,
+      category: intel.category || 'Strategy',
+      confidence: 0.95, // Human-submitted = highest trust
+      metadata: {
+        inboxId: intel.id,
+        submittedBy: intel.submittedBy,
+        source: intel.source,
+        sourceUrl: intel.sourceUrl,
+        priority: intel.priority,
+        status: intel.status,
+        tags: tryParseJSON(intel.tags),
+      },
+    })
+    breakdown.human_intelligence = (breakdown.human_intelligence || 0) + 1
+  }
+
+  // ── 6. Account Strategy ──
+  const strategies = await db.accountStrategy.findMany({
+    where: { companyId, status: { in: ['active', 'review', 'draft'] } },
+    orderBy: { updatedAt: 'desc' },
+    take: 5,
+  })
+
+  for (const strategy of strategies) {
+    const strategyIntel = buildAccountStrategyIntelligence(strategy)
+    items.push({
+      source: 'account_strategy',
+      companyId,
+      content: strategyIntel.content,
+      summary: strategyIntel.summary,
+      signalDate: strategy.updatedAt,
+      category: 'Strategy',
+      confidence: 0.92,
+      metadata: {
+        strategyId: strategy.id,
+        strategyStatus: strategy.status,
+        hasSwot: !!strategy.swotAnalysis,
+        hasStakeholderMap: !!strategy.stakeholderMap,
+        hasInitiatives: !!strategy.keyInitiatives,
+      },
+    })
+    breakdown.account_strategy = (breakdown.account_strategy || 0) + 1
+  }
+
+  return { items, sourceBreakdown: breakdown }
+}
+
+// ── 7. People Movement Signals ──
+// Detect contact status changes, role changes, champion departures
+
+export async function extractPeopleMovementSignals(
+  companyId: string
+): Promise<InternalMemoryItem[]> {
+  const items: InternalMemoryItem[] = []
+
+  // Recent contact status changes (promotions, departures detected via status)
+  const recentContacts = await db.contact.findMany({
+    where: { companyId, status: { not: 'archived' } },
+    select: {
+      id: true,
+      rawName: true,
+      title: true,
+      role: true,
+      email: true,
+      status: true,
+      updatedAt: true,
+      lastContactedAt: true,
+      leadScore: true,
+      engagementScore: true,
+      companyFitScore: true,
+      assignedTo: true,
+      linkedinUrl: true,
+      phone: true,
+      location: true,
+      enrichmentData: true,
+      _count: { select: { replies: true, events: true, notes: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+    take: 50,
+  })
+
+  for (const contact of recentContacts) {
+    const daysSinceUpdate = Math.floor((Date.now() - contact.updatedAt.getTime()) / 86400000)
+
+    // Detect high-value contacts with recent activity
+    if (contact.leadScore >= 60 && daysSinceUpdate <= 30) {
+      const roleChange = detectRoleChange(contact)
+      if (roleChange) {
+        items.push({
+          source: 'person_change',
+          companyId,
+          content: roleChange.content,
+          summary: roleChange.summary,
+          signalDate: contact.updatedAt,
+          category: 'Leadership',
+          metadata: {
+            contactId: contact.id,
+            contactName: contact.rawName,
+            changeType: roleChange.changeType,
+            oldRole: roleChange.oldRole,
+            newRole: roleChange.newRole,
+          },
+        })
+      }
+    }
+
+    // Detect potential champion departure (high engagement → sudden silence)
+    if (contact._count.replies >= 2 && contact.engagementScore >= 50) {
+      const daysSinceLastContact = contact.lastContactedAt
+        ? Math.floor((Date.now() - new Date(contact.lastContactedAt).getTime()) / 86400000)
+        : 999
+
+      if (daysSinceLastContact > 45) {
+        items.push({
+          source: 'person_change',
+          companyId,
+          content: `CHAMPION AT RISK: ${contact.rawName} (${contact.title}) was actively engaged (${contact._count.replies} replies) but has been silent for ${daysSinceLastContact} days. May have changed roles, left the company, or lost interest.`,
+          summary: `Champion risk: ${contact.rawName} — ${daysSinceLastContact} days silent after ${contact._count.replies} replies`,
+          signalDate: contact.lastContactedAt || undefined,
+          category: 'Stakeholders',
+          metadata: {
+            contactId: contact.id,
+            contactName: contact.rawName,
+            changeType: 'champion_silence',
+            replyCount: contact._count.replies,
+            daysSilent: daysSinceLastContact,
+          },
+        })
+      }
+    }
+
+    // Detect new high-value contact (recently added, high fit score)
+    if (contact.companyFitScore >= 70 && daysSinceUpdate <= 14) {
+      items.push({
+        source: 'person_change',
+        companyId,
+        content: `NEW STAKEHOLDER: ${contact.rawName} (${contact.title || 'Unknown title'}) added to account. Company fit score: ${contact.companyFitScore}/100. ${contact.linkedinUrl ? 'LinkedIn profile available.' : 'No LinkedIn profile yet — needs enrichment.'}`,
+        summary: `New contact: ${contact.rawName} (${contact.title}) — fit score ${contact.companyFitScore}`,
+        signalDate: contact.updatedAt,
+        category: 'Stakeholders',
+        metadata: {
+          contactId: contact.id,
+          contactName: contact.rawName,
+          changeType: 'new_contact',
+          companyFitScore: contact.companyFitScore,
+        },
+      })
+    }
+  }
+
+  return items
+}
+
+// ── Intelligence Builders ──
+
+function buildCompanyNoteIntelligence(note: {
+  title: string
+  body: string
+  category: string
+  author: string | null
+  pinned: boolean
+  updatedAt: Date
+}): { content: string; summary: string } {
+  const daysAgo = Math.floor((Date.now() - note.updatedAt.getTime()) / 86400000)
+  const recency = daysAgo <= 7 ? 'RECENT' : daysAgo <= 30 ? 'This month' : 'Historical'
+  const pinFlag = note.pinned ? ' [PINNED]' : ''
+
+  return {
+    content: `[SALES NOTE${pinFlag} — ${note.category.toUpperCase()} — ${recency}] ${note.title}\n${note.body}\n\nBy: ${note.author || 'Unknown'} | Updated: ${daysAgo} days ago`,
+    summary: `${recency} ${note.category} note: ${note.title}`,
+  }
+}
+
+function buildContactIntelligence(contact: {
+  id: string
+  rawName: string
+  title: string | null
+  role: string | null
+  email: string
+  status: string
+  leadScore: number
+  engagementScore: number
+  lastContactedAt: Date | null
+  companyFitScore: number
+  _count: { replies: number; events: number }
+  notes: Array<{ body: string; updatedAt: Date }>
+}): { content: string; summary: string } | null {
+  // Only build intelligence for contacts with meaningful data
+  const hasActivity = contact._count.replies > 0 || contact.engagementScore > 0 || contact.leadScore > 30
+  if (!hasActivity) return null
+
+  const daysSince = contact.lastContactedAt
+    ? Math.floor((Date.now() - new Date(contact.lastContactedAt).getTime()) / 86400000)
+    : null
+
+  const content = [
+    `CONTACT: ${contact.rawName} (${contact.title || 'No title'})`,
+    `Status: ${contact.status} | Lead Score: ${contact.leadScore}/100 | Engagement: ${contact.engagementScore}/100`,
+    `Company Fit: ${contact.companyFitScore}/100`,
+    contact._count.replies > 0 ? `Replies: ${contact._count.replies}` : null,
+    daysSince !== null ? `Last Contacted: ${daysSince} days ago` : 'Never contacted',
+  ].filter(Boolean).join('\n')
+
+  return {
+    content,
+    summary: `${contact.rawName} (${contact.title}) — score ${contact.leadScore}, ${contact._count.replies} replies, fit ${contact.companyFitScore}`,
+  }
+}
+
+interface EmailSummary {
+  content: string
+  summary: string
+  latestDate?: Date
+  replyCount: number
+  bounceCount: number
+  openCount: number
+  activeContacts: number
+}
+
+function buildEmailEngagementSignal(events: Array<{
+  eventType: string
+  createdAt: Date
+  contact: { rawName: string; title: string | null; email: string }
+}>): EmailSummary | null {
+  if (events.length === 0) return null
+
+  const replies: typeof events = []
+  const bounces: typeof events = []
+  const opens: typeof events = []
+
+  for (const e of events) {
+    if (e.eventType === 'reply') replies.push(e)
+    else if (e.eventType === 'bounce') bounces.push(e)
+    else if (e.eventType === 'open') opens.push(e)
+  }
+
+  const uniqueContacts = new Set(events.map(e => e.contact.email))
+  const latestDate = events[0]?.createdAt
+
+  // Engagement assessment
+  let engagementLevel = 'low'
+  if (replies.length >= 5) engagementLevel = 'high'
+  else if (replies.length >= 2) engagementLevel = 'moderate'
+  else if (replies.length >= 1 || opens.length >= 5) engagementLevel = 'low'
+  else if (bounces.length > 0) engagementLevel = 'at_risk'
+
+  let riskFlag = ''
+  if (bounces.length > 0) {
+    const bounceContacts = [...new Set(bounces.map(b => b.contact.rawName))]
+    riskFlag = `\n⚠️ BOUNCES: ${bounces.length} bounce(s) from: ${bounceContacts.join(', ')}`
+  }
+
+  const topRepliers = replies
+    .reduce<Record<string, number>>((acc, r) => {
+      acc[r.contact.rawName] = (acc[r.contact.rawName] || 0) + 1
+      return acc
+    }, {})
+  const topReplierList = Object.entries(topRepliers)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, count]) => `  - ${name}: ${count} reply(ies)`)
+    .join('\n')
+
+  return {
+    content: `EMAIL ENGAGEMENT (last 90 days): ${engagementLevel.toUpperCase()}\n` +
+      `Total Events: ${events.length} | Replies: ${replies.length} | Opens: ${opens.length} | Bounces: ${bounces.length}\n` +
+      `Active Contacts: ${uniqueContacts.size}${riskFlag}` +
+      (topReplierList ? `\n\nTop Responders:\n${topReplierList}` : ''),
+    summary: `Email engagement: ${engagementLevel} (${replies.length} replies, ${uniqueContacts.size} contacts, ${bounces.length} bounces in 90 days)`,
+    latestDate: latestDate || undefined,
+    replyCount: replies.length,
+    bounceCount: bounces.length,
+    openCount: opens.length,
+    activeContacts: uniqueContacts.size,
+  }
+}
+
+function buildTimelineEventIntelligence(event: {
+  eventType: string
+  title: string
+  description: string | null
+  createdAt: Date
+}): { content: string; summary: string } {
+  return {
+    content: `[TIMELINE: ${event.eventType}] ${event.title}${event.description ? '\n' + event.description : ''}`,
+    summary: `${event.eventType}: ${event.title}`,
+  }
+}
+
+function buildAccountStrategyIntelligence(strategy: {
+  title: string
+  objective: string | null
+  currentSituation: string | null
+  swotAnalysis: string | null
+  keyInitiatives: string | null
+  stakeholderMap: string | null
+  competitivePosition: string | null
+  nextSteps: string | null
+  status: string
+}): { content: string; summary: string } {
+  const parts = [`ACCOUNT STRATEGY: ${strategy.title} [${strategy.status.toUpperCase()}]`]
+
+  if (strategy.objective) parts.push(`Objective: ${strategy.objective}`)
+  if (strategy.currentSituation) parts.push(`Current Situation: ${strategy.currentSituation}`)
+
+  // Parse SWOT
+  if (strategy.swotAnalysis) {
+    const swot = tryParseJSON(strategy.swotAnalysis) as Record<string, unknown> | null
+    if (swot) {
+      if (swot.strengths) parts.push(`Strengths: ${String(swot.strengths).substring(0, 200)}`)
+      if (swot.weaknesses) parts.push(`Weaknesses: ${String(swot.weaknesses).substring(0, 200)}`)
+      if (swot.opportunities) parts.push(`Opportunities: ${String(swot.opportunities).substring(0, 200)}`)
+      if (swot.threats) parts.push(`Threats: ${String(swot.threats).substring(0, 200)}`)
+    }
+  }
+
+  // Parse stakeholders
+  if (strategy.stakeholderMap) {
+    const map = tryParseJSON(strategy.stakeholderMap) as Record<string, unknown> | null
+    if (map) {
+      const roles = ['champions', 'influencers', 'blockers', 'decisionMakers']
+      for (const role of roles) {
+        if (map[role]) parts.push(`${role}: ${String(map[role]).substring(0, 150)}`)
+      }
+    }
+  }
+
+  if (strategy.nextSteps) parts.push(`Next Steps: ${strategy.nextSteps}`)
+
+  return {
+    content: parts.join('\n\n'),
+    summary: `Account strategy "${strategy.title}" (${strategy.status}): ${strategy.objective || 'No objective'}`,
+  }
+}
+
+// ── People Movement Detection ──
+
+function detectRoleChange(contact: {
+  title: string | null
+  role: string | null
+  enrichmentData: string | null
+  rawName: string
+}): { content: string; summary: string; changeType: string; oldRole: string | null; newRole: string | null } | null {
+  // Check enrichment data for role history
+  if (!contact.enrichmentData) return null
+
+  const enrichment = tryParseJSON(contact.enrichmentData) as Record<string, unknown> | null
+  if (!enrichment) return null
+
+  const currentRole = contact.title || contact.role || 'Unknown'
+  const previousRole = enrichment.previousTitle as string | undefined
+
+  if (previousRole && previousRole !== currentRole) {
+    return {
+      content: `ROLE CHANGE DETECTED: ${contact.rawName} changed from "${previousRole}" to "${currentRole}". This may indicate new responsibilities, expanded scope, or a promotion that shifts buying authority.`,
+      summary: `${contact.rawName}: "${previousRole}" → "${currentRole}"`,
+      changeType: 'role_change',
+      oldRole: previousRole,
+      newRole: currentRole,
+    }
+  }
+
+  return null
+}
+
+// ── Category Mapping ──
+
+function noteCategoryToKnowledge(category: string): string {
+  const map: Record<string, string> = {
+    research: 'Strategy',
+    call: 'Conversations',
+    meeting: 'Conversations',
+    general: 'Strategy',
+    swot: 'Competitors',
+    competitive: 'Competitors',
+    discovery: 'Opportunities',
+  }
+  return map[category] || 'Strategy'
+}
+
+function timelineEventToKnowledge(eventType: string): string {
+  const map: Record<string, string> = {
+    email_sent: 'Conversations',
+    email_opened: 'Conversations',
+    email_replied: 'Conversations',
+    email_bounced: 'Conversations',
+    note_added: 'Strategy',
+    enrichment: 'Technology',
+    status_change: 'Strategy',
+    signal: 'Strategy',
+    contact_added: 'Stakeholders',
+    research_saved: 'Strategy',
+  }
+  return map[eventType] || 'Strategy'
+}
+
+// ── Convert Internal Memory to RawIntelligenceObject ──
+
+export function internalMemoryToIntelligenceObjects(
+  items: InternalMemoryItem[],
+  companyName: string
+): RawIntelligenceObject[] {
+  return items.map(item => ({
+    companyIdentifier: companyName,
+    content: item.content,
+    summary: item.summary,
+    sourceUrl: undefined,
+    capturedAt: item.signalDate || new Date(),
+    category: item.category,
+    metadata: {
+      ...item.metadata,
+      internalMemorySource: item.source,
+      internalMemoryConfidence: item.confidence || MEMORY_SOURCE_CONFIDENCE[item.source],
+    },
+  }))
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BRIDGE EXPORTS: Used by sprint3 route, unified route, etc.
+// ═══════════════════════════════════════════════════════════════
 
 export interface InternalMemorySignal {
+  signal: string
   signalType: string
-  title: string
-  description: string
-  source: string
+  evidence: string
+  sourceName: string
   confidence: number
   businessImpact: string
   recommendedAction: string
-  timing: string
-  severity: string
-  metadata?: Record<string, unknown>
-  sourceDate?: Date
+  timing: 'immediate' | 'within_7_days' | 'within_30_days' | 'within_90_days' | 'ongoing'
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  signalDate?: Date
 }
 
 export interface InternalMemoryResult {
-  companyId: string
-  companyName: string
   signalsExtracted: number
-  signalsBySource: Record<string, number>
+  signalsPersisted: number
+  sources: Record<string, number>
   signals: InternalMemorySignal[]
-  // Raw data counts for context
-  companyNotesCount: number
-  contactNotesCount: number
-  timelineEventsCount: number
-  humanIntelligenceCount: number
-  contactChangesCount: number
-  processedAt: string
 }
 
-interface ContactChange {
-  contactId: string
-  name: string
-  oldTitle?: string
-  newTitle?: string
-  oldStatus?: string
-  newStatus?: string
-  changeType: 'title_change' | 'status_change' | 'role_change' | 'seniority_change'
-  detectedAt: Date
-  daysSinceChange: number
+export interface MemoryDepthResult {
+  score: number    // 0-100
+  grade: string   // A, B, C, D, F
+  breakdown: Record<string, { available: number; total: number; score: number }>
 }
-
-// ─── Source Type Registration ──────────────────────────────────
-// These types are recognized by the broader intelligence pipeline
-
-export const INTERNAL_SOURCE_TYPES = [
-  'internal_note',
-  'internal_meeting',
-  'internal_interaction',
-  'internal_human_intel',
-  'people_change',
-  'relationship_shift',
-] as const
-
-// ─── Company Note Mining ────────────────────────────────────────
 
 /**
- * Mine company notes for actionable intelligence signals.
- * Categories: research, call, meeting, general, swot, competitive, discovery
+ * Extract internal memory for a company and persist as CompanySignal records.
+ * This is the function called by /api/intelligence/internal-memory and /api/intelligence/sprint3.
  */
-function extractSignalsFromCompanyNotes(
-  companyId: string,
-  companyName: string,
-  notes: Array<{ id: string; title: string; category: string; body: string; createdAt: Date; author?: string | null }>
-): InternalMemorySignal[] {
-  const signals: InternalMemorySignal[] = []
-
-  for (const note of notes) {
-    const body = note.body || ''
-    const category = note.category || 'general'
-
-    // Skip very short notes — unlikely to contain meaningful intelligence
-    if (body.length < 30) continue
-
-    // Classify signal type from note category and content
-    const signalType = classifyNoteCategory(category, body)
-
-    // Extract business impact keywords
-    const impact = extractBusinessImpact(body)
-    const action = extractRecommendedAction(body, category)
-
-    signals.push({
-      signalType,
-      title: `${note.title || `${category} note`}: ${body.substring(0, 80).trim()}`,
-      description: body.substring(0, 500),
-      source: `internal_note:${category}`,
-      confidence: calculateNoteConfidence(body, category, note.createdAt),
-      businessImpact: impact,
-      recommendedAction: action,
-      timing: inferTimingFromNote(category, body),
-      severity: inferSeverityFromContent(body),
-      metadata: {
-        noteId: note.id,
-        category,
-        author: note.author || 'unknown',
-        noteLength: body.length,
-        companyName,
-      },
-      sourceDate: note.createdAt,
-    })
-  }
-
-  return signals
-}
-
-function classifyNoteCategory(category: string, body: string): string {
-  const lower = body.toLowerCase()
-
-  if (category === 'meeting') return 'internal_meeting'
-  if (category === 'call') return 'internal_interaction'
-  if (category === 'discovery') {
-    // Discovery notes often reveal buying signals
-    if (/budget|timeline|decision|authority|need/i.test(lower)) return 'internal_note'
-    if (/security|compliance|migration|cloud|infrastructure/i.test(lower)) return 'tech_change'
-  }
-  if (category === 'competitive') {
-    if (/competitor|vendor|alternative/i.test(lower)) return 'partnership'
-  }
-  if (category === 'swot') return 'internal_note'
-
-  // Content-based classification
-  if (/champion left|contact changed|new hire|joined from|promoted/i.test(lower)) return 'people_change'
-  if (/security concern|compliance issue|risk/i.test(lower)) return 'internal_note'
-  if (/budget|pricing|cost|revenue|investment/i.test(lower)) return 'funding'
-  if (/hiring|recruiting|talent|team growth/i.test(lower)) return 'hiring'
-  if (/migration|cloud|aws|azure|kubernetes|docker/i.test(lower)) return 'tech_change'
-  if (/partnership|alliance|integration|vendor/i.test(lower)) return 'partnership'
-
-  return 'internal_note'
-}
-
-function calculateNoteConfidence(body: string, category: string, createdAt: Date): number {
-  let confidence = 0.70 // Base: first-party observation is inherently more reliable than web scraping
-
-  // Longer notes tend to be more substantive
-  if (body.length > 500) confidence += 0.10
-  else if (body.length > 200) confidence += 0.05
-
-  // Certain categories carry higher confidence
-  if (category === 'meeting' || category === 'call') confidence += 0.10
-  if (category === 'discovery') confidence += 0.05
-
-  // Recency bonus
-  const daysSince = Math.floor((Date.now() - createdAt.getTime()) / 86400000)
-  if (daysSince < 7) confidence += 0.05
-  else if (daysSince < 30) confidence += 0.02
-  else if (daysSince > 180) confidence -= 0.10
-
-  return Math.min(0.98, Math.max(0.30, confidence))
-}
-
-function extractBusinessImpact(body: string): string {
-  const lower = body.toLowerCase()
-
-  if (/security|breach|compliance|risk/i.test(lower)) return 'Security or compliance concern — potential urgency driver'
-  if (/budget|pricing|cost|revenue/i.test(lower)) return 'Financial dimension — budget cycle or pricing sensitivity'
-  if (/migration|cloud|infrastructure|technical debt/i.test(lower)) return 'Technology investment signal — modernization or migration need'
-  if (/hiring|team growth|expansion|new office/i.test(lower)) return 'Growth indicator — company investing in capabilities'
-  if (/champion|sponsor|advocate|supporter/i.test(lower)) return 'Relationship intelligence — champion or sponsor identified'
-  if (/competitor|alternative|evaluating/i.test(lower)) return 'Competitive situation — active vendor evaluation likely'
-  if (/decision|timeline|quarter|fiscal/i.test(lower)) return 'Buying timeline — decision process or budget cycle intelligence'
-
-  return 'Sales intelligence from internal observation'
-}
-
-function extractRecommendedAction(body: string, category: string): string {
-  const lower = body.toLowerCase()
-
-  if (category === 'meeting') return 'Follow up on meeting outcomes — confirm next steps and timeline'
-  if (category === 'call') return 'Send follow-up email referencing call discussion points'
-  if (category === 'discovery') return 'Use discovery insights to tailor proposal or next meeting'
-
-  if (/security|compliance/i.test(lower)) return 'Prepare security-focused conversation with relevant stakeholders'
-  if (/budget|pricing/i.test(lower)) return 'Align proposal with detected budget parameters and decision timeline'
-  if (/migration|cloud/i.test(lower)) return 'Engage technical stakeholders about migration timeline and requirements'
-  if (/champion left|contact changed/i.test(lower)) return 'Rebuild relationship with new contact — share context from previous interactions'
-  if (/competitor|evaluating/i.test(lower)) return 'Differentiate from detected competitors — prepare competitive positioning'
-  if (/hiring|growth/i.test(lower)) return 'Connect hiring growth to solution value — scaling challenges create opportunity'
-
-  return 'Review and incorporate into account strategy'
-}
-
-function inferTimingFromNote(category: string, body: string): string {
-  const lower = body.toLowerCase()
-
-  if (/urgent|immediate|asap|this week/i.test(lower)) return 'within_7_days'
-  if (/next month|upcoming|q[1-4]|quarter|fiscal/i.test(lower)) return 'within_30_days'
-  if (/this year|annual|roadmap|plan/i.test(lower)) return 'within_90_days'
-  if (category === 'meeting' || category === 'call') return 'within_7_days'
-
-  return 'within_30_days'
-}
-
-function inferSeverityFromContent(body: string): string {
-  const lower = body.toLowerCase()
-
-  if (/urgent|critical|blocker|deal breaker|showstopper/i.test(lower)) return 'critical'
-  if (/important|significant|major|key|priority/i.test(lower)) return 'high'
-  if (/interesting|potential|possible|exploring/i.test(lower)) return 'medium'
-
-  return 'low'
-}
-
-// ─── Contact Note Mining ─────────────────────────────────────────
-
-function extractSignalsFromContactNotes(
-  companyId: string,
-  companyName: string,
-  contactNotes: Array<{ id: string; contactId: string; body: string; createdAt: Date; contactName: string; contactTitle?: string | null }>
-): InternalMemorySignal[] {
-  const signals: InternalMemorySignal[] = []
-
-  for (const note of contactNotes) {
-    if (note.body.length < 20) continue
-
-    const body = note.body
-    const lower = body.toLowerCase()
-
-    // Detect relationship shifts
-    if (/champion|sponsor|advocate|supporter/i.test(lower)) {
-      signals.push({
-        signalType: 'relationship_shift',
-        title: `Champion/sponsor identified: ${note.contactName}`,
-        description: `${note.contactName} (${note.contactTitle || 'Unknown role'}): ${body.substring(0, 300)}`,
-        source: 'contact_note:champion',
-        confidence: 0.80,
-        businessImpact: 'Internal champion detected — leverage for deal acceleration',
-        recommendedAction: `Nurture relationship with ${note.contactName} — provide ammunition for internal advocacy`,
-        timing: 'within_30_days',
-        severity: 'high',
-        metadata: { contactId: note.contactId, contactName: note.contactName },
-        sourceDate: note.createdAt,
-      })
-    }
-
-    // Detect buying signals from contact conversations
-    if (/budget|need|problem|challenge|looking for|interested in|evaluating/i.test(lower)) {
-      signals.push({
-        signalType: 'internal_interaction',
-        title: `Buying signal from ${note.contactName}: ${body.substring(0, 80).trim()}`,
-        description: `${note.contactName} (${note.contactTitle || 'Unknown role'}): ${body.substring(0, 400)}`,
-        source: 'contact_note:buying_signal',
-        confidence: 0.75,
-        businessImpact: 'Explicit buying signal detected in contact interaction',
-        recommendedAction: `Follow up with ${note.contactName} on detected need — propose specific solution`,
-        timing: 'within_7_days',
-        severity: 'high',
-        metadata: { contactId: note.contactId, contactName: note.contactName },
-        sourceDate: note.createdAt,
-      })
-    }
-
-    // Generic contact intelligence
-    if (signals.length === 0 || !/champion|buying|budget/i.test(lower)) {
-      signals.push({
-        signalType: 'internal_note',
-        title: `Contact intelligence: ${note.contactName} — ${body.substring(0, 60).trim()}`,
-        description: `${note.contactName} (${note.contactTitle || 'Unknown role'}): ${body.substring(0, 300)}`,
-        source: 'contact_note:general',
-        confidence: 0.65,
-        businessImpact: 'Contact-level intelligence from direct interaction',
-        recommendedAction: `Reference this intelligence in next interaction with ${note.contactName}`,
-        timing: 'within_30_days',
-        severity: 'medium',
-        metadata: { contactId: note.contactId, contactName: note.contactName },
-        sourceDate: note.createdAt,
-      })
-    }
-  }
-
-  return signals
-}
-
-// ─── Timeline Event Mining ──────────────────────────────────────
-
-function extractSignalsFromTimeline(
-  companyId: string,
-  companyName: string,
-  events: Array<{ id: string; eventType: string; title: string; description?: string | null; metadata?: string | null; createdAt: Date }>
-): InternalMemorySignal[] {
-  const signals: InternalMemorySignal[] = []
-
-  for (const event of events) {
-    const type = event.eventType
-    const desc = event.description || event.title
-
-    // Email reply = strong engagement signal
-    if (type === 'email_replied') {
-      signals.push({
-        signalType: 'internal_interaction',
-        title: `Email engagement: ${desc.substring(0, 80).trim()}`,
-        description: desc.substring(0, 300),
-        source: 'timeline:email_replied',
-        confidence: 0.85,
-        businessImpact: 'Active email engagement — contact is responsive and interested',
-        recommendedAction: 'Continue conversation thread — capitalize on engagement momentum',
-        timing: 'within_7_days',
-        severity: 'medium',
-        metadata: { eventId: event.id, eventType: type },
-        sourceDate: event.createdAt,
-      })
-    }
-
-    // New contact added = expansion signal
-    if (type === 'contact_added') {
-      signals.push({
-        signalType: 'relationship_shift',
-        title: `New contact identified: ${desc.substring(0, 80).trim()}`,
-        description: desc.substring(0, 300),
-        source: 'timeline:contact_added',
-        confidence: 0.80,
-        businessImpact: 'Stakeholder expansion — new contact added to account',
-        recommendedAction: 'Engage new contact to expand relationship footprint',
-        timing: 'within_30_days',
-        severity: 'medium',
-        metadata: { eventId: event.id, eventType: type },
-        sourceDate: event.createdAt,
-      })
-    }
-
-    // Research saved = active interest
-    if (type === 'research_saved') {
-      signals.push({
-        signalType: 'internal_note',
-        title: `Research activity: ${desc.substring(0, 80).trim()}`,
-        description: desc.substring(0, 300),
-        source: 'timeline:research_saved',
-        confidence: 0.75,
-        businessImpact: 'Active research being conducted on this account',
-        recommendedAction: 'Review research findings and incorporate into account strategy',
-        timing: 'within_30_days',
-        severity: 'medium',
-        metadata: { eventId: event.id },
-        sourceDate: event.createdAt,
-      })
-    }
-
-    // Signal detected = external intelligence event
-    if (type === 'signal') {
-      signals.push({
-        signalType: 'internal_note',
-        title: `Intelligence signal recorded: ${desc.substring(0, 80).trim()}`,
-        description: desc.substring(0, 300),
-        source: 'timeline:signal',
-        confidence: 0.70,
-        businessImpact: 'Intelligence signal captured in account timeline',
-        recommendedAction: 'Review signal details and determine follow-up action',
-        timing: 'within_30_days',
-        severity: 'medium',
-        metadata: { eventId: event.id },
-        sourceDate: event.createdAt,
-      })
-    }
-
-    // Status change = lifecycle movement
-    if (type === 'status_change' || type === 'enrichment') {
-      signals.push({
-        signalType: 'internal_interaction',
-        title: `Account status update: ${desc.substring(0, 80).trim()}`,
-        description: desc.substring(0, 300),
-        source: `timeline:${type}`,
-        confidence: 0.70,
-        businessImpact: 'Account status has changed — review implications for engagement',
-        recommendedAction: 'Update engagement strategy based on new status',
-        timing: 'within_30_days',
-        severity: 'medium',
-        metadata: { eventId: event.id },
-        sourceDate: event.createdAt,
-      })
-    }
-  }
-
-  return signals
-}
-
-// ─── Human Intelligence Mining ──────────────────────────────────
-
-function extractSignalsFromHumanIntel(
-  companyId: string,
-  companyName: string,
-  submissions: Array<{ id: string; content: string; summary?: string | null; category?: string | null; priority: string; source: string; status: string; createdAt: Date; submittedBy: string }>
-): InternalMemorySignal[] {
-  const signals: InternalMemorySignal[] = []
-
-  for (const sub of submissions) {
-    if (sub.status === 'rejected') continue
-    if (sub.content.length < 20) continue
-
-    signals.push({
-      signalType: 'internal_human_intel',
-      title: sub.summary || sub.content.substring(0, 80).trim(),
-      description: sub.content.substring(0, 500),
-      source: `human_intelligence:${sub.source}:${sub.submittedBy}`,
-      confidence: sub.priority === 'critical' ? 0.90 : sub.priority === 'high' ? 0.85 : 0.75,
-      businessImpact: 'Human-submitted intelligence — first-hand observation or expert assessment',
-      recommendedAction: 'Incorporate into account intelligence and validate with other sources',
-      timing: 'within_30_days',
-      severity: sub.priority === 'critical' ? 'critical' : sub.priority === 'high' ? 'high' : 'medium',
-      metadata: {
-        humanIntelId: sub.id,
-        category: sub.category,
-        priority: sub.priority,
-        submittedBy: sub.submittedBy,
-      },
-      sourceDate: sub.createdAt,
-    })
-  }
-
-  return signals
-}
-
-// ─── Contact Change Detection ────────────────────────────────────
-
-/**
- * Detect contact changes that signal people movement.
- * This is the "LinkedIn-like" intelligence from CRM data:
- *   - Title changes (promotion, role shift)
- *   - Status changes (left company, became unresponsive)
- *   - Seniority changes (promotion detection)
- */
-function detectContactChanges(
-  companyId: string,
-  contacts: Array<{ id: string; rawName: string; title: string | null; role: string | null; status: string; updatedAt: Date; enrichmentData?: string | null }>
-): { changes: ContactChange[]; signals: InternalMemorySignal[] } {
-  const changes: ContactChange[] = []
-  const signals: InternalMemorySignal[] = []
-
-  for (const contact of contacts) {
-    let enrichmentData: Record<string, unknown> = {}
-    try {
-      enrichmentData = contact.enrichmentData ? JSON.parse(contact.enrichmentData) : {}
-    } catch { /* ignore */ }
-
-    const previousTitle = enrichmentData.previousTitle as string | undefined
-    const previousStatus = enrichmentData.previousStatus as string | undefined
-    const currentTitle = contact.title || contact.role || ''
-    const currentStatus = contact.status
-    const daysSinceUpdate = Math.floor((Date.now() - contact.updatedAt.getTime()) / 86400000)
-
-    // Detect title changes (promotion or role shift)
-    if (previousTitle && currentTitle && previousTitle !== currentTitle && daysSinceUpdate <= 90) {
-      const changeType: ContactChange['changeType'] = detectChangeType(previousTitle, currentTitle)
-
-      changes.push({
-        contactId: contact.id,
-        name: contact.rawName,
-        oldTitle: previousTitle,
-        newTitle: currentTitle,
-        changeType,
-        detectedAt: contact.updatedAt,
-        daysSinceChange: daysSinceUpdate,
-      })
-
-      if (changeType === 'seniority_change') {
-        signals.push({
-          signalType: 'people_change',
-          title: `Promotion detected: ${contact.rawName} — ${previousTitle} → ${currentTitle}`,
-          description: `${contact.rawName} was promoted from ${previousTitle} to ${currentTitle} (${daysSinceUpdate} days ago). This suggests increased influence and potential buying authority change.`,
-          source: 'contact_change:promotion',
-          confidence: 0.85,
-          businessImpact: 'Contact promoted — may now have more buying authority or different priorities',
-          recommendedAction: `Re-engage ${contact.rawName} with messaging appropriate for ${currentTitle} role — their priorities may have shifted`,
-          timing: 'within_14_days',
-          severity: 'high',
-          metadata: {
-            contactId: contact.id,
-            changeType: 'promotion',
-            oldTitle: previousTitle,
-            newTitle: currentTitle,
-          },
-        })
-      } else {
-        signals.push({
-          signalType: 'people_change',
-          title: `Role change: ${contact.rawName} — ${previousTitle} → ${currentTitle}`,
-          description: `${contact.rawName} changed roles from ${previousTitle} to ${currentTitle} (${daysSinceUpdate} days ago).`,
-          source: 'contact_change:role',
-          confidence: 0.80,
-          businessImpact: 'Contact role changed — reassess buying influence and engagement strategy',
-          recommendedAction: `Update relationship strategy for ${contact.rawName} — new role may indicate different priorities`,
-          timing: 'within_30_days',
-          severity: 'medium',
-          metadata: {
-            contactId: contact.id,
-            changeType: 'role_change',
-            oldTitle: previousTitle,
-            newTitle: currentTitle,
-          },
-        })
-      }
-    }
-
-    // Detect status changes (contact went cold, bounced, etc.)
-    if (previousStatus && previousStatus !== currentStatus && daysSinceUpdate <= 90) {
-      if (currentStatus === 'bounced' || currentStatus === 'suppressed') {
-        signals.push({
-          signalType: 'relationship_shift',
-          title: `Contact unreachable: ${contact.rawName} — status changed to ${currentStatus}`,
-          description: `${contact.rawName}'s contact status changed from ${previousStatus} to ${currentStatus}. Communication channel may be broken.`,
-          source: 'contact_change:status',
-          confidence: 0.80,
-          businessImpact: `Contact channel disrupted — ${currentStatus === 'bounced' ? 'email bouncing' : 'contact suppressed'}`,
-          recommendedAction: `Find alternative contact channel for ${contact.rawName} or identify backup contact in same department`,
-          timing: 'within_7_days',
-          severity: 'medium',
-          metadata: { contactId: contact.id, oldStatus: previousStatus, newStatus: currentStatus },
-        })
-      }
-    }
-  }
-
-  return { changes, signals }
-}
-
-function detectChangeType(oldTitle: string, newTitle: string): ContactChange['changeType'] {
-  const seniorityOrder = [
-    'analyst', 'associate', 'coordinator', 'specialist', 'representative',
-    'manager', 'senior manager', 'director', 'senior director', 'head',
-    'vp', 'svp', 'evp', 'c-level', 'cso', 'cto', 'cfo', 'cio', 'coo', 'ceo', 'president', 'founder',
-  ]
-
-  const oldLevel = seniorityOrder.findIndex(s => oldTitle.toLowerCase().includes(s))
-  const newLevel = seniorityOrder.findIndex(s => newTitle.toLowerCase().includes(s))
-
-  if (oldLevel >= 0 && newLevel >= 0 && newLevel > oldLevel) return 'seniority_change'
-  if (oldLevel >= 0 && newLevel >= 0 && newLevel < oldLevel) return 'seniority_change' // lateral move
-  return 'title_change'
-}
-
-// ─── Main Connector Function ────────────────────────────────────
-
-/**
- * Extract all internal memory signals for a company.
- * This is the primary entry point for the Internal Memory Connector.
- *
- * Returns structured signals from:
- *   1. Company notes (meeting, call, discovery, research, swot, competitive)
- *   2. Contact notes (champion detection, buying signals)
- *   3. Timeline events (email replies, contact additions, status changes)
- *   4. Human intelligence inbox (approved submissions)
- *   5. Contact changes (promotions, role shifts, status changes)
- *
- * Each signal is formatted identically to external CompanySignals so the
- * Action Engine treats them as equivalent intelligence.
- */
-export async function extractInternalMemorySignals(companyId: string): Promise<InternalMemoryResult> {
-  const startMs = Date.now()
-
-  // Fetch company
-  const company = await db.company.findUnique({
-    where: { id: companyId },
-    select: { id: true, rawName: true, normalizedName: true },
-  })
-
+export async function extractInternalMemorySignals(
+  companyId: string
+): Promise<InternalMemoryResult> {
+  const company = await db.company.findUnique({ where: { id: companyId }, select: { rawName: true } })
   if (!company) throw new Error(`Company ${companyId} not found`)
 
-  const companyName = company.normalizedName || company.rawName
+  // Extract internal memory items
+  const { items, sourceBreakdown } = await extractInternalMemory(companyId)
 
-  // Parallel data fetch from all internal sources
-  const [
-    companyNotes,
-    contactNotesData,
-    timelineEvents,
-    humanIntel,
-    contacts,
-  ] = await Promise.all([
-    // 1. Company notes
-    db.companyNote.findMany({
-      where: { companyId },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-      select: {
-        id: true,
-        title: true,
-        category: true,
-        body: true,
-        createdAt: true,
-        author: true,
-      },
-    }),
+  // Also extract people movement signals
+  const peopleItems = await extractPeopleMovementSignals(companyId)
+  const allItems = [...items, ...peopleItems]
 
-    // 2. Contact notes (with contact info)
-    db.contactNote.findMany({
-      where: {
-        contact: { companyId },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 30,
-      select: {
-        id: true,
-        contactId: true,
-        body: true,
-        createdAt: true,
-        contact: {
-          select: { rawName: true, title: true },
-        },
-      },
-    }),
+  // Convert to signal inputs and persist
+  const signals: InternalMemorySignal[] = []
+  let signalsPersisted = 0
 
-    // 3. Timeline events
-    db.companyTimelineEvent.findMany({
-      where: { companyId },
-      orderBy: { createdAt: 'desc' },
-      take: 40,
-      select: {
-        id: true,
-        eventType: true,
-        title: true,
-        description: true,
-        metadata: true,
-        createdAt: true,
-      },
-    }),
+  for (const item of allItems) {
+    const conf = item.confidence || MEMORY_SOURCE_CONFIDENCE[item.source]
+    const signalType = item.metadata?.signalType as string | undefined
+      || (item.source === 'person_change' ? 'people_change' : 'internal_memory')
 
-    // 4. Human intelligence submissions
-    db.humanIntelligenceInbox.findMany({
-      where: {
+    signals.push({
+      signal: item.summary || item.content.substring(0, 200),
+      signalType,
+      evidence: item.content.substring(0, 1000),
+      sourceName: `internal:${item.source}`,
+      confidence: Math.round(conf * 100),
+      businessImpact: `Internal memory signal from ${item.source}`,
+      recommendedAction: 'Review internal intelligence and incorporate into account strategy',
+      timing: 'within_30_days',
+      severity: 'medium',
+      signalDate: item.signalDate,
+    })
+
+    // Persist to DB
+    try {
+      const result = await createSignalFromIntelligenceObject({
         companyId,
-        status: { in: ['pending', 'reviewed', 'approved', 'converted'] },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-      select: {
-        id: true,
-        content: true,
-        summary: true,
-        category: true,
-        priority: true,
-        source: true,
-        status: true,
-        createdAt: true,
-        submittedBy: true,
-      },
-    }),
+        signal: item.summary || item.content.substring(0, 200),
+        evidence: item.content.substring(0, 1000),
+        sourceName: `internal:${item.source}`,
+        confidence: Math.round(conf * 100),
+        businessImpact: `Internal memory signal from ${item.source}`,
+        recommendedAction: 'Review internal intelligence and incorporate into account strategy',
+        timing: 'within_30_days',
+        severity: 'medium',
+        signalType,
+        signalDate: item.signalDate || null,
+      })
+      if (result.success) signalsPersisted++
+    } catch (err) {
+      console.warn(`[internal-memory] Failed to persist signal:`, err)
+    }
+  }
 
-    // 5. Contacts (for change detection)
-    db.contact.findMany({
-      where: { companyId, status: { not: 'archived' } },
-      select: {
-        id: true,
-        rawName: true,
-        title: true,
-        role: true,
-        status: true,
-        updatedAt: true,
-        enrichmentData: true,
-      },
-      orderBy: { updatedAt: 'desc' },
-      take: 30,
-    }),
-  ])
-
-  // Extract signals from each source
-  const noteSignals = extractSignalsFromCompanyNotes(companyId, companyName, companyNotes)
-  const contactNoteSignals = extractSignalsFromContactNotes(
-    companyId,
-    companyName,
-    contactNotesData.map(cn => ({
-      ...cn,
-      contactName: cn.contact.rawName,
-      contactTitle: cn.contact.title,
-    })),
-  )
-  const timelineSignals = extractSignalsFromTimeline(companyId, companyName, timelineEvents)
-  const humanSignals = extractSignalsFromHumanIntel(companyId, companyName, humanIntel)
-  const { signals: changeSignals, changes } = detectContactChanges(companyId, contacts)
-
-  // Combine and deduplicate
-  const allSignals = [...noteSignals, ...contactNoteSignals, ...timelineSignals, ...humanSignals, ...changeSignals]
-
-  // Sort by confidence descending
-  allSignals.sort((a, b) => b.confidence - a.confidence)
-
-  // Count by source
-  const signalsBySource: Record<string, number> = {}
-  for (const s of allSignals) {
-    const source = s.source.split(':')[0]
-    signalsBySource[source] = (signalsBySource[source] || 0) + 1
+  // Merge source breakdowns
+  const mergedBreakdown = { ...sourceBreakdown }
+  for (const pi of peopleItems) {
+    mergedBreakdown.person_change = (mergedBreakdown.person_change || 0) + 1
   }
 
   return {
-    companyId,
-    companyName,
-    signalsExtracted: allSignals.length,
-    signalsBySource,
-    signals: allSignals,
-    companyNotesCount: companyNotes.length,
-    contactNotesCount: contactNotesData.length,
-    timelineEventsCount: timelineEvents.length,
-    humanIntelligenceCount: humanIntel.length,
-    contactChangesCount: changes.length,
-    processedAt: new Date().toISOString(),
+    signalsExtracted: allItems.length,
+    signalsPersisted,
+    sources: mergedBreakdown,
+    signals,
   }
 }
 
-// ─── Persist Internal Memory as Signals ─────────────────────────
-
 /**
- * Optionally persist internal memory signals as CompanySignals.
- * This bridges the internal memory connector to the Sprint 1/2 pipeline
- * so that the Action Engine sees them through the standard signal path.
+ * Compute the "depth" of internal memory for a company.
+ * Measures how rich the CRM data is — the backbone of the small-company intelligence strategy.
  */
-export async function persistInternalSignalsAsCompanySignals(
-  companyId: string,
-  signals: InternalMemorySignal[]
-): Promise<{ created: number; skipped: number; failed: number }> {
-  const { createSignalFromIntelligenceObject } = await import('./signal-creator')
+export async function computeInternalMemoryDepth(companyId: string): Promise<MemoryDepthResult> {
+  const [notes, contactNotes, strategies, researchCard, humanIntel, timeline, contacts] = await Promise.all([
+    db.companyNote.count({ where: { companyId } }),
+    db.contactNote.count({ where: { contact: { companyId } } }),
+    db.accountStrategy.count({ where: { companyId, status: { not: 'archived' } } }),
+    db.companyResearchCard.findUnique({ where: { companyId } }),
+    db.humanIntelligenceInbox.count({ where: { companyId, status: { not: 'rejected' } } }),
+    db.companyTimelineEvent.count({ where: { companyId } }),
+    db.contact.count({ where: { companyId, status: { not: 'archived' } } }),
+  ])
 
-  let created = 0
-  let skipped = 0
-  let failed = 0
-
-  for (const sig of signals.slice(0, 20)) { // Cap at 20 to avoid flooding
-    try {
-      // Check for existing signal with similar title
-      const existing = await db.companySignal.findFirst({
-        where: {
-          companyId,
-          title: { startsWith: sig.title.substring(0, 60) },
-          status: { in: ['detected', 'validated', 'active'] },
-        },
-      })
-
-      if (existing) {
-        skipped++
-        continue
-      }
-
-      const result = await createSignalFromIntelligenceObject({
-        companyId,
-        signal: sig.title,
-        evidence: sig.description,
-        sourceName: sig.source,
-        confidence: Math.round(sig.confidence * 100),
-        businessImpact: sig.businessImpact,
-        recommendedAction: sig.recommendedAction,
-        timing: sig.timing as 'immediate' | 'within_7_days' | 'within_30_days' | 'within_90_days' | 'ongoing' | 'expired',
-        severity: sig.severity as 'low' | 'medium' | 'high' | 'critical',
-        signalType: sig.signalType,
-        signalDate: sig.sourceDate,
-        sourceReference: `internal-memory:${companyId}`,
-      })
-
-      if (result.success) created++
-      else failed++
-    } catch (err) {
-      failed++
-    }
+  // Depth scoring: each source contributes to total depth
+  const breakdown: MemoryDepthResult['breakdown'] = {
+    company_notes: {
+      available: notes,
+      total: 10,
+      score: Math.min(100, notes >= 10 ? 100 : notes >= 5 ? 80 : notes >= 2 ? 50 : notes >= 1 ? 20 : 0),
+    },
+    contact_notes: {
+      available: contactNotes,
+      total: 10,
+      score: Math.min(100, contactNotes >= 5 ? 100 : contactNotes >= 2 ? 60 : contactNotes >= 1 ? 25 : 0),
+    },
+    account_strategy: {
+      available: strategies,
+      total: 2,
+      score: strategies >= 1 ? 100 : 0,
+    },
+    research_card: {
+      available: researchCard ? 1 : 0,
+      total: 1,
+      score: researchCard ? 100 : 0,
+    },
+    human_intelligence: {
+      available: humanIntel,
+      total: 3,
+      score: humanIntel >= 2 ? 100 : humanIntel >= 1 ? 60 : 0,
+    },
+    timeline_events: {
+      available: timeline,
+      total: 20,
+      score: Math.min(100, timeline >= 20 ? 100 : timeline >= 10 ? 80 : timeline >= 5 ? 50 : timeline >= 1 ? 15 : 0),
+    },
+    contacts: {
+      available: contacts,
+      total: 10,
+      score: Math.min(100, contacts >= 10 ? 100 : contacts >= 5 ? 80 : contacts >= 2 ? 50 : contacts >= 1 ? 20 : 0),
+    },
   }
 
-  return { created, skipped, failed }
+  // Weighted score: notes + contacts are most valuable
+  const score = Math.round(
+    (breakdown.company_notes.score * 0.20) +
+    (breakdown.contact_notes.score * 0.15) +
+    (breakdown.account_strategy.score * 0.15) +
+    (breakdown.research_card.score * 0.10) +
+    (breakdown.human_intelligence.score * 0.10) +
+    (breakdown.timeline_events.score * 0.10) +
+    (breakdown.contacts.score * 0.20)
+  )
+
+  const grade = score >= 80 ? 'A' : score >= 60 ? 'B' : score >= 40 ? 'C' : score >= 20 ? 'D' : 'F'
+
+  return { score, grade, breakdown }
+}
+
+// ── Utility ──
+
+function tryParseJSON(str: string | null | undefined): unknown {
+  if (!str) return null
+  try {
+    return JSON.parse(str)
+  } catch {
+    return null
+  }
 }

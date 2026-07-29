@@ -1,49 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-// Prisma types removed — db proxy handles queries
+import { extractJSON } from '@/lib/llm-client'
+import { ModelRouter } from '@/lib/engines/model-router'
 
 // ---------------------------------------------------------------------------
-// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
+// LLM helper — routed through ModelRouter (Phase 2.2)
 // ---------------------------------------------------------------------------
 
 async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI: any = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
+  const result = await ModelRouter.complete({
+    systemPrompt,
+    userPrompt,
+    tier: 'smart',
+    genType: 'ai_query',
+    maxTokens: 4096,
+    temperature: 0.7,
   })
-  return completion.choices?.[0]?.message?.content ?? ''
-}
-
-// ---------------------------------------------------------------------------
-// JSON extraction (tolerant of markdown fences)
-// ---------------------------------------------------------------------------
-
-function extractJson(raw: string): unknown {
-  const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
-
-  try {
-    return JSON.parse(cleaned)
-  } catch {
-    // fall through
-  }
-
-  const match = cleaned.match(/\{[\s\S]*\}/)
-  if (match) {
-    try {
-      return JSON.parse(match[0])
-    } catch {
-      // fall through
-    }
-  }
-
-  return null
+  if (!result.success) throw new Error(result.error ?? 'ModelRouter failed')
+  return result.text
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +123,7 @@ export async function POST(request: NextRequest) {
     try {
       const rawResponse = await callAI(QUERY_SYSTEM_PROMPT, query)
 
-      const parsed = extractJson(rawResponse)
+      const parsed = extractJSON(rawResponse)
       if (parsed && typeof parsed === 'object' && 'entityType' in parsed) {
         const result = await executeQuery(parsed as Record<string, unknown>, query)
         return apiSuccess(result)

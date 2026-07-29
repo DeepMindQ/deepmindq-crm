@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { ModelRouter } from '@/lib/engines/model-router';
 
 /* ═══════════════════════════════════════════════════
    L-03: Company Data Enrichment via AI
@@ -107,18 +108,15 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
 }`;
 
   try {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const { ensureZaiConfig } = await import('@/lib/zai-config');
-    await ensureZaiConfig();
-    const zai = await ZAI.create();
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: 'system', content: 'You are a business intelligence assistant. Return valid JSON only, no markdown, no code fences.' },
-        { role: 'user', content: prompt },
-      ],
-      thinking: { type: 'disabled' },
+    const result = await ModelRouter.complete({
+      systemPrompt: 'You are a business intelligence assistant. Return valid JSON only, no markdown, no code fences.',
+      userPrompt: prompt,
+      tier: 'smart',
+      genType: 'company_enrichment',
+      maxTokens: 4096,
+      temperature: 0.3,
     });
-    const response = completion.choices?.[0]?.message?.content || '';
+    const response = result.success ? result.text : '';
 
     // Parse the AI response
     const jsonMatch = response.match(/\{[\s\S]*\}/);

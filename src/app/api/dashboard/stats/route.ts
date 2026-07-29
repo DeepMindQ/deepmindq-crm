@@ -72,13 +72,13 @@ export async function GET() {
     ]);
 
     const byImpact: Record<string, number> = {};
-    for (const g of signalsByImpact as any[]) byImpact[g.impact] = g._count.impact;
+    for (const g of signalsByImpact) byImpact[g.impact as string] = g._count.impact;
 
     const bySignalType: Record<string, number> = {};
-    for (const g of signalsByType as any[]) bySignalType[g.signalType] = g._count.signalType;
+    for (const g of signalsByType) bySignalType[g.signalType as string] = g._count.signalType;
 
     const byInsightType: Record<string, number> = {};
-    for (const g of insightsByType as any[]) byInsightType[g.type] = g._count.type;
+    for (const g of insightsByType) byInsightType[g.type as string] = g._count.type;
 
     return NextResponse.json({
       companies,

@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { createInsight } from '@/lib/ai-insight-service'
+import { sdkWebSearch } from '@/lib/llm-client'
+import { ModelRouter } from '@/lib/engines/model-router'
 
 // ---------------------------------------------------------------------------
 // Types — VP Sales-Ready Executive Brief
@@ -110,25 +112,25 @@ const CACHE_TTL_MS = 2 * 60 * 60 * 1000
 const briefCache = new Map<string, { data: CachedBrief; expiresAt: number }>()
 
 // ---------------------------------------------------------------------------
-// SDK helpers — Wave 8A: Using unified AI caller
+// SDK helpers — delegate to unified llm-client (Phase 2 consolidation)
 // ---------------------------------------------------------------------------
 
-type ZAIInstance = any
-
-async function createZAI() {
-  const { getZAI } = await import('@/lib/ai-copilot/ai-caller');
-  return getZAI();
+async function webSearch(query: string): Promise<Array<{ title: string; url: string; snippet: string }>> {
+  const results = await sdkWebSearch(query, 10)
+  return results.map(r => ({ title: r.title || r.name || '', url: r.url, snippet: r.snippet }))
 }
 
-async function webSearch(zai: ZAIInstance, query: string): Promise<Array<{ title: string; url: string; snippet: string }>> {
-  const { webSearch: search } = await import('@/lib/ai-copilot/ai-caller');
-  return search(query, 10);
-}
-
-async function callLLM(zai: ZAIInstance, systemPrompt: string, userPrompt: string): Promise<{ raw: string; quality?: import('@/lib/ai-copilot/quality-gates').QualityReport }> {
-  const { callAI } = await import('@/lib/ai-copilot/ai-caller');
-  const result = await callAI({ systemPrompt, userPrompt, feature: 'account_brief', runQualityCheck: true });
-  return { raw: result.raw, quality: result.quality };
+async function callLLM(systemPrompt: string, userPrompt: string): Promise<{ raw: string; quality?: import('@/lib/ai-copilot/quality-gates').QualityReport }> {
+  const result = await ModelRouter.complete({
+    systemPrompt,
+    userPrompt,
+    tier: 'deep',
+    genType: 'account_brief',
+    maxTokens: 8192,
+    temperature: 0.7,
+  })
+  if (!result.success) throw new Error(result.error ?? 'ModelRouter failed')
+  return { raw: result.text }
 }
 
 // ---------------------------------------------------------------------------
@@ -370,16 +372,7 @@ export async function GET(request: NextRequest) {
 
   const name = company.normalizedName
 
-  // 2. Initialize SDK
-  let zai: ZAIInstance
-  try {
-    zai = await createZAI()
-  } catch (err: unknown) {
-    console.error('[account-brief] SDK init failed:', err instanceof Error ? err.message : err)
-    return apiError('Failed to initialize AI SDK', 500)
-  }
-
-  // 3. Run 5 parallel web searches for comprehensive coverage
+  // 2-3. Run 5 parallel web searches (SDK init handled internally by llm-client)
   const queries = [
     `${name} business overview revenue employees 2025 2026`,
     `${name} technology stack cloud migration digital transformation`,
@@ -387,7 +380,7 @@ export async function GET(request: NextRequest) {
     `${name} leadership CIO CTO CEO executives strategy`,
     `${name} hiring growth funding partnerships news`,
   ]
-  const searchResults = await Promise.all(queries.map((q) => webSearch(zai, q)))
+  const searchResults = await Promise.all(queries.map((q) => webSearch(q)))
 
   // Deduplicate sources by URL
   const seenUrls = new Set<string>()
@@ -415,7 +408,7 @@ export async function GET(request: NextRequest) {
   let brief: AccountBrief
   let qualityReport: import('@/lib/ai-copilot/quality-gates').QualityReport | undefined
   try {
-    const { raw, quality } = await callLLM(zai, SYSTEM_PROMPT, userPrompt)
+    const { raw, quality } = await callLLM(SYSTEM_PROMPT, userPrompt)
     qualityReport = quality
     const parsed = parseBriefJson(raw)
     brief = parsed ?? (() => { console.error('[account-brief] Unparseable LLM JSON'); return buildFallbackBrief('LLM response was not valid JSON') })()

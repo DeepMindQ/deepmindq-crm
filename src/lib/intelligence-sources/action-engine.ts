@@ -19,6 +19,7 @@
  */
 
 import { db } from '@/lib/db'
+import { ModelRouter } from '@/lib/engines/model-router'
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -342,7 +343,7 @@ async function gatherCompanyContext(companyId: string): Promise<ActionContext> {
       },
     }),
 
-    // Sprint 3A: Account strategy (companyId is not @unique, use findFirst)
+    // Sprint 3A: Account strategy
     db.accountStrategy.findFirst({
       where: { companyId },
       select: { swotAnalysis: true, stakeholderMap: true, keyInitiatives: true },
@@ -356,9 +357,9 @@ async function gatherCompanyContext(companyId: string): Promise<ActionContext> {
     const memResult = await extractInternalMemorySignals(companyId)
     internalSignals = memResult.signals.slice(0, 20).map(s => ({
       signalType: s.signalType,
-      title: s.title,
-      description: s.description,
-      source: s.source,
+      title: s.signal,
+      description: s.evidence,
+      source: s.sourceName,
       confidence: s.confidence,
       businessImpact: s.businessImpact,
       recommendedAction: s.recommendedAction,
@@ -509,9 +510,15 @@ const GROUND_RULES = `GROUND RULES — YOU MUST FOLLOW THESE:
 6. Assign realistic priority and confidence scores based on available evidence quality.`
 
 async function callAIForAction(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { governedAICall } = await import('@/lib/ai-governance')
-  const result = await governedAICall({ systemPrompt, userPrompt, generationType: 'action_engine' })
-  return result.response ?? ''
+  const result = await ModelRouter.complete({
+    systemPrompt,
+    userPrompt,
+    tier: 'smart',
+    genType: 'action_engine',
+    maxTokens: 4096,
+    temperature: 0.5,
+  })
+  return result.success ? result.text : ''
 }
 
 function parseJSONResponse(raw: string): Record<string, unknown> {

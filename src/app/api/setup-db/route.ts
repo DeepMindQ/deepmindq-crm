@@ -1,33 +1,60 @@
-import { NextResponse } from 'next/server';
-import { execSync } from 'child_process';
-import path from 'path';
+import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * POST /api/setup-db — Run prisma db push to create/align all tables.
+ * POST /api/setup-db — Run prisma migrate deploy to apply migrations.
  *
- * ⚠️  SECURITY: This endpoint is public (no auth) so that initial setup
- * works on fresh deployments. After tables are created, consider disabling
- * by removing this route or adding auth checks.
+ * ⚠️ SECURITY: This endpoint is DOUBLE-GATED:
+ *   1. SETUP_TOKEN env var must be configured
+ *   2. X-Setup-Token request header must match SETUP_TOKEN
+ *   If either is missing/mismatched → 403
  *
- * Designed for Render/remote deployments where you can't run CLI commands.
+ * GET /api/setup-db — Always returns 404.
+ *   Setup status is NOT publicly queryable.
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const setupToken = process.env.SETUP_TOKEN;
+
+  // Gate 1: env var must exist
+  if (!setupToken) {
+    return NextResponse.json(
+      { success: false, error: 'Endpoint disabled.' },
+      { status: 403 }
+    );
+  }
+
+  // Gate 2: request must carry matching token
+  const requestToken = request.headers.get('X-Setup-Token');
+  if (!requestToken || requestToken !== setupToken) {
+    return NextResponse.json(
+      { success: false, error: 'Invalid or missing token.' },
+      { status: 403 }
+    );
+  }
+
   try {
-    // Verify DATABASE_URL is set
     if (!process.env.DATABASE_URL) {
       return NextResponse.json(
-        { success: false, error: 'DATABASE_URL environment variable is not set.' },
+        { success: false, error: 'DATABASE_URL not set.' },
         { status: 400 }
       );
     }
 
-    // Run prisma db push — creates missing tables without data loss.
-    // Use the locally-installed prisma binary (./node_modules/.bin/prisma)
-    // to avoid npx downloading the latest version (which may have breaking
-    // CLI flag changes — e.g. Prisma 7.x removed --skip-generate).
+    const { execSync } = await import('child_process');
+    const path = await import('path');
+    const fs = await import('fs');
+
     const prismaBin = path.resolve(process.cwd(), 'node_modules/.bin/prisma');
-    const result = execSync(`"${prismaBin}" db push --accept-data-loss`, {
-      cwd: path.resolve(process.cwd()),
+    const cwd = path.resolve(process.cwd());
+    const migrationsDir = path.join(cwd, 'prisma', 'migrations');
+    const hasMigrations = fs.existsSync(migrationsDir) &&
+      fs.readdirSync(migrationsDir).some((f: string) => f.endsWith('.sql'));
+
+    const command = hasMigrations
+      ? `"${prismaBin}" migrate deploy`
+      : `"${prismaBin}" db push --accept-data-loss`;
+
+    const result = execSync(command, {
+      cwd,
       timeout: 60_000,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -35,7 +62,8 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
-      message: 'Database schema pushed successfully.',
+      message: hasMigrations ? 'Migrations applied.' : 'Schema created.',
+      method: hasMigrations ? 'migrate deploy' : 'db push',
       output: result.trim(),
     });
   } catch (error) {
@@ -43,7 +71,6 @@ export async function POST() {
       ? String((error as { stderr?: string }).stderr)
       : '';
     const message = error instanceof Error ? error.message : 'Unknown error';
-
     return NextResponse.json({
       success: false,
       error: 'Database setup failed.',
@@ -53,13 +80,7 @@ export async function POST() {
   }
 }
 
+// GET returns 404 — no information leakage
 export async function GET() {
-  const dbUrl = process.env.DATABASE_URL;
-  return NextResponse.json({
-    configured: !!dbUrl,
-    // Show only protocol+host, never the full URL with password
-    hint: dbUrl
-      ? `DATABASE_URL is set (${dbUrl.split('@')[0]}...@${dbUrl.split('@')[1]?.split('/')[0] || 'hidden'})`
-      : 'DATABASE_URL is NOT set. Please configure it in Render environment variables.',
-  });
+  return NextResponse.json({ error: 'Not found.' }, { status: 404 });
 }

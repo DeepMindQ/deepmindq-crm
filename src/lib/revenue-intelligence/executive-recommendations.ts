@@ -10,7 +10,7 @@
 import { db } from '@/lib/db';
 import { getSignalsForCompany } from './signal-extraction';
 import { getAccountScore } from './account-scoring';
-import { revenueLLMCall } from './llm-helper';
+import { ModelRouter } from '@/lib/engines/model-router';
 import { KEYWORD_TO_CATEGORY } from './signal-patterns';
 
 // ─── Exported Interfaces ───────────────────────────────────────────────
@@ -122,8 +122,8 @@ async function polishReason(
       `Recommended focus: ${focusArea}`,
     ].join('\n');
 
-    const result = await revenueLLMCall(ENGAGEMENT_WORDING_PROMPT, userPrompt);
-    if (result && result.trim().length > 0) return result.trim();
+    const completion = await ModelRouter.complete({ systemPrompt: ENGAGEMENT_WORDING_PROMPT, userPrompt, tier: 'fast', genType: 'revenue_engagement_wording' });
+    if (completion.success && completion.text && completion.text.trim().length > 0) return completion.text.trim();
     return template;
   } catch {
     return template;

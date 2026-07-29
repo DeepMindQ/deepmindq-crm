@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
+import { ModelRouter } from '@/lib/engines/model-router'
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -14,7 +15,7 @@ const summarizeSchema = z.object({
 })
 
 // ---------------------------------------------------------------------------
-// LLM helper — uses z-ai-web-dev-sdk (auth handled internally)
+// LLM helper — delegates to unified llm-client (Phase 2 consolidation)
 // ---------------------------------------------------------------------------
 
 interface SummaryResult {
@@ -23,17 +24,16 @@ interface SummaryResult {
 }
 
 async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then(m => m.default).then(Z => Z.create())
-  const completion = await ZAI.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
+  const result = await ModelRouter.complete({
+    systemPrompt,
+    userPrompt,
+    tier: 'smart',
+    genType: 'summarize',
+    maxTokens: 4096,
+    temperature: 0.5,
   })
-  return completion.choices?.[0]?.message?.content ?? ''
+  if (!result.success) throw new Error(result.error ?? 'ModelRouter failed')
+  return result.text
 }
 
 function parseSummaryResponse(text: string): SummaryResult | null {

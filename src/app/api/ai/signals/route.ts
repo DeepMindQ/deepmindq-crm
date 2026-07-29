@@ -2,13 +2,28 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, safeInt } from '@/lib/apiHelpers'
 import { randomUUID } from 'crypto'
+import { sdkWebSearch, type WebSearchResult } from '@/lib/llm-client'
+import { ModelRouter } from '@/lib/engines/model-router'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+// Local input types from the signal generation pipeline — mapped to Prisma SignalType on persist
 type SignalType = 'hiring' | 'leadership' | 'investment' | 'technology' | 'expansion'
 type SignalPriority = 'high' | 'medium' | 'low'
+
+// Map local signal type names to Prisma SignalType enum values
+function mapToPrismaSignalType(localType: SignalType) {
+  const mapping: Record<SignalType, 'funding' | 'leadership_change' | 'tech_change' | 'hiring' | 'expansion'> = {
+    investment: 'funding',
+    leadership: 'leadership_change',
+    technology: 'tech_change',
+    hiring: 'hiring',
+    expansion: 'expansion',
+  }
+  return mapping[localType] || 'news'
+}
 
 interface RawSearchResult {
   url: string
@@ -18,6 +33,19 @@ interface RawSearchResult {
   rank: number
   date?: string
   favicon?: string
+}
+
+// Map llm-client WebSearchResult to local RawSearchResult shape
+function toRawSearchResult(r: WebSearchResult, i: number): RawSearchResult {
+  return {
+    url: r.url,
+    name: r.name || r.title,
+    snippet: r.snippet,
+    host_name: r.host_name || '',
+    rank: r.rank ?? i,
+    date: r.date,
+    favicon: r.favicon,
+  }
 }
 
 interface ParsedSignal {
@@ -79,34 +107,27 @@ function setCache(companyId: string | null, limit: number, data: SignalsResponse
 }
 
 // ---------------------------------------------------------------------------
-// SDK helpers (backend only)
+// SDK helpers — delegate to unified llm-client + governance (Phase 2)
 // ---------------------------------------------------------------------------
 
-async function getZAI() {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const ZAI = await import('z-ai-web-dev-sdk').then((m) => m.default)
-  return ZAI.create()
-}
-
-async function webSearch(zai: Awaited<ReturnType<typeof getZAI>>, query: string, num = 5): Promise<RawSearchResult[]> {
-  const results = await zai.functions.invoke('web_search', { query, num })
-  return Array.isArray(results) ? results : []
+async function webSearch(query: string, num = 5): Promise<RawSearchResult[]> {
+  const results = await sdkWebSearch(query, num)
+  return results.map((r, i) => toRawSearchResult(r, i))
 }
 
 async function callLLM(
-  zai: Awaited<ReturnType<typeof getZAI>>,
   systemPrompt: string,
   userPrompt: string,
 ): Promise<string> {
-  const completion = await zai.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
+  const result = await ModelRouter.complete({
+    systemPrompt,
+    userPrompt,
+    tier: 'smart',
+    genType: 'signal_scanning',
+    maxTokens: 4096,
+    temperature: 0.5,
   })
-  return completion.choices?.[0]?.message?.content ?? ''
+  return result.success ? result.text : ''
 }
 
 // ---------------------------------------------------------------------------
@@ -276,12 +297,12 @@ interface ScanCompanyResult {
   rawResults: RawSearchResult[]
 }
 
-async function scanCompany(zai: Awaited<ReturnType<typeof getZAI>>, company: CompanyRow): Promise<ScanCompanyResult> {
+async function scanCompany(company: CompanyRow): Promise<ScanCompanyResult> {
   const queries = buildSearchQueries(company.normalizedName)
 
   // Run all 3 searches in parallel, tolerate individual failures
   const searchSettled = await Promise.allSettled(
-    queries.map((q) => webSearch(zai, q, 5)),
+    queries.map((q) => webSearch(q, 5)),
   )
 
   const allResults: RawSearchResult[] = []
@@ -303,7 +324,7 @@ async function scanCompany(zai: Awaited<ReturnType<typeof getZAI>>, company: Com
   // Ask LLM to analyze
   try {
     const userPrompt = buildAnalysisPrompt(company.normalizedName, allResults)
-    const llmResponse = await callLLM(zai, SIGNAL_SYSTEM_PROMPT, userPrompt)
+    const llmResponse = await callLLM(SIGNAL_SYSTEM_PROMPT, userPrompt)
     const rawSignals = parseLLMSignals(llmResponse)
 
     return {
@@ -331,7 +352,7 @@ async function persistSignalsToDb(signals: ParsedSignal[]): Promise<void> {
   await db.companySignal.createMany({
     data: signals.map(s => ({
       companyId: s.companyId,
-      signalType: s.type,
+      signalType: mapToPrismaSignalType(s.type),
       title: s.title,
       description: s.description,
       source: s.source,
@@ -342,7 +363,7 @@ async function persistSignalsToDb(signals: ParsedSignal[]): Promise<void> {
       // Intelligence Object fields (Wave 8A)
       businessImpact: s.businessImpact,
       recommendedAction: s.recommendedAction,
-      timingWindow: s.timing,
+      timingWindow: s.timing as 'immediate' | 'within_7_days' | 'within_30_days' | 'within_90_days' | 'ongoing' | 'expired' | null,
       expiresAt: s.expiresAt ? new Date(s.expiresAt) : null,
       status: 'detected',
     })),
@@ -364,8 +385,6 @@ export async function GET(request: NextRequest) {
   if (cached) return apiSuccess(cached)
 
   try {
-    const zai = await getZAI()
-
     // Fetch companies to scan
     let companies: CompanyRow[]
 
@@ -392,7 +411,7 @@ export async function GET(request: NextRequest) {
 
     // Scan each company — use allSettled so one failure doesn't kill the batch
     const scanSettled = await Promise.allSettled(
-      companies.map((c) => scanCompany(zai, c)),
+      companies.map((c) => scanCompany(c)),
     )
 
     const allSignals: ParsedSignal[] = []

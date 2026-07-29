@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
             id: record.id,
             generationType: record.generationType,
             createdAt: record.createdAt.toISOString(),
-            governanceChecks: record.governanceChecks ?? '{}',
+            governanceChecks: record.governanceChecks ? JSON.stringify(record.governanceChecks) : '{}',
             outputSummary: record.outputSummary,
           });
         }

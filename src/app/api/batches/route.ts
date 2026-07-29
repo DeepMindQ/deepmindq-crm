@@ -213,14 +213,14 @@ async function processChunk(
         companyId,
         batchId: batchId,
         status: 'imported',
-        emailHealth: emailResult.health,
+        emailHealth: emailResult.health as 'unknown' | 'valid' | 'risky' | 'invalid',
         emailHealthScore: emailResult.score,
         leadScore,
         consentStatus: 'unknown',
         consentSource: progress.consentSource,
         consentDate: new Date(),
         consentIp: progress.consentIp,
-        source: progress.source,
+        source: progress.source as 'linkedin' | 'event' | 'referral' | 'cold_list' | 'inbound' | 'manual' | null,
       },
     });
     newContactIds.push(contact.id);

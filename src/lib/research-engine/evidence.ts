@@ -14,7 +14,7 @@
  */
 
 import { db } from '@/lib/db';
-import { type WebSearchResult } from '@/lib/zai-helpers';
+import { type WebSearchResult } from '@/lib/llm-client';
 
 // ── Types ──
 
@@ -229,7 +229,7 @@ export async function collectEvidence(
   query: string,
   maxResults: number = 8,
 ): Promise<RawEvidence[]> {
-  const { webSearch } = await import('@/lib/zai-helpers');
+  const { webSearch } = await import('@/lib/llm-client');
   const results = await webSearch(query, maxResults);
   const normalized = results.map(r => ({
     title: r.title,

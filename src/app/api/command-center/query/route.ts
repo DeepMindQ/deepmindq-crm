@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { ModelRouter } from '@/lib/engines/model-router';
 
 /* ═══════════════════════════════════════════════════════════════════
    AI Command Center — Natural Language Query (v2)
@@ -25,34 +26,19 @@ interface QueryResult {
   aiProcessed?: boolean;
 }
 
-// ── LLM helper (thin wrapper around z-ai-web-dev-sdk) ─────────────
-
-async function createZAI() {
-  const { ensureZaiConfig } = await import('@/lib/zai-config');
-  await ensureZaiConfig();
-  const Z = await import('z-ai-web-dev-sdk').then((m: any) => m.default);
-  return Z.create();
-}
+// ── LLM helper — routed through ModelRouter (Phase 2.2) ─────────────
 
 async function llmChat(systemPrompt: string, userPrompt: string): Promise<string | null> {
   try {
-    const ZAI = await createZAI();
-    const completion = await ZAI.chat.completions.create({
-      messages: [
-        { role: 'assistant', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      thinking: { type: 'disabled' },
+    const result = await ModelRouter.complete({
+      systemPrompt,
+      userPrompt,
+      tier: 'smart',
+      genType: 'command_center_query',
+      maxTokens: 4096,
+      temperature: 0.7,
     });
-    // The SDK returns the content string directly in certain shapes;
-    // handle both { choices: [{ message: { content } }] } and plain string.
-    if (typeof completion === 'string') return completion;
-    const content =
-      completion?.choices?.[0]?.message?.content ??
-      completion?.content ??
-      completion?.message?.content ??
-      null;
-    return typeof content === 'string' ? content : null;
+    return result.success ? result.text : null;
   } catch (err) {
     console.error('[CommandCenter LLM]', err);
     return null;
@@ -61,9 +47,8 @@ async function llmChat(systemPrompt: string, userPrompt: string): Promise<string
 
 async function webSearch(query: string, num = 5): Promise<any[]> {
   try {
-    const ZAI = await createZAI();
-    const results = await ZAI.functions.invoke('web_search', { query, num });
-    return Array.isArray(results) ? results : results?.results ?? [];
+    const { sdkWebSearch } = await import('@/lib/llm-client');
+    return (await sdkWebSearch(query, num)).map(r => ({ title: r.title, snippet: r.snippet, url: r.url }));
   } catch (err) {
     console.error('[CommandCenter WebSearch]', err);
     return [];

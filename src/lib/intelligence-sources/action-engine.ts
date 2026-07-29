@@ -342,8 +342,8 @@ async function gatherCompanyContext(companyId: string): Promise<ActionContext> {
       },
     }),
 
-    // Sprint 3A: Account strategy
-    db.accountStrategy.findUnique({
+    // Sprint 3A: Account strategy (companyId is not @unique, use findFirst)
+    db.accountStrategy.findFirst({
       where: { companyId },
       select: { swotAnalysis: true, stakeholderMap: true, keyInitiatives: true },
     }),
@@ -386,7 +386,7 @@ async function gatherCompanyContext(companyId: string): Promise<ActionContext> {
       createdAt: cn.createdAt,
     })),
     timelineEvents,
-    humanIntelligence,
+    humanIntelligence: humanIntel,
     accountStrategy,
     internalSignals,
   }

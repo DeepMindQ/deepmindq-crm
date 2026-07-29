@@ -29,6 +29,7 @@ export function AiChatButton({ isOpen, onToggle }: AiChatButtonProps) {
       whileHover={{ scale: 1.05, boxShadow: '0 8px 30px rgba(212, 175, 55, 0.4)' }}
       whileTap={{ scale: 0.95 }}
       aria-label={isOpen ? 'Close AI Assistant' : 'Open AI Assistant'}
+      aria-expanded={isOpen}
     >
       {/* Pulse ring when closed */}
       {!isOpen && (

@@ -113,7 +113,7 @@ function parseMetadata(raw: string): Record<string, unknown> {
  */
 export async function logTimelineEvent(
   input: TimelineEventInput,
-): Promise<Prisma.IntelligenceTimelineGetPayload<{}>> {
+): Promise<Prisma.IntelligenceTimelineGetPayload<Record<string, never>>> {
   const { companyId, eventType, entityType, entityId, title, description, metadata, actor } =
     input;
 
@@ -171,7 +171,7 @@ export async function logTimelineEvent(
 export async function getCompanyTimeline(
   companyId: string,
   filters?: TimelineFilters,
-): Promise<{ events: Prisma.IntelligenceTimelineGetPayload<{}>[]; total: number }> {
+): Promise<{ events: Prisma.IntelligenceTimelineGetPayload<Record<string, never>>[]; total: number }> {
   if (!companyId) {
     throw new Error('companyId is required');
   }
@@ -244,7 +244,7 @@ export async function getCompanyTimeline(
 export async function getEntityTimeline(
   entityType: string,
   entityId: string,
-): Promise<Prisma.IntelligenceTimelineGetPayload<{}>[]> {
+): Promise<Prisma.IntelligenceTimelineGetPayload<Record<string, never>>[]> {
   if (!entityType || !entityId) {
     throw new Error('entityType and entityId are both required');
   }

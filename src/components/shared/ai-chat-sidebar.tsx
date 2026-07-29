@@ -344,6 +344,7 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  aria-label="Ask about any company, contact, or deal"
                   placeholder="Ask about any company, contact, or deal..."
                   disabled={isLoading}
                   rows={1}

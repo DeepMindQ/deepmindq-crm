@@ -117,3 +117,50 @@ export const ACCOUNT_CATEGORY_THRESHOLDS = {
 } as const;
 
 export type AccountCategory = 'HOT_ACCOUNT' | 'WARM_ACCOUNT' | 'NURTURE' | 'AT_RISK';
+
+/** Alias for tests */
+export const DEFAULT_SIGNAL_PATTERNS = SIGNAL_PATTERNS;
+
+/**
+ * Match signal patterns against text content.
+ * Returns array of matched categories with scores, sorted descending.
+ */
+export function matchSignalPatterns(text: string): Array<{
+  category: Uppercase<SignalCategory>;
+  matchedKeywords: string[];
+  score: number;
+}> {
+  const lower = text.toLowerCase();
+  const matches = new Map<string, { keywords: string[]; totalImportance: number }>();
+
+  for (const [kw, info] of KEYWORD_TO_CATEGORY) {
+    if (lower.includes(kw)) {
+      const cat = info.category.toUpperCase();
+      const existing = matches.get(cat);
+      if (existing) {
+        existing.keywords.push(kw);
+        existing.totalImportance += info.importance;
+      } else {
+        matches.set(cat, { keywords: [kw], totalImportance: info.importance });
+      }
+    }
+  }
+
+  // Deduplicate keywords and compute score (cap at 100)
+  const results = Array.from(matches.entries()).map(([category, data]) => {
+    const uniqueKeywords = [...new Set(data.keywords)];
+    const score = Math.min(100, data.totalImportance * 10);
+    return { category: category as Uppercase<SignalCategory>, matchedKeywords: uniqueKeywords, score };
+  });
+
+  results.sort((a, b) => b.score - a.score);
+  return results;
+}
+
+/**
+ * Get the primary (highest-scoring) signal category from text.
+ */
+export function getPrimaryCategory(text: string): { category: Uppercase<SignalCategory>; score: number } | null {
+  const results = matchSignalPatterns(text);
+  return results.length > 0 ? { category: results[0].category, score: results[0].score } : null;
+}

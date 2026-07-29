@@ -12,5 +12,8 @@ if (typeof globalThis.TextEncoder === 'undefined') {
   globalThis.TextDecoder = TextDecoder
 }
 
+// Enable jest-dom matchers (toBeInTheDocument, etc.)
+import '@testing-library/jest-dom/vitest'
+
 // Silence console warnings in test output (optional — remove to debug)
 // console.warn = () => {}

@@ -769,7 +769,7 @@ export async function persistInternalSignalsAsCompanySignals(
         severity: sig.severity as 'low' | 'medium' | 'high' | 'critical',
         signalType: sig.signalType,
         signalDate: sig.sourceDate,
-        signalReference: `internal-memory:${companyId}`,
+        sourceReference: `internal-memory:${companyId}`,
       })
 
       if (result.success) created++

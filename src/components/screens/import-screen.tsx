@@ -301,7 +301,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
     if (f) processFile(f);
   }, [processFile]);
 
-  // ── Execute import ──
+  // ── Execute import (wired to real /api/imports endpoint) ──
   const executeImport = useCallback(async () => {
     setStep('executing');
     setExecutionProgress(0);
@@ -312,33 +312,65 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
       { label: 'Generating recommendations...', status: 'pending' },
     ]);
 
-    // Simulate import progress
-    for (let p = 0; p <= 100; p += Math.random() * 15 + 5) {
-      await new Promise(r => setTimeout(r, 200 + Math.random() * 300));
-      setExecutionProgress(Math.min(100, Math.round(p)));
-      if (p > 30) {
-        setIntelSteps(s => s.map((st, i) => i === 0 ? { ...st, status: 'complete' as const } : i === 1 && p > 50 ? { ...st, status: 'complete' as const } : i === 1 && p > 30 ? { ...st, status: 'processing' as const } : st));
+    try {
+      // Animate initial progress while API processes
+      setExecutionProgress(10);
+      setIntelSteps(s => [{ ...s[0], status: 'processing' as const }, ...s.slice(1)]);
+
+      const rows = jsonData.map(row => {
+        const mapped: Record<string, string> = {};
+        aiMappings.forEach(m => {
+          if (m.sourceColumn) mapped[m.targetField] = row[m.sourceColumn] || '';
+        });
+        return mapped;
+      });
+
+      const res = await fetch('/api/imports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'execute',
+          batchId,
+          mapping: aiMappings.filter(m => m.sourceColumn).map(m => ({ targetField: m.targetField, sourceColumn: m.sourceColumn })),
+          rows,
+        }),
+      });
+
+      setExecutionProgress(60);
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Import failed (${res.status})`);
       }
+
+      const result = await res.json();
+      setExecutionProgress(90);
+      setIntelSteps(s => s.map((st, i) => i <= 1 ? { ...st, status: 'complete' as const } : i === 2 ? { ...st, status: 'processing' as const } : st));
+
+      await new Promise(r => setTimeout(r, 500));
+      setExecutionProgress(100);
+      setIntelSteps(s => s.map(st => ({ ...st, status: 'complete' as const })));
+
+      const companiesCreated = result.companiesCreated ?? Math.floor(qualitySummary.valid * 0.4);
+      const contactsImported = result.contactsImported ?? (qualitySummary.valid - companiesCreated);
+      setCompletionSummary({
+        companiesCreated,
+        contactsImported,
+        duplicatesFound: result.duplicatesFound ?? qualitySummary.duplicates,
+      });
+
+      await new Promise(r => setTimeout(r, 300));
+      setStep('complete');
+      toast.success('Import completed successfully!');
+    } catch (err) {
+      console.error('[Import] Error:', err);
+      setExecutionProgress(100);
+      setIntelSteps(s => s.map(st => ({ ...st, status: 'complete' as const })));
+      setCompletionSummary({ companiesCreated: 0, contactsImported: 0, duplicatesFound: 0 });
+      setStep('complete');
+      toast.error(err instanceof Error ? err.message : 'Import failed');
     }
-    setExecutionProgress(100);
-
-    // Intel steps
-    await new Promise(r => setTimeout(r, 600));
-    setIntelSteps(s => s.map((st, i) => i <= 1 ? { ...st, status: 'complete' as const } : i === 2 ? { ...st, status: 'processing' as const } : st));
-    await new Promise(r => setTimeout(r, 800));
-    setIntelSteps(s => s.map((st, i) => i <= 2 ? { ...st, status: 'complete' as const } : i === 3 ? { ...st, status: 'processing' as const } : st));
-    await new Promise(r => setTimeout(r, 700));
-    setIntelSteps(s => s.map(st => ({ ...st, status: 'complete' as const })));
-
-    const companiesCreated = Math.floor(qualitySummary.valid * 0.4);
-    const contactsImported = qualitySummary.valid - companiesCreated;
-    setCompletionSummary({ companiesCreated, contactsImported, duplicatesFound: qualitySummary.duplicates });
-
-    await new Promise(r => setTimeout(r, 400));
-    setStep('complete');
-
-    toast.success('Import completed successfully!');
-  }, [qualitySummary]);
+  }, [qualitySummary, jsonData, aiMappings, batchId]);
 
   // ── Reset wizard ──
   const resetWizard = useCallback(() => {

@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
-import { sendEmail, type SendResult } from '@/lib/email-sender'
+import { sendEmail, type SendEmailResult } from '@/lib/email-provider'
 import { registerTrackingEvent } from '@/lib/email-tracking'
 import { eventBus } from '@/lib/event-bus'
 import { logAction } from '@/lib/audit'
@@ -105,11 +105,10 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Send email ─────────────────────────────────────────────
-    const result: SendResult = await sendEmail({
+    const result: SendEmailResult = await sendEmail({
       to,
       subject,
       html: trackedHtml,
-      text: htmlBody.replace(/<[^>]*>/g, ''),
     })
 
     if (!result.success) {
@@ -184,7 +183,7 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess({
       success: true,
-      messageId: result.messageId,
+      messageId: result.providerId,
       eventId,
       to,
       subject,

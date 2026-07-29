@@ -24,6 +24,13 @@ export default defineConfig({
       'src/lib/revenue-intelligence/__tests__/account-scoring.test.ts',
       'src/lib/intelligence-sources/__tests__/intelligence-alerts.test.ts',
       'tests/research-engine.test.ts',
+      // Dead test suites — source files deleted during engine consolidation.
+      // Tests import non-existent modules and cannot run.
+      'tests/sprint1-modules.test.ts',
+      'src/lib/intelligence-sources/__tests__/acquisition-engine.test.ts',
+      'src/lib/intelligence-sources/__tests__/analytics-dashboard.test.ts',
+      'src/lib/intelligence-sources/__tests__/knowledge-versioning.test.ts',
+      'src/lib/intelligence-sources/__tests__/source-governance.test.ts',
     ],
     globals: true,
   },

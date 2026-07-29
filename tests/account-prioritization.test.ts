@@ -554,7 +554,7 @@ describe('toSignalEvidence', () => {
     expect(result).toHaveLength(1);
     expect(result[0].signalId).toBe('sig-1');
     expect(result[0].title).toBe('Cloud Migration');
-    expect(result[0].signalType).toBe('technology');
+    expect(result[0].signalType).toBe('tech_change');
     expect(result[0].severity).toBe('high');
     expect(result[0].source).toBe('linkedin');
     expect(result[0].daysAgo).toBe(5);
@@ -590,7 +590,7 @@ describe('toSignalEvidence', () => {
     }];
 
     const result = toSignalEvidence(rows, now);
-    expect(result[0].signalType).toBe('technology');
+    expect(result[0].signalType).toBe('tech_change');
   });
 
   it('handles empty array', () => {

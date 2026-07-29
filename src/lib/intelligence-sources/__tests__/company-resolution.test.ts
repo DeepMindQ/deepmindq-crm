@@ -297,7 +297,7 @@ describe('Company Resolution', () => {
         rawName: 'New Startup XYZ',
         normalizedName: 'new startup xyz',
         domain: 'newstartup.com',
-        source: 'intelligence_acquisition',
+        source: 'webhook',
         status: 'prospect',
       })
       mockCompanyAliasCreate.mockResolvedValue({
@@ -314,7 +314,7 @@ describe('Company Resolution', () => {
           rawName: 'New Startup XYZ',
           normalizedName: 'new startup xyz',
           domain: 'newstartup.com',
-          source: 'intelligence_acquisition',
+          source: 'webhook',
           status: 'prospect',
         },
       })
@@ -337,7 +337,7 @@ describe('Company Resolution', () => {
         rawName: 'No Domain Co',
         normalizedName: 'no domain co',
         domain: null,
-        source: 'intelligence_acquisition',
+        source: 'webhook',
         status: 'prospect',
       })
       mockCompanyAliasCreate.mockResolvedValue({})

@@ -9,20 +9,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Mocks (hoisted for vi.mock) ──
 
-const { mockCallLLM, mockDb } = vi.hoisted(() => {
+const { mockModelRouter, mockDb } = vi.hoisted(() => {
   const db = {
     aIGenerationAudit: {
       create: vi.fn(),
     },
   };
   return {
-    mockCallLLM: vi.fn(),
+    mockModelRouter: {
+      complete: vi.fn(),
+    },
     mockDb: db,
   };
 });
 
-vi.mock('@/lib/zai-helpers', () => ({
-  callLLM: (...args: unknown[]) => mockCallLLM(...args),
+vi.mock('@/lib/engines/model-router', () => ({
+  ModelRouter: mockModelRouter,
 }));
 
 vi.mock('@/lib/db', () => ({ db: mockDb }));
@@ -386,7 +388,7 @@ describe('hallucination prevention', () => {
   });
 
   it('should inject hallucination rules into governed AI call system prompt', async () => {
-    mockCallLLM.mockResolvedValue('LLM response');
+    mockModelRouter.complete.mockResolvedValue({ success: true, text: 'LLM response' } as any);
     mockDb.aIGenerationAudit.create.mockResolvedValue({});
 
     await governedAICallAggregate({
@@ -395,8 +397,8 @@ describe('hallucination prevention', () => {
       userPrompt: 'Company: Acme',
     });
 
-    const calledSystemPrompt = mockCallLLM.mock.calls[0][0] as string;
-    expect(calledSystemPrompt).toContain('EVIDENCE GROUNDING RULES');
+    const calledParams = mockModelRouter.complete.mock.calls[0][0] as any;
+    expect(calledParams.systemPrompt).toContain('EVIDENCE GROUNDING RULES');
   });
 
   it('GOVERNANCE_PROMPT_VERSION should be a non-empty string', () => {
@@ -687,7 +689,7 @@ describe('governedAICallAggregate', () => {
   });
 
   it('should call LLM and return successful response', async () => {
-    mockCallLLM.mockResolvedValue('Generated analysis result');
+    mockModelRouter.complete.mockResolvedValue({ success: true, text: 'Generated analysis result' } as any);
 
     const result = await governedAICallAggregate({
       generationType: 'signal_detection',
@@ -702,7 +704,7 @@ describe('governedAICallAggregate', () => {
   });
 
   it('should return failure when LLM throws', async () => {
-    mockCallLLM.mockRejectedValue(new Error('API rate limit'));
+    mockModelRouter.complete.mockResolvedValue({ success: false, text: '', error: 'API rate limit' } as any);
 
     const result = await governedAICallAggregate({
       generationType: 'signal_detection',
@@ -716,7 +718,7 @@ describe('governedAICallAggregate', () => {
   });
 
   it('should inject hallucination prevention rules into system prompt', async () => {
-    mockCallLLM.mockResolvedValue('OK');
+    mockModelRouter.complete.mockResolvedValue({ success: true, text: 'OK' } as any);
 
     await governedAICallAggregate({
       generationType: 'test',
@@ -724,9 +726,9 @@ describe('governedAICallAggregate', () => {
       userPrompt: 'User prompt',
     });
 
-    const systemPrompt = mockCallLLM.mock.calls[0][0] as string;
-    expect(systemPrompt).toContain('Base prompt');
-    expect(systemPrompt).toContain('EVIDENCE GROUNDING RULES');
+    const calledParams = mockModelRouter.complete.mock.calls[0][0] as any;
+    expect(calledParams.systemPrompt).toContain('Base prompt');
+    expect(calledParams.systemPrompt).toContain('EVIDENCE GROUNDING RULES');
   });
 });
 
@@ -751,11 +753,11 @@ describe('governedAICall', () => {
     expect(result.success).toBe(false);
     expect(result.response).toBeNull();
     expect(result.rejectionReason).toContain('No research card');
-    expect(mockCallLLM).not.toHaveBeenCalled();
+    expect(mockModelRouter.complete).not.toHaveBeenCalled();
   });
 
   it('should proceed when governance fails but enforceGovernance is false', async () => {
-    mockCallLLM.mockResolvedValue('Result');
+    mockModelRouter.complete.mockResolvedValue({ success: true, text: 'Result' } as any);
 
     const result = await governedAICall({
       generationType: 'email_draft',
@@ -768,7 +770,7 @@ describe('governedAICall', () => {
 
     expect(result.success).toBe(true);
     expect(result.response).toBe('Result');
-    expect(mockCallLLM).toHaveBeenCalled();
+    expect(mockModelRouter.complete).toHaveBeenCalled();
   });
 
   it('should record audit trail for blocked generation', async () => {
@@ -787,7 +789,7 @@ describe('governedAICall', () => {
   });
 
   it('should add staleness warning when intelligence domains are stale', async () => {
-    mockCallLLM.mockResolvedValue('Result');
+    mockModelRouter.complete.mockResolvedValue({ success: true, text: 'Result' } as any);
 
     const staleContext = makeResearchContext({
       freshness: {
@@ -817,9 +819,9 @@ describe('governedAICall', () => {
       userPrompt: 'Acme',
     });
 
-    const sysPrompt = mockCallLLM.mock.calls[0][0] as string;
+    const calledParams = mockModelRouter.complete.mock.calls[0][0] as any;
     // Should include staleness modifier warning in system prompt
-    expect(sysPrompt).toContain('staleness');
+    expect(calledParams.systemPrompt).toContain('staleness');
   });
 });
 

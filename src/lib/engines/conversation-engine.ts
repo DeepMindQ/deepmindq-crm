@@ -40,7 +40,7 @@
  * Returns ConversationResult with success:boolean + error:string|null.
  */
 
-import { ModelRouter } from './model-router';
+import { governedAICall } from '@/lib/ai-governance';
 import { GroundingEngine, renderChainForPrompt } from './grounding-engine';
 import { RetrievalEngine } from './retrieval-engine';
 import type { EvidenceChain, GroundingContext } from './grounding-engine';
@@ -568,6 +568,7 @@ async function generateDeterministicBriefing(
 // ─── LLM Briefing Narrative ──────────────────────────────────────────────
 
 async function generateBriefingNarrative(
+  companyId: string,
   companyName: string,
   buyerProfile: BuyerProfile,
   briefing: {
@@ -611,21 +612,23 @@ ${renderChainForPrompt(chain)}
 
 Produce a 5-8 sentence pre-meeting briefing summary now.`;
 
-    const completion = await ModelRouter.complete({
+    const govResult = await governedAICall({
+      generationType: 'conversation_briefing',
+      companyId,
       systemPrompt,
       userPrompt,
       tier: 'smart',
       maxTokens: 2000,
       temperature: 0.7,
-      genType: 'conversation_briefing',
+      enforceGovernance: false,
     });
 
-    if (completion.success && completion.text.trim().length > 30) {
+    if (govResult.success && (govResult.response ?? '').trim().length > 30) {
       return {
-        narrative: completion.text.trim(),
-        modelUsed: completion.modelUsed,
-        tokensUsed: completion.totalTokens,
-        costUsd: completion.costUsd,
+        narrative: govResult.response!.trim(),
+        modelUsed: 'governed',
+        tokensUsed: 0,
+        costUsd: 0,
       };
     }
   } catch (err) {
@@ -751,7 +754,7 @@ export const ConversationEngine = {
 
     if (!skipNarrative && briefing.talkingPoints.length >= 2) {
       const narrResult = await generateBriefingNarrative(
-        companyName, buyerProfile, {
+        companyId, companyName, buyerProfile, {
           meetingObjective: briefing.meetingObjective,
           meetingType: briefing.meetingType,
           talkingPoints: briefing.talkingPoints,

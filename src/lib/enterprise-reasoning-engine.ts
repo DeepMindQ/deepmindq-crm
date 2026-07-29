@@ -68,7 +68,7 @@
 
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { ModelRouter } from '@/lib/engines/model-router';
+import { governedAICall } from '@/lib/ai-governance';
 import { RetrievalEngine } from '@/lib/engines/retrieval-engine';
 import { GroundingEngine } from '@/lib/engines/grounding-engine';
 
@@ -385,27 +385,29 @@ async function executeStep(
         }
 
         // AI-powered step
-        const completion = await ModelRouter.complete({
+        const govResult = await governedAICall({
+          generationType: `reasoning_${step.stepName}`,
+          companyId,
           systemPrompt: `You are a senior enterprise sales intelligence analyst. Analyze the company data provided and produce a structured JSON output for the "${step.stepName}" step. Focus on actionable intelligence that helps a sales team engage this prospect. Output ONLY valid JSON.`,
           userPrompt: `Step: ${step.stepName}\nDescription: ${step.description}\n\nPrevious reasoning context:\n${JSON.stringify(priorContext, null, 2)}\n\nAnalyze this data and produce your structured assessment.`,
           tier: 'smart',
           maxTokens: 2048,
           temperature: 0.4,
-          genType: `reasoning_${step.stepName}`,
-          companyId,
+          enforceGovernance: false,
         });
 
-        if (!completion.success) {
+        if (!govResult.success) {
           return { ...defaults, summary: `AI call failed for ${step.stepName}`, confidence: 0.1 };
         }
 
         // Try to parse as JSON, fall back to raw text
-        let output = completion.text;
-        let summary = completion.text.slice(0, 200);
+        const responseText = govResult.response ?? '';
+        let output = responseText;
+        let summary = responseText.slice(0, 200);
         try {
-          const parsed = JSON.parse(completion.text);
+          const parsed = JSON.parse(responseText);
           output = JSON.stringify(parsed);
-          summary = parsed.summary || parsed.conclusion || completion.text.slice(0, 200);
+          summary = parsed.summary || parsed.conclusion || responseText.slice(0, 200);
         } catch {
           // Not JSON — store as raw text in output
         }
@@ -417,8 +419,8 @@ async function executeStep(
           evidenceIds: [],
           knowledgeIds: [],
           aiCalls: 1,
-          tokensUsed: completion.totalTokens,
-          costUsd: completion.costUsd,
+          tokensUsed: 0,
+          costUsd: 0,
           durationMs: Date.now() - started,
         };
       }

@@ -32,7 +32,7 @@
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { EnterpriseReasoningEngine } from '@/lib/enterprise-reasoning-engine';
-import { ModelRouter } from '@/lib/engines/model-router';
+import { governedAICall } from '@/lib/ai-governance';
 import { GroundingEngine } from '@/lib/engines/grounding-engine';
 import { RetrievalEngine } from '@/lib/engines/retrieval-engine';
 
@@ -176,37 +176,35 @@ async function executeAgent(
 
       case 'scorer': {
         // Build score from reasoning context + AI
-        const completion = await ModelRouter.complete({
+        const govResult = await governedAICall({
+          generationType: 'agent_scorer',
+          companyId,
           systemPrompt: `You are a senior deal scorer. Based on the company intelligence provided, produce a JSON object with: { winProbability: 0-1, competitivePosition: "strong|moderate|weak", strengths: ["s1","s2"], weaknesses: ["w1","w2"], risks: ["r1","r2"], overallScore: 0-100 }. Be precise and evidence-based.`,
           userPrompt: `Company intelligence context:\n${priorOutput}\n\nProduce a comprehensive opportunity score.`,
           tier: 'smart',
           maxTokens: 1536,
-          genType: 'agent_scorer',
-          companyId,
+          enforceGovernance: false,
         });
-        if (completion.success) {
-          output = completion.text;
+        if (govResult.success) {
+          output = govResult.response ?? '';
           aiCalls = 1;
-          tokensUsed = completion.totalTokens;
-          costUsd = completion.costUsd;
         }
         break;
       }
 
       case 'strategist': {
-        const completion = await ModelRouter.complete({
+        const govResult = await governedAICall({
+          generationType: 'agent_strategist',
+          companyId,
           systemPrompt: `You are a senior enterprise sales strategist. Based on the intelligence provided, produce a JSON object with: { conversationAngles: [{angle, talkingPoints}], nextBestAction: {action, reason, priority, timing}, messagingPerPersona: [{persona, message, valueProp}], executiveHeadline: "string", executiveSubheadline: "string" }`,
           userPrompt: `Full intelligence context:\n${priorOutput}\n\nDesign the engagement strategy.`,
           tier: 'smart',
           maxTokens: 2048,
-          genType: 'agent_strategist',
-          companyId,
+          enforceGovernance: false,
         });
-        if (completion.success) {
-          output = completion.text;
+        if (govResult.success) {
+          output = govResult.response ?? '';
           aiCalls = 1;
-          tokensUsed = completion.totalTokens;
-          costUsd = completion.costUsd;
         }
         break;
       }
@@ -217,19 +215,18 @@ async function executeAgent(
       }
 
       case 'executive_brief': {
-        const completion = await ModelRouter.complete({
+        const govResult = await governedAICall({
+          generationType: 'agent_executive_brief',
+          companyId,
           systemPrompt: `You are an executive briefing specialist. Produce a JSON executive brief with: { headline, subheadline, keyInsights: [{insight, evidence}], recommendedApproach, expectedROI, riskFactors: [{risk, mitigation}], nextSteps: [{step, owner, timeline}] }. Be concise and C-suite ready.`,
           userPrompt: `Full intelligence context:\n${priorOutput}\n\nGenerate executive brief.`,
           tier: 'deep',
           maxTokens: 3072,
-          genType: 'agent_executive_brief',
-          companyId,
+          enforceGovernance: false,
         });
-        if (completion.success) {
-          output = completion.text;
+        if (govResult.success) {
+          output = govResult.response ?? '';
           aiCalls = 1;
-          tokensUsed = completion.totalTokens;
-          costUsd = completion.costUsd;
         }
         break;
       }

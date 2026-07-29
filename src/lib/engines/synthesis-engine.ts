@@ -35,7 +35,7 @@
  * composition engine caller decides how to surface this to the user.
  */
 
-import { ModelRouter } from './model-router';
+import { governedAICall } from '@/lib/ai-governance';
 import { GroundingEngine, renderChainForPrompt } from './grounding-engine';
 import { RetrievalEngine } from './retrieval-engine';
 import type { EvidenceChain, EvidenceGap, GroundingContext } from './grounding-engine';
@@ -542,34 +542,35 @@ export const SynthesisEngine = {
       request.audience,
     );
 
-    const completion = await ModelRouter.complete({
-      systemPrompt: config.systemPrompt,
-      userPrompt,
-      tier,
-      maxTokens: config.maxTokens,
-      temperature: 0.7,
-      compositionId: request.compositionId,
-      genType: `synthesis_${request.briefType}`,
+    const govResult = await governedAICall({
+      generationType: `synthesis_${request.briefType}`,
       companyId: request.context.companyId,
       contactId: request.context.contactId,
+      systemPrompt: config.systemPrompt,
+      userPrompt,
+      tier: tier as 'fast' | 'smart' | 'deep',
+      maxTokens: config.maxTokens,
+      temperature: 0.7,
+      enforceGovernance: false,
     });
 
     const durationMs = Date.now() - startedAt;
+    const responseText = govResult.response ?? '';
 
-    if (!completion.success) {
+    if (!govResult.success) {
       await logEngineRun({
         engine: 'synthesis',
         compositionId: request.compositionId,
         inputSummary: JSON.stringify({ briefType: request.briefType, context: request.context }),
-        outputSummary: JSON.stringify({ error: completion.error }),
+        outputSummary: JSON.stringify({ error: govResult.rejectionReason }),
         confidence: 0,
         durationMs,
         success: false,
-        errorMessage: completion.error ?? 'unknown',
+        errorMessage: govResult.rejectionReason ?? 'governance blocked',
         context: request.context,
         llmCallCount: 1,
-        llmTokensUsed: completion.totalTokens,
-        llmCostUsd: completion.costUsd,
+        llmTokensUsed: 0,
+        llmCostUsd: 0,
       });
       return {
         type: request.briefType,
@@ -580,20 +581,20 @@ export const SynthesisEngine = {
         evidenceChain: chain,
         gaps: chain.gaps,
         wordCount: 0,
-        modelUsed: completion.modelUsed,
+        modelUsed: 'governed',
         durationMs,
-        tokensUsed: completion.totalTokens,
-        costUsd: completion.costUsd,
-        warnings: [`LLM call failed: ${completion.error}`],
+        tokensUsed: 0,
+        costUsd: 0,
+        warnings: [`Governed AI call failed: ${govResult.rejectionReason}`],
         success: false,
-        error: completion.error,
+        error: govResult.rejectionReason,
       };
     }
 
     // Step 4: Parse output
-    const { citations, hallucinated } = parseCitations(completion.text, chain);
-    const sections = parseSections(completion.text, citations);
-    const wordCount = completion.text.split(/\s+/).filter(Boolean).length;
+    const { citations, hallucinated } = parseCitations(responseText, chain);
+    const sections = parseSections(responseText, citations);
+    const wordCount = responseText.split(/\s+/).filter(Boolean).length;
 
     // Step 5: Compute warnings + adjust confidence
     const warnings: string[] = [];
@@ -636,14 +637,14 @@ export const SynthesisEngine = {
       success: true,
       context: request.context,
       llmCallCount: 1,
-      llmTokensUsed: completion.totalTokens,
-      llmCostUsd: completion.costUsd,
+      llmTokensUsed: 0,
+      llmCostUsd: 0,
     });
 
     // Run quality gates on the output (Phase 2: absorbed from ai-copilot)
     let qualityReport: QualityReport | undefined;
     try {
-      const outputObj = JSON.parse(completion.text) as Record<string, unknown>;
+      const outputObj = JSON.parse(responseText) as Record<string, unknown>;
       qualityReport = runQualityGates(outputObj, warnings.length === 0);
       logger.info(formatQualityReportForLog(qualityReport));
       if (qualityReport?.overallStatus === 'fail') {
@@ -655,17 +656,17 @@ export const SynthesisEngine = {
 
     return {
       type: request.briefType,
-      content: completion.text,
+      content: responseText,
       sections,
       citations,
       confidence,
       evidenceChain: chain,
       gaps: chain.gaps,
       wordCount,
-      modelUsed: completion.modelUsed,
+      modelUsed: 'governed',
       durationMs,
-      tokensUsed: completion.totalTokens,
-      costUsd: completion.costUsd,
+      tokensUsed: 0,
+      costUsd: 0,
       warnings,
       success: true,
       error: null,

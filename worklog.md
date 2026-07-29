@@ -171,4 +171,31 @@ Stage Summary:
 - TSC: 0 errors | Tests: 829/829 | ESLint: 0 | Build: success (standalone)
 - Security: CSP, HSTS, X-Frame-Options, CSRF, rate limiting, audit logging
 - Docker: Multi-stage build with compose, backup script, standalone output
+
+---
+Task ID: phase-1b
+Agent: main
+Task: Phase 1B — Intelligence API Contract Layer (6 product endpoints)
+
+Work Log:
+- Audited all 6 Intelligence API routes against reference implementation (company route)
+- Found 5/6 routes critically broken: wrong function signatures, missing Response.json wrapping,
+  static engine calls on object-literal engines, missing freshness, missing shouldInclude imports
+- Rewrote opportunity route: fixed FusionResult field names (signalIds/capabilityIds), proper
+  RevenueScore/ActionResult fallback typing, static engine calls
+- Rewrote action route: try/catch for clean TSC narrowing, shouldInclude, Response.json, freshness
+- Rewrote conversation route: try/catch, shouldInclude, proper ConversationResult typing, freshness
+- Rewrote mindmap route: fixed O(n²) edge explosion → hub-and-spoke O(n), fixed CapabilityAsset
+  schema mismatch (title not name, no companyId), added company center node, freshness
+- Rewrote reasoning route: try/catch replacing .catch() union type, ReasoningResult import, freshness
+- Hardened company route (reference): fixed new Engine() → static calls, replaced non-existent
+  mindmapNode/mindmapEdge tables with computed counts, added CompanyRow type alias,
+  proper RevenueScore/ActionResult/ConversationResult type assertions
+- Updated middleware: added 'steps' to VALID_INCLUDES + IntelligenceInclude type
+
+Stage Summary:
+- All 6 Intelligence API product endpoints now follow uniform contract pattern
+- Exit gates: TSC=0, 693/693 tests, ESLint=0
+- Commit: 11974a8 (Phase 1B)
+- Next: Phase 2 (AI Governance Expansion — 10/10 engines)
 - Baseline: error-snapshots/baseline-v3.json

@@ -39,7 +39,7 @@
  * Returns RevenueScore with success:boolean + error:string|null.
  */
 
-import { ModelRouter } from './model-router';
+import { governedAICall } from '@/lib/ai-governance';
 import { GroundingEngine, renderChainForPrompt } from './grounding-engine';
 import { RetrievalEngine } from './retrieval-engine';
 import type { EvidenceChain, GroundingContext, Evidence } from './grounding-engine';
@@ -525,6 +525,7 @@ function generateNextBestActions(factors: ScoreFactor[], context: {
 // ─── LLM Narrative Generation ────────────────────────────────────────────
 
 async function generateScoreNarrative(
+  companyId: string,
   companyName: string,
   score: number,
   grade: ScoreGrade,
@@ -555,21 +556,23 @@ ${renderChainForPrompt(chain)}
 
 Produce a 3-5 sentence score explanation now.`;
 
-    const completion = await ModelRouter.complete({
+    const govResult = await governedAICall({
+      generationType: 'scoring_narrative',
+      companyId,
       systemPrompt,
       userPrompt,
       tier: 'fast',
       maxTokens: 800,
       temperature: 0.6,
-      genType: 'scoring_narrative',
+      enforceGovernance: false, // Scoring is advisory
     });
 
-    if (completion.success && completion.text.trim().length > 20) {
+    if (govResult.success && (govResult.response ?? '').trim().length > 20) {
       return {
-        narrative: completion.text.trim(),
-        modelUsed: completion.modelUsed,
-        tokensUsed: completion.totalTokens,
-        costUsd: completion.costUsd,
+        narrative: govResult.response!.trim(),
+        modelUsed: 'governed',
+        tokensUsed: 0,
+        costUsd: 0,
       };
     }
   } catch (err) {
@@ -729,7 +732,7 @@ export const ScoringEngine = {
 
     if (!skipNarrative && allFactors.length >= 2) {
       const narrResult = await generateScoreNarrative(
-        companyName, score, grade, allFactors, chain
+        companyId, companyName, score, grade, allFactors, chain
       );
       narrative = narrResult.narrative;
       if (narrResult.modelUsed !== 'none') {

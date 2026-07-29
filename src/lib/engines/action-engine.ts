@@ -35,7 +35,7 @@
  * Returns ActionResult with success:boolean + error:string|null.
  */
 
-import { ModelRouter } from './model-router';
+import { governedAICall } from '@/lib/ai-governance';
 import { GroundingEngine, renderChainForPrompt } from './grounding-engine';
 import { RetrievalEngine } from './retrieval-engine';
 import { ScoringEngine } from './scoring-engine';
@@ -451,6 +451,7 @@ function detectSalesMotion(
 // ─── LLM Strategy Narrative ──────────────────────────────────────────────
 
 async function generateStrategyNarrative(
+  companyId: string,
   companyName: string,
   actions: RecommendedAction[],
   chain: EvidenceChain,
@@ -485,22 +486,23 @@ ${renderChainForPrompt(chain)}
 
 Produce a 4-6 sentence account strategy now.`;
 
-    const completion = await ModelRouter.complete({
+    const govResult = await governedAICall({
+      generationType: 'action_strategy',
+      companyId,
       systemPrompt,
       userPrompt,
       tier: 'smart',
       maxTokens: 1500,
       temperature: 0.7,
-      genType: 'action_strategy',
-      companyId: undefined,
+      enforceGovernance: false,
     });
 
-    if (completion.success && completion.text.trim().length > 30) {
+    if (govResult.success && (govResult.response ?? '').trim().length > 30) {
       return {
-        narrative: completion.text.trim(),
-        modelUsed: completion.modelUsed,
-        tokensUsed: completion.totalTokens,
-        costUsd: completion.costUsd,
+        narrative: govResult.response!.trim(),
+        modelUsed: 'governed',
+        tokensUsed: 0,
+        costUsd: 0,
       };
     }
   } catch (err) {
@@ -629,7 +631,7 @@ export const ActionEngine = {
 
     if (!skipNarrative && actions.length >= 2) {
       const narrResult = await generateStrategyNarrative(
-        companyName, actions, chain, currentScore, detectedSalesMotion
+        companyId, companyName, actions, chain, currentScore, detectedSalesMotion
       );
       strategyNarrative = narrResult.narrative;
       if (narrResult.modelUsed !== 'none') {

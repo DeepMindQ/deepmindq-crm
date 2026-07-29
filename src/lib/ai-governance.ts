@@ -814,6 +814,12 @@ interface GovernedAICallParams {
    *  Set to false for non-company-specific routes (insights, recommendations, score-leads)
    *  where governance is advisory only. */
   enforceGovernance?: boolean;
+  /** LLM tier override ('fast' | 'smart' | 'deep'). Default: 'smart'. */
+  tier?: 'fast' | 'smart' | 'deep';
+  /** Max tokens override. Default: 4096. */
+  maxTokens?: number;
+  /** Temperature override. Default: 0.7. */
+  temperature?: number;
   /** Evidence IDs used for audit trail */
   evidenceIds?: string[];
   /** Signal IDs used for audit trail */
@@ -955,10 +961,10 @@ export async function governedAICall(
     const result = await ModelRouter.complete({
       systemPrompt: governedSystemPrompt,
       userPrompt: governedUserPrompt,
-      tier: 'smart',
+      tier: params.tier || 'smart',
       genType: generationType || 'governed_ai_call',
-      maxTokens: 4096,
-      temperature: 0.7,
+      maxTokens: params.maxTokens || 4096,
+      temperature: params.temperature ?? 0.7,
       companyId,
       contactId,
     });
@@ -1035,6 +1041,12 @@ export async function governedAICallAggregate(params: {
   systemPrompt: string;
   userPrompt: string;
   inputParams?: Record<string, unknown>;
+  /** LLM tier override. Default: 'smart'. */
+  tier?: 'fast' | 'smart' | 'deep';
+  /** Max tokens override. Default: 4096. */
+  maxTokens?: number;
+  /** Temperature override. Default: 0.7. */
+  temperature?: number;
 }): Promise<GovernedAIResult> {
   const { generationType, systemPrompt, userPrompt, inputParams } = params;
 
@@ -1061,10 +1073,10 @@ export async function governedAICallAggregate(params: {
     const result = await ModelRouter.complete({
       systemPrompt: governedSystemPrompt,
       userPrompt,
-      tier: 'smart',
+      tier: params.tier || 'smart',
       genType: generationType || 'governed_aggregate_call',
-      maxTokens: 4096,
-      temperature: 0.7,
+      maxTokens: params.maxTokens || 4096,
+      temperature: params.temperature ?? 0.7,
     });
     if (!result.success) throw new Error(result.error ?? 'ModelRouter failed');
     response = result.text;

@@ -33,6 +33,7 @@ import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
 import { EvidenceBadge } from '@/components/enterprise/EvidenceBadge';
 import { getHealthVariant } from '@/lib/constants';
 import type { Contact, ContactNote, Draft, EmailHealthCheck } from '@/lib/types';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    Constants
@@ -163,7 +164,7 @@ export default function ContactDetailScreen() {
         body: JSON.stringify({ briefingType: 'meeting_prep', skipNarrative: true }),
       });
       if (res.ok) setBriefing(await res.json());
-    } catch (err) { console.error('[briefing] failed:', err); }
+    } catch (err) { logger.error('[briefing] failed:', { error: err }); }
     finally { setBriefingLoading(false); }
   };
 

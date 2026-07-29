@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    POST /api/seed/gold-standard
@@ -823,7 +824,7 @@ export async function POST() {
       message: 'Gold Standard Account created. Open Microsoft Corporation in the Intelligence OS to validate.',
     });
   } catch (error) {
-    console.error('[gold-standard-seed] Error:', error);
+    logger.error('[gold-standard-seed] Error:', { error: error });
     return NextResponse.json(
       { success: false, error: 'Failed to create Gold Standard Account', details: String(error) },
       { status: 500 }

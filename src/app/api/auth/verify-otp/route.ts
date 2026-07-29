@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
+import { logger } from '@/lib/logger';
 
 // ═══════════════════════════════════════════════════════════════
 // Single-User OTP Verification — DeepMindQ Enterprise
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest) {
       user: { id: 'shanker-001', email: normalizedEmail },
     });
   } catch (error) {
-    console.error('[auth/verify-otp] Error:', error);
+    logger.error('[auth/verify-otp] Error:', { error: error });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

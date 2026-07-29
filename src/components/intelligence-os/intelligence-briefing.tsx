@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    Intelligence Briefing
@@ -68,7 +69,7 @@ export function IntelligenceBriefing() {
           totalCapabilities: capabilities.length,
         });
       } catch (err) {
-        console.error('Briefing fetch error:', err);
+        logger.error('Briefing fetch error:', { error: err });
       } finally {
         setLoading(false);
       }

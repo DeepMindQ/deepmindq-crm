@@ -4,6 +4,7 @@ import { verifyOtp, type OtpPurpose } from '@/lib/otp';
 import { requireAuth, AuthError } from '@/lib/session';
 import { db } from '@/lib/db';
 import { sanitizeString } from '@/lib/sanitize';
+import { logger } from '@/lib/logger';
 
 const schema = z.object({
   email: z.string().email(),
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error('[auth/update-profile] Error:', error);
+    logger.error('[auth/update-profile] Error:', { error: error });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

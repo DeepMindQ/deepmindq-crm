@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { Prisma, DraftStatus } from '@prisma/client';
 import { generateEmailDraft } from '@/lib/email-generation';
 import { generateMessageId, signQueueId } from '@/lib/email-tracking';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    Demo drafts — shown when no real DB data exists
@@ -91,7 +92,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(drafts);
   } catch (error) {
-    console.error('Drafts GET error:', error);
+    logger.error('Drafts GET error:', { error: error });
     let filtered = DEMO_DRAFTS;
     const url = new URL(request.url);
     const status = url.searchParams.get('status') || '';
@@ -219,7 +220,7 @@ export async function POST(request: Request) {
           contactIdResult = newContact.id;
         }
       } catch (dbErr) {
-        console.log('DB contact creation skipped (demo mode):', dbErr instanceof Error ? dbErr.message : '');
+        logger.info('DB contact creation skipped (demo mode):', { error: dbErr instanceof Error ? dbErr.message : '' });
       }
 
       // Save draft to DB
@@ -405,7 +406,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error('Draft generation error:', error);
+    logger.error('Draft generation error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to generate draft: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
@@ -592,7 +593,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({ success: true, draft });
   } catch (error) {
-    console.error('Draft PATCH error:', error);
+    logger.error('Draft PATCH error:', { error: error });
     return NextResponse.json({ error: 'Failed to update draft' }, { status: 500 });
   }
 }
@@ -614,7 +615,7 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Draft DELETE error:', error);
+    logger.error('Draft DELETE error:', { error: error });
     return NextResponse.json({ error: 'Failed to delete draft' }, { status: 500 });
   }
 }

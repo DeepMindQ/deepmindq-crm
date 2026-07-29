@@ -17,6 +17,7 @@
 
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
+import { logger } from '@/lib/logger';
 
 export async function POST(request: Request) {
   const startTime = Date.now()
@@ -178,7 +179,7 @@ export async function POST(request: Request) {
         severity: s.severity,
       }))
     } catch (err) {
-      console.warn('[unified] Internal memory extraction failed:', err instanceof Error ? err.message : err)
+      logger.warn('[unified] Internal memory extraction failed:', { error: err instanceof Error ? err.message : err })
     }
 
     // Calculate intelligence balance
@@ -337,7 +338,7 @@ export async function POST(request: Request) {
     return NextResponse.json(response)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
-    console.error('[unified] Query error:', message)
+    logger.error('[unified] Query error:', { detail: message })
     return NextResponse.json(
       { error: `Unified intelligence query failed: ${message}` },
       { status: 500 },

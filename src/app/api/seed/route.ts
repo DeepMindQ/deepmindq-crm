@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 export async function POST() {
   try {
@@ -581,7 +582,7 @@ export async function POST() {
       },
     });
   } catch (error) {
-    console.error('Seed error:', error);
+    logger.error('Seed error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to seed database', details: String(error) },
       { status: 500 }

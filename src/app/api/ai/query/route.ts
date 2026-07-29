@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { extractJSON } from '@/lib/llm-client'
 import { ModelRouter } from '@/lib/engines/model-router'
+import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // LLM helper — routed through ModelRouter (Phase 2.2)
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
       })
     } catch (llmErr: unknown) {
       const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-      console.error('[ai/query] LLM call failed:', msg)
+      logger.error('[ai/query] LLM call failed:', { detail: msg })
       // Fall through to empty result
     }
 
@@ -217,7 +218,7 @@ async function executeQuery(
     }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.error(`[ai/query] Prisma query failed: ${msg}`)
+    logger.error(`[ai/query] Prisma query failed: ${msg}`)
   }
 
   return {

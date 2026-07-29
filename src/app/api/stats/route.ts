@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -12,7 +13,7 @@ export async function GET() {
     ]);
     return NextResponse.json({ totalLeads, drafts, sent, companies, capabilities });
   } catch (error) {
-    console.error('Stats error:', error);
+    logger.error('Stats error:', { error: error });
     return NextResponse.json({ totalLeads: 0, drafts: 0, sent: 0, companies: 0, capabilities: 0 });
   }
 }

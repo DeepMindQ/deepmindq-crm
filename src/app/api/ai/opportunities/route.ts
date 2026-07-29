@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { sdkWebSearch } from '@/lib/llm-client'
 import { ModelRouter } from '@/lib/engines/model-router'
+import { logger } from '@/lib/logger';
 
 /* ── In-memory cache (1 hour TTL) ── */
 let cachedResult: { data: OpportunitiesResponse; ts: number } | null = null
@@ -289,7 +290,7 @@ Only include companies with matchScore >= 40. Sort by matchScore descending.`
     return apiSuccess(response)
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error)
-    console.error('[ai/opportunities] Failed:', msg)
+    logger.error('[ai/opportunities] Failed:', { detail: msg })
 
     // Return stale cache on failure if available
     if (cachedResult) {

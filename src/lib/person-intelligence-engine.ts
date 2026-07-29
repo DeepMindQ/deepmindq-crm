@@ -24,6 +24,7 @@ import { calculateLeadScore } from '@/lib/lead-scoring';
 import { scoreContactInfluence, type ContactInfluenceScore } from '@/lib/scoring/contact-influence-engine';
 import { buildEvidenceOutput, evidence, buildScoreBreakdown, factor, persistScoreAsInsight } from '@/lib/ai-evidence-framework';
 import { assessHallucinationRisk, assessFreshness, calibrateConfidence, trackGeneration } from '@/lib/ai-reliability';
+import { logger } from '@/lib/logger';
 
 // ── Types ──
 
@@ -294,7 +295,7 @@ export async function buildPersonProfile(contactId: string): Promise<PersonIntel
   try {
     influenceScore = await scoreContactInfluence(contactId);
   } catch {
-    console.warn(`[person-intel] Failed to score influence for ${contactId}`);
+    logger.warn(`[person-intel] Failed to score influence for ${contactId}`);
   }
 
   // ── 3. Detected Priorities ──
@@ -423,7 +424,7 @@ export async function buildPersonProfile(contactId: string): Promise<PersonIntel
       },
     });
   } catch (e) {
-    console.warn('[person-intel] Failed to persist insight:', e);
+    logger.warn('[person-intel] Failed to persist insight:', { error: e });
   }
 
   // ── 12. Track reliability ──
@@ -501,7 +502,7 @@ export async function buildCompanyPersonProfiles(
       const profile = await buildPersonProfile(c.id);
       profiles.push(profile);
     } catch (err) {
-      console.warn(`[person-intel] Failed to profile contact ${c.id}:`, err);
+      logger.warn(`[person-intel] Failed to profile contact ${c.id}:`, { error: err });
     }
   }
 

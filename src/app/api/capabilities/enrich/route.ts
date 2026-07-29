@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { ModelRouter } from '@/lib/engines/model-router';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    POST /api/capabilities/enrich
@@ -138,7 +139,7 @@ CRITICAL: Respond with valid JSON only. Format:
         assets,
       });
     } catch (err) {
-      console.error('AI enrichment failed:', err);
+      logger.error('AI enrichment failed:', { error: err });
       return NextResponse.json({
         success: false,
         error: 'AI extraction failed: ' + (err instanceof Error ? err.message : 'Unknown'),
@@ -147,7 +148,7 @@ CRITICAL: Respond with valid JSON only. Format:
       }, { status: 500 });
     }
   } catch (error) {
-    console.error('Enrich error:', error);
+    logger.error('Enrich error:', { error: error });
     return NextResponse.json({ error: 'Enrichment failed' }, { status: 500 });
   }
 }

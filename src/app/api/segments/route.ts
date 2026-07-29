@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    L-04: Lead Segments API
@@ -109,7 +110,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Segments GET error:', error);
+    logger.error('Segments GET error:', { error: error });
     return NextResponse.json({ error: 'Failed to load segments' }, { status: 500 });
   }
 }
@@ -163,7 +164,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, segment, contactCount });
   } catch (error) {
-    console.error('Segment create error:', error);
+    logger.error('Segment create error:', { error: error });
     return NextResponse.json({ error: 'Failed to create segment' }, { status: 500 });
   }
 }
@@ -211,7 +212,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ success: true, segment });
   } catch (error) {
-    console.error('Segment update error:', error);
+    logger.error('Segment update error:', { error: error });
     return NextResponse.json({ error: 'Failed to update segment' }, { status: 500 });
   }
 }
@@ -232,7 +233,7 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Segment delete error:', error);
+    logger.error('Segment delete error:', { error: error });
     return NextResponse.json({ error: 'Failed to delete segment' }, { status: 500 });
   }
 }

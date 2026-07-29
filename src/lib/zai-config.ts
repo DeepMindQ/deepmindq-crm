@@ -12,6 +12,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
+import { logger } from '@/lib/logger';
 
 let ensured = false;
 
@@ -44,7 +45,7 @@ export async function ensureZaiConfig(): Promise<void> {
     for (const p of writePaths) {
       try {
         await fs.writeFile(p, configStr);
-        console.log(`[zai-config] Written from environment variables to ${p}`);
+        logger.info(`[zai-config] Written from environment variables to ${p}`);
         break;
       } catch {
         // Try next path
@@ -74,6 +75,6 @@ export async function ensureZaiConfig(): Promise<void> {
     }
   }
 
-  console.error('[zai-config] No config found — neither env vars nor .z-ai-config file');
+  logger.error('[zai-config] No config found — neither env vars nor .z-ai-config file');
   ensured = true;
 }

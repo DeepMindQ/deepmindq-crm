@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { createInsights } from '@/lib/ai-insight-service';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error('[contact-engagement] Error:', error);
+    logger.error('[contact-engagement] Error:', { error: error });
     return apiError('Failed to compute engagement analytics', 500);
   }
 }

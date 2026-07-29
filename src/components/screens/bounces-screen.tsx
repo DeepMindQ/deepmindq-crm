@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Ban, ShieldOff, Trash2, AlertTriangle, TrendingDown, ShieldAlert } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface BounceEntry {
   id: string;
@@ -85,7 +86,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
         body: JSON.stringify({ id }),
       });
       setSuppressions(prev => prev.filter(s => s.id !== id));
-    } catch (err) { console.error('[Bounces] remove suppression failed:', err); }
+    } catch (err) { logger.error('[Bounces] remove suppression failed:', { error: err }); }
   };
 
   const hardBounces = bounces.filter(b => b.bounceType === 'hard').length;

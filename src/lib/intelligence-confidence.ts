@@ -14,6 +14,7 @@
 import { Prisma } from '@prisma/client';
 import type { Prisma as PrismaNS } from '@prisma/client';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export interface ConfidenceBreakdown {
   signalQuality: number;    // 0-100
@@ -172,7 +173,7 @@ export async function backfillConfidenceBreakdowns(): Promise<number> {
       });
       updated++;
     } catch (err) {
-      console.error(`[intelligence-confidence] Failed for ${rec.id}:`, err);
+      logger.error(`[intelligence-confidence] Failed for ${rec.id}:`, { error: err });
     }
   }
 

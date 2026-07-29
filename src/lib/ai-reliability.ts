@@ -13,6 +13,7 @@
  */
 
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 // ── Types ──
 
@@ -154,7 +155,7 @@ export async function recordGeneration(params: {
     });
   } catch (err) {
     // Don't let reliability tracking failures block AI operations
-    console.warn('[ai-reliability] Failed to persist generation record:', err);
+    logger.warn('[ai-reliability] Failed to persist generation record:', { error: err });
   }
 }
 

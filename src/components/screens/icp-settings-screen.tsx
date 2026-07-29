@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 import {
   Target,
   Building2,
@@ -220,7 +221,7 @@ export default function ICPSettingsScreen() {
           maxEmployeeCount: data.maxEmployeeCount ?? data.maxEmployees ?? undefined,
         });
       } catch (err) {
-        console.error('Failed to fetch ICP profile:', err);
+        logger.error('Failed to fetch ICP profile:', { error: err });
         toast.error('Failed to load ICP configuration');
       } finally {
         setLoading(false);
@@ -266,7 +267,7 @@ export default function ICPSettingsScreen() {
       if (!res.ok) throw new Error('Failed to save ICP profile');
       toast.success('ICP configuration saved successfully');
     } catch (err) {
-      console.error('Failed to save ICP profile:', err);
+      logger.error('Failed to save ICP profile:', { error: err });
       toast.error('Failed to save ICP configuration');
     } finally {
       setSaving(false);
@@ -299,7 +300,7 @@ export default function ICPSettingsScreen() {
       });
       toast.success('ICP configuration reset to defaults and persisted');
     } catch (err) {
-      console.error('Failed to reset ICP profile:', err);
+      logger.error('Failed to reset ICP profile:', { error: err });
       toast.error('Failed to reset ICP configuration');
     } finally {
       setResetting(false);

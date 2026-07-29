@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET /api/templates
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(templates);
   } catch (error) {
-    console.error('Templates GET error:', error);
+    logger.error('Templates GET error:', { error: error });
     return NextResponse.json([]);
   }
 }
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, template });
   } catch (error) {
-    console.error('Templates POST error:', error);
+    logger.error('Templates POST error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to create template: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
@@ -113,7 +114,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ success: true, template });
   } catch (error) {
-    console.error('Templates PUT error:', error);
+    logger.error('Templates PUT error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to update template: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
@@ -141,7 +142,7 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Templates DELETE error:', error);
+    logger.error('Templates DELETE error:', { error: error });
     return NextResponse.json({ error: 'Failed to delete template' }, { status: 500 });
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers';
 import { getZAI, sdkWebSearch } from '@/lib/llm-client';
+import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -217,7 +218,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to generate conversation plan';
-    console.error('[conversation-plan] Error:', message);
+    logger.error('[conversation-plan] Error:', { detail: message });
 
     // Graceful fallback: return a generic but useful plan
     return apiError(message, 500);

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess, safeInt, validateBody, sanitize } from "@/lib/apiHelpers";
 import { createOpportunitySchema } from "@/lib/validations";
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Failed to fetch opportunities:", error);
+    logger.error("Failed to fetch opportunities:", { error: error });
     return apiError("Failed to fetch opportunities", 500);
   }
 }
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess(opportunity, 201);
   } catch (error) {
-    console.error("Failed to create opportunity:", error);
+    logger.error("Failed to create opportunity:", { error: error });
     return apiError("Failed to create opportunity", 500);
   }
 }

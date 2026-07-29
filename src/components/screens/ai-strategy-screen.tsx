@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 
 /* ── Types ── */
 
@@ -140,7 +141,7 @@ export default function AIStrategyScreen() {
         }
       }
     } catch (err) {
-      console.error('Failed to fetch data:', err);
+      logger.error('Failed to fetch data:', { error: err });
     } finally {
       setLoadingData(false);
     }

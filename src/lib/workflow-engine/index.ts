@@ -5,6 +5,7 @@
  */
 
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 // Re-export everything
 export * from './queue';
@@ -36,7 +37,7 @@ export async function logJobEvent(
     });
   } catch (err) {
     // Don't let logging failures break the job pipeline
-    console.error(`[workflow] Failed to log job event:`, err);
+    logger.error(`[workflow] Failed to log job event:`, { error: err });
   }
 }
 

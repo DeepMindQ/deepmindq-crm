@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { ModelRouter } from '@/lib/engines/model-router';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    COMMAND CENTER — Personalized Morning Intelligence Brief
@@ -342,7 +343,7 @@ export async function GET() {
         brief = await generateMorningBrief(data);
         aiCache = { data: brief, ts: Date.now() };
       } catch (aiError) {
-        console.error('[Command Center] AI morning brief failed, returning rule-based fallback:', aiError);
+        logger.error('[Command Center] AI morning brief failed, returning rule-based fallback:', { error: aiError });
 
         // Rule-based fallback
         const userName = data.user?.name || 'User';
@@ -391,7 +392,7 @@ export async function GET() {
 
     return NextResponse.json(brief);
   } catch (error) {
-    console.error('[Command Center]', error);
+    logger.error('[Command Center]', { error: error });
     return NextResponse.json({ error: 'Failed to generate morning brief' }, { status: 500 });
   }
 }

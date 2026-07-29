@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logAction } from '@/lib/audit';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    POST /api/leads/consent
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, contact: updated });
   } catch (error) {
-    console.error('Consent error:', error);
+    logger.error('Consent error:', { error: error });
     return NextResponse.json({ error: 'Failed to update consent' }, { status: 500 });
   }
 }

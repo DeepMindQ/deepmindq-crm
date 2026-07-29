@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
 import {
   scoreRevenueOpportunity,
   scoreRevenueOpportunities,
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
-    console.error('[ai/revenue-score] Error:', error);
+    logger.error('[ai/revenue-score] Error:', { error: error });
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
   }

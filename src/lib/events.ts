@@ -10,6 +10,8 @@
    to notify listeners (e.g. real-time UI updates, webhooks).
    ═══════════════════════════════════════════════════════════════ */
 
+import { logger } from '@/lib/logger';
+
 type EventCallback = (data: any) => void;
 
 class ScoreEventBus {
@@ -28,7 +30,7 @@ class ScoreEventBus {
         try {
           cb(data);
         } catch (err) {
-          console.error(`[ScoreEventBus] Error in listener for "${event}":`, err);
+          logger.error(`[ScoreEventBus] Error in listener for "${event}":`, { error: err });
         }
       }
     }

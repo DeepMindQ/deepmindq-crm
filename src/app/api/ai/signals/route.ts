@@ -4,6 +4,7 @@ import { apiError, apiSuccess, safeInt } from '@/lib/apiHelpers'
 import { randomUUID } from 'crypto'
 import { sdkWebSearch, type WebSearchResult } from '@/lib/llm-client'
 import { ModelRouter } from '@/lib/engines/model-router'
+import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -334,7 +335,7 @@ async function scanCompany(company: CompanyRow): Promise<ScanCompanyResult> {
       rawResults: allResults,
     }
   } catch (err) {
-    console.error(`[ai/signals] LLM analysis failed for ${company.normalizedName}:`, err instanceof Error ? err.message : err)
+    logger.error(`[ai/signals] LLM analysis failed for ${company.normalizedName}:`, { error: err instanceof Error ? err.message : err })
     return { signals: [], rawResults: allResults }
   }
 }
@@ -368,7 +369,7 @@ async function persistSignalsToDb(signals: ParsedSignal[]): Promise<void> {
       status: 'detected',
     })),
   })
-  console.log(`[ai/signals] Persisted ${signals.length} signals to CompanySignal with Intelligence Object fields`)
+  logger.info(`[ai/signals] Persisted ${signals.length} signals to CompanySignal with Intelligence Object fields`)
 }
 
 // ---------------------------------------------------------------------------
@@ -432,7 +433,7 @@ export async function GET(request: NextRequest) {
           })
         }
       } else {
-        console.error('[ai/signals] Company scan failed:', result.reason instanceof Error ? result.reason.message : result.reason)
+        logger.error('[ai/signals] Company scan failed:', { data: result.reason instanceof Error ? result.reason.message : result.reason })
       }
     }
 
@@ -449,13 +450,13 @@ export async function GET(request: NextRequest) {
     // Wave 8A: Persist signals to CompanySignal with Intelligence Object fields (fire-and-forget)
     if (allSignals.length > 0) {
       persistSignalsToDb(allSignals).catch(err => {
-        console.error('[ai/signals] Signal persistence failed:', err instanceof Error ? err.message : err)
+        logger.error('[ai/signals] Signal persistence failed:', { error: err instanceof Error ? err.message : err })
       })
     }
 
     return apiSuccess(response)
   } catch (err) {
-    console.error('[ai/signals] Unhandled error:', err instanceof Error ? err.message : err)
+    logger.error('[ai/signals] Unhandled error:', { error: err instanceof Error ? err.message : err })
 
     // If we had a partial result from cache, return it as a fallback
     const stale = getStaleCache(companyId, limit)

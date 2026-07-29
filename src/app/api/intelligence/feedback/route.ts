@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { recordSignalFeedback, computeLearningInsights } from '@/lib/intelligence-sources/learning-loop';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
     await recordSignalFeedback({ signalId, companyId, type, userId, comment });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('[feedback] Error:', error);
+    logger.error('[feedback] Error:', { error: error });
     return NextResponse.json({ error: 'Feedback recording failed' }, { status: 500 });
   }
 }
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
     const insights = await computeLearningInsights(companyId || undefined);
     return NextResponse.json({ insights });
   } catch (error) {
-    console.error('[feedback] Error:', error);
+    logger.error('[feedback] Error:', { error: error });
     return NextResponse.json({ error: 'Learning insights failed' }, { status: 500 });
   }
 }

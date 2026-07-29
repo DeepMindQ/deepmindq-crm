@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    L-06: Lead Deduplication & Merge
@@ -95,7 +96,7 @@ export async function GET() {
 
     return NextResponse.json({ groups, total: groups.length });
   } catch (error) {
-    console.error('Dedup scan error:', error);
+    logger.error('Dedup scan error:', { error: error });
     return NextResponse.json({ error: 'Failed to find duplicates' }, { status: 500 });
   }
 }
@@ -192,7 +193,7 @@ export async function POST(request: Request) {
       primary: updated,
     });
   } catch (error) {
-    console.error('Merge error:', error);
+    logger.error('Merge error:', { error: error });
     return NextResponse.json({ error: 'Merge failed' }, { status: 500 });
   }
 }

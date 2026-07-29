@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { apiError, apiSuccess, safeInt, validateBody, sanitize } from "@/lib/apiHelpers";
 import { createTimelineSchema } from "@/lib/validations";
 import { TIMELINE_ACTIONS } from "@/lib/constants";
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     return apiSuccess(entries);
   } catch (error) {
-    console.error("Failed to fetch timeline:", error);
+    logger.error("Failed to fetch timeline:", { error: error });
     return apiError("Failed to fetch timeline", 500);
   }
 }
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess(entry, 201);
   } catch (error) {
-    console.error("Failed to create timeline entry:", error);
+    logger.error("Failed to create timeline entry:", { error: error });
     return apiError("Failed to create timeline entry", 500);
   }
 }

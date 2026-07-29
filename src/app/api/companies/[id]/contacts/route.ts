@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET(
   _request: Request,
@@ -15,7 +16,7 @@ export async function GET(
 
     return NextResponse.json({ contacts });
   } catch (error) {
-    console.error('Company contacts error:', error);
+    logger.error('Company contacts error:', { error: error });
     return NextResponse.json({ error: 'Failed to load company contacts' }, { status: 500 });
   }
 }

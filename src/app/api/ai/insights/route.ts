@@ -53,6 +53,7 @@ interface PipelineStats {
 
 import { sdkWebSearch } from '@/lib/llm-client'
 import { ModelRouter } from '@/lib/engines/model-router'
+import { logger } from '@/lib/logger';
 
 /**
  * Fetch live industry trend context via web search.
@@ -524,7 +525,7 @@ async function fetchRecentInsights(limit: number) {
       modelUsed: r.modelUsed,
     }))
   } catch (dbErr) {
-    console.warn('[AI Insights] recent insights fetch failed:', dbErr)
+    logger.warn('[AI Insights] recent insights fetch failed:', { error: dbErr })
     return []
   }
 }
@@ -555,7 +556,7 @@ export async function GET(request: Request) {
         data = await buildAIInsights(stats, trendContext)
       } catch (aiError) {
         // Fallback to rule-based if AI fails for any reason
-        console.warn('[AI Insights] AI generation failed, falling back to rules:', aiError)
+        logger.warn('[AI Insights] AI generation failed, falling back to rules:', { error: aiError })
         data = buildRuleBasedInsights(stats)
       }
 
@@ -568,7 +569,7 @@ export async function GET(request: Request) {
 
     return apiSuccess({ ...data, recentInsights })
   } catch (error) {
-    console.error('Failed to generate AI insights:', error)
+    logger.error('Failed to generate AI insights:', { error: error })
     return apiError('Failed to generate AI insights', 500)
   }
 }

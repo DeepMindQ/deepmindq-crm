@@ -16,6 +16,7 @@
 import { db } from '@/lib/db'
 import { webSearch } from '@/lib/llm-client'
 import { ModelRouter } from '@/lib/engines/model-router'
+import { logger } from '@/lib/logger';
 
 export interface CompetitiveIntelResult {
   competitorName: string
@@ -51,7 +52,7 @@ export async function collectCompetitiveIntel(competitorName: string): Promise<C
       snippet: r.snippet || r.content || '',
     }))
   } catch (err) {
-    console.warn(`[competitive-intel] Search failed for ${competitorName}:`, err)
+    logger.warn(`[competitive-intel] Search failed for ${competitorName}:`, { error: err })
     return []
   }
 
@@ -90,7 +91,7 @@ Extract competitive events as JSON array:
     const match = cleaned.match(/\[[\s\S]*\]/)
     if (match) events = JSON.parse(match[0])
   } catch (err) {
-    console.warn(`[competitive-intel] AI extraction failed for ${competitorName}:`, err)
+    logger.warn(`[competitive-intel] AI extraction failed for ${competitorName}:`, { error: err })
     return []
   }
 
@@ -149,7 +150,7 @@ What should the sales team do for each affected account? Be specific and actiona
     })
   }
 
-  console.log(`[competitive-intel] Collected ${results.length} events for ${competitorName} in ${Date.now() - startTime}ms`)
+  logger.info(`[competitive-intel] Collected ${results.length} events for ${competitorName} in ${Date.now() - startTime}ms`)
   return results
 }
 
@@ -227,7 +228,7 @@ export async function runCompetitiveScan(): Promise<CompetitiveIntelResult[]> {
       const results = await collectCompetitiveIntel(competitor)
       allResults.push(...results)
     } catch (err) {
-      console.warn(`[competitive-intel] Failed for ${competitor}:`, err)
+      logger.warn(`[competitive-intel] Failed for ${competitor}:`, { error: err })
     }
   }
 

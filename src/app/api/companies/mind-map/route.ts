@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    Company Mind Map API — Clean Tree Hierarchy
@@ -178,7 +179,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error('[Mind Map API]', error);
+    logger.error('[Mind Map API]', { error: error });
     return NextResponse.json({ error: 'Failed to build mind map' }, { status: 500 });
   }
 }

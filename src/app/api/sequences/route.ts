@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET /api/sequences
@@ -37,7 +38,7 @@ export async function GET() {
 
     return NextResponse.json(enriched);
   } catch (error) {
-    console.error('Sequences GET error:', error);
+    logger.error('Sequences GET error:', { error: error });
     return NextResponse.json([]);
   }
 }
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, sequence });
   } catch (error) {
-    console.error('Sequences POST error:', error);
+    logger.error('Sequences POST error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to create sequence: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
@@ -130,7 +131,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ success: true, sequence });
   } catch (error) {
-    console.error('Sequences PUT error:', error);
+    logger.error('Sequences PUT error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to update sequence: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
@@ -164,7 +165,7 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Sequences DELETE error:', error);
+    logger.error('Sequences DELETE error:', { error: error });
     return NextResponse.json({ error: 'Failed to archive sequence' }, { status: 500 });
   }
 }

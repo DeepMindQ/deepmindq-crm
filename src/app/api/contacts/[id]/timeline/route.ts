@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET /api/contacts/[id]/timeline
@@ -265,7 +266,7 @@ export async function GET(
       timeline,
     });
   } catch (error) {
-    console.error('Timeline error:', error);
+    logger.error('Timeline error:', { error: error });
     return NextResponse.json({ error: 'Failed to load timeline' }, { status: 500 });
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { createInsights } from '@/lib/ai-insight-service';
+import { logger } from '@/lib/logger';
 
 // Stage-specific coaching config
 const STAGE_COACHING: Record<string, {
@@ -208,14 +209,14 @@ export async function GET(request: NextRequest) {
             expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
           }]);
         } catch (e) {
-          console.warn('[deal-coaching] Failed to persist insight:', e);
+          logger.warn('[deal-coaching] Failed to persist insight:', { error: e });
         }
       }
     }
 
     return apiSuccess(pursuitId ? coachingResults[0] : coachingResults);
   } catch (error) {
-    console.error('[ai/deal-coaching] Error:', error);
+    logger.error('[ai/deal-coaching] Error:', { error: error });
     return apiError('Failed to generate deal coaching', 500);
   }
 }

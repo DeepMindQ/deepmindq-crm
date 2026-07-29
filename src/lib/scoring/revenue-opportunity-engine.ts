@@ -27,6 +27,7 @@ import { scoreContactInfluence, type ContactInfluenceScore } from './contact-inf
 import { scoreOpportunity, type OpportunityProbability } from './opportunity-probability-engine';
 import { scoreBuyingIntent, type BuyingIntentScore } from './buying-intent-engine';
 import { getCachedScoringConfig } from '@/lib/scoring-config';
+import { logger } from '@/lib/logger';
 
 // ── Types ──
 
@@ -317,7 +318,7 @@ export async function scoreRevenueOpportunity(
       }
     }
   } catch (err) {
-    console.warn('[revenue-score] Contact influence scoring failed:', err);
+    logger.warn('[revenue-score] Contact influence scoring failed:', { error: err });
   }
 
   // ──────────────────────────────────────────────────────────
@@ -364,7 +365,7 @@ export async function scoreRevenueOpportunity(
       }
     }
   } catch (err) {
-    console.warn('[revenue-score] Opportunity probability scoring failed:', err);
+    logger.warn('[revenue-score] Opportunity probability scoring failed:', { error: err });
   }
 
   // ──────────────────────────────────────────────────────────
@@ -393,7 +394,7 @@ export async function scoreRevenueOpportunity(
       evidenceCount += intentResult.topSignals.length;
     }
   } catch (err) {
-    console.warn('[revenue-score] Buying intent scoring failed:', err);
+    logger.warn('[revenue-score] Buying intent scoring failed:', { error: err });
   }
 
   // ──────────────────────────────────────────────────────────
@@ -503,7 +504,7 @@ export async function scoreRevenueOpportunities(
       const score = await scoreRevenueOpportunity(id);
       results.push(score);
     } catch (err) {
-      console.warn(`[revenue-score] Failed to score company ${id}:`, err);
+      logger.warn(`[revenue-score] Failed to score company ${id}:`, { error: err });
     }
   }
   return results.sort((a, b) => b.opportunityScore - a.opportunityScore);

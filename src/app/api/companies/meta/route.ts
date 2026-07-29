@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/apiHelpers";
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -27,7 +28,7 @@ export async function GET() {
       countries: countries.map((c) => c.country).filter(Boolean) as string[],
     });
   } catch (error) {
-    console.error("Failed to fetch filter metadata:", error);
+    logger.error("Failed to fetch filter metadata:", { error: error });
     return apiError("Failed to fetch filter metadata", 500);
   }
 }

@@ -171,9 +171,9 @@ export async function callAI(options: CallAIOptions): Promise<CallAIResult> {
       let quality: QualityReport | undefined
       if (runQualityCheck && parsed) {
         quality = runQualityGates(parsed, previousVerdict)
-        console.log(formatQualityReportForLog(quality))
+        logger.info(formatQualityReportForLog(quality))
         if (quality?.overallStatus === 'fail') {
-          console.warn(`[llm-client] Quality gate FAILED for feature="${feature}". Score: ${quality?.overallScore}`)
+          logger.warn(`[llm-client] Quality gate FAILED for feature="${feature}". Score: ${quality?.overallScore}`)
         }
       }
 
@@ -183,7 +183,7 @@ export async function callAI(options: CallAIOptions): Promise<CallAIResult> {
       return { raw, parsed, quality, success: true, latencyMs }
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err)
-      console.error(`[llm-client] callAI attempt ${attempt + 1}/${maxRetries + 1} failed for feature="${feature}": ${lastError}`)
+      logger.error(`[llm-client] callAI attempt ${attempt + 1}/${maxRetries + 1} failed for feature="${feature}": ${lastError}`)
 
       if (attempt < maxRetries) {
         const backoffMs = Math.min(1000 * Math.pow(2, attempt), 5000)
@@ -364,7 +364,7 @@ async function tavilyFetchWithBackoff(body: Record<string, unknown>): Promise<Re
 
       if (response.status === 429 || response.status >= 500) {
         const delay = TAVILY_BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 200
-        console.warn(`[tavily] ${response.status} on attempt ${attempt + 1}/${TAVILY_MAX_RETRIES}, retrying in ${Math.round(delay)}ms`)
+        logger.warn(`[tavily] ${response.status} on attempt ${attempt + 1}/${TAVILY_MAX_RETRIES}, retrying in ${Math.round(delay)}ms`)
         await new Promise(resolve => setTimeout(resolve, delay))
         continue
       }
@@ -373,7 +373,7 @@ async function tavilyFetchWithBackoff(body: Record<string, unknown>): Promise<Re
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err))
       const delay = TAVILY_BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 200
-      console.warn(`[tavily] network error on attempt ${attempt + 1}/${TAVILY_MAX_RETRIES}: ${lastError.message}, retrying in ${Math.round(delay)}ms`)
+      logger.warn(`[tavily] network error on attempt ${attempt + 1}/${TAVILY_MAX_RETRIES}: ${lastError.message}, retrying in ${Math.round(delay)}ms`)
       await new Promise(resolve => setTimeout(resolve, delay))
     }
   }
@@ -384,7 +384,7 @@ async function tavilyFetchWithBackoff(body: Record<string, unknown>): Promise<Re
 export async function webSearch(query: string, num = 10): Promise<WebSearchResult[]> {
   const searchProvider = await getSearchProvider()
   if (!searchProvider) {
-    console.error('[webSearch] No search provider configured. Add Tavily API key in Settings > AI Providers.')
+    logger.error('[webSearch] No search provider configured. Add Tavily API key in Settings > AI Providers.')
     return []
   }
 
@@ -398,12 +398,12 @@ export async function webSearch(query: string, num = 10): Promise<WebSearchResul
     })
 
     if (!response) {
-      console.error('[webSearch] Tavily unavailable after retries')
+      logger.error('[webSearch] Tavily unavailable after retries')
       return []
     }
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('[webSearch] Tavily API error:', response.status, errorText)
+      logger.error('[webSearch] Tavily API error:', { response: response.status, errorText: errorText })
       return []
     }
 
@@ -427,7 +427,7 @@ export async function webSearch(query: string, num = 10): Promise<WebSearchResul
       }
     }).filter(r => r.title || r.url || r.snippet)
   } catch (err) {
-    console.error('[webSearch] failed:', err instanceof Error ? err.message : err)
+    logger.error('[webSearch] failed:', { error: err instanceof Error ? err.message : err })
     return []
   }
 }
@@ -459,7 +459,7 @@ export async function sdkWebSearch(query: string, num = 5): Promise<WebSearchRes
       })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.error(`[llm-client] SDK web search failed for "${query}": ${msg}`)
+    logger.error(`[llm-client] SDK web search failed for "${query}": ${msg}`)
     return []
   }
 }
@@ -504,7 +504,7 @@ export async function tavilyAIAnswer(query: string): Promise<string> {
     const data = await response.json()
     return data.answer || ''
   } catch (err) {
-    console.warn('[tavilyAIAnswer] failed:', err instanceof Error ? err.message : err)
+    logger.warn('[tavilyAIAnswer] failed:', { error: err instanceof Error ? err.message : err })
     return ''
   }
 }

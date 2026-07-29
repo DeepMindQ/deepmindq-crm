@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    POST /api/sequences/enroll
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
       skipped: alreadyEnrolled.size,
     });
   } catch (error) {
-    console.error('Sequence enroll error:', error);
+    logger.error('Sequence enroll error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to enroll contacts: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }

@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { ModelRouter } from '@/lib/engines/model-router';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    L-03: Company Data Enrichment via AI
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, researchCard });
   } catch (error) {
-    console.error('Company enrichment error:', error);
+    logger.error('Company enrichment error:', { error: error });
     return NextResponse.json({ error: 'Enrichment failed' }, { status: 500 });
   }
 }
@@ -132,7 +133,7 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
       };
     }
   } catch (err) {
-    console.error('AI enrichment failed, using defaults:', err);
+    logger.error('AI enrichment failed, using defaults:', { error: err });
   }
 
   // Fallback defaults

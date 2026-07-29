@@ -23,6 +23,7 @@ import { webSearch, extractJSON, type KeyPerson, type NewsSignal } from '@/lib/l
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { storeEvidenceFromResults, cleanupOldEvidence, linkEvidenceToFields, type FieldConfidence, type RawEvidence } from './evidence';
 import { detectSignals, storeSignals, type DetectedSignal, type SignalDetectionResult } from './signals';
+import { logger } from '@/lib/logger';
 
 // ── Types ──
 
@@ -155,7 +156,7 @@ export async function researchCompany(
       data: { status: 'superseded' },
     });
     if (supersededCount.count > 0) {
-      console.log(`[researcher] Marked ${supersededCount.count} existing evidence records as superseded for ${companyName}`);
+      logger.info(`[researcher] Marked ${supersededCount.count} existing evidence records as superseded for ${companyName}`);
     }
   }
 
@@ -174,7 +175,7 @@ export async function researchCompany(
       await db.evidence.deleteMany({
         where: { id: { in: oldestIds.map(i => i.id) } },
       });
-      console.log(`[researcher] Purged ${oldestIds.length} expired superseded evidence records`);
+      logger.info(`[researcher] Purged ${oldestIds.length} expired superseded evidence records`);
     }
   }
 
@@ -239,7 +240,7 @@ Include C-suite, VPs, Directors, and Heads. Maximum 10. If no people found, retu
       result.keyPeople = keyPeople;
     }
   } catch (err) {
-    console.warn('[researcher] Key people search failed, continuing');
+    logger.warn('[researcher] Key people search failed, continuing');
   }
 
   onProgress?.({ step: 3, label: 'Extracting intelligence', progress: 52, message: `${keyPeople.length} key people found, running AI extraction...` });
@@ -290,7 +291,7 @@ Extract accurate company data as JSON. Ground everything in the search results a
       extractedData = extractJSON(llmResult.response) as Record<string, string> | null;
     }
   } catch (err) {
-    console.warn('[researcher] LLM extraction failed, trying Tavily fallback');
+    logger.warn('[researcher] LLM extraction failed, trying Tavily fallback');
   }
 
   // Fallback: Tavily AI answer
@@ -417,7 +418,7 @@ Extract structured technology and business intelligence as JSON.`;
         }
       }
     } catch (err) {
-      console.warn('[researcher] Enhanced field extraction failed, continuing with empty fields:', err instanceof Error ? err.message : err);
+      logger.warn('[researcher] Enhanced field extraction failed, continuing with empty fields:', { error: err instanceof Error ? err.message : err });
     }
   }
 
@@ -491,10 +492,10 @@ Extract structured technology and business intelligence as JSON.`;
     const { matchSignalsToCapabilities } = await import('./signal-capability-matching');
     const matchResult = await matchSignalsToCapabilities(companyId);
     if (matchResult.totalMatches > 0) {
-      console.log(`[researcher] Signal-capability matching: ${matchResult.totalMatches} matches (${matchResult.highConfidence} high-confidence)`);
+      logger.info(`[researcher] Signal-capability matching: ${matchResult.totalMatches} matches (${matchResult.highConfidence} high-confidence)`);
     }
   } catch (err) {
-    console.warn('[researcher] Signal-capability matching failed (non-critical):', err instanceof Error ? err.message : err);
+    logger.warn('[researcher] Signal-capability matching failed (non-critical):', { error: err instanceof Error ? err.message : err });
   }
 
   // 6c: Store research card

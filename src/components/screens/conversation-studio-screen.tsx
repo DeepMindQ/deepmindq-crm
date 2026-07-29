@@ -18,6 +18,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { PageTransition, StaggerGrid, StaggerItem, EmptyState } from '@/components/ui/animated-components';
+import { logger } from '@/lib/logger';
 
 /* ── Types ── */
 interface ApiPlan {
@@ -85,7 +86,7 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
           })));
         }
       })
-      .catch((err) => { console.error("[ConversationStudioScreen] Error:", err) });
+      .catch((err) => { logger.error("[ConversationStudioScreen] Error:", { error: err }) });
   }, []);
 
   useEffect(() => {
@@ -164,7 +165,7 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
           setPlans(prev => prev.map(p => p.id === newPlan.id ? { ...p, id: saved.id } : p));
           if (selectedId === newPlan.id) setSelectedId(saved.id);
         }
-      }).catch((err) => { console.error("[ConversationStudioScreen] Error:", err) });
+      }).catch((err) => { logger.error("[ConversationStudioScreen] Error:", { error: err }) });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to generate plan');
     } finally {

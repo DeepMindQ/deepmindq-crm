@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -66,7 +67,7 @@ export async function GET() {
       emailHealthDistribution: healthCounts,
     });
   } catch (error) {
-    console.error('Dashboard error:', error);
+    logger.error('Dashboard error:', { error: error });
     return NextResponse.json({
       contactsByStatus: {},
       totalCompanies: 0,

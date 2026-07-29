@@ -23,6 +23,7 @@ import { db } from '@/lib/db'
 import type { RawIntelligenceObject } from './types'
 import { classifySignalType } from './signal-creator'
 import { createSignalFromIntelligenceObject } from './signal-creator'
+import { logger } from '@/lib/logger';
 
 // ── Internal Memory Types ──
 
@@ -743,7 +744,7 @@ export async function extractInternalMemorySignals(
       })
       if (result.success) signalsPersisted++
     } catch (err) {
-      console.warn(`[internal-memory] Failed to persist signal:`, err)
+      logger.warn(`[internal-memory] Failed to persist signal:`, { error: err })
     }
   }
 

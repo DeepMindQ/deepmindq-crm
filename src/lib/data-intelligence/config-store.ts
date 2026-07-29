@@ -10,6 +10,7 @@
  */
 
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 // ── Types ──
 
@@ -91,7 +92,7 @@ async function loadAllConfigs(): Promise<ConfigCache> {
 
   // Auto-seed if config tables are empty (first deploy)
   if (columnRules.length === 0 && validationRules.length === 0) {
-    console.log('[config-store] No config rules found — triggering auto-seed');
+    logger.info('[config-store] No config rules found — triggering auto-seed');
     try {
       await autoSeed();
       // Reload after seeding
@@ -104,7 +105,7 @@ async function loadAllConfigs(): Promise<ConfigCache> {
       return buildCache(cr, vr, nm, sw);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[config-store] Auto-seed FAILED — config tables are empty and seeding did not succeed. All rule-based features (column detection, validation, normalization, scoring) will return empty results.', msg);
+      logger.error('[config-store] Auto-seed FAILED — config tables are empty and seeding did not succeed. All rule-based features (column detection, validation, normalization, scoring) will return empty results.', { detail: msg });
       // Re-throw so the caller (API route) returns a 500 and the user sees the error.
       // Do NOT silently return an empty cache — that makes the engine "work" with zero rules
       // and the user has no idea why nothing is being detected or validated.
@@ -503,7 +504,7 @@ async function autoSeed(): Promise<void> {
     });
   }
 
-  console.log(`[config-store] Auto-seed complete: ${cmRules.length} column rules, ${vRules.length} validation rules, ${normMappings.length} normalizations, ${scoringWeights.length} scoring weights`);
+  logger.info(`[config-store] Auto-seed complete: ${cmRules.length} column rules, ${vRules.length} validation rules, ${normMappings.length} normalizations, ${scoringWeights.length} scoring weights`);
 }
 
 function safeJsonParse(str: string): Record<string, unknown> {

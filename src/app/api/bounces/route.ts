@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -14,7 +15,7 @@ export async function GET() {
 
     return NextResponse.json(bounces);
   } catch (error) {
-    console.error('Bounces error:', error);
+    logger.error('Bounces error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to load bounces' },
       { status: 500 }

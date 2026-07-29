@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Prisma } from '@prisma/client';
+import { logger } from '@/lib/logger';
 
 const EMPTY_RESPONSE = {
   kpis: { totalSent: 0, replyRate: 0, bounceRate: 0, avgHealthScore: 0, totalSentTrend: 0, replyRateTrend: 0, bounceRateTrend: 0, avgHealthScoreTrend: 0 },
@@ -280,7 +281,7 @@ export async function GET() {
       topCompanies,
     });
   } catch (error) {
-    console.error('Analytics error:', error);
+    logger.error('Analytics error:', { error: error });
     return NextResponse.json(EMPTY_RESPONSE);
   }
 }

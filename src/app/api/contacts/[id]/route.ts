@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess, validateBody, sanitizeFields } from "@/lib/apiHelpers";
 import { updateContactSchema } from "@/lib/validations";
+import { logger } from '@/lib/logger';
 
 export async function GET(
   _request: NextRequest,
@@ -35,7 +36,7 @@ export async function GET(
 
     return apiSuccess(contact);
   } catch (error) {
-    console.error("Failed to fetch contact:", error);
+    logger.error("Failed to fetch contact:", { error: error });
     return apiError("Failed to fetch contact", 500);
   }
 }
@@ -116,7 +117,7 @@ export async function PATCH(
 
     return apiSuccess(updated);
   } catch (error) {
-    console.error("Failed to update contact:", error);
+    logger.error("Failed to update contact:", { error: error });
     return apiError("Failed to update contact", 500);
   }
 }
@@ -149,7 +150,7 @@ export async function DELETE(
 
     return apiSuccess(archived);
   } catch (error) {
-    console.error("Failed to archive contact:", error);
+    logger.error("Failed to archive contact:", { error: error });
     return apiError("Failed to archive contact", 500);
   }
 }

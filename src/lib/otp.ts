@@ -7,6 +7,7 @@
 
 import { db } from './db';
 import { sendEmail } from './email-provider';
+import { logger } from '@/lib/logger';
 
 export type OtpPurpose =
   | 'login'
@@ -129,7 +130,7 @@ export async function requestOtp(
         isActive: true,
       },
     });
-    console.log(`[OTP] Auto-created authorized user: ${normalizedEmail}`);
+    logger.info(`[OTP] Auto-created authorized user: ${normalizedEmail}`);
   }
 
   if (!user.isActive) {
@@ -200,18 +201,18 @@ export async function requestOtp(
 
     if (emailResult.success) {
       emailSent = true;
-      console.log(`[OTP] Code sent to ${normalizedEmail} via ${emailResult.provider}`);
+      logger.info(`[OTP] Code sent to ${normalizedEmail} via ${emailResult.provider}`);
     } else {
-      console.error(`[OTP] Email send failed (${emailResult.provider}): ${emailResult.error}`);
+      logger.error(`[OTP] Email send failed (${emailResult.provider}): ${emailResult.error}`);
     }
   } else {
-    console.warn(`[OTP] No EMAIL_API_KEY configured (provider: ${config.provider}). OTP will be returned in response.`);
+    logger.warn(`[OTP] No EMAIL_API_KEY configured (provider: ${config.provider}). OTP will be returned in response.`);
   }
 
   // Log the code when dev bypass is explicitly enabled
   const devBypassEnabled = process.env.ENABLE_DEV_AUTH_BYPASS === 'true';
   if (devBypassEnabled) {
-    console.log(`[OTP] DEV — Code for ${normalizedEmail}: ${code}`);
+    logger.info(`[OTP] DEV — Code for ${normalizedEmail}: ${code}`);
   }
 
   // If email was NOT sent
@@ -219,11 +220,11 @@ export async function requestOtp(
     const isDev = process.env.NODE_ENV === 'development';
     if (isDev) {
       // Local dev: return code for convenience
-      console.log(`[OTP] DEV — Email not configured. Returning code: ${code}`);
+      logger.info(`[OTP] DEV — Email not configured. Returning code: ${code}`);
       return { success: true, devCode: code };
     }
     // Production: email MUST work — don't expose the code
-    console.error(`[OTP] PRODUCTION — Email send failed and no devCode fallback. EMAIL_API_KEY must be configured.`);
+    logger.error(`[OTP] PRODUCTION — Email send failed and no devCode fallback. EMAIL_API_KEY must be configured.`);
     return { success: false, error: 'Authentication service is temporarily unavailable. Please try again later.' };
   }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { ModelRouter } from '@/lib/engines/model-router';
+import { logger } from '@/lib/logger';
 
 function safeJsonParse(str: string | null | undefined, fallback: any) {
   if (!str) return fallback;
@@ -119,7 +120,7 @@ Provide 4-6 detailed steps with actionable tips. Make the content specific and p
       steps: finalSteps,
     });
   } catch (error: any) {
-    console.error('Playbook create error:', error);
+    logger.error('Playbook create error:', { error: error });
     return NextResponse.json({ error: 'Failed to create playbook' }, { status: 500 });
   }
 }

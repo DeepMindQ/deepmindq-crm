@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useAppStore } from '@/lib/store';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    Capability Workspace
@@ -43,7 +44,7 @@ export function CapabilityWorkspace() {
         const d = await res.json();
         setCapabilities(Array.isArray(d) ? d : d.data ?? []);
       }
-    } catch (e) { console.error('Capability fetch error:', e); }
+    } catch (e) { logger.error('Capability fetch error:', { error: e }); }
     finally { setLoading(false); }
   }, []);
 

@@ -13,6 +13,7 @@
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { classifySignalType, inferSeverity, createSignalFromIntelligenceObject } from '@/lib/intelligence-sources/signal-creator'
+import { logger } from '@/lib/logger';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -260,7 +261,7 @@ Return JSON:
           }
         }
       } catch (err) {
-        console.warn(`[sprint1] Signal persistence failed for "${signalText}":`, err)
+        logger.warn(`[sprint1] Signal persistence failed for "${signalText}":`, { error: err })
       }
 
       rankedSignals.push({
@@ -308,7 +309,7 @@ Return JSON:
     return NextResponse.json(response)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
-    console.error('[sprint1] Pipeline error:', message)
+    logger.error('[sprint1] Pipeline error:', { detail: message })
     return NextResponse.json(
       { error: `Sprint 1 pipeline failed: ${message}` },
       { status: 500 },

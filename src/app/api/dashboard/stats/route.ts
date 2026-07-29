@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/dashboard/stats
@@ -101,7 +102,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('[dashboard/stats] error:', error);
+    logger.error('[dashboard/stats] error:', { error: error });
     return NextResponse.json(
       {
         companies: 0,

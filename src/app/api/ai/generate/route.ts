@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { generateEmailDraft } from '@/lib/email-generation';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    POST /api/ai/generate
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, draft });
   } catch (error) {
-    console.error('AI generation error:', error);
+    logger.error('AI generation error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to generate draft: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }

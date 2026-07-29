@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { createInsights } from '@/lib/ai-insight-service';
+import { logger } from '@/lib/logger';
 
 /**
  * Wave 7 — RevOps Dashboard API
@@ -112,7 +113,7 @@ export async function GET() {
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       }]);
     } catch (e) {
-      console.warn('[revops] Failed to persist insight:', e);
+      logger.warn('[revops] Failed to persist insight:', { error: e });
     }
 
     return apiSuccess({
@@ -159,7 +160,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('[revops] Error:', error);
+    logger.error('[revops] Error:', { error: error });
     return apiError('Failed to load RevOps data', 500);
   }
 }

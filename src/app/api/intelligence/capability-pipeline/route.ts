@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { CapabilityIntelligenceEngine, type CapabilityInput } from '@/lib/capability-intelligence-engine';
+import { logger } from '@/lib/logger';
 
 // ═══════════════════════════════════════════════════════════════════════
 // POST — Ingest capabilities or trigger pipeline
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
     }, { status: 400 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[capability-pipeline]', msg);
+    logger.error('[capability-pipeline]', { detail: msg });
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
@@ -119,7 +120,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: `Unknown action: ${action}. Use: status, search, list` }, { status: 400 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[capability-pipeline]', msg);
+    logger.error('[capability-pipeline]', { detail: msg });
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

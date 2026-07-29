@@ -4,6 +4,7 @@ import { getIcpProfile, getIcpProfileSync, sizeMatch, techMatch, parseEmployeeCo
 import { normalizeSignalType } from '@/lib/signal-types';
 import { getScoringConfig, getCachedScoringConfig, getRecencyCutoff, getRecencyCutoffSync, type ScoringConfig } from './scoring-config';
 import { scoreEvents } from './events';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════
    Account Prioritization Engine — Phase 5 (Gap Closures)
@@ -1613,7 +1614,7 @@ export async function saveScoreHistory(params: SaveScoreHistoryParams): Promise<
     });
   } catch (err) {
     // Fire-and-forget: log but don't throw
-    console.warn(`[saveScoreHistory] Failed to save history for ${params.companyId}:`, err);
+    logger.warn(`[saveScoreHistory] Failed to save history for ${params.companyId}:`, { error: err });
   }
 }
 

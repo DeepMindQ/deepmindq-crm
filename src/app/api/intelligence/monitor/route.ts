@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { runMonitoringCheck, runMonitoringBatch } from '@/lib/intelligence-sources/autonomous-monitor';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ error: 'Provide companyId or companyIds' }, { status: 400 });
   } catch (error) {
-    console.error('[monitor] Error:', error);
+    logger.error('[monitor] Error:', { error: error });
     return NextResponse.json({ error: 'Monitoring check failed' }, { status: 500 });
   }
 }

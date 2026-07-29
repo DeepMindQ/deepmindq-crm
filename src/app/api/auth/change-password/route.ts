@@ -4,6 +4,7 @@ import { verifyOtp } from '@/lib/otp';
 import { hashPassword } from '@/lib/password';
 import { requireAuth, AuthError } from '@/lib/session';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 const schema = z.object({
   email: z.string().email(),
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error('[auth/change-password] Error:', error);
+    logger.error('[auth/change-password] Error:', { error: error });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

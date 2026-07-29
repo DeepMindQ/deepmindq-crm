@@ -13,6 +13,7 @@
 
 import { NextResponse } from 'next/server';
 import { collectIntelligenceForCompany, collectIntelligenceBatch } from '@/lib/intelligence-sources/external-intelligence-collector';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ results, summary });
   } catch (error) {
-    console.error('[collect-external] Error:', error);
+    logger.error('[collect-external] Error:', { error: error });
     return NextResponse.json(
       { error: 'Intelligence collection failed', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }

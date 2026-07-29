@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/popover'
 import { X, Plus, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { logger } from '@/lib/logger';
 
 interface TagItem {
   id: string
@@ -72,7 +73,7 @@ export function TagManager({
             onTagsChange(synced)
           }
         })
-        .catch((err) => { console.error("[TagManager] Error:", err) })
+        .catch((err) => { logger.error("[TagManager] Error:", { error: err }) })
         .finally(() => setLoading(false))
     },
     [entityType, entityId, onTagsChange],
@@ -90,7 +91,7 @@ export function TagManager({
           .then((json) => {
             if (json.data) setAllTags(json.data)
           })
-          .catch((err) => { console.error("[TagManager] Error:", err) })
+          .catch((err) => { logger.error("[TagManager] Error:", { error: err }) })
       }
     },
     [],

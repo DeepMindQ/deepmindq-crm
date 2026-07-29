@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { enrichContactProfile, enrichCompanyContacts } from '@/lib/intelligence-sources/people-enrichment/engine'
+import { logger } from '@/lib/logger';
 
 // POST /api/intelligence/people-enrich — Enrich contact profiles
 export async function POST(req: NextRequest) {
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     return apiError('Provide contactId or companyId', 400)
   } catch (err) {
-    console.error('[api/people-enrich] Error:', err)
+    logger.error('[api/people-enrich] Error:', { error: err })
     return apiError('People enrichment failed')
   }
 }

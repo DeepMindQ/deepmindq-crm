@@ -1,6 +1,7 @@
 import { promises as dns } from 'dns';
 import { NextResponse } from 'next/server';
 import { checkSyntax, checkDisposable, checkRoleBased, checkFreeProvider } from '@/lib/email-verify';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    Email Verification Engine (with DNS MX lookup)
@@ -139,7 +140,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error('Email verification error:', error);
+    logger.error('Email verification error:', { error: error });
     return NextResponse.json(
       { error: 'Verification failed: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
@@ -222,7 +223,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ success: true, results, summary });
   } catch (error) {
-    console.error('Bulk verification error:', error);
+    logger.error('Bulk verification error:', { error: error });
     return NextResponse.json(
       { error: 'Bulk verification failed: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }

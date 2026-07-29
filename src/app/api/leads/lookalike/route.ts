@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    POST /api/leads/lookalike — Find leads similar to
@@ -173,7 +174,7 @@ export async function POST(request: Request) {
       totalFound: results.length,
     });
   } catch (error) {
-    console.error('Lookalike discovery error:', error);
+    logger.error('Lookalike discovery error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to find lookalike leads' },
       { status: 500 },

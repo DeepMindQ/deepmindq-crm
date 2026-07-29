@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════
    Duplicates API — Real fuzzy matching against DB contacts
@@ -298,7 +299,7 @@ export async function GET() {
       totalFound: candidates.length,
     });
   } catch (error) {
-    console.error('Duplicates scan error:', error);
+    logger.error('Duplicates scan error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to scan for duplicates', candidates: [], mergeHistory: [], totalScanned: 0, totalFound: 0 },
       { status: 500 },

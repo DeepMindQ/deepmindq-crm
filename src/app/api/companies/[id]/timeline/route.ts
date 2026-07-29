@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET — List timeline events for a company
@@ -33,7 +34,7 @@ export async function GET(
 
     return NextResponse.json({ events });
   } catch (error) {
-    console.error('Company timeline list error:', error);
+    logger.error('Company timeline list error:', { error: error });
     return NextResponse.json({ error: 'Failed to fetch timeline events' }, { status: 500 });
   }
 }
@@ -80,7 +81,7 @@ export async function POST(
 
     return NextResponse.json({ event }, { status: 201 });
   } catch (error) {
-    console.error('Company timeline create error:', error);
+    logger.error('Company timeline create error:', { error: error });
     return NextResponse.json({ error: 'Failed to create timeline event' }, { status: 500 });
   }
 }

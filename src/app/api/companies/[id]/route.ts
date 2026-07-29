@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET — Single company with counts and research card
@@ -36,7 +37,7 @@ export async function GET(
       signalCount: company._count.signals,
     });
   } catch (error) {
-    console.error('Company get error:', error);
+    logger.error('Company get error:', { error: error });
     return NextResponse.json({ error: 'Failed to fetch company' }, { status: 500 });
   }
 }
@@ -111,7 +112,7 @@ export async function PATCH(
       signalCount: company._count.signals,
     });
   } catch (error) {
-    console.error('Company update error:', error);
+    logger.error('Company update error:', { error: error });
     return NextResponse.json({ error: 'Failed to update company' }, { status: 500 });
   }
 }
@@ -137,7 +138,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, deletedId: id });
   } catch (error) {
-    console.error('Company delete error:', error);
+    logger.error('Company delete error:', { error: error });
     return NextResponse.json({ error: 'Failed to delete company' }, { status: 500 });
   }
 }

@@ -14,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { EmptyState } from '@/components/shared/design-system';
 import { ErrorState } from '@/components/enterprise/ErrorState';
 import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════
    Types
@@ -189,7 +190,7 @@ export default function IntelligenceAssociationsScreen({
       const json = await res.json();
       setAssociations(Array.isArray(json) ? json : json.associations ?? []);
     } catch (err) {
-      console.error('Failed to fetch associations:', err);
+      logger.error('Failed to fetch associations:', { error: err });
     }
   }, [companyId]);
 

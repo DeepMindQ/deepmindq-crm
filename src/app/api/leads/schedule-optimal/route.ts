@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════
    Timezone Mapping — location string → UTC offset in hours
@@ -164,7 +165,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ schedules });
   } catch (error) {
-    console.error('[Schedule Optimal API] Error:', error);
+    logger.error('[Schedule Optimal API] Error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to calculate optimal send times', schedules: [] },
       { status: 500 }

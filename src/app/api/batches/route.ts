@@ -6,6 +6,7 @@ import { scoreEmail } from '@/lib/email-verify';
 import { logAction } from '@/lib/audit';
 import { calculateLeadScore } from '@/lib/lead-scoring';
 import { Company } from '@prisma/client';
+import { logger } from '@/lib/logger';
 
 function sha256(str: string): string {
   return 'sha256:' + createHash('sha256').update(str).digest('hex');
@@ -82,7 +83,7 @@ export async function GET() {
     });
     return NextResponse.json(batches);
   } catch (error) {
-    console.error('Batches error:', error);
+    logger.error('Batches error:', { error: error });
     return NextResponse.json({ error: 'Failed to load batches' }, { status: 500 });
   }
 }
@@ -476,7 +477,7 @@ export async function POST(request: Request) {
           where: { id: batch.id },
           data: { status: 'failed' },
         });
-        console.error('Chunked processing error:', err);
+        logger.error('Chunked processing error:', { error: err });
         await logAction('batch_failed', 'ImportBatch', batch.id, { error: String(err) });
       } finally {
         // Keep progress in memory for a while, then clean up
@@ -498,7 +499,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error('Upload error:', error);
+    logger.error('Upload error:', { error: error });
     return NextResponse.json(
       { error: 'Upload failed: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }

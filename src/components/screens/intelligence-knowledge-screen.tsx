@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { EmptyState } from '@/components/shared/design-system';
 import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
 import { EvidenceBadge } from '@/components/enterprise/EvidenceBadge';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════
    Types
@@ -168,7 +169,7 @@ export default function IntelligenceKnowledgeScreen() {
       const json = await res.json();
       setVersions(Array.isArray(json) ? json : json.versions ?? []);
     } catch (err) {
-      console.error('Failed to fetch versions:', err);
+      logger.error('Failed to fetch versions:', { error: err });
       setVersions([]);
     } finally {
       setVersionsLoading(false);
@@ -191,7 +192,7 @@ export default function IntelligenceKnowledgeScreen() {
       setCompareTo(toV);
       setCompareDialogOpen(true);
     } catch (err) {
-      console.error('Compare failed:', err);
+      logger.error('Compare failed:', { error: err });
     } finally {
       setActionLoading(null);
     }
@@ -209,7 +210,7 @@ export default function IntelligenceKnowledgeScreen() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       fetchVersions(selectedEntryId);
     } catch (err) {
-      console.error('Restore failed:', err);
+      logger.error('Restore failed:', { error: err });
     } finally {
       setActionLoading(null);
     }

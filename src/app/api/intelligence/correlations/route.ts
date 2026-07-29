@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { detectCorrelations } from '@/lib/intelligence-sources/cross-signal-correlation';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: Request) {
   try {
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
     const correlations = detectCorrelations(signals);
     return NextResponse.json({ companyId, correlations, signalCount: signals.length });
   } catch (error) {
-    console.error('[correlations] Error:', error);
+    logger.error('[correlations] Error:', { error: error });
     return NextResponse.json({ error: 'Correlation analysis failed' }, { status: 500 });
   }
 }

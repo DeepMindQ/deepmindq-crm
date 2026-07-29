@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
+import { logger } from '@/lib/logger';
 
 /**
  * Wave 9 — SaaS Platform Readiness
@@ -182,7 +183,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[enterprise] Error:', error);
+    logger.error('[enterprise] Error:', { error: error });
     return apiError('Failed to load platform data', 500);
   }
 }

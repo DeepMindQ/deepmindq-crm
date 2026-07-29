@@ -21,6 +21,7 @@
 
 import { db } from '@/lib/db';
 import { Prisma } from '@prisma/client';
+import { logger } from '@/lib/logger';
 
 // ── Types ──
 
@@ -213,10 +214,7 @@ export async function submitValidation(params: SubmitValidationParams): Promise<
     try {
       snapshot = await loader(artifactId, companyId);
     } catch (err) {
-      console.warn(
-        `[validation] Failed to load snapshot for ${artifactType}/${artifactId}:`,
-        err instanceof Error ? err.message : err,
-      );
+      logger.warn(`[validation] Failed to load snapshot for ${artifactType}/${artifactId}:`, { error: err instanceof Error ? err.message : err });
     }
   }
 

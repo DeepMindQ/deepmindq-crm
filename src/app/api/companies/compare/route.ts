@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    POST — Compare multiple companies side-by-side
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
       missingIds: missingIds.length > 0 ? missingIds : undefined,
     });
   } catch (error) {
-    console.error('Company compare error:', error);
+    logger.error('Company compare error:', { error: error });
     return NextResponse.json({ error: 'Failed to compare companies' }, { status: 500 });
   }
 }

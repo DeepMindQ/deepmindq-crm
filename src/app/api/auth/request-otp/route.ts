@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { logger } from '@/lib/logger';
 
 // ═══════════════════════════════════════════════════════════════
 // Single-User OTP Login — DeepMindQ Enterprise
@@ -83,16 +84,16 @@ export async function POST(request: NextRequest) {
 
         if (res.ok) {
           emailSent = true;
-          console.log('[auth/request-otp] Email sent via Resend');
+          logger.info('[auth/request-otp] Email sent via Resend');
         } else {
           const errData = await res.json().catch(() => ({}));
-          console.error('[auth/request-otp] Resend error:', res.status, errData);
+          logger.error('[auth/request-otp] Resend error:', { res: res.status, errData: errData });
         }
       } catch (emailErr) {
-        console.error('[auth/request-otp] Email failed:', emailErr instanceof Error ? emailErr.message : emailErr);
+        logger.error('[auth/request-otp] Email failed:', { error: emailErr instanceof Error ? emailErr.message : emailErr });
       }
     } else {
-      console.error('[auth/request-otp] No EMAIL_API_KEY!');
+      logger.error('[auth/request-otp] No EMAIL_API_KEY!');
     }
 
     if (!emailSent) {
@@ -129,7 +130,7 @@ export async function POST(request: NextRequest) {
         data: { email, code, purpose: 'login', expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
       });
     } catch (dbErr) {
-      console.warn('[auth/request-otp] DB failed (cookie is primary):', dbErr instanceof Error ? dbErr.message : dbErr);
+      logger.warn('[auth/request-otp] DB failed (cookie is primary):', { error: dbErr instanceof Error ? dbErr.message : dbErr });
     }
 
     return NextResponse.json({
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
       message: 'OTP sent to your email',
     });
   } catch (error) {
-    console.error('[auth/request-otp] Error:', error);
+    logger.error('[auth/request-otp] Error:', { error: error });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

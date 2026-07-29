@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    POST /api/capabilities/dedup-check
@@ -43,7 +44,7 @@ export async function POST() {
       duplicates,
     });
   } catch (error) {
-    console.error('Dedup check error:', error);
+    logger.error('Dedup check error:', { error: error });
     return NextResponse.json({ error: 'Dedup check failed' }, { status: 500 });
   }
 }

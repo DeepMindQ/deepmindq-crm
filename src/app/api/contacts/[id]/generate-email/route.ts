@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { ModelRouter } from '@/lib/engines/model-router'
+import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // LLM helper — routed through ModelRouter (Phase 2.2)
@@ -243,7 +244,7 @@ ${researchContext ? `${researchContext}\n` : ''}${knowledgeContext ? `${knowledg
         }
       } catch (llmErr: unknown) {
         const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-        console.error('[generate-email] LLM call failed:', msg)
+        logger.error('[generate-email] LLM call failed:', { detail: msg })
         // H8: Fall through to template — don't leak raw error messages
       }
     }

@@ -20,6 +20,7 @@
    ═══════════════════════════════════════════════════ */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 import {
   getSessionToken,
   isPublicPath,
@@ -98,7 +99,7 @@ function handleApiRoute(
   const token = getSessionToken(request);
 
   if (!token) {
-    console.warn(`[Middleware] No session token for ${request.method} ${pathname}`);
+    logger.warn(`[Middleware] No session token for ${request.method} ${pathname}`);
     return unauthorizedResponse();
   }
 

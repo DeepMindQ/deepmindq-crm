@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logAction } from '@/lib/audit';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    In-memory verification queue
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
       message: `${queued} contacts queued for verification`,
     });
   } catch (error) {
-    console.error('Verify queue error:', error);
+    logger.error('Verify queue error:', { error: error });
     return NextResponse.json({ error: 'Failed to queue contacts' }, { status: 500 });
   }
 }
@@ -72,7 +73,7 @@ export async function GET() {
 
     return NextResponse.json({ pending, completed, failed, inProgress });
   } catch (error) {
-    console.error('Verify queue status error:', error);
+    logger.error('Verify queue status error:', { error: error });
     return NextResponse.json({ error: 'Failed to get queue status' }, { status: 500 });
   }
 }

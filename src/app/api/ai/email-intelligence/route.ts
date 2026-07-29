@@ -14,6 +14,7 @@ import { NextRequest } from 'next/server';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { generateEmailIntelligence } from '@/lib/email-intelligence-engine';
 import { createInsights } from '@/lib/ai-insight-service';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -54,12 +55,12 @@ export async function GET(request: NextRequest) {
         expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3-day expiry for time-sensitive emails
       }]);
     } catch (e) {
-      console.warn('[ai/email-intelligence] Failed to persist insight:', e);
+      logger.warn('[ai/email-intelligence] Failed to persist insight:', { error: e });
     }
 
     return apiSuccess(intelligence);
   } catch (error) {
-    console.error('[ai/email-intelligence] Error:', error);
+    logger.error('[ai/email-intelligence] Error:', { error: error });
     const message = error instanceof Error ? error.message : 'Unknown error';
     return apiError(message, message.includes('not found') ? 404 : 500);
   }

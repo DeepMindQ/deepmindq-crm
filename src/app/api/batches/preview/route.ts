@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
 import { createHash } from 'crypto';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    L-08: Batch Import Preview
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
       fileName: file.name,
     });
   } catch (error) {
-    console.error('Preview error:', error);
+    logger.error('Preview error:', { error: error });
     return NextResponse.json({ error: 'Preview failed' }, { status: 500 });
   }
 }

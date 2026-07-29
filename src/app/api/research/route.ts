@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/apiHelpers";
+import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // LLM provider helpers
@@ -385,7 +386,7 @@ Respond ONLY with the JSON object, no additional text.`;
         }
       } catch (llmErr: unknown) {
         const msg = llmErr instanceof Error ? llmErr.message : String(llmErr);
-        console.error(`[research/generate] LLM call failed (${aiProvider}): ${msg}`);
+        logger.error(`[research/generate] LLM call failed (${aiProvider}): ${msg}`);
         // Fall through to template — H8: don't leak raw error messages
       }
     }

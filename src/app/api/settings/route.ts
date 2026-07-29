@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    Types
@@ -130,7 +131,7 @@ export async function GET() {
   try {
     return NextResponse.json({ settings: currentSettings });
   } catch (error) {
-    console.error('Settings GET error:', error);
+    logger.error('Settings GET error:', { error: error });
     return NextResponse.json({ error: 'Failed to load settings' }, { status: 500 });
   }
 }
@@ -158,7 +159,7 @@ export async function PUT(request: Request) {
       settings: currentSettings,
     });
   } catch (error) {
-    console.error('Settings PUT error:', error);
+    logger.error('Settings PUT error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to update settings' },
       { status: 500 }

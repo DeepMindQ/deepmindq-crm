@@ -23,6 +23,7 @@
 import { db } from '@/lib/db';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { computeEvidenceQuality, type EvidenceQualityScore } from './evidence-quality';
+import { logger } from '@/lib/logger';
 
 // ── Types ──
 
@@ -364,10 +365,7 @@ export async function generateOpportunityRecommendationsBatch(params: {
       results.push(result);
       generated++;
     } catch (err: any) {
-      console.error(
-        `[opportunity-engine] Failed to generate recommendation for signal=${match.signalId}, match=${match.id}:`,
-        err.message,
-      );
+      logger.error(`[opportunity-engine] Failed to generate recommendation for signal=${match.signalId}, match=${match.id}:`, { error: err.message });
     }
   }
 

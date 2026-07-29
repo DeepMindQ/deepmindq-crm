@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess, validateBody, sanitize, safeInt } from "@/lib/apiHelpers";
 import { createKnowledgeDocSchema } from "@/lib/validations";
+import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // GET – list capability assets (paginated)
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     return apiSuccess({ documents: formatted, total, page, pageSize: MAX_PAGE_SIZE });
   } catch (error) {
-    console.error("Failed to fetch knowledge documents:", error);
+    logger.error("Failed to fetch knowledge documents:", { error: error });
     return apiError("Failed to fetch documents");
   }
 }
@@ -105,7 +106,7 @@ export async function POST(req: NextRequest) {
 
     return apiSuccess(asset, 201);
   } catch (error) {
-    console.error("Failed to create knowledge document:", error);
+    logger.error("Failed to create knowledge document:", { error: error });
     return apiError("Failed to create document");
   }
 }

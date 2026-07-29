@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -14,7 +15,7 @@ export async function GET() {
 
     return NextResponse.json(suppressions);
   } catch (error) {
-    console.error('Suppressions error:', error);
+    logger.error('Suppressions error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to load suppressions' },
       { status: 500 }

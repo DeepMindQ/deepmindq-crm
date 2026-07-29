@@ -16,6 +16,7 @@ import { db } from '@/lib/db'
 import { webSearch } from '@/lib/llm-client'
 import { ModelRouter } from '@/lib/engines/model-router'
 import crypto from 'crypto'
+import { logger } from '@/lib/logger';
 
 export interface WebsiteChangeResult {
   companyId: string
@@ -55,7 +56,7 @@ export async function detectWebsiteChange(
     const results = await webSearch(searchQuery, 3)
     currentContent = results.map((r: any) => `${r.title || ''} ${r.snippet || r.content || ''}`).join(' ')
   } catch {
-    console.warn(`[website-monitor] Search failed for ${pageUrl}`)
+    logger.warn(`[website-monitor] Search failed for ${pageUrl}`)
   }
 
   const newHash = crypto.createHash('sha256').update(currentContent).digest('hex')
@@ -114,7 +115,7 @@ Focus on: pricing changes, new job listings, leadership mentions, product launch
     data: { status: 'archived' },
   })
 
-  console.log(`[website-monitor] Change detected for ${pageUrl} in ${Date.now() - startTime}ms: ${detectedChanges.join(', ')}`)
+  logger.info(`[website-monitor] Change detected for ${pageUrl} in ${Date.now() - startTime}ms: ${detectedChanges.join(', ')}`)
 
   return {
     companyId, pageUrl, pageType, hasChanged: true, previousHash, newHash,
@@ -143,7 +144,7 @@ export async function monitorCompanyWebsite(companyId: string): Promise<WebsiteC
       const result = await detectWebsiteChange(companyId, url, type)
       results.push(result)
     } catch (err) {
-      console.warn(`[website-monitor] Failed for ${url}:`, err)
+      logger.warn(`[website-monitor] Failed for ${url}:`, { error: err })
     }
   }
   return results

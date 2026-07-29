@@ -1,5 +1,6 @@
 // Runtime environment variable validation using Zod
 import { z } from 'zod'
+import { logger } from '@/lib/logger';
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
@@ -34,7 +35,7 @@ export function getEnv(): EnvConfig {
     if (process.env.NODE_ENV === 'production') {
       throw new Error(`Missing required env vars: ${missing}`)
     }
-    console.error(`[ENV] Missing env vars (dev mode): ${missing}`)
+    logger.error(`[ENV] Missing env vars (dev mode): ${missing}`)
   }
 
   _env = result.data as EnvConfig

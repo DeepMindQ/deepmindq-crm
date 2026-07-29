@@ -18,6 +18,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { sendEmail, getProviderInfo } from '@/lib/email-provider';
+import { logger } from '@/lib/logger';
 
 const MAX_RETRIES = 3;
 
@@ -153,7 +154,7 @@ export async function POST() {
       configured: providerInfo.configured,
     });
   } catch (error) {
-    console.error('Email worker error:', error);
+    logger.error('Email worker error:', { error: error });
     return NextResponse.json(
       {
         ...summary,

@@ -15,6 +15,7 @@
 import { db } from '@/lib/db'
 import { ModelRouter } from '@/lib/engines/model-router'
 import { webSearch } from '@/lib/llm-client'
+import { logger } from '@/lib/logger';
 
 export interface PeopleEnrichmentResult {
   contactId: string
@@ -79,7 +80,7 @@ export async function enrichContactProfile(contactId: string): Promise<PeopleEnr
       snippet: r.snippet || r.content || '',
     }))
   } catch (err) {
-    console.warn(`[people-enrichment] Web search failed for ${contact.rawName}:`, err)
+    logger.warn(`[people-enrichment] Web search failed for ${contact.rawName}:`, { error: err })
   }
 
   // AI extraction from search results
@@ -124,7 +125,7 @@ Extract the following as JSON:
       enrichmentData = JSON.parse(jsonMatch[0])
     }
   } catch (err) {
-    console.warn(`[people-enrichment] AI extraction failed for ${contact.rawName}:`, err)
+    logger.warn(`[people-enrichment] AI extraction failed for ${contact.rawName}:`, { error: err })
   }
 
   const enrichment: PeopleEnrichmentResult = {
@@ -176,7 +177,7 @@ Extract the following as JSON:
     },
   })
 
-  console.log(`[people-enrichment] Enriched ${contact.rawName} in ${Date.now() - startTime}ms`)
+  logger.info(`[people-enrichment] Enriched ${contact.rawName} in ${Date.now() - startTime}ms`)
   return enrichment
 }
 
@@ -195,7 +196,7 @@ export async function enrichCompanyContacts(companyId: string): Promise<PeopleEn
       const result = await enrichContactProfile(contact.id)
       results.push(result)
     } catch (err) {
-      console.warn(`[people-enrichment] Failed for ${contact.rawName}:`, err)
+      logger.warn(`[people-enrichment] Failed for ${contact.rawName}:`, { error: err })
     }
   }
   return results

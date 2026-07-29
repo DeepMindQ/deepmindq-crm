@@ -27,6 +27,7 @@ import { useAppStore } from '@/lib/store';
 import { NAV_SECTIONS } from '@/lib/nav-config';
 import { SCREEN_MAP } from '@/lib/screen-map';
 import { lazy } from 'react';
+import { logger } from '@/lib/logger';
 
 const CompanyDetailScreen = lazy(() => import('@/components/screens/company-detail-screen'));
 const ContactDetailBridge = lazy(() => import('@/lib/screen-map').then(m => ({ default: m.ContactDetailBridge })));
@@ -190,7 +191,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
             inbox: (data.replyCount ?? 0) + (data.bounceCount ?? 0),
           });
         })
-        .catch((err) => { console.error('[Page] Error:', err) });
+        .catch((err) => { logger.error('[Page] Error:', { error: err }) });
     };
     fetchCounts();
     const interval = setInterval(fetchCounts, 30000); // refresh every 30s
@@ -203,7 +204,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
       fetch('/api/notifications')
         .then(res => res.json())
         .then((data) => { if (Array.isArray(data)) setNotifications(data.slice(0, 8)); })
-        .catch((err) => { console.error('[Page] Error:', err) });
+        .catch((err) => { logger.error('[Page] Error:', { error: err }) });
     };
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 60000);
@@ -617,7 +618,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                       inbox: (data.replyCount ?? 0) + (data.bounceCount ?? 0),
                     });
                   })
-                  .catch((err) => { console.error('[Page] Error:', err) });
+                  .catch((err) => { logger.error('[Page] Error:', { error: err }) });
               }}
             >
               <RefreshCw className="w-4 h-4" />

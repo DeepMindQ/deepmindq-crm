@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 // ── GET /api/compliance ──────────────────────────────────
 // GDPR compliance metrics and risk flags
@@ -158,7 +159,7 @@ export async function GET() {
       riskFlags,
     });
   } catch (error) {
-    console.error('[COMPLIANCE] GET error:', error);
+    logger.error('[COMPLIANCE] GET error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to fetch compliance data' },
       { status: 500 },
@@ -340,7 +341,7 @@ export async function POST(request: NextRequest) {
         );
     }
   } catch (error) {
-    console.error('[COMPLIANCE] POST error:', error);
+    logger.error('[COMPLIANCE] POST error:', { error: error });
     return NextResponse.json(
       { error: 'Compliance action failed' },
       { status: 500 },

@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -19,7 +20,7 @@ export async function GET() {
 
     return NextResponse.json(queue);
   } catch (error) {
-    console.error('Queue error:', error);
+    logger.error('Queue error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to load queue' },
       { status: 500 }
@@ -125,7 +126,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({ success: true, action, affected });
   } catch (error) {
-    console.error('Queue PATCH error:', error);
+    logger.error('Queue PATCH error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to update queue' },
       { status: 500 }

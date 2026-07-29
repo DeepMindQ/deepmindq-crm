@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -12,10 +13,10 @@ export async function GET() {
     // If the table doesn't exist yet, return empty array instead of 500
     const msg = error instanceof Error ? error.message : String(error);
     if (msg.includes('does not exist') || msg.includes('relation') || msg.includes('table')) {
-      console.warn('[conversation-plans GET] Table may not exist, returning empty array');
+      logger.warn('[conversation-plans GET] Table may not exist, returning empty array');
       return NextResponse.json([]);
     }
-    console.error('[conversation-plans GET]', error);
+    logger.error('[conversation-plans GET]', { error: error });
     return NextResponse.json({ error: 'Failed to fetch plans' }, { status: 500 });
   }
 }
@@ -45,10 +46,10 @@ export async function POST(request: Request) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     if (msg.includes('does not exist') || msg.includes('relation') || msg.includes('table')) {
-      console.warn('[conversation-plans POST] Table may not exist, returning error');
+      logger.warn('[conversation-plans POST] Table may not exist, returning error');
       return NextResponse.json({ error: 'Conversation plans feature is being set up. Please try again shortly.' }, { status: 503 });
     }
-    console.error('[conversation-plans POST]', error);
+    logger.error('[conversation-plans POST]', { error: error });
     return NextResponse.json({ error: 'Failed to save plan' }, { status: 500 });
   }
 }

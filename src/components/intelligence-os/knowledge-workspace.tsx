@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useAppStore } from '@/lib/store';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    Knowledge Workspace
@@ -55,7 +56,7 @@ export function KnowledgeWorkspace() {
         const d = await knRes.json();
         setKnowledge(Array.isArray(d) ? d : d.data ?? []);
       }
-    } catch (e) { console.error('Knowledge fetch error:', e); }
+    } catch (e) { logger.error('Knowledge fetch error:', { error: e }); }
     finally { setLoading(false); }
   }, []);
 

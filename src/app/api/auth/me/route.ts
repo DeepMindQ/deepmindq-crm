@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { logger } from '@/lib/logger';
 
 // ═══════════════════════════════════════════════════════════════
 // Current User — DeepMindQ Enterprise
@@ -31,7 +32,7 @@ export async function GET() {
         return NextResponse.json({ user });
       }
     } catch (dbErr) {
-      console.warn('[auth/me] DB session check failed, using cookie-based auth:', dbErr instanceof Error ? dbErr.message : dbErr);
+      logger.warn('[auth/me] DB session check failed, using cookie-based auth:', { error: dbErr instanceof Error ? dbErr.message : dbErr });
     }
 
     // Fallback: if cookie exists and looks valid, user is authenticated
@@ -50,7 +51,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('[auth/me] Error:', error);
+    logger.error('[auth/me] Error:', { error: error });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

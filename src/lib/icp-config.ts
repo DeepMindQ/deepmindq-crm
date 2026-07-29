@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════
    ICP (Ideal Customer Profile) Configuration
@@ -127,7 +128,7 @@ async function ensureLoaded(): Promise<void> {
     }
   } catch (err) {
     // DB not available yet (e.g. migration pending) — keep defaults
-    console.warn('[icp-config] Could not load ICP from DB, using defaults:', err);
+    logger.warn('[icp-config] Could not load ICP from DB, using defaults:', { error: err });
     currentIcp = { ...DEFAULT_ICP };
   }
 }
@@ -141,7 +142,7 @@ async function persistIcp(): Promise<void> {
       update: { value: JSON.stringify(currentIcp) },
     });
   } catch (err) {
-    console.error('[icp-config] Failed to persist ICP to DB:', err);
+    logger.error('[icp-config] Failed to persist ICP to DB:', { error: err });
   }
 }
 

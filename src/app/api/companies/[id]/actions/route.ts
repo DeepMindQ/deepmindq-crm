@@ -1,5 +1,6 @@
 import { ActionEngine } from '@/lib/engines/action-engine';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/companies/[id]/actions
@@ -23,7 +24,7 @@ export async function POST(
 
     return NextResponse.json(result, { status: result.success ? 200 : 500 });
   } catch (error) {
-    console.error('[actions] error:', error);
+    logger.error('[actions] error:', { error: error });
     return NextResponse.json(
       { success: false, error: 'Action engine failed' },
       { status: 500 },

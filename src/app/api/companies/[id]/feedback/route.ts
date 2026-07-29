@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    POST /api/companies/[id]/feedback — Human Intelligence Feedback
@@ -92,7 +93,7 @@ export async function POST(
       },
     });
   } catch (error) {
-    console.error('[feedback] Error:', error);
+    logger.error('[feedback] Error:', { error: error });
     return NextResponse.json({ error: 'Failed to record feedback' }, { status: 500 });
   }
 }

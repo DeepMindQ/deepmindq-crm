@@ -15,6 +15,7 @@ import { NextRequest } from 'next/server';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { generateConversationBriefing } from '@/lib/conversation-studio-engine';
 import { createInsights } from '@/lib/ai-insight-service';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -61,12 +62,12 @@ export async function GET(request: NextRequest) {
         expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2-day expiry
       }]);
     } catch (e) {
-      console.warn('[ai/conversation-studio] Failed to persist insight:', e);
+      logger.warn('[ai/conversation-studio] Failed to persist insight:', { error: e });
     }
 
     return apiSuccess(briefing);
   } catch (error) {
-    console.error('[ai/conversation-studio] Error:', error);
+    logger.error('[ai/conversation-studio] Error:', { error: error });
     const message = error instanceof Error ? error.message : 'Unknown error';
     return apiError(message, message.includes('not found') ? 404 : 500);
   }

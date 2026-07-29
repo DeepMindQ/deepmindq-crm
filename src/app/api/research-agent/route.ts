@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sdkWebSearch } from '@/lib/llm-client';
 import { ModelRouter } from '@/lib/engines/model-router';
+import { logger } from '@/lib/logger';
 
 // POST /api/research-agent — Deep research on company or person
 export async function POST(req: NextRequest) {
@@ -84,7 +85,7 @@ Include 4-6 sections. Match the icon to the section topic.`;
       });
       aiResult = result.success ? result.text : '';
     } catch (sdkError) {
-      console.error('AI SDK error:', sdkError);
+      logger.error('AI SDK error:', { error: sdkError });
       return NextResponse.json(
         { error: 'AI research service unavailable. Please try again.' },
         { status: 503 }
@@ -126,7 +127,7 @@ Include 4-6 sections. Match the icon to the section topic.`;
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Research agent error:', error);
+    logger.error('Research agent error:', { error: error });
     return NextResponse.json(
       { error: 'Research failed unexpectedly' },
       { status: 500 }

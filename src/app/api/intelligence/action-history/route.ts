@@ -2,6 +2,7 @@
 import { NextRequest } from 'next/server'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger';
 
 // GET /api/intelligence/action-history — Get action history for a company
 export async function GET(req: NextRequest) {
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest) {
       byType: Object.fromEntries(grouped),
     })
   } catch (err) {
-    console.error('[api/action-history] Error:', err)
+    logger.error('[api/action-history] Error:', { error: err })
     return apiError('Failed to fetch action history')
   }
 }

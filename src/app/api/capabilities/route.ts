@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { getVectorIndex } from '@/lib/vector-index';
 import { CapabilityIntelligenceEngine } from '@/lib/capability-intelligence-engine';
+import { logger } from '@/lib/logger';
 
 /**
  * Parse tags to JSON string for storage.
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(withTags);
   } catch (error) {
-    console.error('Capabilities list error:', error);
+    logger.error('Capabilities list error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to load capabilities' },
       { status: 500 }
@@ -125,7 +126,7 @@ export async function POST(request: Request) {
       tags: parseTagsField(capability.tags),
     }, { status: 201 });
   } catch (error) {
-    console.error('Create capability error:', error);
+    logger.error('Create capability error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to create capability' },
       { status: 500 }
@@ -205,7 +206,7 @@ export async function PUT(request: Request) {
       tags: parseTagsField(capability.tags),
     });
   } catch (error) {
-    console.error('Update capability error:', error);
+    logger.error('Update capability error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to update capability' },
       { status: 500 }
@@ -255,7 +256,7 @@ export async function PATCH(request: Request) {
       processed,
     });
   } catch (error) {
-    console.error('Bulk operation error:', error);
+    logger.error('Bulk operation error:', { error: error });
     return NextResponse.json(
       { error: 'Bulk operation failed' },
       { status: 500 }
@@ -279,7 +280,7 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Delete capability error:', error);
+    logger.error('Delete capability error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to delete capability' },
       { status: 500 }

@@ -15,6 +15,7 @@
 import { db } from '@/lib/db'
 import { createSignalFromIntelligenceObject } from './signal-creator'
 import type { PersonIntelligenceProfile } from '@/lib/person-intelligence-engine'
+import { logger } from '@/lib/logger';
 
 // ── Types ──
 
@@ -325,7 +326,7 @@ export async function detectPeopleChanges(
       })
       if (result.success) signalsPersisted++
     } catch (err) {
-      console.warn(`[people-change] Failed to persist signal:`, err)
+      logger.warn(`[people-change] Failed to persist signal:`, { error: err })
     }
   }
 

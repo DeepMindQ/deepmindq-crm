@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { CheckCircle2, AlertTriangle, XCircle, HelpCircle, Send } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 const DECISIONS = [
   { value: 'confirmed_accurate', label: 'Confirmed Accurate', icon: CheckCircle2, color: 'text-emerald-600 hover:bg-emerald-50 border-emerald-200' },
@@ -41,7 +42,7 @@ export function RecommendationFeedbackForm({ recommendationId, companyId, onSubm
       setSubmitted(true);
       onSubmitted?.();
     } catch (err) {
-      console.error('Feedback submission failed:', err);
+      logger.error('Feedback submission failed:', { error: err });
     } finally {
       setSubmitting(false);
     }

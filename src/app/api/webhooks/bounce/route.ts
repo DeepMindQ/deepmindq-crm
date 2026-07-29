@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    E-08: Bounce Webhook Handler
@@ -125,7 +126,7 @@ async function logAudit(action: string, entity: string, entityId: string, detail
       data: { action, entity, entityId, details },
     });
   } catch (e) {
-    console.warn('[Webhook:Bounce] Audit log failed:', e);
+    logger.warn('[Webhook:Bounce] Audit log failed:', { error: e });
   }
 }
 
@@ -146,7 +147,7 @@ export async function POST(request: Request) {
           .update(rawBody)
           .digest('hex');
         if (signature !== expected) {
-          console.warn('[Webhook:Bounce] Invalid signature');
+          logger.warn('[Webhook:Bounce] Invalid signature');
           return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
         }
       }
@@ -174,7 +175,7 @@ export async function POST(request: Request) {
     const parsed = parseBouncePayload(body);
 
     if (!parsed.recipientEmail) {
-      console.warn('[Webhook:Bounce] No recipient email found in payload');
+      logger.warn('[Webhook:Bounce] No recipient email found in payload');
       return NextResponse.json({ received: true, warning: 'No recipient email' });
     }
 
@@ -186,7 +187,7 @@ export async function POST(request: Request) {
     });
 
     if (!contact) {
-      console.warn(`[Webhook:Bounce] Contact not found for: ${recipientEmail}`);
+      logger.warn(`[Webhook:Bounce] Contact not found for: ${recipientEmail}`);
       return NextResponse.json({ received: true, warning: 'Contact not found' });
     }
 
@@ -302,7 +303,7 @@ export async function POST(request: Request) {
       autoSuppressed: parsed.bounceType === 'hard',
     });
   } catch (error) {
-    console.error('[Webhook:Bounce] Error processing bounce webhook:', error);
+    logger.error('[Webhook:Bounce] Error processing bounce webhook:', { error: error });
     // Always return 200 to acknowledge webhook
     return NextResponse.json({ received: true, error: 'Processing failed' });
   }

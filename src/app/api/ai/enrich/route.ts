@@ -41,6 +41,7 @@ const CONTACT_FIELDS = [
 // ---------------------------------------------------------------------------
 
 import { ModelRouter } from '@/lib/engines/model-router';
+import { logger } from '@/lib/logger';
 
 interface EnrichmentSuggestion {
   field: string
@@ -158,7 +159,7 @@ Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence":
       suggestions = suggestions.filter((s) => missingFields.includes(s.field))
     } catch (llmErr: unknown) {
       const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-      console.error('[ai/enrich] LLM call failed:', msg)
+      logger.error('[ai/enrich] LLM call failed:', { detail: msg })
     }
   }
 
@@ -205,7 +206,7 @@ Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence":
       sourceRoute: '/api/ai/enrich',
     })
   } catch (insightErr) {
-    console.warn('[ai/enrich] Failed to persist insight:', insightErr)
+    logger.warn('[ai/enrich] Failed to persist insight:', { error: insightErr })
   }
 
   return apiSuccess({
@@ -286,7 +287,7 @@ Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence":
       suggestions = suggestions.filter((s) => missingFields.includes(s.field))
     } catch (llmErr: unknown) {
       const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-      console.error('[ai/enrich] LLM call failed:', msg)
+      logger.error('[ai/enrich] LLM call failed:', { detail: msg })
     }
   }
 

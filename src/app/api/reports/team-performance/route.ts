@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/apiHelpers";
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -128,7 +129,7 @@ export async function GET() {
       leaderboard,
     });
   } catch (error) {
-    console.error("Failed to generate team performance report:", error);
+    logger.error("Failed to generate team performance report:", { error: error });
     return apiError("Failed to generate team performance report", 500);
   }
 }

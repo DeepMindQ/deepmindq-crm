@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET — List notes for a company
@@ -34,7 +35,7 @@ export async function GET(
 
     return NextResponse.json({ notes });
   } catch (error) {
-    console.error('Company notes list error:', error);
+    logger.error('Company notes list error:', { error: error });
     return NextResponse.json({ error: 'Failed to fetch notes' }, { status: 500 });
   }
 }
@@ -77,7 +78,7 @@ export async function POST(
 
     return NextResponse.json({ note }, { status: 201 });
   } catch (error) {
-    console.error('Company note create error:', error);
+    logger.error('Company note create error:', { error: error });
     return NextResponse.json({ error: 'Failed to create note' }, { status: 500 });
   }
 }

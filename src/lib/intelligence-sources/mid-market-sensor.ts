@@ -29,6 +29,7 @@
 import { classifyEvidence, scoreSourceReliability, type ClassifiedSignal, type RawEvidenceInput } from './evidence-classifier';
 import { buildThreeDateModel, type EvidenceDates } from './three-date-model';
 import type { SearchResult, SearchProvider } from './external-intelligence-collector';
+import { logger } from '@/lib/logger';
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -71,7 +72,7 @@ async function createDefaultSearchProvider(): Promise<SearchProvider> {
   return {
     async search(query: string, maxResults: number): Promise<SearchResult[]> {
       return webSearch(query, maxResults).catch(err => {
-        console.error(`[midmarket-sensor] search failed:`, err);
+        logger.error(`[midmarket-sensor] search failed:`, { error: err });
         return [];
       });
     },
@@ -276,7 +277,7 @@ async function executeChannel(
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
     } catch (err) {
-      console.error(`[midmarket-${channelName}] Query ${i + 1} failed:`, err);
+      logger.error(`[midmarket-${channelName}] Query ${i + 1} failed:`, { error: err });
     }
   }
 

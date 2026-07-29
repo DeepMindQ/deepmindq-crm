@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { batchProgress } from '@/app/api/batches/route';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET /api/batches/[id]/progress
@@ -52,7 +53,7 @@ export async function GET(
       eta: 0,
     });
   } catch (error) {
-    console.error('Progress error:', error);
+    logger.error('Progress error:', { error: error });
     return NextResponse.json({ error: 'Failed to get progress' }, { status: 500 });
   }
 }
@@ -80,7 +81,7 @@ export async function POST(
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
-    console.error('Progress cancel error:', error);
+    logger.error('Progress cancel error:', { error: error });
     return NextResponse.json({ error: 'Failed to cancel batch' }, { status: 500 });
   }
 }

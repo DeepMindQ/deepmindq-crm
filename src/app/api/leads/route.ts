@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    Unified Leads API — merges DB contacts + static JSON
@@ -34,7 +35,7 @@ async function loadAllLeads(): Promise<LeadRecord[]> {
         all.push(...chunk);
       }
     } catch (err) {
-      console.error(`Failed to load chunk ${i}:`, err);
+      logger.error(`Failed to load chunk ${i}:`, { error: err });
     }
   }
   cachedLeads = all;
@@ -401,7 +402,7 @@ export async function GET(request: Request) {
     });
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Leads API error:', error);
+    logger.error('Leads API error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to load leads', leads: [], total: 0, page: 1, totalPages: 0 },
       { status: 500 }

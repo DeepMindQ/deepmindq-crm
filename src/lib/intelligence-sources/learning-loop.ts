@@ -9,6 +9,7 @@
  */
 
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 // ─── Feedback Types ─────────────────────────────────────────────
 
@@ -60,7 +61,7 @@ export async function recordSignalFeedback(feedback: SignalFeedback): Promise<vo
       },
     });
   } catch (error) {
-    console.error('[learning-loop] Failed to record feedback:', error);
+    logger.error('[learning-loop] Failed to record feedback:', { error: error });
   }
 }
 
@@ -128,7 +129,7 @@ export async function computeLearningInsights(companyId?: string): Promise<Learn
       };
     });
   } catch (error) {
-    console.error('[learning-loop] Failed to compute insights:', error);
+    logger.error('[learning-loop] Failed to compute insights:', { error: error });
     return [];
   }
 }

@@ -12,6 +12,7 @@
 import { NextRequest } from 'next/server';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { buildPersonProfile, buildCompanyPersonProfiles } from '@/lib/person-intelligence-engine';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     return apiError('Provide contactId or companyId', 400);
   } catch (error) {
-    console.error('[contacts/person-profile] Error:', error);
+    logger.error('[contacts/person-profile] Error:', { error: error });
     const message = error instanceof Error ? error.message : 'Unknown error';
     return apiError(message, error instanceof Error && message.includes('not found') ? 404 : 500);
   }
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     return apiError('Provide contactId or companyId', 400);
   } catch (error) {
-    console.error('[contacts/person-profile] POST Error:', error);
+    logger.error('[contacts/person-profile] POST Error:', { error: error });
     const message = error instanceof Error ? error.message : 'Unknown error';
     return apiError(message, 500);
   }

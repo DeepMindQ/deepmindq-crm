@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { FileText, Calendar, Hash, ToggleLeft, List } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { logger } from '@/lib/logger';
 
 interface CustomFieldRendererProps {
   entityType: 'company' | 'contact'
@@ -90,7 +91,7 @@ export function CustomFieldRenderer({
           setValues(filled)
         }
       })
-      .catch((err) => { console.error('[CustomFieldRenderer] Error:', err) })
+      .catch((err) => { logger.error('[CustomFieldRenderer] Error:', { error: err }) })
       .finally(() => {
         if (!cancelled) setLoading(false)
       })

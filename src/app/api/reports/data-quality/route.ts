@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/apiHelpers";
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -197,7 +198,7 @@ export async function GET() {
       recommendations,
     });
   } catch (error) {
-    console.error("Failed to generate data quality report:", error);
+    logger.error("Failed to generate data quality report:", { error: error });
     return apiError("Failed to generate data quality report", 500);
   }
 }

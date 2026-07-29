@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { hashPassword } from '@/lib/password';
 import { requestOtp } from '@/lib/otp';
+import { logger } from '@/lib/logger';
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
       ...(isDev && otpResult.devCode ? { devCode: otpResult.devCode } : {}),
     });
   } catch (error) {
-    console.error('[auth/register] Error:', error);
+    logger.error('[auth/register] Error:', { error: error });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

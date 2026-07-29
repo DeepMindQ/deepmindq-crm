@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { generateEmailDraft } from '@/lib/email-generation';
 import { generateMessageId } from '@/lib/email-tracking';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    POST /api/sequences/process
@@ -136,7 +137,7 @@ export async function POST() {
 
         processed++;
       } catch (err) {
-        console.error(`Error processing enrollment ${enrollment.id}:`, err);
+        logger.error(`Error processing enrollment ${enrollment.id}:`, { error: err });
         errors++;
       }
     }
@@ -148,7 +149,7 @@ export async function POST() {
       total: dueEnrollments.length,
     });
   } catch (error) {
-    console.error('Sequence process error:', error);
+    logger.error('Sequence process error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to process sequences: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }

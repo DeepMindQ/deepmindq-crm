@@ -49,7 +49,7 @@ export interface SearchProvider {
 class WebSearchProvider implements SearchProvider {
   async search(query: string, maxResults: number): Promise<SearchResult[]> {
     return webSearch(query, maxResults).catch(err => {
-      console.error(`[search-provider] webSearch failed for "${query.substring(0, 60)}":`, err);
+      logger.error(`[search-provider] webSearch failed for "${query.substring(0, 60)}":`, { error: err });
       return [];
     });
   }
@@ -244,7 +244,7 @@ async function storeRawEvidence(
     });
     return created.id;
   } catch (error) {
-    console.error('[intel-collector] Failed to store evidence:', error);
+    logger.error('[intel-collector] Failed to store evidence:', { error: error });
     return null;
   }
 }
@@ -252,6 +252,7 @@ async function storeRawEvidence(
 // ─── Signal Creation (Sprint 1: Enhanced) ──────────────
 
 import { SIGNAL_HALF_LIVES } from '@/lib/scoring/freshness-ranking';
+import { logger } from '@/lib/logger';
 
 async function createSignalFromEvidence(
   companyId: string,
@@ -293,7 +294,7 @@ async function createSignalFromEvidence(
     });
     return signal.id;
   } catch (error) {
-    console.error('[intel-collector] Failed to create signal:', error);
+    logger.error('[intel-collector] Failed to create signal:', { error: error });
     return null;
   }
 }
@@ -474,7 +475,7 @@ export async function collectIntelligenceForCompany(
             await new Promise(resolve => setTimeout(resolve, 2000));
           }
         } catch (err) {
-          console.error(`[intel-collector] Query ${i + 1}/${queries.length} failed:`, err);
+          logger.error(`[intel-collector] Query ${i + 1}/${queries.length} failed:`, { error: err });
           searchBatches.push([]);
         }
       }

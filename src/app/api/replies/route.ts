@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -14,7 +15,7 @@ export async function GET() {
 
     return NextResponse.json(replies);
   } catch (error) {
-    console.error('Replies error:', error);
+    logger.error('Replies error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to load replies' },
       { status: 500 }

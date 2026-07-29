@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET /api/capabilities/[id]/children
@@ -34,7 +35,7 @@ export async function GET(
       count: children.length,
     });
   } catch (error) {
-    console.error('Children fetch error:', error);
+    logger.error('Children fetch error:', { error: error });
     return NextResponse.json({ error: 'Failed to fetch children' }, { status: 500 });
   }
 }

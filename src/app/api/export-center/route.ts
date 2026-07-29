@@ -16,6 +16,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { sanitizeString } from '@/lib/sanitize';
+import { logger } from '@/lib/logger';
 
 // ── Types ──
 
@@ -253,7 +254,7 @@ async function logExport(entity: ExportEntity, format: ExportFormat, rowCount: n
       },
     });
   } catch (e) {
-    console.warn('[export-center] Failed to log export audit:', e);
+    logger.warn('[export-center] Failed to log export audit:', { error: e });
   }
 }
 
@@ -293,7 +294,7 @@ export async function GET() {
       })),
     });
   } catch (error) {
-    console.error('[export-center] GET Error:', error);
+    logger.error('[export-center] GET Error:', { error: error });
     return apiError('Failed to load export center', 500);
   }
 }
@@ -348,7 +349,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[export-center] POST Error:', error);
+    logger.error('[export-center] POST Error:', { error: error });
     return apiError('Failed to generate export', 500);
   }
 }

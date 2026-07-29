@@ -9,6 +9,7 @@
 import { NextRequest } from 'next/server';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { getQualityMetrics } from '@/lib/ai-reliability';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
       recentFailures: metrics.recentFailures,
     });
   } catch (error) {
-    console.error('[ai/reliability] Error:', error);
+    logger.error('[ai/reliability] Error:', { error: error });
     return apiError('Failed to compute AI reliability metrics', 500);
   }
 }

@@ -4,6 +4,7 @@ import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { createInsight } from '@/lib/ai-insight-service'
 import { sdkWebSearch } from '@/lib/llm-client'
 import { ModelRouter } from '@/lib/engines/model-router'
+import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // Types — VP Sales-Ready Executive Brief
@@ -365,7 +366,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (err: unknown) {
-    console.error(`[account-brief] DB lookup failed:`, err instanceof Error ? err.message : err)
+    logger.error(`[account-brief] DB lookup failed:`, { error: err instanceof Error ? err.message : err })
     return apiError('Failed to look up company', 500)
   }
   if (!company) return apiError('Company not found', 404)
@@ -411,10 +412,10 @@ export async function GET(request: NextRequest) {
     const { raw, quality } = await callLLM(SYSTEM_PROMPT, userPrompt)
     qualityReport = quality
     const parsed = parseBriefJson(raw)
-    brief = parsed ?? (() => { console.error('[account-brief] Unparseable LLM JSON'); return buildFallbackBrief('LLM response was not valid JSON') })()
+    brief = parsed ?? (() => { logger.error('[account-brief] Unparseable LLM JSON'); return buildFallbackBrief('LLM response was not valid JSON') })()
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.error(`[account-brief] LLM generation failed: ${msg}`)
+    logger.error(`[account-brief] LLM generation failed: ${msg}`)
     brief = buildFallbackBrief(msg)
   }
 
@@ -461,7 +462,7 @@ export async function GET(request: NextRequest) {
       expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5-day expiry
     });
   } catch (insightErr) {
-    console.warn('[account-brief] Failed to persist insight:', insightErr);
+    logger.warn('[account-brief] Failed to persist insight:', { error: insightErr });
   }
 
   return apiSuccess(response)

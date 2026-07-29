@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { verifyQueueId } from '@/lib/email-tracking';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET /api/tracking/click?q=<signed_token>&url=<encoded_url>
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
       });
     }
   } catch (err) {
-    console.error('Click tracking error:', err);
+    logger.error('Click tracking error:', { error: err });
   }
 
   // Always redirect to the target URL

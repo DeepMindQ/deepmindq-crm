@@ -6,6 +6,7 @@
 
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -145,7 +146,7 @@ export async function GET() {
       generatedAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('[system-health] Error:', error);
+    logger.error('[system-health] Error:', { error: error });
     return apiError('Failed to generate system health dashboard', 500);
   }
 }

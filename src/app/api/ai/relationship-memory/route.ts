@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { apiSuccess, apiError } from '@/lib/apiHelpers'
 import { format } from 'date-fns'
 import { ModelRouter } from '@/lib/engines/model-router'
+import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -902,7 +903,7 @@ export async function GET() {
     cachedResult = { data, ts: Date.now() }
     return apiSuccess(data)
   } catch (err) {
-    console.error('[relationship-memory] Error:', err)
+    logger.error('[relationship-memory] Error:', { error: err })
     return apiError('Failed to load relationship memory data')
   }
 }

@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    Audit Logging Utility
@@ -21,6 +22,6 @@ export async function logAction(
       },
     });
   } catch (err) {
-    console.error('[Audit] Failed to log action:', err);
+    logger.error('[Audit] Failed to log action:', { error: err });
   }
 }

@@ -25,6 +25,7 @@ import { webSearch } from '@/lib/llm-client';
 import { extractJSON } from '@/lib/llm-client';
 import { ModelRouter } from '@/lib/engines/model-router';
 import type { SignalType, SignalSeverity, SignalImpact } from '@prisma/client';
+import { logger } from '@/lib/logger';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -383,7 +384,7 @@ Analyze these search results and extract ALL actionable intelligence signals and
         }
       }
     } catch (capErr) {
-      console.warn(`[IntelligencePipeline] Capability matching failed (non-blocking): ${capErr instanceof Error ? capErr.message : capErr}`);
+      logger.warn(`[IntelligencePipeline] Capability matching failed (non-blocking): ${capErr instanceof Error ? capErr.message : capErr}`);
     }
 
     return {
@@ -401,7 +402,7 @@ Analyze these search results and extract ALL actionable intelligence signals and
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error(`[IntelligencePipeline] Failed for company ${company.rawName}:`, msg);
+    logger.error(`[IntelligencePipeline] Failed for company ${company.rawName}:`, { detail: msg });
     return {
       companyId,
       companyName: company.rawName,

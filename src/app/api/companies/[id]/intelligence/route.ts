@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Types — AI Evidence Framework Compliant
@@ -436,7 +437,7 @@ Be SPECIFIC. Reference real information from web results. Every signal needs evi
 
     return insights;
   } catch (e) {
-    console.error('[intelligence] AI generation failed:', e);
+    logger.error('[intelligence] AI generation failed:', { error: e });
     return null;
   }
 }
@@ -541,7 +542,7 @@ export async function GET(
       aiInsights,
     });
   } catch (error) {
-    console.error('[intelligence] Error:', error);
+    logger.error('[intelligence] Error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to generate company intelligence' },
       { status: 500 },

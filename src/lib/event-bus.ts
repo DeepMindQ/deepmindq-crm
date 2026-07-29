@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger';
+
 // Simple in-memory event bus for SSE and inter-module communication.
 // In production this would be replaced by Redis pub/sub or similar.
 
@@ -27,7 +29,7 @@ class EventBus {
         try {
           fn(data)
         } catch (err) {
-          console.error(`[EventBus] Error in listener for "${event}":`, err)
+          logger.error(`[EventBus] Error in listener for "${event}":`, { error: err })
         }
       }
     }

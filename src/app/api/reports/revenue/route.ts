@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db } from "@/lib/db";
 import { apiError, apiSuccess, safeInt } from "@/lib/apiHelpers";
+import { logger } from '@/lib/logger';
 
 const STAGE_PROBABILITY: Record<string, number> = {
   researching: 0.1,
@@ -102,7 +103,7 @@ export async function GET(request: NextRequest) {
       topDeals,
     });
   } catch (error) {
-    console.error("Failed to generate revenue forecast:", error);
+    logger.error("Failed to generate revenue forecast:", { error: error });
     return apiError("Failed to generate revenue forecast", 500);
   }
 }

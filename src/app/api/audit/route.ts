@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 // GET /api/audit — returns audit entries in the shape audit-screen.tsx expects
 export async function GET(request: NextRequest) {
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(entries);
   } catch (error) {
-    console.error('Audit error:', error);
+    logger.error('Audit error:', { error: error });
     return NextResponse.json([]);
   }
 }

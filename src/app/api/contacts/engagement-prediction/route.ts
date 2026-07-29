@@ -11,6 +11,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { predictEngagement, type EngagementPrediction } from '@/lib/engagement-prediction-engine';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     return apiError('Provide contactId or companyId', 400);
   } catch (error) {
-    console.error('[contacts/engagement-prediction] Error:', error);
+    logger.error('[contacts/engagement-prediction] Error:', { error: error });
     const message = error instanceof Error ? error.message : 'Unknown error';
     return apiError(message, message.includes('not found') ? 404 : 500);
   }

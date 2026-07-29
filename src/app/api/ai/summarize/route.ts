@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
 import { ModelRouter } from '@/lib/engines/model-router'
+import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -253,7 +254,7 @@ Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
           if (result) usedLlm = true
         } catch (llmErr: unknown) {
           const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-          console.error('[ai/summarize] LLM call failed:', msg)
+          logger.error('[ai/summarize] LLM call failed:', { detail: msg })
         }
       }
 
@@ -315,7 +316,7 @@ Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
           if (result) usedLlm = true
         } catch (llmErr: unknown) {
           const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-          console.error('[ai/summarize] LLM call failed:', msg)
+          logger.error('[ai/summarize] LLM call failed:', { detail: msg })
         }
       }
 
@@ -373,7 +374,7 @@ Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
           if (result) usedLlm = true
         } catch (llmErr: unknown) {
           const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
-          console.error('[ai/summarize] LLM call failed:', msg)
+          logger.error('[ai/summarize] LLM call failed:', { detail: msg })
         }
       }
 

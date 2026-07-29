@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logAction } from '@/lib/audit';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    POST /api/leads/assign — Smart lead assignment
@@ -153,7 +154,7 @@ export async function POST(request: Request) {
       message: `${updated} contacts assigned via ${effectiveMethod}`,
     });
   } catch (error) {
-    console.error('Assignment error:', error);
+    logger.error('Assignment error:', { error: error });
     return NextResponse.json({ error: 'Failed to assign leads' }, { status: 500 });
   }
 }
@@ -179,7 +180,7 @@ export async function GET() {
 
     return NextResponse.json({ assignees: summary });
   } catch (error) {
-    console.error('Assignment summary error:', error);
+    logger.error('Assignment summary error:', { error: error });
     return NextResponse.json({ error: 'Failed to get assignment summary' }, { status: 500 });
   }
 }

@@ -17,6 +17,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
+import { logger } from '@/lib/logger';
 
 // ── Query Params ──
 
@@ -295,7 +296,7 @@ export async function GET(request: NextRequest) {
 
     return apiSuccess({ stats });
   } catch (err) {
-    console.error('[AI Usage API] Failed to fetch usage stats:', err);
+    logger.error('[AI Usage API] Failed to fetch usage stats:', { error: err });
     return apiError('Failed to fetch AI usage statistics', 500);
   }
 }

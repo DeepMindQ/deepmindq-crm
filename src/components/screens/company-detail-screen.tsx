@@ -31,6 +31,7 @@ import {
   RefreshCw, Gauge, Search,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    Constants & Colors
@@ -548,7 +549,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
         setCompany(data);
         setEditForm({ name: data.rawName || data.name, industry: data.industry || '', sizeRange: data.sizeRange || '', location: data.location || '', country: data.country || '', website: data.website || '', status: data.status || 'prospect', lifecycleStage: data.lifecycleStage || 'discovery', assignedTo: data.assignedTo || '', internalSummary: data.internalSummary || '' });
       }
-    } catch (err) { console.error('[AIWorkspace] fetch company failed:', err); }
+    } catch (err) { logger.error('[AIWorkspace] fetch company failed:', { error: err }); }
   }, [companyId]);
 
   /* ── Fetch Contacts ── */
@@ -556,7 +557,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
     try {
       const res = await fetch(`/api/companies/${companyId}/contacts`);
       if (res.ok) { const data = await res.json(); setContacts(data.contacts || data || []); }
-    } catch (err) { console.error('[AIWorkspace] fetch contacts failed:', err); }
+    } catch (err) { logger.error('[AIWorkspace] fetch contacts failed:', { error: err }); }
   }, [companyId]);
 
   /* ── Fetch Notes ── */
@@ -564,7 +565,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
     try {
       const res = await fetch(`/api/companies/${companyId}/notes`);
       if (res.ok) { const data = await res.json(); setNotes(data.notes || data || []); }
-    } catch (err) { console.error('[AIWorkspace] fetch notes failed:', err); }
+    } catch (err) { logger.error('[AIWorkspace] fetch notes failed:', { error: err }); }
   }, [companyId]);
 
   /* ── Fetch Signals ── */
@@ -572,7 +573,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
     try {
       const res = await fetch(`/api/companies/${companyId}/signals`);
       if (res.ok) { const data = await res.json(); setSignals(data.signals || data || []); }
-    } catch (err) { console.error('[AIWorkspace] fetch signals failed:', err); }
+    } catch (err) { logger.error('[AIWorkspace] fetch signals failed:', { error: err }); }
   }, [companyId]);
 
   /* ── Fetch Timeline ── */
@@ -580,7 +581,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
     try {
       const res = await fetch(`/api/companies/${companyId}/timeline?limit=50`);
       if (res.ok) { const data = await res.json(); setTimeline(data.events || data || []); }
-    } catch (err) { console.error('[AIWorkspace] fetch timeline failed:', err); }
+    } catch (err) { logger.error('[AIWorkspace] fetch timeline failed:', { error: err }); }
   }, [companyId]);
 
   /* ── Fetch Evidence ── */
@@ -601,7 +602,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
         setAiInsights(data.aiInsights || []);
         setAiIntelligence(data);
       }
-    } catch (err) { console.error('[AIWorkspace] fetch intelligence failed:', err); }
+    } catch (err) { logger.error('[AIWorkspace] fetch intelligence failed:', { error: err }); }
     finally { setLoadingIntel(false); }
   }, [companyId]);
 
@@ -611,7 +612,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
     try {
       const res = await fetch(`/api/companies/${companyId}/score`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ skipNarrative: true }) });
       if (res.ok) { const data = await res.json(); setAiScore(data); }
-    } catch (err) { console.error('[AIWorkspace] fetch score failed:', err); }
+    } catch (err) { logger.error('[AIWorkspace] fetch score failed:', { error: err }); }
     finally { setLoadingScore(false); }
   }, [companyId]);
 
@@ -621,7 +622,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
     try {
       const res = await fetch(`/api/companies/${companyId}/actions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ skipNarrative: true }) });
       if (res.ok) { const data = await res.json(); setAiActions(data); }
-    } catch (err) { console.error('[AIWorkspace] fetch actions failed:', err); }
+    } catch (err) { logger.error('[AIWorkspace] fetch actions failed:', { error: err }); }
     finally { setLoadingActions(false); }
   }, [companyId]);
 

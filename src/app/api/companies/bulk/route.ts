@@ -2,6 +2,7 @@
 import { db } from '@/lib/db';
 import type { CompanyStatus } from '@prisma/client';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    POST — Bulk operations on companies
@@ -171,7 +172,7 @@ export async function POST(request: Request) {
       missingIds: missingIds.length > 0 ? missingIds : undefined,
     });
   } catch (error) {
-    console.error('Bulk operation error:', error);
+    logger.error('Bulk operation error:', { error: error });
     return NextResponse.json({ error: 'Bulk operation failed' }, { status: 500 });
   }
 }

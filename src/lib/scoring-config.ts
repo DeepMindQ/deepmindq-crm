@@ -18,6 +18,7 @@
    ═══════════════════════════════════════════════════════════════ */
 
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 // ── Types ──
 
@@ -129,7 +130,7 @@ export async function getScoringConfig(): Promise<ScoringConfig> {
       return config;
     }
   } catch (err) {
-    console.error('[scoring-config] Failed to load config from DB, using defaults:', err);
+    logger.error('[scoring-config] Failed to load config from DB, using defaults:', { error: err });
   }
   _cachedConfig = { ...DEFAULT_SCORING_CONFIG };
   return _cachedConfig;
@@ -282,7 +283,7 @@ class ScoreChangeEventEmitter {
       try {
         listener(data);
       } catch (err) {
-        console.error('[ScoreChangeEventEmitter] Error in listener:', err);
+        logger.error('[ScoreChangeEventEmitter] Error in listener:', { error: err });
       }
     }
   }

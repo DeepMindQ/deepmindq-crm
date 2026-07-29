@@ -2,6 +2,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import type { SignalType } from '@prisma/client';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET — List signals for a company
@@ -33,7 +34,7 @@ export async function GET(
 
     return NextResponse.json({ signals });
   } catch (error) {
-    console.error('Company signals list error:', error);
+    logger.error('Company signals list error:', { error: error });
     return NextResponse.json({ error: 'Failed to fetch signals' }, { status: 500 });
   }
 }
@@ -83,7 +84,7 @@ export async function POST(
 
     return NextResponse.json({ signal }, { status: 201 });
   } catch (error) {
-    console.error('Company signal create error:', error);
+    logger.error('Company signal create error:', { error: error });
     return NextResponse.json({ error: 'Failed to create signal' }, { status: 500 });
   }
 }

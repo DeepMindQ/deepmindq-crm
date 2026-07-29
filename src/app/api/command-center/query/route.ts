@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { ModelRouter } from '@/lib/engines/model-router';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════════
    AI Command Center — Natural Language Query (v2)
@@ -40,7 +41,7 @@ async function llmChat(systemPrompt: string, userPrompt: string): Promise<string
     });
     return result.success ? result.text : null;
   } catch (err) {
-    console.error('[CommandCenter LLM]', err);
+    logger.error('[CommandCenter LLM]', { error: err });
     return null;
   }
 }
@@ -50,7 +51,7 @@ async function webSearch(query: string, num = 5): Promise<any[]> {
     const { sdkWebSearch } = await import('@/lib/llm-client');
     return (await sdkWebSearch(query, num)).map(r => ({ title: r.title, snippet: r.snippet, url: r.url }));
   } catch (err) {
-    console.error('[CommandCenter WebSearch]', err);
+    logger.error('[CommandCenter WebSearch]', { error: err });
     return [];
   }
 }
@@ -255,7 +256,7 @@ async function executeFetch(fetch: DataFetch): Promise<{ source: string; data: a
 
     const model = modelMap[fetch.source];
     if (!model) {
-      console.warn(`[CommandCenter] Unknown data source: ${fetch.source}`);
+      logger.warn(`[CommandCenter] Unknown data source: ${fetch.source}`);
       return { source: fetch.source, data: [] };
     }
 
@@ -290,7 +291,7 @@ async function executeFetch(fetch: DataFetch): Promise<{ source: string; data: a
 
     return { source: fetch.source, data: serialized };
   } catch (err) {
-    console.error(`[CommandCenter] Fetch error for ${fetch.source}:`, err);
+    logger.error(`[CommandCenter] Fetch error for ${fetch.source}:`, { error: err });
     return { source: fetch.source, data: [] };
   }
 }
@@ -550,7 +551,7 @@ export async function POST(req: NextRequest) {
       const plan = parsePlan(plannerRaw);
 
       if (!plan || plan.dataFetches.length === 0) {
-        console.warn('[CommandCenter] LLM plan was empty or unparseable, falling back to keyword matching');
+        logger.warn('[CommandCenter] LLM plan was empty or unparseable, falling back to keyword matching');
         const fallback = await legacyKeywordQuery(query);
         return NextResponse.json(fallback);
       }
@@ -607,12 +608,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(result);
     } catch (aiError) {
       // AI pipeline failed — fall back to keyword matching
-      console.error('[CommandCenter] AI pipeline failed, falling back:', aiError);
+      logger.error('[CommandCenter] AI pipeline failed, falling back:', { error: aiError });
       const fallback = await legacyKeywordQuery(query);
       return NextResponse.json(fallback);
     }
   } catch (error) {
-    console.error('[Command Center Query]', error);
+    logger.error('[Command Center Query]', { error: error });
     return NextResponse.json({ error: 'Query processing failed' }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { apiError, apiSuccess, safeInt, validateBody, sanitize } from "@/lib/apiHelpers";
 import { createNoteSchema } from "@/lib/validations";
+import { logger } from '@/lib/logger';
 
 type NoteWithCompany = Prisma.CompanyNoteGetPayload<{ include: { company: true } }>;
 type NoteWithContact = Prisma.ContactNoteGetPayload<{ include: { contact: true } }>;
@@ -92,7 +93,7 @@ export async function GET(request: NextRequest) {
 
     return apiSuccess(results.slice(0, limit));
   } catch (error) {
-    console.error("Failed to fetch notes:", error);
+    logger.error("Failed to fetch notes:", { error: error });
     return apiError("Failed to fetch notes", 500);
   }
 }
@@ -167,7 +168,7 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess({ ...note, _type: companyId ? "company" : "contact" }, 201);
   } catch (error) {
-    console.error("Failed to create note:", error);
+    logger.error("Failed to create note:", { error: error });
     return apiError("Failed to create note", 500);
   }
 }
@@ -220,7 +221,7 @@ export async function DELETE(request: NextRequest) {
 
     return apiError("Note not found", 404);
   } catch (error) {
-    console.error("Failed to delete note:", error);
+    logger.error("Failed to delete note:", { error: error });
     return apiError("Failed to delete note", 500);
   }
 }

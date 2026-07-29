@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { recalculateAllScores, getScoreBreakdown } from '@/lib/lead-scoring';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
     const result = await recalculateAllScores();
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
-    console.error('Recalculate scores error:', error);
+    logger.error('Recalculate scores error:', { error: error });
     return NextResponse.json({ error: 'Failed to recalculate scores' }, { status: 500 });
   }
 }

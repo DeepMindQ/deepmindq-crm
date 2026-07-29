@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET /api/team/performance — Per-member KPIs
@@ -121,7 +122,7 @@ export async function GET() {
 
     return NextResponse.json({ members, statusColors: STATUS_COLORS, statusOrder: STATUS_ORDER });
   } catch (error) {
-    console.error('Team performance error:', error);
+    logger.error('Team performance error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to get team performance metrics' },
       { status: 500 },

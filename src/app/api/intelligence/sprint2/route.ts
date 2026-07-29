@@ -16,6 +16,7 @@
 
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
+import { logger } from '@/lib/logger';
 import {
   detectDuplicates,
   detectConflicts,
@@ -154,7 +155,7 @@ export async function POST(request: Request) {
             newDuplicateAssociations++
           }
         } catch (err) {
-          console.warn(`[sprint2] Auto-association failed:`, err instanceof Error ? err.message : err)
+          logger.warn(`[sprint2] Auto-association failed:`, { error: err instanceof Error ? err.message : err })
         }
       }
     }
@@ -242,7 +243,7 @@ export async function POST(request: Request) {
     return NextResponse.json(response)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
-    console.error('[sprint2] Pipeline error:', message)
+    logger.error('[sprint2] Pipeline error:', { detail: message })
     return NextResponse.json(
       { error: `Sprint 2 pipeline failed: ${message}` },
       { status: 500 },

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { detectCrossAccountPatterns } from '@/lib/intelligence-sources/cross-account-intelligence';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: Request) {
   try {
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
     const patterns = detectCrossAccountPatterns(accountSignals);
     return NextResponse.json({ companyCount: companies.length, signalCount: allSignals.length, patterns });
   } catch (error) {
-    console.error('[cross-account] Error:', error);
+    logger.error('[cross-account] Error:', { error: error });
     return NextResponse.json({ error: 'Cross-account analysis failed' }, { status: 500 });
   }
 }

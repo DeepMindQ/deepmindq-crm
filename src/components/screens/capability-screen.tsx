@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 import {
   Layers, BookOpen, Trophy, MessageSquare, Target, Tag, Eye,
   Plus, Upload, Search, Pencil, Trash2, X, FileText,
@@ -299,7 +300,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
         });
         const data = await res.json();
         if (!cancelled) setCoverage(data);
-      } catch (err) { console.error('[Capability] fetch coverage failed:', err); }
+      } catch (err) { logger.error('[Capability] fetch coverage failed:', { error: err }); }
       if (!cancelled) setCoverageLoading(false);
     })();
     return () => { cancelled = true; };
@@ -324,7 +325,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
       const data = await res.json();
       setRagResults(data.results || []);
       setRagInsight(data.engineInsight || null);
-    } catch (err) { console.error('[Capability] RAG search failed:', err); setRagResults([]); }
+    } catch (err) { logger.error('[Capability] RAG search failed:', { error: err }); setRagResults([]); }
     setRagLoading(false);
   };
 
@@ -820,7 +821,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
       const data = await res.json();
       setItems(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error('[Capability] fetch capabilities failed:', err);
+      logger.error('[Capability] fetch capabilities failed:', { error: err });
       setItems([]);
     } finally {
       setLoading(false);

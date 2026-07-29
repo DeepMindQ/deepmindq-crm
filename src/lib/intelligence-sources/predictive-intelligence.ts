@@ -42,6 +42,7 @@ interface SignalHistory {
 }
 
 import { normalizeSignalType, type CanonicalSignalType } from './signal-type-mapping';
+import { logger } from '@/lib/logger';
 
 function analyzeSignalHistory(signals: {
   signalType: string;
@@ -231,7 +232,7 @@ export function generatePredictions(signals: {
         });
       }
     } catch (err) {
-      console.error(`[predictive] Rule ${rule.type} check failed:`, err);
+      logger.error(`[predictive] Rule ${rule.type} check failed:`, { error: err });
     }
   }
 

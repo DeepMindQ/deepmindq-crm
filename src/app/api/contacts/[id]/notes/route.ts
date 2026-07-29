@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logAction } from '@/lib/audit';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET /api/contacts/[id]/notes — List notes
@@ -23,7 +24,7 @@ export async function GET(
 
     return NextResponse.json(notes);
   } catch (error) {
-    console.error('Notes GET error:', error);
+    logger.error('Notes GET error:', { error: error });
     return NextResponse.json({ error: 'Failed to load notes' }, { status: 500 });
   }
 }
@@ -52,7 +53,7 @@ export async function POST(
 
     return NextResponse.json(note, { status: 201 });
   } catch (error) {
-    console.error('Notes POST error:', error);
+    logger.error('Notes POST error:', { error: error });
     return NextResponse.json({ error: 'Failed to create note' }, { status: 500 });
   }
 }
@@ -80,7 +81,7 @@ export async function PUT(
 
     return NextResponse.json(note);
   } catch (error) {
-    console.error('Notes PUT error:', error);
+    logger.error('Notes PUT error:', { error: error });
     return NextResponse.json({ error: 'Failed to update note' }, { status: 500 });
   }
 }
@@ -104,7 +105,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Notes DELETE error:', error);
+    logger.error('Notes DELETE error:', { error: error });
     return NextResponse.json({ error: 'Failed to delete note' }, { status: 500 });
   }
 }

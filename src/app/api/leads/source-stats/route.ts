@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET /api/leads/source-stats
@@ -44,7 +45,7 @@ export async function GET() {
 
     return NextResponse.json({ sources });
   } catch (error) {
-    console.error('Source stats error:', error);
+    logger.error('Source stats error:', { error: error });
     return NextResponse.json({ error: 'Failed to get source stats' }, { status: 500 });
   }
 }

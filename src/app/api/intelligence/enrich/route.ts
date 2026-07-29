@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
 import { IntelligencePipeline } from '@/lib/intelligence-pipeline';
+import { logger } from '@/lib/logger';
 
 // ────────────────────────────────────────────────────────────────────────
 // POST /api/intelligence/enrich
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Enrichment failed';
-    console.error('[intelligence/enrich]', msg);
+    logger.error('[intelligence/enrich]', { detail: msg });
     return apiError(msg);
   }
 }

@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
 import { ModelRouter } from '@/lib/engines/model-router'
+import { logger } from '@/lib/logger';
 
 /* ── In-memory cache (5 minutes) ── */
 let cachedResult: { data: DataHealthResponse; ts: number } | null = null
@@ -612,7 +613,7 @@ ${JSON.stringify(metricsSnapshot, null, 2)}`
       }
     } catch (aiError) {
       // AI analysis failed — log and continue with base metrics only
-      console.error('[data-health] AI analysis failed, returning base metrics:', aiError)
+      logger.error('[data-health] AI analysis failed, returning base metrics:', { error: aiError })
     }
 
     // ────────────────────────────────────────────────
@@ -631,7 +632,7 @@ ${JSON.stringify(metricsSnapshot, null, 2)}`
 
     return apiSuccess(result)
   } catch (error) {
-    console.error('[data-health] Error computing data health metrics:', error)
+    logger.error('[data-health] Error computing data health metrics:', { error: error })
     return apiError('Failed to compute data health metrics')
   }
 }

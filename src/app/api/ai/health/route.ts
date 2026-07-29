@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 /**
  * AI Health Center API (Wave 8.3)
@@ -94,7 +95,7 @@ export async function GET() {
       })),
     });
   } catch (error) {
-    console.error('[AI Health] Error:', error);
+    logger.error('[AI Health] Error:', { error: error });
     return NextResponse.json({ error: 'Failed to load AI health metrics' }, { status: 500 });
   }
 }

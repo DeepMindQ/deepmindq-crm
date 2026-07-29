@@ -20,6 +20,7 @@
 
 import { db } from '@/lib/db'
 import { ModelRouter } from '@/lib/engines/model-router'
+import { logger } from '@/lib/logger';
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -367,7 +368,7 @@ async function gatherCompanyContext(companyId: string): Promise<ActionContext> {
       severity: s.severity,
     }))
   } catch (err) {
-    console.warn('[action-engine] Internal memory extraction failed:', err instanceof Error ? err.message : err)
+    logger.warn('[action-engine] Internal memory extraction failed:', { error: err instanceof Error ? err.message : err })
   }
 
   return {
@@ -1146,7 +1147,7 @@ export async function generateCompanyActions(companyId: string): Promise<Sprint3
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       errors.push(`${gen.type}: ${msg}`)
-      console.warn(`[action-engine] ${gen.type} generation failed:`, msg)
+      logger.warn(`[action-engine] ${gen.type} generation failed:`, { detail: msg })
     }
   }
 
@@ -1166,7 +1167,7 @@ export async function generateCompanyActions(companyId: string): Promise<Sprint3
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     errors.push(`next_best_action: ${msg}`)
-    console.warn(`[action-engine] next_best_action generation failed:`, msg)
+    logger.warn(`[action-engine] next_best_action generation failed:`, { detail: msg })
   }
 
   // Step 4: Build response

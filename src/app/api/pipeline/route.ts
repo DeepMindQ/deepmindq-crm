@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 // Map of DB status values to pipeline stage keys
 const STAGE_STATUS_MAP: Record<string, string> = {
@@ -100,7 +101,7 @@ export async function GET() {
       bounceRate: totalSent > 0 ? parseFloat(((totalBounced / totalSent) * 100).toFixed(1)) : 0,
     });
   } catch (error) {
-    console.error('Pipeline error:', error);
+    logger.error('Pipeline error:', { error: error });
     return NextResponse.json({ error: 'Failed to load pipeline data' }, { status: 500 });
   }
 }

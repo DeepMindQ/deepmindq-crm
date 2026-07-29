@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
+import { logger } from '@/lib/logger';
 
 const SALES_STAGES = ['discovery', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost'] as const;
 
@@ -134,7 +135,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('[pipeline/health] Error:', error);
+    logger.error('[pipeline/health] Error:', { error: error });
     return apiError('Failed to compute pipeline health', 500);
   }
 }

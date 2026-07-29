@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { createInsights } from '@/lib/ai-insight-service';
+import { logger } from '@/lib/logger';
 
 /**
  * Wave 6 — Sales Execution Dashboard API
@@ -117,7 +118,7 @@ export async function GET(request: NextRequest) {
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       }]);
     } catch (e) {
-      console.warn('[sales-execution] Failed to persist insight:', e);
+      logger.warn('[sales-execution] Failed to persist insight:', { error: e });
     }
 
     return apiSuccess({
@@ -154,7 +155,7 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error('[sales-execution] Error:', error);
+    logger.error('[sales-execution] Error:', { error: error });
     return apiError('Failed to load sales execution data', 500);
   }
 }

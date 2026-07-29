@@ -13,6 +13,7 @@
  */
 
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export interface AIProviderConfig {
   /** Display label */
@@ -253,7 +254,7 @@ export async function updateAIConfig(updates: Partial<AIFullConfig>): Promise<AI
     });
   } catch {
     // Log but don't fail — in-memory still works
-    console.warn('[ai-config] Failed to persist to DB');
+    logger.warn('[ai-config] Failed to persist to DB');
   }
 
   return {

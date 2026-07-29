@@ -11,6 +11,7 @@
 import { db } from '@/lib/db';
 import { detectCorrelations, type CorrelationInsight } from './cross-signal-correlation';
 import { generatePredictions, type IntelligencePrediction } from './predictive-intelligence';
+import { logger } from '@/lib/logger';
 
 // ─── Alert Types ───────────────────────────────────────────────
 
@@ -139,7 +140,7 @@ export async function runMonitoringCheck(
       }
     }
   } catch (error) {
-    console.error(`[monitor] Check failed for ${companyId}:`, error);
+    logger.error(`[monitor] Check failed for ${companyId}:`, { error: error });
   }
 
   return alerts;

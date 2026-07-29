@@ -3,6 +3,7 @@ import { apiSuccess, apiError } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
 import { createInsights } from '@/lib/ai-insight-service'
 import { ModelRouter } from '@/lib/engines/model-router'
+import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -348,7 +349,7 @@ async function enhanceWithAI(recs: Recommendation[]): Promise<Recommendation[]> 
   const raw = result.success ? result.text : ''
 
   if (!raw || raw.length < 10) {
-    console.warn('[ai/recommendations] AI returned empty or too-short response, using rule-based fallback')
+    logger.warn('[ai/recommendations] AI returned empty or too-short response, using rule-based fallback')
     return recs
   }
 
@@ -401,10 +402,7 @@ export async function GET() {
       // Sort by AI-reassessed priority
       enhanced = sortRecommendations(enhanced)
     } catch (err) {
-      console.warn(
-        '[ai/recommendations] AI enhancement failed, returning rule-based recommendations:',
-        err instanceof Error ? err.message : err,
-      )
+      logger.warn('[ai/recommendations] AI enhancement failed, returning rule-based recommendations:', { error: err instanceof Error ? err.message : err })
       enhanced = sortRecommendations(all).map((r) => ({ ...r, aiEnhanced: false }))
     }
 
@@ -438,7 +436,7 @@ export async function GET() {
         );
       }
     } catch (insightErr) {
-      console.warn('[ai/recommendations] Failed to persist insights:', insightErr)
+      logger.warn('[ai/recommendations] Failed to persist insights:', { error: insightErr })
     }
 
     return apiSuccess({ recommendations: sorted })

@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -81,7 +82,7 @@ export async function GET(request: NextRequest) {
       limit,
     });
   } catch (error) {
-    console.error('Audit logs error:', error);
+    logger.error('Audit logs error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to load audit logs' },
       { status: 500 }

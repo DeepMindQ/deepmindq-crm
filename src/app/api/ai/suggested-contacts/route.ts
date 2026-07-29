@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { getZAI, sdkWebSearch, extractJSON } from '@/lib/llm-client';
+import { logger } from '@/lib/logger';
 
 // ── Types ──
 
@@ -174,7 +175,7 @@ export async function GET(request: NextRequest) {
     setCache(companyId, response);
     return apiSuccess(response);
   } catch (e) {
-    console.error('[suggested-contacts] Error:', e);
+    logger.error('[suggested-contacts] Error:', { error: e });
     return apiError('Failed to generate suggested contacts');
   }
 }

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import type { CompanyIntelligence, IntelligenceObject, EvidenceState, ExecutiveBriefData } from '@/lib/intelligence-types';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Company Intelligence Workspace — Dark Intelligence OS
@@ -203,7 +204,7 @@ function FeedbackControl({
         body: JSON.stringify({ artifactType, artifactId: intelligenceId, feedback }),
       });
       setStatus(feedback);
-    } catch (e) { console.error('Feedback error:', e); }
+    } catch (e) { logger.error('Feedback error:', { error: e }); }
     finally { setSubmitting(false); }
   };
 
@@ -1176,7 +1177,7 @@ export function CompanyWorkspace() {
         setIntelligence(data);
         setShowReveal(true);
       }
-    } catch (e) { console.error('Intelligence fetch error:', e); }
+    } catch (e) { logger.error('Intelligence fetch error:', { error: e }); }
     finally { setLoading(false); }
   }, [selectedCompanyId]);
 
@@ -1190,7 +1191,7 @@ export function CompanyWorkspace() {
         setBrief(data);
         setShowBrief(true);
       }
-    } catch (e) { console.error('Brief fetch error:', e); }
+    } catch (e) { logger.error('Brief fetch error:', { error: e }); }
     finally { setBriefLoading(false); }
   }, [selectedCompanyId]);
 

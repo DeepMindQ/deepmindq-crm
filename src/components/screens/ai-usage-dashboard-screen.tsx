@@ -21,6 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 
 /* ── Types ── */
 
@@ -113,7 +114,7 @@ export default function AIUsageDashboardScreen() {
         toast.error('Failed to load AI usage data');
       }
     } catch (err) {
-      console.error('Failed to fetch usage stats:', err);
+      logger.error('Failed to fetch usage stats:', { error: err });
       toast.error('Network error loading usage data');
     } finally {
       setLoading(false);

@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    PATCH — Update a signal (mark as read, etc.)
@@ -52,7 +53,7 @@ export async function PATCH(
 
     return NextResponse.json({ signal });
   } catch (error) {
-    console.error('Signal update error:', error);
+    logger.error('Signal update error:', { error: error });
     return NextResponse.json({ error: 'Failed to update signal' }, { status: 500 });
   }
 }
@@ -80,7 +81,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, deletedId: signalId });
   } catch (error) {
-    console.error('Signal delete error:', error);
+    logger.error('Signal delete error:', { error: error });
     return NextResponse.json({ error: 'Failed to delete signal' }, { status: 500 });
   }
 }

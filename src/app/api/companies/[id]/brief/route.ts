@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import type { ExecutiveBriefData } from '@/lib/intelligence-types';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    GET /api/companies/[id]/brief — Executive Brief Generator
@@ -89,7 +90,7 @@ export async function GET(
 
     return NextResponse.json(brief);
   } catch (error) {
-    console.error('[brief] Error:', error);
+    logger.error('[brief] Error:', { error: error });
     return NextResponse.json({ error: 'Failed to generate brief' }, { status: 500 });
   }
 }

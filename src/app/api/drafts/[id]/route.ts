@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess, validateBody, sanitize } from "@/lib/apiHelpers";
 import { updateDraftSchema } from "@/lib/validations";
+import { logger } from '@/lib/logger';
 
 export async function PATCH(
   request: NextRequest,
@@ -78,7 +79,7 @@ export async function PATCH(
     if (error instanceof Error && error.message === "NOT_FOUND") {
       return apiError("Draft not found", 404);
     }
-    console.error("Failed to update draft:", error);
+    logger.error("Failed to update draft:", { error: error });
     return apiError("Failed to update draft", 500);
   }
 }
@@ -99,7 +100,7 @@ export async function DELETE(
 
     return apiSuccess({ success: true });
   } catch (error) {
-    console.error("Failed to delete draft:", error);
+    logger.error("Failed to delete draft:", { error: error });
     return apiError("Failed to delete draft", 500);
   }
 }

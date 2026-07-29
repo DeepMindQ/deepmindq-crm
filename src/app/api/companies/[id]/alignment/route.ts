@@ -1,6 +1,7 @@
 // @ts-nocheck — References Prisma models/enums not in current schema. Remove after DB migration.
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 import type {
   CompanyIntelligence,
   IntelligenceObject,
@@ -202,7 +203,7 @@ export async function GET(
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error('[alignment-v2] Error:', error);
+    logger.error('[alignment-v2] Error:', { error: error });
     return NextResponse.json({ error: 'Failed to compose alignment' }, { status: 500 });
   }
 }

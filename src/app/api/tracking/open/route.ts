@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { verifyQueueId, TRACKING_PIXEL_GIF } from '@/lib/email-tracking';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET /api/tracking/open?q=<signed_token>
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
       });
     }
   } catch (err) {
-    console.error('Open tracking error:', err);
+    logger.error('Open tracking error:', { error: err });
   }
 
   // Always return the pixel, even on error

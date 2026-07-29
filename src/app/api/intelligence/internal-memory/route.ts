@@ -10,6 +10,7 @@
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { extractInternalMemorySignals, computeInternalMemoryDepth } from '@/lib/intelligence-sources/internal-memory-connector'
+import { logger } from '@/lib/logger';
 
 export async function POST(request: Request) {
   const startTime = Date.now()
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
-    console.error('[internal-memory] Pipeline error:', message)
+    logger.error('[internal-memory] Pipeline error:', { detail: message })
     return NextResponse.json(
       { error: `Internal memory extraction failed: ${message}` },
       { status: 500 },

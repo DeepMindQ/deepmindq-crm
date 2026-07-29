@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 import {
   PageTransition,
   StaggerGrid,
@@ -121,7 +122,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
         openCount: q.openCount || 0,
         clickCount: q.clickCount || 0,
       })));
-    } catch (err) { console.error('[Queue] fetch drafts failed:', err); }
+    } catch (err) { logger.error('[Queue] fetch drafts failed:', { error: err }); }
     setLoading(false);
   }, []);
 
@@ -148,7 +149,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
           openCount: q.openCount || 0,
           clickCount: q.clickCount || 0,
         })));
-      } catch (err) { console.error('[Queue] fetch queue failed:', err); }
+      } catch (err) { logger.error('[Queue] fetch queue failed:', { error: err }); }
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -166,7 +167,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
       await load();
       return data;
     } catch (err) {
-      console.error('[Queue] queue action failed:', err);
+      logger.error('[Queue] queue action failed:', { error: err });
       return null;
     }
   };

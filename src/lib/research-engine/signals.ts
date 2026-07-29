@@ -20,6 +20,7 @@ import type { SignalType, SignalSeverity, SignalImpact, SignalStatus } from '@pr
 import { extractJSON, type NewsSignal } from '@/lib/llm-client';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { CANONICAL_SIGNAL_TYPE_LIST, normalizeSignalType } from '@/lib/signal-types';
+import { logger } from '@/lib/logger';
 
 // ── Types ──
 
@@ -112,7 +113,7 @@ Maximum 10 signals. Only include signals clearly supported by the results. Empty
       inputParams: { companyName },
     });
     if (!llmResult.success || !llmResult.response) {
-      console.warn('[signals] Governed LLM call failed');
+      logger.warn('[signals] Governed LLM call failed');
       return { signals: [], signalCount: 0, highImpactCount: 0 };
     }
     const response = llmResult.response;
@@ -154,7 +155,7 @@ Maximum 10 signals. Only include signals clearly supported by the results. Empty
       };
     }
   } catch (err) {
-    console.error('[signals] LLM signal detection failed:', err instanceof Error ? err.message : err);
+    logger.error('[signals] LLM signal detection failed:', { error: err instanceof Error ? err.message : err });
   }
 
   // Fallback: rule-based signal detection from snippets
@@ -291,7 +292,7 @@ export async function storeSignals(
       await db.companySignal.update({
         where: { id: signal.id },
         data: { status: newStatus as SignalStatus },
-      }).catch((err) => { console.error('[research-signals] non-blocking operation failed:', err) });
+      }).catch((err) => { logger.error('[research-signals] non-blocking operation failed:', { error: err }) });
     }
   }
 

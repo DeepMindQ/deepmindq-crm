@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/cron/job-processor
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
       const jobResult = await processNextJobs(5);
       results.jobs = { recovered, ...jobResult };
     } catch (err) {
-      console.warn('[cron] Job processing failed:', err);
+      logger.warn('[cron] Job processing failed:', { error: err });
       results.jobs = { error: 'Job engine not available' };
     }
 
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
       const freshnessUpdated = await batchUpdateFreshness();
       results.freshness = { updated: freshnessUpdated };
     } catch (err) {
-      console.warn('[cron] Freshness update failed:', err);
+      logger.warn('[cron] Freshness update failed:', { error: err });
       results.freshness = { error: 'Freshness manager not available' };
     }
 
@@ -63,12 +64,12 @@ export async function GET(request: Request) {
       const connectorResult = await runAllDueConnectors();
       results.connectors = connectorResult;
     } catch (err) {
-      console.warn('[cron] Connector scheduling failed:', err);
+      logger.warn('[cron] Connector scheduling failed:', { error: err });
       results.connectors = { error: 'Connector scheduler not available' };
     }
 
     const duration = Date.now() - startTime;
-    console.log(`[cron/job-processor] Complete in ${duration}ms`, JSON.stringify(results));
+    logger.info(`[cron/job-processor] Complete in ${duration}ms`, { error: JSON.stringify(results) });
 
     return NextResponse.json({
       ok: true,
@@ -77,7 +78,7 @@ export async function GET(request: Request) {
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error(`[cron/job-processor] Failed (${Date.now() - startTime}ms):`, msg);
+    logger.error(`[cron/job-processor] Failed (${Date.now() - startTime}ms):`, { detail: msg });
     return NextResponse.json({ ok: false, error: msg, results }, { status: 500 });
   }
 }

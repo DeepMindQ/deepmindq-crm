@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET /api/capabilities/export
@@ -74,7 +75,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error('Export error:', error);
+    logger.error('Export error:', { error: error });
     return NextResponse.json({ error: 'Export failed' }, { status: 500 });
   }
 }

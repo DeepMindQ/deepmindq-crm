@@ -753,10 +753,7 @@ export async function recordGeneration(
     });
   } catch (error) {
     // Never throw — audit failures should not break the user flow
-    console.error(
-      '[ai-governance] Failed to record generation audit:',
-      error instanceof Error ? error.message : error,
-    );
+    logger.error('[ai-governance] Failed to record generation audit:', { error: error instanceof Error ? error.message : error });
   }
 }
 
@@ -796,6 +793,7 @@ export async function preFlightCheck(context: GovernanceContext): Promise<{
 // No AI route should call callLLM() directly — all calls MUST go through this.
 
 import { ModelRouter } from '@/lib/engines/model-router';
+import { logger } from '@/lib/logger';
 
 interface GovernedAICallParams {
   /** Generation type for governance config lookup (e.g. 'email_draft', 'insights') */
@@ -967,10 +965,7 @@ export async function governedAICall(
     if (!result.success) throw new Error(result.error ?? 'ModelRouter failed');
     response = result.text;
   } catch (llmErr) {
-    console.error(
-      `[ai-governance] LLM call failed for ${generationType}:`,
-      llmErr instanceof Error ? llmErr.message : llmErr,
-    );
+    logger.error(`[ai-governance] LLM call failed for ${generationType}:`, { error: llmErr instanceof Error ? llmErr.message : llmErr });
     // Record failed LLM call
     await recordGeneration({
       generationType,
@@ -1074,10 +1069,7 @@ export async function governedAICallAggregate(params: {
     if (!result.success) throw new Error(result.error ?? 'ModelRouter failed');
     response = result.text;
   } catch (llmErr) {
-    console.error(
-      `[ai-governance] Aggregate LLM call failed for ${generationType}:`,
-      llmErr instanceof Error ? llmErr.message : llmErr,
-    );
+    logger.error(`[ai-governance] Aggregate LLM call failed for ${generationType}:`, { error: llmErr instanceof Error ? llmErr.message : llmErr });
     await recordGeneration({
       generationType,
       governanceResult,

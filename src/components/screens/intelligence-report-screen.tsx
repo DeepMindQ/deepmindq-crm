@@ -19,6 +19,7 @@ import { LoadingState } from '@/components/enterprise/LoadingState';
 import { ErrorState } from '@/components/enterprise/ErrorState';
 import { EmptyState } from '@/components/shared/design-system';
 import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════
    Types
@@ -177,7 +178,7 @@ export default function IntelligenceReportScreen({
           setBrief(healthRes.value);
         }
       } catch (e) {
-        console.error('Failed to load brief:', e);
+        logger.error('Failed to load brief:', { error: e });
       } finally {
         setLoading(false);
       }

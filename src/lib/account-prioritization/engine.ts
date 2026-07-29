@@ -14,6 +14,7 @@
  */
 
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 // ── Types ──
 
@@ -79,7 +80,7 @@ export async function getICPProfile(): Promise<ICPProfile> {
       return { ...DEFAULT_ICP, ...JSON.parse(setting.value) };
     }
   } catch (e) {
-    console.error('[ICP] Failed to load profile, using defaults:', e);
+    logger.error('[ICP] Failed to load profile, using defaults:', { error: e });
   }
   return DEFAULT_ICP;
 }

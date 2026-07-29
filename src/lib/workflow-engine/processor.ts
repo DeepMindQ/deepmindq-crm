@@ -30,13 +30,14 @@ import { webSearch, extractJSON } from '@/lib/llm-client';
 import { governedAICall } from '@/lib/ai-governance';
 import { researchCompany } from '@/lib/research-engine';
 import { detectSignals, storeSignals } from '@/lib/research-engine';
+import { logger } from '@/lib/logger';
 
 // ── Process a single job by ID ──
 
 export async function processJob(jobId: string): Promise<void> {
   const job = await getJobDetail(jobId);
   if (!job) {
-    console.error(`[processor] Job ${jobId} not found`);
+    logger.error(`[processor] Job ${jobId} not found`);
     return;
   }
 
@@ -46,7 +47,7 @@ export async function processJob(jobId: string): Promise<void> {
   } else if (job.status !== 'running') {
     // If it's already running (stale from a crash), allow re-processing
     if (job.status !== 'queued') {
-      console.warn(`[processor] Job ${jobId} is ${job.status}, skipping`);
+      logger.warn(`[processor] Job ${jobId} is ${job.status}, skipping`);
       return;
     }
     await startJob(jobId);
@@ -118,7 +119,7 @@ export async function processNextJobs(limit: number = 5): Promise<{
       if (updated?.status === 'completed') succeeded++;
       else if (updated?.status === 'failed') failed++;
     } catch (err) {
-      console.error(`[processor] Unhandled error processing job ${job.id}:`, err);
+      logger.error(`[processor] Unhandled error processing job ${job.id}:`, { error: err });
       failed++;
     }
   }
@@ -167,7 +168,7 @@ async function processEnrichmentJob(jobId: string, job: any): Promise<void> {
         step: `enrichment_${progress.step}`,
         progress: jobProgress,
         message: progress.message,
-      }).catch((err) => { console.error('[workflow-processor] non-blocking operation failed:', err) });
+      }).catch((err) => { logger.error('[workflow-processor] non-blocking operation failed:', { error: err }) });
     },
   );
 
@@ -231,7 +232,7 @@ async function processResearchJob(jobId: string, job: any): Promise<void> {
         step: `research_${progress.step}`,
         progress: jobProgress,
         message: progress.message,
-      }).catch((err) => { console.error('[workflow-processor] non-blocking operation failed:', err) });
+      }).catch((err) => { logger.error('[workflow-processor] non-blocking operation failed:', { error: err }) });
     },
   );
 

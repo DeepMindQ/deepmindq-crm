@@ -16,6 +16,7 @@ import {
   type ClassifiedSignal,
   type RawEvidenceInput,
 } from './evidence-classifier';
+import { logger } from '@/lib/logger';
 
 // ─── LLM Classification ─────────────────────────────────────────
 
@@ -66,7 +67,7 @@ async function classifyWithLLM(evidence: RawEvidenceInput): Promise<ClassifiedSi
       meaningCategory: parsed.meaningCategory || 'growth_pressure',
     };
   } catch (error) {
-    console.error('[ai-evidence-engine] LLM classification failed, falling back to rules:', error);
+    logger.error('[ai-evidence-engine] LLM classification failed, falling back to rules:', { error: error });
     return null;
   }
 }

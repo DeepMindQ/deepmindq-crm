@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { generatePredictions } from '@/lib/intelligence-sources/predictive-intelligence';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: Request) {
   try {
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
     const predictions = generatePredictions(signals);
     return NextResponse.json({ companyId, predictions, signalsAnalyzed: signals.length });
   } catch (error) {
-    console.error('[predictions] Error:', error);
+    logger.error('[predictions] Error:', { error: error });
     return NextResponse.json({ error: 'Prediction analysis failed' }, { status: 500 });
   }
 }

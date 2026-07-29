@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    L-04: Segment Contacts API
@@ -96,7 +97,7 @@ export async function GET(
       isStatic: segment.isStatic,
     });
   } catch (error) {
-    console.error('Segment contacts error:', error);
+    logger.error('Segment contacts error:', { error: error });
     return NextResponse.json({ error: 'Failed to load segment contacts' }, { status: 500 });
   }
 }

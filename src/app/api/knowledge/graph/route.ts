@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET /api/knowledge/graph
@@ -138,7 +139,7 @@ export async function GET(request: NextRequest) {
       totalAssets: assets.length,
     });
   } catch (error) {
-    console.error('[Knowledge Graph API] Error:', error);
+    logger.error('[Knowledge Graph API] Error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to build knowledge graph', nodes: [], edges: [], categories: {}, serviceLines: {}, totalAssets: 0 },
       { status: 500 }
@@ -207,7 +208,7 @@ async function handleVersionHistory(assetId: string) {
       history,
     });
   } catch (error) {
-    console.error('[Knowledge Graph API] Version history error:', error);
+    logger.error('[Knowledge Graph API] Version history error:', { error: error });
     return NextResponse.json(
       { error: 'Failed to load version history' },
       { status: 500 }

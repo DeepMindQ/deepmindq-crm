@@ -18,6 +18,7 @@
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { createInsights } from '@/lib/ai-insight-service';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -228,7 +229,7 @@ export async function GET() {
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       }]);
     } catch (e) {
-      console.warn('[cro-dashboard] Failed to persist insight:', e);
+      logger.warn('[cro-dashboard] Failed to persist insight:', { error: e });
     }
 
     return apiSuccess({
@@ -299,7 +300,7 @@ export async function GET() {
       generatedAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('[cro-dashboard] Error:', error);
+    logger.error('[cro-dashboard] Error:', { error: error });
     return apiError('Failed to generate CRO dashboard', 500);
   }
 }

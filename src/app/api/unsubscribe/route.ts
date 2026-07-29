@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { verifyUnsubscribeToken } from '@/lib/unsubscribe';
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    E-09: Unsubscribe Endpoint
@@ -258,7 +259,7 @@ export async function GET(request: NextRequest) {
         },
       });
     } catch (e) {
-      console.warn('[Unsubscribe] Audit log failed:', e);
+      logger.warn('[Unsubscribe] Audit log failed:', { error: e });
     }
 
     return new Response(
@@ -269,7 +270,7 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error('[Unsubscribe] Error processing unsubscribe:', error);
+    logger.error('[Unsubscribe] Error processing unsubscribe:', { error: error });
     return new Response(
       renderConfirmationHtml(email, false, 'An internal error occurred. Please try again later or contact us directly.'),
       {
@@ -343,7 +344,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, email: normalizedEmail });
   } catch (error) {
-    console.error('[Unsubscribe] POST error:', error);
+    logger.error('[Unsubscribe] POST error:', { error: error });
     return NextResponse.json({ error: 'Unsubscribe failed' }, { status: 500 });
   }
 }

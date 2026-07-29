@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { apiError, apiSuccess, validateBody, sanitize } from "@/lib/apiHelpers";
 import { updateOpportunitySchema } from "@/lib/validations";
 import { OPPORTUNITY_STATUSES } from "@/lib/constants";
+import { logger } from '@/lib/logger';
 
 export async function GET(
   request: NextRequest,
@@ -20,7 +21,7 @@ export async function GET(
     }
     return apiSuccess(opp);
   } catch (error) {
-    console.error("Failed to fetch opportunity:", error);
+    logger.error("Failed to fetch opportunity:", { error: error });
     return apiError("Failed to fetch opportunity", 500);
   }
 }
@@ -83,7 +84,7 @@ export async function PATCH(
 
     return apiSuccess(updated);
   } catch (error) {
-    console.error("Failed to update opportunity:", error);
+    logger.error("Failed to update opportunity:", { error: error });
     return apiError("Failed to update opportunity", 500);
   }
 }
@@ -113,7 +114,7 @@ export async function DELETE(
 
     return apiSuccess({ success: true });
   } catch (error) {
-    console.error("Failed to delete opportunity:", error);
+    logger.error("Failed to delete opportunity:", { error: error });
     return apiError("Failed to delete opportunity", 500);
   }
 }

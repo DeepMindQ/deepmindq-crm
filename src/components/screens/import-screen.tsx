@@ -24,6 +24,7 @@ import {
   CheckCircle, Eye, Zap, Trash2, History,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 
 // ── Props ──
 interface ImportScreenProps {
@@ -366,7 +367,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
       setStep('complete');
       toast.success('Import completed successfully!');
     } catch (err) {
-      console.error('[Import] Error:', err);
+      logger.error('[Import] Error:', { error: err });
       setExecutionProgress(100);
       setIntelSteps(s => s.map(st => ({ ...st, status: 'complete' as const })));
       setCompletionSummary({ companiesCreated: 0, contactsImported: 0, duplicatesFound: 0 });

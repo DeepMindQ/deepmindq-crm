@@ -14,6 +14,7 @@ import { NextRequest } from 'next/server';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { buildRelationshipMap } from '@/lib/relationship-mapping-engine';
 import { createInsights } from '@/lib/ai-insight-service';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,12 +47,12 @@ export async function GET(request: NextRequest) {
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       }]);
     } catch (e) {
-      console.warn('[relationship-map] Failed to persist insight:', e);
+      logger.warn('[relationship-map] Failed to persist insight:', { error: e });
     }
 
     return apiSuccess(map);
   } catch (error) {
-    console.error('[contacts/relationship-map] Error:', error);
+    logger.error('[contacts/relationship-map] Error:', { error: error });
     const message = error instanceof Error ? error.message : 'Unknown error';
     return apiError(message, message.includes('not found') ? 404 : 500);
   }

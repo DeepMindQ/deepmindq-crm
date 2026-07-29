@@ -18,6 +18,7 @@ import { db } from '@/lib/db';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { computeEvidenceQuality } from './evidence-quality';
 import type { Prisma as PrismaNS } from '@prisma/client';
+import { logger } from '@/lib/logger';
 
 // ── Types ──
 
@@ -349,7 +350,7 @@ Generate the strategic opportunity assessment as JSON.`;
     };
   } catch (err) {
     // Non-blocking: confidence breakdown is informational, not critical
-    console.warn('[opportunity-engine] Failed to compute confidence breakdown:', err instanceof Error ? err.message : err);
+    logger.warn('[opportunity-engine] Failed to compute confidence breakdown:', { error: err instanceof Error ? err.message : err });
   }
 
   // 11. Create the OpportunityRecommendation record
@@ -469,10 +470,7 @@ export async function generateCompanyOpportunities(
       });
       results.push(result);
     } catch (err) {
-      console.error(
-        `[opportunity-engine] Failed to generate recommendation for signal ${m.signalId}, match ${m.id}:`,
-        err instanceof Error ? err.message : err,
-      );
+      logger.error(`[opportunity-engine] Failed to generate recommendation for signal ${m.signalId}, match ${m.id}:`, { error: err instanceof Error ? err.message : err });
       // Continue with next match — don't fail the whole batch
     }
   }

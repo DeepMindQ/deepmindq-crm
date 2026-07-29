@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scoreContactInfluence, scoreCompanyContacts } from '@/lib/scoring/contact-influence-engine';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Provide contactId or companyId' }, { status: 400 });
   } catch (error) {
-    console.error('[score-contacts] Error:', error);
+    logger.error('[score-contacts] Error:', { error: error });
     return NextResponse.json({ error: 'Failed to score contacts' }, { status: 500 });
   }
 }

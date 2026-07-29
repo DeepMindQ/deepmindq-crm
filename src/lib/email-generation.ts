@@ -31,6 +31,7 @@ import {
 /* ── Phase 3 Research Card type (from DB) ── */
 // Json? fields come back as Prisma.JsonValue from the DB
 import type { Prisma } from '@prisma/client'
+import { logger } from '@/lib/logger';
 type JV = Prisma.JsonValue
 interface Phase3ResearchCard {
   businessOverview: string | null
@@ -83,7 +84,7 @@ async function retrieveKnowledge(params: {
     const data = await response.json();
     return data.results || [];
   } catch (err) {
-    console.error('Knowledge retrieval failed:', err);
+    logger.error('Knowledge retrieval failed:', { error: err });
     return [];
   }
 }
@@ -96,7 +97,7 @@ async function fetchResearchCardFromDB(companyId?: string | null): Promise<Phase
       where: { companyId },
     });
   } catch (err) {
-    console.warn('[email-gen] Failed to fetch research card:', err);
+    logger.warn('[email-gen] Failed to fetch research card:', { error: err });
     return null;
   }
 }
@@ -147,7 +148,7 @@ async function fetchGovernedResearchContext(companyId?: string | null, contactId
       rejectionReason: null,
     };
   } catch (err) {
-    console.warn('[email-gen] Governance/context fetch failed:', err);
+    logger.warn('[email-gen] Governance/context fetch failed:', { error: err });
     return { researchContext: '', researchCtx: null, governanceResult: null, shouldBlock: false, rejectionReason: null };
   }
 }
@@ -514,7 +515,7 @@ export async function generateEmailDraft(params: {
     );
   } catch (aiError) {
     const errMsg = aiError instanceof Error ? aiError.message : 'Unknown error';
-    console.warn(`AI generation failed (${errMsg}), using template engine`);
+    logger.warn(`AI generation failed (${errMsg}), using template engine`);
     result = generateTemplateDraft(
       name, title, company, industry, companySize, tone, retrievedCapabilities, researchContext
     );
@@ -531,7 +532,7 @@ export async function generateEmailDraft(params: {
       governanceResult: governanceResult!,
       outputSummary: `${result.subject} — ${result.body.substring(0, 100)}...`,
       inputParams: { company, industry, tone, hasResearchContext: !!researchContext },
-    }).catch((err) => { console.error('[email-generation] non-blocking operation failed:', err) });
+    }).catch((err) => { logger.error('[email-generation] non-blocking operation failed:', { error: err }) });
   }
 
   return result;

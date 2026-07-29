@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { getFreshnessStatus, getCompaniesNeedingRefresh, batchUpdateFreshness } from '@/lib/intelligence-sources/freshness-manager'
+import { logger } from '@/lib/logger';
 
 // GET /api/intelligence/refresh — Get freshness status
 export async function GET(req: NextRequest) {
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
 
     return apiError('Provide companyId or batch=true', 400)
   } catch (err) {
-    console.error('[api/intelligence/refresh] Error:', err)
+    logger.error('[api/intelligence/refresh] Error:', { error: err })
     return apiError('Freshness check failed')
   }
 }
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
 
     return apiError('Provide companyId or batchUpdate: true', 400)
   } catch (err) {
-    console.error('[api/intelligence/refresh] Error:', err)
+    logger.error('[api/intelligence/refresh] Error:', { error: err })
     return apiError('Intelligence refresh failed')
   }
 }

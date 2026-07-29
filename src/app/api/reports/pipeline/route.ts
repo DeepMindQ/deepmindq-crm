@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/apiHelpers";
+import { logger } from '@/lib/logger';
 
 const STAGE_ORDER = ["researching", "qualified", "proposal", "negotiation", "won", "lost"];
 const STAGE_LABELS: Record<string, string> = {
@@ -146,7 +147,7 @@ export async function GET(request: NextRequest) {
       dealCountByMonth,
     });
   } catch (error) {
-    console.error("Failed to generate pipeline report:", error);
+    logger.error("Failed to generate pipeline report:", { error: error });
     return apiError("Failed to generate pipeline report", 500);
   }
 }

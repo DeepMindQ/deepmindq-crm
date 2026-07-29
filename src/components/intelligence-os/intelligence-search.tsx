@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useAppStore } from '@/lib/store';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    Intelligence Search
@@ -72,7 +73,7 @@ export function IntelligenceSearch() {
         setResults([...companies, ...caps]);
       }
     } catch (e) {
-      console.error('Search error:', e);
+      logger.error('Search error:', { error: e });
       setResults([]);
     } finally {
       setSearching(false);

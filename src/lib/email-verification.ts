@@ -1,4 +1,5 @@
 import dns from 'node:dns/promises'
+import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -167,7 +168,7 @@ export async function checkMxRecords(domain: string): Promise<boolean | null> {
     return records.length > 0
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.warn(`[email-verification] MX lookup failed for "${domain}": ${msg}`)
+    logger.warn(`[email-verification] MX lookup failed for "${domain}": ${msg}`)
     return null
   } finally {
     if (timeoutId) clearTimeout(timeoutId)
@@ -193,7 +194,7 @@ export async function checkSpfRecord(domain: string): Promise<boolean | null> {
     return txtValues.some((t) => t.startsWith('v=spf1'))
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.warn(`[email-verification] SPF lookup failed for "${domain}": ${msg}`)
+    logger.warn(`[email-verification] SPF lookup failed for "${domain}": ${msg}`)
     return null
   } finally {
     if (timeoutId) clearTimeout(timeoutId)
@@ -218,7 +219,7 @@ export async function checkDmarcRecord(domain: string): Promise<boolean | null> 
     return txtValues.some((t) => t.toLowerCase().includes('v=dmarc1'))
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.warn(`[email-verification] DMARC lookup failed for "${domain}": ${msg}`)
+    logger.warn(`[email-verification] DMARC lookup failed for "${domain}": ${msg}`)
     return null
   } finally {
     if (timeoutId) clearTimeout(timeoutId)

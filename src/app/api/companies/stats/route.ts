@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET — Company statistics and analytics
@@ -108,7 +109,7 @@ export async function GET() {
       })),
     });
   } catch (error) {
-    console.error('Company stats error:', error);
+    logger.error('Company stats error:', { error: error });
     return NextResponse.json({ error: 'Failed to fetch company statistics' }, { status: 500 });
   }
 }

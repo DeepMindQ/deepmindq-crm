@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { transitionStatus, getValidTransitions } from '@/lib/lead-workflow';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    L-07: Lead Status Transition API
@@ -54,7 +55,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({ error: 'Provide id or ids' }, { status: 400 });
   } catch (error) {
-    console.error('Status transition error:', error);
+    logger.error('Status transition error:', { error: error });
     return NextResponse.json({ error: 'Status transition failed' }, { status: 500 });
   }
 }
@@ -71,7 +72,7 @@ export async function GET(request: Request) {
     const valid = getValidTransitions(status);
     return NextResponse.json({ status, validTransitions: valid });
   } catch (error) {
-    console.error('Get transitions error:', error);
+    logger.error('Get transitions error:', { error: error });
     return NextResponse.json({ error: 'Failed to get transitions' }, { status: 500 });
   }
 }

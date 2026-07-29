@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scoreOpportunity, scoreAllOpportunities } from '@/lib/scoring/opportunity-probability-engine';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Provide opportunityId or scoreAll: true' }, { status: 400 });
   } catch (error) {
-    console.error('[score-opportunities] Error:', error);
+    logger.error('[score-opportunities] Error:', { error: error });
     return NextResponse.json({ error: 'Failed to score opportunities' }, { status: 500 });
   }
 }

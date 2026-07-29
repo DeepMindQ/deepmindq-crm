@@ -14,6 +14,7 @@ import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { buildScoreBreakdown, factor, persistScoreAsInsight } from '@/lib/ai-evidence-framework';
 import { trackGeneration, assessHallucinationRisk, assessFreshness, calibrateConfidence } from '@/lib/ai-reliability';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   const startMs = Date.now();
@@ -258,7 +259,7 @@ export async function GET() {
         },
       });
     } catch (e) {
-      console.warn('[pipeline/forecast] Failed to persist insight:', e);
+      logger.warn('[pipeline/forecast] Failed to persist insight:', { error: e });
     }
 
     // ── 14. Track generation for reliability ──
@@ -307,7 +308,7 @@ export async function GET() {
       recommendations,
     });
   } catch (error) {
-    console.error('[pipeline/forecast] Error:', error);
+    logger.error('[pipeline/forecast] Error:', { error: error });
     return apiError('Failed to generate pipeline forecast', 500);
   }
 }

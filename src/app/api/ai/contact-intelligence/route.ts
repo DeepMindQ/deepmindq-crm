@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { calculateLeadScore } from '@/lib/lead-scoring';
 import { createInsights } from '@/lib/ai-insight-service';
+import { logger } from '@/lib/logger';
 
 /**
  * Wave 5.1 — Contact Intelligence Score API
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error('[contact-intelligence] Error:', error);
+    logger.error('[contact-intelligence] Error:', { error: error });
     return apiError('Failed to compute contact intelligence', 500);
   }
 }
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
     }
     return apiSuccess({ updated, message: `Recalculated ${updated} contact scores` });
   } catch (error) {
-    console.error('[contact-intelligence] POST error:', error);
+    logger.error('[contact-intelligence] POST error:', { error: error });
     return apiError('Failed to recalculate scores', 500);
   }
 }

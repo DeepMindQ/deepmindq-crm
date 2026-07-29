@@ -16,6 +16,7 @@
 
 import { db } from '@/lib/db';
 import type { AIUsageFeature, AIUsageRecord } from './types';
+import { logger } from '@/lib/logger';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  COST CONFIGURATION
@@ -81,10 +82,8 @@ export async function logAIUsage(
   record: Omit<AIUsageRecord, 'id' | 'generatedAt'>
 ): Promise<void> {
   try {
-    console.log(
-      `[ai-copilot:usage-tracker] Logging usage: feature=${record.feature}, model=${record.model}, ` +
-        `tokens=${record.totalTokens}, cost=$${record.estimatedCost}, status=${record.status}`
-    );
+    logger.info(`[ai-copilot:usage-tracker] Logging usage: feature=${record.feature}, model=${record.model}, ` +
+        `tokens=${record.totalTokens}, cost=$${record.estimatedCost}, status=${record.status}`);
 
     await db.aIGenerationAudit.create({
       data: {
@@ -100,13 +99,10 @@ export async function logAIUsage(
       },
     });
 
-    console.log('[ai-copilot:usage-tracker] Usage record persisted successfully');
+    logger.info('[ai-copilot:usage-tracker] Usage record persisted successfully');
   } catch (err) {
     // Never throw from usage logging — log and continue
-    console.error(
-      '[ai-copilot:usage-tracker] Failed to persist usage record:',
-      err instanceof Error ? err.message : err
-    );
+    logger.error('[ai-copilot:usage-tracker] Failed to persist usage record:', { error: err instanceof Error ? err.message : err });
   }
 }
 
@@ -125,7 +121,7 @@ export async function getUsageStats(days: number = 30): Promise<{
   dailyTrend: Array<{ date: string; calls: number; cost: number }>;
 }> {
   try {
-    console.log(`[ai-copilot:usage-tracker] Fetching usage stats (last ${days} days)`);
+    logger.info(`[ai-copilot:usage-tracker] Fetching usage stats (last ${days} days)`);
 
     const since = new Date();
     since.setDate(since.getDate() - days);
@@ -194,9 +190,7 @@ export async function getUsageStats(days: number = 30): Promise<{
       model.cost = Math.round(model.cost * 1_000_000) / 1_000_000;
     }
 
-    console.log(
-      `[ai-copilot:usage-tracker] Stats: ${totalCalls} calls, $${totalCost} cost, ${totalTokens} tokens`
-    );
+    logger.info(`[ai-copilot:usage-tracker] Stats: ${totalCalls} calls, $${totalCost} cost, ${totalTokens} tokens`);
 
     return {
       totalCalls,
@@ -207,10 +201,7 @@ export async function getUsageStats(days: number = 30): Promise<{
       dailyTrend,
     };
   } catch (err) {
-    console.error(
-      '[ai-copilot:usage-tracker] Failed to fetch usage stats:',
-      err instanceof Error ? err.message : err
-    );
+    logger.error('[ai-copilot:usage-tracker] Failed to fetch usage stats:', { error: err instanceof Error ? err.message : err });
     return {
       totalCalls: 0,
       totalCost: 0,

@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { checkSyntax, checkDisposable, checkRoleBased, checkFreeProvider } from '@/lib/email-verify';
 import { logAction } from '@/lib/audit';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    POST /api/verify-queue/process
@@ -83,7 +84,7 @@ export async function POST() {
           score: result.score,
         });
       } catch (err) {
-        console.error(`Verification failed for ${contact.email}:`, err);
+        logger.error(`Verification failed for ${contact.email}:`, { error: err });
       }
       processed++;
     }
@@ -100,7 +101,7 @@ export async function POST() {
       message: `Verified ${updated} of ${processed} contacts. ${remaining} remaining.`,
     });
   } catch (error) {
-    console.error('Verify process error:', error);
+    logger.error('Verify process error:', { error: error });
     return NextResponse.json({ error: 'Verification processing failed' }, { status: 500 });
   }
 }

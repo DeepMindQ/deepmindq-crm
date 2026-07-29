@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { Prisma, ContactStatus, ContactEmailHealth } from "@prisma/client";
 import { apiError, apiSuccess, validateBody, sanitizeFields, safeInt } from "@/lib/apiHelpers";
 import { createContactSchema } from "@/lib/validations";
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -113,7 +114,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Failed to fetch contacts:", error);
+    logger.error("Failed to fetch contacts:", { error: error });
     return apiError("Failed to fetch contacts", 500);
   }
 }
@@ -166,7 +167,7 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess(contact, 201);
   } catch (error) {
-    console.error("Failed to create contact:", error);
+    logger.error("Failed to create contact:", { error: error });
     return apiError("Failed to create contact", 500);
   }
 }

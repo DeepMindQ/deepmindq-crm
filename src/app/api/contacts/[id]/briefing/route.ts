@@ -1,5 +1,6 @@
 import { ConversationEngine } from '@/lib/engines/conversation-engine';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/contacts/[id]/briefing
@@ -37,7 +38,7 @@ export async function POST(
 
     return NextResponse.json(result, { status: result.success ? 200 : 500 });
   } catch (error) {
-    console.error('[briefing] error:', error);
+    logger.error('[briefing] error:', { error: error });
     return NextResponse.json(
       { success: false, error: 'Briefing engine failed' },
       { status: 500 },

@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 import {
   Search, Brain, Building2, User, Globe, TrendingUp, Users, DollarSign,
   Cpu, Newspaper, ChevronRight, Loader2, Sparkles, ExternalLink,
@@ -95,7 +96,7 @@ export default function ResearchAgentScreen() {
         ]);
       }
     } catch (err) {
-      console.error('[ResearchAgent] research request failed:', err);
+      logger.error('[ResearchAgent] research request failed:', { error: err });
       toast.error('Research request failed. Please try again.');
       clearInterval(phaseInterval);
     } finally {

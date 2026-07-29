@@ -9,6 +9,7 @@
  */
 
 import { getColumnMappingRules, TARGET_FIELDS, type TargetField } from './config-store';
+import { logger } from '@/lib/logger';
 
 export interface ColumnDetectionResult {
   mapping: Record<string, TargetField>;  // sourceHeader → targetField
@@ -49,7 +50,7 @@ export async function detectColumns(
         }
       } catch {
         // Invalid regex in DB — skip this rule
-        console.warn(`Invalid regex in ColumnMappingRule "${rule.name}": ${rule.pattern}`);
+        logger.warn(`Invalid regex in ColumnMappingRule "${rule.name}": ${rule.pattern}`);
       }
     }
   }

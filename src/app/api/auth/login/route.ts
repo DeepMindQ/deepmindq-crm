@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { verifyPassword } from '@/lib/password';
 import { requestOtp } from '@/lib/otp';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 const schema = z.object({
   email: z.string().email('Invalid email address'),
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
       ...(isDev && otpResult.devCode ? { devCode: otpResult.devCode } : {}),
     });
   } catch (error) {
-    console.error('[auth/login] Error:', error);
+    logger.error('[auth/login] Error:', { error: error });
     const message = error instanceof Error ? error.message : 'Unknown error';
     if (message.includes('prisma') || message.includes('datasource') || message.includes('database') || message.includes('relation')) {
       return NextResponse.json({ error: 'Database not configured. Please set DATABASE_URL on Render.', detail: message }, { status: 503 });

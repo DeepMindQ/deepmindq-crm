@@ -15,6 +15,7 @@
 
 import { db } from '@/lib/db';
 import { type WebSearchResult } from '@/lib/llm-client';
+import { logger } from '@/lib/logger';
 
 // ── Types ──
 
@@ -92,7 +93,7 @@ async function getTierConfig(): Promise<SourceTierConfig> {
       };
     }
   } catch (err) {
-    console.warn('[evidence] Failed to load tier config from SystemSetting, using defaults:', err);
+    logger.warn('[evidence] Failed to load tier config from SystemSetting, using defaults:', { error: err });
   }
   return DEFAULT_TIER_CONFIG;
 }

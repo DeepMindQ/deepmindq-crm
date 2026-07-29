@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '@/lib/logger';
 import {
   Compass, Plus, Search, Building2, Users, Target, TrendingUp,
   ChevronRight, X, Loader2, Sparkles, Edit3, Trash2,
@@ -88,7 +89,7 @@ export default function StrategyRoomScreen() {
         const data = await res.json();
         setStrategies(Array.isArray(data) ? data : []);
       }
-    } catch (err) { console.error('[StrategyRoom] fetch strategies failed:', err); } finally { setLoading(false); }
+    } catch (err) { logger.error('[StrategyRoom] fetch strategies failed:', { error: err }); } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchStrategies(); }, [fetchStrategies]);
@@ -97,7 +98,7 @@ export default function StrategyRoomScreen() {
   const filtered = safeStrategies
     .filter((s: any) => s && s.title)
     .filter((s: any) => !searchQuery || (s.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || (s.companyName || '').toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a: any, b: any) => { try { return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(); } catch (err) { console.error('[StrategyRoom] sort strategies failed:', err); return 0; } });
+    .sort((a: any, b: any) => { try { return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(); } catch (err) { logger.error('[StrategyRoom] sort strategies failed:', { error: err }); return 0; } });
 
   const handleCreate = async () => {
     if (!newTitle.trim()) return;
@@ -121,7 +122,7 @@ export default function StrategyRoomScreen() {
         resetForm();
         setSelectedStrategy(created);
       }
-    } catch (err) { console.error('[StrategyRoom] create strategy failed:', err); } finally { setCreating(false); }
+    } catch (err) { logger.error('[StrategyRoom] create strategy failed:', { error: err }); } finally { setCreating(false); }
   };
 
   const handleAIGenerate = async () => {
@@ -146,7 +147,7 @@ export default function StrategyRoomScreen() {
         resetForm();
         setSelectedStrategy(created);
       }
-    } catch (err) { console.error('[StrategyRoom] AI generate strategy failed:', err); } finally { setAiGenerating(false); }
+    } catch (err) { logger.error('[StrategyRoom] AI generate strategy failed:', { error: err }); } finally { setAiGenerating(false); }
   };
 
   const resetForm = () => {
@@ -158,7 +159,7 @@ export default function StrategyRoomScreen() {
       await fetch(`/api/strategy-room/${id}`, { method: 'DELETE' });
       setStrategies(prev => prev.filter(s => s.id !== id));
       if (selectedStrategy?.id === id) setSelectedStrategy(null);
-    } catch (err) { console.error('[StrategyRoom] delete strategy failed:', err); }
+    } catch (err) { logger.error('[StrategyRoom] delete strategy failed:', { error: err }); }
   };
 
   /* ── Skeleton ── */

@@ -22,6 +22,7 @@ import { db } from '@/lib/db'
 import { extractInternalMemorySignals, computeInternalMemoryDepth } from '@/lib/intelligence-sources/internal-memory-connector'
 import { detectPeopleChanges } from '@/lib/intelligence-sources/people-change-detector'
 import { queryUnifiedMemory } from '@/lib/intelligence-sources/unified-memory-query'
+import { logger } from '@/lib/logger';
 
 // ── Seed Validation Data ──
 
@@ -399,7 +400,7 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
-    console.error('[sprint3] Pipeline error:', message)
+    logger.error('[sprint3] Pipeline error:', { detail: message })
     return NextResponse.json({ error: `Sprint 3 pipeline failed: ${message}` }, { status: 500 })
   }
 }

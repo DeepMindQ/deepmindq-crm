@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    E-07: Inbound Email Webhook (Replies)
@@ -219,7 +220,7 @@ async function logAudit(action: string, entity: string, entityId: string, detail
       },
     });
   } catch (e) {
-    console.warn('[Webhook:Reply] Audit log failed:', e);
+    logger.warn('[Webhook:Reply] Audit log failed:', { error: e });
   }
 }
 
@@ -241,7 +242,7 @@ export async function POST(request: Request) {
           .digest('hex');
         // Simple comparison for now — timing-safe in production
         if (signature !== expected) {
-          console.warn('[Webhook:Reply] Invalid signature');
+          logger.warn('[Webhook:Reply] Invalid signature');
           return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
         }
       }
@@ -270,7 +271,7 @@ export async function POST(request: Request) {
     const parsed = parsePayload(body);
 
     if (!parsed.fromEmail) {
-      console.warn('[Webhook:Reply] No from email found in payload');
+      logger.warn('[Webhook:Reply] No from email found in payload');
       return NextResponse.json({ received: true, warning: 'No from email' });
     }
 
@@ -280,7 +281,7 @@ export async function POST(request: Request) {
     });
 
     if (!contact) {
-      console.warn(`[Webhook:Reply] Contact not found for email: ${parsed.fromEmail}`);
+      logger.warn(`[Webhook:Reply] Contact not found for email: ${parsed.fromEmail}`);
       return NextResponse.json({ received: true, warning: 'Contact not found' });
     }
 
@@ -385,7 +386,7 @@ export async function POST(request: Request) {
       category,
     });
   } catch (error) {
-    console.error('[Webhook:Reply] Error processing reply webhook:', error);
+    logger.error('[Webhook:Reply] Error processing reply webhook:', { error: error });
     // Always return 200 to acknowledge webhook
     return NextResponse.json({ received: true, error: 'Processing failed' });
   }

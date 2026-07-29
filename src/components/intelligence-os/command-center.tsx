@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/lib/store';
 import { ProgressiveDisclosure } from './progressive-disclosure';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    Types
@@ -179,7 +180,7 @@ export function CommandCenter() {
 
       setActionItems(actions);
     } catch (err) {
-      console.error('Command Center fetch error:', err);
+      logger.error('Command Center fetch error:', { error: err });
     } finally {
       setLoading(false);
     }
@@ -251,7 +252,7 @@ export function CommandCenter() {
 
       setCrossInsights(insights);
     } catch (err) {
-      console.error('Briefings fetch error:', err);
+      logger.error('Briefings fetch error:', { error: err });
     } finally {
       setBriefingLoading(false);
     }

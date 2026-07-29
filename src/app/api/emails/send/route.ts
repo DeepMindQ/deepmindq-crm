@@ -6,6 +6,7 @@ import { sendEmail, type SendEmailResult } from '@/lib/email-provider'
 import { registerTrackingEvent } from '@/lib/email-tracking'
 import { eventBus } from '@/lib/event-bus'
 import { logAction } from '@/lib/audit'
+import { logger } from '@/lib/logger';
 
 // ── Validation ───────────────────────────────────────────────────────
 
@@ -189,7 +190,7 @@ export async function POST(request: NextRequest) {
       subject,
     })
   } catch (error) {
-    console.error('[EmailSend] Error:', error)
+    logger.error('[EmailSend] Error:', { error: error })
     return apiError('Failed to send email', 500)
   }
 }

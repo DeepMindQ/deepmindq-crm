@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { computeContentHash } from '@/lib/doc-parsers';
 import { CapabilityIntelligenceEngine } from '@/lib/capability-intelligence-engine';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    POST /api/capabilities/import
@@ -162,7 +163,7 @@ export async function POST(request: Request) {
       errorDetails: errorDetails.slice(0, 20),
     });
   } catch (error) {
-    console.error('Import error:', error);
+    logger.error('Import error:', { error: error });
     return NextResponse.json(
       { error: 'Import failed: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }

@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label';
 import KnowledgeSearch from '@/components/knowledge-search';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 import {
   PageTransition, AnimatedCard, StaggerGrid, StaggerItem, SectionHeader,
   TabBar, StatCard, GlassPanel, EmptyState, GradientCard, PulseDot,
@@ -185,7 +186,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
           } : undefined,
         })));
       })
-      .catch((err) => { console.error("[DraftsScreen] Error:", err) })
+      .catch((err) => { logger.error("[DraftsScreen] Error:", { error: err }) })
       .finally(() => { setLoading(false); });
   }, [tab, refreshKey]);
 
@@ -225,7 +226,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
       setScheduleDate('');
       setScheduleTime('09:00');
       setRefreshKey(k => k + 1);
-    } catch (err) { console.error('[Drafts] approve/send draft failed:', err); }
+    } catch (err) { logger.error('[Drafts] approve/send draft failed:', { error: err }); }
   };
 
   // Get tomorrow's date as default min
@@ -243,7 +244,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
       });
       setSelectedDraft(null);
       setRefreshKey(k => k + 1);
-    } catch (err) { console.error('[Drafts] reject draft failed:', err); }
+    } catch (err) { logger.error('[Drafts] reject draft failed:', { error: err }); }
   };
 
   const confidenceColor = (s?: number) => !s ? 'text-zinc-500' : s >= 85 ? 'text-emerald-600' : s >= 70 ? 'text-amber-600' : 'text-red-600';

@@ -3,6 +3,7 @@ import { apiSuccess, apiError, validateBody } from '@/lib/apiHelpers';
 import { IntelligencePipeline } from '@/lib/intelligence-pipeline';
 import { db } from '@/lib/db';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
 
 // ────────────────────────────────────────────────────────────────────────
 // POST /api/intelligence/enrich-batch
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Batch enrichment failed';
-    console.error('[enrich-batch]', msg);
+    logger.error('[enrich-batch]', { detail: msg });
     return apiError(msg);
   }
 }

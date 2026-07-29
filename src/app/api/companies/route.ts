@@ -2,6 +2,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { Prisma, CompanyStatus } from '@prisma/client';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET — List companies with search, filter, sort, paginate
@@ -124,7 +125,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error('Companies list error:', error);
+    logger.error('Companies list error:', { error: error });
     return NextResponse.json({ error: 'Failed to load companies' }, { status: 500 });
   }
 }
@@ -189,7 +190,7 @@ export async function POST(request: Request) {
       },
     }, { status: 201 });
   } catch (error) {
-    console.error('Company create error:', error);
+    logger.error('Company create error:', { error: error });
     return NextResponse.json({ error: 'Failed to create company' }, { status: 500 });
   }
 }

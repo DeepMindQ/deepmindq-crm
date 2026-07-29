@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    PATCH — Update a specific note
@@ -47,7 +48,7 @@ export async function PATCH(
 
     return NextResponse.json({ note });
   } catch (error) {
-    console.error('Note update error:', error);
+    logger.error('Note update error:', { error: error });
     return NextResponse.json({ error: 'Failed to update note' }, { status: 500 });
   }
 }
@@ -75,7 +76,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, deletedId: noteId });
   } catch (error) {
-    console.error('Note delete error:', error);
+    logger.error('Note delete error:', { error: error });
     return NextResponse.json({ error: 'Failed to delete note' }, { status: 500 });
   }
 }

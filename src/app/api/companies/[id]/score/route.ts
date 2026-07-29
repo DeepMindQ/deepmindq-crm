@@ -1,5 +1,6 @@
 import { ScoringEngine } from '@/lib/engines/scoring-engine';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/companies/[id]/score
@@ -21,7 +22,7 @@ export async function POST(
 
     return NextResponse.json(result, { status: result.success ? 200 : 500 });
   } catch (error) {
-    console.error('[score] error:', error);
+    logger.error('[score] error:', { error: error });
     return NextResponse.json(
       { success: false, error: 'Scoring engine failed' },
       { status: 500 },

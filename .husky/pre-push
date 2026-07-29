@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Pre-push hook — Runs on every push
+# Layer 2 defense: Full quality check before code reaches remote
+#
+# What it checks (~60 seconds):
+#   1. Full ci-check.sh (tsc + lint + test + build + WCAG)
+#   2. Baseline regression check (if baseline exists)
+#
+# If this hook fails, the push is BLOCKED.
+# Developers can bypass with: git push --no-verify (not recommended)
+
+set -eo pipefail
+
+echo "🚀 Pre-push hook running..."
+echo ""
+
+# Run full CI check with baseline comparison
+if [ -f "scripts/ci-check.sh" ]; then
+  bash scripts/ci-check.sh --diff
+else
+  echo "⚠️  ci-check.sh not found — running basic checks"
+  npx tsc --noEmit && npm run lint && npx vitest run
+fi
+
+echo ""
+echo "✅ Pre-push checks passed — pushing to remote..."

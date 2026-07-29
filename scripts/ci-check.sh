@@ -19,7 +19,7 @@ cd "$PROJECT_ROOT"
 
 MODE="full"
 OUTPUT_FORMAT="text"
-BASELINE_FILE="error-snapshots/baseline-v1.json"
+BASELINE_FILE="error-snapshots/baseline-v2.json"
 
 # Parse args
 for arg in "$@"; do

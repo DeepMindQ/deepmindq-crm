@@ -55,10 +55,11 @@ echo "Check 4: callLLM usage locations..."
 CALLLLM_FILES=$(rg "\bcallLLM\b" src/ --type ts -l 2>/dev/null || true)
 for f in $CALLLLM_FILES; do
   case "$f" in
-    *ai-governance.ts|*zai-helpers.ts|*model-router.ts|*account-brief/route.ts|*signals/route.ts)
+    *ai-governance.ts|*zai-helpers.ts|*model-router.ts|*llm-client.ts|*account-brief/route.ts|*signals/route.ts)
       # These files may have actual code usage — always allowed
       # - ai-governance.ts / zai-helpers.ts: core governance + LLM helper
       # - model-router.ts: engine layer, legitimate callLLM consumer
+      # - llm-client.ts: direct provider chain (from zai-helpers.ts)
       # - account-brief/route.ts / signals/route.ts: local wrapper functions
       #   that delegate to governed callAI (not direct zai-helpers import)
       ;;

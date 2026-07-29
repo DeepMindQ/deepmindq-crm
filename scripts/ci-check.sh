@@ -122,7 +122,7 @@ run_wcag_check() {
   fi
   
   local matches
-  matches=$(rg -c "$pattern" "$scope" 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
+  matches=$(rg -c "$pattern" "$scope" 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}' || echo 0)
   
   if [ "$matches" -ge "$min_matches" ]; then
     if [ "$OUTPUT_FORMAT" = "text" ]; then

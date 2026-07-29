@@ -194,10 +194,10 @@ export async function generateOpportunityRecommendation(params: {
   let researchConfidence = 0;
   if (researchCard?.fieldConfidence) {
     try {
-      const fc = JSON.parse(researchCard.fieldConfidence) as Record<string, number>;
-      const values = Object.values(fc);
+      const fc = typeof researchCard.fieldConfidence === 'string' ? JSON.parse(researchCard.fieldConfidence) : researchCard.fieldConfidence as Record<string, number>;
+      const values = Object.values(fc) as number[];
       if (values.length > 0) {
-        researchConfidence = values.reduce((a, b) => a + b, 0) / values.length;
+        researchConfidence = values.reduce((a: number, b: number) => a + b, 0) / values.length;
       }
     } catch {
       researchConfidence = 0;
@@ -380,13 +380,14 @@ function buildOpportunityPrompt(ctx: {
   company: { normalizedName: string; industry: string | null; sizeRange: string | null; domain: string | null };
   researchCard: {
     businessOverview: string | null;
-    strategicPriorities: string | null;
-    businessProblems: string | null;
-    transformationAreas: string | null;
-    technologyThemes: string | null;
+    strategicPriorities: unknown;
+    businessProblems: unknown;
+    transformationAreas: unknown;
+    technologyThemes: unknown;
     revenue: string | null;
     employeeCount: string | null;
     fundingStage: string | null;
+    [key: string]: unknown;
   } | null;
   signal: {
     signalType: string;
@@ -426,10 +427,11 @@ function buildOpportunityPrompt(ctx: {
   let technologyThemes: string[] = [];
 
   if (researchCard) {
-    try { strategicPriorities = JSON.parse(researchCard.strategicPriorities || '[]'); } catch { /* empty */ }
-    try { businessProblems = JSON.parse(researchCard.businessProblems || '[]'); } catch { /* empty */ }
-    try { transformationAreas = JSON.parse(researchCard.transformationAreas || '[]'); } catch { /* empty */ }
-    try { technologyThemes = JSON.parse(researchCard.technologyThemes || '[]'); } catch { /* empty */ }
+    const jp = (v: unknown) => typeof v === 'string' ? JSON.parse(v) : v ?? [];
+    try { strategicPriorities = jp(researchCard.strategicPriorities); } catch { /* empty */ }
+    try { businessProblems = jp(researchCard.businessProblems); } catch { /* empty */ }
+    try { transformationAreas = jp(researchCard.transformationAreas); } catch { /* empty */ }
+    try { technologyThemes = jp(researchCard.technologyThemes); } catch { /* empty */ }
   }
 
   return `Analyze the following intelligence and generate an opportunity recommendation:

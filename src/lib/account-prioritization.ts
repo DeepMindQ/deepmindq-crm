@@ -994,7 +994,8 @@ async function fetchCompanyScoringData(
   // GAP-10: Extract meaning categories from top signals
   const meaningCategories = topSignalRows
     .map(s => s.meaningCategory)
-    .filter((mc): mc is string => !!mc);
+    .filter((mc): mc is NonNullable<typeof mc> => mc != null)
+    .map(mc => String(mc));
 
   return {
     id: company.id,
@@ -1017,7 +1018,7 @@ async function fetchCompanyScoringData(
     _hasResearchCard: !!company.researchCard,
     researchRevenue: company.researchCard?.revenue ?? null,
     researchEmployeeCount: company.researchCard?.employeeCount ?? null,
-    researchTechStack: company.researchCard?.techStack ?? null,
+    researchTechStack: typeof company.researchCard?.techStack === 'string' ? company.researchCard.techStack : company.researchCard?.techStack ? JSON.stringify(company.researchCard.techStack) : null,
     researchFundingStage: company.researchCard?.fundingStage ?? null,
     _topSignals: rankSignals(toSignalEvidence(topSignalRows, now)),
     _meaningCategories: meaningCategories,
@@ -1328,7 +1329,7 @@ export async function computeAccountPriorityBatch(
       _hasResearchCard: !!company.researchCard,
       researchRevenue: company.researchCard?.revenue ?? null,
       researchEmployeeCount: company.researchCard?.employeeCount ?? null,
-      researchTechStack: company.researchCard?.techStack ?? null,
+      researchTechStack: typeof company.researchCard?.techStack === 'string' ? company.researchCard.techStack : company.researchCard?.techStack ? JSON.stringify(company.researchCard.techStack) : null,
       researchFundingStage: company.researchCard?.fundingStage ?? null,
       _topSignals: topSignals,
       _meaningCategories: meaningCategoriesByCompany.get(company.id) || [],

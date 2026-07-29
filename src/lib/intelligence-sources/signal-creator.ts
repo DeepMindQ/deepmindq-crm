@@ -8,7 +8,8 @@
  * lightweight, actionable CompanySignal table that scoring and UI consume.
  */
 
-import { db } from '@/lib/db'
+import { db } from '@/lib/db';
+import type { SignalType as PrismaSignalType } from '@prisma/client';
 
 type TimingWindow =
   | 'immediate' | 'within_7_days' | 'within_30_days' | 'within_90_days' | 'ongoing' | 'expired'
@@ -134,7 +135,7 @@ export async function createSignalFromIntelligenceObject(
     const signal = await db.companySignal.create({
       data: {
         companyId: input.companyId,
-        signalType,
+        signalType: signalType as PrismaSignalType,
         title: input.signal.substring(0, 500),
         description: (input.evidence || '').substring(0, 2000) || null,
         source: input.sourceName || null,

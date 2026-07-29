@@ -383,7 +383,7 @@ export async function getTopOpportunities(
     domain: r.company.domain,
     score: r.score,
     category: r.category,
-    breakdown: parseBreakdown(r.scoreBreakdown),
+    breakdown: parseBreakdown(typeof r.scoreBreakdown === 'string' ? r.scoreBreakdown : JSON.stringify(r.scoreBreakdown)),
   }));
 }
 

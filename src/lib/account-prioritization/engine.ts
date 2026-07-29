@@ -320,11 +320,11 @@ export async function computeAccountPriority(companyId: string): Promise<Compute
   let techStack: string[] = [];
   try {
     const raw = researchCard?.techStack;
-    if (raw) techStack = JSON.parse(raw);
+    if (raw) techStack = typeof raw === 'string' ? JSON.parse(raw) : raw;
   } catch { /* ignore */ }
   if (techStack.length === 0 && researchCard?.structuredTechLandscape) {
     try {
-      const landscape = JSON.parse(researchCard.structuredTechLandscape);
+      const landscape = typeof researchCard.structuredTechLandscape === 'string' ? JSON.parse(researchCard.structuredTechLandscape) : researchCard.structuredTechLandscape;
       techStack = [...(landscape.cloud || []), ...(landscape.data || []), ...(landscape.ai || [])];
     } catch { /* ignore */ }
   }

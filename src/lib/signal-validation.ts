@@ -109,7 +109,7 @@ export async function validateCompanySignals(
   const signalEvidenceMap = new Map<string, string[]>();
   for (const sig of signals) {
     try {
-      const parsed = JSON.parse(sig.evidenceIds || '[]');
+      const parsed = typeof sig.evidenceIds === 'string' ? JSON.parse(sig.evidenceIds) : sig.evidenceIds;
       signalEvidenceMap.set(sig.id, Array.isArray(parsed) ? parsed : []);
     } catch {
       signalEvidenceMap.set(sig.id, []);

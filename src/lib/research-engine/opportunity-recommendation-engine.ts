@@ -261,8 +261,9 @@ export async function generateOpportunityRecommendation(
   if (researchCard) {
     businessOverview = researchCard.businessOverview || '';
     techLandscape = researchCard.techLandscape || '';
-    try { strategicPriorities = JSON.parse(researchCard.strategicPriorities || '[]'); } catch { /* empty */ }
-    try { businessProblemsList = JSON.parse(researchCard.businessProblems || '[]'); } catch { /* empty */ }
+    const jp = (v: unknown) => typeof v === 'string' ? JSON.parse(v) : v ?? [];
+    try { strategicPriorities = jp(researchCard.strategicPriorities); } catch { /* empty */ }
+    try { businessProblemsList = jp(researchCard.businessProblems); } catch { /* empty */ }
   }
 
   const userPrompt = `## Signal Information

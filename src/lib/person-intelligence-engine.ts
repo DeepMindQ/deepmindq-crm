@@ -281,7 +281,7 @@ export async function buildPersonProfile(contactId: string): Promise<PersonIntel
     linkedinUrl: contact.linkedinUrl,
     phone: contact.phone,
     location: contact.location,
-    enrichmentData: contact.enrichmentData,
+    enrichmentData: typeof contact.enrichmentData === 'string' ? contact.enrichmentData : contact.enrichmentData ? JSON.stringify(contact.enrichmentData) : null,
     company: contact.company ? {
       industry: contact.company.industry,
       sizeRange: contact.company.sizeRange,

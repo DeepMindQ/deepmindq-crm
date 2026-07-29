@@ -32,6 +32,7 @@ import { classifyEvidence, scoreSourceReliability, type RawEvidenceInput, type C
 import { classifyEvidenceWithAI } from './ai-evidence-engine';
 import { buildThreeDateModel, serializeThreeDateModel, dateModelQuality, type EvidenceDates } from './three-date-model';
 import { runMidMarketSensor, type SensorConfig } from './mid-market-sensor';
+import type { SignalType, SignalTimingWindow, SignalMeaningCategory } from '@prisma/client';
 
 // ─── Search Provider Interface (Phase B swap point) ──────
 
@@ -269,7 +270,7 @@ async function createSignalFromEvidence(
     const signal = await db.companySignal.create({
       data: {
         companyId,
-        signalType: classified.signalType,
+        signalType: classified.signalType as SignalType,
         title: classified.title.substring(0, 300),
         description: classified.description?.substring(0, 1000),
         source: 'external_discovery',
@@ -284,8 +285,8 @@ async function createSignalFromEvidence(
         evidenceIds: evidenceId ? JSON.stringify([evidenceId]) : '[]',
         businessImpact: classified.businessImpact,
         recommendedAction: classified.recommendedAction,
-        timingWindow: classified.timingWindow,
-        meaningCategory: classified.meaningCategory,
+        timingWindow: classified.timingWindow as SignalTimingWindow,
+        meaningCategory: classified.meaningCategory as SignalMeaningCategory,
         expiresAt: computeExpiry(bestRefDate, classified.signalType),
         status: 'active',
       },

@@ -179,7 +179,7 @@ export async function createUnverifiedCompany(name: string, domain?: string) {
       rawName: name,
       normalizedName,
       domain: domain ?? null,
-      source: 'intelligence_acquisition',
+      source: 'webhook',
       status: 'prospect',
     },
   });

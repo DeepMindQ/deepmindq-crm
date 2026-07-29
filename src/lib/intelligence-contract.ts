@@ -395,15 +395,20 @@ export async function getResearchContext(companyId: string): Promise<ResearchCon
   let technologyThemes: string[] = [];
 
   if (researchCard) {
-    try { keyPeople = JSON.parse(researchCard.keyPeople || '[]'); } catch { /* ignore */ }
-    try { recentNews = JSON.parse(researchCard.recentNews || '[]'); } catch { /* ignore */ }
-    try { fieldConfidence = JSON.parse(researchCard.fieldConfidence || '{}'); } catch { /* ignore */ }
-    try { socialProfiles = JSON.parse(researchCard.socialProfiles || '{}'); } catch { /* ignore */ }
-    try { structuredTechLandscape = JSON.parse(researchCard.structuredTechLandscape || '{}'); } catch { /* ignore */ }
-    try { strategicPriorities = JSON.parse(researchCard.strategicPriorities || '[]'); } catch { /* ignore */ }
-    try { businessProblems = JSON.parse(researchCard.businessProblems || '[]'); } catch { /* ignore */ }
-    try { transformationAreas = JSON.parse(researchCard.transformationAreas || '[]'); } catch { /* ignore */ }
-    try { technologyThemes = JSON.parse(researchCard.technologyThemes || '[]'); } catch { /* ignore */ }
+    const parseJson = (val: unknown, fallback: string): unknown => {
+      if (val === null || val === undefined) return JSON.parse(fallback);
+      if (typeof val === 'string') { try { return JSON.parse(val); } catch { return JSON.parse(fallback); } }
+      return val; // already parsed
+    };
+    try { keyPeople = parseJson(researchCard.keyPeople, '[]') as ResearchContext['keyPeople']; } catch { /* ignore */ }
+    try { recentNews = parseJson(researchCard.recentNews, '[]') as ResearchContext['recentNews']; } catch { /* ignore */ }
+    try { fieldConfidence = parseJson(researchCard.fieldConfidence, '{}') as Record<string, number>; } catch { /* ignore */ }
+    try { socialProfiles = parseJson(researchCard.socialProfiles, '{}') as Record<string, string>; } catch { /* ignore */ }
+    try { structuredTechLandscape = parseJson(researchCard.structuredTechLandscape, '{}') as ResearchContext['structuredTechLandscape']; } catch { /* ignore */ }
+    try { strategicPriorities = parseJson(researchCard.strategicPriorities, '[]') as ResearchContext['strategicPriorities']; } catch { /* ignore */ }
+    try { businessProblems = parseJson(researchCard.businessProblems, '[]') as string[]; } catch { /* ignore */ }
+    try { transformationAreas = parseJson(researchCard.transformationAreas, '[]') as string[]; } catch { /* ignore */ }
+    try { technologyThemes = parseJson(researchCard.technologyThemes, '[]') as string[]; } catch { /* ignore */ }
   }
 
   // Calculate freshness (with category-specific timestamps)
@@ -435,7 +440,7 @@ export async function getResearchContext(companyId: string): Promise<ResearchCon
       revenue: researchCard.revenue,
       employeeCount: researchCard.employeeCount,
       fundingStage: researchCard.fundingStage,
-      techStack: researchCard.techStack,
+      techStack: typeof researchCard.techStack === 'string' ? researchCard.techStack : researchCard.techStack ? JSON.stringify(researchCard.techStack) : null,
       socialProfiles,
       industry: researchCard.industry,
       website: researchCard.website,

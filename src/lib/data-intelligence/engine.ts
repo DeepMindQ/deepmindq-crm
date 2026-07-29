@@ -13,6 +13,7 @@
  */
 
 import { db } from '@/lib/db';
+import type { ContactSource } from '@prisma/client';
 import { detectColumns, buildReverseMapping } from './column-detector';
 import { validateRow, type ValidationIssue } from './validator';
 import { normalizeRow } from './normalizer';
@@ -635,7 +636,7 @@ export async function commitUpload(uploadId: string): Promise<CommitResult> {
         consentStatus: 'unknown',
         consentSource: upload.consentSource,
         consentDate: new Date(),
-        source: upload.leadSource,
+        source: upload.leadSource as ContactSource,
       },
     });
     contactsCreated++;

@@ -569,7 +569,7 @@ async function executeImport(body: ExecuteBody) {
     if (newContacts.length > 0) {
       const CHUNK = 100;
       for (let i = 0; i < newContacts.length; i += CHUNK) {
-        await tx.contact.createMany({ data: newContacts.slice(i, i + CHUNK) });
+        await tx.contact.createMany({ data: newContacts.slice(i, i + CHUNK) as any });
       }
     }
 

@@ -15,6 +15,7 @@
  * This should be called by the background job processor.
  */
 import { db } from '@/lib/db';
+import type { SignalStatus } from '@prisma/client';
 
 export async function transitionSignalLifecycles(): Promise<{
   transitioned: number;
@@ -82,7 +83,7 @@ export async function transitionSignalLifecycles(): Promise<{
       if (ids.length > 0) {
         await db.companySignal.updateMany({
           where: { id: { in: ids } },
-          data: { status },
+          data: { status: status as SignalStatus },
         });
       }
     }

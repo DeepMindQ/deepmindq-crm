@@ -113,7 +113,7 @@ export async function extractBriefFacts(companyId: string): Promise<BriefFacts> 
   const themes = extractThemes(company);
   const risks = extractRisks(recentSignals, oppSignals as any[]);
   const recommendations = generateRuleBasedRecommendations({
-    company,
+    company: company as { status: string; lifecycleStage: string; engagementScore: number },
     latestScore,
     openOpps,
     activePursuits,
@@ -256,25 +256,26 @@ export async function getBrief(companyId: string) {
 
 function extractThemes(company: {
   researchCard: {
-    strategicPriorities: string | null;
-    businessProblems: string | null;
-    transformationAreas: string | null;
-    technologyThemes: string | null;
-    structuredTechLandscape: string | null;
+    strategicPriorities: unknown;
+    businessProblems: unknown;
+    transformationAreas: unknown;
+    technologyThemes: unknown;
+    structuredTechLandscape: unknown;
   } | null;
 }): string[] {
   const themes: string[] = [];
   const rc = company.researchCard;
 
+  const pj = (v: unknown) => typeof v === 'string' ? JSON.parse(v) : v ?? [];
   if (rc?.technologyThemes) {
-    try { themes.push(...JSON.parse(rc.technologyThemes)); } catch { /* skip */ }
+    try { themes.push(...pj(rc.technologyThemes)); } catch { /* skip */ }
   }
   if (rc?.transformationAreas) {
-    try { themes.push(...JSON.parse(rc.transformationAreas)); } catch { /* skip */ }
+    try { themes.push(...pj(rc.transformationAreas)); } catch { /* skip */ }
   }
   if (rc?.strategicPriorities) {
     try {
-      const priorities = JSON.parse(rc.strategicPriorities) as Array<{ priority?: string }>;
+      const priorities = pj(rc.strategicPriorities) as Array<{ priority?: string }>;
       for (const p of priorities) {
         if (p.priority) themes.push(p.priority);
       }

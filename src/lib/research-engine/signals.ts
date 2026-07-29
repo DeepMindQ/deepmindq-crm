@@ -16,6 +16,7 @@
  */
 
 import { db } from '@/lib/db';
+import type { SignalType, SignalSeverity, SignalImpact, SignalStatus } from '@prisma/client';
 import { extractJSON, type NewsSignal } from '@/lib/llm-client';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { CANONICAL_SIGNAL_TYPE_LIST, normalizeSignalType } from '@/lib/signal-types';
@@ -219,13 +220,13 @@ export async function storeSignals(
 
       return {
         companyId,
-        signalType: s.signalType,
+        signalType: s.signalType as SignalType,
         title: s.title,
         description: s.description,
         source: s.source,
         sourceUrl: s.sourceUrl || null,
-        severity: s.severity,
-        impact: s.impact,
+        severity: s.severity as SignalSeverity,
+        impact: s.impact as SignalImpact,
         signalDate: s.signalDate ? new Date(s.signalDate) : null,
         confidence: s.confidence,
         evidenceIds: JSON.stringify(evidenceId ? [evidenceId] : []),
@@ -289,7 +290,7 @@ export async function storeSignals(
     if (newStatus !== signal.status) {
       await db.companySignal.update({
         where: { id: signal.id },
-        data: { status: newStatus },
+        data: { status: newStatus as SignalStatus },
       }).catch((err) => { console.error('[research-signals] non-blocking operation failed:', err) });
     }
   }

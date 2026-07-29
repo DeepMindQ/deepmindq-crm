@@ -143,13 +143,13 @@ interface ActionContext {
   }>
   researchCard: {
     businessOverview: string | null
-    techStack: string | null
-    keyPeople: string | null
-    recentNews: string | null
+    techStack: unknown
+    keyPeople: unknown
+    recentNews: unknown
     revenue: string | null
     employeeCount: string | null
-    strategicPriorities: string | null
-    businessProblems: string | null
+    strategicPriorities: unknown
+    businessProblems: unknown
   } | null
   insights: Array<{
     id: string
@@ -190,9 +190,9 @@ interface ActionContext {
     createdAt: Date
   }>
   accountStrategy: {
-    swotAnalysis: string | null
-    stakeholderMap: string | null
-    keyInitiatives: string | null
+    swotAnalysis: unknown
+    stakeholderMap: unknown
+    keyInitiatives: unknown
   } | null
   internalSignals: Array<{
     signalType: string
@@ -494,8 +494,8 @@ function formatInternalSignalsForPrompt(signals: ActionContext['internalSignals'
 function formatAccountStrategyForPrompt(strategy: ActionContext['accountStrategy']): string {
   if (!strategy) return 'No account strategy on file.'
   const parts: string[] = []
-  if (strategy.swotAnalysis) parts.push(`SWOT: ${strategy.swotAnalysis.substring(0, 300)}`)
-  if (strategy.keyInitiatives) parts.push(`Key Initiatives: ${strategy.keyInitiatives.substring(0, 300)}`)
+  if (strategy.swotAnalysis) parts.push(`SWOT: ${String(strategy.swotAnalysis).substring(0, 300)}`)
+  if (strategy.keyInitiatives) parts.push(`Key Initiatives: ${String(strategy.keyInitiatives).substring(0, 300)}`)
   return parts.length > 0 ? parts.join('\n') : 'Account strategy exists but has no content.'
 }
 
@@ -766,7 +766,9 @@ async function generateStakeholderMap(ctx: ActionContext): Promise<{ content: Re
   let keyPeopleText = 'No key people data in research card.'
   if (ctx.researchCard?.keyPeople) {
     try {
-      const people = JSON.parse(ctx.researchCard.keyPeople)
+      const people = typeof ctx.researchCard.keyPeople === 'string'
+        ? JSON.parse(ctx.researchCard.keyPeople)
+        : ctx.researchCard.keyPeople;
       if (Array.isArray(people) && people.length > 0) {
         keyPeopleText = people
           .map((p: Record<string, unknown>, i: number) =>
@@ -775,7 +777,7 @@ async function generateStakeholderMap(ctx: ActionContext): Promise<{ content: Re
           .join('\n')
       }
     } catch {
-      keyPeopleText = ctx.researchCard.keyPeople
+      keyPeopleText = String(ctx.researchCard.keyPeople)
     }
   }
 
@@ -1191,7 +1193,7 @@ export async function generateCompanyActions(companyId: string): Promise<Sprint3
         content: prev.content,
         priorityScore: artifact?.priorityScore || Math.round((prev.content.confidence as number || 0.5) * 100),
         confidence: Number(prev.content.confidence) || 0.5,
-        evidenceReferences: artifact ? JSON.parse(artifact.evidenceReferences) : [],
+        evidenceReferences: artifact ? (typeof artifact.evidenceReferences === 'string' ? JSON.parse(artifact.evidenceReferences) : artifact.evidenceReferences) : [],
         sourceSignalCount: ctx.signals.length,
         sourceContactCount: ctx.contacts.length,
       })
@@ -1252,7 +1254,7 @@ export async function generateNextBestActionOnly(companyId: string): Promise<Act
     // We have enough cached context — use it
     for (const artifact of existingActions) {
       try {
-        const content = JSON.parse(artifact.content)
+        const content = typeof artifact.content === 'string' ? JSON.parse(artifact.content) : artifact.content
         previousActions.set(artifact.actionType as ActionType, { content, summary: artifact.summary })
       } catch {
         // Skip malformed
@@ -1307,7 +1309,7 @@ export async function getCachedActions(companyId: string): Promise<ActionArtifac
 
     let content: Record<string, unknown> = {}
     try {
-      content = JSON.parse(artifact.content)
+      content = typeof artifact.content === 'string' ? JSON.parse(artifact.content) : artifact.content as Record<string, unknown>
     } catch {
       content = { raw: artifact.content }
     }
@@ -1318,7 +1320,7 @@ export async function getCachedActions(companyId: string): Promise<ActionArtifac
       content,
       priorityScore: artifact.priorityScore,
       confidence: artifact.confidence,
-      evidenceReferences: JSON.parse(artifact.evidenceReferences),
+      evidenceReferences: typeof artifact.evidenceReferences === 'string' ? JSON.parse(artifact.evidenceReferences) : artifact.evidenceReferences,
       sourceSignalCount: artifact.sourceSignalCount,
       sourceContactCount: artifact.sourceContactCount,
     })

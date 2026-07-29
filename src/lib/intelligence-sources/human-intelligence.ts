@@ -175,7 +175,7 @@ export async function convertApprovedItem(
 
   const tags: string[] = (() => {
     try {
-      const parsed = JSON.parse(inboxItem.tags);
+      const parsed = typeof inboxItem.tags === 'string' ? JSON.parse(inboxItem.tags) : inboxItem.tags;
       return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
@@ -193,7 +193,7 @@ export async function convertApprovedItem(
       sourceUrl: inboxItem.sourceUrl ?? null,
       capturedAt: inboxItem.createdAt,
       originalConfidence: 0.85,
-      confidenceBreakdown: null,
+      confidenceBreakdown: undefined,
       status: 'active',
       metadata: JSON.stringify({
         category: inboxItem.category,

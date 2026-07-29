@@ -37,7 +37,7 @@ export async function PATCH(
         ...(body.isActive !== undefined && { isActive: body.isActive }),
       },
     });
-    return NextResponse.json({ ...updated, steps: JSON.parse(updated.steps || '[]') });
+    return NextResponse.json({ ...updated, steps: typeof updated.steps === 'string' ? JSON.parse(updated.steps) : updated.steps || [] });
   } catch (error: any) {
     return NextResponse.json({ error: 'Failed to update' }, { status: 500 });
   }

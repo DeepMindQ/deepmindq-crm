@@ -227,9 +227,9 @@ async function buildBuyerProfile(
 
     // Relationship strength from contact status
     let relationshipStrength: BuyerProfile['relationshipStrength'] = 'none';
-    if (contact.status === 'replied' || contact.status === 'active') relationshipStrength = 'warm';
-    else if (contact.status === 'contacted') relationshipStrength = 'neutral';
-    else if (contact.status === 'prospect') relationshipStrength = 'cold';
+    if (contact.status === 'replied' || contact.status === 'active' || contact.status === 'engaged') relationshipStrength = 'warm';
+    else if (contact.status === 'sent') relationshipStrength = 'neutral';
+    else if (contact.status === 'imported' || contact.status === 'queued' || contact.status === 'drafted') relationshipStrength = 'cold';
 
     // Communication style from seniority
     let communicationStyle: BuyerProfile['communicationStyle'] = 'unknown';

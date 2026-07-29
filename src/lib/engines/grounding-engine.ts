@@ -28,6 +28,7 @@
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { FRESHNESS_LIFECYCLE_DAYS } from '@/lib/ai-governance';
+import type { SignalType } from '@prisma/client';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -204,9 +205,9 @@ async function collectCompanySignals(
       });
     } else {
       const signalTypes = new Set(signals.map((s) => s.signalType));
-      const expectedTypes = ['funding', 'hiring', 'leadership_change', 'tech_change', 'expansion'];
+      const expectedTypes: string[] = ['funding', 'hiring', 'leadership_change', 'tech_change', 'expansion'];
       for (const expected of expectedTypes) {
-        if (!signalTypes.has(expected)) {
+        if (!signalTypes.has(expected as SignalType)) {
           gaps.push({
             dimension: `signal_${expected}`,
             description: `No ${expected.replace(/_/g, ' ')} signals detected — gap in intelligence picture.`,

@@ -264,7 +264,7 @@ export async function extractInternalMemory(
   })
 
   for (const strategy of strategies) {
-    const strategyIntel = buildAccountStrategyIntelligence(strategy)
+    const strategyIntel = buildAccountStrategyIntelligence(strategy as any)
     items.push({
       source: 'account_strategy',
       companyId,
@@ -326,7 +326,7 @@ export async function extractPeopleMovementSignals(
 
     // Detect high-value contacts with recent activity
     if (contact.leadScore >= 60 && daysSinceUpdate <= 30) {
-      const roleChange = detectRoleChange(contact)
+      const roleChange = detectRoleChange(contact as any)
       if (roleChange) {
         items.push({
           source: 'person_change',
@@ -833,10 +833,11 @@ export async function computeInternalMemoryDepth(companyId: string): Promise<Mem
 
 // ── Utility ──
 
-function tryParseJSON(str: string | null | undefined): unknown {
-  if (!str) return null
+function tryParseJSON(val: unknown): unknown {
+  if (!val) return null
   try {
-    return JSON.parse(str)
+    if (typeof val === 'string') return JSON.parse(val)
+    return val
   } catch {
     return null
   }

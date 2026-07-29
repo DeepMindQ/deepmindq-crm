@@ -142,6 +142,8 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
 
   // ── Mapping state ──
   const [mappings, setMappings] = useState<ColumnMapping[]>([]);
+  // ── Parsed file data for executeImport ──
+  const [parsedRows, setParsedRows] = useState<Record<string, string>[]>([]);
 
   // ── Quality state ──
   const [qualitySummary, setQualitySummary] = useState({
@@ -248,6 +250,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
       };
     });
     setMappings(aiMappings);
+    setParsedRows(jsonData);
 
     // Generate quality data
     const total = jsonData.length;
@@ -317,9 +320,9 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
       setExecutionProgress(10);
       setIntelSteps(s => [{ ...s[0], status: 'processing' as const }, ...s.slice(1)]);
 
-      const rows = jsonData.map(row => {
+      const rows = parsedRows.map(row => {
         const mapped: Record<string, string> = {};
-        aiMappings.forEach(m => {
+        mappings.forEach(m => {
           if (m.sourceColumn) mapped[m.targetField] = row[m.sourceColumn] || '';
         });
         return mapped;
@@ -331,7 +334,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
         body: JSON.stringify({
           action: 'execute',
           batchId,
-          mapping: aiMappings.filter(m => m.sourceColumn).map(m => ({ targetField: m.targetField, sourceColumn: m.sourceColumn })),
+          mapping: mappings.filter(m => m.sourceColumn).map(m => ({ targetField: m.targetField, sourceColumn: m.sourceColumn })),
           rows,
         }),
       });
@@ -370,7 +373,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
       setStep('complete');
       toast.error(err instanceof Error ? err.message : 'Import failed');
     }
-  }, [qualitySummary, jsonData, aiMappings, batchId]);
+  }, [qualitySummary, parsedRows, mappings, batchId]);
 
   // ── Reset wizard ──
   const resetWizard = useCallback(() => {

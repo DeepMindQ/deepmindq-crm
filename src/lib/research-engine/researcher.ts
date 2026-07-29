@@ -18,6 +18,7 @@
  */
 
 import { db } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 import { webSearch, extractJSON, type KeyPerson, type NewsSignal } from '@/lib/llm-client';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { storeEvidenceFromResults, cleanupOldEvidence, linkEvidenceToFields, type FieldConfidence, type RawEvidence } from './evidence';
@@ -535,15 +536,14 @@ Extract structured technology and business intelligence as JSON.`;
     techFreshnessAt: (structuredTechLandscape.cloud.length > 0 || structuredTechLandscape.data.length > 0 || structuredTechLandscape.ai.length > 0) ? new Date() : undefined,
   };
 
+   
+  const createData: any = { companyId, ...researchCardData };
+  const updateData: any = { ...researchCardData };
+
   await db.companyResearchCard.upsert({
     where: { companyId },
-    create: {
-      companyId,
-      ...researchCardData,
-    },
-    update: {
-      ...researchCardData,
-    },
+    create: createData,
+    update: updateData,
   });
 
   // 6d: Update company fields

@@ -204,7 +204,7 @@ export async function POST() {
     ];
 
     const contacts = await db.$transaction(
-      contactData.map((c) => db.contact.create({ data: c }))
+      contactData.map((c) => db.contact.create({ data: c as any }))
     );
 
     // ── Create CapabilityAssets (8) ──

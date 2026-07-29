@@ -29,20 +29,24 @@ import {
 } from '@/lib/ai-governance';
 
 /* ── Phase 3 Research Card type (from DB) ── */
+// Json? fields come back as Prisma.JsonValue from the DB
+import type { Prisma } from '@prisma/client'
+type JV = Prisma.JsonValue
 interface Phase3ResearchCard {
-  businessOverview: string | null;
-  revenue: string | null;
-  employeeCount: string | null;
-  fundingStage: string | null;
-  techStack: string | null;
-  industry: string | null;
-  website: string | null;
-  socialProfiles: string | null;
-  keyPeople: string | null;
-  recentNews: string | null;
-  fieldConfidence: string | null;
-  enrichmentSource: string | null;
-  enrichmentDate: Date | null;
+  businessOverview: string | null
+  revenue: string | null
+  employeeCount: string | null
+  fundingStage: string | null
+  techStack: JV
+  industry: string | null
+  website: string | null
+  socialProfiles: JV
+  keyPeople: JV
+  recentNews: JV
+  fieldConfidence: JV
+  enrichmentSource: string | null
+  enrichmentDate: Date | null
+  [key: string]: unknown
 }
 
 /* ── Knowledge Retrieval ── */
@@ -180,12 +184,12 @@ function buildResearchContextFromCard(card: Phase3ResearchCard): string {
   if (card.employeeCount && card.employeeCount !== 'Not found') parts.push(`Employees: ${card.employeeCount}`);
   if (card.fundingStage && card.fundingStage !== 'Not found') parts.push(`Funding: ${card.fundingStage}`);
   if (card.industry) parts.push(`Industry: ${card.industry}`);
-  if (card.techStack) parts.push(`Tech Stack: ${card.techStack}`);
+  if (card.techStack) parts.push(`Tech Stack: ${typeof card.techStack === 'string' ? card.techStack : JSON.stringify(card.techStack)}`);
 
   // Parse and include key people
   if (card.keyPeople) {
     try {
-      const people = JSON.parse(card.keyPeople) as Array<{ name: string; title: string }>;
+      const people = (typeof card.keyPeople === 'string' ? JSON.parse(card.keyPeople) : card.keyPeople) as Array<{ name: string; title: string }>;
       if (people.length > 0) {
         parts.push(`Key People: ${people.slice(0, 5).map(p => `${p.name} (${p.title})`).join(', ')}`);
       }
@@ -195,7 +199,7 @@ function buildResearchContextFromCard(card: Phase3ResearchCard): string {
   // Parse and include recent news/signals
   if (card.recentNews) {
     try {
-      const news = JSON.parse(card.recentNews) as Array<{ title: string; signalType: string; impact: string }>;
+      const news = (typeof card.recentNews === 'string' ? JSON.parse(card.recentNews) : card.recentNews) as Array<{ title: string; signalType: string; impact: string }>;
       const highImpact = news.filter(n => n.impact === 'high');
       if (highImpact.length > 0) {
         parts.push(`High-Impact Signals: ${highImpact.map(n => n.title).join('; ')}`);
@@ -206,7 +210,7 @@ function buildResearchContextFromCard(card: Phase3ResearchCard): string {
   // Field confidence summary
   if (card.fieldConfidence) {
     try {
-      const conf = JSON.parse(card.fieldConfidence) as Record<string, number>;
+      const conf = (typeof card.fieldConfidence === 'string' ? JSON.parse(card.fieldConfidence) : card.fieldConfidence) as Record<string, number>;
       const entries = Object.entries(conf);
       if (entries.length > 0) {
         parts.push(`Data Confidence: ${entries.map(([f, c]) => `${f}=${Math.round(c * 100)}%`).join(', ')}`);

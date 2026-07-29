@@ -3,9 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   compress: true,
   typescript: {
-    // Phase 0: Temporarily ignore pre-existing TS errors to unblock Vercel deploy.
-    // All errors will be resolved in Phase 1.4 (Prisma enum alignment) and Phase 7 (type fixes).
-    ignoreBuildErrors: true,
+    // Type-checking enforced — Phase 1 complete: 0 errors
+    ignoreBuildErrors: false,
   },
   reactStrictMode: false,
   poweredByHeader: false,

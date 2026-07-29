@@ -287,7 +287,9 @@ async function processScoringJob(jobId: string, job: any): Promise<void> {
   let fieldConfidence: Record<string, number> = {};
   try {
     if (company.researchCard?.fieldConfidence) {
-      fieldConfidence = JSON.parse(company.researchCard.fieldConfidence);
+      fieldConfidence = typeof company.researchCard.fieldConfidence === 'string'
+        ? JSON.parse(company.researchCard.fieldConfidence)
+        : (company.researchCard.fieldConfidence as Record<string, number>) ?? {};
     }
   } catch { /* ignore parse errors */ }
 
@@ -316,7 +318,7 @@ async function processScoringJob(jobId: string, job: any): Promise<void> {
       score += Math.round(10 * (0.5 + fc * 0.5));
       reasons.push(`Funding stage known (${Math.round(fc * 100)}% confidence)`);
     }
-    if (rc.techStack && rc.techStack.length > 0) {
+    if (rc.techStack && (typeof rc.techStack === 'string' ? rc.techStack.length > 0 : Array.isArray(rc.techStack) ? rc.techStack.length > 0 : false)) {
       score += 10;
       reasons.push('Tech stack known');
     }

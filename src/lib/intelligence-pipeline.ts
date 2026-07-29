@@ -24,6 +24,7 @@ import { db } from '@/lib/db';
 import { webSearch } from '@/lib/llm-client';
 import { extractJSON } from '@/lib/llm-client';
 import { ModelRouter } from '@/lib/engines/model-router';
+import type { SignalType, SignalSeverity, SignalImpact } from '@prisma/client';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -281,15 +282,15 @@ Analyze these search results and extract ALL actionable intelligence signals and
       const createdSignal = await db.companySignal.create({
         data: {
           companyId,
-          signalType: signal.type || 'other',
+          signalType: (signal.type || 'news') as SignalType,
           title: signal.title!.substring(0, 200),
           description: (signal.description || '').substring(0, 2000) || null,
-          severity: ['low', 'medium', 'high', 'critical'].includes(signal.severity || '')
+          severity: (['low', 'medium', 'high', 'critical'].includes(signal.severity || '')
             ? signal.severity!
-            : 'medium',
-          impact: ['high', 'medium', 'low'].includes(signal.businessImpact || '')
+            : 'medium') as SignalSeverity,
+          impact: (['high', 'medium', 'low'].includes(signal.businessImpact || '')
             ? signal.businessImpact!
-            : 'medium',
+            : 'medium') as SignalImpact,
           businessImpact: (signal.businessImpact || 'medium') + ' — ' + (signal.description || '').substring(0, 200),
           recommendedAction: (signal.recommendedAction || '').substring(0, 500) || null,
           signalDate: signal.sourceDate ? new Date(signal.sourceDate) : new Date(),

@@ -103,10 +103,12 @@ function sharedWords(a: string, b: string): string[] {
  * Parse a JSON metadata string into a typed object.
  * Returns an empty object if the string is invalid or empty.
  */
-function parseMetadata(metadataStr: string | null | undefined): Record<string, unknown> {
-  if (!metadataStr) return {};
+function parseMetadata(metadataVal: unknown): Record<string, unknown> {
+  if (!metadataVal) return {};
   try {
-    return JSON.parse(metadataStr) as Record<string, unknown>;
+    if (typeof metadataVal === 'string') return JSON.parse(metadataVal) as Record<string, unknown>;
+    if (typeof metadataVal === 'object') return metadataVal as Record<string, unknown>;
+    return {};
   } catch {
     return {};
   }

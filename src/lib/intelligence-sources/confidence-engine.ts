@@ -100,7 +100,7 @@ export function calculateConfidence(
     capturedAt: Date | null;
     content: string;
     originalConfidence: number;
-    metadata?: string;
+    metadata?: string | unknown;
   },
 ): ConfidenceResult {
   // 2a. Source quality

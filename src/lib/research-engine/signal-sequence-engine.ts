@@ -405,10 +405,11 @@ function buildUserPrompt(ctx: {
     revenue: string | null;
     employeeCount: string | null;
     fundingStage: string | null;
-    strategicPriorities: string | null;
-    businessProblems: string | null;
-    transformationAreas: string | null;
-    technologyThemes: string | null;
+    strategicPriorities: unknown;
+    businessProblems: unknown;
+    transformationAreas: unknown;
+    technologyThemes: unknown;
+    [key: string]: unknown;
   } | null;
   contact: {
     normalizedName: string;
@@ -435,10 +436,11 @@ function buildUserPrompt(ctx: {
   let proofPoints: Array<{ metric: string; value: string; context?: string }> = [];
 
   if (researchCard) {
-    try { strategicPriorities = JSON.parse(researchCard.strategicPriorities || '[]'); } catch { /* empty */ }
-    try { businessProblems = JSON.parse(researchCard.businessProblems || '[]'); } catch { /* empty */ }
-    try { transformationAreas = JSON.parse(researchCard.transformationAreas || '[]'); } catch { /* empty */ }
-    try { technologyThemes = JSON.parse(researchCard.technologyThemes || '[]'); } catch { /* empty */ }
+    const pj = (v: unknown) => typeof v === 'string' ? JSON.parse(v) : v ?? [];
+    try { strategicPriorities = pj(researchCard.strategicPriorities); } catch { /* empty */ }
+    try { businessProblems = pj(researchCard.businessProblems); } catch { /* empty */ }
+    try { transformationAreas = pj(researchCard.transformationAreas); } catch { /* empty */ }
+    try { technologyThemes = pj(researchCard.technologyThemes); } catch { /* empty */ }
   }
 
   if (capability.caseStudyRef) {
@@ -547,11 +549,12 @@ function buildOpportunityDrivenPrompt(ctx: {
   researchCard: {
     businessOverview: string | null;
     techLandscape: string | null;
-    strategicPriorities: string | null;
-    businessProblems: string | null;
+    strategicPriorities: unknown;
+    businessProblems: unknown;
     revenue: string | null;
     employeeCount: string | null;
-    technologyThemes: string | null;
+    technologyThemes: unknown;
+    [key: string]: unknown;
   } | null;
   contact: {
     normalizedName: string;
@@ -575,9 +578,10 @@ function buildOpportunityDrivenPrompt(ctx: {
   let proofPoints: Array<{ metric: string; value: string; context?: string }> = [];
 
   if (researchCard) {
-    try { strategicPriorities = JSON.parse(researchCard.strategicPriorities || '[]'); } catch { /* empty */ }
-    try { businessProblems = JSON.parse(researchCard.businessProblems || '[]'); } catch { /* empty */ }
-    try { technologyThemes = JSON.parse(researchCard.technologyThemes || '[]'); } catch { /* empty */ }
+    const pj2 = (v: unknown) => typeof v === 'string' ? JSON.parse(v) : v ?? [];
+    try { strategicPriorities = pj2(researchCard.strategicPriorities); } catch { /* empty */ }
+    try { businessProblems = pj2(researchCard.businessProblems); } catch { /* empty */ }
+    try { technologyThemes = pj2(researchCard.technologyThemes); } catch { /* empty */ }
   }
   if (capability.caseStudyRef) {
     try { caseStudies = JSON.parse(capability.caseStudyRef); } catch { /* empty */ }

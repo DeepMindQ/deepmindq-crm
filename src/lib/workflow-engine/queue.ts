@@ -10,6 +10,7 @@
 
 import { db } from '@/lib/db';
 import { logJobEvent } from './index';
+import type { Prisma } from '@prisma/client';
 
 // ── Types ──
 
@@ -95,7 +96,7 @@ export async function createJob(params: CreateJobParams): Promise<string> {
       batchId: params.batchId || null,
       priority: params.priority ?? 5,
       maxAttempts: params.maxAttempts ?? 3,
-      payload: params.payload ? JSON.stringify(params.payload) : null,
+      payload: params.payload as Prisma.InputJsonValue ?? null,
       status: 'pending',
     },
   });
@@ -166,9 +167,8 @@ export async function completeJob(
       status: 'completed',
       progress: 100,
       completedAt: new Date(),
-      result: result ? JSON.stringify(result) : null,
+      result: result as Prisma.InputJsonValue ?? null,
       currentStep: 'completed',
-      stepDetail: null,
     },
   });
 
@@ -243,7 +243,7 @@ export async function updateJobProgress(
     data: {
       progress: Math.min(100, Math.max(0, Math.round(progress))),
       currentStep,
-      stepDetail: stepDetail ? JSON.stringify(stepDetail) : null,
+      stepDetail: stepDetail as Prisma.InputJsonValue ?? null,
     },
   });
 }
@@ -328,13 +328,13 @@ export async function getJobDetail(jobId: string): Promise<JobDetail | null> {
     batchId: job.batchId,
     progress: job.progress,
     currentStep: job.currentStep,
-    stepDetail: job.stepDetail,
+    stepDetail: typeof job.stepDetail === 'string' ? job.stepDetail : job.stepDetail ? JSON.stringify(job.stepDetail) : null,
     error: job.error,
     errorCode: job.errorCode,
     attemptCount: job.attemptCount,
     maxAttempts: job.maxAttempts,
-    payload: job.payload ? JSON.parse(job.payload) : null,
-    result: job.result ? JSON.parse(job.result) : null,
+    payload: typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload ?? null,
+    result: typeof job.result === 'string' ? JSON.parse(job.result) : job.result ?? null,
     nextRetryAt: job.nextRetryAt?.toISOString() || null,
     queuedAt: job.queuedAt?.toISOString() || null,
     createdAt: job.createdAt.toISOString(),
@@ -345,7 +345,7 @@ export async function getJobDetail(jobId: string): Promise<JobDetail | null> {
       level: l.level,
       step: l.step,
       message: l.message,
-      metadata: l.metadata ? JSON.parse(l.metadata) : null,
+      metadata: typeof l.metadata === 'string' ? JSON.parse(l.metadata) : l.metadata ?? null,
       createdAt: l.createdAt.toISOString(),
     })),
   };
@@ -406,7 +406,6 @@ export async function retryJob(jobId: string): Promise<{ success: boolean; messa
       nextRetryAt: null,
       progress: 0,
       currentStep: null,
-      stepDetail: null,
     },
   });
 
@@ -444,7 +443,6 @@ export async function retryAllFailed(): Promise<{ queued: number; skipped: numbe
         nextRetryAt: null,
         progress: 0,
         currentStep: null,
-        stepDetail: null,
       },
     });
     queued++;

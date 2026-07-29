@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     const signalId = signal?.id ?? (await db.companySignal.create({
       data: {
         companyId,
-        signalType: 'manual',
+        signalType: 'internal_memory',
         title: `Manual opportunity: ${title}`,
         severity: 'low',
         impact: 'low',

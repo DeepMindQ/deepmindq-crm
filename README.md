@@ -1,8 +1,8 @@
-# DeepMindQ — AI-Powered Revenue Intelligence CRM
+# DeepMindQ — AI-Powered Revenue Intelligence
 
 > **"The goal is not to build more screens. The goal is that every screen becomes powered by reliable AI intelligence."**
 
-DeepMindQ is an enterprise-grade, AI-native CRM that transforms revenue intelligence from reactive dashboards into proactive, evidence-backed selling machines. Built on a composable 7-engine architecture where every AI output follows the chain: **Signal → Reason → Evidence → Confidence → Business Impact → Recommended Action**.
+DeepMindQ is an enterprise-grade, AI-native Application that transforms revenue intelligence from reactive dashboards into proactive, evidence-backed selling machines. Built on a composable 7-engine architecture where every AI output follows the chain: **Signal → Reason → Evidence → Confidence → Business Impact → Recommended Action**.
 
 ---
 

@@ -321,25 +321,25 @@ export default function DataRulesSection() {
           <TabsTrigger value="column-rules" className="text-xs data-[state=active]:bg-[#D4AF37]/15 data-[state=active]:text-[#D4AF37]">
             <ArrowUpDown className="size-3 mr-1" /> Column Rules
             {ruleCounts['column-rules'] > 0 && (
-              <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">{ruleCounts['column-rules']}</Badge>
+              <Badge variant="secondary" className="ml-1.5 text-[11px] px-1.5 py-0">{ruleCounts['column-rules']}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="validation-rules" className="text-xs data-[state=active]:bg-[#D4AF37]/15 data-[state=active]:text-[#D4AF37]">
             <Shield className="size-3 mr-1" /> Validation Rules
             {ruleCounts['validation-rules'] > 0 && (
-              <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">{ruleCounts['validation-rules']}</Badge>
+              <Badge variant="secondary" className="ml-1.5 text-[11px] px-1.5 py-0">{ruleCounts['validation-rules']}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="normalization" className="text-xs data-[state=active]:bg-[#D4AF37]/15 data-[state=active]:text-[#D4AF37]">
             <RefreshCw className="size-3 mr-1" /> Normalization
             {ruleCounts['normalization'] > 0 && (
-              <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">{ruleCounts['normalization']}</Badge>
+              <Badge variant="secondary" className="ml-1.5 text-[11px] px-1.5 py-0">{ruleCounts['normalization']}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="scoring" className="text-xs data-[state=active]:bg-[#D4AF37]/15 data-[state=active]:text-[#D4AF37]">
             <BarChart3 className="size-3 mr-1" /> Scoring Weights
             {ruleCounts['scoring'] > 0 && (
-              <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">{ruleCounts['scoring']}</Badge>
+              <Badge variant="secondary" className="ml-1.5 text-[11px] px-1.5 py-0">{ruleCounts['scoring']}</Badge>
             )}
           </TabsTrigger>
         </TabsList>
@@ -376,7 +376,7 @@ export default function DataRulesSection() {
                       <TableCell><Badge variant="outline" className="text-xs">{rule.targetField}</Badge></TableCell>
                       <TableCell className="text-center text-xs">{rule.priority}</TableCell>
                       <TableCell className="text-center">
-                        <Badge variant={rule.isActive ? 'default' : 'secondary'} className="text-[10px]">
+                        <Badge variant={rule.isActive ? 'default' : 'secondary'} className="text-[11px]">
                           {rule.isActive ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>
@@ -431,7 +431,7 @@ export default function DataRulesSection() {
                       <TableCell><Badge variant="outline" className="text-xs">{rule.targetField}</Badge></TableCell>
                       <TableCell className="text-xs">{rule.ruleType}</TableCell>
                       <TableCell>
-                        <Badge variant={rule.severity === 'error' ? 'destructive' : 'secondary'} className="text-[10px]">
+                        <Badge variant={rule.severity === 'error' ? 'destructive' : 'secondary'} className="text-[11px]">
                           {rule.severity}
                         </Badge>
                       </TableCell>
@@ -486,7 +486,7 @@ export default function DataRulesSection() {
                       <TableCell className="text-sm">{m.sourceValue}</TableCell>
                       <TableCell className="text-sm font-medium text-[#D4AF37]">{m.normalizedValue}</TableCell>
                       <TableCell className="text-center">
-                        <Badge variant={m.isActive ? 'default' : 'secondary'} className="text-[10px]">
+                        <Badge variant={m.isActive ? 'default' : 'secondary'} className="text-[11px]">
                           {m.isActive ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>

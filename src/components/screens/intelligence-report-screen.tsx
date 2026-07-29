@@ -313,14 +313,14 @@ export default function IntelligenceReportScreen({
                 <div className="space-y-8 max-w-none">
                   {/* Executive header */}
                   <div className="border-b border-slate-200 pb-6">
-                    <p className="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">Intelligence Report</p>
+                    <p className="text-[11px] uppercase tracking-widest text-slate-400 font-semibold">Intelligence Report</p>
                     <h1 className="text-2xl font-bold text-slate-900 mt-1">{brief.company?.name || 'Company Intelligence Brief'}</h1>
                     <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
                       <span className="flex items-center gap-1"><Building2 className="h-3 w-3" /> {brief.company?.industry}</span>
                       <span>·</span>
                       <span>{dateFrom} — {dateTo}</span>
                       <span>·</span>
-                      {brief.confidence && <Badge variant="outline" className={cn('text-[10px]', confidenceBadgeClass(brief.confidence))}>{brief.confidence} Confidence</Badge>}
+                      {brief.confidence && <Badge variant="outline" className={cn('text-[11px]', confidenceBadgeClass(brief.confidence))}>{brief.confidence} Confidence</Badge>}
                     </div>
                   </div>
 
@@ -400,7 +400,7 @@ export default function IntelligenceReportScreen({
                           <Lightbulb className="h-4 w-4 text-blue-600" />
                           <span className="text-xs font-semibold text-blue-700 uppercase tracking-wider">Suggested Action</span>
                           {brief.recommendation.priority && (
-                            <Badge variant="outline" className={cn('text-[10px]', severityBadgeClass(brief.recommendation.priority))}>
+                            <Badge variant="outline" className={cn('text-[11px]', severityBadgeClass(brief.recommendation.priority))}>
                               {brief.recommendation.priority}
                             </Badge>
                           )}
@@ -446,11 +446,11 @@ export default function IntelligenceReportScreen({
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-semibold text-slate-900">{report.companyName}</h3>
-                      <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+                      <Badge variant="outline" className="text-[11px] bg-blue-50 text-blue-700 border-blue-200">
                         {report.template}
                       </Badge>
                       <Badge variant="outline" className={cn(
-                        'text-[10px]',
+                        'text-[11px]',
                         report.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                         report.status === 'generating' ? 'bg-blue-50 text-blue-700 border-blue-200' :
                         'bg-red-50 text-red-700 border-red-200'

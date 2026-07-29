@@ -646,8 +646,8 @@ export const SynthesisEngine = {
       const outputObj = JSON.parse(completion.text) as Record<string, unknown>;
       qualityReport = runQualityGates(outputObj, warnings.length === 0);
       logger.info(formatQualityReportForLog(qualityReport));
-      if (qualityReport.overallStatus === 'fail') {
-        warnings.push(`Quality gate FAILED (score: ${qualityReport.overallScore}/100)`);
+      if (qualityReport?.overallStatus === 'fail') {
+        warnings.push(`Quality gate FAILED (score: ${qualityReport?.overallScore}/100)`);
       }
     } catch {
       // Quality gates need parseable JSON — skip for non-JSON output

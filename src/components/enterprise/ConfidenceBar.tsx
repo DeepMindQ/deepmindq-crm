@@ -30,7 +30,7 @@ function getConfidenceTextColor(value: number): string {
 }
 
 const sizeConfig = {
-  sm: { bar: 'h-1.5', text: 'text-[10px]', percentage: 'text-xs' },
+  sm: { bar: 'h-1.5', text: 'text-[11px]', percentage: 'text-xs' },
   md: { bar: 'h-2.5', text: 'text-xs', percentage: 'text-sm' },
   lg: { bar: 'h-3.5', text: 'text-sm', percentage: 'text-base' },
 };

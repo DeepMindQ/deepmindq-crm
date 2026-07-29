@@ -180,7 +180,7 @@ export const cls = {
   valueLG: 'text-xl font-bold tabular-nums text-foreground',
   valueMD: 'text-sm font-bold tabular-nums text-foreground',
   valueSM: 'text-xs font-semibold tabular-nums text-foreground',
-  tableHeader: 'text-[10px] uppercase tracking-wider font-medium text-muted-foreground h-9',
+  tableHeader: 'text-[11px] uppercase tracking-wider font-medium text-muted-foreground h-9',
   iconBox: (color: string) => `w-8 h-8 rounded-lg flex items-center justify-center`,
   iconBoxSM: (color: string) => `w-7 h-7 rounded-lg flex items-center justify-center`,
   iconBoxXS: (color: string) => `w-6 h-6 rounded-lg flex items-center justify-center`,

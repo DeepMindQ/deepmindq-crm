@@ -63,7 +63,7 @@ function getPriorityIcon(p: string): LucideIcon {
 
 function PriorityIconBadge({ priority }: { priority: string }) {
   return (
-    <Badge className={`text-[10px] uppercase font-bold shrink-0 ${priorityColor(priority)}`}>
+    <Badge className={`text-[11px] uppercase font-bold shrink-0 ${priorityColor(priority)}`}>
       {priority === 'high' && <AlertTriangle className="w-3 h-3 mr-1" />}
       {priority === 'medium' && <Star className="w-3 h-3 mr-1" />}
       {priority !== 'high' && priority !== 'medium' && <Zap className="w-3 h-3 mr-1" />}
@@ -161,7 +161,7 @@ function RecommendationCard({
         <div className="rounded-lg bg-primary/5 border border-primary/10 p-3">
           <div className="flex items-center gap-1.5 mb-1">
             <Target className="w-3 h-3 text-primary" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">Signal</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">Signal</span>
           </div>
           <p className="text-sm font-medium text-foreground leading-relaxed">{rec.action}</p>
         </div>
@@ -171,7 +171,7 @@ function RecommendationCard({
           <div className="rounded-lg bg-muted/40 border border-border/50 p-3">
             <div className="flex items-center gap-1.5 mb-1.5">
               <Shield className="w-3 h-3 text-muted-foreground" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Evidence</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Evidence</span>
             </div>
             <p className="text-xs text-foreground/80 leading-relaxed">{rec.rationale}</p>
           </div>
@@ -192,20 +192,20 @@ function RecommendationCard({
         {/* Supporting Signals */}
         {hasSupporting && (
           <div className="space-y-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Supporting Intelligence ({rec.supportingSignals.length})
             </p>
             <div className="flex flex-wrap gap-1.5">
               {rec.supportingSignals.slice(0, 5).map((s, i) => (
                 <span
                   key={i}
-                  className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium border ${signalTypeColor(s.type)}`}
+                  className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border ${signalTypeColor(s.type)}`}
                 >
                   {s.type}: {s.title}
                 </span>
               ))}
               {rec.supportingSignals.length > 5 && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] text-muted-foreground bg-muted">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] text-muted-foreground bg-muted">
                   +{rec.supportingSignals.length - 5} more
                 </span>
               )}
@@ -219,7 +219,7 @@ function RecommendationCard({
             <div className="flex items-start gap-2">
               <User className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
               <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Target</p>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Target</p>
                 <p className="text-xs text-foreground">{rec.targetDecisionMaker}</p>
               </div>
             </div>
@@ -228,7 +228,7 @@ function RecommendationCard({
             <div className="flex items-start gap-2">
               <Clock className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
               <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Why Now</p>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Why Now</p>
                 <p className="text-xs text-foreground/80 line-clamp-2">{rec.whyNow}</p>
               </div>
             </div>
@@ -237,7 +237,7 @@ function RecommendationCard({
             <div className="flex items-start gap-2 sm:col-span-2">
               <MessageSquare className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
               <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Conversation Starter</p>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Conversation Starter</p>
                 <p className="text-xs text-foreground/80 line-clamp-2">{rec.suggestedConversation}</p>
               </div>
             </div>
@@ -457,7 +457,7 @@ export default function RevenueIntelligenceRecommendationsScreen({
               </div>
               <div>
                 <p className="text-lg font-bold text-foreground tabular-nums">{stat.value}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{stat.label}</p>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">{stat.label}</p>
               </div>
             </div>
           ))}
@@ -479,7 +479,7 @@ export default function RevenueIntelligenceRecommendationsScreen({
             >
               <tab.icon className="w-3 h-3" />
               {tab.label}
-              <span className={`text-[10px] tabular-nums ${
+              <span className={`text-[11px] tabular-nums ${
                 activeTab === tab.key ? 'text-foreground/70' : 'text-muted-foreground/60'
               }`}>
                 {counts[tab.key]}

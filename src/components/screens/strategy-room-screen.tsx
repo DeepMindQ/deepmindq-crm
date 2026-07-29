@@ -297,11 +297,11 @@ export default function StrategyRoomScreen() {
                     {init.owner && <p className="text-[11px] text-muted-foreground">{init.owner}</p>}
                   </div>
                   {init.dueDate && (
-                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                       <Clock className="w-3 h-3" />{init.dueDate}
                     </span>
                   )}
-                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
                     init.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
                     init.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
                     init.status === 'blocked' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
@@ -436,7 +436,7 @@ export default function StrategyRoomScreen() {
                     <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${statusCfg.color}`}>
                       <StatusIcon className="w-3 h-3" />{statusCfg.label}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-[11px] text-muted-foreground">
                       {new Date(strategy.updatedAt).toLocaleDateString()}
                     </span>
                   </div>

@@ -275,7 +275,7 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
                   <span className="text-[11px] text-muted-foreground flex items-center gap-1"><Mail className="w-3 h-3" />{seq.stepCount} steps</span>
                   <span className="text-[11px] text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" />{seq.enrollmentCount} enrolled</span>
                   {seq.serviceLine && (
-                    <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary/80 border-primary/20">{seq.serviceLine}</Badge>
+                    <Badge variant="outline" className="text-[11px] bg-primary/5 text-primary/80 border-primary/20">{seq.serviceLine}</Badge>
                   )}
                 </div>
 
@@ -293,7 +293,7 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
                         </div>
                         <div className="flex-1 min-w-0 pb-2">
                           <p className="text-[11px] font-medium text-foreground truncate">{step.subject}</p>
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
                             <Clock className="w-2.5 h-2.5" />{step.delayDays === 0 ? 'Immediate' : `+${step.delayDays}d`}
                           </span>
                         </div>
@@ -362,7 +362,7 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
                     exit={{ opacity: 0, x: -20 }} className="p-4 rounded-lg space-y-3"
                     style={{ background: 'rgba(0,0,0,0.02)', border: `1px solid ${border}` }}>
                     <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-black shrink-0"
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-black shrink-0"
                         style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)' }}>{index + 1}</div>
                       <Input placeholder="Step subject line" value={step.subject}
                         onChange={e => updateStep(index, 'subject', e.target.value)} className="text-sm flex-1" />
@@ -371,7 +371,7 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
                         <Input type="number" min={0} value={step.delayDays}
                           onChange={e => updateStep(index, 'delayDays', parseInt(e.target.value) || 0)}
                           className="w-16 text-sm text-center h-8" />
-                        <span className="text-[10px] text-muted-foreground">d</span>
+                        <span className="text-[11px] text-muted-foreground">d</span>
                       </div>
                       <div className="flex gap-0.5">
                         {index > 0 && <button onClick={() => moveStep(index, index - 1)} className="p-1 rounded hover:bg-gray-100 text-muted-foreground"><ChevronRight className="w-3 h-3 rotate-180" /></button>}
@@ -412,17 +412,17 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
               <Label className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Contact IDs</Label>
               <Textarea placeholder="Enter contact IDs separated by commas..." value={enrollContactIds}
                 onChange={e => setEnrollContactIds(e.target.value)} rows={3} className="text-sm" />
-              <p className="text-[10px] text-muted-foreground">Paste contact IDs from the Stakeholders screen, separated by commas</p>
+              <p className="text-[11px] text-muted-foreground">Paste contact IDs from the Stakeholders screen, separated by commas</p>
             </div>
             {selectedSeq && (
               <div className="p-3 rounded-lg space-y-2" style={{ background: 'rgba(0,0,0,0.02)', border: `1px solid ${border}` }}>
                 <p className="text-xs font-medium text-foreground">{selectedSeq.name}</p>
-                <div className="flex gap-3 text-[10px] text-muted-foreground">
+                <div className="flex gap-3 text-[11px] text-muted-foreground">
                   <span>{selectedSeq.stepCount} steps</span><span>{selectedSeq.enrollmentCount} enrolled</span>
                 </div>
                 <div className="flex gap-2 pt-1">
                   {(selectedSeq.steps || []).map(step => (
-                    <div key={step.id} className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <div key={step.id} className="flex items-center gap-1 text-[11px] text-muted-foreground">
                       <span className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-black"
                         style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)' }}>{step.stepNumber}</span>
                       {step.stepNumber < selectedSeq.steps.length && <ArrowRight className="w-2.5 h-2.5" />}

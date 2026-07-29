@@ -314,7 +314,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                   <p className="text-[11px] text-muted-foreground">Today, {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide" style={{ background: 'rgba(212,175,55,0.1)', color: gold }}>
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide" style={{ background: 'rgba(212,175,55,0.1)', color: gold }}>
                 <Brain className="w-2.5 h-2.5" /> AI
               </div>
             </div>
@@ -322,7 +322,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-0.5">
               {aiBriefing.keyInsights?.length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Key Insights</p>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Key Insights</p>
                   {aiBriefing.keyInsights.slice(0, 3).map((ins: any, i: number) => (
                     <div key={i} className="flex items-start gap-1.5">
                       <ChevronRight className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: gold }} />
@@ -336,7 +336,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
               )}
               {aiBriefing.predictions?.length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Predictions</p>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Predictions</p>
                   <div className="flex flex-wrap gap-1.5">
                     {aiBriefing.predictions.slice(0, 3).map((p: any, i: number) => {
                       const arrow = p.trend === 'up' ? '\u2191' : p.trend === 'down' ? '\u2193' : '\u2192';
@@ -384,7 +384,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
             <h2 className="text-sm font-bold text-foreground tracking-tight">Pipeline Funnel</h2>
             <p className="text-[11px] text-muted-foreground mt-0.5">Lead conversion across outreach stages</p>
           </div>
-          <span className="text-[10px] font-medium px-2 py-1 rounded-md" style={{ background: 'rgba(212,175,55,0.1)', color: gold }}>
+          <span className="text-[11px] font-medium px-2 py-1 rounded-md" style={{ background: 'rgba(212,175,55,0.1)', color: gold }}>
             {totalLeads > 0 ? ((funnelStages[4].count / funnelStages[0].count) * 100).toFixed(2) : 0}% conversion
           </span>
         </div>
@@ -421,8 +421,13 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3 }}>
           <div className="px-5 pt-5 pb-1 flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-bold text-foreground tracking-tight">Engagement Snapshot</h2>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Real aggregate counts — no fabricated breakdowns</p>
+              <h2 className="text-sm font-bold text-foreground tracking-tight">Engagement Overview</h2>
+              <p className="text-[11px] text-muted-foreground mt-0.5">7-day opens, clicks & replies</p>
+            </div>
+            <div className="flex items-center gap-4 text-[11px] font-medium">
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gray-800" />Opens</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: gold }} />Clicks</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: '#10B981' }} />Replies</span>
             </div>
           </div>
           <div className="px-5 pb-5 pt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -477,7 +482,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-foreground truncate group-hover:text-foreground transition-colors">{co.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{co.industry || 'Unknown'}{co.country ? ` \u00B7 ${co.country}` : ''}</p>
+                      <p className="text-[11px] text-muted-foreground">{co.industry || 'Unknown'}{co.country ? ` \u00B7 ${co.country}` : ''}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(0, 0, 0, 0.05)' }}>
@@ -529,7 +534,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-semibold text-foreground">{cfg.label}</span>
-                            <span className="text-[10px] text-muted-foreground/50">{fmtTime(e.createdAt)}</span>
+                            <span className="text-[11px] text-muted-foreground/50">{fmtTime(e.createdAt)}</span>
                           </div>
                           <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{fmtDetails(e.action, e.details)}</p>
                         </div>

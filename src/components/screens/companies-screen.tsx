@@ -117,14 +117,14 @@ function ScoreBar({ score }: { score: number | null }) {
 
 function StatusBadge({ status }: { status: string }) {
   const c = STATUS_COLORS[status] ?? { bg: 'rgba(100,100,100,.12)', text: '#52525B' };
-  return <span className="inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: c.bg, color: c.text }}>{statusLabel(status)}</span>;
+  return <span className="inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: c.bg, color: c.text }}>{statusLabel(status)}</span>;
 }
 
 function ScoreCircle({ score }: { score: number | null }) {
   const v = score ?? 0, col = scoreColor(score), r = 20, circ = 2 * Math.PI * r;
   return (
     <div className="relative" style={{ width: 48, height: 48 }}>
-      <svg viewBox="0 0 48 48" className="w-full h-full -rotate-90">
+      <svg aria-hidden="true" viewBox="0 0 48 48" className="w-full h-full -rotate-90">
         <circle cx="24" cy="24" r={r} fill="none" stroke="#F3F4F6" strokeWidth="4" />
         <circle cx="24" cy="24" r={r} fill="none" stroke={col} strokeWidth="4" strokeDasharray={circ}
           strokeDashoffset={circ - (v / 100) * circ} strokeLinecap="round" className="transition-all duration-700" />
@@ -178,8 +178,8 @@ function CompanyCard({ c, onClick }: { c: CompanyRow; onClick: () => void }) {
       </div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 flex-wrap">
-          {c.industry && <Badge variant="secondary" className="text-[10px]">{c.industry}</Badge>}
-          {c.country && <span className="text-[10px] text-gray-400 flex items-center gap-0.5"><MapPin size={10} />{c.country}</span>}
+          {c.industry && <Badge variant="secondary" className="text-[11px]">{c.industry}</Badge>}
+          {c.country && <span className="text-[11px] text-gray-400 flex items-center gap-0.5"><MapPin size={10} />{c.country}</span>}
         </div>
         <StatusBadge status={c.status} />
       </div>
@@ -476,7 +476,7 @@ export default function CompaniesScreen() {
                           transition={{ duration: .2, delay: i * .015 }} onClick={() => goTo(c.id)}
                           className="cursor-pointer border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
                           <TableCell onClick={e => e.stopPropagation()}>
-                            <Checkbox checked={selected.has(c.id)} onCheckedChange={() => setSelected(p => { const n = new Set(p); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n; })} />
+                            <Checkbox checked={selected.has(c.id)} onCheckedChange={() => setSelected(p => { const n = new Set(p); if (n.has(c.id)) { n.delete(c.id); } else { n.add(c.id); } return n; })} />
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1.5">
@@ -485,8 +485,8 @@ export default function CompaniesScreen() {
                             </div>
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">{c.domain ? <span className="text-xs text-gray-500 truncate">{c.domain}</span> : <span className="text-xs text-gray-300">—</span>}</TableCell>
-                          <TableCell className="hidden md:table-cell">{c.industry ? <Badge variant="secondary" className="text-[10px]">{c.industry}</Badge> : <span className="text-xs text-gray-300">—</span>}</TableCell>
-                          <TableCell className="hidden md:table-cell">{c.sizeRange ? <Badge variant="secondary" className="text-[10px]">{c.sizeRange}</Badge> : <span className="text-xs text-gray-300">—</span>}</TableCell>
+                          <TableCell className="hidden md:table-cell">{c.industry ? <Badge variant="secondary" className="text-[11px]">{c.industry}</Badge> : <span className="text-xs text-gray-300">—</span>}</TableCell>
+                          <TableCell className="hidden md:table-cell">{c.sizeRange ? <Badge variant="secondary" className="text-[11px]">{c.sizeRange}</Badge> : <span className="text-xs text-gray-300">—</span>}</TableCell>
                           <TableCell>{c.country ? <span className="text-xs text-gray-500">{c.country}</span> : <span className="text-xs text-gray-300">—</span>}</TableCell>
                           <TableCell>{c.contactCount > 0 ? <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">{c.contactCount}</span> : <span className="text-xs text-gray-300">0</span>}</TableCell>
                           <TableCell className="hidden sm:table-cell"><ScoreBar score={c.intelligenceScore} /></TableCell>

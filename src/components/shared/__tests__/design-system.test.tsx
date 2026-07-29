@@ -90,7 +90,7 @@ describe('ScoreGauge', () => {
 
   it('renders "of 100" text', () => {
     const { container } = render(<ScoreGauge score={42} />)
-    expect(container.querySelector('span.text-\\[10px\\]')).toHaveTextContent('of 100')
+    expect(container.querySelector('span.text-\\[11px\\]')).toHaveTextContent('of 100')
   })
 
   it('renders segments when provided', () => {

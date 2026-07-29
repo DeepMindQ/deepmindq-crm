@@ -159,15 +159,10 @@ export async function POST(request: Request) {
       }),
     ])
 
+    // Extract internal memory signals via connector
     let internalMemorySignals: Array<{
-      signalType: string
-      title: string
-      description: string
-      source: string
-      confidence: number
-      businessImpact: string
-      recommendedAction: string
-      severity: string
+      signalType: string; title: string; description: string; source: string;
+      confidence: number; businessImpact: string; recommendedAction: string; severity: string;
     }> = []
     try {
       const { extractInternalMemorySignals } = await import('@/lib/intelligence-sources/internal-memory-connector')
@@ -321,7 +316,10 @@ export async function POST(request: Request) {
         orderBy: { generatedAt: 'desc' },
       })
       const seen = new Set<string>()
-      const uniqueActions: Array<{ type: string; summary: string; priority: number; confidence: number; generatedAt: Date }> = []
+      const uniqueActions: Array<{
+        type: string; summary: string; priority: number;
+        confidence: number; generatedAt: Date;
+      }> = []
       for (const a of actions) {
         if (seen.has(a.actionType)) continue
         seen.add(a.actionType)

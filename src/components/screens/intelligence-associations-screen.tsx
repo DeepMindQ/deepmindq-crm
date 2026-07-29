@@ -125,7 +125,7 @@ function EntityNodeCard({ node, isSelected, onClick }: {
         <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-800 truncate">{node.name}</p>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <Badge variant="outline" className={cn('text-[10px]', cfg.bg, cfg.color, cfg.border)}>
+            <Badge variant="outline" className={cn('text-[11px]', cfg.bg, cfg.color, cfg.border)}>
               {node.type}
             </Badge>
           </div>
@@ -350,7 +350,7 @@ export default function IntelligenceAssociationsScreen({
                       </div>
                       <div className="text-right">
                         <ConfidenceBar value={Math.round(link.confidence * 100)} size="sm" />
-                        <Badge variant="outline" className="text-[10px] mt-1 bg-slate-50">{link.type.replace(/-/g, ' ')}</Badge>
+                        <Badge variant="outline" className="text-[11px] mt-1 bg-slate-50">{link.type.replace(/-/g, ' ')}</Badge>
                       </div>
                     </div>
                   );
@@ -386,7 +386,7 @@ export default function IntelligenceAssociationsScreen({
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-slate-800">Duplicate Group</span>
-                    <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+                    <Badge variant="outline" className="text-[11px] bg-blue-50 text-blue-700 border-blue-200">
                       {group.items.length} entries
                     </Badge>
                   </div>
@@ -405,7 +405,7 @@ export default function IntelligenceAssociationsScreen({
                       <div className="min-w-0 flex-1">
                         <p className="text-sm text-slate-700 line-clamp-2">{item.content}</p>
                         <div className="flex items-center gap-3 mt-1.5">
-                          <Badge variant="outline" className="text-[10px]">{item.sourceType}</Badge>
+                          <Badge variant="outline" className="text-[11px]">{item.sourceType}</Badge>
                           <span className="text-xs text-slate-500">
                             Similarity: <span className={confidenceColor(item.similarityScore)}>{(item.similarityScore * 100).toFixed(0)}%</span>
                           </span>
@@ -442,7 +442,7 @@ export default function IntelligenceAssociationsScreen({
               <div key={c.id} className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-sm font-semibold text-slate-800">{c.conflictType.replace(/_/g, ' ')}</span>
-                  <Badge variant="outline" className={cn('text-[10px]', severityColor(c.severity))}>
+                  <Badge variant="outline" className={cn('text-[11px]', severityColor(c.severity))}>
                     {c.severity.toUpperCase()}
                   </Badge>
                 </div>
@@ -450,7 +450,7 @@ export default function IntelligenceAssociationsScreen({
                 <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
                   <span>A: {c.objectIdA.slice(0, 12)}...</span>
                   <span>B: {c.objectIdB.slice(0, 12)}...</span>
-                  <Badge variant="outline" className="text-[10px]">{c.category}</Badge>
+                  <Badge variant="outline" className="text-[11px]">{c.category}</Badge>
                 </div>
               </div>
             ))}
@@ -480,7 +480,7 @@ export default function IntelligenceAssociationsScreen({
                       <tr key={a.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-2.5 font-mono text-xs text-slate-600">{a.sourceId.slice(0, 16)}...</td>
                         <td className="px-4 py-2.5 font-mono text-xs text-slate-600">{a.targetId.slice(0, 16)}...</td>
-                        <td className="px-4 py-2.5"><Badge variant="outline" className="text-[10px]">{a.type}</Badge></td>
+                        <td className="px-4 py-2.5"><Badge variant="outline" className="text-[11px]">{a.type}</Badge></td>
                         <td className="px-4 py-2.5">
                           <ConfidenceBar value={Math.round(a.confidence * 100)} size="sm" />
                         </td>

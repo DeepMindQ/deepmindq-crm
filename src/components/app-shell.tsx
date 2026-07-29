@@ -54,6 +54,7 @@ function NavButton({
         focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-[oklch(0.11_0.01_260)]
       `}
       aria-current={active ? 'page' : undefined}
+      aria-label={collapsed ? item.label : undefined}
     >
       {/* Active accent line */}
       {active && (
@@ -182,7 +183,7 @@ function Sidebar() {
                   onClick={() => toggleSection(section.heading)}
                   className="w-full flex items-center gap-1.5 px-3 pt-3 pb-1.5 group"
                 >
-                  <span className="text-[10px] uppercase tracking-[0.18em] font-semibold flex-1 text-left text-muted-foreground">
+                  <span className="text-[11px] uppercase tracking-[0.18em] font-semibold flex-1 text-left text-muted-foreground">
                     {section.heading}
                   </span>
                   <ChevronDown
@@ -302,7 +303,7 @@ function Header() {
         className="lg:hidden flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/[0.04] transition-colors"
         aria-label="Open sidebar"
       >
-        <PanelLeft className="w-5 h-5" />
+        <PanelLeft className="w-5 h-5" aria-hidden="true" />
       </button>
 
       {/* Search */}
@@ -313,9 +314,10 @@ function Header() {
             type="search"
             placeholder="Search accounts, contacts..."
             className="h-9 pl-9 bg-black/[0.04] border-[oklch(0.27_0.005_260)] text-foreground placeholder:text-muted-foreground/50 focus-visible:border-primary/40 focus-visible:ring-primary/20"
+            aria-label="Search accounts, contacts"
           />
           <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground/50 bg-black/[0.04] border border-[oklch(0.27_0.005_260)] rounded">
-            <span className="text-[10px]">⌘</span>K
+            <span className="text-[11px]">⌘</span>K
           </kbd>
         </div>
       </div>
@@ -327,7 +329,7 @@ function Header() {
           className="relative flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/[0.04] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Notifications"
         >
-          <Bell className="w-[18px] h-[18px]" strokeWidth={1.8} />
+          <Bell className="w-[18px] h-[18px]" strokeWidth={1.8} aria-hidden="true" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-[oklch(0.11_0.01_260)]" />
         </button>
 
@@ -359,7 +361,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
 
   return (
-    <div className="min-h-screen bg-[#0a0c10]">
+    <div className="min-h-screen bg-background">
+      <a href="#main-content" className="skip-to-content">Skip to content</a>
       <Sidebar />
       <div
         className={`
@@ -369,7 +372,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         `}
       >
         <Header />
-        <main className="flex-1 p-6">
+        <main id="main-content" className="flex-1 p-6" tabIndex={-1}>
           {children}
         </main>
       </div>

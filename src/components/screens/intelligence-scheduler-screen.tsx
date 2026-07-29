@@ -128,8 +128,8 @@ function ScheduleCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-slate-800">{connector.name}</h3>
-            <Badge variant="outline" className="text-[10px] bg-slate-50">{connector.sourceType}</Badge>
-            <Badge variant="outline" className={cn('text-[10px]', scheduleBadgeColor(connector.scheduleFrequency))}>
+            <Badge variant="outline" className="text-[11px] bg-slate-50">{connector.sourceType}</Badge>
+            <Badge variant="outline" className={cn('text-[11px]', scheduleBadgeColor(connector.scheduleFrequency))}>
               {connector.scheduleFrequency}
             </Badge>
           </div>
@@ -138,21 +138,21 @@ function ScheduleCard({
 
           <div className="mt-3 grid grid-cols-3 gap-4">
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Last Run</p>
+              <p className="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Last Run</p>
               <p className="text-xs font-medium text-slate-600 mt-0.5 flex items-center gap-1">
                 <Clock className="h-3 w-3 text-slate-400" />
                 {relativeTime(connector.lastRun)}
               </p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Next Run</p>
+              <p className="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Next Run</p>
               <p className="text-xs font-medium text-slate-600 mt-0.5 flex items-center gap-1">
                 <Clock className="h-3 w-3 text-slate-400" />
                 {relativeTime(connector.nextRun)}
               </p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Health</p>
+              <p className="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Health</p>
               <div className="mt-1">
                 <ConfidenceBar value={Math.round(connector.healthScore * 100)} size="sm" />
               </div>
@@ -350,7 +350,7 @@ export default function IntelligenceSchedulerScreen() {
                 <stat.icon className={cn('h-4 w-4', stat.color)} />
               </div>
             </div>
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">{stat.label}</p>
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 font-medium">{stat.label}</p>
             <p className={cn('text-2xl font-bold mt-0.5', stat.color)}>{stat.value}</p>
           </div>
         ))}
@@ -362,7 +362,7 @@ export default function IntelligenceSchedulerScreen() {
           <AlertTriangle className="h-4 w-4 text-orange-500" />
           <h3 className="text-sm font-semibold text-slate-900">Due Now</h3>
           {dueConnectors.length > 0 && (
-            <Badge variant="outline" className="text-[10px] bg-orange-50 text-orange-700 border-orange-200">
+            <Badge variant="outline" className="text-[11px] bg-orange-50 text-orange-700 border-orange-200">
               {dueConnectors.length}
             </Badge>
           )}
@@ -381,7 +381,7 @@ export default function IntelligenceSchedulerScreen() {
                     <div className="h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
                     <div>
                       <p className="text-sm font-medium text-slate-800">{connector.name}</p>
-                      <Badge variant="outline" className="text-[10px] mt-1">{connector.sourceType}</Badge>
+                      <Badge variant="outline" className="text-[11px] mt-1">{connector.sourceType}</Badge>
                     </div>
                   </div>
                   <Button size="sm" onClick={() => handleTrigger(connector.id)}
@@ -471,7 +471,7 @@ export default function IntelligenceSchedulerScreen() {
               </Select>
             </div>
             <div className="rounded-lg bg-slate-50 p-3 border border-slate-200">
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium mb-1">Cron Expression</p>
+              <p className="text-[11px] uppercase tracking-wider text-slate-400 font-medium mb-1">Cron Expression</p>
               <p className="text-sm font-mono text-slate-700">{cronDescription(newSchedule.frequency)}</p>
             </div>
           </div>

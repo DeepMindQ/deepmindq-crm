@@ -176,7 +176,7 @@ function TimelineEventCard({ event, isLast }: { event: TimelineEvent; isLast: bo
               </span>
             )}
             {event.entityType && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-slate-50">
+              <Badge variant="outline" className="text-[11px] px-1.5 py-0 bg-slate-50">
                 {event.entityType}{event.entityId ? ` · ${event.entityId.slice(0, 8)}…` : ''}
               </Badge>
             )}
@@ -252,12 +252,12 @@ export default function IntelligenceTimelineScreen() {
   useEffect(() => {
     if (viewMode === 'global') fetchGlobal().catch(() => {});
     else fetchCompany().catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [viewMode, fetchGlobal, fetchCompany]);
 
   useEffect(() => {
     if (viewMode === 'company') fetchCompany().catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [eventTypeFilter, actorFilter]);
 
   const handleCompanySearch = () => {

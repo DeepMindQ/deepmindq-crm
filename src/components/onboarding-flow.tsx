@@ -402,7 +402,7 @@ function SummaryRow({
     <div className="flex items-center gap-3">
       <div className="shrink-0" style={{ color: 'var(--color-gold)' }}>{icon}</div>
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <p className="text-[11px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.4)' }}>
           {label}
         </p>
         <p className="text-sm font-medium text-white truncate">{value}</p>
@@ -464,7 +464,7 @@ export function OnboardingFlow() {
           style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(12px) saturate(1.5)' }}
         >
           {/* Close backdrop click area — stops propagation so dropdown clicks work */}
-          <div className="absolute inset-0" onClick={(e) => e.stopPropagation()} />
+          <div className="absolute inset-0" onClick={(e) => e.stopPropagation()} aria-hidden="true" />
 
           {/* Card */}
           <motion.div

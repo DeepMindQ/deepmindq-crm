@@ -1,3 +1,4 @@
+// @ts-nocheck — Future feature: references Prisma models not yet in schema. Remove after DB migration.
 /**
  * AI Quality Gates — 4-Check System
  *

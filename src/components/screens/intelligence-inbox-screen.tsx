@@ -126,11 +126,11 @@ function InboxItemCard({
           <div className="flex-1 min-w-0">
             {/* Badges row */}
             <div className="flex flex-wrap items-center gap-1.5 mb-2">
-              <Badge variant="outline" className={cn('text-[10px]', priorityCfg.color)}>
+              <Badge variant="outline" className={cn('text-[11px]', priorityCfg.color)}>
                 {item.priority === 'critical' && <AlertTriangle className="mr-0.5 h-2.5 w-2.5" />}
                 {priorityCfg.label}
               </Badge>
-              <Badge variant="outline" className={cn('text-[10px]', statusCfg.color)}>
+              <Badge variant="outline" className={cn('text-[11px]', statusCfg.color)}>
                 {item.status}
               </Badge>
               <span className="text-[11px] text-slate-400">by {item.submittedBy}</span>
@@ -152,13 +152,13 @@ function InboxItemCard({
             {/* Tags & Meta */}
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {item.category && (
-                <Badge variant="secondary" className="text-[10px]">{item.category}</Badge>
+                <Badge variant="secondary" className="text-[11px]">{item.category}</Badge>
               )}
               {item.source && (
-                <span className="text-[10px] text-slate-400">source: {item.source}</span>
+                <span className="text-[11px] text-slate-400">source: {item.source}</span>
               )}
               {tags.map(tag => (
-                <Badge key={tag} variant="outline" className="text-[10px] gap-0.5 text-slate-500 bg-slate-50">
+                <Badge key={tag} variant="outline" className="text-[11px] gap-0.5 text-slate-500 bg-slate-50">
                   <Tag className="h-2 w-2" />{tag}
                 </Badge>
               ))}
@@ -326,7 +326,7 @@ export default function IntelligenceInboxScreen() {
               { label: 'Approved', value: stats.byStatus?.approved ?? 0, cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
               { label: 'Rejected', value: stats.byStatus?.rejected ?? 0, cls: 'bg-red-100 text-red-700 border-red-200' },
             ].map(s => (
-              <Badge key={s.label} variant="outline" className={cn('text-[10px] px-2.5 py-1', s.cls)}>
+              <Badge key={s.label} variant="outline" className={cn('text-[11px] px-2.5 py-1', s.cls)}>
                 {s.label}: {s.value}
               </Badge>
             ))}

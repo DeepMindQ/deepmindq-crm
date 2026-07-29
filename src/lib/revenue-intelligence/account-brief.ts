@@ -13,7 +13,7 @@
 import { db } from '@/lib/db';
 import { detectSignalsForCompany, getSignalsForCompany } from './signal-extraction';
 import { calculateAccountScore } from './account-scoring';
-import { complete } from '@/lib/engines/model-router';
+import { ModelRouter } from '@/lib/engines/model-router';
 import { ALL_CATEGORIES, FRESHNESS_CONFIG } from '@/lib/intelligence-sources';
 import { getCompanyKnowledge } from '@/lib/intelligence-sources/knowledge-fabric';
 
@@ -333,7 +333,7 @@ export async function generateBrief(
   // Executive summary
   let summary: string;
   try {
-    const summaryResult = await complete({ systemPrompt: 'You are an executive intelligence analyst...', userPrompt: structuredContext, tier: 'smart', feature: 'account_brief_summary' });
+    const summaryResult = await ModelRouter.complete({ systemPrompt: 'You are an executive intelligence analyst...', userPrompt: structuredContext, tier: 'smart', genType: 'account_brief_summary' });
     summary = summaryResult.success ? summaryResult.text || '' : '';
   } catch { summary = ''; }
   if (!summary || summary.trim().length === 0) {
@@ -350,7 +350,7 @@ export async function generateBrief(
   // Engagement approach
   let recommendedEngagement: string;
   try {
-    const engageResult = await complete({ systemPrompt: 'You are a B2B sales strategist...', userPrompt: structuredContext, tier: 'fast', feature: 'account_brief_engagement' });
+    const engageResult = await ModelRouter.complete({ systemPrompt: 'You are a B2B sales strategist...', userPrompt: structuredContext, tier: 'fast', genType: 'account_brief_engagement' });
     recommendedEngagement = engageResult.success ? engageResult.text || '' : '';
   } catch { recommendedEngagement = ''; }
   // Fallback to template

@@ -89,11 +89,11 @@ function KnowledgeCard({ entry }: { entry: KnowledgeEntry }) {
                 {entry.companyName}
               </span>
             )}
-            <Badge variant="outline" className={cn('text-[10px]', groupColor)}>
+            <Badge variant="outline" className={cn('text-[11px]', groupColor)}>
               {entry.category}
             </Badge>
             {entry.subCategory && (
-              <Badge variant="outline" className="text-[10px] text-slate-400 bg-slate-50">
+              <Badge variant="outline" className="text-[11px] text-slate-400 bg-slate-50">
                 {entry.subCategory}
               </Badge>
             )}
@@ -349,9 +349,9 @@ export default function IntelligenceKnowledgeScreen() {
                 {/* Related entities */}
                 {entry.companyName && (
                   <div className="mt-2 px-1 flex items-center gap-2">
-                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Related:</span>
+                    <span className="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Related:</span>
                     {getRelatedEntities(entry).map((entity, i) => (
-                      <Badge key={i} variant="outline" className="text-[10px] bg-slate-50 text-slate-500">
+                      <Badge key={i} variant="outline" className="text-[11px] bg-slate-50 text-slate-500">
                         {entity}
                       </Badge>
                     ))}
@@ -418,7 +418,7 @@ export default function IntelligenceKnowledgeScreen() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-slate-700">Version {v.version}</span>
-                    {idx === 0 && <Badge className="text-[10px] bg-blue-600 text-white">Latest</Badge>}
+                    {idx === 0 && <Badge className="text-[11px] bg-blue-600 text-white">Latest</Badge>}
                   </div>
                   <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{v.changeReason || 'No change reason'}</p>
                   <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">

@@ -83,7 +83,7 @@ export default function ContactIntelligenceScreen() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2"><span className="font-medium truncate">{c.name}</span><Badge variant="outline" className="text-xs">{c.status}</Badge></div>
                         <p className="text-xs text-muted-foreground">{c.email}{c.role ? ` · ${c.role}` : ''}</p>
-                        <div className="mt-1 flex gap-1">{c.topFactors.slice(0, 3).map(f => <Badge key={f} variant="secondary" className="text-[10px] px-1 py-0">{f}</Badge>)}</div>
+                        <div className="mt-1 flex gap-1">{c.topFactors.slice(0, 3).map(f => <Badge key={f} variant="secondary" className="text-[11px] px-1 py-0">{f}</Badge>)}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className={cn('rounded-full px-3 py-1 text-sm font-bold', c.tier === 'hot' ? 'bg-red-100 text-red-700' : c.tier === 'warm' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700')}>{c.score}</div>

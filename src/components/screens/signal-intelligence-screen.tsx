@@ -196,7 +196,7 @@ function ConfidenceGauge({ value }: { value: number }) {
 
   return (
     <div className="relative flex items-center justify-center">
-      <svg width="120" height="120" viewBox="0 0 100 100" className="-rotate-90">
+      <svg aria-hidden="true" width="120" height="120" viewBox="0 0 100 100" className="-rotate-90">
         <circle cx="50" cy="50" r="42" fill="none" stroke="#F1F5F9" strokeWidth="8" />
         <motion.circle
           cx="50" cy="50" r="42" fill="none" stroke={color} strokeWidth="8"
@@ -216,7 +216,7 @@ function ConfidenceGauge({ value }: { value: number }) {
         >
           {clamped}%
         </motion.span>
-        <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
+        <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
           Confidence
         </span>
       </div>
@@ -427,7 +427,7 @@ function SignalCard({
           {/* Severity badge + time */}
           <div className="flex items-center gap-2 shrink-0">
             <span className={cn(
-              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border',
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border',
               sevCfg.badge
             )}>
               <SevIcon className="h-2.5 w-2.5" />
@@ -470,7 +470,7 @@ function SignalCard({
                 <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <Lightbulb className="h-3 w-3 text-amber-500" />
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">Why It Matters</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-600">Why It Matters</span>
                   </div>
                   <p className="text-xs text-slate-600 leading-relaxed">{deriveWhyItMatters(signal)}</p>
                 </div>
@@ -478,7 +478,7 @@ function SignalCard({
                 <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-3">
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <ArrowRight className="h-3 w-3 text-blue-600" />
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-600">Recommended Action</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-600">Recommended Action</span>
                   </div>
                   <p className="text-xs text-slate-700 font-medium leading-relaxed">{deriveRecommendedAction(signal)}</p>
                 </div>
@@ -564,7 +564,7 @@ function SignalDistributionBar({ signals }: { signals: SignalItem[] }) {
         {entries.map(entry => (
           <div key={entry.label} className="flex items-center gap-1.5">
             <div className="h-2 w-2 rounded-full shrink-0" style={{ background: entry.color }} />
-            <span className="text-[10px] font-medium text-slate-500 whitespace-nowrap">
+            <span className="text-[11px] font-medium text-slate-500 whitespace-nowrap">
               {entry.label} <span className="text-slate-400">({entry.count})</span>
             </span>
           </div>
@@ -700,7 +700,7 @@ function FilterPills<T extends string>({
             {opt.label}
             {opt.count !== undefined && opt.count > 0 && (
               <span className={cn(
-                'ml-1.5 text-[10px] tabular-nums',
+                'ml-1.5 text-[11px] tabular-nums',
                 active === opt.key ? 'text-slate-300' : 'text-slate-400'
               )}>
                 {opt.count}
@@ -922,22 +922,22 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                   </span>
                   <Separator orientation="vertical" className="h-4 mx-1" />
                   {severityCounts.critical > 0 && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-100 text-red-700 text-[10px] font-bold tabular-nums">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-100 text-red-700 text-[11px] font-bold tabular-nums">
                       {severityCounts.critical} Critical
                     </span>
                   )}
                   {severityCounts.high > 0 && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-700 text-[10px] font-bold tabular-nums">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-700 text-[11px] font-bold tabular-nums">
                       {severityCounts.high} High
                     </span>
                   )}
                   {severityCounts.medium > 0 && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-700 text-[10px] font-bold tabular-nums">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-700 text-[11px] font-bold tabular-nums">
                       {severityCounts.medium} Medium
                     </span>
                   )}
                   {severityCounts.low > 0 && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold tabular-nums">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-bold tabular-nums">
                       {severityCounts.low} Low
                     </span>
                   )}
@@ -1102,7 +1102,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                   <h2 className="text-sm font-semibold text-slate-700">
                     Intelligence Feed
                   </h2>
-                  <Badge variant="secondary" className="text-[10px] tabular-nums">
+                  <Badge variant="secondary" className="text-[11px] tabular-nums">
                     {feedSignals.length}
                   </Badge>
                 </div>

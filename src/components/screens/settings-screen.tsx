@@ -413,7 +413,7 @@ function TeamPerformanceSection() {
                                   <div className="min-w-0">
                                     <p className="text-sm font-medium text-foreground truncate">{m.name}</p>
                                     {idx === 0 && (
-                                      <span className="text-[10px] font-semibold text-[#D4AF37] flex items-center gap-1">
+                                      <span className="text-[11px] font-semibold text-[#D4AF37] flex items-center gap-1">
                                         <Trophy className="size-2.5" /> Top Performer
                                       </span>
                                     )}
@@ -479,7 +479,7 @@ function TeamPerformanceSection() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <div
-                                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                                className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-white"
                                 style={{ background: 'linear-gradient(135deg, #D4AF37, #9A8340)' }}
                               >
                                 {m.avatar}
@@ -745,7 +745,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                         <AlertTriangle className="w-4 h-4 text-amber-600" />
                         <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">Risk Flags</p>
                         {data.riskFlags.length > 0 && (
-                          <Badge className="bg-red-500/15 text-red-600 border-red-500/30 text-[10px] ml-auto">{data.riskFlags.length}</Badge>
+                          <Badge className="bg-red-500/15 text-red-600 border-red-500/30 text-[11px] ml-auto">{data.riskFlags.length}</Badge>
                         )}
                       </div>
 
@@ -753,7 +753,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                         <div className="text-center py-6">
                           <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
                           <p className="text-xs text-emerald-600 font-medium">No risk flags</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">All compliance checks passed</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">All compliance checks passed</p>
                         </div>
                       ) : (
                         <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
@@ -761,13 +761,13 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                             <div key={flag.type} className="p-3 rounded-lg bg-gray-50 border border-gray-200">
                               <div className="flex items-start justify-between gap-2 mb-1">
                                 <p className="text-xs font-medium text-foreground leading-snug">{flag.message}</p>
-                                <Badge className="bg-red-500/15 text-red-600 border-red-500/30 text-[10px] shrink-0 tabular-nums">{flag.count}</Badge>
+                                <Badge className="bg-red-500/15 text-red-600 border-red-500/30 text-[11px] shrink-0 tabular-nums">{flag.count}</Badge>
                               </div>
                               {flag.fixable && (
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-7 text-[10px] text-amber-600 hover:text-amber-700 hover:bg-amber-50 mt-1"
+                                  className="h-7 text-[11px] text-amber-600 hover:text-amber-700 hover:bg-amber-50 mt-1"
                                   disabled={actionLoading === flag.fixAction}
                                   onClick={() => runAction('fix', flag.fixAction)}
                                 >
@@ -842,7 +842,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                       style={{ background: 'linear-gradient(180deg, #D4AF37, #9A8340)' }}
                     />
                     <h4 className="text-sm font-semibold text-foreground">Recent Consent Changes</h4>
-                    <span className="text-[10px] text-muted-foreground ml-1">(last 30 days)</span>
+                    <span className="text-[11px] text-muted-foreground ml-1">(last 30 days)</span>
                   </div>
 
                   {data.recentChanges.length === 0 ? (
@@ -855,7 +855,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                             <div className="w-1.5 h-1.5 rounded-full bg-primary/60 shrink-0" />
                             <div className="min-w-0 flex-1">
                               <p className="text-xs text-foreground truncate">{log.details || log.action}</p>
-                              <p className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+                              <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
                                 {new Date(log.createdAt).toLocaleString('en-US', {
                                   month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
                                 })}
@@ -1570,8 +1570,8 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                                   <div>
                                     <div className="flex items-center gap-2">
                                       <span className="text-sm font-semibold text-foreground">{label}</span>
-                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">{category === 'search' ? 'Search' : 'LLM'}</Badge>
-                                      {tier && <span className="text-[10px] text-muted-foreground">{tier}</span>}
+                                      <Badge variant="outline" className="text-[11px] px-1.5 py-0 font-normal">{category === 'search' ? 'Search' : 'LLM'}</Badge>
+                                      {tier && <span className="text-[11px] text-muted-foreground">{tier}</span>}
                                     </div>
                                     <p className="text-[11px] text-muted-foreground mt-0.5 font-mono truncate max-w-md">{baseUrl}</p>
                                   </div>

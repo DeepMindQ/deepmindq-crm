@@ -212,11 +212,11 @@ export default function RepliesScreen({ navigateTo }: { navigateTo?: (screen: st
             <Table>
               <TableHeader>
                 <TableRow style={{ borderBottom: `1px solid ${border}` }}>
-                  <TableHead className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground h-9">Contact</TableHead>
-                  <TableHead className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground h-9">Subject</TableHead>
-                  <TableHead className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground h-9">Category</TableHead>
-                  <TableHead className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground h-9 w-28">Received</TableHead>
-                  <TableHead className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground h-9 w-28">Actions</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground h-9">Contact</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground h-9">Subject</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground h-9">Category</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground h-9 w-28">Received</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground h-9 w-28">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -233,18 +233,18 @@ export default function RepliesScreen({ navigateTo }: { navigateTo?: (screen: st
                         style={{ borderBottom: `1px solid ${border}` }}>
                         <TableCell className="py-2.5">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-black/[0.03] text-[10px] font-bold text-muted-foreground">
+                            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-black/[0.03] text-[11px] font-bold text-muted-foreground">
                               {(reply.contactName || '?')[0].toUpperCase()}
                             </div>
                             <div className="min-w-0">
                               <p className="text-xs font-medium text-foreground truncate max-w-[160px]">{reply.contactName}</p>
-                              <p className="text-[10px] text-muted-foreground truncate max-w-[160px]">{reply.companyName}</p>
+                              <p className="text-[11px] text-muted-foreground truncate max-w-[160px]">{reply.companyName}</p>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="py-2.5">
                           <p className="text-xs text-foreground truncate max-w-[220px]">{reply.subject}</p>
-                          {reply.snippet && <p className="text-[10px] text-muted-foreground truncate max-w-[220px] mt-0.5">{reply.snippet}</p>}
+                          {reply.snippet && <p className="text-[11px] text-muted-foreground truncate max-w-[220px] mt-0.5">{reply.snippet}</p>}
                         </TableCell>
                         <TableCell className="py-2.5">
                           <Badge variant="outline" className={`text-[9px] ${catColor} whitespace-nowrap`}>

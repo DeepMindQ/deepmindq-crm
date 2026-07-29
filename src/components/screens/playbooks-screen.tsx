@@ -422,7 +422,7 @@ export default function PlaybooksScreen() {
                       <CatIcon className="w-3 h-3" />
                       {cat.label}
                     </span>
-                    <div className="relative" onClick={e => e.stopPropagation()}>
+                    <div className="relative" onClick={e => e.stopPropagation()} aria-hidden="true">
                       <button
                         onClick={(e) => { e.stopPropagation(); setMenuOpen(menuOpen === playbook.id ? null : playbook.id); }}
                         className="p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-100"
@@ -468,7 +468,7 @@ export default function PlaybooksScreen() {
                       </span>
                     </div>
                     {playbook.aiTips && (
-                      <span className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: 'color-mix(in oklch, var(--color-gold) 10%, transparent)', color: 'var(--color-gold)' }}>
+                      <span className="flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: 'color-mix(in oklch, var(--color-gold) 10%, transparent)', color: 'var(--color-gold)' }}>
                         <Sparkles className="w-2.5 h-2.5" /> AI
                       </span>
                     )}

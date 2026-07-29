@@ -303,7 +303,7 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
                     </div>
                     <div
                       className={cn(
-                        'text-[10px] mt-1.5',
+                        'text-[11px] mt-1.5',
                         msg.role === 'user' ? 'text-white/60 text-right' : '',
                       )}
                       style={msg.role !== 'user' ? { color: 'var(--text-dim)' } : undefined}
@@ -344,6 +344,7 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  aria-label="Ask about any company, contact, or deal"
                   placeholder="Ask about any company, contact, or deal..."
                   disabled={isLoading}
                   rows={1}
@@ -368,7 +369,7 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
                   <Send className="size-4" />
                 </button>
               </div>
-              <p className="text-[10px] mt-1.5 text-center" style={{ color: 'var(--text-dim)' }}>
+              <p className="text-[11px] mt-1.5 text-center" style={{ color: 'var(--text-dim)' }}>
                 Enter to send · Shift+Enter for new line
               </p>
             </div>

@@ -402,9 +402,9 @@ function IntelligenceFeedItem({ insight }: { insight: RecentInsight }) {
                   style={{ width: `${Math.min(100, conf)}%` }}
                 />
               </div>
-              <span className="text-[10px] font-medium text-zinc-500">{conf}% conf.</span>
+              <span className="text-[11px] font-medium text-zinc-500">{conf}% conf.</span>
             </div>
-            <span className="flex items-center gap-1 text-[10px] text-zinc-400">
+            <span className="flex items-center gap-1 text-[11px] text-zinc-400">
               <Clock className="h-3 w-3" />
               {fmtRelative(insight.createdAt)}
             </span>
@@ -434,7 +434,7 @@ function IntelligenceFeedItem({ insight }: { insight: RecentInsight }) {
               )}
               {insight.reasoning && (
                 <div>
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
                     Reasoning
                   </p>
                   <p className="text-xs text-zinc-600">{insight.reasoning}</p>
@@ -442,7 +442,7 @@ function IntelligenceFeedItem({ insight }: { insight: RecentInsight }) {
               )}
               {insight.evidence.length > 0 && (
                 <div>
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
                     Evidence
                   </p>
                   <ul className="space-y-1">
@@ -460,7 +460,7 @@ function IntelligenceFeedItem({ insight }: { insight: RecentInsight }) {
               )}
               {insight.recommendedAction && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-2.5">
-                  <p className="mb-0.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                  <p className="mb-0.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
                     <Zap className="h-3 w-3" /> Recommended Action
                   </p>
                   <p className="text-xs text-amber-900">{insight.recommendedAction}</p>
@@ -908,7 +908,7 @@ export default function AICommandCenterScreen() {
                     <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
                   </span>
                   <div>
-                    <p className="text-[10px] uppercase tracking-wide text-zinc-400">Model</p>
+                    <p className="text-[11px] uppercase tracking-wide text-zinc-400">Model</p>
                     <p className="text-xs font-semibold text-zinc-900">Active</p>
                   </div>
                 </div>
@@ -919,7 +919,7 @@ export default function AICommandCenterScreen() {
                     <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase tracking-wide text-zinc-400">Avg Confidence</p>
+                    <p className="text-[11px] uppercase tracking-wide text-zinc-400">Avg Confidence</p>
                     {healthQuery.isLoading ? (
                       <Skeleton className="h-3 w-12" />
                     ) : (
@@ -936,7 +936,7 @@ export default function AICommandCenterScreen() {
                     <Gauge className="h-3.5 w-3.5 text-zinc-600" />
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase tracking-wide text-zinc-400">Hallucination Risk</p>
+                    <p className="text-[11px] uppercase tracking-wide text-zinc-400">Hallucination Risk</p>
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${hallucCfg.bg} ${hallucCfg.text}`}
                     >
@@ -952,7 +952,7 @@ export default function AICommandCenterScreen() {
                     <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase tracking-wide text-zinc-400">Cost Today</p>
+                    <p className="text-[11px] uppercase tracking-wide text-zinc-400">Cost Today</p>
                     <p className="text-xs font-semibold text-zinc-900">
                       $
                       {(

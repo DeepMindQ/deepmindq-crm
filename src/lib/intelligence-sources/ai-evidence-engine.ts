@@ -43,12 +43,12 @@ async function classifyWithLLM(evidence: RawEvidenceInput): Promise<ClassifiedSi
     const result = await governedAICallAggregate({
       systemPrompt: CLASSIFICATION_SYSTEM_PROMPT,
       userPrompt: userMessage,
-      feature: 'evidence_classification',
+      generationType: 'evidence_classification',
     });
 
-    if (!result.text) return null;
+    if (!result.response) return null;
 
-    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+    const jsonMatch = result.response.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
 
     const parsed = JSON.parse(jsonMatch[0]);

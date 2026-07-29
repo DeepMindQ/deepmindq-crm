@@ -183,7 +183,7 @@ export default function IntelligenceAnalyticsScreen() {
     const controller = new AbortController();
     fetchAll().catch(() => {});
     return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   if (loading) {
@@ -251,7 +251,7 @@ export default function IntelligenceAnalyticsScreen() {
               <div className="flex items-center justify-between mb-2">
                 <stat.Icon className={cn('h-4 w-4', stat.color)} />
               </div>
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">{stat.label}</p>
+              <p className="text-[11px] uppercase tracking-wider text-slate-400 font-medium">{stat.label}</p>
               <p className={cn('text-xl font-bold mt-0.5', stat.color)}>{stat.value}</p>
             </div>
           ))}
@@ -264,7 +264,7 @@ export default function IntelligenceAnalyticsScreen() {
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-slate-400" />
             <h3 className="text-sm font-semibold text-slate-900">Acquisition Trends</h3>
-            <Badge variant="outline" className="text-[10px] bg-slate-50">Last 30 days</Badge>
+            <Badge variant="outline" className="text-[11px] bg-slate-50">Last 30 days</Badge>
           </div>
         </div>
         <div className="p-4">
@@ -395,11 +395,11 @@ export default function IntelligenceAnalyticsScreen() {
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-slate-700">{src.name}</span>
-                        <Badge variant="outline" className="text-[10px] bg-slate-50">{src.type}</Badge>
+                        <Badge variant="outline" className="text-[11px] bg-slate-50">{src.type}</Badge>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-slate-400">{relativeTime(src.lastRun)}</span>
-                        <Badge variant="outline" className={cn('text-[10px]', healthBadgeColor(src.healthScore))}>
+                        <Badge variant="outline" className={cn('text-[11px]', healthBadgeColor(src.healthScore))}>
                           {relPct}%
                         </Badge>
                       </div>
@@ -427,7 +427,7 @@ export default function IntelligenceAnalyticsScreen() {
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-slate-400" />
             <h3 className="text-sm font-semibold text-slate-900">Activity Feed</h3>
-            <Badge variant="outline" className="text-[10px] bg-slate-50">Latest</Badge>
+            <Badge variant="outline" className="text-[11px] bg-slate-50">Latest</Badge>
           </div>
         </div>
         <div className="divide-y divide-slate-100">
@@ -440,7 +440,7 @@ export default function IntelligenceAnalyticsScreen() {
               const config = ACTIVITY_TYPE_CONFIG[item.type] ?? ACTIVITY_TYPE_CONFIG.timeline;
               return (
                 <div key={i} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
-                  <Badge variant="outline" className={cn('text-[10px]', config.color)}>{config.label}</Badge>
+                  <Badge variant="outline" className={cn('text-[11px]', config.color)}>{config.label}</Badge>
                   <span className="text-sm flex-1 text-slate-700">{item.title}</span>
                   <span className="text-xs text-slate-400 whitespace-nowrap">{relativeTime(item.timestamp)}</span>
                 </div>

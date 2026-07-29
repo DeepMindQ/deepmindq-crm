@@ -324,7 +324,7 @@ export default function PromptTemplatesScreen() {
                       <h3 className="text-sm font-semibold text-gray-900 truncate">{template.name}</h3>
                       <Badge
                         variant="outline"
-                        className={`text-[10px] px-1.5 py-0 h-5 font-medium ${catConfig.bg} ${catConfig.color} border`}
+                        className={`text-[11px] px-1.5 py-0 h-5 font-medium ${catConfig.bg} ${catConfig.color} border`}
                       >
                         <CatIcon className="size-3 mr-0.5" />
                         {catConfig.label}
@@ -336,7 +336,7 @@ export default function PromptTemplatesScreen() {
                   </div>
                   <Badge
                     variant="secondary"
-                    className={`text-[10px] px-1.5 py-0 h-5 shrink-0 ${template.isBuiltIn ? 'bg-gray-100 text-gray-500' : 'bg-amber-50 text-amber-700'}`}
+                    className={`text-[11px] px-1.5 py-0 h-5 shrink-0 ${template.isBuiltIn ? 'bg-gray-100 text-gray-500' : 'bg-amber-50 text-amber-700'}`}
                   >
                     {template.isBuiltIn ? 'Built-in' : 'Custom'}
                   </Badge>
@@ -348,7 +348,7 @@ export default function PromptTemplatesScreen() {
                     {template.variables.map((v) => (
                       <code
                         key={v}
-                        className="text-[10px] font-mono bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded"
+                        className="text-[11px] font-mono bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded"
                       >
                         {'{{'}{v}{'}}'}
                       </code>
@@ -358,7 +358,7 @@ export default function PromptTemplatesScreen() {
 
                 {/* System prompt preview */}
                 <div className="bg-gray-50 rounded-lg p-2.5 mb-2">
-                  <p className="text-[10px] uppercase tracking-wider text-gray-600 font-medium mb-1">System Prompt</p>
+                  <p className="text-[11px] uppercase tracking-wider text-gray-600 font-medium mb-1">System Prompt</p>
                   <p className="text-xs text-gray-600 font-mono leading-relaxed line-clamp-2">
                     {template.systemPrompt}
                   </p>
@@ -366,7 +366,7 @@ export default function PromptTemplatesScreen() {
 
                 {/* User template preview */}
                 <div className="bg-gray-50 rounded-lg p-2.5 mb-3">
-                  <p className="text-[10px] uppercase tracking-wider text-gray-600 font-medium mb-1">User Template</p>
+                  <p className="text-[11px] uppercase tracking-wider text-gray-600 font-medium mb-1">User Template</p>
                   <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
                     {template.userPromptTemplate}
                   </p>
@@ -375,7 +375,7 @@ export default function PromptTemplatesScreen() {
                 {/* Expandable preview section */}
                 {isExpanded && (
                   <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-3 mb-3">
-                    <p className="text-[10px] uppercase tracking-wider text-amber-600 font-medium mb-1.5">
+                    <p className="text-[11px] uppercase tracking-wider text-amber-600 font-medium mb-1.5">
                       <Eye className="size-3 inline mr-1" />
                       Preview with sample data
                     </p>

@@ -98,7 +98,7 @@ export default function SalesExecutionScreen() {
                         <div className="flex items-center gap-2"><span className="font-medium truncate">{p.title}</span><Badge variant="outline" className="text-xs">{STAGE_LABELS[p.stage] || p.stage}</Badge></div>
                         <p className="text-xs text-muted-foreground">{p.company} · {p.owner}</p>
                       </div>
-                      <div className="text-right"><Badge variant={p.overdue ? 'destructive' : 'secondary'} className="text-[10px]">{p.overdue ? 'Overdue' : 'No action'}</Badge></div>
+                      <div className="text-right"><Badge variant={p.overdue ? 'destructive' : 'secondary'} className="text-[11px]">{p.overdue ? 'Overdue' : 'No action'}</Badge></div>
                     </motion.div>
                   ))}
                 </div>

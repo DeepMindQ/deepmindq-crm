@@ -154,7 +154,7 @@ export async function computeCompanyHealth(companyId: string): Promise<HealthSco
   const totalContacts = contactCounts;
 
   // Field coverage — cast to the expected shape for computeFieldCoverage
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const fieldCoverage = computeFieldCoverage(mergedCompany as any);
   fieldCoverage.contacts = totalContacts > 0;
   fieldCoverage.signals = totalSignals > 0;

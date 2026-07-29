@@ -480,9 +480,9 @@ export default function KnowledgeSearch({
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1 flex-1 min-w-[150px]">
                 {selectedTags.map(tag => (
-                  <Badge key={tag} variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary bg-primary/5">
+                  <Badge key={tag} variant="outline" className="text-[11px] gap-1 border-primary/30 text-primary bg-primary/5">
                     {tag}
-                    <button onClick={() => handleRemoveTag(tag)} className="hover:text-primary-foreground transition-colors">
+                    <button onClick={() => handleRemoveTag(tag)} aria-label={`Remove tag: ${tag}`} className="hover:text-primary-foreground transition-colors">
                       <X className="w-2.5 h-2.5" />
                     </button>
                   </Badge>
@@ -496,7 +496,7 @@ export default function KnowledgeSearch({
                 />
               </div>
               {tagInput.trim() && (
-                <Button variant="ghost" size="sm" className="h-7 text-[10px] text-primary hover:bg-primary/10" onClick={handleAddTag}>
+                <Button variant="ghost" size="sm" className="h-7 text-[11px] text-primary hover:bg-primary/10" onClick={handleAddTag}>
                   <Plus className="w-3 h-3 mr-1" />Add
                 </Button>
               )}
@@ -537,9 +537,9 @@ export default function KnowledgeSearch({
       {/* ── Active Filters Display ── */}
       {!compact && searched && Object.keys(appliedFilters).length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Active filters:</span>
+          <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Active filters:</span>
           {Object.entries(appliedFilters).map(([key, value]) => (
-            <Badge key={key} variant="outline" className="text-[10px] border-primary/30 text-primary bg-primary/5">
+            <Badge key={key} variant="outline" className="text-[11px] border-primary/30 text-primary bg-primary/5">
               {key}: {Array.isArray(value) ? value.join(', ') : String(value)}
             </Badge>
           ))}
@@ -597,7 +597,7 @@ export default function KnowledgeSearch({
                         </p>
                         <Badge
                           variant="outline"
-                          className={`text-[10px] shrink-0 ${CATEGORY_COLORS[result.category] || 'border-border text-muted-foreground'}`}
+                          className={`text-[11px] shrink-0 ${CATEGORY_COLORS[result.category] || 'border-border text-muted-foreground'}`}
                         >
                           {CATEGORY_LABELS[result.category] || result.category}
                         </Badge>
@@ -623,7 +623,7 @@ export default function KnowledgeSearch({
                         />
                       </div>
                       <span
-                        className={`text-[10px] tabular-nums font-medium ${
+                        className={`text-[11px] tabular-nums font-medium ${
                           result.relevanceScore >= 80
                             ? 'text-emerald-600'
                             : result.relevanceScore >= 50
@@ -652,19 +652,19 @@ export default function KnowledgeSearch({
                     {result.matchedFields.map(field => (
                       <span
                         key={field}
-                        className="inline-flex items-center text-[10px] text-primary/70 bg-primary/5 rounded px-1.5 py-0.5"
+                        className="inline-flex items-center text-[11px] text-primary/70 bg-primary/5 rounded px-1.5 py-0.5"
                       >
                         {MATCHED_FIELD_LABELS[field] || field}
                       </span>
                     ))}
                     {result.serviceLine && (
-                      <span className="text-[10px] text-muted-foreground/60">
+                      <span className="text-[11px] text-muted-foreground/60">
                         → {result.serviceLine}
                       </span>
                     )}
                     {/* C-09: Usage indicator */}
                     {(result.usedInEmails || 0) > 0 && (
-                      <span className="text-[10px] text-emerald-600/70 ml-auto">
+                      <span className="text-[11px] text-emerald-600/70 ml-auto">
                         Used in {result.usedInEmails} email{result.usedInEmails! > 1 ? 's' : ''}
                       </span>
                     )}
@@ -703,6 +703,7 @@ export default function KnowledgeSearch({
                             ? 'text-emerald-600 bg-emerald-50'
                             : 'text-muted-foreground/50 hover:text-emerald-600 hover:bg-emerald-500/5'
                         }`}
+                        aria-label="Mark as relevant"
                         title="Relevant result"
                       >
                         <ThumbsUp className="w-3.5 h-3.5" />
@@ -714,6 +715,7 @@ export default function KnowledgeSearch({
                             ? 'text-red-600 bg-red-50'
                             : 'text-muted-foreground/50 hover:text-red-600 hover:bg-red-500/5'
                         }`}
+                        aria-label="Mark as not relevant"
                         title="Not relevant"
                       >
                         <ThumbsDown className="w-3.5 h-3.5" />

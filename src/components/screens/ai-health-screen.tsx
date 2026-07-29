@@ -363,7 +363,7 @@ export default function AIHealthScreen({
                               <span className="text-xs font-bold text-foreground">
                                 {item.count}
                               </span>
-                              <span className="text-[10px] text-muted-foreground ml-1">
+                              <span className="text-[11px] text-muted-foreground ml-1">
                                 {Math.round(item.avgConfidence * 100)}%
                               </span>
                             </div>
@@ -374,11 +374,11 @@ export default function AIHealthScreen({
 
                     {/* Legend row */}
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-3 border-t border-border/50 mt-2">
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium mr-1">Legend:</span>
+                      <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium mr-1">Legend:</span>
                       {Object.entries(TYPE_COLORS).map(([type, c]) => (
                         <div key={type} className="flex items-center gap-1.5">
                           <div className={cn('w-2 h-2 rounded-full', c.dot)} />
-                          <span className={cn('text-[10px]', c.text)}>{type}</span>
+                          <span className={cn('text-[11px]', c.text)}>{type}</span>
                         </div>
                       ))}
                     </div>
@@ -442,7 +442,7 @@ export default function AIHealthScreen({
                     <Badge
                       variant="outline"
                       className={cn(
-                        'text-[10px] shrink-0',
+                        'text-[11px] shrink-0',
                         quality.highUrgencyCount > 0
                           ? 'border-red-500/20 bg-red-500/10 text-red-400'
                           : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
@@ -492,7 +492,7 @@ export default function AIHealthScreen({
                     <Badge
                       variant="outline"
                       className={cn(
-                        'text-[10px] shrink-0',
+                        'text-[11px] shrink-0',
                         quality.expiringSoon > 0
                           ? 'border-amber-500/20 bg-amber-500/10 text-amber-400'
                           : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
@@ -524,7 +524,7 @@ export default function AIHealthScreen({
                     </div>
                     <Badge
                       variant="outline"
-                      className="text-[10px] shrink-0 border-blue-500/20 bg-blue-500/10 text-blue-400"
+                      className="text-[11px] shrink-0 border-blue-500/20 bg-blue-500/10 text-blue-400"
                     >
                       {overview.recentInsights}
                     </Badge>
@@ -541,19 +541,19 @@ export default function AIHealthScreen({
                       <p className="text-lg font-bold text-foreground">
                         <AnimatedCounter value={overview.totalInsights} />
                       </p>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Total</p>
                     </div>
                     <div className="text-center p-3 rounded-lg" style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.12)' }}>
                       <p className="text-lg font-bold" style={{ color: 'var(--color-gold)' }}>
                         <AnimatedCounter value={overview.activeInsights} />
                       </p>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Active</p>
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Active</p>
                     </div>
                     <div className="text-center p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
                       <p className="text-lg font-bold text-muted-foreground">
                         <AnimatedCounter value={overview.expiredInsights} />
                       </p>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Expired</p>
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Expired</p>
                     </div>
                   </motion.div>
                 </div>
@@ -604,7 +604,7 @@ export default function AIHealthScreen({
                           <div className="w-5 shrink-0 text-center">
                             <span
                               className={cn(
-                                'text-[10px] font-bold',
+                                'text-[11px] font-bold',
                                 isTop ? '' : 'text-muted-foreground',
                               )}
                               style={isTop ? { color: 'var(--color-gold)' } : undefined}
@@ -705,7 +705,7 @@ export default function AIHealthScreen({
                       transition={{ duration: 1, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
                     />
                   </div>
-                  <p className="text-[10px] text-muted-foreground/60">
+                  <p className="text-[11px] text-muted-foreground/60">
                     {quality.avgConfidence >= 0.8 ? 'Excellent — high trust in AI outputs' :
                      quality.avgConfidence >= 0.6 ? 'Good — reliable AI performance' :
                      quality.avgConfidence >= 0.4 ? 'Fair — review recommended' :
@@ -748,7 +748,7 @@ export default function AIHealthScreen({
                       transition={{ duration: 1, delay: 0.45, ease: [0.22, 1, 0.36, 1] }}
                     />
                   </div>
-                  <p className="text-[10px] text-muted-foreground/60">
+                  <p className="text-[11px] text-muted-foreground/60">
                     {quality.avgImpact >= 0.8 ? 'High — insights driving significant decisions' :
                      quality.avgImpact >= 0.6 ? 'Moderate — meaningful business impact' :
                      quality.avgImpact >= 0.4 ? 'Low — insights need deeper analysis' :

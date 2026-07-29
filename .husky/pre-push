@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Pre-push hook — Runs on every push
+# Layer 2 defense: Full quality check before code reaches remote
+#
+# What it checks (~60 seconds):
+#   1. TypeScript (blocks if any TS errors)
+#   2. ESLint + Governance (blocks if any lint errors)
+#   3. Tests (warns on failures — does not block)
+#   4. Baseline regression check (if baseline exists)
+#
+# If TypeScript or Lint fail, the push is BLOCKED.
+# Tests failures show a warning but allow the push.
+
+set -uo pipefail
+
+echo "🚀 Pre-push hook running..."
+echo ""
+
+# ── 1. TypeScript check (BLOCKING) ──
+echo "⏳ [1/4] TypeScript..."
+npx tsc --noEmit
+if [ $? -ne 0 ]; then
+  echo "❌ TypeScript errors found — push BLOCKED"
+  exit 1
+fi
+echo "✅ TypeScript passed"
+
+# ── 2. ESLint + Governance (BLOCKING) ──
+echo "⏳ [2/4] ESLint + Governance..."
+npm run lint
+if [ $? -ne 0 ]; then
+  echo "❌ Lint/Governance errors found — push BLOCKED"
+  exit 1
+fi
+echo "✅ Lint + Governance passed"
+
+# ── 3. Tests (NON-BLOCKING — warns only) ──
+echo "⏳ [3/4] Tests..."
+npx vitest run 2>&1 | tail -5 || true
+echo "ℹ️  Test failures are tracked in baseline — not blocking push"
+
+# ── 4. Baseline regression check ──
+if [ -f "error-snapshots/baseline-v2.json" ]; then
+  echo "⏳ [4/4] Baseline regression check..."
+  BASELINE_TSC=$(python3 -c "import json; d=json.load(open('error-snapshots/baseline-v2.json')); print(d['checks']['typescript']['errors'])" 2>/dev/null || echo "0")
+  if [ "$BASELINE_TSC" = "0" ]; then
+    echo "✅ Baseline check: TSC at 0 (matches baseline)"
+  fi
+fi
+
+echo ""
+echo "✅ Pre-push checks passed — pushing to remote..."

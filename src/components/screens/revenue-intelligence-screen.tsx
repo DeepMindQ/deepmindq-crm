@@ -284,7 +284,6 @@ function PriorityAccountCard({
   onView: (id: string) => void;
 }) {
   const cat = categoryFromStatus(account.status);
-  const CatIcon = categoryIcon(cat);
 
   return (
     <div className="bg-white border border-border rounded-xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow group">
@@ -300,7 +299,11 @@ function PriorityAccountCard({
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${categoryColor(cat)}`}>
-            <CatIcon className="w-3 h-3" />
+            {cat === 'HOT_ACCOUNT' && <Flame className="w-3 h-3" aria-hidden="true" />}
+            {cat === 'WARM_ACCOUNT' && <Sun className="w-3 h-3" aria-hidden="true" />}
+            {cat === 'NURTURE' && <Sprout className="w-3 h-3" aria-hidden="true" />}
+            {cat === 'AT_RISK' && <AlertTriangle className="w-3 h-3" aria-hidden="true" />}
+            {cat !== 'HOT_ACCOUNT' && cat !== 'WARM_ACCOUNT' && cat !== 'NURTURE' && cat !== 'AT_RISK' && <BarChart3 className="w-3 h-3" aria-hidden="true" />}
             {categoryLabel(cat)}
           </span>
           <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold ${scoreColorClass(account.score)}`}>
@@ -316,7 +319,7 @@ function PriorityAccountCard({
           <span>{signalCount} signal{signalCount !== 1 ? 's' : ''}</span>
         </div>
         <ConfidenceBar value={Math.min(95, 60 + account.score / 3)} size="sm" showPercentage={false} className="flex-1" />
-        <span className="text-[10px] text-muted-foreground tabular-nums">{Math.min(95, 60 + account.score / 3)}%</span>
+        <span className="text-[11px] text-muted-foreground tabular-nums">{Math.min(95, 60 + account.score / 3)}%</span>
       </div>
 
       {/* Action */}
@@ -351,7 +354,7 @@ function SignalCard({ signal }: { signal: Signal }) {
             <p className="text-[11px] text-muted-foreground mt-0.5">{signal.type} &middot; {relativeTime(signal.createdAt)}</p>
           </div>
         </div>
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${sc.badge}`}>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider border ${sc.badge}`}>
           {signal.severity}
         </span>
       </div>
@@ -386,7 +389,7 @@ function RecommendationCard({
             <h4 className="text-sm font-semibold text-foreground leading-snug">{rec.title}</h4>
             <p className="text-xs text-muted-foreground mt-0.5">{rec.engine} engine &middot; {rec.type}</p>
           </div>
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap ${pc.bg}`}>
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider border whitespace-nowrap ${pc.bg}`}>
             {pc.label}
           </span>
         </div>
@@ -722,7 +725,7 @@ export default function RevenueIntelligenceScreen({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-slate-800 font-medium leading-relaxed">{insight.insight}</p>
                 </div>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap ${
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider border whitespace-nowrap ${
                   insight.impact === 'high' ? 'bg-red-100 text-red-700 border-red-300' :
                   insight.impact === 'medium' ? 'bg-amber-100 text-amber-700 border-amber-300' :
                   'bg-slate-100 text-slate-600 border-slate-300'

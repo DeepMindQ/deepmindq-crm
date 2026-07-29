@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Pre-commit hook — Runs on every commit
+# Layer 1 defense: Catches errors BEFORE they enter the codebase
+#
+# What it checks (fast, ~10-15 seconds):
+#   1. ESLint --fix on staged files (auto-fixes what it can)
+#   2. TypeScript --noEmit (blocks if any TS errors)
+#
+# If this hook fails, the commit is BLOCKED.
+# Developers can bypass with: git commit --no-verify (not recommended)
+
+set -eo pipefail
+
+echo "🔒 Pre-commit hook running..."
+echo ""
+
+# ── 1. Lint staged files ──
+echo "⏳ [1/2] ESLint on staged files..."
+npx lint-staged
+echo "✅ Lint passed"
+
+# ── 2. TypeScript check ──
+echo "⏳ [2/2] TypeScript compilation check..."
+npx tsc --noEmit
+echo "✅ TypeScript passed"
+
+echo ""
+echo "✅ Pre-commit checks passed — committing..."

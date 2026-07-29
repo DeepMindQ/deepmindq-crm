@@ -172,8 +172,8 @@ export async function callAI(options: CallAIOptions): Promise<CallAIResult> {
       if (runQualityCheck && parsed) {
         quality = runQualityGates(parsed, previousVerdict)
         console.log(formatQualityReportForLog(quality))
-        if (quality.overallStatus === 'fail') {
-          console.warn(`[llm-client] Quality gate FAILED for feature="${feature}". Score: ${quality.overallScore}`)
+        if (quality?.overallStatus === 'fail') {
+          console.warn(`[llm-client] Quality gate FAILED for feature="${feature}". Score: ${quality?.overallScore}`)
         }
       }
 
@@ -581,7 +581,6 @@ async function trackUsage(
       feature: feature,
       model: 'unknown',
       companyId: companyId ?? null,
-      contactId: contactId ?? null,
       promptTokens: 0,
       completionTokens: 0,
       totalTokens: 0,

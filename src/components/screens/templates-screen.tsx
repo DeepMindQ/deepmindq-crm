@@ -312,14 +312,14 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-2">{t.body.slice(0, 100)}</p>
                       <div className="flex flex-wrap gap-1.5">
-                        <Badge variant="outline" className={`text-[10px] ${toneColor(t.tone)}`}>{t.tone}</Badge>
-                        {t.serviceLine && <Badge variant="outline" className="text-[10px] text-primary/80 bg-primary/5 border-primary/20">{t.serviceLine}</Badge>}
-                        {t.category && <Badge variant="outline" className="text-[10px]">{t.category}</Badge>}
+                        <Badge variant="outline" className={`text-[11px] ${toneColor(t.tone)}`}>{t.tone}</Badge>
+                        {t.serviceLine && <Badge variant="outline" className="text-[11px] text-primary/80 bg-primary/5 border-primary/20">{t.serviceLine}</Badge>}
+                        {t.category && <Badge variant="outline" className="text-[11px]">{t.category}</Badge>}
                       </div>
                       {vars.length > 0 && (
                         <div className="flex flex-wrap gap-1 pt-1 border-t border-border/50">
                           {vars.map(v => (
-                            <span key={v} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/5 text-primary/70 font-mono">{'{{'}{v}{'}}'}</span>
+                            <span key={v} className="text-[11px] px-1.5 py-0.5 rounded bg-primary/5 text-primary/70 font-mono">{'{{'}{v}{'}}'}</span>
                           ))}
                         </div>
                       )}
@@ -343,7 +343,7 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium text-foreground truncate">{t.name}</p>
-                      <Badge variant="outline" className={`text-[10px] shrink-0 ${toneColor(t.tone)}`}>{t.tone}</Badge>
+                      <Badge variant="outline" className={`text-[11px] shrink-0 ${toneColor(t.tone)}`}>{t.tone}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{t.subject}</p>
                   </div>
@@ -397,12 +397,12 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
                 <Label>Email Body</Label>
                 <div className="flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-primary" />
-                  <span className="text-[10px] text-muted-foreground">Variables: </span>
+                  <span className="text-[11px] text-muted-foreground">Variables: </span>
                   {SUGGESTED_VARIABLES.map(v => (
                     <button
                       key={v}
                       onClick={() => insertVariable(v)}
-                      className="text-[10px] px-1.5 py-0.5 rounded bg-primary/5 text-primary/70 hover:bg-primary/10 font-mono transition-colors"
+                      className="text-[11px] px-1.5 py-0.5 rounded bg-primary/5 text-primary/70 hover:bg-primary/10 font-mono transition-colors"
                     >
                       {'{{'}{v}{'}}'}
                     </button>
@@ -463,20 +463,20 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
             <div className="space-y-4 pt-2">
               <div className="p-4 rounded-lg bg-gray-50 border border-border/50 space-y-3">
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className={`text-[10px] ${toneColor(previewTemplate.tone)}`}>{previewTemplate.tone}</Badge>
-                  {previewTemplate.serviceLine && <Badge variant="outline" className="text-[10px] text-primary/80 bg-primary/5">{previewTemplate.serviceLine}</Badge>}
+                  <Badge variant="outline" className={`text-[11px] ${toneColor(previewTemplate.tone)}`}>{previewTemplate.tone}</Badge>
+                  {previewTemplate.serviceLine && <Badge variant="outline" className="text-[11px] text-primary/80 bg-primary/5">{previewTemplate.serviceLine}</Badge>}
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Subject</p>
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Subject</p>
                   <p className="text-sm font-medium text-foreground">{renderPreview(previewTemplate.subject)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Body</p>
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Body</p>
                   <div className="text-sm text-foreground/90 whitespace-pre-wrap">{renderPreview(previewTemplate.body)}</div>
                 </div>
                 {previewTemplate.cta && (
                   <div>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">CTA</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">CTA</p>
                     <p className="text-sm text-primary">{renderPreview(previewTemplate.cta)}</p>
                   </div>
                 )}

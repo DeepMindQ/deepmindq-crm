@@ -117,7 +117,7 @@ export function SectionHeader({ title, subtitle, action, badge, gold: goldBorder
       <div className="flex items-center gap-2">
         {badge && (
           <span
-            className="text-[10px] font-medium px-2 py-1 rounded-md"
+            className="text-[11px] font-medium px-2 py-1 rounded-md"
             style={{ background: 'rgba(212,175,55,0.1)', color: gold }}>
             {badge}
           </span>
@@ -185,7 +185,7 @@ export function QuickAction({ icon: Icon, label, color = gold, onClick, delay = 
       <div
         className="w-9 h-9 rounded-lg flex items-center justify-center"
         style={{ background: `${color}14` }}>
-        <Icon className="w-4 h-4" style={{ color }} />
+        <Icon className="w-4 h-4" style={{ color }} aria-hidden="true" />
       </div>
       <span className="text-xs font-medium text-foreground leading-tight">{label}</span>
     </motion.button>
@@ -215,10 +215,14 @@ export function SearchBar({ value, onChange, placeholder = 'Search...', classNam
         style={{ background: card, border: `1px solid ${border}` }}
       />
       {value && (
-        <X
-          className="w-3 h-3 absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground cursor-pointer hover:text-foreground"
+        <button
+          type="button"
+          aria-label="Clear search"
           onClick={() => onChange('')}
-        />
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        >
+          <X className="w-3 h-3" aria-hidden="true" />
+        </button>
       )}
     </div>
   );
@@ -296,11 +300,13 @@ interface IconActionProps {
   color?: string;
 }
 
-export function IconAction({ icon: Icon, onClick, danger, color }: IconActionProps) {
+export function IconAction({ icon: Icon, onClick, danger, color, tooltip }: IconActionProps) {
   return (
     <motion.button
       whileTap={{ scale: 0.9 }}
       onClick={onClick}
+      aria-label={tooltip || 'Action'}
+      title={tooltip}
       className={cn(
         'w-7 h-7 rounded-lg flex items-center justify-center transition-colors',
         danger
@@ -308,7 +314,7 @@ export function IconAction({ icon: Icon, onClick, danger, color }: IconActionPro
           : 'text-muted-foreground hover:text-foreground hover:bg-black/[0.03]',
       )}
       style={color ? { color } : undefined}>
-      <Icon className="w-3 h-3" />
+      <Icon className="w-3 h-3" aria-hidden="true" />
     </motion.button>
   );
 }

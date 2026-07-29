@@ -94,7 +94,7 @@ export function ScoreGauge({
   return (
     <div className={cn('flex flex-col items-center gap-4', className)}>
       <div className="relative" style={{ width: size, height: size }}>
-        <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-full -rotate-90">
+        <svg aria-hidden="true" viewBox={`0 0 ${size} ${size}`} className="w-full h-full -rotate-90">
           <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#F3F4F6" strokeWidth={strokeWidth} />
           <circle
             cx={size/2} cy={size/2} r={r}
@@ -106,7 +106,7 @@ export function ScoreGauge({
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-3xl font-bold text-gray-900 tabular-nums">{score}</span>
-          <span className="text-[10px] uppercase tracking-wider text-gray-400 font-medium mt-0.5">of 100</span>
+          <span className="text-[11px] uppercase tracking-wider text-gray-400 font-medium mt-0.5">of 100</span>
         </div>
       </div>
       {label && <p className="text-sm font-semibold text-gray-900">{label}</p>}
@@ -179,7 +179,7 @@ export function Sparkline({ data, width = 80, height = 32, color = '#D97706', cl
   const area = `0,${height} ${pts} ${width},${height}`
   const gradId = `sg-${color.replace('#','')}`
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className={cn('shrink-0', className)} fill="none">
+    <svg aria-hidden="true" viewBox={`0 0 ${width} ${height}`} className={cn('shrink-0', className)} fill="none">
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.15" />

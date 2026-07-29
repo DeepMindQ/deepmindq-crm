@@ -141,7 +141,7 @@ const RECOMMENDED_ACTIONS = [
 
 function ScoreBadge({ score }: { score: number | null | undefined }) {
   const value = score ?? 0;
-  if (score == null) return <span className="text-[10px] text-muted-foreground/50">—</span>;
+  if (score == null) return <span className="text-[11px] text-muted-foreground/50">—</span>;
   const color = value >= 80 ? '#10b981' : value >= 60 ? '#f59e0b' : '#ef4444';
   const label = value >= 80 ? 'High' : value >= 60 ? 'Medium' : 'Low';
   return (
@@ -149,7 +149,7 @@ function ScoreBadge({ score }: { score: number | null | undefined }) {
       <Tooltip>
         <TooltipTrigger asChild>
           <div className="relative flex items-center justify-center w-10 h-10 shrink-0">
-            <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
+            <svg aria-hidden="true" className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
               <circle cx="18" cy="18" r="15.5" fill="none" stroke={`${color}18`} strokeWidth="3" />
               <circle
                 cx="18" cy="18" r="15.5" fill="none" stroke={color} strokeWidth="3"
@@ -158,7 +158,7 @@ function ScoreBadge({ score }: { score: number | null | undefined }) {
                 className="transition-all duration-700"
               />
             </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold tabular-nums" style={{ color }}>
+            <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold tabular-nums" style={{ color }}>
               {value}
             </span>
           </div>
@@ -468,7 +468,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                   {metaLoading ? 'Loading...' : `${stats.totalLeads.toLocaleString()} total leads`}
                 </span>
                 {stats.highPriority > 0 && (
-                  <Badge className="bg-emerald-500/10 border-emerald-500/25 text-emerald-700 text-[10px] h-5 px-2 gap-1">
+                  <Badge className="bg-emerald-500/10 border-emerald-500/25 text-emerald-700 text-[11px] h-5 px-2 gap-1">
                     <PulseDot color="#10b981" />
                     {stats.highPriority} high-priority detected
                   </Badge>
@@ -588,7 +588,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               <Users className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total Leads</p>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Total Leads</p>
               <p className="text-xl font-bold tabular-nums text-foreground"><AnimatedCounter value={stats.totalLeads} /></p>
             </div>
           </div>
@@ -599,7 +599,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               <Target className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Avg Score</p>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Avg Score</p>
               <p className="text-xl font-bold tabular-nums text-foreground"><AnimatedCounter value={stats.avgScore} /></p>
             </div>
           </div>
@@ -610,7 +610,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               <Zap className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">High Priority</p>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">High Priority</p>
               <p className="text-xl font-bold tabular-nums text-emerald-600"><AnimatedCounter value={stats.highPriority} /></p>
             </div>
           </div>
@@ -621,7 +621,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               <MailCheck className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Email Health</p>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Email Health</p>
               <p className="text-xl font-bold tabular-nums text-foreground"><AnimatedCounter value={stats.emailHealthPct} suffix="%" /></p>
             </div>
           </div>
@@ -710,14 +710,14 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                         <div className="rounded-lg bg-blue-50/60 border border-blue-100 px-3 py-2 mb-3">
                           <div className="flex items-center gap-1.5 mb-1">
                             <Sparkles className="w-3 h-3 text-blue-600 shrink-0" />
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-600">Why this lead</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-600">Why this lead</span>
                           </div>
                           <p className="text-xs text-blue-800/80 leading-relaxed line-clamp-1">{aiReason}</p>
                         </div>
 
                         {/* Footer: Status + Action */}
                         <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
-                          <Badge variant="outline" className={`text-[10px] h-5 px-2 rounded-full ${STATUS_COLORS[status] || 'bg-gray-100 text-muted-foreground border-gray-200'}`}>
+                          <Badge variant="outline" className={`text-[11px] h-5 px-2 rounded-full ${STATUS_COLORS[status] || 'bg-gray-100 text-muted-foreground border-gray-200'}`}>
                             {status}
                           </Badge>
                           <button
@@ -790,14 +790,14 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                           <TableCell className="py-3 px-4">
                             <div className="flex items-center gap-2">
                               <div
-                                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold text-white"
+                                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold text-white"
                                 style={{ background: `linear-gradient(135deg, ${scoreColor}, ${scoreColor}CC)` }}
                               >
                                 {getInitials(lead.rawName || '?')}
                               </div>
                               <div className="min-w-0">
                                 <p className="text-xs font-medium text-foreground truncate">{lead.rawName || '-'}</p>
-                                <p className="text-[10px] text-muted-foreground truncate">{lead.email || '-'}</p>
+                                <p className="text-[11px] text-muted-foreground truncate">{lead.email || '-'}</p>
                               </div>
                             </div>
                           </TableCell>
@@ -811,11 +811,11 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                           <TableCell className="py-3 px-3">
                             <div className="flex items-center gap-2">
                               <EmailHealthDot health={health} />
-                              <span className="text-[10px] text-muted-foreground capitalize">{health}</span>
+                              <span className="text-[11px] text-muted-foreground capitalize">{health}</span>
                             </div>
                           </TableCell>
                           <TableCell className="py-3 px-2">
-                            <Badge variant="outline" className={`text-[10px] h-5 px-2 rounded-full ${STATUS_COLORS[status] || 'bg-gray-100 text-muted-foreground border-gray-200'}`}>
+                            <Badge variant="outline" className={`text-[11px] h-5 px-2 rounded-full ${STATUS_COLORS[status] || 'bg-gray-100 text-muted-foreground border-gray-200'}`}>
                               {status}
                             </Badge>
                           </TableCell>
@@ -856,9 +856,9 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-muted-foreground mr-1">Rows:</span>
+                      <span className="text-[11px] text-muted-foreground mr-1">Rows:</span>
                       {PAGE_SIZE_OPTIONS.map(size => (
-                        <Button key={size} variant={limit === size ? 'default' : 'ghost'} size="sm" className={cn('h-7 px-2.5 text-[10px] rounded-md', limit === size ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground')} onClick={() => setLimit(size)}>{size}</Button>
+                        <Button key={size} variant={limit === size ? 'default' : 'ghost'} size="sm" className={cn('h-7 px-2.5 text-[11px] rounded-md', limit === size ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground')} onClick={() => setLimit(size)}>{size}</Button>
                       ))}
                     </div>
                     <div className="flex items-center gap-1">
@@ -882,9 +882,9 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-muted-foreground mr-1">Rows:</span>
+                  <span className="text-[11px] text-muted-foreground mr-1">Rows:</span>
                   {PAGE_SIZE_OPTIONS.map(size => (
-                    <Button key={size} variant={limit === size ? 'default' : 'ghost'} size="sm" className={cn('h-7 px-2.5 text-[10px] rounded-md', limit === size ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground')} onClick={() => setLimit(size)}>{size}</Button>
+                    <Button key={size} variant={limit === size ? 'default' : 'ghost'} size="sm" className={cn('h-7 px-2.5 text-[11px] rounded-md', limit === size ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground')} onClick={() => setLimit(size)}>{size}</Button>
                   ))}
                 </div>
                 <Separator orientation="vertical" className="h-5" />
@@ -999,7 +999,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                     </ResponsiveContainer>
                     <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
                       {statusDistribution.map(s => (
-                        <div key={s.name} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <div key={s.name} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                           <span className="w-2 h-2 rounded-full" style={{ background: s.fill }} />
                           <span className="capitalize">{s.name}</span>
                           <span className="tabular-nums font-medium text-foreground">{s.value}</span>
@@ -1101,7 +1101,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                       {AI_REASONS[selectedLead.id.length % AI_REASONS.length]}
                     </p>
                     <div className="flex items-center gap-2 mt-3">
-                      <Badge className="bg-blue-600 text-white text-[10px] h-5 px-2 gap-1">
+                      <Badge className="bg-blue-600 text-white text-[11px] h-5 px-2 gap-1">
                         <ArrowRight className="w-2.5 h-2.5" />
                         {RECOMMENDED_ACTIONS[selectedLead.id.length % RECOMMENDED_ACTIONS.length]}
                       </Badge>
@@ -1110,23 +1110,23 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
 
                   {/* Contact Info */}
                   <div>
-                    <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-semibold mb-2.5">Contact Info</p>
+                    <p className="text-[11px] text-muted-foreground/60 uppercase tracking-widest font-semibold mb-2.5">Contact Info</p>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Users className="w-3 h-3" />Name</div>
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Users className="w-3 h-3" />Name</div>
                         <p className="text-sm text-foreground font-medium mt-1">{selectedLead.rawName || '-'}</p>
                       </div>
                       <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Briefcase className="w-3 h-3" />Title</div>
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Briefcase className="w-3 h-3" />Title</div>
                         <p className="text-sm text-foreground font-medium mt-1">{selectedLead.title || '-'}</p>
                       </div>
                     </div>
                     <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 mt-2">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Mail className="w-3 h-3" />Email</div>
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Mail className="w-3 h-3" />Email</div>
                         <div className="flex items-center gap-1.5">
                           <EmailHealthDot health={selectedLead._dbFields?.emailHealth || 'unknown'} />
-                          <span className="text-[10px] text-muted-foreground capitalize">{selectedLead._dbFields?.emailHealth || 'unknown'}</span>
+                          <span className="text-[11px] text-muted-foreground capitalize">{selectedLead._dbFields?.emailHealth || 'unknown'}</span>
                         </div>
                       </div>
                       {selectedLead.email ? (
@@ -1135,12 +1135,12 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                     </div>
                     {selectedLead._dbFields?.phone && (
                       <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 mt-2">
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Phone className="w-3 h-3" />Phone</div>
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Phone className="w-3 h-3" />Phone</div>
                         <p className="text-sm text-foreground font-medium mt-1">{selectedLead._dbFields.phone}</p>
                       </div>
                     )}
                     <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 mt-2">
-                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 uppercase tracking-wider font-medium"><MapPin className="w-3 h-3" />Location</div>
+                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground/70 uppercase tracking-wider font-medium"><MapPin className="w-3 h-3" />Location</div>
                       <p className="text-sm text-foreground font-medium mt-1">{[selectedLead.city, selectedLead.state, selectedLead.country].filter(Boolean).join(', ') || '-'}</p>
                     </div>
                   </div>
@@ -1149,23 +1149,23 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
 
                   {/* Company Info */}
                   <div>
-                    <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-semibold mb-2.5">Company Info</p>
+                    <p className="text-[11px] text-muted-foreground/60 uppercase tracking-widest font-semibold mb-2.5">Company Info</p>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Building2 className="w-3 h-3" />Company</div>
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Building2 className="w-3 h-3" />Company</div>
                         <p className="text-sm text-foreground font-medium mt-1">{selectedLead.company || '-'}</p>
                       </div>
                       <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Globe className="w-3 h-3" />Industry</div>
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Globe className="w-3 h-3" />Industry</div>
                         <p className="text-sm text-foreground font-medium mt-1">{selectedLead.industry || '-'}</p>
                       </div>
                       <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Users className="w-3 h-3" />Size</div>
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Users className="w-3 h-3" />Size</div>
                         <p className="text-sm text-foreground font-medium mt-1">{selectedLead.employeeCategory || selectedLead.employeeNumber || '-'}</p>
                       </div>
                       {selectedLead.website && (
                         <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
-                          <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Globe className="w-3 h-3" />Domain</div>
+                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Globe className="w-3 h-3" />Domain</div>
                           <p className="text-sm text-blue-600 font-medium mt-1 truncate">{selectedLead.website}</p>
                         </div>
                       )}
@@ -1176,16 +1176,16 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
 
                   {/* Metadata */}
                   <div>
-                    <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-semibold mb-2.5">Metadata</p>
+                    <p className="text-[11px] text-muted-foreground/60 uppercase tracking-widest font-semibold mb-2.5">Metadata</p>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Activity className="w-3 h-3" />Status</div>
-                        <Badge variant="outline" className={`mt-1 text-[10px] h-5 px-2 rounded-full ${STATUS_COLORS[selectedLead._dbFields?.status || 'imported'] || 'bg-gray-100 text-muted-foreground border-gray-200'}`}>
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground/70 uppercase tracking-wider font-medium"><Activity className="w-3 h-3" />Status</div>
+                        <Badge variant="outline" className={`mt-1 text-[11px] h-5 px-2 rounded-full ${STATUS_COLORS[selectedLead._dbFields?.status || 'imported'] || 'bg-gray-100 text-muted-foreground border-gray-200'}`}>
                           {selectedLead._dbFields?.status || '-'}
                         </Badge>
                       </div>
                       <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 uppercase tracking-wider font-medium"><UserPlus className="w-3 h-3" />Assigned</div>
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground/70 uppercase tracking-wider font-medium"><UserPlus className="w-3 h-3" />Assigned</div>
                         <p className="text-sm text-foreground font-medium mt-1">{selectedLead._dbFields?.assignedTo || 'Unassigned'}</p>
                       </div>
                     </div>

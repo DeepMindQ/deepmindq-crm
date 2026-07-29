@@ -247,7 +247,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                       <p className="text-[11px] text-muted-foreground mt-1 truncate">{filterSummary}</p>
                     </div>
                     <Badge variant="outline"
-                      className={`${seg.isStatic ? 'bg-emerald-50 text-emerald-700 border-emerald-500/20' : 'bg-purple-50 text-purple-700 border-purple-500/20'} text-[10px] shrink-0`}>
+                      className={`${seg.isStatic ? 'bg-emerald-50 text-emerald-700 border-emerald-500/20' : 'bg-purple-50 text-purple-700 border-purple-500/20'} text-[11px] shrink-0`}>
                       {seg.isStatic ? 'Static' : 'Dynamic'}
                     </Badge>
                   </div>
@@ -301,7 +301,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <div className="flex flex-wrap gap-1.5">
                   {INDUSTRY_OPTIONS.map(ind => (
                     <button key={ind}
-                      className={`text-[10px] px-2.5 py-1.5 rounded-lg border transition-all duration-200 ${segIndustries.includes(ind)
+                      className={`text-[11px] px-2.5 py-1.5 rounded-lg border transition-all duration-200 ${segIndustries.includes(ind)
                         ? 'bg-primary/15 border-primary/25 text-primary'
                         : 'hover:bg-gray-100'}`}
                       style={!segIndustries.includes(ind) ? { background: 'rgba(0,0,0,0.02)', border: `1px solid ${border}`, color: '#71717A' } : {}}
@@ -314,7 +314,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <div className="flex flex-wrap gap-1.5">
                   {STATUS_OPTIONS.map(st => (
                     <button key={st}
-                      className={`text-[10px] px-2.5 py-1.5 rounded-lg border transition-all duration-200 capitalize ${segStatuses.includes(st)
+                      className={`text-[11px] px-2.5 py-1.5 rounded-lg border transition-all duration-200 capitalize ${segStatuses.includes(st)
                         ? 'bg-primary/15 border-primary/25 text-primary'
                         : 'hover:bg-gray-100'}`}
                       style={!segStatuses.includes(st) ? { background: 'rgba(0,0,0,0.02)', border: `1px solid ${border}`, color: '#71717A' } : {}}
@@ -355,7 +355,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
               <Layers className="w-4 h-4" style={{ color: gold }} />
               {detailSegment?.name}
               {detailSegment && (
-                <Badge variant="outline" className="ml-2 text-[10px] bg-primary/10 text-primary border-primary/20">
+                <Badge variant="outline" className="ml-2 text-[11px] bg-primary/10 text-primary border-primary/20">
                   {detailSegment.contactCount.toLocaleString()} contacts
                 </Badge>
               )}
@@ -376,11 +376,11 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                     className="flex items-center gap-4 py-2.5 px-3 rounded-lg hover:bg-black/[0.02] transition-colors">
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-medium text-foreground truncate">{c.rawName}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{c.email}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{c.email}</p>
                     </div>
-                    <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{c.title || '\u2014'}</span>
-                    <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{c.company}</span>
-                    <span className={`text-[10px] font-bold tabular-nums w-6 text-right ${c.leadScore >= 70 ? 'text-emerald-600' : c.leadScore >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+                    <span className="text-[11px] text-muted-foreground truncate max-w-[120px]">{c.title || '\u2014'}</span>
+                    <span className="text-[11px] text-muted-foreground truncate max-w-[120px]">{c.company}</span>
+                    <span className={`text-[11px] font-bold tabular-nums w-6 text-right ${c.leadScore >= 70 ? 'text-emerald-600' : c.leadScore >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
                       {c.leadScore}
                     </span>
                     <Badge variant="outline" className="text-[9px] h-4 px-1.5 bg-zinc-500/10 text-zinc-600 border-zinc-500/20 shrink-0">{c.status}</Badge>

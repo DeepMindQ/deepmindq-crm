@@ -512,7 +512,7 @@ export default function EmailGenerationScreen() {
                   </button>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     {selectedCompany.industry && (
-                      <Badge variant="outline" className="text-[10px] font-medium px-1.5 py-0 border-gray-300 text-gray-600 bg-white">
+                      <Badge variant="outline" className="text-[11px] font-medium px-1.5 py-0 border-gray-300 text-gray-600 bg-white">
                         {selectedCompany.industry}
                       </Badge>
                     )}
@@ -565,9 +565,9 @@ export default function EmailGenerationScreen() {
                         <p className="text-xs font-medium text-gray-900 truncate">{comp.rawName}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           {comp.industry && (
-                            <span className="text-[10px] text-gray-600 truncate">{comp.industry}</span>
+                            <span className="text-[11px] text-gray-600 truncate">{comp.industry}</span>
                           )}
-                          <span className="text-[10px] text-gray-600 shrink-0">
+                          <span className="text-[11px] text-gray-600 shrink-0">
                             {comp._count.contacts} contact{comp._count.contacts !== 1 ? 's' : ''}
                           </span>
                         </div>
@@ -607,7 +607,7 @@ export default function EmailGenerationScreen() {
                   <p className="text-xs text-gray-600 mt-0.5 truncate">{activeContact.jobTitle}</p>
                 )}
                 {activeContact.emailHealth && (
-                  <Badge className={cn('text-[10px] font-medium px-2 py-0.5 mt-2 border', emailHealthBadge(activeContact.emailHealth).cls)}>
+                  <Badge className={cn('text-[11px] font-medium px-2 py-0.5 mt-2 border', emailHealthBadge(activeContact.emailHealth).cls)}>
                     {emailHealthBadge(activeContact.emailHealth).label}
                   </Badge>
                 )}
@@ -880,7 +880,7 @@ export default function EmailGenerationScreen() {
                           </div>
                         </div>
                       ))}
-                      <p className="text-[10px] text-gray-600 pt-1">
+                      <p className="text-[11px] text-gray-600 pt-1">
                         {knowledgeAvailable} total snippets in knowledge base
                       </p>
                     </div>

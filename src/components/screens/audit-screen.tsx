@@ -416,7 +416,7 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
                           {/* User */}
                           <TableCell className="text-foreground text-xs font-medium py-3.5">
                             <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary/70 shrink-0">
+                              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-bold text-primary/70 shrink-0">
                                 {entry.userId.split(' ').map(n => n[0]).join('').slice(0, 2)}
                               </div>
                               <span className="truncate">{entry.userId}</span>
@@ -427,7 +427,7 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
                           <TableCell className="py-3.5">
                             <Badge
                               variant="outline"
-                              className={`text-[10px] font-semibold uppercase tracking-wider transition-all duration-200 ${actionColor}`}
+                              className={`text-[11px] font-semibold uppercase tracking-wider transition-all duration-200 ${actionColor}`}
                             >
                               {entry.action}
                             </Badge>
@@ -438,7 +438,7 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
                             <div className="flex items-center gap-2">
                               <span className="text-sm shrink-0">{entityIcon}</span>
                               <div className="min-w-0">
-                                <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wider leading-none mb-0.5">
+                                <div className="text-[11px] text-muted-foreground/60 uppercase tracking-wider leading-none mb-0.5">
                                   {entry.entityType}
                                 </div>
                                 <div className="text-xs text-foreground font-medium truncate">
@@ -455,7 +455,7 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
                             </p>
                             {isLong && (
                               <button
-                                className="text-[10px] text-primary hover:text-primary/80 hover:underline mt-1 font-medium transition-colors duration-150"
+                                className="text-[11px] text-primary hover:text-primary/80 hover:underline mt-1 font-medium transition-colors duration-150"
                                 onClick={e => { e.stopPropagation(); toggleRow(entry.id); }}
                               >
                                 {isExpanded ? 'Show less' : 'Show more'}

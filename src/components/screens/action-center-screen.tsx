@@ -324,7 +324,7 @@ export default function ActionCenterScreen() {
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold text-gray-900 truncate">{config.label}</h3>
                   {isNBA && (
-                    <Badge className="bg-orange-100 text-orange-700 text-[10px] px-1.5 py-0 border-orange-200 h-4">
+                    <Badge className="bg-orange-100 text-orange-700 text-[11px] px-1.5 py-0 border-orange-200 h-4">
                       PRIORITY
                     </Badge>
                   )}
@@ -343,7 +343,7 @@ export default function ActionCenterScreen() {
                     style={{ width: `${Math.round(action.confidence * 100)}%` }}
                   />
                 </div>
-                <span className="text-[10px] text-gray-400 font-medium">{Math.round(action.confidence * 100)}%</span>
+                <span className="text-[11px] text-gray-400 font-medium">{Math.round(action.confidence * 100)}%</span>
               </div>
               {isExpanded ? (
                 <ChevronUp className="w-4 h-4 text-gray-400" />
@@ -362,7 +362,7 @@ export default function ActionCenterScreen() {
 
           {/* Expanded Content */}
           {isExpanded && (
-            <div className="mt-3 pt-3 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
+            <div className="mt-3 pt-3 border-t border-gray-100" onClick={(e) => e.stopPropagation()} aria-hidden="true">
               <div className="space-y-1">
                 {renderObjectContent(action.content)}
               </div>

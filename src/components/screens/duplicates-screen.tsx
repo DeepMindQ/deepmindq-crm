@@ -261,12 +261,12 @@ function RecordCard({
     )}>
       <div className="flex items-center justify-between">
         <span className={cn(
-          'text-[10px] font-semibold uppercase tracking-wider',
+          'text-[11px] font-semibold uppercase tracking-wider',
           isExisting ? 'text-muted-foreground' : 'text-primary',
         )}>
           {label}
         </span>
-        <Badge variant="outline" className="text-[10px] px-2 py-0.5 rounded-md border border-border bg-secondary/50 text-muted-foreground">
+        <Badge variant="outline" className="text-[11px] px-2 py-0.5 rounded-md border border-border bg-secondary/50 text-muted-foreground">
           {record.sourceBatch}
         </Badge>
       </div>
@@ -281,7 +281,7 @@ function RecordCard({
       {/* Field-level diff */}
       <Separator className="bg-border/50" />
       <div className="space-y-1.5">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Field Comparison</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Field Comparison</p>
         {fields.map(field => (
           <div key={field.key} className="flex items-center gap-2 text-[11px]">
             <span className="w-16 shrink-0 text-muted-foreground font-medium">{field.label}</span>
@@ -344,11 +344,11 @@ function DuplicateCard({
             {candidate.matchScore}%
           </div>
           <div className="h-5 w-px bg-border" />
-          <Badge variant="outline" className="text-[10px] px-2 py-0.5 rounded-md border border-primary/30 bg-primary/10 text-primary font-mono">
+          <Badge variant="outline" className="text-[11px] px-2 py-0.5 rounded-md border border-primary/30 bg-primary/10 text-primary font-mono">
             {candidate.matchRule}
           </Badge>
           <Badge variant="outline" className={cn(
-            'text-[10px] px-2 py-0.5 rounded-md border',
+            'text-[11px] px-2 py-0.5 rounded-md border',
             candidate.status === 'pending' ? 'bg-amber-500/15 text-amber-600 border-amber-500/30'
               : candidate.status === 'merged' ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30'
               : 'bg-red-500/15 text-red-600 border-red-500/30',
@@ -578,7 +578,7 @@ export default function DuplicatesScreen() {
         >
           <GitCommitHorizontal className="size-3.5 mr-1.5" />
           Merge History
-          <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0 rounded-md border border-border bg-secondary/50 text-muted-foreground">
+          <Badge variant="outline" className="ml-2 text-[11px] px-1.5 py-0 rounded-md border border-border bg-secondary/50 text-muted-foreground">
             {combinedHistory.length}
           </Badge>
         </Button>
@@ -653,7 +653,7 @@ export default function DuplicatesScreen() {
               )}
             >
               {tab.label}
-              <span className="ml-1.5 text-[10px] opacity-60 tabular-nums">{tab.count}</span>
+              <span className="ml-1.5 text-[11px] opacity-60 tabular-nums">{tab.count}</span>
             </button>
           ))}
         </div>
@@ -727,7 +727,7 @@ export default function DuplicatesScreen() {
                       <td className="px-4 py-2.5 text-xs text-muted-foreground">{timeAgo(entry.mergedAt)}</td>
                       <td className="px-4 py-2.5">
                         <p className="text-xs font-medium text-foreground">{entry.survivorName}</p>
-                        <code className="text-[10px] text-muted-foreground">{entry.survivorEmail}</code>
+                        <code className="text-[11px] text-muted-foreground">{entry.survivorEmail}</code>
                       </td>
                       <td className="px-4 py-2.5">
                         <p className="text-xs font-medium text-foreground">{entry.mergedName}</p>

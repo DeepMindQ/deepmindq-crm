@@ -208,7 +208,7 @@ export function AuditLogsScreen() {
           <Filter className="size-3.5" />
           Filters
           {hasActiveFilters && (
-            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] ml-1 px-1.5 py-0">
+            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[11px] ml-1 px-1.5 py-0">
               Active
             </Badge>
           )}
@@ -406,7 +406,7 @@ export function AuditLogsScreen() {
                             <Badge
                               variant="outline"
                               className={cn(
-                                'text-[10px] font-medium px-2 py-0.5 rounded-md border capitalize',
+                                'text-[11px] font-medium px-2 py-0.5 rounded-md border capitalize',
                                 getActionStyle(log.action),
                               )}
                             >
@@ -445,7 +445,7 @@ export function AuditLogsScreen() {
                                 {log.details.length > 60 && (
                                   <button
                                     onClick={() => setExpandedRow(isExpanded ? null : log.id)}
-                                    className="text-[10px] text-amber-600 hover:text-amber-800 font-medium mt-0.5 transition-colors"
+                                    className="text-[11px] text-amber-600 hover:text-amber-800 font-medium mt-0.5 transition-colors"
                                   >
                                     {isExpanded ? 'Show less' : 'Show more'}
                                   </button>

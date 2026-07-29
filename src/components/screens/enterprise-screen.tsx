@@ -92,7 +92,7 @@ export default function PlatformReadinessScreen() {
             <Card className="bg-gradient-to-br from-gray-600/10 to-gray-800/5">
               <CardContent className="flex items-center gap-4 p-4">
                 <div className="relative flex h-16 w-16 items-center justify-center">
-                  <svg className="h-16 w-16 -rotate-90" viewBox="0 0 60 60"><circle cx="30" cy="30" r="25" fill="none" stroke="currentColor" className="text-muted/20" strokeWidth="5" /><circle cx="30" cy="30" r="25" fill="none" stroke={readinessScore >= 60 ? '#22c55e' : readinessScore >= 30 ? '#f59e0b' : '#ef4444'} strokeWidth="5" strokeDasharray={`${(readinessScore / 100) * 157} 157`} strokeLinecap="round" /></svg>
+                  <svg aria-hidden="true" className="h-16 w-16 -rotate-90" viewBox="0 0 60 60"><circle cx="30" cy="30" r="25" fill="none" stroke="currentColor" className="text-muted/20" strokeWidth="5" /><circle cx="30" cy="30" r="25" fill="none" stroke={readinessScore >= 60 ? '#22c55e' : readinessScore >= 30 ? '#f59e0b' : '#ef4444'} strokeWidth="5" strokeDasharray={`${(readinessScore / 100) * 157} 157`} strokeLinecap="round" /></svg>
                   <span className="absolute text-lg font-bold">{readinessScore}</span>
                 </div>
                 <div><div className="text-xs text-muted-foreground">Platform Readiness</div><div className="text-sm font-medium">/ 100</div></div>

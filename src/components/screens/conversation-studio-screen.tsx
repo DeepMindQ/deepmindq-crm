@@ -393,7 +393,7 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-[11px] text-muted-foreground">
                               Generated {new Date(p.generatedAt).toLocaleString()}
                             </span>
                           </div>
@@ -422,7 +422,7 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                           {/* Value Proposition */}
                           {cp.valueProposition && (
                             <div className="mt-2 p-2.5 rounded-lg border" style={{ background: 'rgba(212,175,55,0.04)', borderColor: 'rgba(212,175,55,0.2)' }}>
-                              <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--color-gold)' }}>Value Proposition</p>
+                              <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--color-gold)' }}>Value Proposition</p>
                               <p className="text-xs text-gray-700 leading-relaxed">{cp.valueProposition}</p>
                             </div>
                           )}
@@ -569,7 +569,7 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                           <ul className="space-y-1.5">
                             {selected.plan.conversationPlan.questionsToAsk.map((q, i) => (
                               <li key={i} className="text-xs text-foreground/80 flex items-start gap-2">
-                                <span className="text-[10px] font-bold mt-0.5 shrink-0" style={{ color: 'var(--color-gold)' }}>Q{i + 1}</span>
+                                <span className="text-[11px] font-bold mt-0.5 shrink-0" style={{ color: 'var(--color-gold)' }}>Q{i + 1}</span>
                                 <span>{q}</span>
                               </li>
                             ))}

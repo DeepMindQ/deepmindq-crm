@@ -165,7 +165,7 @@ function TagInput({ tags, onChange, allTags }: { tags: string[]; onChange: (tags
       <Label className="text-sm">Tags</Label>
       <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg bg-gray-50 border border-gray-200 focus-within:border-primary/40 min-h-[40px]">
         {tags.map(tag => (
-          <Badge key={tag} variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary bg-primary/5 px-2 py-0.5">
+          <Badge key={tag} variant="outline" className="text-[11px] gap-1 border-primary/30 text-primary bg-primary/5 px-2 py-0.5">
             {tag}
             <button type="button" onClick={() => removeTag(tag)} className="hover:text-primary-foreground transition-colors">
               <X className="w-2.5 h-2.5" />
@@ -200,7 +200,7 @@ function TagInput({ tags, onChange, allTags }: { tags: string[]; onChange: (tags
           )}
         </div>
       </div>
-      <p className="text-[10px] text-muted-foreground">Press Enter or select a suggestion to add tags</p>
+      <p className="text-[11px] text-muted-foreground">Press Enter or select a suggestion to add tags</p>
     </div>
   );
 }
@@ -365,7 +365,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
             <Button
               variant="outline"
               size="sm"
-              className="h-8 text-[10px] gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+              className="h-8 text-[11px] gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
               onClick={() => navigateTo('knowledge')}
             >
               <Database className="w-3 h-3" />
@@ -387,7 +387,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
             <div key={idx} className="p-3 rounded-lg bg-gray-50 border border-gray-200">
               <div className="flex items-center gap-1.5 mb-1">
                 <s.icon className="w-3 h-3" style={{ color: s.color }} />
-                <span className="text-[10px] text-muted-foreground">{s.label}</span>
+                <span className="text-[11px] text-muted-foreground">{s.label}</span>
               </div>
               {s.isText ? (
                 <p className="text-sm font-bold text-foreground">{s.text}</p>
@@ -437,7 +437,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
 
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Mode:</span>
+                  <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Mode:</span>
                   {(['keyword', 'semantic', 'hybrid'] as const).map(mode => (
                     <button
                       key={mode}
@@ -470,21 +470,21 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                   {/* Insight bar */}
                   {ragInsight && (
                     <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-lg bg-gray-50 border border-gray-200">
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-[11px] text-muted-foreground">
                         {ragResults.length} results in {ragInsight.resultCategories?.length || 0} categories
                       </span>
                       {ragInsight.avgRelevanceScore > 0 && (
-                        <span className="text-[10px] font-medium" style={{ color: 'var(--color-gold)' }}>
+                        <span className="text-[11px] font-medium" style={{ color: 'var(--color-gold)' }}>
                           Avg score: {ragInsight.avgRelevanceScore}%
                         </span>
                       )}
                       {ragInsight.topMatchedFields?.length > 0 && (
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[11px] text-muted-foreground">
                           Matched: {ragInsight.topMatchedFields.join(', ')}
                         </span>
                       )}
                       {ragInsight.queryTokens && (
-                        <span className="text-[10px] text-muted-foreground ml-auto">
+                        <span className="text-[11px] text-muted-foreground ml-auto">
                           Tokens: [{ragInsight.queryTokens.join(', ')}]
                         </span>
                       )}
@@ -561,11 +561,11 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                       <p className="text-3xl font-bold tabular-nums" style={{ color: coverage.overallScore >= 70 ? '#10B981' : coverage.overallScore >= 40 ? '#F59E0B' : '#EF4444' }}>
                         {coverage.overallScore}%
                       </p>
-                      <p className="text-[10px] text-muted-foreground">Completeness</p>
+                      <p className="text-[11px] text-muted-foreground">Completeness</p>
                     </div>
                     <div className="flex-1">
                       <AnimatedBar value={coverage.overallScore} max={100} color={coverage.overallScore >= 70 ? '#10B981' : coverage.overallScore >= 40 ? '#F59E0B' : '#EF4444'} />
-                      <p className="text-[10px] text-muted-foreground mt-1">Service line completeness score (service line + case study + proof point + objection + CTA)</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Service line completeness score (service line + case study + proof point + objection + CTA)</p>
                     </div>
                   </div>
 
@@ -653,7 +653,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                       {/* Content */}
                       <div className="pb-4">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: item.color }}>Step {item.step}</span>
+                          <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: item.color }}>Step {item.step}</span>
                         </div>
                         <p className="text-sm font-semibold text-foreground mt-0.5">{item.title}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
@@ -667,7 +667,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                 <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04]">
                   <Workflow className="w-4 h-4 text-emerald-600" />
                   <span className="text-xs text-emerald-600 font-medium">RAG Pipeline Active</span>
-                  <span className="text-[10px] text-muted-foreground ml-1">
+                  <span className="text-[11px] text-muted-foreground ml-1">
                     - Every draft uses this pipeline. The knowledge you add here directly determines email quality.
                   </span>
                 </div>
@@ -1245,14 +1245,14 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{filtered.length} result{filtered.length !== 1 ? 's' : ''}</span>
             {(search || filterTag) && (
-              <Badge variant="outline" className="text-[10px] gap-1">
+              <Badge variant="outline" className="text-[11px] gap-1">
                 <Sparkles className="w-3 h-3 text-primary" />
                 Filtered
               </Badge>
             )}
             {/* C-15: Tag filter indicator */}
             {filterTag && (
-              <Badge variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary bg-primary/5">
+              <Badge variant="outline" className="text-[11px] gap-1 border-primary/30 text-primary bg-primary/5">
                 <Tag className="w-2.5 h-2.5" />
                 {filterTag}
                 <button onClick={() => setFilterTag(null)}>
@@ -1264,7 +1264,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 text-[10px] text-muted-foreground hover:text-foreground"
+              className="h-8 text-[11px] text-muted-foreground hover:text-foreground"
               onClick={() => setShowTagCloud(true)}
             >
               <Hash className="w-3 h-3 mr-1" />
@@ -1276,12 +1276,12 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
         {/* C-15: Quick tag filter pills */}
         {allTags.length > 0 && !filterTag && !search && (
           <div className="flex items-center gap-1.5 mt-3 flex-wrap">
-            <span className="text-[10px] text-muted-foreground">Quick filter:</span>
+            <span className="text-[11px] text-muted-foreground">Quick filter:</span>
             {allTags.slice(0, 12).map(tag => (
               <button
                 key={tag}
                 onClick={() => setFilterTag(tag)}
-                className="text-[10px] px-2 py-0.5 rounded-full border border-gray-200 bg-gray-50 text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all duration-200"
+                className="text-[11px] px-2 py-0.5 rounded-full border border-gray-200 bg-gray-50 text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all duration-200"
               >
                 {tag}
               </button>
@@ -1289,7 +1289,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
             {allTags.length > 12 && (
               <button
                 onClick={() => setShowTagCloud(true)}
-                className="text-[10px] text-primary hover:text-primary/80 transition-colors"
+                className="text-[11px] text-primary hover:text-primary/80 transition-colors"
               >
                 +{allTags.length - 12} more
               </button>
@@ -1387,7 +1387,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                           <h3 className="text-sm font-semibold text-foreground truncate">{cap.title}</h3>
                         </div>
                         <div className="flex items-center gap-1.5 ml-[34px]">
-                          <Badge variant="outline" className={`text-[10px] ${CAT_BADGE[cap.category] || ''}`}>
+                          <Badge variant="outline" className={`text-[11px] ${CAT_BADGE[cap.category] || ''}`}>
                             {CAT_LABEL[cap.category] || cap.category}
                           </Badge>
                           {/* C-07: Version badge */}
@@ -1521,14 +1521,14 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
           <div className="space-y-5 text-sm">
             <div className="flex items-center gap-2">
               {(() => { const I = CAT_ICON[selected.category] || Tag; return <I className="w-4 h-4 text-primary" />; })()}
-              <Badge variant="outline" className={`text-[10px] ${CAT_BADGE[selected.category] || ''}`}>
+              <Badge variant="outline" className={`text-[11px] ${CAT_BADGE[selected.category] || ''}`}>
                 {CAT_LABEL[selected.category] || selected.category}
               </Badge>
               <span className={`w-2 h-2 rounded-full ${selected.isActive ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]' : 'bg-zinc-600'}`} />
               <span className="text-[11px] text-muted-foreground">{selected.isActive ? 'Active' : 'Inactive'}</span>
               {/* C-07: Version badge in view */}
               {(selected.version || 0) > 1 && (
-                <Badge variant="outline" className="text-[10px] border-primary/30 text-primary bg-primary/5">
+                <Badge variant="outline" className="text-[11px] border-primary/30 text-primary bg-primary/5">
                   v{selected.version}
                 </Badge>
               )}
@@ -1550,7 +1550,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                   <button
                     key={tag}
                     onClick={() => { setSelected(null); setFilterTag(tag); }}
-                    className="text-[10px] px-2 py-0.5 rounded-full border border-primary/20 text-primary bg-primary/5 hover:bg-primary/10 transition-colors"
+                    className="text-[11px] px-2 py-0.5 rounded-full border border-primary/20 text-primary bg-primary/5 hover:bg-primary/10 transition-colors"
                   >
                     {tag}
                   </button>
@@ -1560,48 +1560,48 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
 
             {selected.serviceLine && (
               <GlassPanel className="p-3">
-                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1">Service Line</p>
+                <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground mb-1">Service Line</p>
                 <p className="text-foreground">{selected.serviceLine}</p>
               </GlassPanel>
             )}
             {selected.targetIndustries && (
               <GlassPanel className="p-3">
-                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1">Target Industries</p>
+                <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground mb-1">Target Industries</p>
                 <p className="text-foreground">{selected.targetIndustries}</p>
               </GlassPanel>
             )}
             {selected.targetRoles && (
               <GlassPanel className="p-3">
-                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1">Target Roles</p>
+                <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground mb-1">Target Roles</p>
                 <p className="text-foreground">{selected.targetRoles}</p>
               </GlassPanel>
             )}
             {selected.targetCompanySizes && (
               <GlassPanel className="p-3">
-                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1">Target Company Sizes</p>
+                <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground mb-1">Target Company Sizes</p>
                 <p className="text-foreground">{selected.targetCompanySizes}</p>
               </GlassPanel>
             )}
             {selected.problems && (
               <GlassPanel className="p-3">
-                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1">Problems Addressed</p>
+                <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground mb-1">Problems Addressed</p>
                 <p className="text-foreground">{selected.problems}</p>
               </GlassPanel>
             )}
             {selected.evidence && (
               <GlassPanel className="p-3">
-                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-1">Evidence / Proof</p>
+                <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground mb-1">Evidence / Proof</p>
                 <p className="text-foreground">{selected.evidence}</p>
               </GlassPanel>
             )}
 
             <div>
-              <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-2">Summary</p>
+              <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground mb-2">Summary</p>
               <p className="text-foreground leading-relaxed">{selected.summary}</p>
             </div>
             {selected.content && (
               <div>
-                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground mb-2">Full Content</p>
+                <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground mb-2">Full Content</p>
                 <div className="max-h-64 overflow-y-auto rounded-xl border border-border/50 bg-gray-50 p-4">
                   <p className="text-foreground leading-relaxed whitespace-pre-wrap text-sm">{selected.content}</p>
                 </div>
@@ -1714,7 +1714,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                       ))}
                   </SelectContent>
                 </Select>
-                <p className="text-[10px] text-muted-foreground">Link this asset to a parent service line</p>
+                <p className="text-[11px] text-muted-foreground">Link this asset to a parent service line</p>
               </div>
             )}
 
@@ -1979,21 +1979,21 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div>
                     <p className="text-lg font-bold text-emerald-600">{importResult.created}</p>
-                    <p className="text-[10px] text-muted-foreground">Created</p>
+                    <p className="text-[11px] text-muted-foreground">Created</p>
                   </div>
                   <div>
                     <p className="text-lg font-bold text-amber-600">{importResult.skipped}</p>
-                    <p className="text-[10px] text-muted-foreground">Skipped</p>
+                    <p className="text-[11px] text-muted-foreground">Skipped</p>
                   </div>
                   <div>
                     <p className="text-lg font-bold text-red-600">{importResult.errors}</p>
-                    <p className="text-[10px] text-muted-foreground">Errors</p>
+                    <p className="text-[11px] text-muted-foreground">Errors</p>
                   </div>
                 </div>
                 {importResult.skippedDetails?.length > 0 && (
                   <div className="mt-2 max-h-32 overflow-y-auto">
                     {importResult.skippedDetails.slice(0, 5).map((d: any, i: number) => (
-                      <p key={i} className="text-[10px] text-muted-foreground">⊘ {d.title}: {d.reason}</p>
+                      <p key={i} className="text-[11px] text-muted-foreground">⊘ {d.title}: {d.reason}</p>
                     ))}
                   </div>
                 )}

@@ -162,11 +162,11 @@ function StagePipeline({ stage, onAdvance }: { stage: string | null; onAdvance?:
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
               >
                 {isReached && !isClosedWon && !isClosedLost && !isCurrent ? (
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <svg aria-hidden="true" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 ) : isClosedWon && !isLast ? (
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <svg aria-hidden="true" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 ) : isCurrent || (isClosedWon && isLast) || (isClosedLost && isLast) ? (
@@ -259,20 +259,20 @@ function PursuitCard({
               </span>
             </button>
             {pursuit.opportunity.company.industry && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-gray-200 text-muted-foreground font-normal">
+              <Badge variant="outline" className="text-[11px] px-1.5 py-0 border-gray-200 text-muted-foreground font-normal">
                 {pursuit.opportunity.company.industry}
               </Badge>
             )}
-            <Badge className={`text-[10px] px-1.5 py-0 border font-medium ${priority.bg} ${priority.text} ${priority.border}`}>
+            <Badge className={`text-[11px] px-1.5 py-0 border font-medium ${priority.bg} ${priority.text} ${priority.border}`}>
               {priority.label}
             </Badge>
             {isClosedWon && (
-              <Badge className="text-[10px] px-1.5 py-0 border border-emerald-200 bg-emerald-50 text-emerald-700 font-medium">
+              <Badge className="text-[11px] px-1.5 py-0 border border-emerald-200 bg-emerald-50 text-emerald-700 font-medium">
                 Won
               </Badge>
             )}
             {isClosedLost && (
-              <Badge className="text-[10px] px-1.5 py-0 border border-red-200 bg-red-50 text-red-600 font-medium">
+              <Badge className="text-[11px] px-1.5 py-0 border border-red-200 bg-red-50 text-red-600 font-medium">
                 Lost
               </Badge>
             )}
@@ -289,7 +289,7 @@ function PursuitCard({
         </div>
         {/* Opportunity score ring */}
         <div className="relative flex-shrink-0 w-14 h-14">
-          <svg width={56} height={56} className="-rotate-90">
+          <svg aria-hidden="true" width={56} height={56} className="-rotate-90">
             <circle cx={28} cy={28} r={22} fill="none" stroke="#F3F4F6" strokeWidth={4} />
             <circle
               cx={28} cy={28} r={22}
@@ -400,7 +400,7 @@ function PursuitCard({
             <MessageSquare className="w-3 h-3" />
             Add Note
           </Button>
-          <span className="ml-auto text-[10px] text-muted-foreground/60 tabular-nums">
+          <span className="ml-auto text-[11px] text-muted-foreground/60 tabular-nums">
             Updated {new Date(pursuit.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </span>
         </div>
@@ -591,7 +591,7 @@ function AddNoteDialogInner({
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
           <span className="text-[11px] text-muted-foreground">Stage:</span>
           <Badge
-            className="text-[10px] px-1.5 py-0 border"
+            className="text-[11px] px-1.5 py-0 border"
             style={{
               background: 'rgba(212, 175, 55, 0.1)',
               borderColor: 'rgba(212, 175, 55, 0.25)',

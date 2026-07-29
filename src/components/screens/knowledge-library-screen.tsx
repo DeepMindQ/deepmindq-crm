@@ -658,12 +658,14 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             <button
                               onClick={() => setViewAsset(asset)}
                               className="p-1 rounded-md hover:bg-gray-100 text-muted-foreground hover:text-foreground transition-colors"
+                              aria-label="View details"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => handleDelete(asset.id)}
                               className="p-1 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors"
+                              aria-label="Delete asset"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -677,16 +679,16 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
 
                         {/* Meta */}
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <Badge variant="outline" className={`text-[10px] ${config.badge}`}>
+                          <Badge variant="outline" className={`text-[11px] ${config.badge}`}>
                             {CATEGORY_LABELS[asset.category] || asset.category}
                           </Badge>
                           {asset.serviceLine && (
-                            <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
+                            <Badge variant="outline" className="text-[11px] border-border text-muted-foreground">
                               {asset.serviceLine}
                             </Badge>
                           )}
                           {asset.targetIndustries && (
-                            <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
+                            <Badge variant="outline" className="text-[11px] border-border text-muted-foreground">
                               <Globe className="w-2.5 h-2.5 mr-0.5" />
                               {asset.targetIndustries.split(',').slice(0, 2).join(', ')}
                             </Badge>
@@ -767,7 +769,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                         {Object.entries(GRAPH_CATEGORY_COLORS).map(([cat, color]) => (
                           <div key={cat} className="flex items-center gap-1.5">
                             <div className="w-2.5 h-2.5 rounded-sm" style={{ background: color }} />
-                            <span className="text-[10px] text-muted-foreground">{CATEGORY_LABELS[cat] || cat}</span>
+                            <span className="text-[11px] text-muted-foreground">{CATEGORY_LABELS[cat] || cat}</span>
                           </div>
                         ))}
                       </div>
@@ -900,11 +902,11 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             <div>
                               <p className="text-sm font-semibold text-foreground">{selectedGraphNode.label}</p>
                               <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="outline" className={`text-[10px] ${(CATEGORY_CONFIG[selectedGraphNode.category] || CATEGORY_CONFIG.service_line).badge}`}>
+                                <Badge variant="outline" className={`text-[11px] ${(CATEGORY_CONFIG[selectedGraphNode.category] || CATEGORY_CONFIG.service_line).badge}`}>
                                   {CATEGORY_LABELS[selectedGraphNode.category] || selectedGraphNode.category}
                                 </Badge>
                                 {selectedGraphNode.group && selectedGraphNode.group !== selectedGraphNode.category && (
-                                  <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
+                                  <Badge variant="outline" className="text-[11px] border-border text-muted-foreground">
                                     {selectedGraphNode.group}
                                   </Badge>
                                 )}
@@ -914,6 +916,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           <button
                             onClick={() => setSelectedGraphNode(null)}
                             className="p-1.5 rounded-md hover:bg-gray-100 text-muted-foreground hover:text-foreground transition-colors"
+                            aria-label="Close details"
                           >
                             <X className="w-4 h-4" />
                           </button>
@@ -921,19 +924,19 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                         <div className="grid grid-cols-4 gap-4 mt-3">
                           <div className="text-center p-3 rounded-lg bg-white border border-gray-200 shadow-sm">
                             <p className="text-lg font-bold tabular-nums" style={{ color: gold }}>{selectedGraphNode.score}</p>
-                            <p className="text-[10px] text-muted-foreground">Score</p>
+                            <p className="text-[11px] text-muted-foreground">Score</p>
                           </div>
                           <div className="text-center p-3 rounded-lg bg-white border border-gray-200 shadow-sm">
                             <p className="text-lg font-bold tabular-nums text-emerald-600">{selectedGraphNode.upvotes}</p>
-                            <p className="text-[10px] text-muted-foreground">Upvotes</p>
+                            <p className="text-[11px] text-muted-foreground">Upvotes</p>
                           </div>
                           <div className="text-center p-3 rounded-lg bg-white border border-gray-200 shadow-sm">
                             <p className="text-lg font-bold tabular-nums text-blue-600">{selectedGraphNode.usedInEmails}</p>
-                            <p className="text-[10px] text-muted-foreground">Used in Emails</p>
+                            <p className="text-[11px] text-muted-foreground">Used in Emails</p>
                           </div>
                           <div className="text-center p-3 rounded-lg bg-white border border-gray-200 shadow-sm">
                             <p className="text-lg font-bold tabular-nums text-muted-foreground">v{selectedGraphNode.version}</p>
-                            <p className="text-[10px] text-muted-foreground">Version</p>
+                            <p className="text-[11px] text-muted-foreground">Version</p>
                           </div>
                         </div>
                       </GlassPanel>
@@ -972,7 +975,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                     Hybrid search (keyword + semantic TF-overlap) with multi-field weighted scoring, industry/role boosting, and category-aware ranking
                   </p>
                 </div>
-                <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-600 bg-emerald-500/5 shrink-0">
+                <Badge variant="outline" className="text-[11px] border-emerald-500/30 text-emerald-600 bg-emerald-500/5 shrink-0">
                   <CheckCircle2 className="w-3 h-3 mr-1" />
                   Active
                 </Badge>
@@ -1127,7 +1130,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                     <p className="text-sm text-muted-foreground">
                       <span className="font-semibold text-foreground">{totalMatches}</span> match{totalMatches !== 1 ? 'es' : ''} found
                     </p>
-                    <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
+                    <Badge variant="outline" className="text-[11px] border-border text-muted-foreground">
                       Mode: {searchMode}
                     </Badge>
                   </div>
@@ -1181,11 +1184,11 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1.5">
                                 <p className="text-sm font-semibold text-foreground truncate">{result.title}</p>
-                                <Badge variant="outline" className={`text-[10px] shrink-0 ${config.badge}`}>
+                                <Badge variant="outline" className={`text-[11px] shrink-0 ${config.badge}`}>
                                   {CATEGORY_LABELS[result.category] || result.category}
                                 </Badge>
                                 {result.serviceLine && (
-                                  <Badge variant="outline" className="text-[10px] border-border text-muted-foreground shrink-0">
+                                  <Badge variant="outline" className="text-[11px] border-border text-muted-foreground shrink-0">
                                     {result.serviceLine}
                                   </Badge>
                                 )}
@@ -1196,11 +1199,11 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
 
                               {/* Matched fields */}
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-[10px] text-muted-foreground">Matched:</span>
+                                <span className="text-[11px] text-muted-foreground">Matched:</span>
                                 {result.matchedFields.map(field => (
                                   <span
                                     key={field}
-                                    className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded"
+                                    className="inline-flex items-center text-[11px] px-1.5 py-0.5 rounded"
                                     style={{ background: 'rgba(212,175,55,0.08)', color: gold }}
                                   >
                                     {MATCHED_FIELD_LABELS[field] || field}
@@ -1219,7 +1222,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             </div>
 
                             {/* Rank badge */}
-                            <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
+                            <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold"
                               style={{
                                 background: idx === 0 ? 'linear-gradient(135deg, #D4AF37, #E8C860)' : 'rgba(0, 0, 0, 0.04)',
                                 color: idx === 0 ? '#000' : 'text-muted-foreground',
@@ -1317,7 +1320,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                       {Object.entries(healthData.dimensions || {}).map(([key, dim]: [string, any]) => (
                         <div key={key} className="p-3 rounded-lg bg-white border border-gray-200 shadow-sm">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{dim.label}</span>
+                            <span className="text-[11px] text-muted-foreground uppercase tracking-wider">{dim.label}</span>
                             <span className="text-xs font-bold tabular-nums" style={{
                               color: dim.score >= 70 ? '#10B981' : dim.score >= 40 ? '#FBBF24' : '#EF4444'
                             }}>{dim.score}%</span>
@@ -1331,7 +1334,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                               transition={{ duration: 0.8 }}
                             />
                           </div>
-                          <p className="text-[10px] text-muted-foreground mt-1">{dim.detail}</p>
+                          <p className="text-[11px] text-muted-foreground mt-1">{dim.detail}</p>
                         </div>
                       ))}
                     </div>
@@ -1345,14 +1348,14 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                         </div>
                         {healthData.gaps.industries.length > 0 && (
                           <div className="mb-1">
-                            <span className="text-[10px] text-muted-foreground">No industry coverage: </span>
-                            <span className="text-[10px] text-amber-700">{healthData.gaps.industries.join(', ')}</span>
+                            <span className="text-[11px] text-muted-foreground">No industry coverage: </span>
+                            <span className="text-[11px] text-amber-700">{healthData.gaps.industries.join(', ')}</span>
                           </div>
                         )}
                         {healthData.gaps.roles.length > 0 && (
                           <div>
-                            <span className="text-[10px] text-muted-foreground">No role coverage: </span>
-                            <span className="text-[10px] text-amber-700">{healthData.gaps.roles.join(', ')}</span>
+                            <span className="text-[11px] text-muted-foreground">No role coverage: </span>
+                            <span className="text-[11px] text-amber-700">{healthData.gaps.roles.join(', ')}</span>
                           </div>
                         )}
                       </div>
@@ -1468,9 +1471,9 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             <div className="relative group">
                               <AlertTriangle className="w-3.5 h-3.5 text-amber-600 cursor-help" />
                               <div className="absolute right-0 bottom-full mb-2 w-56 p-2 rounded-lg bg-card border border-border shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                <p className="text-[10px] font-medium text-amber-600 mb-1">Gaps for {ind.name}:</p>
+                                <p className="text-[11px] font-medium text-amber-600 mb-1">Gaps for {ind.name}:</p>
                                 {ind.gaps.map((g, gi) => (
-                                  <p key={gi} className="text-[10px] text-muted-foreground">- {g}</p>
+                                  <p key={gi} className="text-[11px] text-muted-foreground">- {g}</p>
                                 ))}
                               </div>
                             </div>
@@ -1491,10 +1494,10 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-medium text-foreground">{sl.name}</span>
                             <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-600">
+                              <Badge variant="outline" className="text-[11px] border-emerald-500/30 text-emerald-600">
                                 {sl.caseStudies} case studies
                               </Badge>
-                              <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-600">
+                              <Badge variant="outline" className="text-[11px] border-purple-500/30 text-purple-600">
                                 {sl.proofPoints} proof points
                               </Badge>
                             <span className="text-xs text-muted-foreground">{sl.count} total</span>
@@ -1635,15 +1638,15 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                     <div className="flex items-center gap-4 mt-3 justify-center">
                       <div className="flex items-center gap-1.5">
                         <div className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
-                        <span className="text-[10px] text-muted-foreground">Good Coverage</span>
+                        <span className="text-[11px] text-muted-foreground">Good Coverage</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <div className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
-                        <span className="text-[10px] text-muted-foreground">Partial Coverage</span>
+                        <span className="text-[11px] text-muted-foreground">Partial Coverage</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <div className="w-2.5 h-2.5 rounded-sm bg-red-500" />
-                        <span className="text-[10px] text-muted-foreground">Gap / No Assets</span>
+                        <span className="text-[11px] text-muted-foreground">Gap / No Assets</span>
                       </div>
                     </div>
                   </div>
@@ -1763,11 +1766,11 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                       <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card/50">
                         <div className="flex items-center gap-3">
                           <FileText className="w-4 h-4" style={{ color: gold }} />
-                          <div><p className="text-xs font-medium text-foreground">{uploadFile.name}</p><p className="text-[10px] text-muted-foreground">{(uploadFile.size / 1024).toFixed(1)} KB</p></div>
+                          <div><p className="text-xs font-medium text-foreground">{uploadFile.name}</p><p className="text-[11px] text-muted-foreground">{(uploadFile.size / 1024).toFixed(1)} KB</p></div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Button size="sm" className="h-8 text-xs gap-1.5" style={{ background: `linear-gradient(135deg, ${gold}, ${goldLight})`, color: '#000' }} onClick={handleUpload}><Sparkles className="w-3.5 h-3.5" />Upload & Generate</Button>
-                          <button onClick={() => { setUploadFile(null); setUploadStep('idle'); setUploadResult(null); setUploadError(''); }} className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => { setUploadFile(null); setUploadStep('idle'); setUploadResult(null); setUploadError(''); }} className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors" aria-label="Remove file"><X className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
                     )}
@@ -1775,7 +1778,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                       <div className="p-3 rounded-lg border border-border bg-card/50">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-xs font-medium text-foreground">{uploadFiles.length} files selected</span>
-                          <button onClick={() => { setUploadFiles([]); setUploadStep('idle'); setUploadResult(null); setUploadError(''); }} className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => { setUploadFiles([]); setUploadStep('idle'); setUploadResult(null); setUploadError(''); }} className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors" aria-label="Clear selected files"><X className="w-3.5 h-3.5" /></button>
                         </div>
                         <div className="max-h-32 overflow-y-auto space-y-1 mb-3">
                           {uploadFiles.map((f, i) => (
@@ -1822,14 +1825,14 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{uploadResult.overallSummary}</p>
                         )}
                         <div className="flex items-center gap-3 mt-2">
-                          <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
+                          <Badge variant="outline" className="text-[11px] border-border text-muted-foreground">
                             {uploadResult.fileName}
                           </Badge>
-                          <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
+                          <Badge variant="outline" className="text-[11px] border-border text-muted-foreground">
                             {uploadResult.wordCount.toLocaleString()} words
                           </Badge>
                           {uploadResult.aiExtractionUsed && (
-                            <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-600">
+                            <Badge variant="outline" className="text-[11px] border-emerald-500/30 text-emerald-600">
                               <Sparkles className="w-2.5 h-2.5 mr-1" />
                               AI-Powered
                             </Badge>
@@ -1839,6 +1842,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                       <button
                         onClick={() => { setUploadResult(null); setUploadStep('idle'); }}
                         className="p-1.5 rounded-md hover:bg-gray-100 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                        aria-label="Close result"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -1875,16 +1879,16 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                               </div>
                               <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{String(asset.summary || '')}</p>
                               <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                                <Badge variant="outline" className={`text-[10px] ${config.badge}`}>
+                                <Badge variant="outline" className={`text-[11px] ${config.badge}`}>
                                   {CATEGORY_LABELS[cat] || cat}
                                 </Badge>
                                 {!!asset.serviceLine && (
-                                  <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
+                                  <Badge variant="outline" className="text-[11px] border-border text-muted-foreground">
                                     {String(asset.serviceLine)}
                                   </Badge>
                                 )}
                                 {!!asset.targetIndustries && (
-                                  <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
+                                  <Badge variant="outline" className="text-[11px] border-border text-muted-foreground">
                                     <Globe className="w-2.5 h-2.5 mr-0.5" />
                                     {String(asset.targetIndustries).split(',').slice(0, 2).join(', ')}
                                   </Badge>
@@ -1994,7 +1998,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   {viewAsset.title}
-                  <Badge variant="outline" className={`text-[10px] ${(CATEGORY_CONFIG[viewAsset.category] || CATEGORY_CONFIG.service_line).badge}`}>
+                  <Badge variant="outline" className={`text-[11px] ${(CATEGORY_CONFIG[viewAsset.category] || CATEGORY_CONFIG.service_line).badge}`}>
                     {CATEGORY_LABELS[viewAsset.category] || viewAsset.category}
                   </Badge>
                 </DialogTitle>
@@ -2113,7 +2117,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                                         </span>
                                       )}
                                     </div>
-                                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                                       <Clock className="w-3 h-3" />
                                       {new Date(entry.updatedAt).toLocaleDateString('en-US', {
                                         month: 'short',

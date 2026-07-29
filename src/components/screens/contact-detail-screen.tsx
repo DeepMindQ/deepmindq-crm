@@ -53,7 +53,7 @@ function ScoreRing({ score, size = 64, strokeWidth = 5, label }: {
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90">
+        <svg aria-hidden="true" width={size} height={size} className="-rotate-90">
           <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="#F3F4F6" strokeWidth={strokeWidth} />
           <motion.circle cx={size/2} cy={size/2} r={radius}
             fill="none" stroke={c} strokeWidth={strokeWidth} strokeLinecap="round"
@@ -67,7 +67,7 @@ function ScoreRing({ score, size = 64, strokeWidth = 5, label }: {
           <span className="text-base font-black tabular-nums" style={{ color: c }}>{Math.round(score)}</span>
         </div>
       </div>
-      {label && <span className="text-[10px] text-muted-foreground font-medium">{label}</span>}
+      {label && <span className="text-[11px] text-muted-foreground font-medium">{label}</span>}
     </div>
   );
 }
@@ -80,7 +80,7 @@ function BuyerStat({ icon: Icon, label, value, color }: { icon: any; label: stri
     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50/80 border border-gray-100">
       <Icon size={13} style={{ color }} />
       <div>
-        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+        <p className="text-[11px] text-muted-foreground uppercase tracking-wider">{label}</p>
         <p className="text-sm font-black" style={{ color }}>{value}</p>
       </div>
     </div>
@@ -99,7 +99,7 @@ function IntelPanel({ title, icon, accent, count, children, onRefresh }: {
         <div className="h-4 w-1 rounded-full" style={{ background: accent || PURPLE }} />
         {React.createElement(icon, { size: 14, style: { color: accent || PURPLE } })}
         <h3 className="text-xs font-bold text-foreground flex-1">{title}</h3>
-        {count !== undefined && <Badge className="text-[10px] px-1.5 py-0 bg-gray-100 text-muted-foreground">{count}</Badge>}
+        {count !== undefined && <Badge className="text-[11px] px-1.5 py-0 bg-gray-100 text-muted-foreground">{count}</Badge>}
         {onRefresh && (
           <button onClick={onRefresh} className="text-muted-foreground hover:text-foreground transition-colors">
             <RefreshCw size={12} />
@@ -297,7 +297,7 @@ export default function ContactDetailScreen() {
                 </div>
                 <div>
                   <span className="text-sm font-bold text-white">{data.name}</span>
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+                  <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
                     {data.jobTitle && <span>{data.jobTitle}</span>}
                     {data.company?.name && <><span className="mx-0.5">·</span><span>{data.company.name}</span></>}
                   </div>
@@ -334,9 +334,9 @@ export default function ContactDetailScreen() {
                     <div className="flex items-center gap-2 mb-2">
                       <Brain size={18} style={{ color: PURPLE }} />
                       <h2 className="text-lg font-black text-foreground">Buyer Intelligence Profile</h2>
-                      <Badge className="text-[10px] px-1.5 py-0 bg-purple-50 text-purple-600 border-purple-200">{data.roleBucket || 'Unknown'}</Badge>
+                      <Badge className="text-[11px] px-1.5 py-0 bg-purple-50 text-purple-600 border-purple-200">{data.roleBucket || 'Unknown'}</Badge>
                       {data.emailHealth && data.emailHealth !== 'unknown' && (
-                        <span className={cn('text-[10px] px-1.5 py-0 rounded-full font-medium', getHealthVariant(data.emailHealth))}>
+                        <span className={cn('text-[11px] px-1.5 py-0 rounded-full font-medium', getHealthVariant(data.emailHealth))}>
                           <ShieldCheck size={10} className="inline mr-0.5" />{data.emailHealth}
                         </span>
                       )}
@@ -375,9 +375,9 @@ export default function ContactDetailScreen() {
                 {/* Detected Priorities */}
                 {briefing?.buyerProfile?.detectedPriorities?.length > 0 && (
                   <div className="mt-4 flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Priorities:</span>
+                    <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Priorities:</span>
                     {briefing.buyerProfile.detectedPriorities.map((p: string, i: number) => (
-                      <Badge key={i} className="text-[10px] px-2 py-0 bg-purple-50 text-purple-700 border-purple-200">{p}</Badge>
+                      <Badge key={i} className="text-[11px] px-2 py-0 bg-purple-50 text-purple-700 border-purple-200">{p}</Badge>
                     ))}
                   </div>
                 )}
@@ -436,7 +436,7 @@ export default function ContactDetailScreen() {
                         <p className="text-xs font-semibold text-blue-800 mb-1">Objective</p>
                         <p className="text-xs text-muted-foreground">{briefing.meetingObjective || 'No objective set'}</p>
                       </div>
-                      <div className="flex gap-3 text-[10px] text-muted-foreground">
+                      <div className="flex gap-3 text-[11px] text-muted-foreground">
                         <span>Type: <strong className="text-foreground">{briefing.meetingType?.replace(/_/g, ' ') || '-'}</strong></span>
                         <span>Duration: <strong className="text-foreground">{briefing.suggestedDuration || '-'}</strong></span>
                         <span>Style: <strong className="text-foreground">{briefing.buyerProfile?.communicationStyle || '-'}</strong></span>
@@ -459,7 +459,7 @@ export default function ContactDetailScreen() {
                           <CheckCircle2 size={13} className="text-emerald-500 mt-0.5 shrink-0" />
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium text-foreground">{tp.point}</p>
-                            {tp.evidence && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{tp.evidence}</p>}
+                            {tp.evidence && <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{tp.evidence}</p>}
                           </div>
                         </motion.div>
                       ))}
@@ -478,10 +478,10 @@ export default function ContactDetailScreen() {
                       {briefing.questionsToAsk.map((q: any, i: number) => (
                         <motion.div key={i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
                           className="flex items-start gap-2.5 p-2.5 rounded-lg bg-gray-50 border border-gray-100">
-                          <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-600 text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                          <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-600 text-[11px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
                           <div>
                             <p className="text-xs font-medium text-foreground">{q.question}</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">Purpose: {q.purpose} · Timing: {q.timing}</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">Purpose: {q.purpose} · Timing: {q.timing}</p>
                           </div>
                         </motion.div>
                       ))}
@@ -502,7 +502,7 @@ export default function ContactDetailScreen() {
                             <div className="flex-1">
                               <p className="text-xs font-semibold text-red-700">{obj.objection}</p>
                               <p className="text-[11px] text-muted-foreground mt-1">{obj.rebuttal}</p>
-                              {obj.evidence && <p className="text-[10px] text-muted-foreground mt-1 italic">{obj.evidence}</p>}
+                              {obj.evidence && <p className="text-[11px] text-muted-foreground mt-1 italic">{obj.evidence}</p>}
                             </div>
                           </div>
                         </motion.div>
@@ -530,7 +530,7 @@ export default function ContactDetailScreen() {
                         ['Risk Level', briefing.buyerProfile.riskLevel?.replace(/_/g, ' ') || '-'],
                       ] as const).map(([label, val]) => (
                         <div key={label} className="px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+                          <p className="text-[11px] text-muted-foreground uppercase tracking-wider">{label}</p>
                           <p className="text-sm font-bold text-foreground">{val || '-'}</p>
                         </div>
                       ))}
@@ -556,13 +556,13 @@ export default function ContactDetailScreen() {
                       <p className="text-xs font-semibold text-blue-800 mb-1">Subject: {generatedEmail.subject}</p>
                       <div className="text-xs text-muted-foreground whitespace-pre-wrap mt-2 leading-relaxed">{generatedEmail.body}</div>
                       <div className="flex items-center gap-3 mt-3 flex-wrap">
-                        {generatedEmail.matchScore != null && <Badge className="text-[10px] bg-emerald-50 text-emerald-600 border-emerald-200">Match: {generatedEmail.matchScore}%</Badge>}
-                        {generatedEmail.confidence && <Badge className="text-[10px] bg-blue-50 text-blue-600 border-blue-200">Confidence: {generatedEmail.confidence}</Badge>}
-                        {generatedEmail.tone && <Badge className="text-[10px] bg-purple-50 text-purple-600 border-purple-200">Tone: {generatedEmail.tone}</Badge>}
+                        {generatedEmail.matchScore != null && <Badge className="text-[11px] bg-emerald-50 text-emerald-600 border-emerald-200">Match: {generatedEmail.matchScore}%</Badge>}
+                        {generatedEmail.confidence && <Badge className="text-[11px] bg-blue-50 text-blue-600 border-blue-200">Confidence: {generatedEmail.confidence}</Badge>}
+                        {generatedEmail.tone && <Badge className="text-[11px] bg-purple-50 text-purple-600 border-purple-200">Tone: {generatedEmail.tone}</Badge>}
                       </div>
                       <div className="flex gap-2 mt-3">
-                        <Button size="sm" className="h-7 text-[10px] gap-1" onClick={() => copyToClipboard(generatedEmail.body)}><Copy size={11} /> Copy</Button>
-                        <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={() => generateEmail.mutate()}><RefreshCw size={11} /> Regenerate</Button>
+                        <Button size="sm" className="h-7 text-[11px] gap-1" onClick={() => copyToClipboard(generatedEmail.body)}><Copy size={11} /> Copy</Button>
+                        <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => generateEmail.mutate()}><RefreshCw size={11} /> Regenerate</Button>
                       </div>
                     </div>
                   </div>
@@ -575,12 +575,12 @@ export default function ContactDetailScreen() {
                           <Badge className="text-[9px] shrink-0 ml-2">{d.status}</Badge>
                         </div>
                         <p className="text-[11px] text-muted-foreground line-clamp-2">{d.body?.slice(0, 150)}...</p>
-                        {d.matchScore != null && <p className="text-[10px] text-emerald-600 mt-1">Match: {d.matchScore}%</p>}
+                        {d.matchScore != null && <p className="text-[11px] text-emerald-600 mt-1">Match: {d.matchScore}%</p>}
                         <div className="flex gap-1.5 mt-2">
                           {d.status === 'draft' && (
                             <>
-                              <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'approved' })}>Approve</Button>
-                              <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'rejected' })}>Reject</Button>
+                              <Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'approved' })}>Approve</Button>
+                              <Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'rejected' })}>Reject</Button>
                             </>
                           )}
                         </div>
@@ -605,7 +605,7 @@ export default function ContactDetailScreen() {
             <div className="mt-5">
               <IntelPanel title="Research Notes" icon={FileText} accent="#059669" count={notes.length}>
                 <div className="flex items-center gap-2 mb-3">
-                  <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={() => setNoteOpen(true)}><Plus size={11} /> Add Note</Button>
+                  <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => setNoteOpen(true)}><Plus size={11} /> Add Note</Button>
                 </div>
                 {notes.length > 0 ? (
                   <div className="space-y-2">
@@ -619,7 +619,7 @@ export default function ContactDetailScreen() {
                         </div>
                         <div className="flex items-center gap-2 mt-1.5">
                           <Badge className="text-[9px] bg-gray-100 text-muted-foreground">{note.noteType || 'note'}</Badge>
-                          <span className="text-[10px] text-muted-foreground">{new Date(note.createdAt).toLocaleDateString()}</span>
+                          <span className="text-[11px] text-muted-foreground">{new Date(note.createdAt).toLocaleDateString()}</span>
                         </div>
                       </div>
                     ))}
@@ -644,7 +644,7 @@ export default function ContactDetailScreen() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-[11px] text-foreground/80">{entry.details || entry.action?.replace(/_/g, ' ')}</p>
-                          <p className="text-[10px] text-muted-foreground">{new Date(entry.createdAt).toLocaleDateString()}</p>
+                          <p className="text-[11px] text-muted-foreground">{new Date(entry.createdAt).toLocaleDateString()}</p>
                         </div>
                       </div>
                     ))}
@@ -690,12 +690,12 @@ export default function ContactDetailScreen() {
           <div className="space-y-3">
             {['name', 'email', 'jobTitle', 'phone', 'location', 'linkedinUrl'].map(field => (
               <div key={field}>
-                <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">{field.replace(/([A-Z])/g, ' $1')}</Label>
+                <Label className="text-[11px] text-muted-foreground uppercase tracking-wider">{field.replace(/([A-Z])/g, ' $1')}</Label>
                 <Input value={editForm[field as keyof typeof editForm] || ''} onChange={e => setEditForm(p => ({ ...p, [field]: e.target.value }))} className="mt-1 h-8 text-xs" />
               </div>
             ))}
             <div>
-              <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Role Bucket</Label>
+              <Label className="text-[11px] text-muted-foreground uppercase tracking-wider">Role Bucket</Label>
               <Select value={editForm.roleBucket} onValueChange={v => setEditForm(p => ({ ...p, roleBucket: v }))}>
                 <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue placeholder="Select role" /></SelectTrigger>
                 <SelectContent>

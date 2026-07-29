@@ -153,7 +153,7 @@ export function CompanyMindMap({ company, contacts, notes, signals, researchCard
                       <Users size={13} className="text-gray-500 flex-shrink-0" />
                       <div className="flex-1 text-left min-w-0">
                         <div className="text-xs font-semibold text-gray-800 truncate">{dept}</div>
-                        <div className="text-[10px] text-gray-400">{deptContacts.length} contact{deptContacts.length !== 1 ? 's' : ''}</div>
+                        <div className="text-[11px] text-gray-400">{deptContacts.length} contact{deptContacts.length !== 1 ? 's' : ''}</div>
                       </div>
                       {isExpanded ? (
                         <ChevronDown size={13} className="text-gray-400 flex-shrink-0" />
@@ -177,13 +177,13 @@ export function CompanyMindMap({ company, contacts, notes, signals, researchCard
                                 className="flex items-center gap-2 px-3 py-2 rounded-md border border-gray-100 bg-white hover:border-gray-300 transition-colors"
                               >
                                 <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                  <span className="text-[10px] font-bold text-gray-500">
+                                  <span className="text-[11px] font-bold text-gray-500">
                                     {(cName || '?')[0]?.toUpperCase()}
                                   </span>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="text-xs font-medium text-gray-800 truncate">{cName}</div>
-                                  <div className="text-[10px] text-gray-400 truncate">{cTitle || cEmail}</div>
+                                  <div className="text-[11px] text-gray-400 truncate">{cTitle || cEmail}</div>
                                 </div>
                                 {cEmail && (
                                   <Mail size={10} className="text-gray-300 flex-shrink-0" />
@@ -192,7 +192,7 @@ export function CompanyMindMap({ company, contacts, notes, signals, researchCard
                             );
                           })}
                           {deptContacts.length > 12 && (
-                            <div className="text-[10px] text-gray-400 text-center px-3 py-1">
+                            <div className="text-[11px] text-gray-400 text-center px-3 py-1">
                               +{deptContacts.length - 12} more contact{deptContacts.length - 12 !== 1 ? 's' : ''}
                             </div>
                           )}
@@ -220,7 +220,7 @@ export function CompanyMindMap({ company, contacts, notes, signals, researchCard
                     >
                       <Bell size={13} className={hasCritical ? 'text-red-500' : hasHigh ? 'text-amber-500' : 'text-gray-500'} />
                       <div className="text-xs font-semibold text-gray-800">Signals</div>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${hasCritical ? 'bg-red-100 text-red-600' : hasHigh ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-500'}`}>
+                      <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${hasCritical ? 'bg-red-100 text-red-600' : hasHigh ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-500'}`}>
                         {totalSignals}
                       </span>
                       {expandedSections.has('signals') ? <ChevronDown size={12} className="text-gray-400" /> : <ChevronRight size={12} className="text-gray-400" />}
@@ -233,12 +233,12 @@ export function CompanyMindMap({ company, contacts, notes, signals, researchCard
                             <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.severity === 'critical' ? 'bg-red-500' : s.severity === 'high' ? 'bg-amber-500' : s.severity === 'medium' ? 'bg-blue-500' : 'bg-gray-400'}`} />
                             <div className="flex-1 min-w-0">
                               <div className="text-xs text-gray-800 truncate">{s.title || 'Signal'}</div>
-                              <div className="text-[10px] text-gray-400">{s.signalType || s.severity || ''}</div>
+                              <div className="text-[11px] text-gray-400">{s.signalType || s.severity || ''}</div>
                             </div>
                           </div>
                         ))}
                         {totalSignals > 6 && (
-                          <div className="text-[10px] text-gray-400 text-center py-1">
+                          <div className="text-[11px] text-gray-400 text-center py-1">
                             +{totalSignals - 6} more signal{totalSignals - 6 !== 1 ? 's' : ''}
                           </div>
                         )}
@@ -257,7 +257,7 @@ export function CompanyMindMap({ company, contacts, notes, signals, researchCard
                     >
                       <FileText size={13} className="text-gray-500" />
                       <div className="text-xs font-semibold text-gray-800">Notes</div>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{totalNotes}</span>
+                      <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{totalNotes}</span>
                       {expandedSections.has('notes') ? <ChevronDown size={12} className="text-gray-400" /> : <ChevronRight size={12} className="text-gray-400" />}
                     </button>
 
@@ -268,12 +268,12 @@ export function CompanyMindMap({ company, contacts, notes, signals, researchCard
                             <FileText size={11} className="text-gray-400 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
                               <div className="text-xs text-gray-800 truncate">{n.title || 'Note'}</div>
-                              <div className="text-[10px] text-gray-400">{n.category || 'general'}</div>
+                              <div className="text-[11px] text-gray-400">{n.category || 'general'}</div>
                             </div>
                           </div>
                         ))}
                         {totalNotes > 6 && (
-                          <div className="text-[10px] text-gray-400 text-center py-1">
+                          <div className="text-[11px] text-gray-400 text-center py-1">
                             +{totalNotes - 6} more note{totalNotes - 6 !== 1 ? 's' : ''}
                           </div>
                         )}
@@ -299,7 +299,7 @@ export function CompanyMindMap({ company, contacts, notes, signals, researchCard
                       <div className="flex flex-col gap-1 mt-2 w-full max-w-[280px]">
                         {researchCard.businessOverview && (
                           <div className="px-3 py-2 rounded-md border border-gray-100 bg-white">
-                            <div className="text-[10px] text-gray-400 mb-1">Business Overview</div>
+                            <div className="text-[11px] text-gray-400 mb-1">Business Overview</div>
                             <div className="text-xs text-gray-700 line-clamp-3">
                               {typeof researchCard.businessOverview === 'string'
                                 ? researchCard.businessOverview.substring(0, 200)
@@ -309,7 +309,7 @@ export function CompanyMindMap({ company, contacts, notes, signals, researchCard
                         )}
                         {researchCard.possibleOpportunities && (
                           <div className="px-3 py-2 rounded-md border border-gray-100 bg-white">
-                            <div className="text-[10px] text-gray-400 mb-1">Opportunities</div>
+                            <div className="text-[11px] text-gray-400 mb-1">Opportunities</div>
                             <div className="text-xs text-gray-700 line-clamp-3">
                               {typeof researchCard.possibleOpportunities === 'string'
                                 ? researchCard.possibleOpportunities.substring(0, 200)
@@ -328,23 +328,23 @@ export function CompanyMindMap({ company, contacts, notes, signals, researchCard
 
         {/* Legend */}
         <div className="flex items-center justify-center gap-4 pt-2 pb-4 border-t border-gray-100">
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
             <div className="w-2 h-2 rounded-full bg-gray-800" />
             <span>Company</span>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
             <Users size={10} />
             <span>Departments</span>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
             <Bell size={10} />
             <span>Signals</span>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
             <FileText size={10} />
             <span>Notes</span>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
             <BookOpen size={10} />
             <span>Research</span>
           </div>

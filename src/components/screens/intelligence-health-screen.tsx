@@ -231,7 +231,7 @@ export default function IntelligenceHealthScreen() {
                 <stat.icon className={cn('h-4 w-4', stat.color)} />
               </div>
             </div>
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">{stat.label}</p>
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 font-medium">{stat.label}</p>
             <p className={cn('text-2xl font-bold mt-0.5', stat.color)}>{stat.value}</p>
           </div>
         ))}
@@ -300,10 +300,10 @@ export default function IntelligenceHealthScreen() {
                 <tr key={c.connectorId} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3 font-medium text-slate-800">{c.name}</td>
                   <td className="px-4 py-3">
-                    <Badge variant="outline" className="text-[10px] bg-slate-50">{c.sourceType}</Badge>
+                    <Badge variant="outline" className="text-[11px] bg-slate-50">{c.sourceType}</Badge>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant="outline" className={cn('text-[10px]', healthColor(c.healthScore))}>
+                    <Badge variant="outline" className={cn('text-[11px]', healthColor(c.healthScore))}>
                       {(c.healthScore * 100).toFixed(0)}% — {scoreLabel(c.healthScore)}
                     </Badge>
                   </td>
@@ -349,7 +349,7 @@ export default function IntelligenceHealthScreen() {
             <h3 className="text-sm font-semibold text-red-800 flex items-center gap-2">
               <XCircle className="h-4 w-4" />
               Errors & Failures
-              <Badge className="bg-red-600 text-white text-[10px] ml-auto">
+              <Badge className="bg-red-600 text-white text-[11px] ml-auto">
                 {connectors.filter(c => c.status === 'failed').length}
               </Badge>
             </h3>

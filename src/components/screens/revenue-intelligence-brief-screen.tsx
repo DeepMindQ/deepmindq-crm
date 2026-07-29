@@ -133,10 +133,10 @@ function BriefSectionHeader({
           <ConfidenceBar value={confidence} size="sm" showPercentage={false} className="w-20" />
         )}
         {sourceType && (
-          <EvidenceBadge source={sourceType} confidence={confidence} className="text-[10px]" />
+          <EvidenceBadge source={sourceType} confidence={confidence} className="text-[11px]" />
         )}
         {freshness && (
-          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
             <CalendarClock className="w-3 h-3" />
             {freshness}
           </span>
@@ -160,7 +160,7 @@ function BlueCalloutBox({ text, index }: { text: string; index: number }) {
   return (
     <div className="group relative rounded-xl border-2 border-blue-200 bg-blue-50/50 p-4 hover:border-blue-300 hover:shadow-sm transition-all">
       <div className="absolute -top-2.5 left-4">
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-semibold">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-600 text-white text-[11px] font-semibold">
           <Quote className="w-2.5 h-2.5" />
           Opener {index}
         </span>
@@ -624,10 +624,10 @@ export default function RevenueIntelligenceBriefScreen({
                           <DollarSign className="w-4 h-4 text-emerald-500 shrink-0" />
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-[10px] border-emerald-200 text-emerald-700 bg-emerald-50">
+                          <Badge variant="outline" className="text-[11px] border-emerald-200 text-emerald-700 bg-emerald-50">
                             Est. {impact}
                           </Badge>
-                          <EvidenceBadge source="market" className="text-[10px]" />
+                          <EvidenceBadge source="market" className="text-[11px]" />
                         </div>
                       </div>
                     );
@@ -661,7 +661,7 @@ export default function RevenueIntelligenceBriefScreen({
                 ].map((item, i) => (
                   <div key={i} className="relative flex items-start gap-3">
                     <div className="absolute -left-8 top-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 border-2 border-emerald-300">
-                      <span className="text-[10px] font-bold text-emerald-700">{i + 1}</span>
+                      <span className="text-[11px] font-bold text-emerald-700">{i + 1}</span>
                     </div>
                     <div>
                       <h4 className="text-sm font-semibold text-foreground">{item.step}</h4>
@@ -778,7 +778,7 @@ export default function RevenueIntelligenceBriefScreen({
                           href={src.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[10px] text-primary hover:underline mt-1 inline-flex items-center gap-0.5"
+                          className="text-[11px] text-primary hover:underline mt-1 inline-flex items-center gap-0.5"
                         >
                           {src.url}
                           <ChevronRight className="w-2.5 h-2.5" />

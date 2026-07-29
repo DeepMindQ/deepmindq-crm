@@ -151,7 +151,7 @@ function CircularGauge({ score, size = 160, strokeWidth = 12 }: { score: number;
 
   return (
     <div ref={ref} className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
+      <svg aria-hidden="true" width={size} height={size} className="-rotate-90">
         <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f3f4f6" strokeWidth={strokeWidth} />
         <motion.circle
           cx={size / 2} cy={size / 2} r={radius} fill="none"
@@ -485,7 +485,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                   <p className="text-lg font-bold tabular-nums text-foreground">
                     <AnimatedCounter value={stat.value} />
                   </p>
-                  <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{stat.label}</p>
+                  <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -508,7 +508,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
             >
               <div className="flex items-center gap-2.5 mb-3">
                 <div
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider"
                   style={{ background: 'rgba(184,134,11,0.15)', color: 'var(--color-gold-dim)' }}
                 >
                   <Sparkles className="w-3 h-3" />
@@ -560,7 +560,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                   <div className="flex-1 flex items-end justify-between gap-3">
                     <div className="flex-1">
                       <AnimatedBar value={100 - cat.score} max={100} color={cat.color} delay={0.1} />
-                      <p className="text-[10px] text-muted-foreground mt-1.5">Issue severity</p>
+                      <p className="text-[11px] text-muted-foreground mt-1.5">Issue severity</p>
                     </div>
                     <Button
                       size="sm"
@@ -604,7 +604,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                           <Sparkles className="w-4 h-4" style={{ color: 'var(--color-gold-dim)' }} />
                         </div>
                         <span
-                          className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                          className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
                           style={{
                             background: item.priority.toLowerCase() === 'high'
                               ? 'rgba(239,68,68,0.08)'
@@ -652,7 +652,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
               <motion.span
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider shrink-0"
                 style={{ background: 'rgba(184,134,11,0.12)', color: 'var(--color-gold-dim)', border: '1px solid rgba(184,134,11,0.25)' }}
               >
                 <Sparkles className="w-3 h-3" />
@@ -687,7 +687,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-sm font-semibold text-foreground truncate">{item.name}</p>
-                      <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                      <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
                         {item.type}
                       </span>
                     </div>
@@ -699,7 +699,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                   {/* Priority badge */}
                   <Badge
                     variant="outline"
-                    className={`text-[10px] font-semibold uppercase tracking-wider border shrink-0 ${PRIORITY_STYLES[item.priority]}`}
+                    className={`text-[11px] font-semibold uppercase tracking-wider border shrink-0 ${PRIORITY_STYLES[item.priority]}`}
                   >
                     {item.priority}
                   </Badge>
@@ -756,7 +756,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                         <span className="text-sm font-medium text-foreground">{item.group}</span>
                         <Badge
                           variant="outline"
-                          className="text-[10px] text-muted-foreground border-gray-200 font-normal"
+                          className="text-[11px] text-muted-foreground border-gray-200 font-normal"
                         >
                           <Clock className="h-2.5 w-2.5 mr-1" />
                           {item.lastUpdated}
@@ -818,7 +818,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                   <div className="flex items-center gap-2 mb-1.5">
                     <p className="text-sm font-semibold text-foreground">AI Quality Trajectory</p>
                     <span
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider"
                       style={{ background: 'rgba(184,134,11,0.10)', color: 'var(--color-gold-dim)' }}
                     >
                       <Sparkles className="w-2.5 h-2.5" />

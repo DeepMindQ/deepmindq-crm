@@ -220,7 +220,7 @@ export default function PipelineForecastScreen() {
             <CardContent>
               <div className="mb-4 flex items-center justify-center">
                 <div className="relative flex h-32 w-32 items-center justify-center">
-                  <svg className="h-32 w-32 -rotate-90" viewBox="0 0 120 120">
+                  <svg aria-hidden="true" className="h-32 w-32 -rotate-90" viewBox="0 0 120 120">
                     <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" className="text-muted/30" strokeWidth="8" />
                     <circle
                       cx="60" cy="60" r="52" fill="none"

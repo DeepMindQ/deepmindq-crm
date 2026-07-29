@@ -221,8 +221,8 @@ export default function CompanyOrgChartScreen({ navigateTo }: MindMapProps) {
     for (const c of companies) {
       const groups: Map<string, OrgContact[]> = new Map();
       for (const ct of c.contacts) {
-        const dept = ct.title || 'General';
-        if (dept.length > 40) dept.substring(0, 40) + '...';
+        let dept = ct.title || 'General';
+        if (dept.length > 40) { dept = dept.substring(0, 40) + '...'; }
         if (!groups.has(dept)) groups.set(dept, []);
         groups.get(dept)!.push(ct);
       }
@@ -342,7 +342,7 @@ export default function CompanyOrgChartScreen({ navigateTo }: MindMapProps) {
                       </div>
                       <div className="ml-2 flex items-center gap-2">
                         {company.contacts.length > 0 && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-700 text-gray-300">
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-700 text-gray-300">
                             {company.contacts.length} contacts
                           </span>
                         )}
@@ -389,7 +389,7 @@ export default function CompanyOrgChartScreen({ navigateTo }: MindMapProps) {
                                     <Users size={13} className="text-gray-500 flex-shrink-0" />
                                     <div className="flex-1 text-left min-w-0">
                                       <div className="text-[11px] font-semibold text-gray-800 truncate">{dept}</div>
-                                      <div className="text-[10px] text-gray-400">{deptContacts.length}</div>
+                                      <div className="text-[11px] text-gray-400">{deptContacts.length}</div>
                                     </div>
                                     {isDeptExpanded ? <ChevronDown size={12} className="text-gray-400" /> : <ChevronRight size={12} className="text-gray-400" />}
                                   </button>
@@ -425,7 +425,7 @@ export default function CompanyOrgChartScreen({ navigateTo }: MindMapProps) {
                                 >
                                   <Bell size={13} className="text-amber-500" />
                                   <span className="text-[11px] font-semibold text-gray-800">Signals</span>
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600">{company.signals.length}</span>
+                                  <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600">{company.signals.length}</span>
                                   {expandedSignals ? <ChevronDown size={12} className="text-gray-400" /> : <ChevronRight size={12} className="text-gray-400" />}
                                 </button>
                                 {expandedSignals && (
@@ -454,7 +454,7 @@ export default function CompanyOrgChartScreen({ navigateTo }: MindMapProps) {
                                 >
                                   <FileText size={13} className="text-gray-500" />
                                   <span className="text-[11px] font-semibold text-gray-800">Notes</span>
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{company.notes.length}</span>
+                                  <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{company.notes.length}</span>
                                   {expandedNotes ? <ChevronDown size={12} className="text-gray-400" /> : <ChevronRight size={12} className="text-gray-400" />}
                                 </button>
                                 {expandedNotes && (
@@ -483,25 +483,25 @@ export default function CompanyOrgChartScreen({ navigateTo }: MindMapProps) {
 
             {/* Legend */}
             <div className="flex items-center justify-center gap-6 pt-6 mt-6 border-t border-gray-100">
-              <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
                 <div className="w-3 h-3 rounded bg-gray-900" />
                 <span>Company</span>
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
                 <Users size={10} />
                 <span>Department</span>
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
                 <div className="w-5 h-5 rounded-full border border-gray-200 flex items-center justify-center">
                   <span className="text-[7px] font-bold text-gray-400">A</span>
                 </div>
                 <span>Contact</span>
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
                 <Bell size={10} />
                 <span>Signals</span>
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
                 <FileText size={10} />
                 <span>Notes</span>
               </div>

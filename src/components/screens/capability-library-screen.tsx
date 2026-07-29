@@ -363,7 +363,7 @@ export default function CapabilityLibraryScreen() {
                     <div className="flex items-center gap-2 text-sm font-semibold text-amber-700">
                       <Brain className="size-4" />
                       Knowledge Retrieval Test
-                      <span className="text-[10px] text-gray-400 font-normal ml-2">Test what the AI will retrieve for a given context</span>
+                      <span className="text-[11px] text-gray-400 font-normal ml-2">Test what the AI will retrieve for a given context</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="relative">
@@ -439,17 +439,17 @@ export default function CapabilityLibraryScreen() {
                                       {r.industries.length > 0 && (
                                         <div className="flex gap-1 mt-1.5">
                                           {r.industries.slice(0, 3).map(ind => (
-                                            <span key={ind} className="text-[10px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">{ind}</span>
+                                            <span key={ind} className="text-[11px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">{ind}</span>
                                           ))}
                                         </div>
                                       )}
                                     </div>
                                   </div>
                                   <div className="flex flex-col items-end gap-1 shrink-0">
-                                    <Badge className={cn('text-[10px] font-mono h-5', (r.score ?? 0) >= 30 ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' : (r.score ?? 0) >= 15 ? 'bg-amber-500/15 text-amber-600 border-amber-500/30' : 'bg-gray-200 text-gray-500 border-gray-300')} variant="outline">
+                                    <Badge className={cn('text-[11px] font-mono h-5', (r.score ?? 0) >= 30 ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' : (r.score ?? 0) >= 15 ? 'bg-amber-500/15 text-amber-600 border-amber-500/30' : 'bg-gray-200 text-gray-500 border-gray-300')} variant="outline">
                                       {r.score ?? 0}pts
                                     </Badge>
-                                    <span className={cn('text-[10px]', cfg.color)}>{TYPE_CONFIG[r.type]?.label}</span>
+                                    <span className={cn('text-[11px]', cfg.color)}>{TYPE_CONFIG[r.type]?.label}</span>
                                   </div>
                                 </div>
                               </motion.div>
@@ -565,20 +565,20 @@ export default function CapabilityLibraryScreen() {
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-gray-900 truncate">{doc.title}</p>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[10px] text-gray-400">{doc.fileType}</span>
-                              <span className="text-[10px] text-gray-500">|</span>
-                              <span className="text-[10px] text-amber-500/80">{docSnipCount} snippets extracted</span>
+                              <span className="text-[11px] text-gray-400">{doc.fileType}</span>
+                              <span className="text-[11px] text-gray-500">|</span>
+                              <span className="text-[11px] text-amber-500/80">{docSnipCount} snippets extracted</span>
                               {doc.description && (
                                 <>
-                                  <span className="text-[10px] text-gray-500">|</span>
-                                  <span className="text-[10px] text-gray-400 truncate max-w-[200px]">{doc.description}</span>
+                                  <span className="text-[11px] text-gray-500">|</span>
+                                  <span className="text-[11px] text-gray-400 truncate max-w-[200px]">{doc.description}</span>
                                 </>
                               )}
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-[10px] text-gray-400 border-gray-300/50 h-5">
+                          <Badge variant="outline" className="text-[11px] text-gray-400 border-gray-300/50 h-5">
                             {new Date(doc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </Badge>
                           {isExpanded ? <ChevronDown className="size-4 text-gray-400" /> : <ChevronRight className="size-4 text-gray-400" />}
@@ -666,12 +666,12 @@ export default function CapabilityLibraryScreen() {
                                 <div className={cn('w-6 h-6 rounded flex items-center justify-center', cfg.bg)}>
                                   <Icon className={cn('size-3', cfg.color)} />
                                 </div>
-                                <Badge className={cn('text-[10px] h-5 border', cfg.border, cfg.bg, cfg.color)} variant="outline">
+                                <Badge className={cn('text-[11px] h-5 border', cfg.border, cfg.bg, cfg.color)} variant="outline">
                                   {cfg.label}
                                 </Badge>
                               </div>
                               {snip.score !== undefined && (
-                                <Badge className="text-[10px] font-mono h-5 bg-emerald-500/15 text-emerald-600 border-emerald-500/30" variant="outline">
+                                <Badge className="text-[11px] font-mono h-5 bg-emerald-500/15 text-emerald-600 border-emerald-500/30" variant="outline">
                                   {snip.score}pts
                                 </Badge>
                               )}
@@ -680,10 +680,10 @@ export default function CapabilityLibraryScreen() {
                             <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-3">{snip.content}</p>
                             <div className="flex items-center gap-2 mt-2.5 flex-wrap">
                               {snip.industries.slice(0, 3).map(ind => (
-                                <span key={ind} className="text-[10px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">{ind}</span>
+                                <span key={ind} className="text-[11px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">{ind}</span>
                               ))}
                               {snip.documentTitle && (
-                                <span className="text-[10px] text-gray-500 ml-auto truncate max-w-[150px]">
+                                <span className="text-[11px] text-gray-500 ml-auto truncate max-w-[150px]">
                                   from: {snip.documentTitle}
                                 </span>
                               )}
@@ -717,7 +717,7 @@ export default function CapabilityLibraryScreen() {
                     </span>
                   )})()}
                   {selectedSnippet.score !== undefined && (
-                    <Badge className="text-[10px] font-mono h-5 bg-emerald-500/15 text-emerald-600 border-emerald-500/30" variant="outline">
+                    <Badge className="text-[11px] font-mono h-5 bg-emerald-500/15 text-emerald-600 border-emerald-500/30" variant="outline">
                       Relevance: {selectedSnippet.score}pts
                     </Badge>
                   )}
@@ -839,7 +839,7 @@ export default function CapabilityLibraryScreen() {
                   <>
                     <FileUp className="size-8 text-gray-500 mx-auto mb-2" />
                     <p className="text-xs text-gray-500">Click to select a .txt or .md file</p>
-                    <p className="text-[10px] text-gray-500 mt-1">Max 10MB</p>
+                    <p className="text-[11px] text-gray-500 mt-1">Max 10MB</p>
                   </>
                 )}
               </div>

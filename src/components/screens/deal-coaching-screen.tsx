@@ -214,7 +214,7 @@ export default function DealCoachingScreen() {
                                   {deal.coaching.gaps.map((g, j) => (
                                     <li key={j}>
                                       <div className="flex items-center gap-1">
-                                        <Badge variant="outline" className={cn('text-[10px] px-1 py-0',
+                                        <Badge variant="outline" className={cn('text-[11px] px-1 py-0',
                                           g.severity === 'high' ? 'border-red-300 text-red-600' : 'border-amber-300 text-amber-600'
                                         )}>
                                           {g.severity}
@@ -243,12 +243,12 @@ export default function DealCoachingScreen() {
                                 <ul className="space-y-2">
                                   {deal.coaching.nextSteps.map((s, j) => (
                                     <li key={j} className="flex items-start gap-2">
-                                      <Badge variant="outline" className="mt-0.5 shrink-0 text-[10px] px-1 py-0 border-blue-300 text-blue-600">
+                                      <Badge variant="outline" className="mt-0.5 shrink-0 text-[11px] px-1 py-0 border-blue-300 text-blue-600">
                                         {s.deadline}
                                       </Badge>
                                       <div>
                                         <span className="text-xs">{s.action}</span>
-                                        <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">{s.priority}</Badge>
+                                        <Badge variant="outline" className="ml-1 text-[11px] px-1 py-0">{s.priority}</Badge>
                                       </div>
                                     </li>
                                   ))}
@@ -269,7 +269,7 @@ export default function DealCoachingScreen() {
                                 <div key={j} className="rounded-lg border bg-white/50 p-3">
                                   <div className="flex items-center justify-between">
                                     <span className="text-sm font-medium">{t.topic}</span>
-                                    <Badge variant="secondary" className="text-[10px]">{t.timing}</Badge>
+                                    <Badge variant="secondary" className="text-[11px]">{t.timing}</Badge>
                                   </div>
                                   <p className="mt-1 text-xs text-muted-foreground">{t.why}</p>
                                 </div>

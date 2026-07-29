@@ -133,10 +133,10 @@ export function IntelligenceFeed({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className={cn('text-[10px] font-semibold uppercase tracking-wider', cfg.color)}>
+                    <span className={cn('text-[11px] font-semibold uppercase tracking-wider', cfg.color)}>
                       {cfg.label}
                     </span>
-                    <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
+                    <span className="text-[11px] text-slate-400 flex items-center gap-0.5">
                       <Clock className="h-2.5 w-2.5" />
                       {formatTime(item.timestamp)}
                     </span>

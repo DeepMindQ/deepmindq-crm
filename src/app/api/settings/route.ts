@@ -101,7 +101,7 @@ let currentSettings: SettingsObject = DEFAULT_SETTINGS;
    Deep-merge helper — merges partial updates into
    the current settings without losing untouched keys
    ═══════════════════════════════════════════════════ */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function deepMerge(target: any, source: any): any {
   const result = { ...target };
   for (const key of Object.keys(source)) {

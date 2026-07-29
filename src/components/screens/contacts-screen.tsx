@@ -844,7 +844,7 @@ export default function ContactsScreen() {
                           <ChevronRight className="size-3 text-gray-700 group-hover:text-amber-500 opacity-0 group-hover:opacity-100 transition-all duration-150 shrink-0" />
                           {hasDrafts && (
                             <span
-                              className="inline-flex items-center gap-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 px-1.5 py-px text-[10px] font-medium shrink-0"
+                              className="inline-flex items-center gap-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 px-1.5 py-px text-[11px] font-medium shrink-0"
                               title="AI email generated"
                             >
                               <Sparkles className="size-2.5" />
@@ -1458,11 +1458,11 @@ export default function ContactsScreen() {
                     <p className="text-xs text-gray-500 mt-0.5">{s.role}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                    <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
                       style={{ background: s.influence === 'Decision Maker' ? 'rgba(212,175,55,0.12)' : 'rgba(99,102,241,0.08)', color: s.influence === 'Decision Maker' ? '#9A8340' : '#6366F1' }}>
                       {s.influence}
                     </span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                    <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
                       {'★'.repeat(s.priority)}{'☆'.repeat(5 - s.priority)}
                     </span>
                   </div>

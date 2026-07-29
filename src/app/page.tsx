@@ -302,7 +302,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
       >
         {/* Logo */}
         <div className="h-14 flex items-center gap-2.5 px-4 border-b shrink-0" style={{ borderColor: styles.border }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+          { }
           <img
             src="/logo.png"
             alt="DeepMindQ"
@@ -322,7 +322,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                   className="w-full flex items-center gap-1.5 px-3 pt-4 pb-1.5 group"
                 >
                   <span
-                    className="text-[10px] uppercase tracking-[0.18em] font-semibold flex-1 text-left"
+                    className="text-[11px] uppercase tracking-[0.18em] font-semibold flex-1 text-left"
                     style={{ color: styles.textDim }}
                   >
                     {section.heading}
@@ -370,7 +370,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                           <span className="flex-1 text-left truncate">{item.label}</span>
                           {count !== undefined && count > 0 && (
                             <span
-                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center tabular-nums"
+                              className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center tabular-nums"
                               style={{
                                 background: isActive ? 'color-mix(in oklch, var(--color-gold) 15%, transparent)' : '#F3F4F6',
                                 color: isActive ? 'var(--color-gold)' : 'var(--color-muted-foreground)',
@@ -392,7 +392,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
         {/* Pipeline Progress */}
         <div className="px-3 py-3 border-t" style={{ borderColor: styles.border }}>
           <div className="flex items-center justify-between px-0.5 mb-2.5">
-            <span className="text-[10px] uppercase tracking-[0.18em] font-semibold" style={{ color: styles.textDim }}>Pipeline</span>
+            <span className="text-[11px] uppercase tracking-[0.18em] font-semibold" style={{ color: styles.textDim }}>Pipeline</span>
           </div>
           <div className="flex items-center justify-between px-1">
             {PIPELINE_STAGES.map((stage, i) => {
@@ -453,7 +453,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-foreground truncate">Ravi Shanker</p>
-              <p className="text-[10px]" style={{ color: styles.textDim }}>Enterprise Sales Leader</p>
+              <p className="text-[11px]" style={{ color: styles.textDim }}>Enterprise Sales Leader</p>
             </div>
             <motion.button
               onClick={onLogout}
@@ -574,7 +574,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                                 <p className="text-xs font-medium text-foreground truncate">{notif.title}</p>
                                 <p className="text-[11px] mt-0.5 truncate" style={{ color: styles.textDim }}>{notif.message}</p>
                               </div>
-                              <span className="text-[10px] shrink-0 mt-0.5" style={{ color: styles.textDim }}>{timeAgo}</span>
+                              <span className="text-[11px] shrink-0 mt-0.5" style={{ color: styles.textDim }}>{timeAgo}</span>
                             </div>
                           );
                         }) : (

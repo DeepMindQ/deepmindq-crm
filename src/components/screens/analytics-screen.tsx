@@ -262,7 +262,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
             </BarChart>
           </ResponsiveContainer>
           <div className="flex items-center gap-2 mt-2 justify-end">
-            <span className="text-[10px] text-muted-foreground">% values show stage-to-stage conversion</span>
+            <span className="text-[11px] text-muted-foreground">% values show stage-to-stage conversion</span>
           </div>
         </div>
       </GlassPanel>
@@ -396,11 +396,11 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
                     <TableCell className="text-xs text-foreground text-right tabular-nums py-2.5">{item.clicks}</TableCell>
                     <TableCell className="text-xs text-right pr-4 py-2.5">
                       {item.replied ? (
-                        <Badge variant="outline" className="text-[10px]" style={{ background: 'rgba(16,185,129,0.12)', color: '#059669', borderColor: 'rgba(16,185,129,0.2)' }}>
+                        <Badge variant="outline" className="text-[11px]" style={{ background: 'rgba(16,185,129,0.12)', color: '#059669', borderColor: 'rgba(16,185,129,0.2)' }}>
                           Replied
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-[10px]" style={{ background: 'rgba(0,0,0,0.03)', color: '#6B7280', borderColor: border }}>
+                        <Badge variant="outline" className="text-[11px]" style={{ background: 'rgba(0,0,0,0.03)', color: '#6B7280', borderColor: border }}>
                           Sent
                         </Badge>
                       )}

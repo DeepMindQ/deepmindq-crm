@@ -11,7 +11,7 @@ import { db } from '@/lib/db';
 
 export type UserDecision = 'confirmed_accurate' | 'partially_accurate' | 'incorrect' | 'needs_more_evidence';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const rf = () => (db as any).recommendationFeedback;
 
 export async function submitFeedback(params: {

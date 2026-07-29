@@ -579,7 +579,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                     <Sparkles className="w-4 h-4 text-primary" />
                   </div>
                   AI Draft Generator
-                  <span className="text-[10px] font-normal text-muted-foreground ml-1">No database needed - test the AI engine directly</span>
+                  <span className="text-[11px] font-normal text-muted-foreground ml-1">No database needed - test the AI engine directly</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-5 pb-5 space-y-4">
@@ -776,8 +776,8 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                       <Badge
                         variant="outline"
                         className={aiResult.generationMethod === 'ai'
-                          ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px]'
-                          : 'bg-amber-500/15 text-amber-600 border-amber-500/30 text-[10px]'
+                          ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[11px]'
+                          : 'bg-amber-500/15 text-amber-600 border-amber-500/30 text-[11px]'
                         }
                       >
                         {aiResult.generationMethod === 'ai'
@@ -786,7 +786,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                         }
                       </Badge>
                       {aiResult.generationMethod === 'template' && (
-                        <span className="text-[10px] text-muted-foreground">Template engine used - AI API was unavailable</span>
+                        <span className="text-[11px] text-muted-foreground">Template engine used - AI API was unavailable</span>
                       )}
                     </div>
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -1064,7 +1064,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 mb-0.5">
                             <span className="text-sm font-semibold text-foreground truncate">{contact.name}</span>
-                            <Badge variant="outline" className="bg-gray-100/50 border-gray-200 text-muted-foreground text-[10px] px-1.5">
+                            <Badge variant="outline" className="bg-gray-100/50 border-gray-200 text-muted-foreground text-[11px] px-1.5">
                               {threadDrafts.length} draft{threadDrafts.length !== 1 ? 's' : ''}
                             </Badge>
                           </div>
@@ -1085,7 +1085,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
 
                         {/* Last draft status */}
                         {lastDraft && (
-                          <Badge variant="outline" className={`shrink-0 text-[10px] ${DRAFT_STATUS_COLORS[lastDraft.status] || DRAFT_STATUS_COLORS.draft}`}>
+                          <Badge variant="outline" className={`shrink-0 text-[11px] ${DRAFT_STATUS_COLORS[lastDraft.status] || DRAFT_STATUS_COLORS.draft}`}>
                             {lastDraft.status.replace(/_/g, ' ')}
                           </Badge>
                         )}
@@ -1132,12 +1132,12 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                                             <Reply className="w-3 h-3 text-amber-600" />
                                           )}
                                           <span className="text-sm font-semibold text-foreground truncate">{draft.subject}</span>
-                                          <Badge variant="outline" className={`text-[10px] shrink-0 ${DRAFT_STATUS_COLORS[draft.status] || DRAFT_STATUS_COLORS.draft}`}>
+                                          <Badge variant="outline" className={`text-[11px] shrink-0 ${DRAFT_STATUS_COLORS[draft.status] || DRAFT_STATUS_COLORS.draft}`}>
                                             {draft.status.replace(/_/g, ' ')}
                                           </Badge>
                                         </div>
                                         <p className="text-xs text-muted-foreground leading-relaxed mb-1.5">{bodyPreview}</p>
-                                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
                                           <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{draft.createdAt}</span>
                                           {draft.confidenceScore != null && (
                                             <span className={`font-medium tabular-nums ${confidenceColor(draft.confidenceScore)}`}>
@@ -1154,7 +1154,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                                         {/* Linked reply snippet */}
                                         {replyLinked && (
                                           <div className="mt-2 pl-3 border-l-2 border-primary/20">
-                                            <p className="text-[10px] font-semibold text-primary mb-0.5 flex items-center gap-1">
+                                            <p className="text-[11px] font-semibold text-primary mb-0.5 flex items-center gap-1">
                                               <Reply className="w-3 h-3" /> Reply received
                                               {replyLinked.category && (
                                                 <Badge variant="outline" className="text-[9px] ml-1 border-gray-200 text-zinc-500">{replyLinked.category}</Badge>
@@ -1175,7 +1175,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                                           <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-7 text-[10px] text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                            className="h-7 text-[11px] text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                                             onClick={(e) => { e.stopPropagation(); handleFollowUp(draft); }}
                                             disabled={followUpLoading}
                                           >
@@ -1186,7 +1186,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                                         <Button
                                           variant="ghost"
                                           size="sm"
-                                          className="h-7 text-[10px] text-primary hover:text-primary/80 hover:bg-primary/10"
+                                          className="h-7 text-[11px] text-primary hover:text-primary/80 hover:bg-primary/10"
                                           onClick={() => openDraft(draft)}
                                         >
                                           <Eye className="w-3 h-3 mr-0.5" />
@@ -1230,12 +1230,12 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
           {attachedCapabilities.length > 0 && (
             <GlassPanel className="p-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Attached:</span>
+                <span className="text-[11px] text-muted-foreground uppercase tracking-widest font-semibold">Attached:</span>
                 {attachedCapabilities.map(cap => (
                   <Badge
                     key={cap.id}
                     variant="outline"
-                    className="text-[10px] bg-primary/10 border-primary/25 text-primary gap-1"
+                    className="text-[11px] bg-primary/10 border-primary/25 text-primary gap-1"
                   >
                     {cap.title}
                     <button
@@ -1248,7 +1248,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                 ))}
                 <button
                   onClick={() => setAttachedCapabilities([])}
-                  className="text-[10px] text-muted-foreground hover:text-red-600 transition-colors"
+                  className="text-[11px] text-muted-foreground hover:text-red-600 transition-colors"
                 >
                   Clear all
                 </button>
@@ -1378,7 +1378,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                           <AlertTriangle className="w-3 h-3 text-amber-600 mt-0.5 shrink-0" />
                           <div>
                             <p className="text-xs text-foreground leading-relaxed">{a.assumption}</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">{a.confidence}</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">{a.confidence}</p>
                           </div>
                         </div>
                       ))}
@@ -1401,13 +1401,13 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                        className="h-7 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                         onClick={() => setIsEditing(!isEditing)}
                       >
                         {isEditing ? 'Preview' : 'Edit'}
                       </Button>
                       {selectedDraft.confidenceScore != null && (
-                        <Badge variant="outline" className={`text-[10px] ${confidenceColor(selectedDraft.confidenceScore)}`}>
+                        <Badge variant="outline" className={`text-[11px] ${confidenceColor(selectedDraft.confidenceScore)}`}>
                           Confidence: {selectedDraft.confidenceScore}
                         </Badge>
                       )}
@@ -1538,7 +1538,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
                             className="h-8 w-[100px] text-xs bg-gray-50 border-gray-200 focus:border-primary/30"
                           />
                           {scheduleDate && (
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-[11px] text-muted-foreground">
                               {new Date(`${scheduleDate}T${scheduleTime}`).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </span>
                           )}

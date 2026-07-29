@@ -193,7 +193,7 @@ function IntelligenceTab({ companyId }: { companyId: string }) {
                   ].map(s => (
                     <div key={s.label} className="text-center">
                       <div className={`text-xl font-bold ${s.color.split(' ')[0]}`}>{s.count}</div>
-                      <div className="text-[10px] text-gray-500 uppercase">{s.label}</div>
+                      <div className="text-[11px] text-gray-500 uppercase">{s.label}</div>
                     </div>
                   ))}
                 </div>
@@ -210,7 +210,7 @@ function IntelligenceTab({ companyId }: { companyId: string }) {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-orange-700">{c.conflictType.replace(/_/g, ' ')}</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${c.severity === 'high' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{c.severity.toUpperCase()}</span>
+                            <span className={`text-[11px] px-1.5 py-0.5 rounded font-bold ${c.severity === 'high' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{c.severity.toUpperCase()}</span>
                           </div>
                           <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">{c.description}</p>
                         </div>
@@ -859,7 +859,7 @@ export default function CompanyProfileScreen() {
             >
               {tab.label}
               {tab.count !== undefined && tab.count > 0 && (
-                <span className="ml-1.5 text-[10px] bg-gray-200 data-[state=active]:bg-amber-100 data-[state=active]:text-amber-700 text-gray-600 px-1.5 rounded-full tabular-nums font-medium">
+                <span className="ml-1.5 text-[11px] bg-gray-200 data-[state=active]:bg-amber-100 data-[state=active]:text-amber-700 text-gray-600 px-1.5 rounded-full tabular-nums font-medium">
                   {tab.count}
                 </span>
               )}
@@ -948,7 +948,7 @@ export default function CompanyProfileScreen() {
                         <span className="text-xs text-gray-600 font-mono truncate max-w-[180px]">{c.email}</span>
                       )}
                       {c.emailHealth && (
-                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium border ${getHealthVariant(c.emailHealth)}`}>
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium border ${getHealthVariant(c.emailHealth)}`}>
                           {c.emailHealth}
                         </span>
                       )}
@@ -1066,7 +1066,7 @@ export default function CompanyProfileScreen() {
                       <p className="text-sm font-medium text-gray-900 truncate">{o.title}</p>
                       {o.nextAction && <p className="text-xs text-gray-600 mt-0.5">Next: {o.nextAction}</p>}
                     </div>
-                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium capitalize border ${getOppStatusVariant(o.status)}`}>
+                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border ${getOppStatusVariant(o.status)}`}>
                       {o.status}
                     </span>
                   </div>
@@ -1181,7 +1181,7 @@ export default function CompanyProfileScreen() {
                 {/* AI Provider badge */}
                 <Badge
                   variant="outline"
-                  className={`text-[10px] font-medium rounded-full px-2 py-0.5 ${hasAiKey ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-500'}`}
+                  className={`text-[11px] font-medium rounded-full px-2 py-0.5 ${hasAiKey ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-500'}`}
                 >
                   <Cpu className="size-2.5 mr-1" />
                   {hasAiKey ? `Powered by ${aiProviderLabel || 'AI'}` : 'Template-based (configure AI in Settings)'}

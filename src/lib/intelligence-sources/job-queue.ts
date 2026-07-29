@@ -56,7 +56,7 @@ export async function enqueueJob(payload: JobPayload): Promise<string> {
 
   // Trigger processing if not already running
   if (!isProcessing) {
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+     
     processQueue();
   }
 

@@ -282,7 +282,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground leading-tight">{stage.label}</p>
-                        <p className="text-[10px] text-muted-foreground leading-tight mt-0.5 truncate">{stage.sublabel}</p>
+                        <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate">{stage.sublabel}</p>
                       </div>
                     </div>
                     <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-40 transition-opacity mt-2 shrink-0" />
@@ -294,7 +294,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
                   <ProgressBar value={funnelPct} max={100} color={stage.color} height={6} delay={0.4 + i * 0.04} showLabel={false} />
                   {stage.badge && (
                     <div className="mt-2">
-                      <Badge variant="outline" className="text-[10px]" style={{ background: stage.badgeBg, color: stage.badgeText, borderColor: stage.badgeBg }}>
+                      <Badge variant="outline" className="text-[11px]" style={{ background: stage.badgeBg, color: stage.badgeText, borderColor: stage.badgeBg }}>
                         {stage.badge}
                       </Badge>
                     </div>
@@ -336,7 +336,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
                     </span>
                   </div>
                   <ProgressBar value={itemPct} max={100} color={item.color} height={8} delay={0.5 + idx * 0.1} showLabel={false} />
-                  <p className="text-[10px] text-muted-foreground tabular-nums">{itemPct}% of verified</p>
+                  <p className="text-[11px] text-muted-foreground tabular-nums">{itemPct}% of verified</p>
                 </div>
               );
             })}
@@ -372,7 +372,7 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
               onClick={() => nav('email-studio')}>
               <FileCheck className="w-3.5 h-3.5" /> Review Pending Drafts
               {draftsPendingReview > 0 && (
-                <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0" style={{ background: 'rgba(245,158,11,0.12)', color: '#D97706', borderColor: 'rgba(245,158,11,0.2)' }}>
+                <Badge variant="outline" className="ml-1 text-[11px] px-1.5 py-0" style={{ background: 'rgba(245,158,11,0.12)', color: '#D97706', borderColor: 'rgba(245,158,11,0.2)' }}>
                   {draftsPendingReview}
                 </Badge>
               )}

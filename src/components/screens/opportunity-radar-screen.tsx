@@ -248,7 +248,7 @@ export default function OpportunityRadarScreen({ navigateTo }: { navigateTo?: (s
               }`}
             >
               {f.label}
-              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${
                 filter === f.key ? 'bg-[#D4AF37]/20 text-[#9A8340]' : 'bg-gray-100 text-muted-foreground'
               }`}>{filterCounts[f.key as keyof typeof filterCounts]}</span>
             </button>
@@ -280,7 +280,7 @@ export default function OpportunityRadarScreen({ navigateTo }: { navigateTo?: (s
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-foreground">{tier.tier}</p>
-                    <p className="text-[10px] text-muted-foreground">{tier.range}</p>
+                    <p className="text-[11px] text-muted-foreground">{tier.range}</p>
                   </div>
                 </div>
                 <div className="flex items-baseline gap-1.5 mb-2.5">
@@ -309,7 +309,7 @@ export default function OpportunityRadarScreen({ navigateTo }: { navigateTo?: (s
         <div className="flex items-center gap-2 mb-4">
           <Crosshair className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />
           <h2 className="text-sm font-semibold text-foreground">Top Opportunities</h2>
-          <Badge variant="outline" className="ml-2 text-[10px]">{filtered.length} shown</Badge>
+          <Badge variant="outline" className="ml-2 text-[11px]">{filtered.length} shown</Badge>
         </div>
 
         <AnimatePresence mode="wait">
@@ -407,7 +407,7 @@ export default function OpportunityRadarScreen({ navigateTo }: { navigateTo?: (s
                         </div>
                         <div className="text-right shrink-0 ml-3">
                           <div className="text-2xl font-bold tabular-nums" style={{ color: sc }}>{opp.matchScore}%</div>
-                          <div className="text-[10px] font-medium" style={{ color: sc }}>{scoreLabel(opp.matchScore)}</div>
+                          <div className="text-[11px] font-medium" style={{ color: sc }}>{scoreLabel(opp.matchScore)}</div>
                         </div>
                       </div>
 
@@ -428,11 +428,11 @@ export default function OpportunityRadarScreen({ navigateTo }: { navigateTo?: (s
                       {/* Meta Row */}
                       <div className="grid grid-cols-2 gap-3 mb-3">
                         <div>
-                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Relevant Capability</p>
+                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Relevant Capability</p>
                           <p className="text-xs text-foreground font-medium leading-snug">{opp.relevantCapability}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Target Persona</p>
+                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Target Persona</p>
                           <div className="flex items-center gap-1">
                             <UserCheck className="w-3 h-3 text-muted-foreground" />
                             <p className="text-xs text-foreground font-medium">{opp.targetPersona}</p>
@@ -442,7 +442,7 @@ export default function OpportunityRadarScreen({ navigateTo }: { navigateTo?: (s
 
                       {/* Confidence Bar */}
                       <div className="flex items-center gap-3">
-                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Confidence</p>
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Confidence</p>
                         <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
                           <motion.div
                             className="h-full rounded-full"

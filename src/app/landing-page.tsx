@@ -131,7 +131,7 @@ function Preloader({ onComplete }: { onComplete: () => void }) {
           animate={{ opacity: phase >= 1 ? 1 : 0, y: phase >= 1 ? 0 : 10 }}
           transition={{ duration: 0.5, delay: 0.3 }}>
           <p className="text-[18px] font-semibold tracking-[-0.02em]" style={{ color: C.white }}>DeepMindQ</p>
-          <p className="text-[10px] tracking-[0.3em] uppercase mt-1" style={{ color: C.gold }}>Understand Before You Sell</p>
+          <p className="text-[11px] tracking-[0.3em] uppercase mt-1" style={{ color: C.gold }}>Understand Before You Sell</p>
         </motion.div>
         <motion.div className="w-32 h-[1.5px] rounded-full overflow-hidden" style={{ background: C.border }}>
           <motion.div className="h-full rounded-full"
@@ -676,7 +676,7 @@ function HeroSection({ onLogin }: { onLogin: () => void }) {
       <motion.div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex-col items-center gap-2 hidden md:flex"
         initial={{ opacity: 0 }} animate={inView ? { opacity: 1 } : {}}
         transition={{ duration: 0.6, delay: 1.5 }}>
-        <span className="text-[10px] tracking-[0.2em] uppercase" style={{ color: C.textDim }}>Scroll</span>
+        <span className="text-[11px] tracking-[0.2em] uppercase" style={{ color: C.textDim }}>Scroll</span>
         <div className="w-5 h-8 rounded-full flex justify-center pt-1.5" style={{ border: `1px solid ${C.border}` }}>
           <motion.div className="w-1 h-2 rounded-full" style={{ background: C.gold }}
             animate={{ y: [0, 8, 0] }} transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }} />
@@ -959,7 +959,7 @@ function PipelineNode({ icon: Icon, title, sub, bullets, index, inView }: {
         style={{ color: expanded ? C.gold : C.white }}>
         {title}
       </p>
-      <p className="text-[10px] mt-1.5 cursor-pointer transition-colors"
+      <p className="text-[11px] mt-1.5 cursor-pointer transition-colors"
         style={{ color: C.textDim }}
         onClick={() => setExpanded(!expanded)}>
         {expanded ? 'Click to close' : 'Click to explore'}

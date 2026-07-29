@@ -151,7 +151,7 @@ function SourceCard({
           <div>
             <h3 className="text-sm font-semibold text-slate-900">{connector.name}</h3>
             <div className="flex items-center gap-2 mt-0.5">
-              <Badge variant="outline" className="text-[10px] bg-slate-50">
+              <Badge variant="outline" className="text-[11px] bg-slate-50">
                 {connector.sourceType}
               </Badge>
               {/* Health dot */}
@@ -185,20 +185,20 @@ function SourceCard({
       {/* Metrics row */}
       <div className="mt-4 grid grid-cols-3 gap-4">
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Last Sync</p>
+          <p className="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Last Sync</p>
           <p className="text-xs font-semibold text-slate-700 mt-0.5 flex items-center gap-1">
             <Clock className="h-3 w-3 text-slate-400" />
             {formatTimestamp(connector.lastRunAt)}
           </p>
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Records</p>
+          <p className="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Records</p>
           <p className="text-xs font-semibold text-slate-700 mt-0.5">
             {connector.recordsAcquired.toLocaleString()}
           </p>
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Quality</p>
+          <p className="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Quality</p>
           <p className="text-xs font-semibold text-slate-700 mt-0.5">
             {qualityLabel(connector.dataQualityScore)}
           </p>
@@ -468,7 +468,7 @@ export default function IntelligenceSourcesScreen({ navigateTo }: IntelligenceSo
                 <div className="flex items-center gap-2 mb-2">
                   <Eye className="h-4 w-4 text-blue-600" />
                   <span className="text-xs font-semibold text-slate-700">Preview</span>
-                  <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+                  <Badge variant="outline" className="text-[11px] bg-blue-50 text-blue-700 border-blue-200">
                     {uploadPreview.rowCount} rows · {uploadPreview.columns.length} columns
                   </Badge>
                 </div>
@@ -556,7 +556,7 @@ export default function IntelligenceSourcesScreen({ navigateTo }: IntelligenceSo
             runs.map(run => (
               <div key={run.id} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-3">
-                  <Badge variant="outline" className={cn('text-[10px]', runStatusColor(run.status))}>
+                  <Badge variant="outline" className={cn('text-[11px]', runStatusColor(run.status))}>
                     {run.status}
                   </Badge>
                   <div>

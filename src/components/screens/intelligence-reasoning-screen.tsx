@@ -127,7 +127,7 @@ function ConfidenceCircle({ score }: { score: number }) {
 
   return (
     <div className="relative flex items-center justify-center w-36 h-36 mx-auto">
-      <svg className="w-36 h-36 -rotate-90" viewBox="0 0 120 120">
+      <svg aria-hidden="true" className="w-36 h-36 -rotate-90" viewBox="0 0 120 120">
         <circle cx="60" cy="60" r={radius} fill="none" strokeWidth="6" className="stroke-slate-100" />
         <circle cx="60" cy="60" r={radius} fill="none" strokeWidth="6" strokeLinecap="round"
           stroke={color} strokeDasharray={circumference} strokeDashoffset={strokeDashoffset}
@@ -135,7 +135,7 @@ function ConfidenceCircle({ score }: { score: number }) {
       </svg>
       <div className="absolute flex flex-col items-center">
         <span className={cn('text-3xl font-bold', getScoreColor(score))}>{score}</span>
-        <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Confidence</span>
+        <span className="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Confidence</span>
       </div>
     </div>
   );
@@ -195,12 +195,12 @@ function ReasoningStepCard({
           {/* Evidence at this step */}
           {step.evidence.length > 0 && (
             <div className="mt-3 space-y-2">
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Evidence</p>
+              <p className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Evidence</p>
               {step.evidence.map((ev, i) => (
                 <div key={i} className="rounded-lg bg-slate-50 border border-slate-100 p-3">
                   <div className="flex items-center gap-2 mb-1">
                     <EvidenceBadge source={ev.source} />
-                    <Badge variant="outline" className={cn('text-[10px]', getQualityBadge(ev.quality).className)}>
+                    <Badge variant="outline" className={cn('text-[11px]', getQualityBadge(ev.quality).className)}>
                       {ev.quality}
                     </Badge>
                   </div>
@@ -213,7 +213,7 @@ function ReasoningStepCard({
           {/* Conclusion */}
           {step.conclusion && (
             <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
-              <p className="text-[10px] uppercase tracking-wider text-blue-600 font-semibold mb-1">Conclusion</p>
+              <p className="text-[11px] uppercase tracking-wider text-blue-600 font-semibold mb-1">Conclusion</p>
               <p className="text-sm text-slate-700 leading-relaxed">{step.conclusion}</p>
             </div>
           )}
@@ -493,7 +493,7 @@ export default function IntelligenceReasoningScreen({
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
             <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-slate-400" /> Evidence Sources
-              <Badge variant="outline" className="ml-auto text-[10px] bg-slate-50">{supportingEvidence.total} items</Badge>
+              <Badge variant="outline" className="ml-auto text-[11px] bg-slate-50">{supportingEvidence.total} items</Badge>
             </h3>
             <div className="overflow-hidden rounded-lg border border-slate-200">
               <table className="w-full text-sm">
@@ -513,7 +513,7 @@ export default function IntelligenceReasoningScreen({
                         <td className="py-2.5 px-3 font-medium text-slate-700">{row.source}</td>
                         <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap">{row.date}</td>
                         <td className="py-2.5 px-3">
-                          <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border', q.className)}>
+                          <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border', q.className)}>
                             {q.label}
                           </span>
                         </td>
@@ -527,11 +527,11 @@ export default function IntelligenceReasoningScreen({
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg border border-slate-200 p-3 text-center">
                 <p className="text-lg font-bold text-emerald-600">{supportingEvidence.validatedSignals}</p>
-                <p className="text-[10px] text-slate-400">Valid Signals</p>
+                <p className="text-[11px] text-slate-400">Valid Signals</p>
               </div>
               <div className="rounded-lg border border-slate-200 p-3 text-center">
                 <p className="text-lg font-bold text-amber-600">{supportingEvidence.weakSignals}</p>
-                <p className="text-[10px] text-slate-400">Weak Signals</p>
+                <p className="text-[11px] text-slate-400">Weak Signals</p>
               </div>
             </div>
           </div>
@@ -541,7 +541,7 @@ export default function IntelligenceReasoningScreen({
             <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-slate-400" /> Active Conflicts
               <Badge variant={conflicts.length > 0 ? 'destructive' : 'outline'}
-                className={cn('ml-auto text-[10px]', conflicts.length === 0 && 'bg-emerald-50 text-emerald-700 border-emerald-200')}>
+                className={cn('ml-auto text-[11px]', conflicts.length === 0 && 'bg-emerald-50 text-emerald-700 border-emerald-200')}>
                 {conflicts.length}
               </Badge>
             </h3>
@@ -550,8 +550,8 @@ export default function IntelligenceReasoningScreen({
                 {conflicts.map((c, i) => (
                   <div key={i} className="rounded-lg border border-slate-200 p-4 space-y-2 hover:bg-slate-50 transition-colors">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant={getSeverityVariant(c.severity)} className="text-[10px]">{c.severity}</Badge>
-                      <Badge variant="outline" className="text-[10px]">{c.conflictType.replace(/_/g, ' ')}</Badge>
+                      <Badge variant={getSeverityVariant(c.severity)} className="text-[11px]">{c.severity}</Badge>
+                      <Badge variant="outline" className="text-[11px]">{c.conflictType.replace(/_/g, ' ')}</Badge>
                     </div>
                     <p className="text-sm leading-relaxed text-slate-600">{c.description}</p>
                     <div className="flex items-center gap-1.5 text-xs text-amber-600 font-medium">

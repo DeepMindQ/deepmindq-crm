@@ -131,7 +131,7 @@ function CompanyCard({
         <div className="flex items-center justify-between">
           <Badge
             variant="outline"
-            className={`text-[10px] font-semibold px-2 py-0.5 border ${tierConfig.className}`}
+            className={`text-[11px] font-semibold px-2 py-0.5 border ${tierConfig.className}`}
           >
             {tierConfig.label}
           </Badge>

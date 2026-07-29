@@ -361,7 +361,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
               </div>
               <h3 className="text-sm font-semibold" style={{ color: 'var(--color-gold-dim)' }}>AI Relationship Summary</h3>
               <span
-                className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
                 style={{ background: 'rgba(184, 134, 11, 0.12)', color: 'var(--color-gold-dim)' }}
               >
                 Live AI
@@ -412,7 +412,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                     {company.contacts.map((c) => (
                       <div key={c.name} className="flex items-center gap-1.5 bg-gray-50 rounded-full pl-1 pr-3 py-1">
                         <span
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-white"
                           style={{ background: c.color }}
                         >
                           {c.initials}
@@ -459,7 +459,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                           <div className="space-y-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-xs text-muted-foreground font-medium">{entry.date}</span>
-                              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${interactionColors[entry.type]}`}>
+                              <Badge variant="outline" className={`text-[11px] px-1.5 py-0 ${interactionColors[entry.type]}`}>
                                 <Icon className="w-3 h-3 mr-1" />
                                 {entry.type}
                               </Badge>
@@ -511,7 +511,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
               >
                 {/* Priority indicator */}
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                  <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
                     style={{
                       background: rec.priority === 'high' ? 'rgba(239, 68, 68, 0.08)' : 'rgba(245, 158, 11, 0.08)',
                       color: rec.priority === 'high' ? '#DC2626' : '#D97706',
@@ -575,7 +575,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                 ].map((item) => (
                   <div key={item.label} className="text-center p-2 rounded-lg bg-gray-50">
                     <p className="text-lg font-bold tabular-nums" style={{ color: item.color }}>{item.value}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{item.label}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{item.label}</p>
                   </div>
                 ))}
               </div>

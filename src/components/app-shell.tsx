@@ -54,6 +54,7 @@ function NavButton({
         focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-[oklch(0.11_0.01_260)]
       `}
       aria-current={active ? 'page' : undefined}
+      aria-label={collapsed ? item.label : undefined}
     >
       {/* Active accent line */}
       {active && (
@@ -182,7 +183,7 @@ function Sidebar() {
                   onClick={() => toggleSection(section.heading)}
                   className="w-full flex items-center gap-1.5 px-3 pt-3 pb-1.5 group"
                 >
-                  <span className="text-[10px] uppercase tracking-[0.18em] font-semibold flex-1 text-left text-muted-foreground">
+                  <span className="text-[11px] uppercase tracking-[0.18em] font-semibold flex-1 text-left text-muted-foreground">
                     {section.heading}
                   </span>
                   <ChevronDown

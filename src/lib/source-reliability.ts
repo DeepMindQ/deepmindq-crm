@@ -11,7 +11,7 @@ import { db } from '@/lib/db';
 
 const DEFAULT_RELIABILITY = 0.5;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const esr = () => (db as any).evidenceSourceReliability;
 
 export async function getSourceReliability(domain: string): Promise<number> {

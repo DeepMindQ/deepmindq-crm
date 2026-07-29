@@ -141,7 +141,7 @@ function ScoreRing({ score, size = 72, strokeWidth = 5 }: { score: number; size?
 
   return (
     <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
+      <svg aria-hidden="true" width={size} height={size} className="-rotate-90">
         <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="#F3F4F6" strokeWidth={strokeWidth} />
         <motion.circle cx={size/2} cy={size/2} r={radius}
           fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round"
@@ -219,15 +219,15 @@ function DealIntelPanel({ intel, loading }: { intel: any | null; loading: boolea
       <div className="grid grid-cols-3 gap-3">
         <div className="p-3 rounded-lg bg-gray-50 border border-gray-100 text-center">
           <p className="text-xl font-black" style={{ color: GOLD }}>{intel.confidence}%</p>
-          <p className="text-[10px] text-muted-foreground uppercase">Confidence</p>
+          <p className="text-[11px] text-muted-foreground uppercase">Confidence</p>
         </div>
         <div className="p-3 rounded-lg bg-gray-50 border border-gray-100 text-center">
           <p className="text-xl font-black" style={{ color: intel.buyerReadiness >= 70 ? '#059669' : '#d97706' }}>{intel.buyerReadiness}%</p>
-          <p className="text-[10px] text-muted-foreground uppercase">Buyer Ready</p>
+          <p className="text-[11px] text-muted-foreground uppercase">Buyer Ready</p>
         </div>
         <div className="p-3 rounded-lg bg-gray-50 border border-gray-100 text-center">
           <p className="text-sm font-black text-foreground">{intel.dealVelocity}</p>
-          <p className="text-[10px] text-muted-foreground uppercase">Velocity</p>
+          <p className="text-[11px] text-muted-foreground uppercase">Velocity</p>
         </div>
       </div>
 
@@ -236,7 +236,7 @@ function DealIntelPanel({ intel, loading }: { intel: any | null; loading: boolea
         <div className="p-3 rounded-lg border border-amber-100 bg-amber-50/40">
           <div className="flex items-center gap-1.5 mb-1">
             <Award size={12} className="text-amber-600" />
-            <span className="text-[10px] font-semibold uppercase text-amber-600">Competitive Position</span>
+            <span className="text-[11px] font-semibold uppercase text-amber-600">Competitive Position</span>
           </div>
           <p className="text-xs text-foreground/80">{intel.competitivePosition}</p>
         </div>
@@ -245,7 +245,7 @@ function DealIntelPanel({ intel, loading }: { intel: any | null; loading: boolea
       {/* Key Insights */}
       {intel.keyInsights?.length > 0 && (
         <div>
-          <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-2 flex items-center gap-1">
+          <p className="text-[11px] font-semibold uppercase text-muted-foreground mb-2 flex items-center gap-1">
             <Brain size={11} /> Key Insights
           </p>
           <div className="space-y-1.5">
@@ -262,7 +262,7 @@ function DealIntelPanel({ intel, loading }: { intel: any | null; loading: boolea
       {/* Risk Factors */}
       {intel.riskFactors?.length > 0 && (
         <div>
-          <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-2 flex items-center gap-1">
+          <p className="text-[11px] font-semibold uppercase text-muted-foreground mb-2 flex items-center gap-1">
             <AlertTriangle size={11} className="text-red-500" /> Risk Factors
           </p>
           <div className="space-y-1.5">
@@ -272,7 +272,7 @@ function DealIntelPanel({ intel, loading }: { intel: any | null; loading: boolea
                   <p className="text-xs font-medium text-red-700">{risk.risk}</p>
                   <Badge className="text-[9px] bg-red-100 text-red-600">{risk.severity}</Badge>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Mitigation: {risk.mitigation}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Mitigation: {risk.mitigation}</p>
               </div>
             ))}
           </div>
@@ -282,7 +282,7 @@ function DealIntelPanel({ intel, loading }: { intel: any | null; loading: boolea
       {/* Conversation Starters */}
       {intel.conversationStarters?.length > 0 && (
         <div>
-          <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-2 flex items-center gap-1">
+          <p className="text-[11px] font-semibold uppercase text-muted-foreground mb-2 flex items-center gap-1">
             <MessageSquare size={11} className="text-blue-500" /> Conversation Starters
           </p>
           <div className="space-y-1.5">
@@ -298,7 +298,7 @@ function DealIntelPanel({ intel, loading }: { intel: any | null; loading: boolea
       {/* Pricing Guidance */}
       {intel.pricingGuidance && (
         <div>
-          <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
+          <p className="text-[11px] font-semibold uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
             <DollarSign size={11} className="text-emerald-500" /> Pricing Guidance
           </p>
           <p className="text-xs text-muted-foreground p-2 rounded-lg bg-emerald-50/40 border border-emerald-100">{intel.pricingGuidance}</p>
@@ -308,7 +308,7 @@ function DealIntelPanel({ intel, loading }: { intel: any | null; loading: boolea
       {/* Recommended Approach */}
       {intel.recommendedApproach && (
         <div>
-          <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
+          <p className="text-[11px] font-semibold uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
             <Lightbulb size={11} className="text-amber-500" /> Recommended Approach
           </p>
           <p className="text-xs text-muted-foreground p-2.5 rounded-lg bg-amber-50/50 border border-amber-100 leading-relaxed">{intel.recommendedApproach}</p>
@@ -320,13 +320,13 @@ function DealIntelPanel({ intel, loading }: { intel: any | null; loading: boolea
         <div className="p-3 rounded-lg border-2 border-amber-200 bg-gradient-to-r from-amber-50/60 to-white">
           <div className="flex items-center gap-1.5 mb-1">
             <Zap size={13} className="text-amber-600" />
-            <span className="text-[10px] font-bold uppercase text-amber-600">Next Best Action</span>
+            <span className="text-[11px] font-bold uppercase text-amber-600">Next Best Action</span>
           </div>
           <p className="text-xs font-medium text-foreground">{intel.nextBestAction}</p>
         </div>
       )}
 
-      <div className="text-[10px] text-muted-foreground/60 text-right">
+      <div className="text-[11px] text-muted-foreground/60 text-right">
         Generated: {new Date(intel.generatedAt).toLocaleString()}
       </div>
     </div>
@@ -354,7 +354,7 @@ function DealRoomCard({
       <div className="h-0.5" style={{ background: GOLD_GRAD }} />
 
       {/* Header */}
-      <div className="p-5 cursor-pointer" onClick={onToggle}>
+      <div className="p-5 cursor-pointer" onClick={onToggle} role="button" tabIndex={0} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}>
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1.5">
@@ -364,10 +364,10 @@ function DealRoomCard({
                 <span className="text-sm font-semibold text-foreground hover:underline truncate max-w-[200px]">{opportunity.company.rawName}</span>
               </button>
               {opportunity.company.industry && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-gray-200 text-muted-foreground">{opportunity.company.industry}</Badge>
+                <Badge variant="outline" className="text-[11px] px-1.5 py-0 border-gray-200 text-muted-foreground">{opportunity.company.industry}</Badge>
               )}
-              <Badge className={`text-[10px] px-1.5 py-0 border font-medium ${priority.bg} ${priority.text}`}>{priority.label}</Badge>
-              <Badge className={`text-[10px] px-1.5 py-0 border font-medium ${
+              <Badge className={`text-[11px] px-1.5 py-0 border font-medium ${priority.bg} ${priority.text}`}>{priority.label}</Badge>
+              <Badge className={`text-[11px] px-1.5 py-0 border font-medium ${
                 opportunity.status === 'accepted' ? 'border-emerald-200 text-emerald-600 bg-emerald-50' :
                 opportunity.status === 'monitored' ? 'border-blue-200 text-blue-600 bg-blue-50' :
                 opportunity.status === 'rejected' ? 'border-red-200 text-red-500 bg-red-50' :
@@ -420,7 +420,7 @@ function DealRoomCard({
                 {/* Why Now */}
                 {opportunity.whyNow && (
                   <div>
-                    <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
+                    <p className="text-[11px] font-semibold uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
                       <Clock size={10} className="text-blue-500" /> Why Now
                     </p>
                     <p className="text-xs text-foreground/80 leading-relaxed p-2.5 rounded-lg bg-blue-50/40 border border-blue-100">{opportunity.whyNow}</p>
@@ -429,7 +429,7 @@ function DealRoomCard({
                 {/* Business Problem */}
                 {opportunity.businessProblem && (
                   <div>
-                    <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
+                    <p className="text-[11px] font-semibold uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
                       <AlertTriangle size={10} className="text-red-500" /> Business Problem
                     </p>
                     <p className="text-xs text-foreground/80 leading-relaxed p-2.5 rounded-lg bg-red-50/30 border border-red-100">{opportunity.businessProblem}</p>
@@ -438,7 +438,7 @@ function DealRoomCard({
                 {/* Recommended Capability */}
                 {opportunity.recommendedCapability && (
                   <div>
-                    <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
+                    <p className="text-[11px] font-semibold uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
                       <Lightbulb size={10} className="text-amber-500" /> Recommended Capability
                     </p>
                     <p className="text-xs text-foreground/80 p-2.5 rounded-lg bg-amber-50/40 border border-amber-100">{opportunity.recommendedCapability}</p>
@@ -447,12 +447,12 @@ function DealRoomCard({
                 {/* Stakeholders */}
                 {stakeholders.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
+                    <p className="text-[11px] font-semibold uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
                       <Users size={10} className="text-purple-500" /> Recommended Stakeholders
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {stakeholders.map((s, i) => (
-                        <Badge key={i} className="text-[10px] px-2 py-0 bg-purple-50 text-purple-600 border-purple-200">{s}</Badge>
+                        <Badge key={i} className="text-[11px] px-2 py-0 bg-purple-50 text-purple-600 border-purple-200">{s}</Badge>
                       ))}
                     </div>
                   </div>
@@ -460,7 +460,7 @@ function DealRoomCard({
                 {/* Suggested Conversation */}
                 {opportunity.suggestedConversation && (
                   <div className="md:col-span-2">
-                    <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
+                    <p className="text-[11px] font-semibold uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
                       <MessageSquare size={10} className="text-emerald-500" /> Suggested Conversation
                     </p>
                     <p className="text-xs text-foreground/80 leading-relaxed p-2.5 rounded-lg bg-emerald-50/40 border border-emerald-100">{opportunity.suggestedConversation}</p>
@@ -477,13 +477,13 @@ function DealRoomCard({
                   <h3 className="text-sm font-bold text-foreground">Deal Intelligence Room</h3>
                   {!dealIntel && !dealIntelLoading && (
                     <Button size="sm" onClick={(e) => { e.stopPropagation(); onLoadIntel(); }}
-                      className="gap-1.5 h-7 text-[10px] ml-auto" style={{ background: GOLD, color: '#060910' }}>
+                      className="gap-1.5 h-7 text-[11px] ml-auto" style={{ background: GOLD, color: '#060910' }}>
                       <Sparkles size={11} /> Analyze Deal
                     </Button>
                   )}
                   {dealIntel && (
                     <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onLoadIntel(); }}
-                      className="gap-1.5 h-7 text-[10px] ml-auto border-gray-200">
+                      className="gap-1.5 h-7 text-[11px] ml-auto border-gray-200">
                       <RefreshCw size={11} /> Refresh
                     </Button>
                   )}
@@ -539,11 +539,11 @@ function DealRoomCard({
           </Badge>
         )}
         <div className="ml-auto flex items-center gap-3">
-          <button onClick={onToggle} className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={onToggle} className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
             {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             {expanded ? 'Collapse' : 'Expand Deal Room'}
           </button>
-          <span className="text-[10px] text-muted-foreground/60 tabular-nums">
+          <span className="text-[11px] text-muted-foreground/60 tabular-nums">
             {new Date(opportunity.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </span>
         </div>
@@ -730,7 +730,7 @@ export default function OpportunityWorkspaceScreen() {
                 activeTab === t.key ? 'bg-white shadow-sm border border-gray-200' : 'text-muted-foreground hover:text-foreground border border-transparent'
               }`}>
               {t.label}
-              {t.count > 0 && <span className="text-[10px] bg-gray-200 text-muted-foreground px-1.5 rounded-full tabular-nums">{t.count}</span>}
+              {t.count > 0 && <span className="text-[11px] bg-gray-200 text-muted-foreground px-1.5 rounded-full tabular-nums">{t.count}</span>}
             </button>
           ))}
         </div>

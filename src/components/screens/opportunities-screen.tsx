@@ -477,7 +477,7 @@ export default function OpportunitiesScreen() {
                               )}
 
                               {/* Days in stage */}
-                              <div className="flex items-center gap-1 text-[10px] text-gray-600">
+                              <div className="flex items-center gap-1 text-[11px] text-gray-600">
                                 <Clock className="size-3" />
                                 <span>{daysInStage === 0 ? 'Updated today' : `${daysInStage}d in stage`}</span>
                               </div>

@@ -586,7 +586,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                               {item.status === 'failed' && item.failureReason && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <span className="flex items-center gap-1 text-red-600/70 text-[10px] mt-0.5 cursor-help">
+                                    <span className="flex items-center gap-1 text-red-600/70 text-[11px] mt-0.5 cursor-help">
                                       <AlertTriangle className="w-3 h-3 flex-shrink-0" />
                                       <span className="max-w-[160px] truncate">{item.failureReason}</span>
                                     </span>
@@ -869,7 +869,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-foreground">Email Provider</p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-[11px] text-muted-foreground">
                     Configure EMAIL_PROVIDER and EMAIL_API_KEY in environment variables
                   </p>
                 </div>

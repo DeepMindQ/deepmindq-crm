@@ -342,7 +342,7 @@ export default function AIUsageDashboardScreen() {
                       const passColor = day.passRate >= 95 ? 'bg-emerald-400' : day.passRate >= 80 ? 'bg-amber-400' : 'bg-red-400';
                       return (
                         <div key={i} className="flex flex-col items-center gap-0.5 min-w-[24px]">
-                          <span className="text-[10px] text-gray-500 font-medium">{day.calls}</span>
+                          <span className="text-[11px] text-gray-500 font-medium">{day.calls}</span>
                           <div
                             className={`w-5 ${passColor} rounded-t transition-all`}
                             style={{ height: `${Math.max(heightPercent, 3)}%` }}
@@ -358,15 +358,15 @@ export default function AIUsageDashboardScreen() {
                 <div className="flex items-center gap-4 mt-3 pt-2 border-t">
                   <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded bg-emerald-400" />
-                    <span className="text-[10px] text-gray-500">≥95% pass rate</span>
+                    <span className="text-[11px] text-gray-500">≥95% pass rate</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded bg-amber-400" />
-                    <span className="text-[10px] text-gray-500">80-94% pass rate</span>
+                    <span className="text-[11px] text-gray-500">80-94% pass rate</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded bg-red-400" />
-                    <span className="text-[10px] text-gray-500">&lt;80% pass rate</span>
+                    <span className="text-[11px] text-gray-500">&lt;80% pass rate</span>
                   </div>
                 </div>
               </CardContent>
@@ -430,19 +430,19 @@ export default function AIUsageDashboardScreen() {
                   <ShieldCheck className="h-6 w-6 text-emerald-600 mx-auto mb-2" />
                   <p className="text-lg font-bold text-gray-900">{stats.reliability.uptimePercent}%</p>
                   <p className="text-xs text-gray-500">AI Pipeline Uptime</p>
-                  <p className="text-[10px] text-gray-400 mt-1">Governance pass rate</p>
+                  <p className="text-[11px] text-gray-400 mt-1">Governance pass rate</p>
                 </div>
                 <div className="text-center p-4 bg-white rounded-lg">
                   <Thermometer className="h-6 w-6 text-blue-600 mx-auto mb-2" />
                   <p className="text-lg font-bold text-gray-900">{stats.reliability.avgProcessingQuality}%</p>
                   <p className="text-xs text-gray-500">Avg. Processing Quality</p>
-                  <p className="text-[10px] text-gray-400 mt-1">Research confidence score</p>
+                  <p className="text-[11px] text-gray-400 mt-1">Research confidence score</p>
                 </div>
                 <div className="text-center p-4 bg-white rounded-lg">
                   <Clock className="h-6 w-6 text-violet-600 mx-auto mb-2" />
                   <p className="text-lg font-bold text-gray-900">{stats.reliability.dataFreshnessPercent}%</p>
                   <p className="text-xs text-gray-500">Data Freshness</p>
-                  <p className="text-[10px] text-gray-400 mt-1">Source recency score</p>
+                  <p className="text-[11px] text-gray-400 mt-1">Source recency score</p>
                 </div>
               </div>
             </CardContent>

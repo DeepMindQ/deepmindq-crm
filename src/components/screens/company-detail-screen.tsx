@@ -70,7 +70,7 @@ function ScoreRing({ score, size = 72, strokeWidth = 5, label, color }: {
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90">
+        <svg aria-hidden="true" width={size} height={size} className="-rotate-90">
           <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="#F3F4F6" strokeWidth={strokeWidth} />
           <motion.circle
             cx={size/2} cy={size/2} r={radius}
@@ -87,7 +87,7 @@ function ScoreRing({ score, size = 72, strokeWidth = 5, label, color }: {
           <span className="text-lg font-black tabular-nums" style={{ color: c }}>{Math.round(score)}</span>
         </div>
       </div>
-      {label && <span className="text-[10px] text-muted-foreground font-medium">{label}</span>}
+      {label && <span className="text-[11px] text-muted-foreground font-medium">{label}</span>}
     </div>
   );
 }
@@ -156,7 +156,7 @@ function IntelligenceHero({
               <div className="flex items-center gap-2 mb-1">
                 <Building2 size={18} style={{ color: INTEL }} />
                 <h1 className="text-xl font-black text-foreground truncate">{company?.rawName || company?.name || 'Unknown'}</h1>
-                <Badge className={`text-[10px] px-1.5 py-0 ${STATUS_COLORS[company?.status || 'prospect'] || ''}`}>
+                <Badge className={`text-[11px] px-1.5 py-0 ${STATUS_COLORS[company?.status || 'prospect'] || ''}`}>
                   {(company?.status || 'prospect').replace(/_/g, ' ')}
                 </Badge>
               </div>
@@ -202,7 +202,7 @@ function IntelligenceHero({
               ].map((sub, i) => (
                 <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50/80 border border-gray-100">
                   <div className="flex-1">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{sub.label}</p>
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-wider">{sub.label}</p>
                     <div className="w-full h-1.5 bg-gray-200 rounded-full mt-1.5 overflow-hidden">
                       <motion.div
                         className="h-full rounded-full"
@@ -231,10 +231,10 @@ function IntelligenceHero({
                   {aiActions.actions?.slice(0, 2).map((a: any) => a.title || a.action).join(' → ')}
                 </p>
               </div>
-              <Badge className="text-[10px] bg-purple-500/15 text-purple-600 border-purple-200 shrink-0">
+              <Badge className="text-[11px] bg-purple-500/15 text-purple-600 border-purple-200 shrink-0">
                 {aiActions.actions?.length || 0} Actions
               </Badge>
-              <Button size="sm" variant="ghost" className="h-7 text-[10px] text-amber-700 hover:text-amber-900 shrink-0" onClick={onNavigateActions}>
+              <Button size="sm" variant="ghost" className="h-7 text-[11px] text-amber-700 hover:text-amber-900 shrink-0" onClick={onNavigateActions}>
                 View All <ChevronRight size={12} />
               </Button>
             </div>
@@ -259,7 +259,7 @@ function IntelligenceHero({
             >
               <Lightbulb size={13} className="text-amber-500" /> Generate Actions
             </Button>
-            <div className="ml-auto flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <div className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <PulseDot color={confidence >= 60 ? '#059669' : '#d97706'} />
               {confidence}% confidence
               {aiScore?.evidenceCount > 0 && <><span className="mx-1">·</span>{aiScore.evidenceCount} evidence sources</>}
@@ -279,7 +279,7 @@ function KPIChip({ icon: Icon, label, value, color }: { icon: any; label: string
     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50/80 border border-gray-100">
       <Icon size={14} style={{ color }} />
       <div>
-        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+        <p className="text-[11px] text-muted-foreground uppercase tracking-wider">{label}</p>
         <p className="text-base font-black tabular-nums" style={{ color }}>{value}</p>
       </div>
     </div>
@@ -305,7 +305,7 @@ function SignalCard({ signal, onToggleRead }: { signal: any; onToggleRead: () =>
           <p className="text-xs font-semibold truncate">{signal.title || signal.signalType}</p>
           <p className="text-[11px] opacity-80 line-clamp-2 mt-0.5">{signal.description || signal.impact || ''}</p>
           {signal.detectedAt && (
-            <p className="text-[10px] opacity-60 mt-1">{new Date(signal.detectedAt).toLocaleDateString()}</p>
+            <p className="text-[11px] opacity-60 mt-1">{new Date(signal.detectedAt).toLocaleDateString()}</p>
           )}
         </div>
         <Badge className="text-[9px] px-1 py-0 uppercase font-bold shrink-0">{severity}</Badge>
@@ -331,7 +331,7 @@ function ContactMiniCard({ contact, onSelect }: { contact: any; onSelect: () => 
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold truncate group-hover:text-blue-600 transition-colors">{contact.name}</p>
-          <p className="text-[10px] text-muted-foreground truncate">{contact.jobTitle || 'No title'}</p>
+          <p className="text-[11px] text-muted-foreground truncate">{contact.jobTitle || 'No title'}</p>
         </div>
         {contact.roleBucket && (
           <Badge className="text-[9px] px-1.5 py-0 border font-medium" style={{ borderColor: roleColor + '40', color: roleColor, backgroundColor: roleColor + '10' }}>
@@ -393,7 +393,7 @@ function EvidenceRow({ evidence }: { evidence: any }) {
         <p className="text-[11px] text-foreground/80 line-clamp-1 group-hover:text-blue-600 transition-colors">{evidence.sourceTitle || evidence.snippet || 'Evidence'}</p>
         <div className="flex items-center gap-2 mt-0.5">
           <EvidenceBadge source={evidence.sourceType || 'web'} />
-          {evidence.confidence > 0 && <span className="text-[10px] text-muted-foreground tabular-nums">{Math.round(evidence.confidence * 100)}%</span>}
+          {evidence.confidence > 0 && <span className="text-[11px] text-muted-foreground tabular-nums">{Math.round(evidence.confidence * 100)}%</span>}
         </div>
       </div>
       <ExternalLink size={11} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
@@ -428,7 +428,7 @@ function ActionCard({ action, index }: { action: any; index: number }) {
           {action.talkingPoints && (
             <div className="space-y-1">
               {action.talkingPoints.slice(0, 3).map((tp: string, i: number) => (
-                <div key={i} className="flex items-start gap-1.5 text-[10px] text-muted-foreground">
+                <div key={i} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
                   <ChevronRight size={10} className="mt-0.5 text-blue-500 shrink-0" />
                   <span>{tp}</span>
                 </div>
@@ -461,7 +461,7 @@ function TimelineItem({ entry }: { entry: any }) {
       <div className="w-6 h-6 rounded-full flex items-center justify-center bg-gray-100 shrink-0 mt-0.5">{icon}</div>
       <div className="flex-1 min-w-0">
         <p className="text-[11px] text-foreground/80">{entry.details || entry.action?.replace(/_/g, ' ')}</p>
-        <p className="text-[10px] text-muted-foreground">{new Date(entry.createdAt).toLocaleDateString()}</p>
+        <p className="text-[11px] text-muted-foreground">{new Date(entry.createdAt).toLocaleDateString()}</p>
       </div>
     </div>
   );
@@ -482,7 +482,7 @@ function SectionPanel({ title, icon, accent, count, children, collapsible, defau
         {React.createElement(icon, { size: 14, style: { color: accent || INTEL } })}
         <h3 className="text-xs font-bold text-foreground flex-1">{title}</h3>
         {count !== undefined && (
-          <Badge className="text-[10px] px-1.5 py-0 bg-gray-100 text-muted-foreground font-medium">{count}</Badge>
+          <Badge className="text-[11px] px-1.5 py-0 bg-gray-100 text-muted-foreground font-medium">{count}</Badge>
         )}
         {onRefresh && (
           <button onClick={onRefresh} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -688,17 +688,17 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
   /* ── Auto-trigger Intelligence on mount ── */
   useEffect(() => {
     if (!loading && !aiInsights.length && !loadingIntel) fetchIntelligence();
-  }, [loading]); // eslint-disable-line
+  }, [loading]);  
 
   /* ── Auto-trigger Score ── */
   useEffect(() => {
     if (!loading && !aiScore && !loadingScore) fetchAIScore();
-  }, [loading]); // eslint-disable-line
+  }, [loading]);  
 
   /* ── Auto-trigger Actions ── */
   useEffect(() => {
     if (!loading && !aiActions && !loadingActions) fetchAIActions();
-  }, [loading]); // eslint-disable-line
+  }, [loading]);  
 
   /* ── Parse helpers ── */
   const parseTags = (t: string | null) => { if (!t) return []; try { return JSON.parse(t); } catch { return []; } };
@@ -740,7 +740,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               <div className="flex items-center gap-2">
                 <Building2 size={18} style={{ color: INTEL }} />
                 <span className="text-sm font-bold text-white">{companyName}</span>
-                <Badge className="text-[10px] px-1.5 py-0">{(company?.status || 'prospect').replace(/_/g, ' ')}</Badge>
+                <Badge className="text-[11px] px-1.5 py-0">{(company?.status || 'prospect').replace(/_/g, ' ')}</Badge>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -914,7 +914,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-0.5">
                               <span className="text-[11px] font-medium">{factor.label}</span>
-                              <span className="text-[10px] text-muted-foreground">{factor.maxPoints} max</span>
+                              <span className="text-[11px] text-muted-foreground">{factor.maxPoints} max</span>
                             </div>
                             <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                               <motion.div
@@ -932,7 +932,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                       <div className="mt-3 p-3 rounded-lg bg-blue-50/50 border border-blue-100">
                         <div className="flex items-center gap-1.5 mb-1.5">
                           <Sparkles size={11} className="text-blue-600" />
-                          <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider">AI Analysis</span>
+                          <span className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider">AI Analysis</span>
                         </div>
                         <p className="text-[11px] text-muted-foreground leading-relaxed">{aiScore.narrative}</p>
                       </div>
@@ -968,7 +968,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                           <p className="text-[11px] text-foreground/80 line-clamp-3">{note.body}</p>
                           <div className="flex items-center gap-2 mt-1.5">
                             <Badge className="text-[9px] px-1 py-0 bg-gray-100 text-muted-foreground">{note.noteType || 'note'}</Badge>
-                            <span className="text-[10px] text-muted-foreground">{new Date(note.createdAt).toLocaleDateString()}</span>
+                            <span className="text-[11px] text-muted-foreground">{new Date(note.createdAt).toLocaleDateString()}</span>
                           </div>
                         </div>
                       ))}
@@ -990,7 +990,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                     <div className="space-y-3">
                       {['name', 'industry', 'sizeRange', 'location', 'country', 'website'].map(field => (
                         <div key={field}>
-                          <label className="text-[10px] text-muted-foreground uppercase tracking-wider">{field.replace(/([A-Z])/g, ' $1')}</label>
+                          <label className="text-[11px] text-muted-foreground uppercase tracking-wider">{field.replace(/([A-Z])/g, ' $1')}</label>
                           <Input value={editForm[field] || ''} onChange={e => setEditForm(p => ({ ...p, [field]: e.target.value }))} className="mt-1 h-8 text-xs bg-gray-50 border-gray-200" />
                         </div>
                       ))}
@@ -1018,7 +1018,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                       {tags.length > 0 && (
                         <div className="pt-2 flex flex-wrap gap-1.5">
                           {tags.map((tag: string, i: number) => (
-                            <Badge key={i} variant="outline" className="text-[10px] px-2 py-0">{tag}</Badge>
+                            <Badge key={i} variant="outline" className="text-[11px] px-2 py-0">{tag}</Badge>
                           ))}
                         </div>
                       )}
@@ -1041,48 +1041,48 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                     <div className="space-y-4">
                       {researchCard.businessOverview && (
                         <div>
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Business Overview</p>
+                          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Business Overview</p>
                           <p className="text-xs text-foreground/70 leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-100">{researchCard.businessOverview}</p>
                         </div>
                       )}
                       <div className="grid grid-cols-2 gap-4">
                         {researchCard.techLandscape && (
                           <div>
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Tech Landscape</p>
+                            <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Tech Landscape</p>
                             <p className="text-xs text-foreground/70 leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-100">{researchCard.techLandscape}</p>
                           </div>
                         )}
                         {researchCard.potentialChallenges && (
                           <div>
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Challenges</p>
+                            <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Challenges</p>
                             <p className="text-xs text-foreground/70 leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-100">{researchCard.potentialChallenges}</p>
                           </div>
                         )}
                         {researchCard.possibleOpportunities && (
                           <div>
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Opportunities</p>
+                            <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Opportunities</p>
                             <p className="text-xs text-foreground/70 leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-100">{researchCard.possibleOpportunities}</p>
                           </div>
                         )}
                         {researchCard.relevantServices && (
                           <div>
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Relevant Services</p>
+                            <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Relevant Services</p>
                             <p className="text-xs text-foreground/70 leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-100">{researchCard.relevantServices}</p>
                           </div>
                         )}
                       </div>
                       {researchCard.keyDecisionMakers && (
                         <div>
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Key Decision Makers</p>
+                          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Key Decision Makers</p>
                           <p className="text-xs text-foreground/70 leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-100">{researchCard.keyDecisionMakers}</p>
                         </div>
                       )}
                       {techStack.length > 0 && (
                         <div>
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5">Tech Stack</p>
+                          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1.5">Tech Stack</p>
                           <div className="flex flex-wrap gap-1.5">
                             {techStack.map((tech: string, i: number) => (
-                              <Badge key={i} variant="outline" className="text-[10px] px-2 py-0 border-blue-200 text-blue-600">{tech}</Badge>
+                              <Badge key={i} variant="outline" className="text-[11px] px-2 py-0 border-blue-200 text-blue-600">{tech}</Badge>
                             ))}
                           </div>
                         </div>
@@ -1149,8 +1149,8 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                           <p className="text-xs font-medium text-foreground/80 group-hover:text-blue-600 transition-colors truncate">{e.sourceTitle || e.snippet || 'Evidence'}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <EvidenceBadge source={e.sourceType || 'web'} />
-                            {e.confidence > 0 && <span className="text-[10px] text-muted-foreground tabular-nums">{Math.round(e.confidence * 100)}%</span>}
-                            <span className="text-[10px] text-muted-foreground">{e.sourceName || ''}</span>
+                            {e.confidence > 0 && <span className="text-[11px] text-muted-foreground tabular-nums">{Math.round(e.confidence * 100)}%</span>}
+                            <span className="text-[11px] text-muted-foreground">{e.sourceName || ''}</span>
                           </div>
                           {e.snippet && (
                             <p className="text-[11px] text-muted-foreground line-clamp-2 mt-1">{e.snippet}</p>

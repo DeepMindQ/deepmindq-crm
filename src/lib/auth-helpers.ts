@@ -145,6 +145,18 @@ export const ADMIN_ROLES = ['admin', 'ADMIN'];
  * Standard security headers applied to all responses.
  */
 export function getSecurityHeaders(): Record<string, string> {
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob: https://*.googleusercontent.com",
+    "connect-src 'self' https://*.googleapis.com https://api.tavily.com",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; ');
+
   return {
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
@@ -152,6 +164,7 @@ export function getSecurityHeaders(): Record<string, string> {
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
     'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+    'Content-Security-Policy': csp,
   };
 }
 

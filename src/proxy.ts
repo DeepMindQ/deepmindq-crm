@@ -21,6 +21,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { auditAuthFailure, auditCsrfFailure } from '@/lib/audit-logger';
 import {
   getSessionToken,
   isPublicPath,
@@ -99,7 +100,9 @@ function handleApiRoute(
   const token = getSessionToken(request);
 
   if (!token) {
+    const ip = getClientIp(request);
     logger.warn(`[Middleware] No session token for ${request.method} ${pathname}`);
+    auditAuthFailure('Unauthenticated API access', ip, { path: pathname, method: request.method });
     return unauthorizedResponse();
   }
 
@@ -107,6 +110,8 @@ function handleApiRoute(
   const method = request.method.toUpperCase();
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     if (!validateCsrf(request)) {
+      const ip = getClientIp(request);
+      auditCsrfFailure(ip, pathname, request.method);
       return applySecurityHeaders(
         NextResponse.json(
           { success: false, error: 'CSRF validation failed' },

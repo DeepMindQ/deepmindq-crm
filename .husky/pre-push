@@ -36,7 +36,7 @@ echo "✅ Lint + Governance passed"
 
 # ── 3. Tests (NON-BLOCKING — warns only) ──
 echo "⏳ [3/4] Tests..."
-npx vitest run 2>&1 | tail -5
+npx vitest run 2>&1 | tail -5 || true
 echo "ℹ️  Test failures are tracked in baseline — not blocking push"
 
 # ── 4. Baseline regression check ──

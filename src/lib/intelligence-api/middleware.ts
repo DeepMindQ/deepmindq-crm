@@ -1,0 +1,157 @@
+/**
+ * Intelligence API Middleware — Shared utilities for all /api/intelligence/* endpoints
+ *
+ * Provides:
+ * - parseIncludeParams: Parse ?include= query param
+ * - createResponse: Wrap data in IntelligenceResponse envelope
+ * - createErrorResponse: Standardized error responses
+ * - getFreshness: Compute freshness from company data
+ * - getCompanyFreshness: Fetch freshness from DB
+ */
+
+import { NextRequest } from 'next/server';
+import { IntelligenceResponse, IntelligenceMeta, IntelligenceInclude, FreshnessInfo, IntelligenceErrors } from './types';
+
+// ── Include Parameter Parsing ───────────────────────────────────────────────────
+
+const VALID_INCLUDES: Set<string> = new Set<string>([
+  'signals', 'scores', 'contacts', 'timeline', 'actions', 'brief',
+  'knowledge', 'mindmap', 'reasoning', 'opportunities',
+  'learning', 'data_health', 'people_changes', 'steps',
+]);
+
+/**
+ * Parse the ?include= query parameter from the request.
+ * Returns a set of valid includes (invalid ones are silently dropped).
+ */
+export function parseIncludeParams(
+  request: NextRequest,
+): { includes: Set<IntelligenceInclude>; raw: string | null } {
+  const raw = request.nextUrl.searchParams.get('include');
+  if (!raw) return { includes: new Set(), raw: null };
+
+  const requested = raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const valid = requested.filter(s => VALID_INCLUDES.has(s)) as IntelligenceInclude[];
+
+  return { includes: new Set(valid), raw };
+}
+
+/**
+ * Check if a specific include is requested.
+ */
+export function shouldInclude(includes: Set<IntelligenceInclude>, key: IntelligenceInclude): boolean {
+  return includes.has(key);
+}
+
+/**
+ * Check if ANY of the given includes are requested.
+ */
+export function shouldIncludeAny(includes: Set<IntelligenceInclude>, ...keys: IntelligenceInclude[]): boolean {
+  return keys.some(k => includes.has(k));
+}
+
+// ── Response Builders ────────────────────────────────────────────────────────────
+
+type EndpointName = 'company' | 'reasoning' | 'opportunity' | 'action' | 'conversation' | 'mindmap';
+
+/**
+ * Create a successful IntelligenceResponse envelope.
+ */
+export function createResponse<T>(
+  endpoint: EndpointName,
+  companyId: string,
+  data: T,
+  meta: {
+    durationMs: number;
+    includes: Set<IntelligenceInclude>;
+    cached: boolean;
+    confidence: number;
+    freshness?: FreshnessInfo;
+    requestedAt?: Date;
+    respondedAt?: Date;
+  },
+): IntelligenceResponse<T> {
+  return {
+    success: true,
+    data,
+    error: null,
+    meta: {
+      endpoint,
+      companyId,
+      requestedAt: (meta.requestedAt || new Date()).toISOString(),
+      respondedAt: (meta.respondedAt || new Date()).toISOString(),
+      durationMs: meta.durationMs,
+      cached: meta.cached,
+      includes: Array.from(meta.includes),
+      confidence: meta.confidence,
+      freshness: meta.freshness || { level: 'unknown', lastEnriched: null, lastSignal: null, score: 0 },
+    },
+  };
+}
+
+/**
+ * Create an error IntelligenceResponse envelope.
+ */
+export function createErrorResponse(
+  endpoint: EndpointName,
+  companyId: string,
+  error: string,
+  errorCode: string = IntelligenceErrors.INTELLIGENCE_UNAVAILABLE,
+  durationMs: number = 0,
+  includes: Set<IntelligenceInclude> = new Set(),
+): IntelligenceResponse<never> {
+  return {
+    success: false,
+    data: null,
+    error,
+    meta: {
+      endpoint,
+      companyId,
+      requestedAt: new Date().toISOString(),
+      respondedAt: new Date().toISOString(),
+      durationMs,
+      cached: false,
+      includes: Array.from(includes),
+      confidence: 0,
+      freshness: { level: 'unknown', lastEnriched: null, lastSignal: null, score: 0 },
+    },
+  };
+}
+
+// ── Freshness Computation ─────────────────────────────────────────────────────────
+
+/**
+ * Compute freshness info from a company record.
+ */
+export function computeFreshness(company: {
+  lastEnrichedAt?: string | Date | null;
+  lastActivityAt?: string | Date | null;
+  intelligenceScore?: number | null;
+}): FreshnessInfo {
+  const lastEnriched = company.lastEnrichedAt
+    ? new Date(company.lastEnrichedAt)
+    : company.lastActivityAt
+      ? new Date(company.lastActivityAt)
+      : null;
+
+  if (!lastEnriched) {
+    return { level: 'unknown', lastEnriched: null, lastSignal: null, score: 0 };
+  }
+
+  const hoursSince = (Date.now() - lastEnriched.getTime()) / (1000 * 60 * 60);
+
+  let level: FreshnessInfo['level'] = 'stale';
+  let score = 0;
+  if (hoursSince < 1) { level = 'realtime'; score = 95; }
+  else if (hoursSince < 6) { level = 'fresh'; score = 80; }
+  else if (hoursSince < 24) { level = 'fresh'; score = 65; }
+  else if (hoursSince < 72) { level = 'aging'; score = 40; }
+  else if (hoursSince < 168) { level = 'stale'; score = 20; }
+
+  return {
+    level,
+    lastEnriched: lastEnriched.toISOString(),
+    lastSignal: lastEnriched.toISOString(),
+    score,
+  };
+}

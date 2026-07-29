@@ -1,0 +1,75 @@
+# ──────────────────────────────────────────────────────────────
+# DeepMindQ — Docker Compose (local development / self-hosted)
+#
+# Usage:
+#   docker compose up -d          # Start all services
+#   docker compose logs -f app    # Follow app logs
+#   docker compose down -v       # Stop and remove volumes
+#
+# Prerequisites:
+#   1. Copy .env.example to .env and fill in values
+#   2. Ensure port 3000 (app) and 5432 (postgres) are available
+# ──────────────────────────────────────────────────────────────
+
+services:
+  # ── PostgreSQL Database ──────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-deepmindq}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-deepmindq_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-deepmindq}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-deepmindq}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── DeepMindQ Application ───────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-deepmindq}:${POSTGRES_PASSWORD:-deepmindq_secret}@postgres:5432/${POSTGRES_DB:-deepmindq}?schema=public
+      DIRECT_DATABASE_URL: postgresql://${POSTGRES_USER:-deepmindq}:${POSTGRES_PASSWORD:-deepmindq_secret}@postgres:5432/${POSTGRES_DB:-deepmindq}?schema=public
+      # Auth
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-me-in-production-min-32-chars}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      # Node
+      NODE_ENV: production
+      PORT: "3000"
+      # AI Providers (passed through from host .env)
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      FIREWORKS_API_KEY: ${FIREWORKS_API_KEY:-}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      # Email (optional)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local

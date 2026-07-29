@@ -11,7 +11,9 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  // output: 'standalone' removed — not needed for Render web services.
+  // Standalone output — enables Docker deployment (server.js entry point).
+  // Compatible with Render, Railway, Fly.io, and self-hosted Docker.
+  output: 'standalone',
   serverExternalPackages: ['nodemailer'],
 
   // Security headers for all routes (API and pages)

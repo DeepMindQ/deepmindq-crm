@@ -72,13 +72,22 @@ export async function GET(
     );
   }
 
-  // ── Step 2: Run engine + load learning insights in parallel ────────
-  let conversationResult: ConversationResult;
+  // ── Step 2: Determine which includes are active ──────────────────────────
+  const wantsConversation = guardResult.includes.size === 0
+    || shouldInclude(guardResult.includes, 'talkingPoints')
+    || shouldInclude(guardResult.includes, 'objections')
+    || shouldInclude(guardResult.includes, 'buyerProfiles');
+  const wantsLearning = shouldInclude(guardResult.includes, 'learning');
+
+  // ── Step 3: Run engine + load learning insights in parallel ────────
+  let conversationResult: ConversationResult | null = null;
   let learningEvents: Array<{ id: string; learnedInsight: string; companyId: string | null; applicableContext: string; createdAt: Date }> = [];
 
   try {
     const results = await Promise.all([
-      ConversationEngine.brief({ companyId, skipNarrative: true }),
+      wantsConversation
+        ? ConversationEngine.brief({ companyId, skipNarrative: true })
+        : Promise.resolve(null as ConversationResult | null),
       shouldInclude(guardResult.includes, 'learning')
         ? db.learningEvent.findMany({
             where: { companyId },
@@ -104,14 +113,14 @@ export async function GET(
     learningEvents = results[1];
   } catch (err) {
     const rawMessage = err instanceof Error ? err.message : String(err);
-    logger.warn('[intelligence/conversation] ConversationEngine threw', { companyId, error: rawMessage });
+    logger.warn('[intelligence/conversation] Engine threw', { companyId, error: rawMessage });
     return Response.json(
       createErrorResponse('conversation', companyId, scrubError(rawMessage), IntelligenceErrors.ENGINE_FAILED, Date.now() - startedAt, guardResult.includes),
       { status: 502, headers: responseHeaders },
     );
   }
 
-  if (!conversationResult.success) {
+  if (conversationResult && !conversationResult.success) {
     logger.warn('[intelligence/conversation] ConversationEngine failed', {
       companyId,
       error: conversationResult.error,
@@ -122,56 +131,72 @@ export async function GET(
     );
   }
 
-  // ── Step 4: Build brief from conversation result ────────────────────────
-  const cr = conversationResult as unknown as Record<string, unknown>;
-  const summary = (cr.summary as string) || (cr.overallNarrative as string) || '';
-  const keyThemes = Array.isArray(cr.talkingPoints)
-    ? ((cr.talkingPoints as Array<{ topic?: string }>).map((tp) => tp.topic || '').filter(Boolean))
-    : [];
-  const recommendations = Array.isArray(cr.keyRecommendations)
-    ? ((cr.keyRecommendations as Array<{ recommendation?: string }>).map((r) => r.recommendation || '').filter(Boolean))
-    : [];
-  const risks = Array.isArray(cr.risks)
-    ? ((cr.risks as Array<{ risk?: string }>).map((r) => r.risk || '').filter(Boolean))
-    : [];
+  // ── Step 4: Build brief from conversation result (only when engine ran) ─────
+  let brief: IntelligenceBrief | undefined;
+  let keyThemes: string[] = [];
+  let recommendations: string[] = [];
+  let risks: string[] = [];
 
-  const brief: IntelligenceBrief = {
-    briefType: 'conversation_brief',
-    content: [summary, ...keyThemes.map(t => `- ${t}`), ...recommendations.map(r => `- ${r}`)].join('\n'),
-    sections: [{
-      heading: 'Conversation Brief',
-      body: summary || 'No summary available.',
-      confidence: (cr.confidenceScore as number) ?? (cr.confidence as number) ?? 0,
+  if (conversationResult && conversationResult.success) {
+    const cr = conversationResult as unknown as Record<string, unknown>;
+    const summary = (cr.summary as string) || (cr.overallNarrative as string) || '';
+    keyThemes = Array.isArray(cr.talkingPoints)
+      ? ((cr.talkingPoints as Array<{ topic?: string }>).map((tp) => tp.topic || '').filter(Boolean))
+      : [];
+    recommendations = Array.isArray(cr.keyRecommendations)
+      ? ((cr.keyRecommendations as Array<{ recommendation?: string }>).map((r) => r.recommendation || '').filter(Boolean))
+      : [];
+    risks = Array.isArray(cr.risks)
+      ? ((cr.risks as Array<{ risk?: string }>).map((r) => r.risk || '').filter(Boolean))
+      : [];
+
+    brief = {
+      briefType: 'conversation_brief',
+      content: [summary, ...keyThemes.map(t => `- ${t}`), ...recommendations.map(r => `- ${r}`)].join('\n'),
+      sections: [{
+        heading: 'Conversation Brief',
+        body: summary || 'No summary available.',
+        confidence: (cr.confidenceScore as number) ?? (cr.confidence as number) ?? 0,
+        citations: [],
+      }],
       citations: [],
-    }],
-    citations: [],
-    evidenceChain: { evidences: [], aggregateConfidence: 0, coverage: 0, gaps: [], freshnessScore: 0 },
-    wordCount: summary.split(/\s+/).filter(Boolean).length,
-    modelUsed: 'conversation-engine',
-    confidence: (cr.confidenceScore as number) ?? (cr.confidence as number) ?? 0,
-    durationMs: 0,
-    tokensUsed: 0,
-    costUsd: 0,
-    warnings: risks.length > 0 ? risks.map(r => `Risk: ${r}`) : [],
-  };
+      evidenceChain: { evidences: [], aggregateConfidence: 0, coverage: 0, gaps: [], freshnessScore: 0 },
+      wordCount: summary.split(/\s+/).filter(Boolean).length,
+      modelUsed: 'conversation-engine',
+      confidence: (cr.confidenceScore as number) ?? (cr.confidence as number) ?? 0,
+      durationMs: 0,
+      tokensUsed: 0,
+      costUsd: 0,
+      warnings: risks.length > 0 ? risks.map(r => `Risk: ${r}`) : [],
+    };
+  }
 
   // ── Step 5: Compose response data ────────────────────────────────────────
   const data: IntelligenceConversationOutput = {
     companyId,
-    conversation: conversationResult,
-    brief,
+    ...(conversationResult ? { conversation: conversationResult } : {}),
+    ...(brief ? { brief } : {}),
     ...(shouldInclude(guardResult.includes, 'talkingPoints') && {
-      talkingPoints: keyThemes.map(t => ({ topic: t, context: '', confidence: brief.confidence })),
+      talkingPoints: keyThemes.map(t => ({ topic: t, context: '', confidence: brief?.confidence ?? 0 })),
     }),
     ...(shouldInclude(guardResult.includes, 'objections') && {
-      objections: risks.map(r => ({ objection: r, rebuttal: '', confidence: brief.confidence })),
+      objections: risks.map(r => ({ objection: r, rebuttal: '', confidence: brief?.confidence ?? 0 })),
     }),
     ...(shouldInclude(guardResult.includes, 'buyerProfiles') && {
       buyerProfiles: [],
     }),
+    ...(wantsLearning && learningEvents.length > 0 ? {
+      pastLearnings: learningEvents.map((e) => ({
+        id: e.id,
+        insight: e.learnedInsight,
+        sourceCompany: e.companyId || 'unknown',
+        applicableContext: e.applicableContext || '',
+        createdAt: e.createdAt.toISOString(),
+      })),
+    } : {}),
   };
 
-  const confidence = brief.confidence;
+  const confidence = brief?.confidence ?? 0;
   const freshness = computeFreshness(company as Parameters<typeof computeFreshness>[0]);
   const durationMs = Date.now() - startedAt;
 
@@ -192,7 +217,7 @@ export async function GET(
       freshness,
       requestedAt,
       respondedAt: new Date(),
-      governance: { passed: true, generationType: 'conversation_plan' },
+      ...(conversationResult ? { governance: { passed: true, generationType: 'conversation_plan' } } : {}),
     }),
     { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );

@@ -43,8 +43,14 @@ export async function GET(
   if (guardResult instanceof Response) return guardResult;
   const { companyId, correlationId, responseHeaders } = guardResult;
 
-  // Parse include params — "steps" is included by default when no include is specified
+  // ── Step 2: Gate — only run engine when includes demand it ─────────────
+  const shouldRunEngine =
+    guardResult.includes.size === 0 ||
+    shouldIncludeAny(guardResult.includes, 'steps', 'impact', 'recommendations');
+
   const includeSteps = guardResult.includes.size === 0 || shouldInclude(guardResult.includes, 'steps');
+  const includeImpact = shouldInclude(guardResult.includes, 'impact');
+  const includeRecommendations = shouldInclude(guardResult.includes, 'recommendations');
 
   logger.info('[intelligence/reasoning] Processing', {
     companyId,
@@ -78,13 +84,6 @@ export async function GET(
       { status: 404, headers: responseHeaders },
     );
   }
-
-  // ── Step 2: Gate — only run engine when includes demand it ─────────────
-  // Default (empty includes) runs the engine. If specific includes are
-  // requested, only run when they overlap with engine-produced data.
-  const shouldRunEngine =
-    guardResult.includes.size === 0 ||
-    shouldIncludeAny(guardResult.includes, 'steps', 'impact', 'recommendations');
 
   if (!shouldRunEngine) {
     // No engine-produced data requested → return minimal response immediately
@@ -177,7 +176,11 @@ export async function GET(
       steps = dbSteps.map((step) => ({
         stepNumber: step.stepNumber,
         stepName: step.stepName,
-        status: (step.output !== null && step.aiCalls > 0) ? 'completed' as const : 'failed' as const,
+        status: step.output !== null && step.output !== undefined
+          ? 'completed' as const
+          : step.aiCalls > 0
+            ? 'completed' as const
+            : 'pending' as const,
         output: typeof step.output === 'string' ? step.output : JSON.stringify(step.output),
         summary: step.summary,
         confidence: step.confidence,

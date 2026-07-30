@@ -86,6 +86,7 @@ export async function GET(
   // ── Step 2: Determine which engines to run based on ?include ───────────
   const runScores = guardResult.includes.size === 0 || shouldInclude(guardResult.includes, 'scores');
   const runFusion = guardResult.includes.size === 0 || shouldInclude(guardResult.includes, 'fusion');
+  const runCapabilities = shouldInclude(guardResult.includes, 'capabilities');
   // E5 FIX: Gate reasoning + actions on whether they contribute to requested includes.
   // reasoning provides summary/confidence data; actions provides recommended actions.
   // When empty includes (default), all engines run for backward compatibility.
@@ -198,6 +199,45 @@ export async function GET(
     }
   }
 
+  // ── Step 4b: Load capabilities (only when ?include=capabilities) ──
+  let capabilitiesData: IntelligenceOpportunity['capabilities'] = undefined;
+  if (runCapabilities) {
+    try {
+      const fusionResults = await db.fusionResult.findMany({
+        where: { companyId },
+        select: { capabilityIds: true },
+      });
+      const capIds = new Set<string>();
+      for (const fr of fusionResults) {
+        const ids = fr.capabilityIds as unknown[];
+        if (Array.isArray(ids)) {
+          for (const id of ids) {
+            if (typeof id === 'string') capIds.add(id);
+          }
+        }
+      }
+      if (capIds.size > 0) {
+        const assets = await db.capabilityAsset.findMany({
+          where: { id: { in: Array.from(capIds) }, isActive: true },
+          select: { id: true, title: true, summary: true, category: true, serviceLine: true },
+          take: 20,
+        });
+        capabilitiesData = assets.map(a => ({
+          id: a.id, title: a.title, summary: a.summary,
+          category: a.category, serviceLine: a.serviceLine,
+        }));
+      } else {
+        capabilitiesData = [];
+      }
+    } catch (err) {
+      logger.warn('[intelligence/opportunity] Failed to load capabilities', {
+        companyId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      capabilitiesData = [];
+    }
+  }
+
   // ── Step 5: Compute confidence ───────────────────────────────────────────
   const confidences: number[] = [];
   if (scoring?.success) confidences.push((scoring.confidence ?? 0) / 100);
@@ -222,6 +262,7 @@ export async function GET(
         }
       : {}),
     ...(runFusion ? { fusion: fusionData } : {}),
+    ...(runCapabilities ? { capabilities: capabilitiesData } : {}),
     ...(actions?.success ? { actions: actions as ActionResult } : {}),
   };
 

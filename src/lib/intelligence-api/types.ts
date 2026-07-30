@@ -79,6 +79,7 @@ export type IntelligenceInclude =
   | 'capabilities'
   // Action endpoint includes
   | 'sequences'
+  | 'recommendations'
   // Conversation endpoint includes
   | 'talkingPoints'
   | 'objections'
@@ -89,6 +90,9 @@ export type IntelligenceInclude =
   | 'knowledgeConnections'
   // Knowledge endpoint includes
   | 'ingestion';
+
+// NOTE: Ghost entries REMOVED — 'people_changes', 'data_health', 'reasoning', 'opportunities'
+// These had zero route implementations. Do NOT re-add without a corresponding route handler.
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  FRESHNESS — Staleness tracking for all intelligence data
@@ -359,9 +363,9 @@ export interface IntelligenceActionOutput {
 
 export interface IntelligenceConversationOutput {
   companyId: string;
-  // Core conversation result — always present when engine succeeds
+  // Core conversation result — present when engine succeeds and runs
   conversation?: ConversationResult;
-  // Brief derived from conversation — always present when engine succeeds
+  // Brief derived from conversation — present when engine succeeds and runs
   brief?: IntelligenceBrief;
   // ?include=talkingPoints — extracted from conversation result
   talkingPoints?: Array<{
@@ -381,6 +385,14 @@ export interface IntelligenceConversationOutput {
     concerns: string[];
     motivation: string;
     confidence: number;
+  }>;
+  // ?include=learning — past learning insights
+  pastLearnings?: Array<{
+    id: string;
+    insight: string;
+    sourceCompany: string;
+    applicableContext: string;
+    createdAt: string;
   }>;
 }
 

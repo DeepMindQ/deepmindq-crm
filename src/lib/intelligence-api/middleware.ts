@@ -26,7 +26,7 @@ export const VALID_INCLUDES: Set<string> = new Set<string>([
   // Opportunity endpoint includes
   'fusion', 'capabilities',
   // Action endpoint includes
-  'sequences',
+  'sequences', 'recommendations',
   // Conversation endpoint includes
   'talkingPoints', 'objections', 'buyerProfiles',
   // Mindmap endpoint includes
@@ -34,6 +34,10 @@ export const VALID_INCLUDES: Set<string> = new Set<string>([
   // Knowledge endpoint includes
   'ingestion',
 ]);
+
+// Ghost entries REMOVED: 'people_changes', 'data_health', 'reasoning', 'opportunities'
+// These were defined but had zero route implementations. See K1-K4 in gap analysis.
+// If adding new include keys, you MUST also add a route implementation.
 
 /**
  * Parse the ?include= query parameter from the request.

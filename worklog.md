@@ -621,3 +621,28 @@ Stage Summary:
 - lint: 0 errors (3 warnings in coverage/ — pre-existing)
 - tests: 1045 pass / 14 skip / 0 fail
 - Pushed to GitHub: 2 commits (main → 5e0e22d)
+
+---
+Task ID: ticket-2-deep-audit-final
+Agent: main
+Task: Complete deepest-of-deep audit on Ticket 2 — fix all remaining 70 gaps
+
+Work Log:
+- Read re-audit report (70 active gaps: 53 original + 3 partial + 14 new)
+- Line-by-line inspection of all 10 route files, middleware, guard, types, validators, index
+- Read both test files (22 unit + 46 integration = 68 tests)
+- Verified 58 of 70 gaps were ALREADY FIXED in current code
+- Identified and fixed 12 remaining gaps:
+  1. K1-K4: Removed ghost VALID_INCLUDES entries (people_changes, data_health, reasoning, opportunities)
+  2. N10/N12: Conversation engine now gated on spec'd includes (talkingPoints/objections/buyerProfiles)
+  3. E3: Added pastLearnings optional field to IntelligenceConversationOutput
+  4. A1-A2: Added includeImpact/includeRecommendations flags to reasoning route
+  5. L7: Fixed fabricated step status — uses output presence instead of confidence threshold
+  6. A5: Added capabilities DB loading in opportunity route (gated on ?include=capabilities)
+  7. G17-G41: Added 12 new integration tests for data shape verification
+- Verification: tsc --noEmit passes, ESLint zero errors, 253 tests pass (113 T1 + 80 T2 + 60 T3)
+
+Stage Summary:
+- All 70 gaps resolved
+- Ticket 2 exit criteria met: selective loading on all 6 endpoints, response types match, no N+1, tests exist
+- Evidence report: /home/z/my-project/download/TICKET2_DEEP_AUDIT_FINAL_REPORT.md

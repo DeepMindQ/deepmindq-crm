@@ -1,17 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { apiSuccess, apiError, validateBody } from '@/lib/apiHelpers';
+/**
+ * POST /api/intelligence/enrich-batch — Enrich multiple companies
+ * GET  /api/intelligence/enrich-batch — Pipeline statistics
+ *
+ * Intelligence API — External Intelligence Endpoint
+ *
+ * Batch enrichment with job tracking. GET returns pipeline stats.
+ * Non-throwing: standardized error responses.
+ */
+
+import { NextRequest } from 'next/server';
 import { IntelligencePipeline } from '@/lib/intelligence-pipeline';
 import { db } from '@/lib/db';
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
-
-// ────────────────────────────────────────────────────────────────────────
-// POST /api/intelligence/enrich-batch
-//
-// Enrich multiple companies with AI intelligence.
-// Creates a Job record for progress tracking.
-// Processes sequentially to respect rate limits.
-// ────────────────────────────────────────────────────────────────────────
 
 const batchSchema = z.object({
   companyIds: z.array(z.string().min(1)).min(1).max(100),
@@ -19,12 +20,19 @@ const batchSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
+
   try {
     const body = await request.json();
-    const parsed = validateBody(batchSchema, body);
-    if (parsed instanceof Response) return parsed;
+    const parsed = batchSchema.safeParse(body);
+    if (!parsed.success) {
+      return Response.json(
+        { success: false, error: 'Invalid request: companyIds (1-100 strings) required', meta: { endpoint: 'enrich-batch', durationMs: Date.now() - startedAt } },
+        { status: 400 },
+      );
+    }
 
-    const { companyIds, batchId } = parsed;
+    const { companyIds, batchId } = parsed.data;
 
     // Verify companies exist
     const existingCompanies = await db.company.findMany({
@@ -34,53 +42,66 @@ export async function POST(request: NextRequest) {
     const validIds = existingCompanies.map(c => c.id);
 
     if (validIds.length === 0) {
-      return apiError('No valid companies found', 404);
+      return Response.json(
+        { success: false, error: 'No valid companies found', meta: { endpoint: 'enrich-batch', durationMs: Date.now() - startedAt } },
+        { status: 404 },
+      );
     }
 
-    // Start batch enrichment (non-blocking for large batches)
-    const { results, jobId } = await IntelligencePipeline.enrichBatch(validIds, {
-      batchId,
-    });
+    logger.info('[intelligence/enrich-batch] Batch enrichment', { count: validIds.length });
+    const { results, jobId } = await IntelligencePipeline.enrichBatch(validIds, { batchId });
 
     const succeeded = results.filter(r => r.success).length;
     const failed = results.filter(r => !r.success).length;
     const signalsCreated = results.reduce((sum, r) => sum + r.signalsCreated, 0);
     const evidenceCreated = results.reduce((sum, r) => sum + r.evidenceCreated, 0);
 
-    return apiSuccess({
-      jobId,
-      totalProcessed: results.length,
-      succeeded,
-      failed,
-      signalsCreated,
-      evidenceCreated,
-      results: results.map(r => ({
-        companyId: r.companyId,
-        companyName: r.companyName,
-        success: r.success,
-        signalsCreated: r.signalsCreated,
-        evidenceCreated: r.evidenceCreated,
-        error: r.error,
-      })),
+    return Response.json({
+      success: true,
+      data: {
+        jobId,
+        totalProcessed: results.length,
+        succeeded,
+        failed,
+        signalsCreated,
+        evidenceCreated,
+        results: results.map(r => ({
+          companyId: r.companyId,
+          companyName: r.companyName,
+          success: r.success,
+          signalsCreated: r.signalsCreated,
+          evidenceCreated: r.evidenceCreated,
+          error: r.error,
+        })),
+      },
+      meta: { endpoint: 'enrich-batch', durationMs: Date.now() - startedAt },
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Batch enrichment failed';
-    logger.error('[enrich-batch]', { detail: msg });
-    return apiError(msg);
+    const message = err instanceof Error ? err.message : 'Batch enrichment failed';
+    logger.error('[intelligence/enrich-batch]', { detail: message });
+    return Response.json(
+      { success: false, error: message, meta: { endpoint: 'enrich-batch', durationMs: Date.now() - startedAt } },
+      { status: 502 },
+    );
   }
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// GET /api/intelligence/enrich-batch
-//
-// Get enrichment pipeline statistics.
-// ────────────────────────────────────────────────────────────────────────
-
 export async function GET() {
+  const startedAt = Date.now();
+
   try {
     const stats = await IntelligencePipeline.getStats();
-    return apiSuccess(stats);
+    return Response.json({
+      success: true,
+      data: stats,
+      meta: { endpoint: 'enrich-batch', durationMs: Date.now() - startedAt },
+    });
   } catch (err) {
-    return apiError('Failed to get pipeline stats');
+    const message = err instanceof Error ? err.message : 'Failed to get pipeline stats';
+    logger.error('[intelligence/enrich-batch] GET failed', { detail: message });
+    return Response.json(
+      { success: false, error: message, meta: { endpoint: 'enrich-batch', durationMs: Date.now() - startedAt } },
+      { status: 502 },
+    );
   }
 }

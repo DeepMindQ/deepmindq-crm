@@ -1,30 +1,63 @@
-import { NextResponse } from 'next/server';
+/**
+ * POST /api/intelligence/feedback — Record signal feedback
+ * GET  /api/intelligence/feedback — Get learning insights
+ *
+ * Intelligence API — Feedback Endpoint
+ *
+ * Non-throwing: standardized error responses.
+ */
+
+import { NextRequest } from 'next/server';
 import { recordSignalFeedback, computeLearningInsights } from '@/lib/intelligence-sources/learning-loop';
 import { logger } from '@/lib/logger';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
+
   try {
     const body = await request.json();
     const { signalId, companyId, type, userId, comment } = body;
+
     if (!signalId || !companyId || !type) {
-      return NextResponse.json({ error: 'signalId, companyId, and type are required' }, { status: 400 });
+      return Response.json(
+        { success: false, error: 'signalId, companyId, and type are required', meta: { endpoint: 'feedback', durationMs: Date.now() - startedAt } },
+        { status: 400 },
+      );
     }
+
     await recordSignalFeedback({ signalId, companyId, type, userId, comment });
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    logger.error('[feedback] Error:', { error: error });
-    return NextResponse.json({ error: 'Feedback recording failed' }, { status: 500 });
+    return Response.json({
+      success: true,
+      data: { recorded: true },
+      meta: { endpoint: 'feedback', durationMs: Date.now() - startedAt },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error('[intelligence/feedback] POST Error', { error: message });
+    return Response.json(
+      { success: false, error: 'Feedback recording failed', details: message, meta: { endpoint: 'feedback', durationMs: Date.now() - startedAt } },
+      { status: 502 },
+    );
   }
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const startedAt = Date.now();
+
   try {
-    const { searchParams } = new URL(request.url);
-    const companyId = searchParams.get('companyId');
+    const companyId = request.nextUrl.searchParams.get('companyId');
     const insights = await computeLearningInsights(companyId || undefined);
-    return NextResponse.json({ insights });
-  } catch (error) {
-    logger.error('[feedback] Error:', { error: error });
-    return NextResponse.json({ error: 'Learning insights failed' }, { status: 500 });
+    return Response.json({
+      success: true,
+      data: { insights },
+      meta: { endpoint: 'feedback', durationMs: Date.now() - startedAt },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error('[intelligence/feedback] GET Error', { error: message });
+    return Response.json(
+      { success: false, error: 'Learning insights failed', details: message, meta: { endpoint: 'feedback', durationMs: Date.now() - startedAt } },
+      { status: 502 },
+    );
   }
 }

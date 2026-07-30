@@ -1,34 +1,33 @@
 /**
  * POST /api/intelligence/unified
  *
- * Unified Intelligence Query API — Sprint 3A
+ * Intelligence API — Unified Intelligence Query Endpoint
  *
  * Answers: "What do we know about this company?"
  * Combines ALL intelligence sources into a single view:
- *   1. External Intelligence (Sprint 1 signals, evidence, web research)
+ *   1. External Intelligence (signals, evidence, web research)
  *   2. Internal Memory (notes, meetings, timeline, human intel, account strategy)
  *   3. People Intelligence (contacts, stakeholder profiles, relationship mapping)
  *
  * Accepts: { companyId: string, includeActions?: boolean }
- * Returns:  { company, external, internal, people, actions?, meta }
  *
- * This is the "ChatGPT memory layer for accounts" endpoint.
+ * Non-throwing: standardized error responses.
  */
 
-import { db } from '@/lib/db'
-import { NextResponse } from 'next/server'
+import { NextRequest } from 'next/server';
+import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
-export async function POST(request: Request) {
-  const startTime = Date.now()
+export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
 
   try {
     const body = await request.json()
     const { companyId, includeActions } = body as { companyId?: string; includeActions?: boolean }
 
     if (!companyId || typeof companyId !== 'string') {
-      return NextResponse.json(
-        { error: 'companyId is required (string)' },
+      return Response.json(
+        { success: false, error: 'companyId is required (string)', meta: { endpoint: 'unified', durationMs: Date.now() - startedAt } },
         { status: 400 },
       )
     }
@@ -54,7 +53,10 @@ export async function POST(request: Request) {
     })
 
     if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 })
+      return Response.json(
+        { success: false, error: 'Company not found', meta: { endpoint: 'unified', durationMs: Date.now() - startedAt } },
+        { status: 404 },
+      )
     }
 
     const companyName = company.normalizedName || company.rawName
@@ -193,7 +195,7 @@ export async function POST(request: Request) {
       externalCount > internalCount * 2 ? 'external_heavy' : 'balanced'
 
     // Build response
-    const response: Record<string, unknown> = {
+    const data: Record<string, unknown> = {
       company: {
         id: company.id,
         name: companyName,
@@ -306,7 +308,7 @@ export async function POST(request: Request) {
         externalSignalsCount: externalCount,
         internalDataPoints: internalCount,
         peopleCount,
-        pipelineLatencyMs: Date.now() - startTime,
+        pipelineLatencyMs: Date.now() - startedAt,
       },
     }
 
@@ -332,16 +334,20 @@ export async function POST(request: Request) {
           generatedAt: a.generatedAt,
         })
       }
-      response.actions = uniqueActions
+      data.actions = uniqueActions
     }
 
-    return NextResponse.json(response)
+    return Response.json({
+      success: true,
+      data,
+      meta: { endpoint: 'unified', durationMs: Date.now() - startedAt },
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
-    logger.error('[unified] Query error:', { detail: message })
-    return NextResponse.json(
-      { error: `Unified intelligence query failed: ${message}` },
-      { status: 500 },
+    logger.error('[intelligence/unified] Query error:', { detail: message })
+    return Response.json(
+      { success: false, error: `Unified intelligence query failed: ${message}`, meta: { endpoint: 'unified', durationMs: Date.now() - startedAt } },
+      { status: 502 },
     )
   }
 }

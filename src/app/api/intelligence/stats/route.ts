@@ -1,19 +1,28 @@
-import { NextResponse } from 'next/server';
-import { apiSuccess, apiError } from '@/lib/apiHelpers';
-import { IntelligencePipeline } from '@/lib/intelligence-pipeline';
-import { db } from '@/lib/db';
+/**
+ * GET /api/intelligence/stats — Pipeline statistics
+ *
+ * Intelligence API — Stats Endpoint
+ *
+ * Non-throwing: standardized error responses.
+ */
 
-// ────────────────────────────────────────────────────────────────────────
-// GET /api/intelligence/stats
-//
-// Pipeline statistics
-// ────────────────────────────────────────────────────────────────────────
+import { IntelligencePipeline } from '@/lib/intelligence-pipeline';
 
 export async function GET() {
+  const startedAt = Date.now();
+
   try {
     const stats = await IntelligencePipeline.getStats();
-    return apiSuccess(stats);
+    return Response.json({
+      success: true,
+      data: stats,
+      meta: { endpoint: 'stats', durationMs: Date.now() - startedAt },
+    });
   } catch (err) {
-    return apiError('Failed to get intelligence stats');
+    const message = err instanceof Error ? err.message : 'Failed to get intelligence stats';
+    return Response.json(
+      { success: false, error: message, meta: { endpoint: 'stats', durationMs: Date.now() - startedAt } },
+      { status: 502 },
+    );
   }
 }

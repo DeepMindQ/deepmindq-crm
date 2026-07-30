@@ -1,54 +1,87 @@
-import { NextRequest } from 'next/server'
-import { apiError, apiSuccess } from '@/lib/apiHelpers'
-import { getFreshnessStatus, getCompaniesNeedingRefresh, batchUpdateFreshness } from '@/lib/intelligence-sources/freshness-manager'
+/**
+ * GET  /api/intelligence/refresh — Get freshness status or companies needing refresh
+ * POST /api/intelligence/refresh — Trigger intelligence refresh
+ *
+ * Intelligence API — External Intelligence Endpoint
+ *
+ * Non-throwing: standardized error responses.
+ */
+
+import { NextRequest } from 'next/server';
+import { getFreshnessStatus, getCompaniesNeedingRefresh, batchUpdateFreshness } from '@/lib/intelligence-sources/freshness-manager';
 import { logger } from '@/lib/logger';
 
-// GET /api/intelligence/refresh — Get freshness status
 export async function GET(req: NextRequest) {
+  const startedAt = Date.now();
+
   try {
-    const { searchParams } = new URL(req.url)
-    const companyId = searchParams.get('companyId')
-    const batch = searchParams.get('batch')
+    const { searchParams } = new URL(req.url);
+    const companyId = searchParams.get('companyId');
+    const batch = searchParams.get('batch');
 
     if (companyId) {
-      const status = await getFreshnessStatus(companyId)
-      if (!status) return apiError('Company not found', 404)
-      return apiSuccess(status)
+      const status = await getFreshnessStatus(companyId);
+      if (!status) {
+        return Response.json(
+          { success: false, error: 'Company not found', meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } },
+          { status: 404 },
+        );
+      }
+      return Response.json({ success: true, data: status, meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } });
     }
 
     if (batch === 'true') {
-      const needingRefresh = await getCompaniesNeedingRefresh()
-      return apiSuccess({ companies: needingRefresh, count: needingRefresh.length })
+      const needingRefresh = await getCompaniesNeedingRefresh();
+      return Response.json({
+        success: true,
+        data: { companies: needingRefresh, count: needingRefresh.length },
+        meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt },
+      });
     }
 
-    return apiError('Provide companyId or batch=true', 400)
+    return Response.json(
+      { success: false, error: 'Provide companyId or batch=true', meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } },
+      { status: 400 },
+    );
   } catch (err) {
-    logger.error('[api/intelligence/refresh] Error:', { error: err })
-    return apiError('Freshness check failed')
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error('[intelligence/refresh] GET Error', { error: message });
+    return Response.json(
+      { success: false, error: 'Freshness check failed', details: message, meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } },
+      { status: 502 },
+    );
   }
 }
 
-// POST /api/intelligence/refresh — Trigger intelligence refresh
 export async function POST(req: NextRequest) {
+  const startedAt = Date.now();
+
   try {
-    const body = await req.json()
-    const { companyId, batchUpdate } = body
+    const body = await req.json();
+    const { companyId, batchUpdate } = body;
 
     if (batchUpdate) {
-      const updated = await batchUpdateFreshness()
-      return apiSuccess({ updated })
+      const updated = await batchUpdateFreshness();
+      return Response.json({ success: true, data: { updated }, meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } });
     }
 
     if (companyId) {
-      const { updateFreshnessAfterCollection } = await import('@/lib/intelligence-sources/freshness-manager')
-      await updateFreshnessAfterCollection(companyId)
-      const status = await getFreshnessStatus(companyId)
-      return apiSuccess(status)
+      const { updateFreshnessAfterCollection } = await import('@/lib/intelligence-sources/freshness-manager');
+      await updateFreshnessAfterCollection(companyId);
+      const status = await getFreshnessStatus(companyId);
+      return Response.json({ success: true, data: status, meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } });
     }
 
-    return apiError('Provide companyId or batchUpdate: true', 400)
+    return Response.json(
+      { success: false, error: 'Provide companyId or batchUpdate: true', meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } },
+      { status: 400 },
+    );
   } catch (err) {
-    logger.error('[api/intelligence/refresh] Error:', { error: err })
-    return apiError('Intelligence refresh failed')
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error('[intelligence/refresh] POST Error', { error: message });
+    return Response.json(
+      { success: false, error: 'Intelligence refresh failed', details: message, meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } },
+      { status: 502 },
+    );
   }
 }

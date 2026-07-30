@@ -1,126 +1,127 @@
 /**
  * POST /api/intelligence/capability-pipeline
- * ==========================================
+ * GET  /api/intelligence/capability-pipeline
  *
- * The orchestrator API for the Internal Intelligence Graph.
- * Handles:
- *   - POST: Ingest capabilities + trigger full pipeline
- *   - GET: Graph status + search
+ * Intelligence API — Capability Pipeline Endpoint
+ *
+ * Orchestrates the Internal Intelligence Graph:
+ *   POST: ingest, bulk-ingest, match-signal, generate-opportunity, win-probability, run-pipeline
+ *   GET:  status, search, list capabilities
+ *
+ * Non-throwing: standardized error responses.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { CapabilityIntelligenceEngine, type CapabilityInput } from '@/lib/capability-intelligence-engine';
 import { logger } from '@/lib/logger';
 
-// ═══════════════════════════════════════════════════════════════════════
-// POST — Ingest capabilities or trigger pipeline
-// ═══════════════════════════════════════════════════════════════════════
-
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
+
   try {
     const body = await request.json();
     const { action } = body;
 
-    // ── Action: Ingest single capability ──
     if (action === 'ingest') {
       const result = await CapabilityIntelligenceEngine.ingest(body.data as CapabilityInput);
-      return NextResponse.json(result);
+      return Response.json({ success: true, data: result, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
     }
 
-    // ── Action: Bulk ingest ──
     if (action === 'bulk-ingest') {
       const inputs = (body.data || body.capabilities || []) as CapabilityInput[];
       const result = await CapabilityIntelligenceEngine.bulkIngest(inputs);
-      return NextResponse.json(result);
+      return Response.json({ success: true, data: result, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
     }
 
-    // ── Action: Match signal to capabilities ──
     if (action === 'match-signal') {
       const { companyId, signalId } = body;
       if (!companyId || !signalId) {
-        return NextResponse.json({ error: 'companyId and signalId required' }, { status: 400 });
+        return Response.json({ success: false, error: 'companyId and signalId required', meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } }, { status: 400 });
       }
       const result = await CapabilityIntelligenceEngine.matchSignalToCapabilities(companyId, signalId);
-      return NextResponse.json(result);
+      return Response.json({ success: true, data: result, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
     }
 
-    // ── Action: Generate opportunity ──
     if (action === 'generate-opportunity') {
       const { companyId, signalId, capabilityMatchId } = body;
       if (!companyId || !signalId || !capabilityMatchId) {
-        return NextResponse.json({ error: 'companyId, signalId, and capabilityMatchId required' }, { status: 400 });
+        return Response.json({ success: false, error: 'companyId, signalId, and capabilityMatchId required', meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } }, { status: 400 });
       }
       const result = await CapabilityIntelligenceEngine.generateOpportunity(companyId, signalId, capabilityMatchId);
-      return NextResponse.json(result);
+      return Response.json({ success: true, data: result, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
     }
 
-    // ── Action: Calculate win probability ──
     if (action === 'win-probability') {
       const { companyId } = body;
       if (!companyId) {
-        return NextResponse.json({ error: 'companyId required' }, { status: 400 });
+        return Response.json({ success: false, error: 'companyId required', meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } }, { status: 400 });
       }
       const result = await CapabilityIntelligenceEngine.calculateWinProbability(companyId);
-      return NextResponse.json(result);
+      return Response.json({ success: true, data: result, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
     }
 
-    // ── Action: Run full pipeline for a company ──
     if (action === 'run-pipeline') {
       const { companyId } = body;
       if (!companyId) {
-        return NextResponse.json({ error: 'companyId required' }, { status: 400 });
+        return Response.json({ success: false, error: 'companyId required', meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } }, { status: 400 });
       }
       const result = await CapabilityIntelligenceEngine.runFullPipeline(companyId);
-      return NextResponse.json(result);
+      return Response.json({ success: true, data: result, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
     }
 
-    return NextResponse.json({
+    return Response.json({
+      success: false,
       error: `Unknown action: ${action}. Use: ingest, bulk-ingest, match-signal, generate-opportunity, win-probability, run-pipeline`,
+      meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt },
     }, { status: 400 });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    logger.error('[capability-pipeline]', { detail: msg });
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error('[intelligence/capability-pipeline] POST Error', { detail: message });
+    return Response.json(
+      { success: false, error: message, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } },
+      { status: 502 },
+    );
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// GET — Graph status, search, list capabilities
-// ═══════════════════════════════════════════════════════════════════════
-
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const action = searchParams.get('action') || 'status';
+  const startedAt = Date.now();
 
-    // ── Graph status ──
+  try {
+    const action = request.nextUrl.searchParams.get('action') || 'status';
+
     if (action === 'status') {
       const status = await CapabilityIntelligenceEngine.getGraphStatus();
-      return NextResponse.json(status);
+      return Response.json({ success: true, data: status, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
     }
 
-    // ── Search capabilities ──
     if (action === 'search') {
-      const query = searchParams.get('q') || '';
-      const topK = parseInt(searchParams.get('topK') || '5', 10);
+      const query = request.nextUrl.searchParams.get('q') || '';
+      const topK = parseInt(request.nextUrl.searchParams.get('topK') || '5', 10);
       if (!query) {
-        return NextResponse.json({ error: 'q parameter required for search' }, { status: 400 });
+        return Response.json({ success: false, error: 'q parameter required for search', meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } }, { status: 400 });
       }
       const results = await CapabilityIntelligenceEngine.searchCapabilities(query, topK);
-      return NextResponse.json({ query, results });
+      return Response.json({ success: true, data: { query, results }, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
     }
 
-    // ── List capabilities ──
     if (action === 'list') {
-      const category = searchParams.get('category') || undefined;
+      const category = request.nextUrl.searchParams.get('category') || undefined;
       const assets = await CapabilityIntelligenceEngine.getAssets(category);
-      return NextResponse.json(assets);
+      return Response.json({ success: true, data: assets, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
     }
 
-    return NextResponse.json({ error: `Unknown action: ${action}. Use: status, search, list` }, { status: 400 });
+    return Response.json({
+      success: false,
+      error: `Unknown action: ${action}. Use: status, search, list`,
+      meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt },
+    }, { status: 400 });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    logger.error('[capability-pipeline]', { detail: msg });
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error('[intelligence/capability-pipeline] GET Error', { detail: message });
+    return Response.json(
+      { success: false, error: message, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } },
+      { status: 502 },
+    );
   }
 }

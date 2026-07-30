@@ -1,69 +1,73 @@
 /**
  * POST /api/intelligence/internal-memory
  *
- * Sprint 3A: Internal Memory Connector API
+ * Intelligence API — Internal Memory Endpoint
  *
- * Extracts intelligence signals from internal CRM data and optionally
- * persists them as CompanySignals in the intelligence pipeline.
+ * Extracts intelligence signals from internal CRM data (notes, meetings,
+ * timeline, human intel, account strategy) and optionally persists them.
+ *
+ * Non-throwing: standardized error responses.
  */
 
-import { db } from '@/lib/db'
-import { NextResponse } from 'next/server'
-import { extractInternalMemorySignals, computeInternalMemoryDepth } from '@/lib/intelligence-sources/internal-memory-connector'
+import { NextRequest } from 'next/server';
+import { db } from '@/lib/db';
+import { extractInternalMemorySignals, computeInternalMemoryDepth } from '@/lib/intelligence-sources/internal-memory-connector';
 import { logger } from '@/lib/logger';
 
-export async function POST(request: Request) {
-  const startTime = Date.now()
+export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
 
   try {
-    const body = await request.json()
-    const { companyId } = body as { companyId?: string }
+    const { companyId } = await request.json() as { companyId?: string };
 
     if (!companyId || typeof companyId !== 'string') {
-      return NextResponse.json(
-        { error: 'companyId is required (string)' },
+      return Response.json(
+        { success: false, error: 'companyId is required (string)', meta: { endpoint: 'internal-memory', durationMs: Date.now() - startedAt } },
         { status: 400 },
-      )
+      );
     }
 
     const company = await db.company.findUnique({
       where: { id: companyId },
-      select: {
-        id: true, rawName: true, normalizedName: true,
-        industry: true, sizeRange: true,
-      },
-    })
+      select: { id: true, rawName: true, normalizedName: true, industry: true, sizeRange: true },
+    });
 
     if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 })
+      return Response.json(
+        { success: false, error: 'Company not found', meta: { endpoint: 'internal-memory', durationMs: Date.now() - startedAt } },
+        { status: 404 },
+      );
     }
 
-    // Extract internal memory signals (includes persistence)
-    const result = await extractInternalMemorySignals(companyId)
-    const depth = await computeInternalMemoryDepth(companyId)
+    const result = await extractInternalMemorySignals(companyId);
+    const depth = await computeInternalMemoryDepth(companyId);
 
-    return NextResponse.json({
-      company: {
-        id: company.id,
-        name: company.normalizedName || company.rawName,
-        industry: company.industry,
-        sizeRange: company.sizeRange,
+    return Response.json({
+      success: true,
+      data: {
+        company: {
+          id: company.id,
+          name: company.normalizedName || company.rawName,
+          industry: company.industry,
+          sizeRange: company.sizeRange,
+        },
+        signals: result.signals.slice(0, 20),
+        sources: result.sources,
+        memoryDepth: depth,
+        meta: {
+          totalSignalsExtracted: result.signalsExtracted,
+          signalsPersisted: result.signalsPersisted,
+          pipelineLatencyMs: Date.now() - startedAt,
+        },
       },
-      signals: result.signals.slice(0, 20),
-      sources: result.sources,
-      memoryDepth: depth,
-      meta: {
-        totalSignalsExtracted: result.signalsExtracted,
-        signalsPersisted: result.signalsPersisted,
-        pipelineLatencyMs: Date.now() - startTime,
-      },
-    })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    logger.error('[internal-memory] Pipeline error:', { detail: message })
-    return NextResponse.json(
-      { error: `Internal memory extraction failed: ${message}` },
-      { status: 500 },
-    )
+      meta: { endpoint: 'internal-memory', durationMs: Date.now() - startedAt },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('[intelligence/internal-memory] Pipeline error', { detail: message });
+    return Response.json(
+      { success: false, error: `Internal memory extraction failed: ${message}`, meta: { endpoint: 'internal-memory', durationMs: Date.now() - startedAt } },
+      { status: 502 },
+    );
   }
 }

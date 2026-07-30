@@ -1,13 +1,27 @@
-import { NextResponse } from 'next/server';
+/**
+ * GET /api/intelligence/correlations — Detect signal correlations for a company
+ *
+ * Intelligence API — Analytical Endpoint
+ *
+ * Non-throwing: standardized error responses.
+ */
+
+import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { detectCorrelations } from '@/lib/intelligence-sources/cross-signal-correlation';
 import { logger } from '@/lib/logger';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const startedAt = Date.now();
+
   try {
-    const { searchParams } = new URL(request.url);
-    const companyId = searchParams.get('companyId');
-    if (!companyId) return NextResponse.json({ error: 'companyId is required' }, { status: 400 });
+    const companyId = request.nextUrl.searchParams.get('companyId');
+    if (!companyId) {
+      return Response.json(
+        { success: false, error: 'companyId is required' },
+        { status: 400 },
+      );
+    }
 
     const signals = await db.companySignal.findMany({
       where: { companyId, status: { notIn: ['archived', 'expired'] } },
@@ -15,9 +29,17 @@ export async function GET(request: Request) {
     });
 
     const correlations = detectCorrelations(signals);
-    return NextResponse.json({ companyId, correlations, signalCount: signals.length });
-  } catch (error) {
-    logger.error('[correlations] Error:', { error: error });
-    return NextResponse.json({ error: 'Correlation analysis failed' }, { status: 500 });
+    return Response.json({
+      success: true,
+      data: { companyId, correlations, signalCount: signals.length },
+      meta: { endpoint: 'correlations', durationMs: Date.now() - startedAt },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error('[intelligence/correlations] Error', { error: message });
+    return Response.json(
+      { success: false, error: 'Correlation analysis failed', details: message, meta: { endpoint: 'correlations', durationMs: Date.now() - startedAt } },
+      { status: 502 },
+    );
   }
 }

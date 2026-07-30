@@ -1,39 +1,46 @@
 /**
  * POST /api/intelligence/collect-external
  *
- * Phase 2A: External Intelligence Collection trigger endpoint.
+ * Intelligence API — External Intelligence Endpoint
  *
- * Accepts a companyId (or array of companyIds) and runs the external
- * intelligence collection pipeline. Returns collection results with counts.
+ * Triggers external intelligence collection for one or many companies.
+ * Uses web search → evidence extraction → signal creation pipeline.
+ * Returns collection results with counts.
  *
- * No UI changes required — this is a backend-only pipeline.
- *
- * This replaces the deprecated /api/intelligence/collect-news endpoint.
+ * Non-throwing: standardized error responses.
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { collectIntelligenceForCompany, collectIntelligenceBatch } from '@/lib/intelligence-sources/external-intelligence-collector';
 import { logger } from '@/lib/logger';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
+
   try {
     const body = await request.json();
     const { companyId, companyIds, maxResultsPerQuery = 5 } = body;
 
     if (!companyId && (!companyIds || !Array.isArray(companyIds) || companyIds.length === 0)) {
-      return NextResponse.json(
-        { error: 'Provide "companyId" (string) or "companyIds" (array of strings)' },
-        { status: 400 }
+      return Response.json(
+        { success: false, error: 'Provide "companyId" (string) or "companyIds" (array)', meta: { endpoint: 'collect-external', durationMs: Date.now() - startedAt } },
+        { status: 400 },
       );
     }
 
     // Single company
     if (companyId) {
+      logger.info('[intelligence/collect-external] Single collection', { companyId });
       const result = await collectIntelligenceForCompany(companyId, maxResultsPerQuery);
-      return NextResponse.json({ result });
+      return Response.json({
+        success: true,
+        data: result,
+        meta: { endpoint: 'collect-external', durationMs: Date.now() - startedAt },
+      });
     }
 
     // Batch
+    logger.info('[intelligence/collect-external] Batch collection', { count: companyIds.length });
     const results = await collectIntelligenceBatch(companyIds, maxResultsPerQuery);
     const summary = {
       totalCompanies: results.length,
@@ -44,12 +51,17 @@ export async function POST(request: Request) {
       totalDuration: results.reduce((s, r) => s + r.duration, 0),
     };
 
-    return NextResponse.json({ results, summary });
-  } catch (error) {
-    logger.error('[collect-external] Error:', { error: error });
-    return NextResponse.json(
-      { error: 'Intelligence collection failed', details: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
+    return Response.json({
+      success: true,
+      data: { results, summary },
+      meta: { endpoint: 'collect-external', durationMs: Date.now() - startedAt },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error('[intelligence/collect-external] Error', { error: message });
+    return Response.json(
+      { success: false, error: 'Intelligence collection failed', details: message, meta: { endpoint: 'collect-external', durationMs: Date.now() - startedAt } },
+      { status: 502 },
     );
   }
 }

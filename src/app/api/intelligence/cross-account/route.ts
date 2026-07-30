@@ -1,16 +1,35 @@
-import { NextResponse } from 'next/server';
+/**
+ * GET /api/intelligence/cross-account — Detect cross-account patterns
+ *
+ * Intelligence API — Analytical Endpoint
+ *
+ * Non-throwing: standardized error responses.
+ */
+
+import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { detectCrossAccountPatterns } from '@/lib/intelligence-sources/cross-account-intelligence';
 import { logger } from '@/lib/logger';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const startedAt = Date.now();
+
   try {
-    const { searchParams } = new URL(request.url);
-    const idsParam = searchParams.get('companyIds');
-    if (!idsParam) return NextResponse.json({ error: 'companyIds required (comma-separated)' }, { status: 400 });
+    const idsParam = request.nextUrl.searchParams.get('companyIds');
+    if (!idsParam) {
+      return Response.json(
+        { success: false, error: 'companyIds required (comma-separated)' },
+        { status: 400 },
+      );
+    }
 
     const companyIds = idsParam.split(',').filter(Boolean);
-    if (companyIds.length < 2) return NextResponse.json({ error: 'At least 2 companyIds required' }, { status: 400 });
+    if (companyIds.length < 2) {
+      return Response.json(
+        { success: false, error: 'At least 2 companyIds required' },
+        { status: 400 },
+      );
+    }
 
     const companies = await db.company.findMany({
       where: { id: { in: companyIds } },
@@ -34,9 +53,17 @@ export async function GET(request: Request) {
     }));
 
     const patterns = detectCrossAccountPatterns(accountSignals);
-    return NextResponse.json({ companyCount: companies.length, signalCount: allSignals.length, patterns });
-  } catch (error) {
-    logger.error('[cross-account] Error:', { error: error });
-    return NextResponse.json({ error: 'Cross-account analysis failed' }, { status: 500 });
+    return Response.json({
+      success: true,
+      data: { companyCount: companies.length, signalCount: allSignals.length, patterns },
+      meta: { endpoint: 'cross-account', durationMs: Date.now() - startedAt },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error('[intelligence/cross-account] Error', { error: message });
+    return Response.json(
+      { success: false, error: 'Cross-account analysis failed', details: message, meta: { endpoint: 'cross-account', durationMs: Date.now() - startedAt } },
+      { status: 502 },
+    );
   }
 }

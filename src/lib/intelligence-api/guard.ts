@@ -20,7 +20,6 @@ import { rateLimit } from '@/lib/rate-limit';
 import {
   parseIncludeParams,
   createErrorResponse,
-  createResponse,
 } from './middleware';
 import type { IntelligenceInclude } from './types';
 import type { IntelligenceErrorResponse } from './middleware';
@@ -178,26 +177,6 @@ export class RateLimitedError extends Error {
     super('Rate limited');
     this.name = 'RateLimitedError';
   }
-}
-
-/**
- * Build a success response with correlation headers.
- */
-export function intelligenceSuccessResponse(
-  data: unknown,
-  guard: IntelligenceGuardResult,
-  meta: { durationMs: number; cached: boolean; confidence: number; freshness?: import('./types').FreshnessInfo },
-): Response {
-  const envelope = createResponse('company' as never, guard.companyId, data, {
-    ...meta,
-    includes: guard.includes,
-    requestedAt: new Date(),
-    respondedAt: new Date(),
-  });
-  return new Response(JSON.stringify(envelope), {
-    status: 200,
-    headers: guard.responseHeaders,
-  });
 }
 
 // ── Utility Route Helpers ──────────────────────────────────────────────────────

@@ -35,11 +35,9 @@ export async function GET(
   const startedAt = Date.now();
   const requestedAt = new Date();
 
-  const { id: companyId } = await params;
-
   const guardResult = await intelligenceGuard(request, params, 'conversation');
   if (guardResult instanceof Response) return guardResult;
-  const { correlationId, responseHeaders } = guardResult;
+  const { companyId, correlationId, responseHeaders } = guardResult;
 
   logger.info('[intelligence/conversation] Processing', {
     companyId,
@@ -73,10 +71,36 @@ export async function GET(
     );
   }
 
-  // ── Step 2: Run engine (try/catch for clean typing) ─────────────────────
+  // ── Step 2: Run engine + load learning insights in parallel ────────
   let conversationResult: ConversationResult;
+  let learningEvents: Array<{ id: string; learnedInsight: string; companyId: string | null; applicableContext: string; createdAt: Date }> = [];
+
   try {
-    conversationResult = await ConversationEngine.brief({ companyId, skipNarrative: true });
+    const results = await Promise.all([
+      ConversationEngine.brief({ companyId, skipNarrative: true }),
+      shouldInclude(guardResult.includes, 'learning')
+        ? db.learningEvent.findMany({
+            where: { companyId },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+            select: {
+              id: true,
+              learnedInsight: true,
+              companyId: true,
+              applicableContext: true,
+              createdAt: true,
+            },
+          }).catch(err => {
+            logger.warn('[intelligence/conversation] Failed to load learning insights', {
+              companyId,
+              error: err instanceof Error ? err.message : String(err),
+            });
+            return [];
+          })
+        : Promise.resolve([] as Array<{ id: string; learnedInsight: string; companyId: string | null; applicableContext: string; createdAt: Date }>),
+    ]);
+    conversationResult = results[0];
+    learningEvents = results[1];
   } catch (err) {
     const rawMessage = err instanceof Error ? err.message : String(err);
     logger.warn('[intelligence/conversation] ConversationEngine threw', { companyId, error: rawMessage });
@@ -95,30 +119,6 @@ export async function GET(
       createErrorResponse('conversation', companyId, scrubError(conversationResult.error || 'Conversation engine failed'), 'ENGINE_TIMEOUT', Date.now() - startedAt, guardResult.includes),
       { status: 502, headers: responseHeaders },
     );
-  }
-
-  // ── Step 3: Load learning insights (best-effort, parallel-safe) ──────────
-  let learningEvents: Array<{ id: string; learnedInsight: string; companyId: string | null; applicableContext: string; createdAt: Date }> = [];
-  if (shouldInclude(guardResult.includes, 'learning')) {
-    try {
-      learningEvents = await db.learningEvent.findMany({
-        where: { companyId },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-        select: {
-          id: true,
-          learnedInsight: true,
-          companyId: true,
-          applicableContext: true,
-          createdAt: true,
-        },
-      });
-    } catch (err) {
-      logger.warn('[intelligence/conversation] Failed to load learning insights', {
-        companyId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
   }
 
   // ── Step 4: Build brief from conversation result ────────────────────────
@@ -190,6 +190,6 @@ export async function GET(
       requestedAt,
       respondedAt: new Date(),
     }),
-    { headers: responseHeaders },
+    { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );
 }

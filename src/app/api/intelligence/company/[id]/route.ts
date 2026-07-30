@@ -128,243 +128,231 @@ export async function GET(
     );
   }
 
-  // ── Step 2: Conditionally load data sections ───────────────────────────
+  // ── Step 2: Conditionally load data sections (PARALLEL) ──────────────────
+  const [
+    signals,
+    contacts,
+    timeline,
+    knowledge,
+    mindmap,
+    loadedResearchCard,
+  ] = await Promise.all([
+    // Signals
+    shouldInclude(guardResult.includes, 'signals')
+      ? db.companySignal.findMany({
+          where: { companyId },
+          orderBy: { extractedAt: 'desc' },
+          take: 20,
+          select: {
+            id: true, signalType: true, title: true, description: true,
+            severity: true, impact: true, source: true, confidence: true,
+            evidenceIds: true, extractedAt: true, companyId: true,
+          },
+        }).then(records => records.map((s) => ({
+          id: s.id, signalType: s.signalType, title: s.title,
+          summary: s.description ?? '', confidence: s.confidence,
+          severity: s.severity, impact: s.impact, source: s.source ?? 'unknown',
+          evidenceCount: Array.isArray(s.evidenceIds) ? (s.evidenceIds as unknown[]).length : 0,
+          createdAt: s.extractedAt.toISOString(), companyId: s.companyId,
+        }))).catch(err => {
+          logger.warn('[intelligence/company] Failed to load signals', {
+            companyId, error: err instanceof Error ? err.message : String(err),
+          });
+          return undefined;
+        })
+      : Promise.resolve(undefined),
 
-  // --- Signals ---
-  let signals: IntelligenceCompanyContext['signals'] = undefined;
-  if (shouldInclude(guardResult.includes, 'signals')) {
-    try {
-      const signalRecords = await db.companySignal.findMany({
-        where: { companyId },
-        orderBy: { extractedAt: 'desc' },
-        take: 20,
-        select: {
-          id: true,
-          signalType: true,
-          title: true,
-          description: true,
-          severity: true,
-          impact: true,
-          source: true,
-          confidence: true,
-          evidenceIds: true,
-          extractedAt: true,
-          companyId: true,
-        },
-      });
-      signals = signalRecords.map((s) => ({
-        id: s.id,
-        signalType: s.signalType,
-        title: s.title,
-        summary: s.description ?? '',
-        confidence: s.confidence,
-        severity: s.severity,
-        impact: s.impact,
-        source: s.source ?? 'unknown',
-        evidenceCount: Array.isArray(s.evidenceIds) ? (s.evidenceIds as unknown[]).length : 0,
-        createdAt: s.extractedAt.toISOString(),
-        companyId: s.companyId,
-      }));
-    } catch (err) {
-      logger.warn('[intelligence/company] Failed to load signals', {
-        companyId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
+    // Contacts
+    shouldInclude(guardResult.includes, 'contacts')
+      ? db.contact.findMany({
+          where: { companyId },
+          orderBy: { leadScore: 'desc' },
+          take: 50,
+          select: {
+            id: true, rawName: true, title: true, email: true, role: true,
+            phone: true, companyId: true, company: { select: { rawName: true } },
+            leadScore: true, aiConversionScore: true, enrichmentScore: true,
+            source: true, status: true, lastContactedAt: true,
+          },
+        }).then(records => records.map((c) => ({
+          id: c.id, rawName: c.rawName, title: c.title, email: c.email,
+          role: c.role, phone: c.phone, companyId: c.companyId,
+          companyName: c.company?.rawName ?? null, leadScore: c.leadScore ?? 0,
+          confidence: (c.aiConversionScore ?? c.enrichmentScore ?? 0),
+          status: c.status, source: c.source ?? null,
+          lastActivityAt: c.lastContactedAt?.toISOString() ?? null,
+        }))).catch(err => {
+          logger.warn('[intelligence/company] Failed to load contacts', {
+            companyId, error: err instanceof Error ? err.message : String(err),
+          });
+          return undefined;
+        })
+      : Promise.resolve(undefined),
 
-  // --- Contacts ---
-  let contacts: IntelligenceCompanyContext['contacts'] = undefined;
-  if (shouldInclude(guardResult.includes, 'contacts')) {
-    try {
-      const contactRecords = await db.contact.findMany({
-        where: { companyId },
-        orderBy: { leadScore: 'desc' },
-        take: 50,
-        select: {
-          id: true,
-          rawName: true,
-          title: true,
-          email: true,
-          role: true,
-          phone: true,
-          companyId: true,
-          company: { select: { rawName: true } },
-          leadScore: true,
-          aiConversionScore: true,
-          enrichmentScore: true,
-          source: true,
-          status: true,
-          lastContactedAt: true,
-        },
-      });
-      contacts = contactRecords.map((c) => ({
-        id: c.id,
-        rawName: c.rawName,
-        title: c.title,
-        email: c.email,
-        role: c.role,
-        phone: c.phone,
-        companyId: c.companyId,
-        companyName: c.company?.rawName ?? null,
-        leadScore: c.leadScore ?? 0,
-        confidence: (c.aiConversionScore ?? c.enrichmentScore ?? 0),
-        status: c.status,
-        source: c.source ?? null,
-        lastActivityAt: c.lastContactedAt?.toISOString() ?? null,
-      }));
-    } catch (err) {
-      logger.warn('[intelligence/company] Failed to load contacts', {
-        companyId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
+    // Timeline
+    shouldInclude(guardResult.includes, 'timeline')
+      ? db.companyTimelineEvent.findMany({
+          where: { companyId },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          select: {
+            id: true, eventType: true, title: true, description: true,
+            metadata: true, createdAt: true, companyId: true,
+          },
+        }).then(records => records.map((e) => ({
+          id: e.id, type: e.eventType, title: e.title,
+          description: e.description,
+          metadata: (e.metadata as Record<string, unknown>) ?? {},
+          createdAt: e.createdAt.toISOString(), companyId: e.companyId,
+        }))).catch(err => {
+          logger.warn('[intelligence/company] Failed to load timeline', {
+            companyId, error: err instanceof Error ? err.message : String(err),
+          });
+          return undefined;
+        })
+      : Promise.resolve(undefined),
 
-  // --- Timeline ---
-  let timeline: IntelligenceCompanyContext['timeline'] = undefined;
-  if (shouldInclude(guardResult.includes, 'timeline')) {
-    try {
-      const timelineRecords = await db.companyTimelineEvent.findMany({
-        where: { companyId },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-        select: {
-          id: true,
-          eventType: true,
-          title: true,
-          description: true,
-          metadata: true,
-          createdAt: true,
-          companyId: true,
-        },
-      });
-      timeline = timelineRecords.map((e) => ({
-        id: e.id,
-        type: e.eventType,
-        title: e.title,
-        description: e.description,
-        metadata: (e.metadata as Record<string, unknown>) ?? {},
-        createdAt: e.createdAt.toISOString(),
-        companyId: e.companyId,
-      }));
-    } catch (err) {
-      logger.warn('[intelligence/company] Failed to load timeline', {
-        companyId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
+    // Knowledge (CapabilityAssets linked via FusionResult)
+    shouldInclude(guardResult.includes, 'knowledge')
+      ? (async () => {
+          // Load fusion results to find capability IDs linked to this company
+          const fusionResults = await db.fusionResult.findMany({
+            where: { companyId },
+            select: {
+              capabilityIds: true, businessProblem: true,
+              recommendedCapability: true, relevantCaseStudy: true,
+              proofPoints: true, fusionScore: true,
+            },
+            distinct: ['companyId'],
+            take: 1,
+          });
 
-  // --- Knowledge (CapabilityAssets linked via FusionResult) ---
-  let knowledge: IntelligenceCompanyContext['knowledge'] = undefined;
-  if (shouldInclude(guardResult.includes, 'knowledge')) {
-    try {
-      // Load fusion results to find capability IDs linked to this company
-      const fusionResults = await db.fusionResult.findMany({
-        where: { companyId },
-        select: {
-          capabilityIds: true,
-          businessProblem: true,
-          recommendedCapability: true,
-          relevantCaseStudy: true,
-          proofPoints: true,
-          fusionScore: true,
-        },
-        distinct: ['companyId'],
-        take: 1,
-      });
-
-      // Extract unique capability IDs from all fusion results
-      const allCapabilityIds: string[] = [];
-      for (const fr of fusionResults) {
-        const ids = fr.capabilityIds as unknown[];
-        if (Array.isArray(ids)) {
-          for (const capId of ids) {
-            if (typeof capId === 'string' && !allCapabilityIds.includes(capId)) {
-              allCapabilityIds.push(capId);
+          // Extract unique capability IDs from all fusion results
+          const allCapabilityIds: string[] = [];
+          for (const fr of fusionResults) {
+            const ids = fr.capabilityIds as unknown[];
+            if (Array.isArray(ids)) {
+              for (const capId of ids) {
+                if (typeof capId === 'string' && !allCapabilityIds.includes(capId)) {
+                  allCapabilityIds.push(capId);
+                }
+              }
             }
           }
-        }
-      }
 
-      // Load the actual capability assets
-      let capabilities: Array<Record<string, unknown>> = [];
-      let caseStudies: Array<Record<string, unknown>> = [];
+          // Load the actual capability assets
+          let capabilities: Array<Record<string, unknown>> = [];
+          let caseStudies: Array<Record<string, unknown>> = [];
 
-      if (allCapabilityIds.length > 0) {
-        const assets = await db.capabilityAsset.findMany({
-          where: { id: { in: allCapabilityIds } },
+          if (allCapabilityIds.length > 0) {
+            const assets = await db.capabilityAsset.findMany({
+              where: { id: { in: allCapabilityIds } },
+              select: {
+                id: true, title: true, summary: true, category: true,
+                serviceLine: true, targetIndustries: true, problems: true, evidence: true,
+              },
+            });
+
+            capabilities = assets
+              .filter((a) => a.category !== 'case_study' && a.category !== 'proof_point')
+              .map((a) => ({
+                id: a.id, title: a.title, summary: a.summary, category: a.category,
+                serviceLine: a.serviceLine, targetIndustries: a.targetIndustries,
+                problems: a.problems,
+              }));
+
+            caseStudies = assets
+              .filter((a) => a.category === 'case_study' || a.category === 'proof_point')
+              .map((a) => ({
+                id: a.id, title: a.title, summary: a.summary, category: a.category,
+                evidence: a.evidence,
+              }));
+          }
+
+          return { capabilities, caseStudies };
+        })().catch(err => {
+          logger.warn('[intelligence/company] Failed to load knowledge', {
+            companyId, error: err instanceof Error ? err.message : String(err),
+          });
+          return undefined;
+        })
+      : Promise.resolve(undefined),
+
+    // Mindmap summary
+    shouldInclude(guardResult.includes, 'mindmap')
+      ? (async () => {
+          const [contactCount, signalCount, companyFusionResults] = await Promise.all([
+            db.contact.count({ where: { companyId } }),
+            db.companySignal.count({ where: { companyId } }),
+            db.fusionResult.findMany({
+              where: { companyId },
+              select: { capabilityIds: true },
+            }),
+          ]);
+
+          // Derive company-specific capability count from fusion results
+          const allCapIds = new Set<string>();
+          for (const fr of companyFusionResults) {
+            const ids = fr.capabilityIds as unknown[];
+            if (Array.isArray(ids)) {
+              for (const id of ids) {
+                if (typeof id === 'string') allCapIds.add(id);
+              }
+            }
+          }
+          const capabilityCount = allCapIds.size;
+
+          return {
+            nodeCount: 1 + contactCount + signalCount + capabilityCount, // +1 for company center
+            edgeCount: contactCount + signalCount + capabilityCount, // hub-and-spoke
+            centerNode: (company.normalizedName as string) || (company.rawName as string) || '',
+            categories: ['person', 'signal', 'knowledge'],
+            lastGenerated: null,
+          };
+        })().catch(err => {
+          logger.warn('[intelligence/company] Failed to compute mindmap summary', {
+            companyId, error: err instanceof Error ? err.message : String(err),
+          });
+          return undefined;
+        })
+      : Promise.resolve(undefined),
+
+    // Research card (always loaded)
+    (async () => {
+      let researchCard: Record<string, unknown> | null = null;
+      let keyPeople: IntelligenceCompanyContext['keyPeople'] = [];
+      try {
+        researchCard = await db.companyResearchCard.findUnique({
+          where: { companyId },
           select: {
-            id: true,
-            title: true,
-            summary: true,
-            category: true,
-            serviceLine: true,
-            targetIndustries: true,
-            problems: true,
-            evidence: true,
+            businessOverview: true, techStack: true, keyPeople: true,
+            recentNews: true, revenue: true, employeeCount: true,
+            strategicPriorities: true, businessProblems: true,
           },
         });
 
-        capabilities = assets
-          .filter((a) => a.category !== 'case_study' && a.category !== 'proof_point')
-          .map((a) => ({
-            id: a.id,
-            title: a.title,
-            summary: a.summary,
-            category: a.category,
-            serviceLine: a.serviceLine,
-            targetIndustries: a.targetIndustries,
-            problems: a.problems,
-          }));
-
-        caseStudies = assets
-          .filter((a) => a.category === 'case_study' || a.category === 'proof_point')
-          .map((a) => ({
-            id: a.id,
-            title: a.title,
-            summary: a.summary,
-            category: a.category,
-            evidence: a.evidence,
-          }));
+        // Extract key people from research card if available
+        if (researchCard?.keyPeople) {
+          const people = researchCard.keyPeople as Array<{
+            name: string; title: string; department?: string; linkedInUrl?: string;
+          }>;
+          if (Array.isArray(people)) {
+            keyPeople = people.map((p) => ({
+              name: p.name, title: p.title, department: p.department,
+              linkedInUrl: p.linkedInUrl, source: 'research_card',
+            }));
+          }
+        }
+      } catch (err) {
+        logger.warn('[intelligence/company] Failed to load research card / key people', {
+          companyId, error: err instanceof Error ? err.message : String(err),
+        });
       }
+      return { researchCard, keyPeople };
+    })(),
+  ]);
 
-      knowledge = { capabilities, caseStudies };
-    } catch (err) {
-      logger.warn('[intelligence/company] Failed to load knowledge', {
-        companyId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
-
-  // --- Mindmap summary ---
-  let mindmap: IntelligenceCompanyContext['mindmap'] = undefined;
-  if (shouldInclude(guardResult.includes, 'mindmap')) {
-    try {
-      // Mindmap tables (mindmapNode/mindmapEdge) don't exist in Prisma schema yet.
-      // Derive summary from contacts, signals, and capability counts.
-      const [contactCount, signalCount, capabilityCount] = await Promise.all([
-        db.contact.count({ where: { companyId } }),
-        db.companySignal.count({ where: { companyId } }),
-        db.capabilityAsset.count({ where: { isActive: true } }),
-      ]);
-
-      mindmap = {
-        nodeCount: 1 + contactCount + signalCount + capabilityCount, // +1 for company center
-        edgeCount: contactCount + signalCount + capabilityCount, // hub-and-spoke
-        centerNode: (company.normalizedName as string) || (company.rawName as string) || '',
-        categories: ['person', 'signal', 'knowledge'],
-        lastGenerated: null,
-      };
-    } catch (err) {
-      logger.warn('[intelligence/company] Failed to compute mindmap summary', {
-        companyId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
+  const { researchCard, keyPeople } = loadedResearchCard;
 
   // ── Step 3: Run engines in parallel (scores, actions, brief) ──────────
   const enginePromises: Record<string, Promise<unknown>> = {};
@@ -498,52 +486,7 @@ export async function GET(
       ? confidences.reduce((sum, c) => sum + c, 0) / confidences.length
       : freshness.score / 100;
 
-  // ── Step 6: Load research card + key people ─────────────────────────────
-  let researchCard: Record<string, unknown> | null = null;
-  let keyPeople: IntelligenceCompanyContext['keyPeople'] = [];
-
-  try {
-    // Research card (best-effort)
-    researchCard = await db.companyResearchCard.findUnique({
-      where: { companyId },
-      select: {
-        businessOverview: true,
-        techStack: true,
-        keyPeople: true,
-        recentNews: true,
-        revenue: true,
-        employeeCount: true,
-        strategicPriorities: true,
-        businessProblems: true,
-      },
-    });
-
-    // Extract key people from research card if available
-    if (researchCard?.keyPeople) {
-      const people = researchCard.keyPeople as Array<{
-        name: string;
-        title: string;
-        department?: string;
-        linkedInUrl?: string;
-      }>;
-      if (Array.isArray(people)) {
-        keyPeople = people.map((p) => ({
-          name: p.name,
-          title: p.title,
-          department: p.department,
-          linkedInUrl: p.linkedInUrl,
-          source: 'research_card',
-        }));
-      }
-    }
-  } catch (err) {
-    logger.warn('[intelligence/company] Failed to load research card / key people', {
-      companyId,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-
-  // ── Step 7: Assemble IntelligenceCompanyContext ────────────────────────
+  // ── Step 6: Assemble IntelligenceCompanyContext ────────────────────────
   const data: IntelligenceCompanyContext = {
     company: {
       id: company.id,
@@ -577,7 +520,7 @@ export async function GET(
     freshness,
   };
 
-  // ── Step 8: Build & return envelope ─────────────────────────────────────
+  // ── Step 7: Build & return envelope ─────────────────────────────────────
   const durationMs = Date.now() - startedAt;
 
   logger.info('[intelligence/company] Response assembled', {

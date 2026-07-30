@@ -14,10 +14,25 @@ import { IntelligenceResponse, IntelligenceMeta, IntelligenceInclude, FreshnessI
 
 // ── Include Parameter Parsing ───────────────────────────────────────────────────
 
+// Single source of truth for valid include keys — mirrors IntelligenceInclude union type.
+// NOTE: If you add a new IntelligenceInclude variant in types.ts, add it here too.
 const VALID_INCLUDES: Set<string> = new Set<string>([
+  // Company endpoint includes
   'signals', 'scores', 'contacts', 'timeline', 'actions', 'brief',
-  'knowledge', 'mindmap', 'reasoning', 'opportunities',
-  'learning', 'data_health', 'people_changes', 'steps',
+  'knowledge', 'mindmap', 'data_health', 'people_changes',
+  'reasoning', 'opportunities', 'learning',
+  // Reasoning endpoint includes
+  'steps', 'impact', 'recommendations',
+  // Opportunity endpoint includes
+  'fusion', 'capabilities',
+  // Action endpoint includes
+  'sequences',
+  // Conversation endpoint includes
+  'talkingPoints', 'objections', 'buyerProfiles',
+  // Mindmap endpoint includes
+  'nodes', 'edges', 'knowledgeConnections',
+  // Knowledge endpoint includes
+  'ingestion',
 ]);
 
 /**
@@ -150,10 +165,11 @@ export function computeFreshness(company: {
   else if (hoursSince < 72) { level = 'aging'; score = 40; }
   else if (hoursSince < 168) { level = 'stale'; score = 20; }
 
+  const lastActivity = company.lastActivityAt ? new Date(company.lastActivityAt) : lastEnriched;
   return {
     level,
     lastEnriched: lastEnriched.toISOString(),
-    lastSignal: lastEnriched.toISOString(),
+    lastSignal: lastActivity.toISOString(),
     score,
   };
 }

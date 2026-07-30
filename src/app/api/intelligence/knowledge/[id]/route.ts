@@ -46,9 +46,10 @@ export async function GET(
 
   logger.info('[intelligence/knowledge] Processing', { companyId, correlationId });
 
+  // ── Step 1: Load company from DB (for freshness) ────────────────────────
+  let company: Record<string, unknown> | null = null;
   try {
-    // Verify company exists — using typed select
-    const company = await db.company.findUnique({
+    company = await db.company.findUnique({
       where: { id: companyId },
       select: {
         id: true,
@@ -56,13 +57,23 @@ export async function GET(
         lastActivityAt: true,
       },
     });
+  } catch (err) {
+    const rawMessage = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('[intelligence/knowledge] DB lookup failed', { companyId, correlationId, error: rawMessage });
+    return Response.json(
+      createErrorResponse('knowledge', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - started, includes),
+      { status: 500, headers: responseHeaders },
+    );
+  }
 
-    if (!company) {
-      return Response.json(
-        createErrorResponse('knowledge', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - started),
-        { status: 404, headers: responseHeaders },
-      );
-    }
+  if (!company) {
+    return Response.json(
+      createErrorResponse('knowledge', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - started, includes),
+      { status: 404, headers: responseHeaders },
+    );
+  }
+
+  try {
 
     // Fetch all knowledge entries for this company — using typed select
     const entries = await db.knowledgeEntry.findMany({
@@ -121,7 +132,7 @@ export async function GET(
 
     // Ingestion stats (optional — ?include=ingestion)
     let ingestionStats: IntelligenceKnowledgeIngestionStats | null = null;
-    if (includes.has('ingestion' as never)) {
+    if (includes.has('ingestion')) {
       try {
         ingestionStats = await KnowledgeIngestionPipeline.getStats();
       } catch (err) {
@@ -154,13 +165,13 @@ export async function GET(
         requestedAt,
         respondedAt: new Date(),
       }),
-      { headers: responseHeaders },
+      { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
     );
   } catch (err) {
     const rawMsg = err instanceof Error ? err.message : String(err);
     logger.error('[intelligence/knowledge] unexpected error', { error: rawMsg, companyId, correlationId });
     return Response.json(
-      createErrorResponse('knowledge', companyId, scrubError(rawMsg), 'INTELLIGENCE_UNAVAILABLE', Date.now() - started),
+      createErrorResponse('knowledge', companyId, scrubError(rawMsg), 'INTELLIGENCE_UNAVAILABLE', Date.now() - started, includes),
       { status: 500, headers: responseHeaders },
     );
   }

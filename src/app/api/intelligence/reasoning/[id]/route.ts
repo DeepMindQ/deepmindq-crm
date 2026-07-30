@@ -35,16 +35,13 @@ export async function GET(
   const startedAt = Date.now();
   const requestedAt = new Date();
 
-  const { id: companyId } = await params;
-
   // ── Intelligence Guard: validation + rate limiting + correlation-id ─────
   const guardResult = await intelligenceGuard(request, params, 'reasoning');
   if (guardResult instanceof Response) return guardResult;
-  const { correlationId, responseHeaders } = guardResult;
+  const { companyId, correlationId, responseHeaders } = guardResult;
 
   // Parse include params — "steps" is included by default when no include is specified
-  const raw = request.nextUrl.searchParams.get('include');
-  const includeSteps = raw === null || guardResult.includes.has('steps');
+  const includeSteps = guardResult.includes.size === 0 || guardResult.includes.has('steps');
 
   logger.info('[intelligence/reasoning] Processing', {
     companyId,
@@ -104,7 +101,7 @@ export async function GET(
         'reasoning',
         companyId,
         scrubError(result.error || 'Reasoning engine failed'),
-        'ENGINE_TIMEOUT',
+        'INTELLIGENCE_UNAVAILABLE',
         Date.now() - startedAt,
         guardResult.includes,
       ),
@@ -194,6 +191,6 @@ export async function GET(
       requestedAt,
       respondedAt: new Date(),
     }),
-    { headers: responseHeaders },
+    { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );
 }

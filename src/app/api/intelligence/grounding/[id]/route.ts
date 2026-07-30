@@ -129,6 +129,6 @@ export async function GET(
       requestedAt,
       respondedAt: new Date(),
     }),
-    { headers: responseHeaders },
+    { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );
 }

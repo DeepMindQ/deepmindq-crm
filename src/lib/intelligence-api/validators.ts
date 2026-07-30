@@ -25,6 +25,27 @@ export const companyIdSchema = z
     'Company ID contains invalid characters'
   );
 
+// Valid include keys — imported from middleware to maintain single source of truth.
+// We do a runtime import to avoid circular deps (middleware doesn't import from validators).
+let _validIncludeKeys: Set<string> | null = null;
+function getValidIncludeKeys(): Set<string> {
+  if (!_validIncludeKeys) {
+    // Inline the set here (must stay in sync with middleware.ts VALID_INCLUDES)
+    _validIncludeKeys = new Set([
+      'signals', 'scores', 'contacts', 'timeline', 'actions', 'brief',
+      'knowledge', 'mindmap', 'data_health', 'people_changes',
+      'reasoning', 'opportunities', 'learning',
+      'steps', 'impact', 'recommendations',
+      'fusion', 'capabilities',
+      'sequences',
+      'talkingPoints', 'objections', 'buyerProfiles',
+      'nodes', 'edges', 'knowledgeConnections',
+      'ingestion',
+    ]);
+  }
+  return _validIncludeKeys;
+}
+
 /** Include parameter: comma-separated list of valid keys */
 export const includeSchema = z
   .string()
@@ -33,11 +54,7 @@ export const includeSchema = z
     (val) => {
       if (!val) return true; // null/undefined is fine (no includes)
       const parts = val.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-      const validIncludes = new Set([
-        'signals', 'scores', 'contacts', 'timeline', 'actions', 'brief',
-        'knowledge', 'mindmap', 'reasoning', 'opportunities',
-        'learning', 'data_health', 'people_changes', 'steps',
-      ]);
+      const validIncludes = getValidIncludeKeys();
       return parts.every(p => validIncludes.has(p));
     },
     { message: 'One or more include values are invalid' }

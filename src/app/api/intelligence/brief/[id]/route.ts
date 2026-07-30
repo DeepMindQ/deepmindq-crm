@@ -59,7 +59,7 @@ export async function GET(
 
   if (!VALID_BRIEF_TYPES.has(briefType)) {
     return Response.json(
-      createErrorResponse('brief', companyId, `Invalid briefType: ${briefType}. Must be one of: ${Array.from(VALID_BRIEF_TYPES).join(', ')}`, 'INVALID_INCLUDE', Date.now() - startedAt, includes),
+      createErrorResponse('brief', companyId, `Invalid briefType: ${briefType}. Must be one of: ${Array.from(VALID_BRIEF_TYPES).join(', ')}`, 'VALIDATION_FAILED', Date.now() - startedAt, includes),
       { status: 400, headers: responseHeaders },
     );
   }
@@ -194,6 +194,6 @@ export async function GET(
       requestedAt,
       respondedAt: new Date(),
     }),
-    { headers: responseHeaders },
+    { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );
 }

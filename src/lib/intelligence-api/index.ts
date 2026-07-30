@@ -39,6 +39,11 @@ export type {
   IntelligenceGroundingOutput,
   IntelligenceRetrievalOutput,
 
+  IntelligenceKnowledgeOutput,
+  IntelligenceKnowledgeEntry,
+  IntelligenceKnowledgeGroup,
+  IntelligenceKnowledgeIngestionStats,
+
   IntelligenceErrorCode,
 } from './types';
 

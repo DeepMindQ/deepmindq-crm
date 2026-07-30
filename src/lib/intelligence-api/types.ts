@@ -54,6 +54,7 @@ export type IntelligenceEndpoint =
   | 'knowledge';
 
 export type IntelligenceInclude =
+  // Company endpoint includes
   | 'signals'
   | 'scores'
   | 'contacts'
@@ -62,12 +63,30 @@ export type IntelligenceInclude =
   | 'brief'
   | 'knowledge'
   | 'mindmap'
+  | 'data_health'
+  | 'people_changes'
   | 'reasoning'
   | 'opportunities'
   | 'learning'
-  | 'data_health'
-  | 'people_changes'
-  | 'steps';
+  // Reasoning endpoint includes
+  | 'steps'
+  | 'impact'
+  | 'recommendations'
+  // Opportunity endpoint includes
+  | 'fusion'
+  | 'capabilities'
+  // Action endpoint includes
+  | 'sequences'
+  // Conversation endpoint includes
+  | 'talkingPoints'
+  | 'objections'
+  | 'buyerProfiles'
+  // Mindmap endpoint includes
+  | 'nodes'
+  | 'edges'
+  | 'knowledgeConnections'
+  // Knowledge endpoint includes
+  | 'ingestion';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  FRESHNESS — Staleness tracking for all intelligence data

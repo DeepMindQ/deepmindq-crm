@@ -30,11 +30,9 @@ export async function GET(
   const startedAt = Date.now();
   const requestedAt = new Date();
 
-  const { id: companyId } = await params;
-
   const guardResult = await intelligenceGuard(request, params, 'mindmap');
   if (guardResult instanceof Response) return guardResult;
-  const { correlationId, responseHeaders } = guardResult;
+  const { companyId, correlationId, responseHeaders } = guardResult;
 
   logger.info('[intelligence/mindmap] Processing', {
     companyId,
@@ -176,6 +174,6 @@ export async function GET(
       requestedAt,
       respondedAt: new Date(),
     }),
-    { headers: responseHeaders },
+    { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );
 }

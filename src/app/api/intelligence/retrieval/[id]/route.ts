@@ -61,7 +61,7 @@ export async function GET(
 
   if (!query || !query.trim()) {
     return Response.json(
-      createErrorResponse('retrieval', companyId, 'Query parameter ?q= is required', 'INVALID_INCLUDE', Date.now() - startedAt, includes),
+      createErrorResponse('retrieval', companyId, 'Query parameter ?q= is required', 'VALIDATION_FAILED', Date.now() - startedAt, includes),
       { status: 400, headers: responseHeaders },
     );
   }
@@ -103,10 +103,16 @@ export async function GET(
     );
   }
 
-  // ── Step 2: Run RetrievalEngine.search() ───────────────────────────────
+  // ── Step 2: Run RetrievalEngine.search() + getStats() in parallel ──────
   let results: Awaited<ReturnType<typeof RetrievalEngine.search>>;
+  let stats: Awaited<ReturnType<typeof RetrievalEngine.getStats>>;
   try {
-    results = await RetrievalEngine.search(query, topK, filter);
+    const [searchResult, statsResult] = await Promise.all([
+      RetrievalEngine.search(query, topK, filter),
+      RetrievalEngine.getStats().catch(() => ({ totalEmbeddings: 0, uniqueEntities: 0, byType: {}, backend: 'empty' as const, indexSizeBytes: 0 })),
+    ]);
+    results = searchResult;
+    stats = statsResult;
   } catch (err) {
     const rawMessage = err instanceof Error ? err.message : String(err);
     logger.warn('[intelligence/retrieval] RetrievalEngine threw', { companyId, correlationId, error: rawMessage });
@@ -114,14 +120,6 @@ export async function GET(
       createErrorResponse('retrieval', companyId, scrubError(rawMessage), 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
       { status: 502, headers: responseHeaders },
     );
-  }
-
-  // ── Step 3: Get index stats ─────────────────────────────────────────────
-  let stats: Awaited<ReturnType<typeof RetrievalEngine.getStats>>;
-  try {
-    stats = await RetrievalEngine.getStats();
-  } catch {
-    stats = { totalEmbeddings: 0, uniqueEntities: 0, byType: {}, backend: 'empty', indexSizeBytes: 0 };
   }
 
   // ── Step 4: Compose response ─────────────────────────────────────────────
@@ -162,6 +160,6 @@ export async function GET(
       requestedAt,
       respondedAt: new Date(),
     }),
-    { headers: responseHeaders },
+    { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );
 }

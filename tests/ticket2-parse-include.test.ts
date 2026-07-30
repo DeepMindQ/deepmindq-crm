@@ -60,12 +60,13 @@ describe('parseIncludeParams', () => {
     expect(raw!).toContain('contacts');
   });
 
-  it('lowercases include values', () => {
+  it('is case-sensitive — uppercase include values are dropped', () => {
     const req = makeRequest('/api/intelligence/company/test-id?include=SignalS,SCORES');
     const { includes, raw } = parseIncludeParams(req);
-    expect(includes.has('signals')).toBe(true);
-    expect(includes.has('scores')).toBe(true);
-    expect(includes.size).toBe(2);
+    // VALID_INCLUDES uses exact case (e.g., 'signals', 'scores', 'talkingPoints')
+    expect(includes.has('signals')).toBe(false);
+    expect(includes.has('scores')).toBe(false);
+    expect(includes.size).toBe(0);
   });
 
   it('silently drops invalid include keys', () => {

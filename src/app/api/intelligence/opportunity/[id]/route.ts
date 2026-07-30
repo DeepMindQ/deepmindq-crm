@@ -30,6 +30,7 @@ import {
   computeFreshness,
   shouldInclude,
 } from '@/lib/intelligence-api/middleware';
+import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import type {
   IntelligenceOpportunity,
 } from '@/lib/intelligence-api/types';
@@ -70,14 +71,14 @@ export async function GET(
     const rawMessage = err instanceof Error ? err.message : 'Unknown error';
     logger.error('[intelligence/opportunity] DB lookup failed', { companyId, error: rawMessage });
     return Response.json(
-      createErrorResponse('opportunity', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, guardResult.includes),
+      createErrorResponse('opportunity', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, IntelligenceErrors.INTELLIGENCE_UNAVAILABLE, Date.now() - startedAt, guardResult.includes),
       { status: 500, headers: responseHeaders },
     );
   }
 
   if (!company) {
     return Response.json(
-      createErrorResponse('opportunity', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, guardResult.includes),
+      createErrorResponse('opportunity', companyId, 'Company not found', IntelligenceErrors.COMPANY_NOT_FOUND, Date.now() - startedAt, guardResult.includes),
       { status: 404, headers: responseHeaders },
     );
   }

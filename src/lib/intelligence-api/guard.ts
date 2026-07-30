@@ -160,7 +160,7 @@ export function utilityGuard(
   if (!rl.success) {
     logger.warn('[intelligence-utility] Rate limited', { correlationId, endpoint, clientIp });
     throw new RateLimitedError(
-      createErrorResponse(endpoint, '', 'Rate limit exceeded', IntelligenceErrors.RATE_LIMITED, 0),
+      createErrorResponse(endpoint as IntelligenceEndpoint, '', 'Rate limit exceeded', IntelligenceErrors.RATE_LIMITED, 0),
       responseHeaders,
     );
   }

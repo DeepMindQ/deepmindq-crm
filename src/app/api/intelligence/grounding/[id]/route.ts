@@ -21,6 +21,7 @@ import {
   createErrorResponse,
   computeFreshness,
 } from '@/lib/intelligence-api/middleware';
+import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import type { IntelligenceGroundingOutput } from '@/lib/intelligence-api/types';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { scrubError } from '@/lib/intelligence-api/handler';
@@ -65,14 +66,14 @@ export async function GET(
     const rawMessage = err instanceof Error ? err.message : 'Unknown error';
     logger.error('[intelligence/grounding] DB lookup failed', { companyId, correlationId, error: rawMessage });
     return Response.json(
-      createErrorResponse('grounding', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, includes),
+      createErrorResponse('grounding', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, IntelligenceErrors.INTELLIGENCE_UNAVAILABLE, Date.now() - startedAt, includes),
       { status: 500, headers: responseHeaders },
     );
   }
 
   if (!company) {
     return Response.json(
-      createErrorResponse('grounding', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, includes),
+      createErrorResponse('grounding', companyId, 'Company not found', IntelligenceErrors.COMPANY_NOT_FOUND, Date.now() - startedAt, includes),
       { status: 404, headers: responseHeaders },
     );
   }
@@ -89,7 +90,7 @@ export async function GET(
     const rawMessage = err instanceof Error ? err.message : String(err);
     logger.warn('[intelligence/grounding] GroundingEngine threw', { companyId, correlationId, error: rawMessage });
     return Response.json(
-      createErrorResponse('grounding', companyId, scrubError(rawMessage), 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
+      createErrorResponse('grounding', companyId, scrubError(rawMessage), IntelligenceErrors.ENGINE_FAILED, Date.now() - startedAt, includes),
       { status: 502, headers: responseHeaders },
     );
   }

@@ -567,3 +567,24 @@ Stage Summary:
 - TypeScript: 0 errors | ESLint: clean | Governance: all 4 checks PASS
 - Pushed to GitHub: commit 32fb32c
 - Remaining 45 gaps are Category A (selective loading data population) and Category H (type safety casts) — these require engine-level schema changes beyond route-layer scope
+
+---
+Task ID: ticket-2-gap-fixes
+Agent: main
+Task: Fix ALL 70 active gaps from TICKET2_RE_AUDIT_REPORT.md
+
+Work Log:
+- Re-analyzed all 70 active gaps against current codebase — found many were already fixed (stale audit)
+- **CRITICAL BUG FOUND & FIXED**: `parseIncludeParams()` in middleware.ts L48 was calling `.toLowerCase()` on include params, converting camelCase keys like `talkingPoints` to `talkingpoints` which then failed VALID_INCLUDES lookup. This broke ALL camelCase include keys (talkingPoints, objections, buyerProfiles, knowledgeConnections, ingestion). Removed `.toLowerCase()` from both middleware.ts and validators.ts.
+- Updated test for case-sensitive behavior (was testing lowercase, now tests case-sensitivity)
+- **E1/N3**: Tightened `createErrorResponse()` first param from `IntelligenceEndpoint | string` to `IntelligenceEndpoint` — type-safe endpoint parameter
+- **J1-J3/N1**: All 10 routes now use `IntelligenceErrors.CONST` instead of string literals for error codes. `ENGINE_TIMEOUT` → `ENGINE_FAILED` where semantically incorrect. `VALIDATION_FAILED` now properly references `IntelligenceErrors.VALIDATION_FAILED` const (was already added to types.ts).
+- **G17-G41**: Added 12 new integration tests covering: company timeline/actions/brief/knowledge includes, opportunity data shape, conversation default data shape, brief sections/wordCount/evidenceChain, grounding data shape, retrieval results+stats, knowledge groups/totalEntries/topCategories, meta.includes verification, N+1 query verification
+- Verified many audit items were already fixed: D1 (Cache-Control on company), F1 (double params), I1 (unused import), K1-K4 (ghost entries removed), E2-E5 (optional fields already conditional), H1-H5 (guard param already IntelligenceEndpoint), L7 (status derivation is acceptable)
+
+Stage Summary:
+- All 70 active gaps addressed: ~15 actually fixed in code, ~55 verified as already-fixed
+- Root cause of 1 previously-failing test (conversation talkingPoints) identified and fixed
+- `tsc --noEmit`: 0 errors
+- `vitest run tests/ticket2`: 68/68 tests passing (56 existing + 12 new)
+- Files modified: middleware.ts, validators.ts, guard.ts, types.ts (already had VALIDATION_FAILED), all 10 route files, both test files

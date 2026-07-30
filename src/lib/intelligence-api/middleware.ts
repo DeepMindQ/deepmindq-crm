@@ -45,7 +45,7 @@ export function parseIncludeParams(
   const raw = request.nextUrl.searchParams.get('include');
   if (!raw) return { includes: new Set(), raw: null };
 
-  const requested = raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const requested = raw.split(',').map(s => s.trim()).filter(Boolean);
   const valid = requested.filter(s => VALID_INCLUDES.has(s)) as IntelligenceInclude[];
 
   return { includes: new Set(valid), raw };
@@ -123,7 +123,7 @@ export interface IntelligenceErrorResponse {
  * Used by all Intelligence API error paths (400, 429, 500).
  */
 export function createErrorResponse(
-  _endpoint: IntelligenceEndpoint | string,
+  _endpoint: IntelligenceEndpoint,
   companyId: string,
   error: string,
   errorCode: IntelligenceErrorCode = IntelligenceErrors.INTELLIGENCE_UNAVAILABLE,

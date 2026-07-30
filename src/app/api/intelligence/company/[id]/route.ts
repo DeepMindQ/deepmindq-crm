@@ -29,6 +29,7 @@ import {
   computeFreshness,
 } from '@/lib/intelligence-api/middleware';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
+import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import type {
   IntelligenceCompanyContext,
 } from '@/lib/intelligence-api/types';
@@ -101,7 +102,7 @@ export async function GET(
         'company',
         companyId,
         `Company lookup failed: ${scrubError(rawMessage)}`,
-        'INTELLIGENCE_UNAVAILABLE',
+        IntelligenceErrors.INTELLIGENCE_UNAVAILABLE,
         Date.now() - startedAt,
         guardResult.includes,
       ),
@@ -116,7 +117,7 @@ export async function GET(
         'company',
         companyId,
         'Company not found',
-        'COMPANY_NOT_FOUND',
+        IntelligenceErrors.COMPANY_NOT_FOUND,
         Date.now() - startedAt,
         guardResult.includes,
       ),

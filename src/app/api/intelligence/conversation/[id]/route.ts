@@ -23,6 +23,7 @@ import {
   createErrorResponse,
   computeFreshness,
 } from '@/lib/intelligence-api/middleware';
+import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import type { IntelligenceConversationOutput, IntelligenceBrief } from '@/lib/intelligence-api/types';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
@@ -59,14 +60,14 @@ export async function GET(
     const rawMessage = err instanceof Error ? err.message : 'Unknown error';
     logger.error('[intelligence/conversation] DB lookup failed', { companyId, error: rawMessage });
     return Response.json(
-      createErrorResponse('conversation', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, guardResult.includes),
+      createErrorResponse('conversation', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, IntelligenceErrors.INTELLIGENCE_UNAVAILABLE, Date.now() - startedAt, guardResult.includes),
       { status: 500, headers: responseHeaders },
     );
   }
 
   if (!company) {
     return Response.json(
-      createErrorResponse('conversation', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, guardResult.includes),
+      createErrorResponse('conversation', companyId, 'Company not found', IntelligenceErrors.COMPANY_NOT_FOUND, Date.now() - startedAt, guardResult.includes),
       { status: 404, headers: responseHeaders },
     );
   }
@@ -105,7 +106,7 @@ export async function GET(
     const rawMessage = err instanceof Error ? err.message : String(err);
     logger.warn('[intelligence/conversation] ConversationEngine threw', { companyId, error: rawMessage });
     return Response.json(
-      createErrorResponse('conversation', companyId, scrubError(rawMessage), 'ENGINE_TIMEOUT', Date.now() - startedAt, guardResult.includes),
+      createErrorResponse('conversation', companyId, scrubError(rawMessage), IntelligenceErrors.ENGINE_FAILED, Date.now() - startedAt, guardResult.includes),
       { status: 502, headers: responseHeaders },
     );
   }
@@ -116,7 +117,7 @@ export async function GET(
       error: conversationResult.error,
     });
     return Response.json(
-      createErrorResponse('conversation', companyId, scrubError(conversationResult.error || 'Conversation engine failed'), 'ENGINE_TIMEOUT', Date.now() - startedAt, guardResult.includes),
+      createErrorResponse('conversation', companyId, scrubError(conversationResult.error || 'Conversation engine failed'), IntelligenceErrors.ENGINE_FAILED, Date.now() - startedAt, guardResult.includes),
       { status: 502, headers: responseHeaders },
     );
   }

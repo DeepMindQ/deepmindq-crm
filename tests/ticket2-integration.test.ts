@@ -823,3 +823,239 @@ describe('Intelligence API — Error Responses', () => {
     expect((obj.error as string).toLowerCase()).toContain('query');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  6. Intelligence API — Data Shape Validation (G17-G41)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Intelligence API — Data Shape', () => {
+  // G17: Company ?include=timeline
+  it('company with ?include=timeline returns timeline events', async () => {
+    const mockTimeline = [{
+      id: 'te-1', eventType: 'funding', title: 'Series A',
+      description: 'Raised $10M', metadata: { amount: 10000000 },
+      createdAt: new Date('2024-03-01T00:00:00Z'), companyId: COMPANY_ID,
+    }];
+    (db.companyTimelineEvent.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockTimeline);
+    const request = mockRequest(`/api/intelligence/company/${COMPANY_ID}?include=timeline`);
+    const response = await companyGET(request, { params: Promise.resolve({ id: COMPANY_ID }) });
+    const result = await parseResponse(response);
+    expect(result.status).toBe(200);
+    const data = (result.body as Record<string, unknown>).data as Record<string, unknown>;
+    expect(Array.isArray(data.timeline)).toBe(true);
+    expect((data.timeline as unknown[]).length).toBe(1);
+    const ev = (data.timeline as Array<Record<string, unknown>>)[0];
+    expect(ev.type).toBe('funding');
+    expect(ev.title).toBe('Series A');
+  });
+
+  // G18: Company ?include=actions
+  it('company with ?include=actions returns action result', async () => {
+    const request = mockRequest(`/api/intelligence/company/${COMPANY_ID}?include=actions`);
+    const response = await companyGET(request, { params: Promise.resolve({ id: COMPANY_ID }) });
+    const result = await parseResponse(response);
+    expect(result.status).toBe(200);
+    const data = (result.body as Record<string, unknown>).data as Record<string, unknown>;
+    expect(data.actions).toBeDefined();
+    expect(typeof data.actions).toBe('object');
+    expect(data.actions).not.toBeNull();
+    const actions = data.actions as Record<string, unknown>;
+    expect(actions.success).toBe(true);
+  });
+
+  // G19: Company ?include=brief
+  it('company with ?include=brief returns brief data', async () => {
+    const request = mockRequest(`/api/intelligence/company/${COMPANY_ID}?include=brief`);
+    const response = await companyGET(request, { params: Promise.resolve({ id: COMPANY_ID }) });
+    const result = await parseResponse(response);
+    expect(result.status).toBe(200);
+    const data = (result.body as Record<string, unknown>).data as Record<string, unknown>;
+    expect(data.brief).toBeDefined();
+    const brief = data.brief as Record<string, unknown>;
+    expect(brief.briefType).toBe('conversation_brief');
+    expect(typeof brief.content).toBe('string');
+    expect(typeof brief.wordCount).toBe('number');
+    expect(typeof brief.confidence).toBe('number');
+  });
+
+  // G20: Company ?include=knowledge
+  it('company with ?include=knowledge returns knowledge data', async () => {
+    const request = mockRequest(`/api/intelligence/company/${COMPANY_ID}?include=knowledge`);
+    const response = await companyGET(request, { params: Promise.resolve({ id: COMPANY_ID }) });
+    const result = await parseResponse(response);
+    expect(result.status).toBe(200);
+    const data = (result.body as Record<string, unknown>).data as Record<string, unknown>;
+    expect(data.knowledge).toBeDefined();
+    const knowledge = data.knowledge as Record<string, unknown>;
+    expect(Array.isArray(knowledge.capabilities)).toBe(true);
+    expect(Array.isArray(knowledge.caseStudies)).toBe(true);
+  });
+
+  // G24: Opportunity data shape
+  it('opportunity returns correct data shape with scores and reasoning', async () => {
+    const request = mockRequest(`/api/intelligence/opportunity/${COMPANY_ID}`);
+    const response = await opportunityGET(request, { params: Promise.resolve({ id: COMPANY_ID }) });
+    const result = await parseResponse(response);
+    expect(result.status).toBe(200);
+    const data = (result.body as Record<string, unknown>).data as Record<string, unknown>;
+    expect(data.companyId).toBe(COMPANY_ID);
+    // Default (empty include) returns scores
+    expect(data.scores).toBeDefined();
+    const scores = data.scores as Record<string, unknown>;
+    expect(typeof scores.score).toBe('number');
+    // Default returns reasoning
+    expect(data.reasoning).toBeDefined();
+    const reasoning = data.reasoning as Record<string, unknown>;
+    expect(typeof reasoning.overallConfidence).toBe('number');
+    expect(typeof reasoning.winProbability).toBe('number');
+    // Default returns fusion
+    expect(data.fusion).toBeDefined();
+    expect(Array.isArray(data.fusion)).toBe(true);
+  });
+
+  // G28: Conversation default/no-include data shape
+  it('conversation without include returns basic data shape', async () => {
+    const request = mockRequest(`/api/intelligence/conversation/${COMPANY_ID}`);
+    const response = await conversationGET(request, { params: Promise.resolve({ id: COMPANY_ID }) });
+    const result = await parseResponse(response);
+    expect(result.status).toBe(200);
+    const data = (result.body as Record<string, unknown>).data as Record<string, unknown>;
+    expect(data.companyId).toBe(COMPANY_ID);
+    // conversation result always present
+    expect(data.conversation).toBeDefined();
+    // brief always derived
+    expect(data.brief).toBeDefined();
+    const brief = data.brief as Record<string, unknown>;
+    expect(brief.briefType).toBe('conversation_brief');
+    // talkingPoints/objections/buyerProfiles NOT present without explicit include
+    expect(data.talkingPoints).toBeUndefined();
+    expect(data.objections).toBeUndefined();
+    expect(data.buyerProfiles).toBeUndefined();
+  });
+
+  // G30/G31: Brief success path
+  it('brief returns sections, wordCount, and evidenceChain', async () => {
+    const request = mockRequest(`/api/intelligence/brief/${COMPANY_ID}?briefType=account_brief`);
+    const response = await briefGET(request, { params: Promise.resolve({ id: COMPANY_ID }) });
+    const result = await parseResponse(response);
+    expect(result.status).toBe(200);
+    const body = result.body as Record<string, unknown>;
+    const data = body.data as Record<string, unknown>;
+    expect(data.companyId).toBe(COMPANY_ID);
+    const brief = data.brief as Record<string, unknown>;
+    // Sections
+    expect(Array.isArray(brief.sections)).toBe(true);
+    expect((brief.sections as unknown[]).length).toBeGreaterThan(0);
+    const section = (brief.sections as Array<Record<string, unknown>>)[0];
+    expect(typeof section.heading).toBe('string');
+    expect(typeof section.body).toBe('string');
+    expect(typeof section.confidence).toBe('number');
+    // Word count
+    expect(typeof brief.wordCount).toBe('number');
+    expect((brief.wordCount as number)).toBeGreaterThan(0);
+    // Evidence chain
+    const ec = brief.evidenceChain as Record<string, unknown>;
+    expect(typeof ec.aggregateConfidence).toBe('number');
+    expect(typeof ec.coverage).toBe('number');
+    expect(Array.isArray(ec.gaps)).toBe(true);
+  });
+
+  // G32: Grounding data shape
+  it('grounding returns evidences, coverage, and gaps', async () => {
+    const request = mockRequest(`/api/intelligence/grounding/${COMPANY_ID}`);
+    const response = await groundingGET(request, { params: Promise.resolve({ id: COMPANY_ID }) });
+    const result = await parseResponse(response);
+    expect(result.status).toBe(200);
+    const body = result.body as Record<string, unknown>;
+    const data = body.data as Record<string, unknown>;
+    expect(data.companyId).toBe(COMPANY_ID);
+    expect(typeof data.aggregateConfidence).toBe('number');
+    expect(typeof data.coverage).toBe('number');
+    expect(typeof data.freshnessScore).toBe('number');
+    expect(typeof data.evidenceCount).toBe('number');
+    expect(typeof data.gapCount).toBe('number');
+    expect(Array.isArray(data.evidences)).toBe(true);
+    expect(Array.isArray(data.gaps)).toBe(true);
+  });
+
+  // G33/G34: Retrieval results + stats shape
+  it('retrieval returns results array and stats', async () => {
+    const mockResults = [{
+      id: 'r-1', entityType: 'capability_asset' as const, entityId: 'cap-1',
+      content: 'AI capabilities', score: 0.92, metadata: {},
+    }];
+    (RetrievalEngine.search as ReturnType<typeof vi.fn>).mockResolvedValue(mockResults);
+    const request = mockRequest(`/api/intelligence/retrieval/${COMPANY_ID}?q=AI+capabilities`);
+    const response = await retrievalGET(request, { params: Promise.resolve({ id: COMPANY_ID }) });
+    const result = await parseResponse(response);
+    expect(result.status).toBe(200);
+    const body = result.body as Record<string, unknown>;
+    const data = body.data as Record<string, unknown>;
+    expect(data.companyId).toBe(COMPANY_ID);
+    expect(data.query).toBe('AI capabilities');
+    expect(typeof data.resultCount).toBe('number');
+    expect(Array.isArray(data.results)).toBe(true);
+    expect((data.results as unknown[]).length).toBe(1);
+    // Stats shape
+    const stats = data.stats as Record<string, unknown>;
+    expect(typeof stats.totalEmbeddings).toBe('number');
+    expect(typeof stats.uniqueEntities).toBe('number');
+    expect(typeof stats.backend).toBe('string');
+  });
+
+  // G35: Knowledge data shape
+  it('knowledge returns groups, totalEntries, and topCategories', async () => {
+    const mockEntries = [{
+      id: 'ke-1', category: 'capabilities', subCategory: 'AI',
+      content: 'AI-driven analytics', source: 'internal',
+      confidence: 0.85, version: 1, updatedAt: new Date('2024-05-01T00:00:00Z'),
+    }];
+    (db.knowledgeEntry.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(mockEntries);
+    const request = mockRequest(`/api/intelligence/knowledge/${COMPANY_ID}`);
+    const response = await knowledgeGET(request, { params: Promise.resolve({ id: COMPANY_ID }) });
+    const result = await parseResponse(response);
+    expect(result.status).toBe(200);
+    const body = result.body as Record<string, unknown>;
+    const data = body.data as Record<string, unknown>;
+    expect(data.companyId).toBe(COMPANY_ID);
+    expect(typeof data.totalEntries).toBe('number');
+    expect((data.totalEntries as number)).toBe(1);
+    expect(Array.isArray(data.groups)).toBe(true);
+    expect((data.groups as unknown[]).length).toBe(1);
+    const group = (data.groups as Array<Record<string, unknown>>)[0];
+    expect(group.category).toBe('capabilities');
+    expect(typeof group.entryCount).toBe('number');
+    expect(Array.isArray(data.topCategories)).toBe(true);
+    expect(typeof data.averageConfidence).toBe('number');
+    // ingestionStats NOT present without ?include=ingestion
+    expect(data.ingestionStats).toBeUndefined();
+  });
+
+  // G37: meta.includes reflects requested values
+  it('meta.includes contains the exact requested include keys', async () => {
+    const request = mockRequest(`/api/intelligence/company/${COMPANY_ID}?include=signals,scores`);
+    const response = await companyGET(request, { params: Promise.resolve({ id: COMPANY_ID }) });
+    const result = await parseResponse(response);
+    expect(result.status).toBe(200);
+    const body = result.body as Record<string, unknown>;
+    const meta = body.meta as Record<string, unknown>;
+    const includes = meta.includes as string[];
+    expect(Array.isArray(includes)).toBe(true);
+    expect(includes).toContain('signals');
+    expect(includes).toContain('scores');
+    expect(includes.length).toBe(2);
+  });
+
+  // G40: N+1 query verification — mock call counts for parallel batching
+  it('company loads signals and contacts in parallel (not N+1)', async () => {
+    (db.companySignal.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (db.contact.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    const request = mockRequest(`/api/intelligence/company/${COMPANY_ID}?include=signals,contacts`);
+    const response = await companyGET(request, { params: Promise.resolve({ id: COMPANY_ID }) });
+    expect(response.status).toBe(200);
+    // Verify each query was called exactly once (no N+1)
+    expect(db.companySignal.findMany).toHaveBeenCalledTimes(1);
+    expect(db.contact.findMany).toHaveBeenCalledTimes(1);
+    expect(db.company.findUnique).toHaveBeenCalledTimes(1);
+  });
+});

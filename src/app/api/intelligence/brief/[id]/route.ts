@@ -25,6 +25,7 @@ import {
   createErrorResponse,
   computeFreshness,
 } from '@/lib/intelligence-api/middleware';
+import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import type { IntelligenceBriefOutput, IntelligenceBrief } from '@/lib/intelligence-api/types';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { scrubError } from '@/lib/intelligence-api/handler';
@@ -59,7 +60,7 @@ export async function GET(
 
   if (!VALID_BRIEF_TYPES.has(briefType)) {
     return Response.json(
-      createErrorResponse('brief', companyId, `Invalid briefType: ${briefType}. Must be one of: ${Array.from(VALID_BRIEF_TYPES).join(', ')}`, 'VALIDATION_FAILED', Date.now() - startedAt, includes),
+      createErrorResponse('brief', companyId, `Invalid briefType: ${briefType}. Must be one of: ${Array.from(VALID_BRIEF_TYPES).join(', ')}`, IntelligenceErrors.VALIDATION_FAILED, Date.now() - startedAt, includes),
       { status: 400, headers: responseHeaders },
     );
   }
@@ -116,7 +117,7 @@ export async function GET(
     const rawMessage = err instanceof Error ? err.message : String(err);
     logger.warn('[intelligence/brief] SynthesisEngine threw', { companyId, correlationId, error: rawMessage });
     return Response.json(
-      createErrorResponse('brief', companyId, scrubError(rawMessage), 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
+      createErrorResponse('brief', companyId, scrubError(rawMessage), IntelligenceErrors.ENGINE_FAILED, Date.now() - startedAt, includes),
       { status: 502, headers: responseHeaders },
     );
   }
@@ -127,7 +128,7 @@ export async function GET(
       error: briefResult.error,
     });
     return Response.json(
-      createErrorResponse('brief', companyId, scrubError(briefResult.error || 'Brief generation failed'), 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
+      createErrorResponse('brief', companyId, scrubError(briefResult.error || 'Brief generation failed'), IntelligenceErrors.ENGINE_FAILED, Date.now() - startedAt, includes),
       { status: 502, headers: responseHeaders },
     );
   }

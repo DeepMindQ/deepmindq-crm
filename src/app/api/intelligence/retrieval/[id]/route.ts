@@ -23,6 +23,7 @@ import {
   createErrorResponse,
   computeFreshness,
 } from '@/lib/intelligence-api/middleware';
+import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import type { IntelligenceRetrievalOutput } from '@/lib/intelligence-api/types';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { scrubError } from '@/lib/intelligence-api/handler';
@@ -61,7 +62,7 @@ export async function GET(
 
   if (!query || !query.trim()) {
     return Response.json(
-      createErrorResponse('retrieval', companyId, 'Query parameter ?q= is required', 'VALIDATION_FAILED', Date.now() - startedAt, includes),
+      createErrorResponse('retrieval', companyId, 'Query parameter ?q= is required', IntelligenceErrors.VALIDATION_FAILED, Date.now() - startedAt, includes),
       { status: 400, headers: responseHeaders },
     );
   }
@@ -117,7 +118,7 @@ export async function GET(
     const rawMessage = err instanceof Error ? err.message : String(err);
     logger.warn('[intelligence/retrieval] RetrievalEngine threw', { companyId, correlationId, error: rawMessage });
     return Response.json(
-      createErrorResponse('retrieval', companyId, scrubError(rawMessage), 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
+      createErrorResponse('retrieval', companyId, scrubError(rawMessage), IntelligenceErrors.ENGINE_FAILED, Date.now() - startedAt, includes),
       { status: 502, headers: responseHeaders },
     );
   }

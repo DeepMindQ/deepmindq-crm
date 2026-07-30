@@ -26,6 +26,7 @@ import {
   createErrorResponse,
   computeFreshness,
 } from '@/lib/intelligence-api/middleware';
+import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import type { IntelligenceReasoningOutput, ReasoningStep } from '@/lib/intelligence-api/types';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';
@@ -66,14 +67,14 @@ export async function GET(
     const rawMessage = err instanceof Error ? err.message : 'Unknown error';
     logger.error('[intelligence/reasoning] DB lookup failed', { companyId, error: rawMessage });
     return Response.json(
-      createErrorResponse('reasoning', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, guardResult.includes),
+      createErrorResponse('reasoning', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, IntelligenceErrors.INTELLIGENCE_UNAVAILABLE, Date.now() - startedAt, guardResult.includes),
       { status: 500, headers: responseHeaders },
     );
   }
 
   if (!company) {
     return Response.json(
-      createErrorResponse('reasoning', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, guardResult.includes),
+      createErrorResponse('reasoning', companyId, 'Company not found', IntelligenceErrors.COMPANY_NOT_FOUND, Date.now() - startedAt, guardResult.includes),
       { status: 404, headers: responseHeaders },
     );
   }
@@ -127,7 +128,7 @@ export async function GET(
     const rawMessage = err instanceof Error ? err.message : String(err);
     logger.error('[intelligence/reasoning] Engine build threw', { companyId, error: rawMessage });
     return Response.json(
-      createErrorResponse('reasoning', companyId, scrubError(rawMessage), 'ENGINE_FAILED', Date.now() - startedAt, guardResult.includes),
+      createErrorResponse('reasoning', companyId, scrubError(rawMessage), IntelligenceErrors.ENGINE_FAILED, Date.now() - startedAt, guardResult.includes),
       { status: 502, headers: responseHeaders },
     );
   }
@@ -144,7 +145,7 @@ export async function GET(
         'reasoning',
         companyId,
         scrubError(result.error || 'Reasoning engine failed'),
-        'INTELLIGENCE_UNAVAILABLE',
+        IntelligenceErrors.INTELLIGENCE_UNAVAILABLE,
         Date.now() - startedAt,
         guardResult.includes,
       ),

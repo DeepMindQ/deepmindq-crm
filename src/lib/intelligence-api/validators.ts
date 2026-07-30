@@ -39,7 +39,7 @@ export const includeSchema = z
   .refine(
     (val) => {
       if (!val) return true; // null/undefined is fine (no includes)
-      const parts = val.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+      const parts = val.split(',').map(s => s.trim()).filter(Boolean);
       const validIncludes = getValidIncludeKeys();
       return parts.every(p => validIncludes.has(p));
     },

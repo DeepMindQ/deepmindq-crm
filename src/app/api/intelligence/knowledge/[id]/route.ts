@@ -20,6 +20,7 @@ import {
   createErrorResponse,
   computeFreshness,
 } from '@/lib/intelligence-api/middleware';
+import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import type {
   IntelligenceKnowledgeOutput,
   IntelligenceKnowledgeGroup,
@@ -61,14 +62,14 @@ export async function GET(
     const rawMessage = err instanceof Error ? err.message : 'Unknown error';
     logger.error('[intelligence/knowledge] DB lookup failed', { companyId, correlationId, error: rawMessage });
     return Response.json(
-      createErrorResponse('knowledge', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - started, includes),
+      createErrorResponse('knowledge', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, IntelligenceErrors.INTELLIGENCE_UNAVAILABLE, Date.now() - started, includes),
       { status: 500, headers: responseHeaders },
     );
   }
 
   if (!company) {
     return Response.json(
-      createErrorResponse('knowledge', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - started, includes),
+      createErrorResponse('knowledge', companyId, 'Company not found', IntelligenceErrors.COMPANY_NOT_FOUND, Date.now() - started, includes),
       { status: 404, headers: responseHeaders },
     );
   }
@@ -171,7 +172,7 @@ export async function GET(
     const rawMsg = err instanceof Error ? err.message : String(err);
     logger.error('[intelligence/knowledge] unexpected error', { error: rawMsg, companyId, correlationId });
     return Response.json(
-      createErrorResponse('knowledge', companyId, scrubError(rawMsg), 'INTELLIGENCE_UNAVAILABLE', Date.now() - started, includes),
+      createErrorResponse('knowledge', companyId, scrubError(rawMsg), IntelligenceErrors.INTELLIGENCE_UNAVAILABLE, Date.now() - started, includes),
       { status: 500, headers: responseHeaders },
     );
   }

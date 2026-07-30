@@ -10,8 +10,23 @@
 import { NextRequest } from 'next/server';
 import { getFreshnessStatus, getCompaniesNeedingRefresh, batchUpdateFreshness } from '@/lib/intelligence-sources/freshness-manager';
 import { logger } from '@/lib/logger';
+import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
+import { scrubError } from '@/lib/intelligence-api/handler';
 
 export async function GET(req: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+  try {
+    const ctx = utilityGuard(req, 'refresh');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (rlErr) {
+    if (rlErr instanceof RateLimitedError) {
+      return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
+    }
+    throw rlErr;
+  }
+
   const startedAt = Date.now();
 
   try {
@@ -44,7 +59,7 @@ export async function GET(req: NextRequest) {
       { status: 400 },
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = scrubError(err instanceof Error ? err.message : String(err));
     logger.error('[intelligence/refresh] GET Error', { error: message });
     return Response.json(
       { success: false, error: 'Freshness check failed', details: message, meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } },
@@ -54,6 +69,19 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+  try {
+    const ctx = utilityGuard(req, 'refresh');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (rlErr) {
+    if (rlErr instanceof RateLimitedError) {
+      return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
+    }
+    throw rlErr;
+  }
+
   const startedAt = Date.now();
 
   try {
@@ -77,7 +105,7 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = scrubError(err instanceof Error ? err.message : String(err));
     logger.error('[intelligence/refresh] POST Error', { error: message });
     return Response.json(
       { success: false, error: 'Intelligence refresh failed', details: message, meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } },

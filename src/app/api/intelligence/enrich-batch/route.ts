@@ -13,6 +13,8 @@ import { IntelligencePipeline } from '@/lib/intelligence-pipeline';
 import { db } from '@/lib/db';
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
+import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
+import { scrubError } from '@/lib/intelligence-api/handler';
 
 const batchSchema = z.object({
   companyIds: z.array(z.string().min(1)).min(1).max(100),
@@ -20,6 +22,19 @@ const batchSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+  try {
+    const ctx = utilityGuard(request, 'enrich-batch');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (rlErr) {
+    if (rlErr instanceof RateLimitedError) {
+      return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
+    }
+    throw rlErr;
+  }
+
   const startedAt = Date.now();
 
   try {
@@ -77,7 +92,7 @@ export async function POST(request: NextRequest) {
       meta: { endpoint: 'enrich-batch', durationMs: Date.now() - startedAt },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Batch enrichment failed';
+    const message = scrubError(err instanceof Error ? err.message : 'Batch enrichment failed');
     logger.error('[intelligence/enrich-batch]', { detail: message });
     return Response.json(
       { success: false, error: message, meta: { endpoint: 'enrich-batch', durationMs: Date.now() - startedAt } },
@@ -87,6 +102,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
+
   const startedAt = Date.now();
 
   try {
@@ -97,7 +113,7 @@ export async function GET() {
       meta: { endpoint: 'enrich-batch', durationMs: Date.now() - startedAt },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to get pipeline stats';
+    const message = scrubError(err instanceof Error ? err.message : 'Failed to get pipeline stats');
     logger.error('[intelligence/enrich-batch] GET failed', { detail: message });
     return Response.json(
       { success: false, error: message, meta: { endpoint: 'enrich-batch', durationMs: Date.now() - startedAt } },

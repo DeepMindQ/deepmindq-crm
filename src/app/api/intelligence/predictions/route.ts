@@ -10,8 +10,23 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { generatePredictions } from '@/lib/intelligence-sources/predictive-intelligence';
 import { logger } from '@/lib/logger';
+import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
+import { scrubError } from '@/lib/intelligence-api/handler';
 
 export async function GET(request: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+  try {
+    const ctx = utilityGuard(request, 'predictions');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (rlErr) {
+    if (rlErr instanceof RateLimitedError) {
+      return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
+    }
+    throw rlErr;
+  }
+
   const startedAt = Date.now();
 
   try {
@@ -35,7 +50,7 @@ export async function GET(request: NextRequest) {
       meta: { endpoint: 'predictions', durationMs: Date.now() - startedAt },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = scrubError(err instanceof Error ? err.message : String(err));
     logger.error('[intelligence/predictions] Error', { error: message });
     return Response.json(
       { success: false, error: 'Prediction analysis failed', details: message, meta: { endpoint: 'predictions', durationMs: Date.now() - startedAt } },

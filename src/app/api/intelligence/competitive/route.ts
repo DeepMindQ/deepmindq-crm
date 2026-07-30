@@ -12,8 +12,23 @@
 import { NextRequest } from 'next/server';
 import { collectCompetitiveIntel, runCompetitiveScan } from '@/lib/intelligence-sources/competitive-intel/engine';
 import { logger } from '@/lib/logger';
+import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
+import { scrubError } from '@/lib/intelligence-api/handler';
 
 export async function POST(req: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+  try {
+    const ctx = utilityGuard(req, 'competitive');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (rlErr) {
+    if (rlErr instanceof RateLimitedError) {
+      return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
+    }
+    throw rlErr;
+  }
+
   const startedAt = Date.now();
 
   try {
@@ -45,7 +60,7 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = scrubError(err instanceof Error ? err.message : String(err));
     logger.error('[intelligence/competitive] Error', { error: message });
     return Response.json(
       { success: false, error: 'Competitive intelligence collection failed', details: message, meta: { endpoint: 'competitive', durationMs: Date.now() - startedAt } },

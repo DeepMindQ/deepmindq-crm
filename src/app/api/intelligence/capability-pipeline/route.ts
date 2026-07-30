@@ -14,8 +14,23 @@
 import { NextRequest } from 'next/server';
 import { CapabilityIntelligenceEngine, type CapabilityInput } from '@/lib/capability-intelligence-engine';
 import { logger } from '@/lib/logger';
+import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
+import { scrubError } from '@/lib/intelligence-api/handler';
 
 export async function POST(request: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+  try {
+    const ctx = utilityGuard(request, 'capability-pipeline');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (rlErr) {
+    if (rlErr instanceof RateLimitedError) {
+      return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
+    }
+    throw rlErr;
+  }
+
   const startedAt = Date.now();
 
   try {
@@ -75,7 +90,7 @@ export async function POST(request: NextRequest) {
       meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt },
     }, { status: 400 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = scrubError(err instanceof Error ? err.message : String(err));
     logger.error('[intelligence/capability-pipeline] POST Error', { detail: message });
     return Response.json(
       { success: false, error: message, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } },
@@ -85,6 +100,19 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+  try {
+    const ctx = utilityGuard(request, 'capability-pipeline');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (rlErr) {
+    if (rlErr instanceof RateLimitedError) {
+      return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
+    }
+    throw rlErr;
+  }
+
   const startedAt = Date.now();
 
   try {
@@ -117,7 +145,7 @@ export async function GET(request: NextRequest) {
       meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt },
     }, { status: 400 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = scrubError(err instanceof Error ? err.message : String(err));
     logger.error('[intelligence/capability-pipeline] GET Error', { detail: message });
     return Response.json(
       { success: false, error: message, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } },

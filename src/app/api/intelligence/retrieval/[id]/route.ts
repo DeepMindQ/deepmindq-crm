@@ -19,12 +19,13 @@ import { db } from '@/lib/db';
 import { RetrievalEngine } from '@/lib/engines/retrieval-engine';
 import type { EmbeddableEntityType } from '@/lib/engines/retrieval-engine';
 import {
-  parseIncludeParams,
   createResponse,
   createErrorResponse,
   computeFreshness,
 } from '@/lib/intelligence-api/middleware';
 import type { IntelligenceRetrievalOutput } from '@/lib/intelligence-api/types';
+import { intelligenceGuard } from '@/lib/intelligence-api/guard';
+import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';
 
 const VALID_FILTER_TYPES = new Set<EmbeddableEntityType>([
@@ -45,16 +46,10 @@ export async function GET(
   const startedAt = Date.now();
   const requestedAt = new Date();
 
-  const { id: companyId } = await params;
-
-  if (!companyId) {
-    return Response.json(
-      createErrorResponse('retrieval', '', 'Company ID is required', 'MISSING_COMPANY_ID'),
-      { status: 400 },
-    );
-  }
-
-  const { includes } = parseIncludeParams(request);
+  // ── Intelligence Guard: validation + rate limiting + correlation-id ─────
+  const guardResult = await intelligenceGuard(request, params, 'retrieval');
+  if (guardResult instanceof Response) return guardResult;
+  const { companyId, correlationId, responseHeaders, includes } = guardResult;
 
   // Parse retrieval-specific query params
   const query = request.nextUrl.searchParams.get('q');
@@ -67,12 +62,13 @@ export async function GET(
   if (!query || !query.trim()) {
     return Response.json(
       createErrorResponse('retrieval', companyId, 'Query parameter ?q= is required', 'INVALID_INCLUDE', Date.now() - startedAt, includes),
-      { status: 400 },
+      { status: 400, headers: responseHeaders },
     );
   }
 
   logger.info('[intelligence/retrieval] Processing', {
     companyId,
+    correlationId,
     query: query.slice(0, 100),
     topK,
     filter: filter?.type,
@@ -92,18 +88,18 @@ export async function GET(
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    logger.error('[intelligence/retrieval] DB lookup failed', { companyId, error: message });
+    const rawMessage = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('[intelligence/retrieval] DB lookup failed', { companyId, correlationId, error: rawMessage });
     return Response.json(
-      createErrorResponse('retrieval', companyId, `Company lookup failed: ${message}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, includes),
-      { status: 500 },
+      createErrorResponse('retrieval', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, includes),
+      { status: 500, headers: responseHeaders },
     );
   }
 
   if (!company) {
     return Response.json(
       createErrorResponse('retrieval', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, includes),
-      { status: 404 },
+      { status: 404, headers: responseHeaders },
     );
   }
 
@@ -112,11 +108,11 @@ export async function GET(
   try {
     results = await RetrievalEngine.search(query, topK, filter);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    logger.warn('[intelligence/retrieval] RetrievalEngine threw', { companyId, error: message });
+    const rawMessage = err instanceof Error ? err.message : String(err);
+    logger.warn('[intelligence/retrieval] RetrievalEngine threw', { companyId, correlationId, error: rawMessage });
     return Response.json(
-      createErrorResponse('retrieval', companyId, message, 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
-      { status: 502 },
+      createErrorResponse('retrieval', companyId, scrubError(rawMessage), 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
+      { status: 502, headers: responseHeaders },
     );
   }
 
@@ -166,5 +162,6 @@ export async function GET(
       requestedAt,
       respondedAt: new Date(),
     }),
+    { headers: responseHeaders },
   );
 }

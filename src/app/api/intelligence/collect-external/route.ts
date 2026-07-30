@@ -13,8 +13,23 @@
 import { NextRequest } from 'next/server';
 import { collectIntelligenceForCompany, collectIntelligenceBatch } from '@/lib/intelligence-sources/external-intelligence-collector';
 import { logger } from '@/lib/logger';
+import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
+import { scrubError } from '@/lib/intelligence-api/handler';
 
 export async function POST(request: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+  try {
+    const ctx = utilityGuard(request, 'collect-external');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (rlErr) {
+    if (rlErr instanceof RateLimitedError) {
+      return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
+    }
+    throw rlErr;
+  }
+
   const startedAt = Date.now();
 
   try {
@@ -57,7 +72,7 @@ export async function POST(request: NextRequest) {
       meta: { endpoint: 'collect-external', durationMs: Date.now() - startedAt },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = scrubError(err instanceof Error ? err.message : String(err));
     logger.error('[intelligence/collect-external] Error', { error: message });
     return Response.json(
       { success: false, error: 'Intelligence collection failed', details: message, meta: { endpoint: 'collect-external', durationMs: Date.now() - startedAt } },

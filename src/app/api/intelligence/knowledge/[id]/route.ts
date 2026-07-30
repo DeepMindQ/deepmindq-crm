@@ -18,7 +18,7 @@ import { logger } from '@/lib/logger';
 import {
   createResponse,
   createErrorResponse,
-  parseIncludeParams,
+  computeFreshness,
 } from '@/lib/intelligence-api/middleware';
 import type {
   IntelligenceKnowledgeOutput,
@@ -26,6 +26,8 @@ import type {
   IntelligenceKnowledgeEntry,
   IntelligenceKnowledgeIngestionStats,
 } from '@/lib/intelligence-api/types';
+import { intelligenceGuard } from '@/lib/intelligence-api/guard';
+import { scrubError } from '@/lib/intelligence-api/handler';
 import { KnowledgeIngestionPipeline } from '@/lib/knowledge-ingestion-pipeline';
 
 // ── GET ─────────────────────────────────────────────────────────────────────
@@ -33,29 +35,49 @@ import { KnowledgeIngestionPipeline } from '@/lib/knowledge-ingestion-pipeline';
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
-) {
+): Promise<Response> {
   const started = Date.now();
-  const { id: companyId } = await params;
+  const requestedAt = new Date();
+
+  // ── Intelligence Guard: validation + rate limiting + correlation-id ─────
+  const guardResult = await intelligenceGuard(request, params, 'knowledge');
+  if (guardResult instanceof Response) return guardResult;
+  const { companyId, correlationId, responseHeaders, includes } = guardResult;
+
+  logger.info('[intelligence/knowledge] Processing', { companyId, correlationId });
 
   try {
-    // Verify company exists
+    // Verify company exists — using typed select
     const company = await db.company.findUnique({
       where: { id: companyId },
+      select: {
+        id: true,
+        lastEnrichedAt: true,
+        lastActivityAt: true,
+      },
     });
 
     if (!company) {
       return Response.json(
         createErrorResponse('knowledge', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - started),
-        { status: 404 },
+        { status: 404, headers: responseHeaders },
       );
     }
 
-    const { includes } = parseIncludeParams(request);
-
-    // Fetch all knowledge entries for this company, grouped by category
+    // Fetch all knowledge entries for this company — using typed select
     const entries = await db.knowledgeEntry.findMany({
       where: { companyId },
       orderBy: [{ category: 'asc' }, { updatedAt: 'desc' }],
+      select: {
+        id: true,
+        category: true,
+        subCategory: true,
+        content: true,
+        source: true,
+        confidence: true,
+        version: true,
+        updatedAt: true,
+      },
     });
 
     // Build groups
@@ -104,6 +126,7 @@ export async function GET(
         ingestionStats = await KnowledgeIngestionPipeline.getStats();
       } catch (err) {
         logger.warn('[intelligence/knowledge] failed to fetch ingestion stats', {
+          correlationId,
           error: err instanceof Error ? err.message : String(err),
         });
       }
@@ -118,20 +141,27 @@ export async function GET(
       ingestionStats,
     };
 
+    const freshness = computeFreshness(company as Parameters<typeof computeFreshness>[0]);
+    const durationMs = Date.now() - started;
+
     return Response.json(
       createResponse('knowledge', companyId, data, {
-        durationMs: Date.now() - started,
+        durationMs,
         includes,
         cached: false,
         confidence: avgConfidence,
+        freshness,
+        requestedAt,
+        respondedAt: new Date(),
       }),
+      { headers: responseHeaders },
     );
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    logger.error('[intelligence/knowledge] unexpected error', { error: msg, companyId });
+    const rawMsg = err instanceof Error ? err.message : String(err);
+    logger.error('[intelligence/knowledge] unexpected error', { error: rawMsg, companyId, correlationId });
     return Response.json(
-      createErrorResponse('knowledge', companyId, msg, 'INTELLIGENCE_UNAVAILABLE', Date.now() - started),
-      { status: 500 },
+      createErrorResponse('knowledge', companyId, scrubError(rawMsg), 'INTELLIGENCE_UNAVAILABLE', Date.now() - started),
+      { status: 500, headers: responseHeaders },
     );
   }
 }

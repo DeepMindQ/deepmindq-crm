@@ -72,8 +72,8 @@ export {
   intelligenceValidators,
 } from './validators';
 
-// ── Handler wrapper (validation + rate limit + correlation-id + error handling) ──
-export { withIntelligenceHandler, scrubError } from './handler';
+// ── Handler utilities (scrubError used by routes for sensitive data protection) ──
+export { scrubError } from './handler';
 
 // ── Types from validators ──
 export type {

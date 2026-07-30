@@ -21,12 +21,13 @@ import { db } from '@/lib/db';
 import { SynthesisEngine } from '@/lib/engines/synthesis-engine';
 import type { BriefType, BriefDepth } from '@/lib/engines/synthesis-engine';
 import {
-  parseIncludeParams,
   createResponse,
   createErrorResponse,
   computeFreshness,
 } from '@/lib/intelligence-api/middleware';
 import type { IntelligenceBriefOutput, IntelligenceBrief } from '@/lib/intelligence-api/types';
+import { intelligenceGuard } from '@/lib/intelligence-api/guard';
+import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';
 
 const VALID_BRIEF_TYPES = new Set<BriefType>([
@@ -44,16 +45,10 @@ export async function GET(
   const startedAt = Date.now();
   const requestedAt = new Date();
 
-  const { id: companyId } = await params;
-
-  if (!companyId) {
-    return Response.json(
-      createErrorResponse('brief', '', 'Company ID is required', 'MISSING_COMPANY_ID'),
-      { status: 400 },
-    );
-  }
-
-  const { includes } = parseIncludeParams(request);
+  // ── Intelligence Guard: validation + rate limiting + correlation-id ─────
+  const guardResult = await intelligenceGuard(request, params, 'brief');
+  if (guardResult instanceof Response) return guardResult;
+  const { companyId, correlationId, responseHeaders, includes } = guardResult;
 
   // Parse brief-specific query params
   const briefType = (request.nextUrl.searchParams.get('briefType') as BriefType) || 'account_brief';
@@ -65,12 +60,13 @@ export async function GET(
   if (!VALID_BRIEF_TYPES.has(briefType)) {
     return Response.json(
       createErrorResponse('brief', companyId, `Invalid briefType: ${briefType}. Must be one of: ${Array.from(VALID_BRIEF_TYPES).join(', ')}`, 'INVALID_INCLUDE', Date.now() - startedAt, includes),
-      { status: 400 },
+      { status: 400, headers: responseHeaders },
     );
   }
 
   logger.info('[intelligence/brief] Processing', {
     companyId,
+    correlationId,
     briefType,
     depth,
     audience,
@@ -91,18 +87,18 @@ export async function GET(
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    logger.error('[intelligence/brief] DB lookup failed', { companyId, error: message });
+    const rawMessage = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('[intelligence/brief] DB lookup failed', { companyId, correlationId, error: rawMessage });
     return Response.json(
-      createErrorResponse('brief', companyId, `Company lookup failed: ${message}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, includes),
-      { status: 500 },
+      createErrorResponse('brief', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, includes),
+      { status: 500, headers: responseHeaders },
     );
   }
 
   if (!company) {
     return Response.json(
       createErrorResponse('brief', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, includes),
-      { status: 404 },
+      { status: 404, headers: responseHeaders },
     );
   }
 
@@ -117,11 +113,11 @@ export async function GET(
       focusAreas,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    logger.warn('[intelligence/brief] SynthesisEngine threw', { companyId, error: message });
+    const rawMessage = err instanceof Error ? err.message : String(err);
+    logger.warn('[intelligence/brief] SynthesisEngine threw', { companyId, correlationId, error: rawMessage });
     return Response.json(
-      createErrorResponse('brief', companyId, message, 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
-      { status: 502 },
+      createErrorResponse('brief', companyId, scrubError(rawMessage), 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
+      { status: 502, headers: responseHeaders },
     );
   }
 
@@ -131,8 +127,8 @@ export async function GET(
       error: briefResult.error,
     });
     return Response.json(
-      createErrorResponse('brief', companyId, briefResult.error || 'Brief generation failed', 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
-      { status: 502 },
+      createErrorResponse('brief', companyId, scrubError(briefResult.error || 'Brief generation failed'), 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
+      { status: 502, headers: responseHeaders },
     );
   }
 
@@ -198,5 +194,6 @@ export async function GET(
       requestedAt,
       respondedAt: new Date(),
     }),
+    { headers: responseHeaders },
   );
 }

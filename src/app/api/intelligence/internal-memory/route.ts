@@ -13,8 +13,23 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { extractInternalMemorySignals, computeInternalMemoryDepth } from '@/lib/intelligence-sources/internal-memory-connector';
 import { logger } from '@/lib/logger';
+import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
+import { scrubError } from '@/lib/intelligence-api/handler';
 
 export async function POST(request: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+  try {
+    const ctx = utilityGuard(request, 'internal-memory');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (rlErr) {
+    if (rlErr instanceof RateLimitedError) {
+      return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
+    }
+    throw rlErr;
+  }
+
   const startedAt = Date.now();
 
   try {
@@ -63,7 +78,7 @@ export async function POST(request: NextRequest) {
       meta: { endpoint: 'internal-memory', durationMs: Date.now() - startedAt },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
+    const message = scrubError(err instanceof Error ? err.message : 'Unknown error');
     logger.error('[intelligence/internal-memory] Pipeline error', { detail: message });
     return Response.json(
       { success: false, error: `Internal memory extraction failed: ${message}`, meta: { endpoint: 'internal-memory', durationMs: Date.now() - startedAt } },

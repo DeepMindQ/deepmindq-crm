@@ -17,12 +17,13 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { GroundingEngine } from '@/lib/engines/grounding-engine';
 import {
-  parseIncludeParams,
   createResponse,
   createErrorResponse,
   computeFreshness,
 } from '@/lib/intelligence-api/middleware';
 import type { IntelligenceGroundingOutput } from '@/lib/intelligence-api/types';
+import { intelligenceGuard } from '@/lib/intelligence-api/guard';
+import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';
 
 export async function GET(
@@ -32,21 +33,17 @@ export async function GET(
   const startedAt = Date.now();
   const requestedAt = new Date();
 
-  const { id: companyId } = await params;
+  // ── Intelligence Guard: validation + rate limiting + correlation-id ─────
+  const guardResult = await intelligenceGuard(request, params, 'grounding');
+  if (guardResult instanceof Response) return guardResult;
+  const { companyId, correlationId, responseHeaders, includes } = guardResult;
 
-  if (!companyId) {
-    return Response.json(
-      createErrorResponse('grounding', '', 'Company ID is required', 'MISSING_COMPANY_ID'),
-      { status: 400 },
-    );
-  }
-
-  const { includes } = parseIncludeParams(request);
   const maxEvidence = parseInt(request.nextUrl.searchParams.get('maxEvidence') || '50', 10);
   const includeStale = request.nextUrl.searchParams.get('includeStale') === 'true';
 
   logger.info('[intelligence/grounding] Processing', {
     companyId,
+    correlationId,
     maxEvidence,
     includeStale,
     includes: Array.from(includes),
@@ -65,18 +62,18 @@ export async function GET(
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    logger.error('[intelligence/grounding] DB lookup failed', { companyId, error: message });
+    const rawMessage = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('[intelligence/grounding] DB lookup failed', { companyId, correlationId, error: rawMessage });
     return Response.json(
-      createErrorResponse('grounding', companyId, `Company lookup failed: ${message}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, includes),
-      { status: 500 },
+      createErrorResponse('grounding', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, includes),
+      { status: 500, headers: responseHeaders },
     );
   }
 
   if (!company) {
     return Response.json(
       createErrorResponse('grounding', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, includes),
-      { status: 404 },
+      { status: 404, headers: responseHeaders },
     );
   }
 
@@ -89,11 +86,11 @@ export async function GET(
       includeStale,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    logger.warn('[intelligence/grounding] GroundingEngine threw', { companyId, error: message });
+    const rawMessage = err instanceof Error ? err.message : String(err);
+    logger.warn('[intelligence/grounding] GroundingEngine threw', { companyId, correlationId, error: rawMessage });
     return Response.json(
-      createErrorResponse('grounding', companyId, message, 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
-      { status: 502 },
+      createErrorResponse('grounding', companyId, scrubError(rawMessage), 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
+      { status: 502, headers: responseHeaders },
     );
   }
 
@@ -132,5 +129,6 @@ export async function GET(
       requestedAt,
       respondedAt: new Date(),
     }),
+    { headers: responseHeaders },
   );
 }

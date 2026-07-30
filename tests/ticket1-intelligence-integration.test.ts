@@ -22,6 +22,10 @@ import { GET as opportunityGET } from '@/app/api/intelligence/opportunity/[id]/r
 import { GET as actionGET } from '@/app/api/intelligence/action/[id]/route';
 import { GET as conversationGET } from '@/app/api/intelligence/conversation/[id]/route';
 import { GET as mindmapGET } from '@/app/api/intelligence/mindmap/[id]/route';
+import { GET as briefGET } from '@/app/api/intelligence/brief/[id]/route';
+import { GET as groundingGET } from '@/app/api/intelligence/grounding/[id]/route';
+import { GET as retrievalGET } from '@/app/api/intelligence/retrieval/[id]/route';
+import { GET as knowledgeGET } from '@/app/api/intelligence/knowledge/[id]/route';
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  Test helpers
@@ -243,7 +247,7 @@ describe('Integration: GET /api/intelligence/mindmap/:id', () => {
 //  7. Cross-cutting: All endpoints share error contract
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('Integration: All 6 endpoints return flat error contract', () => {
+describe('Integration: All 6 core endpoints return flat error contract', () => {
   const endpoints = [
     { name: 'company', handler: companyGET },
     { name: 'reasoning', handler: reasoningGET },
@@ -266,6 +270,183 @@ describe('Integration: All 6 endpoints return flat error contract', () => {
 
   it('all endpoints have x-correlation-id header in error responses', async () => {
     for (const { name, handler } of endpoints) {
+      const request = mockRequest(`/api/intelligence/${name}/`);
+      const response = await handler(request, { params: Promise.resolve({ id: '' }) });
+
+      const cid = response.headers.get('x-correlation-id');
+      expect(cid, `${name} should have x-correlation-id header`).toBeTruthy();
+      expect(cid!.length, `${name} correlation-id should not be empty`).toBeGreaterThan(0);
+    }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  8. Brief endpoint integration tests
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Integration: GET /api/intelligence/brief/:id', () => {
+  it('returns 400 with { error, code } for empty companyId', async () => {
+    const request = mockRequest('/api/intelligence/brief/');
+    const response = await briefGET(request, { params: Promise.resolve({ id: '' }) });
+    const result = await parseResponse(response);
+
+    expect(result.status).toBe(400);
+    expectErrorContract(result.body);
+    expect((result.body as { code: string }).code).toBe('MISSING_COMPANY_ID');
+  });
+
+  it('returns 404 or 500 with { error, code } for non-existent company', async () => {
+    const request = mockRequest('/api/intelligence/brief/nonexistent-xyz');
+    const response = await briefGET(request, { params: Promise.resolve({ id: 'nonexistent-xyz' }) });
+    const result = await parseResponse(response);
+
+    expect([404, 500]).toContain(result.status);
+    expectErrorContract(result.body);
+  });
+
+  it('propagates x-correlation-id header', async () => {
+    const request = mockRequest('/api/intelligence/brief/', {
+      headers: { 'x-correlation-id': 'trace-brief-test-12345' },
+    });
+    const response = await briefGET(request, { params: Promise.resolve({ id: '' }) });
+
+    expect(response.headers.get('x-correlation-id')).toBe('trace-brief-test-12345');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  9. Grounding endpoint integration tests
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Integration: GET /api/intelligence/grounding/:id', () => {
+  it('returns 400 with { error, code } for empty companyId', async () => {
+    const request = mockRequest('/api/intelligence/grounding/');
+    const response = await groundingGET(request, { params: Promise.resolve({ id: '' }) });
+    const result = await parseResponse(response);
+
+    expect(result.status).toBe(400);
+    expectErrorContract(result.body);
+    expect((result.body as { code: string }).code).toBe('MISSING_COMPANY_ID');
+  });
+
+  it('returns 404 or 500 with { error, code } for non-existent company', async () => {
+    const request = mockRequest('/api/intelligence/grounding/nonexistent-xyz');
+    const response = await groundingGET(request, { params: Promise.resolve({ id: 'nonexistent-xyz' }) });
+    const result = await parseResponse(response);
+
+    expect([404, 500]).toContain(result.status);
+    expectErrorContract(result.body);
+  });
+
+  it('propagates x-correlation-id header', async () => {
+    const request = mockRequest('/api/intelligence/grounding/', {
+      headers: { 'x-correlation-id': 'trace-grounding-test-67890' },
+    });
+    const response = await groundingGET(request, { params: Promise.resolve({ id: '' }) });
+
+    expect(response.headers.get('x-correlation-id')).toBe('trace-grounding-test-67890');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  10. Retrieval endpoint integration tests
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Integration: GET /api/intelligence/retrieval/:id', () => {
+  it('returns 400 with { error, code } for empty companyId', async () => {
+    const request = mockRequest('/api/intelligence/retrieval/');
+    const response = await retrievalGET(request, { params: Promise.resolve({ id: '' }) });
+    const result = await parseResponse(response);
+
+    expect(result.status).toBe(400);
+    expectErrorContract(result.body);
+    expect((result.body as { code: string }).code).toBe('MISSING_COMPANY_ID');
+  });
+
+  it('returns 404 or 500 with { error, code } for non-existent company', async () => {
+    const request = mockRequest('/api/intelligence/retrieval/nonexistent-xyz?q=test');
+    const response = await retrievalGET(request, { params: Promise.resolve({ id: 'nonexistent-xyz' }) });
+    const result = await parseResponse(response);
+
+    expect([404, 500]).toContain(result.status);
+    expectErrorContract(result.body);
+  });
+
+  it('propagates x-correlation-id header', async () => {
+    const request = mockRequest('/api/intelligence/retrieval/', {
+      headers: { 'x-correlation-id': 'trace-retrieval-test-11111' },
+    });
+    const response = await retrievalGET(request, { params: Promise.resolve({ id: '' }) });
+
+    expect(response.headers.get('x-correlation-id')).toBe('trace-retrieval-test-11111');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  11. Knowledge endpoint integration tests
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Integration: GET /api/intelligence/knowledge/:id', () => {
+  it('returns 400 with { error, code } for empty companyId', async () => {
+    const request = mockRequest('/api/intelligence/knowledge/');
+    const response = await knowledgeGET(request, { params: Promise.resolve({ id: '' }) });
+    const result = await parseResponse(response);
+
+    expect(result.status).toBe(400);
+    expectErrorContract(result.body);
+    expect((result.body as { code: string }).code).toBe('MISSING_COMPANY_ID');
+  });
+
+  it('returns 404 or 500 with { error, code } for non-existent company', async () => {
+    const request = mockRequest('/api/intelligence/knowledge/nonexistent-xyz');
+    const response = await knowledgeGET(request, { params: Promise.resolve({ id: 'nonexistent-xyz' }) });
+    const result = await parseResponse(response);
+
+    expect([404, 500]).toContain(result.status);
+    expectErrorContract(result.body);
+  });
+
+  it('propagates x-correlation-id header', async () => {
+    const request = mockRequest('/api/intelligence/knowledge/', {
+      headers: { 'x-correlation-id': 'trace-knowledge-test-22222' },
+    });
+    const response = await knowledgeGET(request, { params: Promise.resolve({ id: '' }) });
+
+    expect(response.headers.get('x-correlation-id')).toBe('trace-knowledge-test-22222');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  12. Cross-cutting: ALL 10 endpoints share error contract
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Integration: ALL 10 intelligence endpoints return flat error contract', () => {
+  const allEndpoints = [
+    { name: 'company', handler: companyGET },
+    { name: 'reasoning', handler: reasoningGET },
+    { name: 'opportunity', handler: opportunityGET },
+    { name: 'action', handler: actionGET },
+    { name: 'conversation', handler: conversationGET },
+    { name: 'mindmap', handler: mindmapGET },
+    { name: 'brief', handler: briefGET },
+    { name: 'grounding', handler: groundingGET },
+    { name: 'retrieval', handler: retrievalGET },
+    { name: 'knowledge', handler: knowledgeGET },
+  ];
+
+  it('all 10 endpoints return { error, code } for empty companyId', async () => {
+    for (const { name, handler } of allEndpoints) {
+      const request = mockRequest(`/api/intelligence/${name}/`);
+      const response = await handler(request, { params: Promise.resolve({ id: '' }) });
+      const result = await parseResponse(response);
+
+      expect(result.status, `${name} should return 400`).toBe(400);
+      expectErrorContract(result.body);
+    }
+  });
+
+  it('all 10 endpoints have x-correlation-id header in error responses', async () => {
+    for (const { name, handler } of allEndpoints) {
       const request = mockRequest(`/api/intelligence/${name}/`);
       const response = await handler(request, { params: Promise.resolve({ id: '' }) });
 

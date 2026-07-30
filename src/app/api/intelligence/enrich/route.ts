@@ -12,8 +12,23 @@
 import { NextRequest } from 'next/server';
 import { IntelligencePipeline } from '@/lib/intelligence-pipeline';
 import { logger } from '@/lib/logger';
+import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
+import { scrubError } from '@/lib/intelligence-api/handler';
 
 export async function POST(request: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+  try {
+    const ctx = utilityGuard(request, 'enrich');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (rlErr) {
+    if (rlErr instanceof RateLimitedError) {
+      return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
+    }
+    throw rlErr;
+  }
+
   const startedAt = Date.now();
 
   try {
@@ -35,7 +50,7 @@ export async function POST(request: NextRequest) {
       meta: { endpoint: 'enrich', durationMs: Date.now() - startedAt },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Enrichment failed';
+    const message = scrubError(err instanceof Error ? err.message : 'Enrichment failed');
     logger.error('[intelligence/enrich]', { detail: message });
     return Response.json(
       { success: false, error: message, meta: { endpoint: 'enrich', durationMs: Date.now() - startedAt } },

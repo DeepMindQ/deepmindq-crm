@@ -707,7 +707,7 @@ React Query (@tanstack/react-query)
 **Priority**: P0 | **Estimate**: 3 days | **Dependencies**: None
 
 **Backend**:
-- Fix `tsconfig.json`: enable `noImplicitAny: true`, `reactStrictMode: true`
+- Fix `tsconfig.json`: enable `noImplicitAny: true`; enable `reactStrictMode: true` in `next.config.ts`
 - Fix resulting TypeScript errors (estimated 50-80 errors across codebase)
 - Update `src/lib/db.ts` — ensure all Prisma queries use typed selects
 - Add Zod validation schemas for all 6 Intelligence API endpoints

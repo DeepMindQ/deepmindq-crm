@@ -23,6 +23,8 @@ import { extractInternalMemorySignals, computeInternalMemoryDepth } from '@/lib/
 import { detectPeopleChanges } from '@/lib/intelligence-sources/people-change-detector'
 import { queryUnifiedMemory } from '@/lib/intelligence-sources/unified-memory-query'
 import { logger } from '@/lib/logger';
+import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
+import { scrubError } from '@/lib/intelligence-api/handler';
 
 // ── Seed Validation Data ──
 
@@ -292,6 +294,19 @@ async function seedValidationData() {
 // ═══════════════════════════════════════════════════════════════
 
 export async function POST(request: Request) {
+  let correlationId;
+  let responseHeaders;
+  try {
+    const ctx = utilityGuard(request as any, 'sprint3');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (rlErr) {
+    if (rlErr instanceof RateLimitedError) {
+      return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
+    }
+    throw rlErr;
+  }
+
   const startTime = Date.now()
 
   try {

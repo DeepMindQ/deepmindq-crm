@@ -12,8 +12,23 @@
 import { NextRequest } from 'next/server';
 import { monitorCompanyWebsite } from '@/lib/intelligence-sources/website-monitor/engine';
 import { logger } from '@/lib/logger';
+import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
+import { scrubError } from '@/lib/intelligence-api/handler';
 
 export async function POST(req: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+  try {
+    const ctx = utilityGuard(req, 'website-monitor');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (rlErr) {
+    if (rlErr instanceof RateLimitedError) {
+      return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
+    }
+    throw rlErr;
+  }
+
   const startedAt = Date.now();
 
   try {
@@ -41,7 +56,7 @@ export async function POST(req: NextRequest) {
       meta: { endpoint: 'website-monitor', durationMs: Date.now() - startedAt },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = scrubError(err instanceof Error ? err.message : String(err));
     logger.error('[intelligence/website-monitor] Error', { error: message });
     return Response.json(
       { success: false, error: 'Website monitoring failed', details: message, meta: { endpoint: 'website-monitor', durationMs: Date.now() - startedAt } },

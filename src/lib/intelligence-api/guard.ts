@@ -30,6 +30,8 @@ import { logger } from '@/lib/logger';
 
 const INTELLIGENCE_RATE_LIMIT = 60;
 const INTELLIGENCE_RATE_WINDOW_MS = 60_000;
+const UTILITY_RATE_LIMIT = 120;
+const UTILITY_RATE_WINDOW_MS = 60_000;
 
 export interface IntelligenceGuardResult {
   companyId: string;
@@ -124,6 +126,56 @@ export async function intelligenceGuard(
     responseHeaders,
     includes,
   };
+}
+
+/**
+ * Lightweight guard for utility endpoints (no companyId validation).
+ * Provides: correlation-id, rate limiting, response headers.
+ *
+ * Usage:
+ *   const ctx = utilityGuard(request, 'refresh');
+ *   // ctx.correlationId, ctx.responseHeaders available
+ */
+export function utilityGuard(
+  request: NextRequest,
+  endpoint: string,
+): { correlationId: string; responseHeaders: Record<string, string> } {
+  const correlationId = getCorrelationId(request);
+  const responseHeaders = createResponseHeaders(correlationId);
+
+  // Rate limiting
+  const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || request.headers.get('x-real-ip')
+    || 'unknown';
+  const rl = rateLimit({
+    key: `intelligence:${clientIp}:${endpoint}`,
+    limit: UTILITY_RATE_LIMIT,
+    windowMs: UTILITY_RATE_WINDOW_MS,
+  });
+
+  responseHeaders['X-RateLimit-Remaining'] = String(rl.remaining);
+  responseHeaders['X-RateLimit-Reset'] = String(Math.ceil(rl.resetAt / 1000));
+
+  if (!rl.success) {
+    logger.warn('[intelligence-utility] Rate limited', { correlationId, endpoint, clientIp });
+    throw new RateLimitedError(
+      createErrorResponse(endpoint as 'company', '', 'Rate limit exceeded', IntelligenceErrors.RATE_LIMITED, 0),
+      responseHeaders,
+    );
+  }
+
+  return { correlationId, responseHeaders };
+}
+
+/** Error thrown by utilityGuard when rate-limited */
+export class RateLimitedError extends Error {
+  constructor(
+    public errorBody: ReturnType<typeof createErrorResponse>,
+    public headers: Record<string, string>,
+  ) {
+    super('Rate limited');
+    this.name = 'RateLimitedError';
+  }
 }
 
 /**

@@ -7,8 +7,10 @@
  */
 
 import { IntelligencePipeline } from '@/lib/intelligence-pipeline';
+import { scrubError } from '@/lib/intelligence-api/handler';
 
 export async function GET() {
+
   const startedAt = Date.now();
 
   try {
@@ -19,7 +21,7 @@ export async function GET() {
       meta: { endpoint: 'stats', durationMs: Date.now() - startedAt },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to get intelligence stats';
+    const message = scrubError(err instanceof Error ? err.message : 'Failed to get intelligence stats');
     return Response.json(
       { success: false, error: message, meta: { endpoint: 'stats', durationMs: Date.now() - startedAt } },
       { status: 502 },

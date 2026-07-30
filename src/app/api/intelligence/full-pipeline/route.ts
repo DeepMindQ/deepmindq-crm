@@ -24,6 +24,8 @@ import { ModelRouter } from '@/lib/engines/model-router';
 import { CapabilityIntelligenceEngine } from '@/lib/capability-intelligence-engine';
 import { FusionEngine } from '@/lib/fusion-engine';
 import { createInsight } from '@/lib/ai-insight-service';
+import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
+import { scrubError } from '@/lib/intelligence-api/handler';
 
 // ── Types ──
 
@@ -57,7 +59,7 @@ async function runStage(
     const result = await fn();
     return { name, status: 'completed', durationMs: Date.now() - started, result };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = scrubError(err instanceof Error ? err.message : String(err));
     return { name, status: 'failed', durationMs: Date.now() - started, result: null, error: msg };
   }
 }
@@ -86,6 +88,19 @@ async function aiCall(
 // ═══════════════════════════════════════════════════════════════════════
 
 export async function GET(request: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+  try {
+    const ctx = utilityGuard(request, 'full-pipeline');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (rlErr) {
+    if (rlErr instanceof RateLimitedError) {
+      return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
+    }
+    throw rlErr;
+  }
+
   const companyId = new URL(request.url).searchParams.get('companyId');
   if (!companyId) {
     return NextResponse.json({ error: 'companyId query parameter required' }, { status: 400 });
@@ -181,7 +196,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, summary });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = scrubError(err instanceof Error ? err.message : String(err));
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
@@ -191,6 +206,19 @@ export async function GET(request: NextRequest) {
 // ═══════════════════════════════════════════════════════════════════════
 
 export async function POST(request: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+  try {
+    const ctx = utilityGuard(request, 'full-pipeline');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (rlErr) {
+    if (rlErr instanceof RateLimitedError) {
+      return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
+    }
+    throw rlErr;
+  }
+
   const body = await request.json();
   const { companyId } = body;
 

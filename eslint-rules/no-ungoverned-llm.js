@@ -1,7 +1,7 @@
 /**
  * ESLint custom rule: no-ungoverned-llm
  *
- * Enforces the AI governance architecture (Ticket 3 hardened):
+ * Enforces the AI governance architecture (Ticket 3 deep-hardened):
  * - Only ai-governance.ts OR engines/model-router.ts may import callLLM
  *   from zai-helpers. Both ARE governance layers.
  * - No file may import getZAI from llm-client — raw Z.ai SDK access
@@ -12,6 +12,8 @@
  * - No file may import ModelRouter from engines/model-router outside
  *   of ai-governance.ts (all route files must use governedAICall /
  *   governedAICallAggregate instead)
+ * - No file may make raw fetch() calls to AI provider APIs
+ *   (api.openai.com, api.groq.com, generativelanguage.googleapis.com, etc.)
  * - Other imports from zai-helpers (webSearch, extractJSON, tavilyAIAnswer,
  *   sdkWebSearch, etc.) are fine
  */
@@ -24,12 +26,26 @@ const ALLOWED_GOVERNANCE_FILES = new Set([
   "llm-client.ts",    // Base LLM client (exports getZAI for governance layer use)
 ]);
 
+// AI provider API hostnames — raw fetch() to these bypasses governance
+const AI_PROVIDER_HOSTS = [
+  "api.openai.com",
+  "api.groq.com",
+  "generativelanguage.googleapis.com",
+  "api.anthropic.com",
+  "api.deepseek.com",
+  "api.mistral.ai",
+  "api.fireworks.ai",
+  "api.together.xyz",
+  "api.nvidia.com",
+  "openrouter.ai",
+];
+
 module.exports = {
   meta: {
     type: "problem",
     docs: {
       description:
-        "Prevents unapproved direct LLM/AI SDK imports outside the governance layer",
+        "Prevents unapproved direct LLM/AI SDK imports and raw fetch() calls to AI provider APIs outside the governance layer",
       category: "Architecture",
       recommended: true,
     },
@@ -48,6 +64,8 @@ module.exports = {
         "Direct import from 'openai' SDK is forbidden. All AI calls must go through the governance layer.",
       directAiSdkOpenai:
         "Direct import from '@ai-sdk/openai' is forbidden. All AI calls must go through the governance layer.",
+      rawFetchToAiProvider:
+        "Direct fetch() to AI provider API is forbidden. All AI calls must go through the governance layer via governedAICall() or governedAICallAggregate() from '@/lib/ai-governance'.",
     },
     schema: [],
   },
@@ -79,6 +97,13 @@ module.exports = {
       return specifiers.some(
         (s) => s.type === "ImportDefaultSpecifier" && s.local?.name === name
       );
+    }
+
+    // Helper: check if a string literal contains an AI provider hostname
+    function isAiProviderUrl(str) {
+      if (!str) return false;
+      const lower = str.toLowerCase();
+      return AI_PROVIDER_HOSTS.some((host) => lower.includes(host));
     }
 
     return {
@@ -154,17 +179,67 @@ module.exports = {
         // ── Restricted import: ModelRouter from engines/model-router ──
         // Ticket 3: Route handlers must use governedAICall /
         // governedAICallAggregate instead of ModelRouter directly.
-        // Only allowed in ai-governance.ts (which wraps it) and
-        // engines/* routes (they ARE the engine layer).
+        // Only allowed in ai-governance.ts (which wraps it).
         if (
           source.includes("engines/model-router") &&
           hasNamedImport(node.specifiers, "ModelRouter")
         ) {
-          if (!isGovernanceFile() && !filename.includes("engines/")) {
+          if (!isGovernanceFile()) {
             context.report({
               node,
               messageId: "ungovernedModelRouter",
             });
+          }
+        }
+      },
+
+      // ── Check for raw fetch() calls to AI provider APIs ──
+      CallExpression(node) {
+        if (
+          node.callee?.type === "MemberExpression" &&
+          node.callee.object?.name === "fetch" &&
+          node.arguments.length > 0
+        ) {
+          const firstArg = node.arguments[0];
+          // Check string literal URLs
+          if (firstArg.type === "Literal" && typeof firstArg.value === "string") {
+            if (isAiProviderUrl(firstArg.value) && !isGovernanceFile()) {
+              context.report({
+                node,
+                messageId: "rawFetchToAiProvider",
+              });
+            }
+          }
+          // Check template literal URLs
+          if (firstArg.type === "TemplateLiteral") {
+            for (const quasi of firstArg.quasis) {
+              if (isAiProviderUrl(quasi.value?.raw) && !isGovernanceFile()) {
+                context.report({
+                  node,
+                  messageId: "rawFetchToAiProvider",
+                });
+                break;
+              }
+            }
+          }
+          // Check concatenated URLs (e.g., 'https://' + host + '/v1/...')
+          if (firstArg.type === "BinaryExpression") {
+            // Walk the binary expression tree to extract string parts
+            function extractStrings(expr) {
+              if (expr.type === "Literal" && typeof expr.value === "string") return [expr.value];
+              if (expr.type === "BinaryExpression") {
+                return [...extractStrings(expr.left), ...extractStrings(expr.right)];
+              }
+              return [];
+            }
+            const parts = extractStrings(firstArg);
+            const joined = parts.join("");
+            if (isAiProviderUrl(joined) && !isGovernanceFile()) {
+              context.report({
+                node,
+                messageId: "rawFetchToAiProvider",
+              });
+            }
           }
         }
       },

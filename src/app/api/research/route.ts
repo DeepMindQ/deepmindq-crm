@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/apiHelpers";
 import { logger } from '@/lib/logger';
+import { governedAICall } from '@/lib/ai-governance';
 
 // ---------------------------------------------------------------------------
-// LLM provider helpers
+// JSON extraction from LLM output (tolerant of markdown fences)
 // ---------------------------------------------------------------------------
 
 type ResearchResult = {
@@ -18,82 +19,6 @@ type ResearchResult = {
   nextAction: string;
   confidenceScore: number;
 }
-
-async function callOpenAI(systemPrompt: string, apiKey: string, model: string): Promise<ResearchResult | null> {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: "Generate the company research now." },
-      ],
-      temperature: 0.6,
-      max_tokens: 2048,
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`OpenAI API error ${res.status}`);
-  }
-  const data = await res.json();
-  const text: string = data.choices?.[0]?.message?.content ?? "";
-  return parseResearchJson(text);
-}
-
-async function callGemini(systemPrompt: string, apiKey: string, model: string): Promise<ResearchResult | null> {
-  // C11: Use x-goog-api-key header instead of query param to avoid API key in URL
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent'
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": apiKey,
-    },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: systemPrompt + "\n\nGenerate the company research now." }] }],
-      generationConfig: { temperature: 0.6, maxOutputTokens: 2048 },
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`Gemini API error ${res.status}`);
-  }
-  const data = await res.json();
-  const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-  return parseResearchJson(text);
-}
-
-async function callGroq(systemPrompt: string, apiKey: string, model: string): Promise<ResearchResult | null> {
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: "Generate the company research now." },
-      ],
-      temperature: 0.6,
-      max_tokens: 2048,
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`Groq API error ${res.status}`);
-  }
-  const data = await res.json();
-  const text: string = data.choices?.[0]?.message?.content ?? "";
-  return parseResearchJson(text);
-}
-
-// ---------------------------------------------------------------------------
-// JSON extraction from LLM output (tolerant of markdown fences)
-// ---------------------------------------------------------------------------
 
 function parseResearchJson(raw: string): ResearchResult | null {
   const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
@@ -110,7 +35,7 @@ function parseResearchJson(raw: string): ResearchResult | null {
         keyDecisionMakers: obj.keyDecisionMakers ? String(obj.keyDecisionMakers) : "",
         lastResearchedAt: obj.lastResearchedAt ? String(obj.lastResearchedAt) : "",
         nextAction: obj.nextAction ? String(obj.nextAction) : "",
-        confidenceScore: typeof obj.confidenceScore === "number" ? obj.confidenceScore : 72,
+        confidenceScore: typeof obj.confidenceScore === "number" ? obj.confidenceScore : 0,
       };
     }
   } catch {
@@ -131,7 +56,7 @@ function parseResearchJson(raw: string): ResearchResult | null {
           keyDecisionMakers: obj.keyDecisionMakers ? String(obj.keyDecisionMakers) : "",
           lastResearchedAt: obj.lastResearchedAt ? String(obj.lastResearchedAt) : "",
           nextAction: obj.nextAction ? String(obj.nextAction) : "",
-          confidenceScore: typeof obj.confidenceScore === "number" ? obj.confidenceScore : 72,
+          confidenceScore: typeof obj.confidenceScore === "number" ? obj.confidenceScore : 0,
         };
       }
     } catch {
@@ -289,6 +214,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── AI Research Generation (default behavior) ──
+    // Migrated to governance layer (Ticket 3 deep audit fix)
 
     const company = await db.company.findUnique({
       where: { id: companyId },
@@ -298,20 +224,10 @@ export async function POST(request: NextRequest) {
       return apiError("Company not found", 404);
     }
 
-    // 1. Read UserPreferences from DB (singleton)
-    const prefs = await db.systemSetting.findFirst();
-    let prefsData: Record<string, string> = {};
-    if (prefs?.value) {
-      try { prefsData = JSON.parse(prefs.value); } catch { /* ignore parse error */ }
-    }
-    const aiProvider = (prefsData?.aiProvider || "openai").toLowerCase();
-    const aiModel = prefsData?.aiModel || "gpt-4o-mini";
-    const aiApiKey = prefsData?.aiApiKey;
-
     // 2. Check for existing research to update/expand
     const existingResearch = await db.companyResearchCard.findUnique({ where: { companyId } });
 
-    // 3. H15: Fix snippet query — get relevant snippets by industry match, or empty/null industries
+    // 3. Get relevant capability snippets by industry match
     const snippets = await db.capabilityAsset.findMany({
       take: 5,
       orderBy: { createdAt: "desc" },
@@ -345,12 +261,7 @@ Location: ${company.location || "Unknown"}
 Website: ${company.website || "Unknown"}
 Status: ${company.status}${contactsContext}${knowledgeContext}`;
 
-    // 5. Try LLM call
-    let researchData: ResearchResult | null = null;
-    let usedLlm = false;
-
-    if (aiApiKey) {
-      const systemPrompt = `You are an expert B2B sales intelligence analyst at DeepMindQ, an AI-powered sales intelligence and strategic consulting firm. Generate a comprehensive company research card.
+    const systemPrompt = `You are an expert B2B sales intelligence analyst at DeepMindQ, an AI-powered sales intelligence and strategic consulting firm. Generate a comprehensive company research card.
 
 ${companyContext}
 
@@ -369,26 +280,34 @@ Generate a JSON object with these fields:
 
 Respond ONLY with the JSON object, no additional text.`;
 
-      try {
-        let result: ResearchResult | null = null;
+    const userPrompt = "Generate the company research card now.";
 
-        if (aiProvider === "openai") {
-          result = await callOpenAI(systemPrompt, aiApiKey, aiModel);
-        } else if (aiProvider === "gemini") {
-          result = await callGemini(systemPrompt, aiApiKey, aiModel);
-        } else if (aiProvider === "groq") {
-          result = await callGroq(systemPrompt, aiApiKey, aiModel);
-        }
+    // 5. Call LLM through governance layer (Ticket 3 hardened)
+    let researchData: ResearchResult | null = null;
+    let usedLlm = false;
 
-        if (result) {
-          researchData = result;
-          usedLlm = true;
-        }
-      } catch (llmErr: unknown) {
-        const msg = llmErr instanceof Error ? llmErr.message : String(llmErr);
-        logger.error(`[research/generate] LLM call failed (${aiProvider}): ${msg}`);
-        // Fall through to template — H8: don't leak raw error messages
+    const aiResult = await governedAICall({
+      generationType: 'signal_analysis',
+      companyId,
+      systemPrompt,
+      userPrompt,
+      enforceGovernance: false, // Research generation is the initial step; no prior research to validate against
+      tier: 'smart',
+      maxTokens: 2048,
+      temperature: 0.6,
+    });
+
+    if (aiResult.success && aiResult.response) {
+      const parsed = parseResearchJson(aiResult.response);
+      if (parsed) {
+        researchData = parsed;
+        usedLlm = true;
       }
+    }
+
+    if (aiResult.governanceResult) {
+      logger.info(`[research/generate] governance passed=${aiResult.governanceResult.passed} ` +
+        `checks=${JSON.stringify(aiResult.governanceResult.checks)}`);
     }
 
     // 6. Fallback to intelligent template-based research
@@ -404,7 +323,7 @@ Respond ONLY with the JSON object, no additional text.`;
         lastResearchedAt: fb.lastResearchedAt,
         nextAction: fb.nextAction,
         confidenceScore: fb.confidenceScore,
-      } as ResearchResult;
+      };
     }
 
     // 7. Upsert CompanyResearchCard (companyId is unique key)
@@ -435,22 +354,22 @@ Respond ONLY with the JSON object, no additional text.`;
         companyId,
         eventType: "research_saved",
         title: usedLlm
-          ? `AI research card for "${company.rawName}" generated via ${aiProvider}/${aiModel}`
-          : `Template research card for "${company.rawName}" (no AI API key configured or LLM call failed)`,
+          ? `AI research card for "${company.rawName}" generated via governance layer`
+          : `Template research card for "${company.rawName}" (governed LLM call failed or returned unparseable output)`,
       },
     });
 
-    // 9. Update company.intelligenceScore and company.dataFreshness
+    // 9. Update company.intelligenceScore
     const newScore = Math.min(99, (company.intelligenceScore || 30) + 25);
     await db.company.update({
       where: { id: companyId },
       data: { intelligenceScore: newScore },
     });
 
-    // 10. Return the research card data
-    return apiSuccess({ ...saved, _usedLlm: usedLlm });
+    // 10. Return the research card data (no internal implementation leaks)
+    return apiSuccess(saved);
   } catch {
-    // H8: Don't leak raw error messages
+    // Don't leak raw error messages
     return apiError("Failed to process research");
   }
 }

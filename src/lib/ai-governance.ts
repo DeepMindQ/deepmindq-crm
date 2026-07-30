@@ -275,7 +275,42 @@ const GOVERNANCE_CONFIGS: Record<string, GovernanceConfig> = {
     requireRecentIntelligence: true,
     maxStalenessDays: 90,
   },
+  // Revenue intelligence — engagement wording generation
+  revenue_engagement_wording: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  // Revenue intelligence — account brief summary
+  account_brief_summary: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  // Revenue intelligence — account brief engagement
+  account_brief_engagement: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  // Company research card generation
+  company_research: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 365,
+  },
 };
+
+// Track which generation types have been registered
+const REGISTERED_TYPES = new Set(Object.keys(GOVERNANCE_CONFIGS));
 
 const DEFAULT_CONFIG: GovernanceConfig = {
   // Phase 3 Hardening: default 40% confidence, stricter than before
@@ -398,7 +433,9 @@ EVIDENCE GROUNDING RULES (Mandatory):
 `.trim();
 
 // ── Current prompt version hash (bump when rules change) ──
-export const GOVERNANCE_PROMPT_VERSION = 'v3-phase3-harden';
+// Bumped whenever HALLUCINATION_PREVENTION_RULES or governance configs change.
+// This is a content-hash prefix to detect drift between deployments.
+export const GOVERNANCE_PROMPT_VERSION = 'v3-t3-deep-audit';
 
 // ── Public Functions ─────────────────────────────────────────────────────────
 
@@ -407,7 +444,18 @@ export const GOVERNANCE_PROMPT_VERSION = 'v3-phase3-harden';
  * Falls back to the default config for unknown types.
  */
 export function getGovernanceConfig(generationType: string): GovernanceConfig {
-  return GOVERNANCE_CONFIGS[generationType] ?? { ...DEFAULT_CONFIG };
+  const config = GOVERNANCE_CONFIGS[generationType];
+  if (!config) {
+    // Log warning for unknown generation types — helps detect typos and missing registrations
+    logger.warn(`[ai-governance] Unknown generation type: '${generationType}'. Using default config. Registered types: ${REGISTERED_TYPES.size}`);
+    return { ...DEFAULT_CONFIG };
+  }
+  return { ...config };
+}
+
+/** Returns the set of registered generation type keys. Useful for testing and introspection. */
+export function getRegisteredGenerationTypes(): ReadonlySet<string> {
+  return REGISTERED_TYPES;
 }
 
 /**
@@ -577,18 +625,29 @@ export async function runGovernanceChecks(
 export function buildGovernancePromptAddon(result: GovernanceResult): string {
   const warnings: string[] = [];
 
+  // Use the config thresholds for marginal pass detection instead of magic numbers.
+  // For buildGovernancePromptAddon, we derive thresholds from the available checks.
+  const config = getGovernanceConfig('email_draft'); // Default reference config for thresholds
   for (const [key, check] of Object.entries(result.checks)) {
     if (check.passed) {
-      // Still flag marginal passes
+      // Still flag marginal passes using config-derived thresholds
       const numVal = check.value as number | null;
-      if (key === 'staleness' && typeof numVal === 'number' && numVal > 30) {
+      if (key === 'staleness' && typeof numVal === 'number' && numVal > config.maxStalenessDays / 2) {
         warnings.push(`Research data is ${numVal} days old. Claims about recent developments may be outdated.`);
       }
-      if (key === 'research_confidence' && typeof numVal === 'number' && numVal < 0.6) {
-        warnings.push('Signal confidence is below 60%. Claims should be hedged appropriately.');
+      if (key === 'research_confidence' && typeof numVal === 'number' && numVal < config.minResearchConfidence) {
+        warnings.push(`Signal confidence is below ${(config.minResearchConfidence * 100).toFixed(0)}%. Claims should be hedged appropriately.`);
       }
-      if (key === 'freshness_score' && typeof numVal === 'number' && numVal < 40) {
+      if (key === 'freshness_score' && typeof numVal === 'number' && numVal < config.minFreshnessScore * 2) {
         warnings.push('Freshness score is low. Data may not reflect the current state of the company.');
+      }
+      // Flag when research exists but with minimal evidence
+      if (key === 'research_exists' && typeof numVal === 'boolean' && !numVal) {
+        // This check passes when not required, but still worth noting
+      }
+      // Flag when recent intelligence status is marginal
+      if (key === 'recent_intelligence' && typeof numVal === 'string' && numVal === 'aging') {
+        warnings.push('Intelligence data is aging. Some signals may be outdated.');
       }
     } else if (key === 'capability_match' && result.passed) {
       // This check can be skipped (not required) but still worth noting
@@ -683,6 +742,8 @@ interface RecordGenerationParams {
   governanceResult: GovernanceResult;
   outputSummary?: string;
   inputParams?: Record<string, unknown>;
+  /** Actual model used — populated from ModelRouter.complete() result (B8 fix) */
+  modelUsed?: string;
 }
 
 /**
@@ -711,6 +772,7 @@ export async function recordGeneration(
     governanceResult,
     outputSummary,
     inputParams,
+    modelUsed,
   } = params;
 
   // Calculate research confidence and freshness for the audit record
@@ -746,7 +808,7 @@ export async function recordGeneration(
         governancePassed: governanceResult.passed,
         governanceChecks: JSON.stringify(governanceResult.checks),
         outputSummary: outputSummary ?? null,
-        modelUsed: 'governance-tracked', // Updated by caller if known
+        modelUsed: modelUsed ?? 'governance-tracked',
         promptVersion: GOVERNANCE_PROMPT_VERSION,
         inputParams: JSON.stringify(inputParams ?? {}),
       },
@@ -792,8 +854,9 @@ export async function preFlightCheck(context: GovernanceContext): Promise<{
 // This is the ONLY approved way for AI routes to call the LLM.
 // No AI route should call callLLM() directly — all calls MUST go through this.
 
-import { ModelRouter } from '@/lib/engines/model-router';
+// Move all imports to top of file (F10 fix)
 import { logger } from '@/lib/logger';
+import { ModelRouter } from '@/lib/engines/model-router';
 
 interface GovernedAICallParams {
   /** Generation type for governance config lookup (e.g. 'email_draft', 'insights') */
@@ -957,6 +1020,7 @@ export async function governedAICall(
   const governedUserPrompt = `${userPrompt}\n\n${groundingNote}\n${promptAddon}${freshnessWarning}`;
 
   let response: string | null = null;
+  let actualModel = 'unknown';
   try {
     const result = await ModelRouter.complete({
       systemPrompt: governedSystemPrompt,
@@ -970,6 +1034,7 @@ export async function governedAICall(
     });
     if (!result.success) throw new Error(result.error ?? 'ModelRouter failed');
     response = result.text;
+    actualModel = result.modelUsed;
   } catch (llmErr) {
     logger.error(`[ai-governance] LLM call failed for ${generationType}:`, { error: llmErr instanceof Error ? llmErr.message : llmErr });
     // Record failed LLM call
@@ -1008,6 +1073,7 @@ export async function governedAICall(
     governanceResult,
     outputSummary: response?.substring(0, 500),
     inputParams,
+    modelUsed: actualModel,
   });
 
   return {

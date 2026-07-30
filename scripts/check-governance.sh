@@ -65,7 +65,7 @@ for f in $CALLLLM_FILES; do
 done
 echo "PASS"
 
-# Check 5: Ticket 3 — No getZAI imports outside governance layer
+# Check 5: No getZAI imports outside governance layer
 echo "Check 5: getZAI imports..."
 GETZAI_FILES=$(rg "import.*getZAI.*from" src/ --type ts -l | grep -v -E "(ai-governance\.ts|model-router\.ts|llm-client\.ts)" || true)
 if [ -n "$GETZAI_FILES" ]; then
@@ -75,13 +75,28 @@ if [ -n "$GETZAI_FILES" ]; then
 fi
 echo "PASS"
 
-# Check 6: Ticket 3 — No ModelRouter imports outside governance layer
-# Allow: engines/* routes (they ARE the engine layer), and health check usage
+# Check 6: No ModelRouter imports outside governance layer
 echo "Check 6: ModelRouter imports..."
 MODELR_FILES=$(rg "import.*ModelRouter.*from" src/ --type ts -l | grep -v -E "(ai-governance\.ts|model-router\.ts|/engines/|/governance/)" || true)
 if [ -n "$MODELR_FILES" ]; then
   echo "FAIL: ModelRouter imported outside governance/engines layer:"
   echo "$MODELR_FILES"
+  exit 1
+fi
+echo "PASS"
+
+# Check 7: Ticket 3 deep audit — No raw fetch() to AI provider APIs
+echo "Check 7: Raw fetch() to AI provider APIs..."
+AI_FETCH_FILES=""
+for HOST in "api.openai.com" "api.groq.com" "generativelanguage.googleapis.com" "api.anthropic.com" "api.deepseek.com" "api.mistral.ai" "api.fireworks.ai" "api.together.xyz" "api.nvidia.com" "openrouter.ai"; do
+  FOUND=$(rg "fetch.*$HOST" src/app/ --type ts -l 2>/dev/null | grep -v "ai-governance\.ts" | grep -v "model-router\.ts" | grep -v "llm-client\.ts" || true)
+  if [ -n "$FOUND" ]; then
+    AI_FETCH_FILES="$AI_FETCH_FILES $FOUND"
+  fi
+done
+if [ -n "$AI_FETCH_FILES" ]; then
+  echo "FAIL: Raw fetch() to AI provider API found:"
+  echo "$AI_FETCH_FILES" | tr ' ' '\n' | sort -u
   exit 1
 fi
 echo "PASS"

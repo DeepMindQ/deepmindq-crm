@@ -1,6 +1,8 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { governedAICall } from '@/lib/ai-governance';
+import { webSearch as sdkWebSearch } from '@/lib/llm-client';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Types — AI Evidence Framework Compliant
@@ -81,12 +83,10 @@ interface EnhancedAiInsights {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 async function webSearch(query: string, num = 5) {
-  const { webSearch: search } = await import('@/lib/llm-client');
-  return search(query, num);
+  return sdkWebSearch(query, num);
 }
 
 async function aiChat(systemPrompt: string, userPrompt: string, companyId: string): Promise<{ raw: string; quality?: import('@/lib/ai-copilot/quality-gates').QualityReport }> {
-  const { governedAICall } = await import('@/lib/ai-governance');
   const result = await governedAICall({
     generationType: 'company_intelligence',
     companyId,

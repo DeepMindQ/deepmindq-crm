@@ -3,10 +3,17 @@
  *
  * Enforces the AI governance architecture (Ticket 3 deep-hardened):
  * - Only ai-governance.ts OR engines/model-router.ts may import callLLM
- *   from zai-helpers. Both ARE governance layers.
+ *   from zai-helpers or llm-client. Both ARE governance layers.
  * - No file may import getZAI from llm-client — raw Z.ai SDK access
  *   bypasses governance. Only ai-governance.ts and model-router.ts
  *   are allowed (they ARE the governance layer).
+ * - No file may import callAI from llm-client — bypasses governance.
+ *   Only ai-governance.ts and model-router.ts are allowed.
+ * - No file may import callLLM from llm-client — bypasses governance.
+ *   Only ai-governance.ts and model-router.ts are allowed.
+ * - No file may import revenueLLMCall, generateExecutiveSummary, or
+ *   generateEngagementApproach from llm-client — these use raw LLM calls.
+ *   Only ai-governance.ts and model-router.ts are allowed.
  * - No file may import callChatLLM (removed function)
  * - No file may import from AI SDK ('ai') or OpenAI SDK directly
  * - No file may import ModelRouter from engines/model-router outside
@@ -14,8 +21,8 @@
  *   governedAICallAggregate instead)
  * - No file may make raw fetch() calls to AI provider APIs
  *   (api.openai.com, api.groq.com, generativelanguage.googleapis.com, etc.)
- * - Other imports from zai-helpers (webSearch, extractJSON, tavilyAIAnswer,
- *   sdkWebSearch, etc.) are fine
+ * - Other imports from zai-helpers/llm-client (webSearch, extractJSON,
+ *   tavilyAIAnswer, sdkWebSearch, etc.) are fine
  */
 
 // Files allowed to import callLLM, getZAI, or ModelRouter directly —
@@ -52,8 +59,12 @@ module.exports = {
     messages: {
       ungovernedCallLLM:
         "Direct import of 'callLLM' is only allowed in governance layer files. Use 'governedAICall()' from '@/lib/ai-governance' instead.",
+      ungovernedCallAI:
+        "Direct import of 'callAI' is only allowed in governance layer files. Use 'governedAICall()' from '@/lib/ai-governance' instead.",
       ungovernedGetZAI:
         "Direct import of 'getZAI' is only allowed in governance layer files (ai-governance.ts, model-router.ts, llm-client.ts). Use 'governedAICall()' or 'governedAICallAggregate()' from '@/lib/ai-governance' instead.",
+      ungovernedRevenueLLM:
+        "Direct import of 'revenueLLMCall', 'generateExecutiveSummary', or 'generateEngagementApproach' is only allowed in governance layer files. Use 'governedAICall()' from '@/lib/ai-governance' instead.",
       ungovernedModelRouter:
         "Direct import of 'ModelRouter' is only allowed in governance layer files. Route handlers must use 'governedAICall()' or 'governedAICallAggregate()' from '@/lib/ai-governance' instead.",
       removedCallChatLLM:
@@ -146,10 +157,10 @@ module.exports = {
           return;
         }
 
-        // ── Restricted import: callLLM from zai-helpers ──
+        // ── Restricted import: callLLM from zai-helpers or llm-client ──
         // Only allowed in governance layer files
         if (
-          source.includes("zai-helpers") &&
+          (source.includes("zai-helpers") || source.includes("llm-client")) &&
           hasNamedImport(node.specifiers, "callLLM")
         ) {
           if (!isGovernanceFile()) {
@@ -157,6 +168,37 @@ module.exports = {
               node,
               messageId: "ungovernedCallLLM",
             });
+          }
+        }
+
+        // ── Restricted import: callAI from llm-client ──
+        // Ticket 3 deep audit: callAI bypasses governance (uses Z.ai SDK directly).
+        // Only allowed in governance layer files.
+        if (
+          source.includes("llm-client") &&
+          hasNamedImport(node.specifiers, "callAI")
+        ) {
+          if (!isGovernanceFile()) {
+            context.report({
+              node,
+              messageId: "ungovernedCallAI",
+            });
+          }
+        }
+
+        // ── Restricted import: revenueLLMCall, generateExecutiveSummary, generateEngagementApproach ──
+        // Ticket 3 deep audit: These use raw LLM calls without governance.
+        // Only allowed in governance layer files.
+        if (source.includes("llm-client")) {
+          const ungovernedExports = ["revenueLLMCall", "generateExecutiveSummary", "generateEngagementApproach"];
+          for (const name of ungovernedExports) {
+            if (hasNamedImport(node.specifiers, name) && !isGovernanceFile()) {
+              context.report({
+                node,
+                messageId: "ungovernedRevenueLLM",
+              });
+              break;
+            }
           }
         }
 

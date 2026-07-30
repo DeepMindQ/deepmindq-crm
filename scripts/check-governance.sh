@@ -7,7 +7,7 @@ echo "=== Ticket 3: Governance Enforcement Check ==="
 
 # Check 1: No callLLM imports outside governance layer
 echo "Check 1: callLLM imports..."
-VIOLATIONS=$(rg "import.*callLLM.*from.*zai-helpers" src/ --type ts -l | grep -v -E "(ai-governance\.ts|model-router\.ts|zai-helpers\.ts)" || true)
+VIOLATIONS=$(rg "import.*callLLM.*from.*(zai-helpers|llm-client)" src/ --type ts -l | grep -v -E "(ai-governance\.ts|model-router\.ts|llm-client\.ts)" || true)
 if [ -n "$VIOLATIONS" ]; then
   echo "FAIL: callLLM imported outside governance layer:"
   echo "$VIOLATIONS"
@@ -107,6 +107,32 @@ done
 if [ -n "$AI_FETCH_FILES" ]; then
   echo "FAIL: Raw fetch() to AI provider API found:"
   echo "$AI_FETCH_FILES" | tr ' ' '\n' | sort -u
+  exit 1
+fi
+echo "PASS"
+
+# Check 8: Ticket 3 deep audit — No callAI imports from llm-client outside governance layer
+echo "Check 8: callAI imports from llm-client..."
+CALLAI_VIOLATIONS=$(rg "import.*callAI.*from.*llm-client" src/ --type ts -l | grep -v -E "(ai-governance\.ts|model-router\.ts|llm-client\.ts)" || true)
+if [ -n "$CALLAI_VIOLATIONS" ]; then
+  echo "FAIL: callAI imported from llm-client outside governance layer:"
+  echo "$CALLAI_VIOLATIONS"
+  exit 1
+fi
+echo "PASS"
+
+# Check 9: No revenueLLMCall / generateExecutiveSummary / generateEngagementApproach outside governance
+echo "Check 9: revenueLLMCall / generateExecutiveSummary / generateEngagementApproach imports..."
+REVENUE_VIOLATIONS=""
+for FN in "revenueLLMCall" "generateExecutiveSummary" "generateEngagementApproach"; do
+  FOUND=$(rg "import.*${FN}.*from.*llm-client" src/ --type ts -l | grep -v -E "(ai-governance\.ts|model-router\.ts|llm-client\.ts)" || true)
+  if [ -n "$FOUND" ]; then
+    REVENUE_VIOLATIONS="$REVENUE_VIOLATIONS $FOUND"
+  fi
+done
+if [ -n "$REVENUE_VIOLATIONS" ]; then
+  echo "FAIL: revenueLLMCall/generateExecutiveSummary/generateEngagementApproach imported outside governance layer:"
+  echo "$REVENUE_VIOLATIONS" | tr ' ' '\n' | sort -u
   exit 1
 fi
 echo "PASS"

@@ -31,6 +31,8 @@ import type { IntelligenceActionOutput } from '@/lib/intelligence-api/types';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { logger } from '@/lib/logger';
+import { runGovernanceChecks } from '@/lib/ai-governance';
+import { getResearchContext } from '@/lib/intelligence-contract';
 
 export async function GET(
   request: NextRequest,
@@ -42,6 +44,23 @@ export async function GET(
   const guardResult = await intelligenceGuard(request, params, 'action');
   if (guardResult instanceof Response) return guardResult;
   const { companyId, correlationId, responseHeaders } = guardResult;
+
+  // Ticket 3: Run real governance check for response metadata (requires DB)
+  let governanceMeta: { passed: boolean; generationType: string; checks: Record<string, { passed: boolean; message: string }> } | undefined;
+  try {
+    // Only run governance check against real PostgreSQL — skip for file-based/test DBs
+    if (process.env.DATABASE_URL?.startsWith('postgres')) {
+      const researchCtx = await getResearchContext(companyId);
+      const govResult = await runGovernanceChecks({ companyId, generationType: 'action_strategy', researchContext: researchCtx });
+      governanceMeta = {
+        passed: govResult.passed,
+        generationType: 'action_strategy',
+        checks: Object.fromEntries(Object.entries(govResult.checks).map(([k, v]) => [k, { passed: v.passed, message: v.message }])),
+      };
+    }
+  } catch {
+    // Governance metadata is optional — degrade gracefully
+  }
 
   logger.info('[intelligence/action] Processing', {
     companyId,
@@ -177,7 +196,7 @@ export async function GET(
       freshness,
       requestedAt,
       respondedAt: new Date(),
-      governance: { passed: true, generationType: 'recommendations' },
+      ...(governanceMeta && { governance: governanceMeta }),
     }),
     { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );

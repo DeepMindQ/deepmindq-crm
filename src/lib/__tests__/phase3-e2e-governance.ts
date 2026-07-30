@@ -384,7 +384,7 @@ async function testGovernanceConfigs() {
   assertEqual(leadConfig.minResearchConfidence, 0.5, 'Lead scoring confidence threshold is 50%');
 
   // Test 4.5: Prompt version is set
-  assert(GOVERNANCE_PROMPT_VERSION === 'v3-phase3-harden', 'Governance prompt version is v3-phase3-harden');
+  assert(GOVERNANCE_PROMPT_VERSION === 'v3-t3-deep-audit', 'Governance prompt version is v3-t3-deep-audit');
 
   // Test 4.6: Hallucination rules have 15 rules
   const ruleLines = HALLUCINATION_PREVENTION_RULES.trim().split('\n').filter(l => /^\d+\./.test(l.trim()));

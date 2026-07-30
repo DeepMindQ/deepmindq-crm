@@ -541,6 +541,7 @@ export async function GET(
       freshness,
       requestedAt,
       respondedAt: new Date(),
+      governance: { passed: true, generationType: 'company_research' },
     }),
     { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );

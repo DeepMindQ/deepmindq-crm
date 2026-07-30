@@ -176,13 +176,14 @@ module.exports = {
           }
         }
 
-        // ── Restricted import: ModelRouter from engines/model-router ──
-        // Ticket 3: Route handlers must use governedAICall /
-        // governedAICallAggregate instead of ModelRouter directly.
-        // Only allowed in ai-governance.ts (which wraps it).
+        // ── Restricted import: ModelRouter from engines/model-router or barrel export ──
+        // Ticket 3 deep audit: Also catch ModelRouter imported via barrel export
+        // '@/lib/engines' which re-exports ModelRouter from './model-router'.
+        // Route handlers must use governedAICall / governedAICallAggregate instead.
+        // Only allowed in ai-governance.ts (which wraps it) and model-router.ts (definition).
         if (
-          source.includes("engines/model-router") &&
-          hasNamedImport(node.specifiers, "ModelRouter")
+          hasNamedImport(node.specifiers, "ModelRouter") &&
+          (source.includes("engines/model-router") || source.includes("/engines") || source.endsWith("/engines"))
         ) {
           if (!isGovernanceFile()) {
             context.report({

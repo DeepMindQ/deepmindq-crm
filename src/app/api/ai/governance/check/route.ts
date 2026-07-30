@@ -14,7 +14,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiSuccess, apiError } from '@/lib/apiHelpers'
-import { getGovernanceConfig, type GovernanceConfig } from '@/lib/ai-governance'
+import { getGovernanceConfig, type GovernanceConfig, GOVERNANCE_PROMPT_VERSION } from '@/lib/ai-governance'
 // eslint-disable-next-line no-ungoverned-llm/no-ungoverned-llm -- governance check endpoint needs health status
 import { ModelRouter } from '@/lib/engines/model-router'
 
@@ -47,6 +47,11 @@ const ALL_GENERATION_TYPES = [
   'research_extraction',
   'signal_detection',
   'workflow_email_generation',
+  // Ticket 3 deep audit: added missing types
+  'account_brief_engagement',
+  'account_brief_summary',
+  'company_research',
+  'revenue_engagement_wording',
 ] as const
 
 interface GenerationTypeInfo {
@@ -114,7 +119,7 @@ export async function GET(_request: NextRequest) {
       generationTypes,
       auditSummary,
       modelRouterHealth: modelHealth,
-      promptVersion: 'v3-phase3-harden',
+      promptVersion: GOVERNANCE_PROMPT_VERSION,
       checkedAt: new Date().toISOString(),
     })
   } catch (error) {

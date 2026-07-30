@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+// eslint-disable-next-line no-ungoverned-llm/no-ungoverned-llm -- only used for ModelRouter.health() (non-LLM metadata call)
 import { SynthesisEngine, ModelRouter } from '@/lib/engines';
 import type { BriefType, BriefDepth } from '@/lib/engines';
 import { withApiMiddleware } from '@/lib/api-middleware';

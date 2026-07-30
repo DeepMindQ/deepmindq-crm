@@ -505,9 +505,13 @@ export async function runGovernanceChecks(
       value: Math.round(avgConfidence * 1000) / 1000,
     };
   } else {
+    // No research context available — pass if threshold is 0 (advisory types), fail otherwise
+    const noDataPassed = config.minResearchConfidence === 0;
     checks.research_confidence = {
-      passed: false,
-      message: 'No field confidence data available.',
+      passed: noDataPassed,
+      message: noDataPassed
+        ? 'No field confidence data available (threshold is 0 — advisory mode).'
+        : 'No field confidence data available.',
       value: 0,
     };
   }
@@ -524,9 +528,12 @@ export async function runGovernanceChecks(
       value: freshnessScore,
     };
   } else {
+    const noDataPassed = config.minFreshnessScore === 0;
     checks.freshness_score = {
-      passed: false,
-      message: 'No freshness data available.',
+      passed: noDataPassed,
+      message: noDataPassed
+        ? 'No freshness data available (threshold is 0 — advisory mode).'
+        : 'No freshness data available.',
       value: 0,
     };
   }
@@ -543,16 +550,22 @@ export async function runGovernanceChecks(
       value: daysSince,
     };
   } else if (ctx?.freshness?.status === 'none') {
+    const noDataPassed = !config.requireRecentIntelligence;
     checks.staleness = {
-      passed: false,
-      message: 'No research has ever been run for this company.',
+      passed: noDataPassed,
+      message: noDataPassed
+        ? 'No research has ever been run (advisory mode — staleness not required).'
+        : 'No research has ever been run for this company.',
       value: null,
     };
   } else {
     // No context at all — covered by research_exists check
+    const noDataPassed = !config.requireRecentIntelligence;
     checks.staleness = {
-      passed: false,
-      message: 'Cannot determine staleness without research data.',
+      passed: noDataPassed,
+      message: noDataPassed
+        ? 'Cannot determine staleness without research data (advisory mode).'
+        : 'Cannot determine staleness without research data.',
       value: null,
     };
   }
@@ -622,12 +635,11 @@ export async function runGovernanceChecks(
  *
  * Returns an empty string if all checks fully passed with no warnings.
  */
-export function buildGovernancePromptAddon(result: GovernanceResult): string {
+export function buildGovernancePromptAddon(result: GovernanceResult, generationType?: string): string {
   const warnings: string[] = [];
 
-  // Use the config thresholds for marginal pass detection instead of magic numbers.
-  // For buildGovernancePromptAddon, we derive thresholds from the available checks.
-  const config = getGovernanceConfig('email_draft'); // Default reference config for thresholds
+  // Use the generation type's config for marginal pass detection, fallback to email_draft
+  const config = generationType ? getGovernanceConfig(generationType) : getGovernanceConfig('email_draft');
   for (const [key, check] of Object.entries(result.checks)) {
     if (check.passed) {
       // Still flag marginal passes using config-derived thresholds
@@ -840,7 +852,7 @@ export async function preFlightCheck(context: GovernanceContext): Promise<{
   const config = getGovernanceConfig(context.generationType);
   const governanceResult = await runGovernanceChecks(context);
   const groundingNote = buildEvidenceGroundingNote(context.researchContext);
-  const promptAddon = buildGovernancePromptAddon(governanceResult);
+  const promptAddon = buildGovernancePromptAddon(governanceResult, context.generationType);
 
   return {
     governanceResult,
@@ -961,7 +973,7 @@ export async function governedAICall(
 
   // ── Step 2: Build prompt addons ──
   const groundingNote = buildEvidenceGroundingNote(ctx);
-  const promptAddon = buildGovernancePromptAddon(governanceResult);
+  const promptAddon = buildGovernancePromptAddon(governanceResult, generationType);
 
   // ── Step 3: Check if blocked ──
   if (!governanceResult.canProceed && enforceGovernance) {

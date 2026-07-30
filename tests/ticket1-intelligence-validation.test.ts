@@ -119,8 +119,25 @@ describe('includeSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('accepts all 14 valid include keys', () => {
-    const allValid = 'signals,scores,contacts,timeline,actions,brief,knowledge,mindmap,reasoning,opportunities,learning,data_health,people_changes,steps';
+  it('accepts all valid include keys from VALID_INCLUDES', () => {
+    // All 22 keys from VALID_INCLUDES (middleware.ts single source of truth)
+    const allValid = [
+      // Company
+      'signals', 'scores', 'contacts', 'timeline', 'actions', 'brief',
+      'knowledge', 'mindmap', 'learning',
+      // Reasoning
+      'steps', 'impact', 'recommendations',
+      // Opportunity
+      'fusion', 'capabilities',
+      // Action
+      'sequences',
+      // Conversation
+      'talkingPoints', 'objections', 'buyerProfiles',
+      // Mindmap
+      'nodes', 'edges', 'knowledgeConnections',
+      // Knowledge
+      'ingestion',
+    ].join(',');
     const result = includeSchema.safeParse(allValid);
     expect(result.success).toBe(true);
   });

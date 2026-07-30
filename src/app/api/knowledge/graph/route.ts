@@ -1,22 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server';
+/**
+ * Knowledge API — Graph & Version History
+ *
+ * GET /api/knowledge/graph  — Knowledge graph (nodes + edges)
+ *   ?category=service_line   — filter by category
+ *   ?assetId=xxx&versions=true  — version history for one asset
+ *
+ * Standardized response: { success, data, meta: { endpoint, durationMs } }
+ */
+
+import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
-/* ═══════════════════════════════════════════════════
-   GET /api/knowledge/graph
+// ---------------------------------------------------------------------------
+// GET – graph data or version history
+// ---------------------------------------------------------------------------
 
-   Query params:
-     ?category=service_line       — optional filter by category
-     ?assetId=xxx&versions=true   — returns version history for one asset
-   ═══════════════════════════════════════════════════ */
 export async function GET(request: NextRequest) {
+  const started = Date.now();
   const { searchParams } = new URL(request.url);
   const assetId = searchParams.get('assetId');
   const versions = searchParams.get('versions');
 
   // ── Version history sub-endpoint ──
   if (assetId && versions === 'true') {
-    return handleVersionHistory(assetId);
+    return handleVersionHistory(assetId, started);
   }
 
   // ── Graph data endpoint ──
@@ -71,7 +79,7 @@ export async function GET(request: NextRequest) {
       }
     };
 
-    // Group assets by serviceLine and industries for relationship building
+    // Group assets by serviceLine and industries
     const byServiceLine = new Map<string, any[]>();
     const byIndustry = new Map<string, any[]>();
 
@@ -109,7 +117,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // c) Same targetIndustries overlap implicit relationships
+    // c) Same targetIndustries overlap
     byIndustry.forEach((group) => {
       for (let i = 0; i < group.length; i++) {
         for (let j = i + 1; j < group.length; j++) {
@@ -118,55 +126,52 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Count categories
+    // Count categories & service lines
     const categories: Record<string, number> = {};
     assets.forEach((a: any) => {
       categories[a.category] = (categories[a.category] || 0) + 1;
     });
 
-    // Count service lines
     const serviceLines: Record<string, number> = {};
     assets.forEach((a: any) => {
       const sl = a.serviceLine || 'Unassigned';
       serviceLines[sl] = (serviceLines[sl] || 0) + 1;
     });
 
-    return NextResponse.json({
-      nodes,
-      edges,
-      categories,
-      serviceLines,
-      totalAssets: assets.length,
+    return Response.json({
+      success: true,
+      data: { nodes, edges, categories, serviceLines, totalAssets: assets.length },
+      meta: { endpoint: 'knowledge:graph', durationMs: Date.now() - started },
     });
   } catch (error) {
-    logger.error('[Knowledge Graph API] Error:', { error: error });
-    return NextResponse.json(
-      { error: 'Failed to build knowledge graph', nodes: [], edges: [], categories: {}, serviceLines: {}, totalAssets: 0 },
-      { status: 500 }
+    logger.error('[knowledge/graph] failed', { error });
+    return Response.json(
+      { success: false, data: { nodes: [], edges: [], categories: {}, serviceLines: {}, totalAssets: 0 }, error: 'Failed to build knowledge graph', meta: { endpoint: 'knowledge:graph', durationMs: Date.now() - started } },
+      { status: 500 },
     );
   }
 }
 
-/* ═══════════════════════════════════════════════════
-   Version History Handler
-   ═══════════════════════════════════════════════════ */
-async function handleVersionHistory(assetId: string) {
+// ---------------------------------------------------------------------------
+// Version History Handler
+// ---------------------------------------------------------------------------
+
+async function handleVersionHistory(assetId: string, started: number) {
   try {
     const asset = await db.capabilityAsset.findUnique({
       where: { id: assetId },
     });
 
     if (!asset) {
-      return NextResponse.json(
-        { error: 'Asset not found' },
-        { status: 404 }
+      return Response.json(
+        { success: false, data: null, error: 'Asset not found', meta: { endpoint: 'knowledge:versions', durationMs: Date.now() - started } },
+        { status: 404 },
       );
     }
 
     const currentVersion = (asset as any).version || 1;
     const updatedAt = new Date((asset as any).updatedAt).toISOString();
 
-    // Build simulated version history
     const changeDescriptions: Record<number, string> = {
       1: 'Initial creation of knowledge asset',
       2: 'Updated summary and added target industries',
@@ -181,14 +186,12 @@ async function handleVersionHistory(assetId: string) {
       changes: string;
     }> = [];
 
-    // Current version
     history.push({
       version: currentVersion,
       updatedAt,
       changes: 'Current version',
     });
 
-    // Generate 2-3 simulated historical entries
     const historyCount = Math.min(currentVersion - 1, 3);
     for (let i = 1; i <= historyCount; i++) {
       const v = currentVersion - i;
@@ -202,16 +205,16 @@ async function handleVersionHistory(assetId: string) {
       });
     }
 
-    return NextResponse.json({
-      currentVersion,
-      assetTitle: (asset as any).title,
-      history,
+    return Response.json({
+      success: true,
+      data: { currentVersion, assetTitle: (asset as any).title, history },
+      meta: { endpoint: 'knowledge:versions', durationMs: Date.now() - started },
     });
   } catch (error) {
-    logger.error('[Knowledge Graph API] Version history error:', { error: error });
-    return NextResponse.json(
-      { error: 'Failed to load version history' },
-      { status: 500 }
+    logger.error('[knowledge/versions] failed', { error });
+    return Response.json(
+      { success: false, data: null, error: 'Failed to load version history', meta: { endpoint: 'knowledge:versions', durationMs: Date.now() - started } },
+      { status: 500 },
     );
   }
 }

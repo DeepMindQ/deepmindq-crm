@@ -1,16 +1,27 @@
+/**
+ * Knowledge API — List & Create
+ *
+ * GET  /api/knowledge      — List capability assets (paginated)
+ * POST /api/knowledge      — Upload a document (file upload)
+ *
+ * Standardized response: { success, data, meta: { endpoint, durationMs } }
+ */
+
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { logger } from '@/lib/logger';
 import { apiError, apiSuccess, validateBody, sanitize, safeInt } from "@/lib/apiHelpers";
 import { createKnowledgeDocSchema } from "@/lib/validations";
-import { logger } from '@/lib/logger';
+
+const MAX_PAGE_SIZE = 50;
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 // ---------------------------------------------------------------------------
 // GET – list capability assets (paginated)
 // ---------------------------------------------------------------------------
 
-const MAX_PAGE_SIZE = 50;
-
 export async function GET(request: NextRequest) {
+  const started = Date.now();
   try {
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, safeInt(searchParams.get("page"), 1));
@@ -35,30 +46,42 @@ export async function GET(request: NextRequest) {
       createdAt: a.createdAt,
     }));
 
-    return apiSuccess({ documents: formatted, total, page, pageSize: MAX_PAGE_SIZE });
+    return Response.json({
+      success: true,
+      data: { documents: formatted, total, page, pageSize: MAX_PAGE_SIZE },
+      meta: { endpoint: 'knowledge:list', durationMs: Date.now() - started },
+    });
   } catch (error) {
-    logger.error("Failed to fetch knowledge documents:", { error: error });
-    return apiError("Failed to fetch documents");
+    logger.error("[knowledge/list] failed", { error });
+    return Response.json(
+      { success: false, data: null, error: "Failed to fetch documents", meta: { endpoint: 'knowledge:list', durationMs: Date.now() - started } },
+      { status: 500 },
+    );
   }
 }
 
 // ---------------------------------------------------------------------------
-// POST – create a capability asset from text content
+// POST – create a capability asset from file upload
 // ---------------------------------------------------------------------------
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
-
 export async function POST(req: NextRequest) {
+  const started = Date.now();
   try {
     const fd = await req.formData();
     const file = fd.get("file") as File | null;
 
     if (!file) {
-      return apiError("No file uploaded", 400);
+      return Response.json(
+        { success: false, data: null, error: "No file uploaded", meta: { endpoint: 'knowledge:create', durationMs: Date.now() - started } },
+        { status: 400 },
+      );
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      return apiError("File size exceeds the 10 MB limit", 400);
+      return Response.json(
+        { success: false, data: null, error: "File size exceeds the 10 MB limit", meta: { endpoint: 'knowledge:create', durationMs: Date.now() - started } },
+        { status: 400 },
+      );
     }
 
     const fileName = file.name.toLowerCase();
@@ -67,14 +90,17 @@ export async function POST(req: NextRequest) {
 
     if (blockedExtensions.some((ext) => fileName.endsWith(ext))) {
       const ext = fileName.split(".").pop()!.toUpperCase();
-      return apiError(
-        `.${ext} files are not supported. Only .txt and .md files can be uploaded.`,
-        400
+      return Response.json(
+        { success: false, data: null, error: `.${ext} files are not supported. Only .txt and .md files can be uploaded.`, meta: { endpoint: 'knowledge:create', durationMs: Date.now() - started } },
+        { status: 400 },
       );
     }
 
     if (!allowedExtensions.some((ext) => fileName.endsWith(ext))) {
-      return apiError("Unsupported file type. Only .txt and .md files are accepted.", 400);
+      return Response.json(
+        { success: false, data: null, error: "Unsupported file type. Only .txt and .md files are accepted.", meta: { endpoint: 'knowledge:create', durationMs: Date.now() - started } },
+        { status: 400 },
+      );
     }
 
     const rawTitle = (fd.get("title") as string) || file.name?.replace(/\.[^.]+$/, "") || "Untitled";
@@ -85,15 +111,12 @@ export async function POST(req: NextRequest) {
       docType: "txt",
       description: rawDescription,
     });
-    if (parsed instanceof Response) {
-      return parsed;
-    }
+    if (parsed instanceof Response) return parsed;
 
     const title = sanitize(parsed.title);
     const description = sanitize(parsed.description ?? "");
     const content = await file.text();
 
-    // Store as a capability asset of type "service"
     const asset = await db.capabilityAsset.create({
       data: {
         title,
@@ -104,9 +127,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return apiSuccess(asset, 201);
+    return Response.json({
+      success: true,
+      data: asset,
+      meta: { endpoint: 'knowledge:create', durationMs: Date.now() - started },
+    }, { status: 201 });
   } catch (error) {
-    logger.error("Failed to create knowledge document:", { error: error });
-    return apiError("Failed to create document");
+    logger.error("[knowledge/create] failed", { error });
+    return Response.json(
+      { success: false, data: null, error: "Failed to create document", meta: { endpoint: 'knowledge:create', durationMs: Date.now() - started } },
+      { status: 500 },
+    );
   }
 }

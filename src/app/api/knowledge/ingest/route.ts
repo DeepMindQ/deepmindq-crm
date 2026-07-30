@@ -1,14 +1,27 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { KnowledgeIngestionPipeline } from '@/lib/knowledge-ingestion-pipeline';
-import { apiSuccess, apiError } from '@/lib/apiHelpers';
+/**
+ * Knowledge API — Ingestion Pipeline
+ *
+ * POST /api/knowledge/ingest  — Ingest a document into the AI knowledge graph
+ * GET  /api/knowledge/ingest  — Get ingestion pipeline statistics
+ *
+ * Standardized response: { success, data, meta: { endpoint, durationMs } }
+ */
 
-// POST /api/knowledge/ingest — Ingest a document into the AI knowledge graph
+import { NextRequest } from 'next/server';
+import { KnowledgeIngestionPipeline } from '@/lib/knowledge-ingestion-pipeline';
+import { logger } from '@/lib/logger';
+
+// POST — Ingest a document
 export async function POST(request: NextRequest) {
+  const started = Date.now();
   try {
     const body = await request.json();
     const { title, documentType, content, sourceUrl, sourceType, metadata, capabilityAssetId } = body;
     if (!title || !documentType || !content) {
-      return apiError('title, documentType, and content are required', 400);
+      return Response.json(
+        { success: false, data: null, error: 'title, documentType, and content are required', meta: { endpoint: 'knowledge:ingest', durationMs: Date.now() - started } },
+        { status: 400 },
+      );
     }
 
     const result = await KnowledgeIngestionPipeline.ingest({
@@ -20,18 +33,38 @@ export async function POST(request: NextRequest) {
       metadata,
       capabilityAssetId,
     });
-    return apiSuccess(result);
+
+    return Response.json({
+      success: true,
+      data: result,
+      meta: { endpoint: 'knowledge:ingest', durationMs: Date.now() - started },
+    });
   } catch (err) {
-    return apiError(err instanceof Error ? err.message : 'Unknown error', 500);
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('[knowledge/ingest] failed', { error: msg });
+    return Response.json(
+      { success: false, data: null, error: msg, meta: { endpoint: 'knowledge:ingest', durationMs: Date.now() - started } },
+      { status: 500 },
+    );
   }
 }
 
-// GET /api/knowledge/ingest — Get ingestion stats
+// GET — Ingestion statistics
 export async function GET() {
+  const started = Date.now();
   try {
     const stats = await KnowledgeIngestionPipeline.getStats();
-    return apiSuccess(stats);
+    return Response.json({
+      success: true,
+      data: stats,
+      meta: { endpoint: 'knowledge:ingest-stats', durationMs: Date.now() - started },
+    });
   } catch (err) {
-    return apiError(err instanceof Error ? err.message : 'Unknown error', 500);
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('[knowledge/ingest-stats] failed', { error: msg });
+    return Response.json(
+      { success: false, data: null, error: msg, meta: { endpoint: 'knowledge:ingest-stats', durationMs: Date.now() - started } },
+      { status: 500 },
+    );
   }
 }

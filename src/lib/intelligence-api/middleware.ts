@@ -52,7 +52,7 @@ export function shouldIncludeAny(includes: Set<IntelligenceInclude>, ...keys: In
 
 // ── Response Builders ────────────────────────────────────────────────────────────
 
-type EndpointName = 'company' | 'reasoning' | 'opportunity' | 'action' | 'conversation' | 'mindmap' | 'brief' | 'grounding' | 'retrieval';
+type EndpointName = 'company' | 'reasoning' | 'opportunity' | 'action' | 'conversation' | 'mindmap' | 'brief' | 'grounding' | 'retrieval' | 'knowledge';
 
 /**
  * Create a successful IntelligenceResponse envelope.

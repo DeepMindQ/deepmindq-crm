@@ -50,7 +50,8 @@ export type IntelligenceEndpoint =
   | 'mindmap'
   | 'brief'
   | 'grounding'
-  | 'retrieval';
+  | 'retrieval'
+  | 'knowledge';
 
 export type IntelligenceInclude =
   | 'signals'
@@ -419,8 +420,57 @@ export interface IntelligenceRetrievalOutput {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════════════════════
+//  KNOWLEDGE — GET /api/intelligence/knowledge/{id}
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/** A single knowledge entry from KnowledgeFabric */
+export interface IntelligenceKnowledgeEntry {
+  id: string;
+  category: string;
+  subCategory: string | null;
+  content: string;
+  source: string | null;
+  confidence: number;
+  version: number;
+  updatedAt: string;
+}
+
+/** Knowledge group (category → entries) */
+export interface IntelligenceKnowledgeGroup {
+  category: string;
+  entryCount: number;
+  entries: IntelligenceKnowledgeEntry[];
+}
+
+/** Ingestion pipeline statistics */
+export interface IntelligenceKnowledgeIngestionStats {
+  totalDocuments: number;
+  completedDocuments: number;
+  totalChunks: number;
+  classifiedChunks: number;
+  embeddedChunks: number;
+  byType: Array<{ type: string; count: number }>;
+}
+
+/** Full knowledge output for a company */
+export interface IntelligenceKnowledgeOutput {
+  companyId: string;
+  /** KnowledgeFabric entries grouped by category */
+  groups: IntelligenceKnowledgeGroup[];
+  /** Total number of knowledge entries */
+  totalEntries: number;
+  /** Categories with most entries */
+  topCategories: Array<{ category: string; count: number }>;
+  /** Average confidence across entries */
+  averageConfidence: number;
+  /** Ingestion pipeline stats (from KnowledgeIngestionPipeline) */
+  ingestionStats: IntelligenceKnowledgeIngestionStats | null;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
 //  ERROR TYPES
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════════════════════
 
 export const IntelligenceErrors = {
   COMPANY_NOT_FOUND: 'COMPANY_NOT_FOUND',

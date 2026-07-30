@@ -270,3 +270,30 @@ Stage Summary:
 - Only sprint3 and full-pipeline remain as legacy-format routes (noted tech debt)
 - Exit criteria met: TSC=0, 693/693 tests
 - Pushed to GitHub: commit 35f6b7f
+
+---
+Task ID: 5
+Agent: main
+Task: Phase 5 — Knowledge Intelligence: Wire knowledge layer into Intelligence API + standardize legacy routes
+
+Work Log:
+- Audited all knowledge-related files: 4 API routes, 2 library modules, 3 UI components, 2 test files
+- Found zero ungoverned AI calls (knowledge-ingestion already uses governedAICall)
+- Found orphaned knowledge-versioning.test.ts (source file deleted in Phase 2)
+- Added 'knowledge' to IntelligenceEndpoint type (now 10 endpoints total)
+- Created IntelligenceKnowledgeOutput, IntelligenceKnowledgeEntry, IntelligenceKnowledgeGroup, IntelligenceKnowledgeIngestionStats types in types.ts
+- Created GET /api/intelligence/knowledge/{id} — wires KnowledgeFabric + KnowledgeIngestionPipeline with ?include=ingestion
+- Rewrote 4 legacy /api/knowledge/* routes from apiSuccess/apiError to standardized { success, data, meta: { endpoint, durationMs } }:
+  - /api/knowledge (GET list + POST create)
+  - /api/knowledge/[id] (GET detail + DELETE)
+  - /api/knowledge/graph (GET graph + version history)
+  - /api/knowledge/ingest (POST ingest + GET stats)
+- Deleted orphaned knowledge-versioning.test.ts (source was deleted in Phase 2, test had no source to test)
+
+Stage Summary:
+- 8 files changed: 6 modified, 1 created, 1 deleted
+- +372 lines added, -444 lines removed (72-line net reduction)
+- 1 new Intelligence API endpoint (knowledge) — now 10 total
+- 4 legacy routes standardized to unified response format
+- Exit criteria met: TSC=0, 693/693 tests, ESLint=0, all governance checks PASS
+- Pushed to GitHub: commit e955c9a

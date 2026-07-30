@@ -153,9 +153,9 @@ export async function GET(
     } : {}),
   };
 
-  // H11: Safe confidence extraction — avoid unsafe cast through unknown
-  const confidence = actionResult && 'confidence' in actionResult
-    ? Number((actionResult as Record<string, unknown>).confidence ?? 0)
+  // H11 FIX: Safe confidence extraction with type narrowing
+  const confidence = actionResult && typeof actionResult === 'object' && 'confidence' in actionResult
+    ? Number((actionResult as { confidence?: unknown }).confidence ?? 0)
     : 0;
   const freshness = computeFreshness(company as Parameters<typeof computeFreshness>[0]);
   const durationMs = Date.now() - startedAt;

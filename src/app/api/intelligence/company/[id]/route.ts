@@ -405,7 +405,8 @@ export async function GET(
 
     if (key === 'scores' && result) {
       const sr = result as RevenueScore;
-      if ('success' in sr && sr.success) {
+      // H6 FIX: Type guard instead of unchecked 'in' check
+      if (sr && typeof sr === 'object' && 'success' in sr && sr.success) {
         scores = {
           revenue: sr,
           accountPriority: company.accountPriorityScore
@@ -414,32 +415,34 @@ export async function GET(
           intelConfidence: Number(sr.confidence ?? 0) / 100,
         };
         confidences.push(sr.confidence / 100);
-      } else {
+      } else if (sr && typeof sr === 'object' && 'error' in sr && sr.error) {
         logger.warn('[intelligence/company] ScoringEngine returned failure', {
           companyId,
-          error: sr.error,
+          error: String(sr.error),
         });
       }
     }
 
     if (key === 'actions' && result) {
       const ar = result as ActionResult;
-      if (ar.success) {
+      // H8 FIX: Type guard
+      if (ar && typeof ar === 'object' && 'success' in ar && ar.success) {
         actions = ar;
         if (ar.currentScore != null) {
           confidences.push(Math.min(ar.currentScore / 100, 1));
         }
-      } else {
+      } else if (ar && typeof ar === 'object' && 'error' in ar && ar.error) {
         logger.warn('[intelligence/company] ActionEngine returned failure', {
           companyId,
-          error: ar.error,
+          error: String(ar.error),
         });
       }
     }
 
     if (key === 'brief' && result) {
+      // H9 FIX: Safe type narrowing via explicit unknown bridge with validation
       const cr = result as Record<string, unknown>;
-      if (cr.success === true) {
+      if (cr && typeof cr === 'object' && cr.success === true) {
         const summary = String(cr.meetingObjective || cr.companyContext || '');
         const keyThemes = Array.isArray(cr.signalContext) ? cr.signalContext.map(String) : [];
         const recommendations = Array.isArray(cr.postMeetingActions) ? cr.postMeetingActions.map(String) : [];

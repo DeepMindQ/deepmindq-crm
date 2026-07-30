@@ -86,33 +86,61 @@ export async function GET(
   // ── Step 2: Determine which engines to run based on ?include ───────────
   const runScores = guardResult.includes.size === 0 || shouldInclude(guardResult.includes, 'scores');
   const runFusion = guardResult.includes.size === 0 || shouldInclude(guardResult.includes, 'fusion');
+  // E5 FIX: Gate reasoning + actions on whether they contribute to requested includes.
+  // reasoning provides summary/confidence data; actions provides recommended actions.
+  // When empty includes (default), all engines run for backward compatibility.
+  const runReasoning = guardResult.includes.size === 0;
+  const runActions = guardResult.includes.size === 0;
 
-  // ── Step 3: Run engines in parallel (non-throwing) ──────────────────────
-  // ScoringEngine runs conditionally; reasoning + actions always run.
-  const [reasoningResult, actionResult] = await Promise.allSettled<[
-    Promise<ReasoningResult>,
-    Promise<ActionResult>,
-  ]>([
-    EnterpriseReasoningEngine.build(companyId),
-    ActionEngine.recommend({ companyId, skipNarrative: true }),
-  ]);
+  // ── Step 3: Run engines conditionally in parallel ──────────────────────
+  const engineResults: { scoring: RevenueScore | null; reasoning: ReasoningResult | null; actions: ActionResult | null } = {
+    scoring: null, reasoning: null, actions: null,
+  };
 
-  let scoring: RevenueScore | null = null;
+  const enginePromises: Promise<unknown>[] = [];
   if (runScores) {
-    try {
-      scoring = await ScoringEngine.score({ companyId, skipNarrative: true });
-    } catch (err) {
-      logger.warn('[intelligence/opportunity] ScoringEngine threw', {
-        companyId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
+    enginePromises.push(
+      ScoringEngine.score({ companyId, skipNarrative: true })
+        .then(r => { engineResults.scoring = r; })
+        .catch(err => {
+          logger.warn('[intelligence/opportunity] ScoringEngine threw', {
+            companyId, error: err instanceof Error ? err.message : String(err),
+          });
+        }),
+    );
+  }
+  if (runReasoning) {
+    enginePromises.push(
+      EnterpriseReasoningEngine.build(companyId)
+        .then(r => { engineResults.reasoning = r; })
+        .catch(err => {
+          logger.warn('[intelligence/opportunity] ReasoningEngine threw', {
+            companyId, error: err instanceof Error ? err.message : String(err),
+          });
+        }),
+    );
+  }
+  if (runActions) {
+    enginePromises.push(
+      ActionEngine.recommend({ companyId, skipNarrative: true })
+        .then(r => { engineResults.actions = r; })
+        .catch(err => {
+          logger.warn('[intelligence/opportunity] ActionEngine threw', {
+            companyId, error: err instanceof Error ? err.message : String(err),
+          });
+        }),
+    );
   }
 
-  // Extract results safely
-  const reasoning = reasoningResult.status === 'fulfilled' ? reasoningResult.value : null;
-  const actions = actionResult.status === 'fulfilled' ? actionResult.value : null;
+  if (enginePromises.length > 0) {
+    await Promise.all(enginePromises);
+  }
 
+  const scoring = engineResults.scoring;
+  const reasoning = engineResults.reasoning;
+  const actions = engineResults.actions;
+
+  // Log engine failures for observability
   if (scoring && !scoring.success) {
     logger.warn('[intelligence/opportunity] ScoringEngine failed', {
       companyId,
@@ -173,17 +201,15 @@ export async function GET(
   // ── Step 5: Compute confidence ───────────────────────────────────────────
   const confidences: number[] = [];
   if (scoring?.success) confidences.push((scoring.confidence ?? 0) / 100);
-  if (reasoning?.success) confidences.push(reasoning.overallConfidence ?? 0);
+  if (reasoning?.success) confidences.push((reasoning.overallConfidence ?? 0) / 1);
   const confidence = confidences.length > 0
     ? confidences.reduce((sum, c) => sum + c, 0) / confidences.length
     : 0;
 
   // ── Step 6: Compose IntelligenceOpportunity ──────────────────────────────
-  // When engines fail, the actual result is the full interface (since engines are non-throwing
-  // and return complete objects with success=false). Promise.allSettled wrapping preserves types.
   const data: IntelligenceOpportunity = {
     companyId,
-    ...(runScores && scoring?.success ? { scores: scoring } : {}),
+    ...(runScores && scoring?.success ? { scores: scoring as RevenueScore } : {}),
     ...(reasoning
       ? {
           reasoning: {
@@ -196,7 +222,7 @@ export async function GET(
         }
       : {}),
     ...(runFusion ? { fusion: fusionData } : {}),
-    ...(actions?.success ? { actions } : {}),
+    ...(actions?.success ? { actions: actions as ActionResult } : {}),
   };
 
   // ── Step 7: Build & return envelope ─────────────────────────────────────

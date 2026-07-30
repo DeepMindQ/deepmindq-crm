@@ -246,3 +246,27 @@ Stage Summary:
 - Net change: +679 lines added, -1,364 lines removed (685 lines net reduction)
 - Exit criteria met: TSC=0, 693/693 tests passed, all governance checks PASS
 - Pushed to GitHub: commit a1810f3
+
+---
+Task ID: 4
+Agent: main
+Task: Phase 4 — External Intelligence: Standardize all orphan routes + delete dead code
+
+Work Log:
+- Audited 31 intelligence API routes: 9 already wired (Phase 1B/3), 22 orphans
+- Categorized orphans: 8 external (data fetch), 4 hybrid (composite), 3 sprint (dev), 7 utility/analytical
+- Rewired 18 routes to standardized { success, data, meta: { endpoint, durationMs } } response format
+- Replaced raw NextResponse.json (15 routes) and legacy apiSuccess/apiError (7 routes) with consistent pattern
+- Added proper HTTP status codes (400/404/502), durationMs timing, endpoint names to all routes
+- Used zod.safeParse instead of legacy validateBody in enrich-batch
+- Deleted: collect-news (51 lines, deprecated), sprint1 (318 lines, no consumers), sprint2 (252 lines, no consumers)
+- Preserved sprint3 (has frontend consumer in action-center-screen.tsx)
+- Verified: TSC=0, 693/693 tests, all governance checks PASS
+
+Stage Summary:
+- 20 files changed: 18 modified, 3 deleted
+- +683 lines added, -980 lines removed (297-line net reduction)
+- All 27 remaining intelligence API routes now use standardized response format
+- Only sprint3 and full-pipeline remain as legacy-format routes (noted tech debt)
+- Exit criteria met: TSC=0, 693/693 tests
+- Pushed to GitHub: commit 35f6b7f

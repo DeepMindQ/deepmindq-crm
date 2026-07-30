@@ -15,10 +15,16 @@
  */
 
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
-import { scrubError } from '@/lib/intelligence-api/handler';
+import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { companyIdSchema } from '@/lib/intelligence-api/validators';
+
+const unifiedBodySchema = z.object({
+  companyId: companyIdSchema,
+  includeActions: z.boolean().optional(),
+});
 
 export async function POST(request: NextRequest) {
   let correlationId;
@@ -34,18 +40,16 @@ export async function POST(request: NextRequest) {
     throw rlErr;
   }
 
+  const ctx = { correlationId, responseHeaders };
   const startedAt = Date.now();
 
   try {
     const body = await request.json()
-    const { companyId, includeActions } = body as { companyId?: string; includeActions?: boolean }
-
-    if (!companyId || typeof companyId !== 'string') {
-      return Response.json(
-        { success: false, error: 'companyId is required (string)', meta: { endpoint: 'unified', durationMs: Date.now() - startedAt } },
-        { status: 400 },
-      )
+    const parsed = unifiedBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return utilityError(ctx, 400, `Validation failed: ${parsed.error.issues.map(i => i.message).join(', ')}`, 'VALIDATION_FAILED', Date.now() - startedAt)
     }
+    const { companyId, includeActions } = parsed.data;
 
     // Fetch company
     const company = await db.company.findUnique({
@@ -68,10 +72,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (!company) {
-      return Response.json(
-        { success: false, error: 'Company not found', meta: { endpoint: 'unified', durationMs: Date.now() - startedAt } },
-        { status: 404 },
-      )
+      return utilityError(ctx, 404, 'Company not found', 'NOT_FOUND', Date.now() - startedAt)
     }
 
     const companyName = company.normalizedName || company.rawName
@@ -332,6 +333,7 @@ export async function POST(request: NextRequest) {
       const actions = await db.actionArtifact.findMany({
         where: { companyId, status: { in: ['draft', 'approved'] } },
         orderBy: { generatedAt: 'desc' },
+        select: { id: true, actionType: true, summary: true, priorityScore: true, confidence: true, generatedAt: true },
       })
       const seen = new Set<string>()
       const uniqueActions: Array<{
@@ -352,17 +354,8 @@ export async function POST(request: NextRequest) {
       data.actions = uniqueActions
     }
 
-    return Response.json({
-      success: true,
-      data,
-      meta: { endpoint: 'unified', durationMs: Date.now() - startedAt },
-    })
+    return utilitySuccess(ctx, data, 'unified', Date.now() - startedAt)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    logger.error('[intelligence/unified] Query error:', { detail: message })
-    return Response.json(
-      { success: false, error: `Unified intelligence query failed: ${message}`, meta: { endpoint: 'unified', durationMs: Date.now() - startedAt } },
-      { status: 502 },
-    )
+    return utilityCatchError(ctx, error, 502, 'INTELLIGENCE_UNAVAILABLE', 'Unified intelligence query failed', Date.now() - startedAt)
   }
 }

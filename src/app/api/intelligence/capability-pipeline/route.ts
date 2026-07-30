@@ -12,18 +12,18 @@
  */
 
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { CapabilityIntelligenceEngine, type CapabilityInput } from '@/lib/capability-intelligence-engine';
 import { logger } from '@/lib/logger';
-import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
-import { scrubError } from '@/lib/intelligence-api/handler';
+import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { companyIdSchema } from '@/lib/intelligence-api/validators';
+
+const EP = 'capability-pipeline';
 
 export async function POST(request: NextRequest) {
-  let correlationId;
-  let responseHeaders;
+  let ctx: { correlationId: string; responseHeaders: Record<string, string> };
   try {
-    const ctx = utilityGuard(request, 'capability-pipeline');
-    correlationId = ctx.correlationId;
-    responseHeaders = ctx.responseHeaders;
+    ctx = utilityGuard(request, EP);
   } catch (rlErr) {
     if (rlErr instanceof RateLimitedError) {
       return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
@@ -37,75 +37,75 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { action } = body;
 
+    if (!action || typeof action !== 'string') {
+      return utilityError(ctx, 400, 'Validation failed: action is required (string)', 'VALIDATION_FAILED', Date.now() - startedAt);
+    }
+
     if (action === 'ingest') {
       const result = await CapabilityIntelligenceEngine.ingest(body.data as CapabilityInput);
-      return Response.json({ success: true, data: result, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
+      return utilitySuccess(ctx, result, EP, Date.now() - startedAt);
     }
 
     if (action === 'bulk-ingest') {
       const inputs = (body.data || body.capabilities || []) as CapabilityInput[];
       const result = await CapabilityIntelligenceEngine.bulkIngest(inputs);
-      return Response.json({ success: true, data: result, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
+      return utilitySuccess(ctx, result, EP, Date.now() - startedAt);
     }
 
     if (action === 'match-signal') {
-      const { companyId, signalId } = body;
-      if (!companyId || !signalId) {
-        return Response.json({ success: false, error: 'companyId and signalId required', meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } }, { status: 400 });
+      const matchSignalSchema = z.object({ companyId: companyIdSchema, signalId: z.string().min(1) });
+      const ms = matchSignalSchema.safeParse(body);
+      if (!ms.success) {
+        return utilityError(ctx, 400, `Validation failed: ${ms.error.issues.map(i => i.message).join(', ')}`, 'VALIDATION_FAILED', Date.now() - startedAt);
       }
+      const { companyId, signalId } = ms.data;
       const result = await CapabilityIntelligenceEngine.matchSignalToCapabilities(companyId, signalId);
-      return Response.json({ success: true, data: result, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
+      return utilitySuccess(ctx, result, EP, Date.now() - startedAt);
     }
 
     if (action === 'generate-opportunity') {
-      const { companyId, signalId, capabilityMatchId } = body;
-      if (!companyId || !signalId || !capabilityMatchId) {
-        return Response.json({ success: false, error: 'companyId, signalId, and capabilityMatchId required', meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } }, { status: 400 });
+      const genOppSchema = z.object({ companyId: companyIdSchema, signalId: z.string().min(1), capabilityMatchId: z.string().min(1) });
+      const go = genOppSchema.safeParse(body);
+      if (!go.success) {
+        return utilityError(ctx, 400, `Validation failed: ${go.error.issues.map(i => i.message).join(', ')}`, 'VALIDATION_FAILED', Date.now() - startedAt);
       }
+      const { companyId, signalId, capabilityMatchId } = go.data;
       const result = await CapabilityIntelligenceEngine.generateOpportunity(companyId, signalId, capabilityMatchId);
-      return Response.json({ success: true, data: result, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
+      return utilitySuccess(ctx, result, EP, Date.now() - startedAt);
     }
 
     if (action === 'win-probability') {
-      const { companyId } = body;
-      if (!companyId) {
-        return Response.json({ success: false, error: 'companyId required', meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } }, { status: 400 });
+      const wpSchema = z.object({ companyId: companyIdSchema });
+      const wp = wpSchema.safeParse(body);
+      if (!wp.success) {
+        return utilityError(ctx, 400, `Validation failed: ${wp.error.issues.map(i => i.message).join(', ')}`, 'VALIDATION_FAILED', Date.now() - startedAt);
       }
+      const { companyId } = wp.data;
       const result = await CapabilityIntelligenceEngine.calculateWinProbability(companyId);
-      return Response.json({ success: true, data: result, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
+      return utilitySuccess(ctx, result, EP, Date.now() - startedAt);
     }
 
     if (action === 'run-pipeline') {
-      const { companyId } = body;
-      if (!companyId) {
-        return Response.json({ success: false, error: 'companyId required', meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } }, { status: 400 });
+      const rpSchema = z.object({ companyId: companyIdSchema });
+      const rp = rpSchema.safeParse(body);
+      if (!rp.success) {
+        return utilityError(ctx, 400, `Validation failed: ${rp.error.issues.map(i => i.message).join(', ')}`, 'VALIDATION_FAILED', Date.now() - startedAt);
       }
+      const { companyId } = rp.data;
       const result = await CapabilityIntelligenceEngine.runFullPipeline(companyId);
-      return Response.json({ success: true, data: result, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
+      return utilitySuccess(ctx, result, EP, Date.now() - startedAt);
     }
 
-    return Response.json({
-      success: false,
-      error: `Unknown action: ${action}. Use: ingest, bulk-ingest, match-signal, generate-opportunity, win-probability, run-pipeline`,
-      meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt },
-    }, { status: 400 });
+    return utilityError(ctx, 400, `Unknown action: ${action}. Use: ingest, bulk-ingest, match-signal, generate-opportunity, win-probability, run-pipeline`, 'INVALID_REQUEST', Date.now() - startedAt);
   } catch (err) {
-    const message = scrubError(err instanceof Error ? err.message : String(err));
-    logger.error('[intelligence/capability-pipeline] POST Error', { detail: message });
-    return Response.json(
-      { success: false, error: message, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } },
-      { status: 502 },
-    );
+    return utilityCatchError(ctx, err, 502, 'INTELLIGENCE_UNAVAILABLE', 'Capability pipeline failed', Date.now() - startedAt);
   }
 }
 
 export async function GET(request: NextRequest) {
-  let correlationId;
-  let responseHeaders;
+  let ctx: { correlationId: string; responseHeaders: Record<string, string> };
   try {
-    const ctx = utilityGuard(request, 'capability-pipeline');
-    correlationId = ctx.correlationId;
-    responseHeaders = ctx.responseHeaders;
+    ctx = utilityGuard(request, EP);
   } catch (rlErr) {
     if (rlErr instanceof RateLimitedError) {
       return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
@@ -120,36 +120,27 @@ export async function GET(request: NextRequest) {
 
     if (action === 'status') {
       const status = await CapabilityIntelligenceEngine.getGraphStatus();
-      return Response.json({ success: true, data: status, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
+      return utilitySuccess(ctx, status, EP, Date.now() - startedAt);
     }
 
     if (action === 'search') {
       const query = request.nextUrl.searchParams.get('q') || '';
       const topK = parseInt(request.nextUrl.searchParams.get('topK') || '5', 10);
       if (!query) {
-        return Response.json({ success: false, error: 'q parameter required for search', meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } }, { status: 400 });
+        return utilityError(ctx, 400, 'q parameter required for search', 'INVALID_REQUEST', Date.now() - startedAt);
       }
       const results = await CapabilityIntelligenceEngine.searchCapabilities(query, topK);
-      return Response.json({ success: true, data: { query, results }, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
+      return utilitySuccess(ctx, { query, results }, EP, Date.now() - startedAt);
     }
 
     if (action === 'list') {
       const category = request.nextUrl.searchParams.get('category') || undefined;
       const assets = await CapabilityIntelligenceEngine.getAssets(category);
-      return Response.json({ success: true, data: assets, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } });
+      return utilitySuccess(ctx, assets, EP, Date.now() - startedAt);
     }
 
-    return Response.json({
-      success: false,
-      error: `Unknown action: ${action}. Use: status, search, list`,
-      meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt },
-    }, { status: 400 });
+    return utilityError(ctx, 400, `Unknown action: ${action}. Use: status, search, list`, 'INVALID_REQUEST', Date.now() - startedAt);
   } catch (err) {
-    const message = scrubError(err instanceof Error ? err.message : String(err));
-    logger.error('[intelligence/capability-pipeline] GET Error', { detail: message });
-    return Response.json(
-      { success: false, error: message, meta: { endpoint: 'capability-pipeline', durationMs: Date.now() - startedAt } },
-      { status: 502 },
-    );
+    return utilityCatchError(ctx, err, 502, 'INTELLIGENCE_UNAVAILABLE', 'Capability pipeline failed', Date.now() - startedAt);
   }
 }

@@ -11,18 +11,24 @@
  */
 
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { companyIdSchema } from '@/lib/intelligence-api/validators';
 import { collectIntelligenceForCompany, collectIntelligenceBatch } from '@/lib/intelligence-sources/external-intelligence-collector';
 import { logger } from '@/lib/logger';
-import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
-import { scrubError } from '@/lib/intelligence-api/handler';
+import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+
+const collectExternalBodySchema = z.object({
+  companyId: companyIdSchema.optional(),
+  companyIds: z.array(companyIdSchema).min(1).optional(),
+  maxResultsPerQuery: z.number().int().min(1).max(50).optional(),
+}).refine(d => d.companyId || d.companyIds, {
+  message: 'Provide "companyId" (string) or "companyIds" (array)',
+});
 
 export async function POST(request: NextRequest) {
-  let correlationId;
-  let responseHeaders;
+  let ctx: Awaited<ReturnType<typeof utilityGuard>>;
   try {
-    const ctx = utilityGuard(request, 'collect-external');
-    correlationId = ctx.correlationId;
-    responseHeaders = ctx.responseHeaders;
+    ctx = utilityGuard(request, 'collect-external');
   } catch (rlErr) {
     if (rlErr instanceof RateLimitedError) {
       return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
@@ -34,29 +40,23 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { companyId, companyIds, maxResultsPerQuery = 5 } = body;
-
-    if (!companyId && (!companyIds || !Array.isArray(companyIds) || companyIds.length === 0)) {
-      return Response.json(
-        { success: false, error: 'Provide "companyId" (string) or "companyIds" (array)', meta: { endpoint: 'collect-external', durationMs: Date.now() - startedAt } },
-        { status: 400 },
-      );
+    const parsed = collectExternalBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return utilityError(ctx, 400, `Validation failed: ${parsed.error.issues[0]?.message}`, 'VALIDATION_FAILED', Date.now() - startedAt);
     }
+    const { companyId, companyIds, maxResultsPerQuery = 5 } = parsed.data;
 
     // Single company
     if (companyId) {
       logger.info('[intelligence/collect-external] Single collection', { companyId });
       const result = await collectIntelligenceForCompany(companyId, maxResultsPerQuery);
-      return Response.json({
-        success: true,
-        data: result,
-        meta: { endpoint: 'collect-external', durationMs: Date.now() - startedAt },
-      });
+      return utilitySuccess(ctx, result, 'collect-external', Date.now() - startedAt);
     }
 
     // Batch
-    logger.info('[intelligence/collect-external] Batch collection', { count: companyIds.length });
-    const results = await collectIntelligenceBatch(companyIds, maxResultsPerQuery);
+    const ids = companyIds!;
+    logger.info('[intelligence/collect-external] Batch collection', { count: ids.length });
+    const results = await collectIntelligenceBatch(ids, maxResultsPerQuery);
     const summary = {
       totalCompanies: results.length,
       totalEvidenceCollected: results.reduce((s, r) => s + r.evidenceCollected, 0),
@@ -66,17 +66,8 @@ export async function POST(request: NextRequest) {
       totalDuration: results.reduce((s, r) => s + r.duration, 0),
     };
 
-    return Response.json({
-      success: true,
-      data: { results, summary },
-      meta: { endpoint: 'collect-external', durationMs: Date.now() - startedAt },
-    });
+    return utilitySuccess(ctx, { results, summary }, 'collect-external', Date.now() - startedAt);
   } catch (err) {
-    const message = scrubError(err instanceof Error ? err.message : String(err));
-    logger.error('[intelligence/collect-external] Error', { error: message });
-    return Response.json(
-      { success: false, error: 'Intelligence collection failed', details: message, meta: { endpoint: 'collect-external', durationMs: Date.now() - startedAt } },
-      { status: 502 },
-    );
+    return utilityCatchError(ctx, err, 502, 'INTELLIGENCE_UNAVAILABLE', 'Intelligence collection failed', Date.now() - startedAt);
   }
 }

@@ -10,57 +10,47 @@
  */
 
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { monitorCompanyWebsite } from '@/lib/intelligence-sources/website-monitor/engine';
 import { logger } from '@/lib/logger';
-import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
-import { scrubError } from '@/lib/intelligence-api/handler';
+import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { companyIdSchema } from '@/lib/intelligence-api/validators';
+
+const websiteMonitorBodySchema = z.object({
+  companyId: companyIdSchema,
+});
 
 export async function POST(req: NextRequest) {
-  let correlationId;
-  let responseHeaders;
+  let ctx: { correlationId: string; responseHeaders: Record<string, string> };
   try {
-    const ctx = utilityGuard(req, 'website-monitor');
-    correlationId = ctx.correlationId;
-    responseHeaders = ctx.responseHeaders;
+    ctx = utilityGuard(req, 'website-monitor');
   } catch (rlErr) {
     if (rlErr instanceof RateLimitedError) {
       return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
     }
     throw rlErr;
-  }
+    }
 
   const startedAt = Date.now();
 
   try {
     const body = await req.json();
-    const { companyId } = body;
-
-    if (!companyId) {
-      return Response.json(
-        { success: false, error: 'companyId required', meta: { endpoint: 'website-monitor', durationMs: Date.now() - startedAt } },
-        { status: 400 },
-      );
+    const parsed = websiteMonitorBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return utilityError(ctx, 400, `Validation failed: ${parsed.error.issues.map(i => i.message).join(', ')}`, 'VALIDATION_FAILED', Date.now() - startedAt);
     }
+    const { companyId } = parsed.data;
 
     logger.info('[intelligence/website-monitor] Monitoring', { companyId });
     const results = await monitorCompanyWebsite(companyId);
     const changesDetected = results.filter(r => r.hasChanged);
 
-    return Response.json({
-      success: true,
-      data: {
-        pagesMonitored: results.length,
-        changesDetected: changesDetected.length,
-        results,
-      },
-      meta: { endpoint: 'website-monitor', durationMs: Date.now() - startedAt },
-    });
+    return utilitySuccess(ctx, {
+      pagesMonitored: results.length,
+      changesDetected: changesDetected.length,
+      results,
+    }, 'website-monitor', Date.now() - startedAt);
   } catch (err) {
-    const message = scrubError(err instanceof Error ? err.message : String(err));
-    logger.error('[intelligence/website-monitor] Error', { error: message });
-    return Response.json(
-      { success: false, error: 'Website monitoring failed', details: message, meta: { endpoint: 'website-monitor', durationMs: Date.now() - startedAt } },
-      { status: 502 },
-    );
+    return utilityCatchError(ctx, err, 502, 'INTELLIGENCE_UNAVAILABLE', 'Website monitoring failed', Date.now() - startedAt);
   }
 }

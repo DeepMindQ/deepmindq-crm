@@ -23,10 +23,12 @@ import {
   createResponse,
 } from './middleware';
 import type { IntelligenceInclude } from './types';
+import type { IntelligenceErrorResponse } from './middleware';
 import { IntelligenceErrors } from './types';
 import { companyIdSchema, includeSchema } from './validators';
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
+import { scrubError } from './handler';
 
 const INTELLIGENCE_RATE_LIMIT = 60;
 const INTELLIGENCE_RATE_WINDOW_MS = 60_000;
@@ -195,5 +197,101 @@ export function intelligenceSuccessResponse(
   return new Response(JSON.stringify(envelope), {
     status: 200,
     headers: guard.responseHeaders,
+  });
+}
+
+// ── Utility Route Helpers ──────────────────────────────────────────────────────
+//
+// Used by all /api/intelligence/* utility routes (unified, refresh, stats, etc.)
+// Ensures: correct error format { error, code, details }, correlation-id headers,
+// sensitive data scrubbing, and consistent success envelope.
+//
+
+export type UtilityErrorCode =
+  | 'INVALID_REQUEST'
+  | 'NOT_FOUND'
+  | 'INTELLIGENCE_UNAVAILABLE'
+  | 'RATE_LIMITED'
+  | 'ENGINE_TIMEOUT'
+  | 'VALIDATION_FAILED';
+
+/**
+ * Build a structured error Response for utility routes.
+ * Guarantees: { error: string, code: string, details?: object } format + correlation-id headers.
+ *
+ * @param ctx - From utilityGuard(): { correlationId, responseHeaders }
+ * @param status - HTTP status code (400, 404, 429, 500, 502)
+ * @param message - Human-readable error message (will be scrubbed if rawError is provided)
+ * @param code - Error code string
+ * @param durationMs - Optional request duration for details
+ */
+export function utilityError(
+  ctx: { correlationId: string; responseHeaders: Record<string, string> },
+  status: number,
+  message: string,
+  code: UtilityErrorCode = 'INTELLIGENCE_UNAVAILABLE',
+  durationMs?: number,
+): Response {
+  const details: Record<string, unknown> = {};
+  if (durationMs !== undefined && durationMs > 0) details.durationMs = durationMs;
+  const detailKeys = Object.keys(details);
+  const body: IntelligenceErrorResponse = {
+    error: message,
+    code,
+    details: detailKeys.length > 0 ? details : undefined,
+  };
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: ctx.responseHeaders,
+  });
+}
+
+/**
+ * Build a structured error Response for utility routes from a caught error.
+ * Automatically scrubs sensitive data from error messages.
+ *
+ * @param ctx - From utilityGuard()
+ * @param err - The caught error
+ * @param status - HTTP status code (default 502)
+ * @param code - Error code (default INTELLIGENCE_UNAVAILABLE)
+ * @param prefix - Human-readable prefix (e.g., 'Enrichment failed')
+ * @param durationMs - Optional request duration
+ */
+export function utilityCatchError(
+  ctx: { correlationId: string; responseHeaders: Record<string, string> },
+  err: unknown,
+  status: number = 502,
+  code: UtilityErrorCode = 'INTELLIGENCE_UNAVAILABLE',
+  prefix: string = 'Operation failed',
+  durationMs?: number,
+): Response {
+  const rawMessage = err instanceof Error ? err.message : String(err);
+  const safeMessage = scrubError(rawMessage);
+  logger.error(`[intelligence-utility] ${prefix}`, { error: rawMessage, correlationId: ctx.correlationId });
+  return utilityError(ctx, status, `${prefix}: ${safeMessage}`, code, durationMs);
+}
+
+/**
+ * Build a success Response for utility routes.
+ * Uses the flat IntelligenceResponse envelope with correlation-id headers.
+ *
+ * @param ctx - From utilityGuard()
+ * @param data - Response data
+ * @param endpoint - Endpoint name for metadata
+ * @param durationMs - Request duration in ms
+ */
+export function utilitySuccess(
+  ctx: { correlationId: string; responseHeaders: Record<string, string> },
+  data: unknown,
+  endpoint: string,
+  durationMs?: number,
+): Response {
+  return new Response(JSON.stringify({
+    success: true,
+    data,
+    meta: { endpoint, durationMs: durationMs ?? 0 },
+  }), {
+    status: 200,
+    headers: ctx.responseHeaders,
   });
 }

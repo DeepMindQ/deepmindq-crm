@@ -8,18 +8,23 @@
  */
 
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { companyIdSchema } from '@/lib/intelligence-api/validators';
 import { recordSignalFeedback, computeLearningInsights } from '@/lib/intelligence-sources/learning-loop';
-import { logger } from '@/lib/logger';
-import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
-import { scrubError } from '@/lib/intelligence-api/handler';
+import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+
+const feedbackPostBodySchema = z.object({
+  signalId: z.string().min(1, 'signalId is required'),
+  companyId: companyIdSchema,
+  type: z.enum(['accurate', 'inaccurate', 'relevant', 'not_relevant', 'actionable', 'not_actionable', 'surprising', 'obvious']),
+  userId: z.string().optional(),
+  comment: z.string().optional(),
+});
 
 export async function POST(request: NextRequest) {
-  let correlationId;
-  let responseHeaders;
+  let ctx: { correlationId: string; responseHeaders: Record<string, string> };
   try {
-    const ctx = utilityGuard(request, 'feedback');
-    correlationId = ctx.correlationId;
-    responseHeaders = ctx.responseHeaders;
+    ctx = utilityGuard(request, 'feedback');
   } catch (rlErr) {
     if (rlErr instanceof RateLimitedError) {
       return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
@@ -31,38 +36,23 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { signalId, companyId, type, userId, comment } = body;
-
-    if (!signalId || !companyId || !type) {
-      return Response.json(
-        { success: false, error: 'signalId, companyId, and type are required', meta: { endpoint: 'feedback', durationMs: Date.now() - startedAt } },
-        { status: 400 },
-      );
+    const parsed = feedbackPostBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return utilityError(ctx, 400, `Validation failed: ${parsed.error.issues[0]?.message}`, 'VALIDATION_FAILED', Date.now() - startedAt);
     }
+    const { signalId, companyId, type, userId, comment } = parsed.data;
 
     await recordSignalFeedback({ signalId, companyId, type, userId, comment });
-    return Response.json({
-      success: true,
-      data: { recorded: true },
-      meta: { endpoint: 'feedback', durationMs: Date.now() - startedAt },
-    });
+    return utilitySuccess(ctx, { recorded: true }, 'feedback', Date.now() - startedAt);
   } catch (err) {
-    const message = scrubError(err instanceof Error ? err.message : String(err));
-    logger.error('[intelligence/feedback] POST Error', { error: message });
-    return Response.json(
-      { success: false, error: 'Feedback recording failed', details: message, meta: { endpoint: 'feedback', durationMs: Date.now() - startedAt } },
-      { status: 502 },
-    );
+    return utilityCatchError(ctx, err, 502, 'INTELLIGENCE_UNAVAILABLE', 'Feedback recording failed', Date.now() - startedAt);
   }
 }
 
 export async function GET(request: NextRequest) {
-  let correlationId;
-  let responseHeaders;
+  let ctx: { correlationId: string; responseHeaders: Record<string, string> };
   try {
-    const ctx = utilityGuard(request, 'feedback');
-    correlationId = ctx.correlationId;
-    responseHeaders = ctx.responseHeaders;
+    ctx = utilityGuard(request, 'feedback');
   } catch (rlErr) {
     if (rlErr instanceof RateLimitedError) {
       return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
@@ -75,17 +65,8 @@ export async function GET(request: NextRequest) {
   try {
     const companyId = request.nextUrl.searchParams.get('companyId');
     const insights = await computeLearningInsights(companyId || undefined);
-    return Response.json({
-      success: true,
-      data: { insights },
-      meta: { endpoint: 'feedback', durationMs: Date.now() - startedAt },
-    });
+    return utilitySuccess(ctx, { insights }, 'feedback', Date.now() - startedAt);
   } catch (err) {
-    const message = scrubError(err instanceof Error ? err.message : String(err));
-    logger.error('[intelligence/feedback] GET Error', { error: message });
-    return Response.json(
-      { success: false, error: 'Learning insights failed', details: message, meta: { endpoint: 'feedback', durationMs: Date.now() - startedAt } },
-      { status: 502 },
-    );
+    return utilityCatchError(ctx, err, 502, 'INTELLIGENCE_UNAVAILABLE', 'Learning insights failed', Date.now() - startedAt);
   }
 }

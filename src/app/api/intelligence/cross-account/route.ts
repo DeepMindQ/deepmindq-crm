@@ -7,11 +7,15 @@
  */
 
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { detectCrossAccountPatterns } from '@/lib/intelligence-sources/cross-account-intelligence';
-import { logger } from '@/lib/logger';
-import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
-import { scrubError } from '@/lib/intelligence-api/handler';
+import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+
+const companyIdsParamSchema = z.string().min(1).refine(
+  (val) => val.split(',').filter(Boolean).length >= 2,
+  'At least 2 companyIds required'
+);
 
 export async function GET(request: NextRequest) {
   let correlationId;
@@ -27,24 +31,17 @@ export async function GET(request: NextRequest) {
     throw rlErr;
   }
 
+  const ctx = { correlationId, responseHeaders };
   const startedAt = Date.now();
 
   try {
     const idsParam = request.nextUrl.searchParams.get('companyIds');
-    if (!idsParam) {
-      return Response.json(
-        { success: false, error: 'companyIds required (comma-separated)' },
-        { status: 400 },
-      );
+    const parsed = companyIdsParamSchema.safeParse(idsParam);
+    if (!parsed.success) {
+      return utilityError(ctx, 400, `Validation failed: ${parsed.error.issues.map(i => i.message).join(', ')}`, 'VALIDATION_FAILED', Date.now() - startedAt);
     }
 
-    const companyIds = idsParam.split(',').filter(Boolean);
-    if (companyIds.length < 2) {
-      return Response.json(
-        { success: false, error: 'At least 2 companyIds required' },
-        { status: 400 },
-      );
-    }
+    const companyIds = idsParam!.split(',').filter(Boolean);
 
     const companies = await db.company.findMany({
       where: { id: { in: companyIds } },
@@ -54,6 +51,7 @@ export async function GET(request: NextRequest) {
     const allSignals = await db.companySignal.findMany({
       where: { companyId: { in: companyIds }, status: { notIn: ['archived', 'expired'] } },
       orderBy: { createdAt: 'desc' }, take: 200,
+      select: { companyId: true, signalType: true, title: true, createdAt: true, confidence: true },
     });
 
     const companyMap = new Map(companies.map(c => [c.id, c]));
@@ -68,17 +66,9 @@ export async function GET(request: NextRequest) {
     }));
 
     const patterns = detectCrossAccountPatterns(accountSignals);
-    return Response.json({
-      success: true,
-      data: { companyCount: companies.length, signalCount: allSignals.length, patterns },
-      meta: { endpoint: 'cross-account', durationMs: Date.now() - startedAt },
-    });
+    const data = { companyCount: companies.length, signalCount: allSignals.length, patterns };
+    return utilitySuccess(ctx, data, 'cross-account', Date.now() - startedAt);
   } catch (err) {
-    const message = scrubError(err instanceof Error ? err.message : String(err));
-    logger.error('[intelligence/cross-account] Error', { error: message });
-    return Response.json(
-      { success: false, error: 'Cross-account analysis failed', details: message, meta: { endpoint: 'cross-account', durationMs: Date.now() - startedAt } },
-      { status: 502 },
-    );
+    return utilityCatchError(ctx, err, 502, 'INTELLIGENCE_UNAVAILABLE', 'Cross-account analysis failed', Date.now() - startedAt);
   }
 }

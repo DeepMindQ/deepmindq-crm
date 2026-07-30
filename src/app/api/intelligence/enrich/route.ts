@@ -12,16 +12,21 @@
 import { NextRequest } from 'next/server';
 import { IntelligencePipeline } from '@/lib/intelligence-pipeline';
 import { logger } from '@/lib/logger';
-import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
-import { scrubError } from '@/lib/intelligence-api/handler';
+import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { z } from 'zod';
+import { companyIdSchema } from '@/lib/intelligence-api/validators';
+
+const enrichBodySchema = z.object({
+  companyId: companyIdSchema,
+});
 
 export async function POST(request: NextRequest) {
   let correlationId;
   let responseHeaders;
   try {
-    const ctx = utilityGuard(request, 'enrich');
-    correlationId = ctx.correlationId;
-    responseHeaders = ctx.responseHeaders;
+    const guardCtx = utilityGuard(request, 'enrich');
+    correlationId = guardCtx.correlationId;
+    responseHeaders = guardCtx.responseHeaders;
   } catch (rlErr) {
     if (rlErr instanceof RateLimitedError) {
       return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
@@ -29,32 +34,22 @@ export async function POST(request: NextRequest) {
     throw rlErr;
   }
 
+  const ctx = { correlationId, responseHeaders };
   const startedAt = Date.now();
 
   try {
-    const { companyId } = await request.json();
-
-    if (!companyId || typeof companyId !== 'string') {
-      return Response.json(
-        { success: false, error: 'companyId is required', meta: { endpoint: 'enrich', durationMs: Date.now() - startedAt } },
-        { status: 400 },
-      );
+    const body = await request.json();
+    const parsed = enrichBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return utilityError(ctx, 400, `Validation failed: ${parsed.error.issues[0]?.message}`, 'VALIDATION_FAILED', Date.now() - startedAt);
     }
+    const { companyId } = parsed.data;
 
     logger.info('[intelligence/enrich] Enriching company', { companyId });
     const result = await IntelligencePipeline.enrichCompany(companyId);
 
-    return Response.json({
-      success: result.success,
-      data: { ...result, enriched: result.success },
-      meta: { endpoint: 'enrich', durationMs: Date.now() - startedAt },
-    });
+    return utilitySuccess(ctx, { ...result, enriched: result.success }, 'enrich', Date.now() - startedAt);
   } catch (err) {
-    const message = scrubError(err instanceof Error ? err.message : 'Enrichment failed');
-    logger.error('[intelligence/enrich]', { detail: message });
-    return Response.json(
-      { success: false, error: message, meta: { endpoint: 'enrich', durationMs: Date.now() - startedAt } },
-      { status: 502 },
-    );
+    return utilityCatchError(ctx, err, 502, 'INTELLIGENCE_UNAVAILABLE', 'Enrichment failed', Date.now() - startedAt);
   }
 }

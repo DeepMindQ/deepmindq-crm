@@ -451,3 +451,32 @@ Stage Summary:
 - Key discovery: 19 utility routes and 4 extra routes were completely unprotected
 - Key discovery: 478 untyped Prisma queries across codebase (intelligence routes fixed, remaining tracked for future tickets)
 - All 29 routes under /api/intelligence/ now have: validation + correlation-id + rate-limiting + scrubError + structured errors
+---
+Task ID: ticket-1-round7-deep-audit-and-fix
+Agent: main
+Task: Deep audit of Ticket 1 (Foundation Hardening) — identify all gaps, fix all, verify
+
+Work Log:
+- Phase 5 Deep Audit: Read all 29 route files, 3 test files, 9 library files, screen-map.tsx, db.ts, tsconfig.json, next.config.ts
+- Identified 56 genuine spec violations across 6 categories: Prisma selects (30), Zod validation (17), error handling (1), error format (5), security leak (1), TypeScript safety (2)
+- Fixed guard.ts: wrong IntelligenceErrorResponse import from ./types → ./middleware (tsc error)
+- Fixed sprint3/route.ts: request as any → NextRequest type
+- Fixed full-pipeline/route.ts: added POST outer try/catch, replaced 5 raw NextResponse.json errors with utilityError, added select: to 26 Prisma queries
+- Fixed 4 other route files: unified, cross-account, predictions, correlations — added Prisma select:
+- Added Zod validation schemas to 20 utility routes (17 from batch + enrich, internal-memory, monitor)
+- Fixed agent-introduced TS errors: .error.errors → .error.issues in 8 files
+- Fixed feedback type: z.string → z.enum for FeedbackType
+- Fixed collect-external: companyIds possibly undefined
+
+Stage Summary:
+- tsc --noEmit: 0 errors (PASS)
+- 113 tests pass, 0 failures (PASS)
+- All 29 routes have Zod validation (PASS)
+- All 29 routes return structured error format { error, code, details } (PASS)
+- All 29 routes have correlation-id (PASS)
+- All 29 routes have rate limiting (PASS)
+- All 77 screens have error boundaries (PASS)
+- No sensitive data leaks (PASS)
+- No `as any` type assertions in routes (PASS)
+- 24 files modified total
+- Evidence report saved to /home/z/my-project/download/TICKET1_EVIDENCE_REPORT.md

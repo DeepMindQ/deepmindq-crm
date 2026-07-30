@@ -17,14 +17,21 @@
  * The old action-engine/ directory was removed as it was fully superseded.
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { z } from 'zod'
+import { companyIdSchema } from '@/lib/intelligence-api/validators'
 import { db } from '@/lib/db'
 import { extractInternalMemorySignals, computeInternalMemoryDepth } from '@/lib/intelligence-sources/internal-memory-connector'
 import { detectPeopleChanges } from '@/lib/intelligence-sources/people-change-detector'
 import { queryUnifiedMemory } from '@/lib/intelligence-sources/unified-memory-query'
 import { logger } from '@/lib/logger';
-import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
-import { scrubError } from '@/lib/intelligence-api/handler';
+import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+
+const sprint3BodySchema = z.object({
+  mode: z.string().min(1),
+  companyId: companyIdSchema.optional(),
+  actionTypes: z.array(z.string()).optional(),
+})
 
 // ── Seed Validation Data ──
 
@@ -293,13 +300,10 @@ async function seedValidationData() {
 // POST HANDLER
 // ═══════════════════════════════════════════════════════════════
 
-export async function POST(request: Request) {
-  let correlationId;
-  let responseHeaders;
+export async function POST(request: NextRequest) {
+  let ctx: { correlationId: string; responseHeaders: Record<string, string> };
   try {
-    const ctx = utilityGuard(request as any, 'sprint3');
-    correlationId = ctx.correlationId;
-    responseHeaders = ctx.responseHeaders;
+    ctx = utilityGuard(request, 'sprint3');
   } catch (rlErr) {
     if (rlErr instanceof RateLimitedError) {
       return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
@@ -311,27 +315,27 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
-    const { mode, companyId, actionTypes } = body as {
-      mode?: string
-      companyId?: string
-      actionTypes?: string[]
+    const parsed = sprint3BodySchema.safeParse(body)
+    if (!parsed.success) {
+      return utilityError(ctx, 400, `Validation failed: ${parsed.error.issues[0]?.message}`, 'VALIDATION_FAILED')
     }
+    const { mode, companyId, actionTypes } = parsed.data
 
     // ── Mode: seed_validation ──
     if (mode === 'seed_validation') {
       const result = await seedValidationData()
-      return NextResponse.json({ ...result, mode: 'seed_validation' })
+      return new Response(JSON.stringify({ ...result, mode: 'seed_validation' }), { status: 200, headers: ctx.responseHeaders })
     }
 
-    // ── Validate companyId ──
-    if (!companyId || typeof companyId !== 'string') {
-      return NextResponse.json({ error: 'companyId is required for all modes except seed_validation' }, { status: 400 })
+    // ── Validate companyId (required for all modes except seed_validation) ──
+    if (!companyId) {
+      return utilityError(ctx, 400, 'companyId is required for all modes except seed_validation', 'VALIDATION_FAILED')
     }
 
     // ── Mode: unified_query ──
     if (mode === 'unified_query') {
       const result = await queryUnifiedMemory(companyId)
-      return NextResponse.json({ mode: 'unified_query', ...result, meta: { ...result.meta, pipelineLatencyMs: Date.now() - startTime } })
+      return new Response(JSON.stringify({ mode: 'unified_query', ...result, meta: { ...result.meta, pipelineLatencyMs: Date.now() - startTime } }), { status: 200, headers: ctx.responseHeaders })
     }
 
     // ── Mode: internal_memory ──
@@ -340,49 +344,41 @@ export async function POST(request: Request) {
         extractInternalMemorySignals(companyId),
         computeInternalMemoryDepth(companyId),
       ])
-      return NextResponse.json({
+      return new Response(JSON.stringify({
         mode: 'internal_memory',
         signalsExtracted: result.signalsExtracted,
         signalsPersisted: result.signalsPersisted,
         sources: result.sources,
         memoryDepth: depth,
         pipelineLatencyMs: Date.now() - startTime,
-      })
+      }), { status: 200, headers: ctx.responseHeaders })
     }
 
     // ── Mode: people_change ──
     if (mode === 'people_change') {
       const result = await detectPeopleChanges(companyId)
-      return NextResponse.json({
+      return new Response(JSON.stringify({
         mode: 'people_change',
         signalsExtracted: result.signalsExtracted,
         signalsPersisted: result.signalsPersisted,
         contactAnalysis: result.contactAnalysis,
         pipelineLatencyMs: Date.now() - startTime,
-      })
+      }), { status: 200, headers: ctx.responseHeaders })
     }
 
     // ── Mode: actions / meeting_prep / next_best_action ──
     // DELEGATED to Phase B engines — redirect to /api/engines/actions or /api/engines/conversation
     if (mode === 'actions' || mode === 'next_best_action') {
-      return NextResponse.json({
-        mode: mode,
-        message: `Action generation has moved to Phase B engines. Use POST /api/engines/actions instead.`,
-        redirect: '/api/engines/actions',
-      })
+      return utilityError(ctx, 400, `Action generation has moved to Phase B engines. Use POST /api/engines/actions instead.`, 'INVALID_REQUEST')
     }
     if (mode === 'meeting_prep') {
-      return NextResponse.json({
-        mode: mode,
-        message: `Meeting prep has moved to Phase B engines. Use POST /api/engines/conversation instead.`,
-        redirect: '/api/engines/conversation',
-      })
+      return utilityError(ctx, 400, `Meeting prep has moved to Phase B engines. Use POST /api/engines/conversation instead.`, 'INVALID_REQUEST')
     }
 
     // ── Mode: full_pipeline (default) ──
     // Internal Memory → People Change → Action recommendations (Phase B)
     const company = await db.company.findUnique({ where: { id: companyId }, select: { rawName: true } })
-    if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 404 })
+    if (!company) return utilityError(ctx, 404, 'Company not found', 'NOT_FOUND')
 
     // Step 1: Extract internal memory + people change in parallel
     const [internalResult, peopleResult, memoryDepth] = await Promise.all([
@@ -393,7 +389,7 @@ export async function POST(request: Request) {
 
     // Step 2: Actions are now handled by Phase B ActionEngine
     // Users should call POST /api/engines/actions for action generation
-    return NextResponse.json({
+    return new Response(JSON.stringify({
       mode: 'full_pipeline',
       company: { id: companyId, name: company.rawName },
       internalMemory: {
@@ -412,10 +408,8 @@ export async function POST(request: Request) {
         note: 'Action generation has moved to Phase B engines. Call POST /api/engines/actions for AI-powered action recommendations.',
       },
       pipelineLatencyMs: Date.now() - startTime,
-    })
+    }), { status: 200, headers: ctx.responseHeaders })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    logger.error('[sprint3] Pipeline error:', { detail: message })
-    return NextResponse.json({ error: `Sprint 3 pipeline failed: ${message}` }, { status: 500 })
+    return utilityCatchError(ctx, error, 500, 'INTELLIGENCE_UNAVAILABLE', 'Sprint 3 pipeline failed')
   }
 }

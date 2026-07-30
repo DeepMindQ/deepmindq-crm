@@ -12,16 +12,21 @@
 import { NextRequest } from 'next/server';
 import { runMonitoringCheck, runMonitoringBatch } from '@/lib/intelligence-sources/autonomous-monitor';
 import { logger } from '@/lib/logger';
-import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
-import { scrubError } from '@/lib/intelligence-api/handler';
+import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { z } from 'zod';
+import { companyIdSchema } from '@/lib/intelligence-api/validators';
+
+const monitorBodySchema = z.object({
+  companyId: companyIdSchema.optional(),
+  companyIds: z.array(companyIdSchema).min(1).optional(),
+}).refine(d => d.companyId || (d.companyIds && d.companyIds.length > 0), {
+  message: 'Provide companyId or companyIds',
+});
 
 export async function POST(request: NextRequest) {
-  let correlationId;
-  let responseHeaders;
+  let ctx: { correlationId: string; responseHeaders: Record<string, string> };
   try {
-    const ctx = utilityGuard(request, 'monitor');
-    correlationId = ctx.correlationId;
-    responseHeaders = ctx.responseHeaders;
+    ctx = utilityGuard(request, 'monitor');
   } catch (rlErr) {
     if (rlErr instanceof RateLimitedError) {
       return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
@@ -33,48 +38,37 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { companyId, companyIds } = body;
+    const parsed = monitorBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return utilityError(ctx, 400, `Validation failed: ${parsed.error.issues[0]?.message}`, 'VALIDATION_FAILED', Date.now() - startedAt);
+    }
+    const { companyId, companyIds } = parsed.data;
 
     if (companyId) {
       logger.info('[intelligence/monitor] Single check', { companyId });
       const alerts = await runMonitoringCheck(companyId);
-      return Response.json({
-        success: true,
-        data: { companyId, alerts, alertCount: alerts.length },
-        meta: { endpoint: 'monitor', durationMs: Date.now() - startedAt },
-      });
+      return utilitySuccess(ctx, { companyId, alerts, alertCount: alerts.length }, 'monitor', Date.now() - startedAt);
     }
 
     if (companyIds && Array.isArray(companyIds)) {
       logger.info('[intelligence/monitor] Batch check', { count: companyIds.length });
       const results = await runMonitoringBatch(companyIds);
       const allAlerts = Array.from(results.values()).flat();
-      return Response.json({
-        success: true,
-        data: {
-          companies: Object.fromEntries(results),
-          totalAlerts: allAlerts.length,
-          alertSummary: {
-            critical: allAlerts.filter(a => a.severity === 'critical').length,
-            urgent: allAlerts.filter(a => a.severity === 'urgent').length,
-            warning: allAlerts.filter(a => a.severity === 'warning').length,
-            info: allAlerts.filter(a => a.severity === 'info').length,
-          },
+      return utilitySuccess(ctx, {
+        companies: Object.fromEntries(results),
+        totalAlerts: allAlerts.length,
+        alertSummary: {
+          critical: allAlerts.filter(a => a.severity === 'critical').length,
+          urgent: allAlerts.filter(a => a.severity === 'urgent').length,
+          warning: allAlerts.filter(a => a.severity === 'warning').length,
+          info: allAlerts.filter(a => a.severity === 'info').length,
         },
-        meta: { endpoint: 'monitor', durationMs: Date.now() - startedAt },
-      });
+      }, 'monitor', Date.now() - startedAt);
     }
 
-    return Response.json(
-      { success: false, error: 'Provide companyId or companyIds', meta: { endpoint: 'monitor', durationMs: Date.now() - startedAt } },
-      { status: 400 },
-    );
+    // Zod refine guarantees companyId or companyIds is present, but handle edge case
+    return utilityError(ctx, 400, 'Provide companyId or companyIds', 'VALIDATION_FAILED', Date.now() - startedAt);
   } catch (err) {
-    const message = scrubError(err instanceof Error ? err.message : String(err));
-    logger.error('[intelligence/monitor] Error', { error: message });
-    return Response.json(
-      { success: false, error: 'Monitoring check failed', details: message, meta: { endpoint: 'monitor', durationMs: Date.now() - startedAt } },
-      { status: 502 },
-    );
+    return utilityCatchError(ctx, err, 502, 'INTELLIGENCE_UNAVAILABLE', 'Monitoring check failed', Date.now() - startedAt);
   }
 }

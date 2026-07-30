@@ -24,7 +24,7 @@ import { ModelRouter } from '@/lib/engines/model-router';
 import { CapabilityIntelligenceEngine } from '@/lib/capability-intelligence-engine';
 import { FusionEngine } from '@/lib/fusion-engine';
 import { createInsight } from '@/lib/ai-insight-service';
-import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
+import { utilityGuard, RateLimitedError, utilityError, utilityCatchError } from '@/lib/intelligence-api/guard';
 import { scrubError } from '@/lib/intelligence-api/handler';
 
 // ── Types ──
@@ -88,12 +88,9 @@ async function aiCall(
 // ═══════════════════════════════════════════════════════════════════════
 
 export async function GET(request: NextRequest) {
-  let correlationId;
-  let responseHeaders;
+  let ctx: ReturnType<typeof utilityGuard>;
   try {
-    const ctx = utilityGuard(request, 'full-pipeline');
-    correlationId = ctx.correlationId;
-    responseHeaders = ctx.responseHeaders;
+    ctx = utilityGuard(request, 'full-pipeline');
   } catch (rlErr) {
     if (rlErr instanceof RateLimitedError) {
       return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
@@ -103,31 +100,34 @@ export async function GET(request: NextRequest) {
 
   const companyId = new URL(request.url).searchParams.get('companyId');
   if (!companyId) {
-    return NextResponse.json({ error: 'companyId query parameter required' }, { status: 400 });
+    return utilityError(ctx, 400, 'companyId query parameter required', 'INVALID_REQUEST');
   }
 
   try {
     // Load company
     const company = await db.company.findUnique({
       where: { id: companyId },
-      include: {
-        researchCard: true,
-        signals: { where: { status: { in: ['active', 'validated', 'aging'] } }, take: 20, orderBy: { createdAt: 'desc' } },
-        evidence: { take: 10, orderBy: { createdAt: 'desc' } },
-        strategicInsights: { take: 5, orderBy: { generatedAt: 'desc' } },
-        engagementStrategies: { take: 3, orderBy: { generatedAt: 'desc' } },
-        opportunityRecommendations: { take: 10, orderBy: { opportunityScore: 'desc' } },
-        signalCapabilityMatches: { take: 20, orderBy: { matchScore: 'desc' } },
-        accountBrief: true,
-        accountScore: true,
-        intelligenceHealth: true,
-        fusionResults: { take: 10, orderBy: { fusionScore: 'desc' } },
-        pipelineRuns: { take: 5, orderBy: { startedAt: 'desc' } },
+      select: {
+        id: true,
+        rawName: true,
+        intelligenceScore: true,
+        researchCard: { select: { id: true } },
+        signals: { where: { status: { in: ['active', 'validated', 'aging'] } }, take: 20, orderBy: { createdAt: 'desc' }, select: { id: true } },
+        evidence: { take: 10, orderBy: { createdAt: 'desc' }, select: { id: true } },
+        strategicInsights: { take: 5, orderBy: { generatedAt: 'desc' }, select: { id: true, insightType: true, summary: true, confidenceScore: true } },
+        engagementStrategies: { take: 3, orderBy: { generatedAt: 'desc' }, select: { id: true } },
+        opportunityRecommendations: { take: 10, orderBy: { opportunityScore: 'desc' }, select: { id: true, opportunityTitle: true, opportunityScore: true, priority: true, status: true } },
+        signalCapabilityMatches: { take: 20, orderBy: { matchScore: 'desc' }, select: { id: true, capabilityId: true, matchScore: true, reason: true, businessProblem: true } },
+        accountBrief: { select: { id: true } },
+        accountScore: { select: { id: true } },
+        intelligenceHealth: { select: { overallHealthScore: true } },
+        fusionResults: { take: 10, orderBy: { fusionScore: 'desc' }, select: { fusionType: true, fusionScore: true, recommendedCapability: true, businessProblem: true, confidenceScore: true } },
+        pipelineRuns: { take: 5, orderBy: { startedAt: 'desc' }, select: { status: true, completedStages: true, durationMs: true, aiCallsMade: true } },
       },
     });
 
     if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+      return utilityError(ctx, 404, 'Company not found', 'NOT_FOUND');
     }
 
     // Load internal capability stats
@@ -196,8 +196,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, summary });
   } catch (err) {
-    const msg = scrubError(err instanceof Error ? err.message : String(err));
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return utilityCatchError(ctx, err, 500, 'INTELLIGENCE_UNAVAILABLE', 'Pipeline stage failed');
   }
 }
 
@@ -206,12 +205,9 @@ export async function GET(request: NextRequest) {
 // ═══════════════════════════════════════════════════════════════════════
 
 export async function POST(request: NextRequest) {
-  let correlationId;
-  let responseHeaders;
+  let ctx: ReturnType<typeof utilityGuard>;
   try {
-    const ctx = utilityGuard(request, 'full-pipeline');
-    correlationId = ctx.correlationId;
-    responseHeaders = ctx.responseHeaders;
+    ctx = utilityGuard(request, 'full-pipeline');
   } catch (rlErr) {
     if (rlErr instanceof RateLimitedError) {
       return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
@@ -219,11 +215,12 @@ export async function POST(request: NextRequest) {
     throw rlErr;
   }
 
+  try {
   const body = await request.json();
   const { companyId } = body;
 
   if (!companyId) {
-    return NextResponse.json({ error: 'companyId is required' }, { status: 400 });
+    return utilityError(ctx, 400, 'companyId is required', 'INVALID_REQUEST');
   }
 
   const pipelineId = `pl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -239,22 +236,27 @@ export async function POST(request: NextRequest) {
       totalStages: 17, // Now 17 stages with fusion
       startedAt: new Date(),
     },
+    select: { id: true },
   });
 
   // Load company upfront
   const company = await db.company.findUnique({
     where: { id: companyId },
-    include: {
-      contacts: { take: 20, orderBy: { leadScore: 'desc' } },
-      signals: { take: 20, orderBy: { createdAt: 'desc' } },
-      evidence: { take: 10, orderBy: { createdAt: 'desc' } },
-      researchCard: true,
-      signalCapabilityMatches: { take: 20, orderBy: { matchScore: 'desc' } },
+    select: {
+      id: true,
+      rawName: true,
+      domain: true,
+      industry: true,
+      sizeRange: true,
+      country: true,
+      website: true,
+      location: true,
+      signalCapabilityMatches: { take: 20, orderBy: { matchScore: 'desc' }, select: { id: true, capabilityId: true, matchScore: true, businessProblem: true, reason: true } },
     },
   });
 
   if (!company) {
-    return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    return utilityError(ctx, 404, 'Company not found', 'NOT_FOUND');
   }
 
   // ── Phase A: External Intelligence ──────────────────────────
@@ -310,6 +312,7 @@ export async function POST(request: NextRequest) {
       where: { companyId },
       orderBy: { createdAt: 'desc' },
       take: 20,
+      select: { id: true, signalType: true, title: true, status: true, severity: true, impact: true, confidence: true },
     });
     const active = signals.filter(s => ['active', 'validated', 'aging'].includes(s.status));
     const byType: Record<string, number> = {};
@@ -336,6 +339,7 @@ export async function POST(request: NextRequest) {
       where: { companyId },
       orderBy: { createdAt: 'desc' },
       take: 15,
+      select: { id: true, sourceName: true, snippet: true, confidence: true },
     });
     return {
       total: evidence.length,
@@ -353,7 +357,7 @@ export async function POST(request: NextRequest) {
 
   // Stage 6: Research Card Assessment
   stages.push(await runStage('research_card', async () => {
-    const card = await db.companyResearchCard.findUnique({ where: { companyId } });
+    const card = await db.companyResearchCard.findUnique({ where: { companyId }, select: { id: true, businessOverview: true, techLandscape: true, keyPeople: true } });
     return {
       exists: !!card,
       businessOverview: card?.businessOverview ? card.businessOverview.slice(0, 200) : null,
@@ -387,6 +391,7 @@ export async function POST(request: NextRequest) {
     const signals = await db.companySignal.findMany({
       where: { companyId, status: { in: ['active', 'validated', 'aging'] } },
       orderBy: { createdAt: 'desc' },
+      select: { id: true },
     });
 
     let totalMatches = 0;
@@ -402,6 +407,7 @@ export async function POST(request: NextRequest) {
           // Find persisted match record for matchId
           const persisted = await db.signalCapabilityMatch.findFirst({
             where: { signalId: signal.id, capabilityId: m.capabilityId },
+            select: { id: true },
           });
           enriched.push({
             matchId: persisted?.id || '',
@@ -432,12 +438,14 @@ export async function POST(request: NextRequest) {
   stages.push(await runStage('case_study_matching', async () => {
     const caseStudies = await db.capabilityAsset.findMany({
       where: { category: 'case_study', isActive: true },
+      select: { id: true, title: true, summary: true },
     });
 
     // Use signal context to rank case studies
     const signals = await db.companySignal.findMany({
       where: { companyId, status: { in: ['active', 'validated', 'aging'] } },
       take: 5,
+      select: { signalType: true, title: true, description: true },
     });
 
     if (caseStudies.length === 0 || signals.length === 0) {
@@ -477,6 +485,7 @@ Return ONLY a JSON array of top 3: [{"id":"...","title":"...","score":0.85,"reas
         isActive: true,
         category: { in: ['solution', 'service_line'] },
       },
+      select: { id: true, title: true, category: true, summary: true },
     });
 
     if (solutions.length === 0) {
@@ -486,6 +495,7 @@ Return ONLY a JSON array of top 3: [{"id":"...","title":"...","score":0.85,"reas
     const signals = await db.companySignal.findMany({
       where: { companyId, status: { in: ['active', 'validated', 'aging'] } },
       take: 5,
+      select: { signalType: true, title: true },
     });
 
     const signalContext = signals.map(s => `${s.signalType}: ${s.title}`).join('; ');
@@ -519,6 +529,7 @@ Return top 5 as JSON: [{"id":"...","title":"...","category":"...","score":0.9,"r
     const signals = await db.companySignal.findMany({
       where: { companyId, status: { in: ['active', 'validated', 'aging'] } },
       take: 10,
+      select: { signalType: true, title: true, description: true },
     });
     const matches = company.signalCapabilityMatches.slice(0, 5);
 
@@ -573,6 +584,7 @@ Generate a competitive positioning statement. Be specific to this prospect.`,
     const signals = await db.companySignal.findMany({
       where: { companyId, status: { in: ['active', 'validated', 'aging'] } },
       take: 5,
+      select: { title: true },
     });
     const matches = company.signalCapabilityMatches.slice(0, 5);
 
@@ -604,17 +616,19 @@ Top Capability Matches: ${matches.map(m => `score ${m.matchScore}`).join(', ')}`
     const signals = await db.companySignal.findMany({
       where: { companyId, status: { in: ['active', 'validated', 'aging'] } },
       take: 5,
+      select: { signalType: true, title: true },
     });
     const contacts = await db.contact.findMany({
       where: { companyId, title: { not: null } },
       orderBy: { leadScore: 'desc' },
       take: 5,
+      select: { rawName: true, title: true },
     });
     const matches = company.signalCapabilityMatches.slice(0, 5);
 
     const capabilities: string[] = [];
     for (const m of matches) {
-      const cap = await db.capabilityAsset.findUnique({ where: { id: m.capabilityId } });
+      const cap = await db.capabilityAsset.findUnique({ where: { id: m.capabilityId }, select: { title: true } });
       if (cap) capabilities.push(cap.title);
     }
 
@@ -645,22 +659,25 @@ Signal-Capability Matches: ${matches.map(m => `${m.capabilityId}: ${m.matchScore
     const signals = await db.companySignal.findMany({
       where: { companyId, status: { in: ['active', 'validated', 'aging'] } },
       take: 5,
+      select: { signalType: true, title: true, description: true, impact: true },
     });
     const contacts = await db.contact.findMany({
       where: { companyId, title: { not: null } },
       orderBy: { leadScore: 'desc' },
       take: 10,
+      select: { rawName: true, title: true, leadScore: true },
     });
     const evidence = await db.evidence.findMany({
       where: { companyId, status: 'active' },
       take: 5,
+      select: { sourceName: true, sourceUrl: true, snippet: true },
     });
     const matches = company.signalCapabilityMatches.slice(0, 5);
-    const researchCard = await db.companyResearchCard.findUnique({ where: { companyId } });
+    const researchCard = await db.companyResearchCard.findUnique({ where: { companyId }, select: { revenue: true, employeeCount: true, techStack: true } });
 
     const capabilities: Array<{ title: string; score: number }> = [];
     for (const m of matches) {
-      const cap = await db.capabilityAsset.findUnique({ where: { id: m.capabilityId } });
+      const cap = await db.capabilityAsset.findUnique({ where: { id: m.capabilityId }, select: { title: true } });
       if (cap) capabilities.push({ title: cap.title, score: m.matchScore });
     }
 
@@ -717,9 +734,9 @@ ${capabilities.map(c => `- ${c.title} (match: ${Math.round(c.score * 100)}%)`).j
     const positioning = (positioningResult?.positioning as string) || '';
 
     // ── 16a: Upsert AccountBrief ──
-    const signals = await db.companySignal.findMany({ where: { companyId, status: { in: ['active', 'validated', 'aging'] } }, take: 10 });
-    const evidence = await db.evidence.findMany({ where: { companyId, status: 'active' }, take: 10 });
-    const matches = await db.signalCapabilityMatch.findMany({ where: { companyId }, take: 10, orderBy: { matchScore: 'desc' } });
+    const signals = await db.companySignal.findMany({ where: { companyId, status: { in: ['active', 'validated', 'aging'] } }, take: 10, select: { id: true, title: true, signalType: true, confidence: true, severity: true, status: true } });
+    const evidence = await db.evidence.findMany({ where: { companyId, status: 'active' }, take: 10, select: { id: true, snippet: true, status: true } });
+    const matches = await db.signalCapabilityMatch.findMany({ where: { companyId }, take: 10, orderBy: { matchScore: 'desc' }, select: { id: true, capabilityId: true, matchScore: true, businessProblem: true, expectedOutcome: true, reason: true } });
 
     await db.accountBrief.upsert({
       where: { companyId },
@@ -831,6 +848,7 @@ ${capabilities.map(c => `- ${c.title} (match: ${Math.round(c.score * 100)}%)`).j
         generatedBy: 'PIPELINE',
         keyThemes: JSON.stringify(['pipeline_run', 'dual_intelligence', 'account_brief', 'account_score']),
       },
+      select: { id: true },
     });
 
     // ── 16e: Upsert AIEngagementStrategy (existing + enriched) ──
@@ -966,4 +984,7 @@ ${capabilities.map(c => `- ${c.title} (match: ${Math.round(c.score * 100)}%)`).j
       intelligenceFusion: fusionStageResult || {},
     },
   });
+  } catch (err) {
+    return utilityCatchError(ctx, err, 502, 'INTELLIGENCE_UNAVAILABLE', 'Pipeline execution failed');
+  }
 }

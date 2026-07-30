@@ -8,10 +8,25 @@
  */
 
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { companyIdSchema } from '@/lib/intelligence-api/validators';
 import { getFreshnessStatus, getCompaniesNeedingRefresh, batchUpdateFreshness } from '@/lib/intelligence-sources/freshness-manager';
 import { logger } from '@/lib/logger';
-import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
-import { scrubError } from '@/lib/intelligence-api/handler';
+import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+
+const refreshGetQuerySchema = z.object({
+  companyId: companyIdSchema.optional(),
+  batch: z.enum(['true', 'false']).optional(),
+}).refine(d => d.companyId || d.batch === 'true', {
+  message: 'Provide companyId or batch=true',
+});
+
+const refreshPostBodySchema = z.object({
+  companyId: companyIdSchema.optional(),
+  batchUpdate: z.boolean().optional(),
+}).refine(d => d.companyId || d.batchUpdate, {
+  message: 'Provide companyId or batchUpdate: true',
+});
 
 export async function GET(req: NextRequest) {
   let correlationId;
@@ -27,44 +42,30 @@ export async function GET(req: NextRequest) {
     throw rlErr;
   }
 
+  const ctx = { correlationId, responseHeaders };
   const startedAt = Date.now();
 
   try {
     const { searchParams } = new URL(req.url);
-    const companyId = searchParams.get('companyId');
-    const batch = searchParams.get('batch');
+    const queryResult = refreshGetQuerySchema.safeParse(Object.fromEntries(searchParams));
+    if (!queryResult.success) {
+      return utilityError(ctx, 400, `Validation failed: ${queryResult.error.issues[0]?.message}`, 'VALIDATION_FAILED', Date.now() - startedAt);
+    }
+    const { companyId, batch } = queryResult.data;
 
     if (companyId) {
       const status = await getFreshnessStatus(companyId);
       if (!status) {
-        return Response.json(
-          { success: false, error: 'Company not found', meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } },
-          { status: 404 },
-        );
+        return utilityError(ctx, 404, 'Company not found', 'NOT_FOUND', Date.now() - startedAt);
       }
-      return Response.json({ success: true, data: status, meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } });
+      return utilitySuccess(ctx, status, 'refresh', Date.now() - startedAt);
     }
 
-    if (batch === 'true') {
-      const needingRefresh = await getCompaniesNeedingRefresh();
-      return Response.json({
-        success: true,
-        data: { companies: needingRefresh, count: needingRefresh.length },
-        meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt },
-      });
-    }
-
-    return Response.json(
-      { success: false, error: 'Provide companyId or batch=true', meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } },
-      { status: 400 },
-    );
+    // batch is guaranteed 'true' here (refine ensures companyId or batch=true)
+    const needingRefresh = await getCompaniesNeedingRefresh();
+    return utilitySuccess(ctx, { companies: needingRefresh, count: needingRefresh.length }, 'refresh', Date.now() - startedAt);
   } catch (err) {
-    const message = scrubError(err instanceof Error ? err.message : String(err));
-    logger.error('[intelligence/refresh] GET Error', { error: message });
-    return Response.json(
-      { success: false, error: 'Freshness check failed', details: message, meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } },
-      { status: 502 },
-    );
+    return utilityCatchError(ctx, err, 502, 'INTELLIGENCE_UNAVAILABLE', 'Freshness check failed', Date.now() - startedAt);
   }
 }
 
@@ -82,34 +83,31 @@ export async function POST(req: NextRequest) {
     throw rlErr;
   }
 
+  const ctx = { correlationId, responseHeaders };
   const startedAt = Date.now();
 
   try {
     const body = await req.json();
-    const { companyId, batchUpdate } = body;
+    const parsed = refreshPostBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return utilityError(ctx, 400, `Validation failed: ${parsed.error.issues[0]?.message}`, 'VALIDATION_FAILED', Date.now() - startedAt);
+    }
+    const { companyId, batchUpdate } = parsed.data;
 
     if (batchUpdate) {
       const updated = await batchUpdateFreshness();
-      return Response.json({ success: true, data: { updated }, meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } });
+      return utilitySuccess(ctx, { updated }, 'refresh', Date.now() - startedAt);
     }
 
     if (companyId) {
       const { updateFreshnessAfterCollection } = await import('@/lib/intelligence-sources/freshness-manager');
       await updateFreshnessAfterCollection(companyId);
       const status = await getFreshnessStatus(companyId);
-      return Response.json({ success: true, data: status, meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } });
+      return utilitySuccess(ctx, status, 'refresh', Date.now() - startedAt);
     }
 
-    return Response.json(
-      { success: false, error: 'Provide companyId or batchUpdate: true', meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } },
-      { status: 400 },
-    );
+    // Unreachable — refine guarantees companyId or batchUpdate is present
   } catch (err) {
-    const message = scrubError(err instanceof Error ? err.message : String(err));
-    logger.error('[intelligence/refresh] POST Error', { error: message });
-    return Response.json(
-      { success: false, error: 'Intelligence refresh failed', details: message, meta: { endpoint: 'refresh', durationMs: Date.now() - startedAt } },
-      { status: 502 },
-    );
+    return utilityCatchError(ctx, err, 502, 'INTELLIGENCE_UNAVAILABLE', 'Intelligence refresh failed', Date.now() - startedAt);
   }
 }

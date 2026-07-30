@@ -7,18 +7,22 @@
  */
 
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { companyIdSchema } from '@/lib/intelligence-api/validators';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
-import { scrubError } from '@/lib/intelligence-api/handler';
+import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+
+const actionHistoryQuerySchema = z.object({
+  companyId: companyIdSchema,
+  actionType: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
 
 export async function GET(req: NextRequest) {
-  let correlationId;
-  let responseHeaders;
+  let ctx: Awaited<ReturnType<typeof utilityGuard>>;
   try {
-    const ctx = utilityGuard(req, 'action-history');
-    correlationId = ctx.correlationId;
-    responseHeaders = ctx.responseHeaders;
+    ctx = utilityGuard(req, 'action-history');
   } catch (rlErr) {
     if (rlErr instanceof RateLimitedError) {
       return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
@@ -30,16 +34,11 @@ export async function GET(req: NextRequest) {
 
   try {
     const { searchParams } = new URL(req.url);
-    const companyId = searchParams.get('companyId');
-    const actionType = searchParams.get('actionType');
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
-
-    if (!companyId) {
-      return Response.json(
-        { success: false, error: 'companyId required', meta: { endpoint: 'action-history', durationMs: Date.now() - startedAt } },
-        { status: 400 },
-      );
+    const queryResult = actionHistoryQuerySchema.safeParse(Object.fromEntries(searchParams));
+    if (!queryResult.success) {
+      return utilityError(ctx, 400, `Validation failed: ${queryResult.error.issues[0]?.message}`, 'VALIDATION_FAILED', Date.now() - startedAt);
     }
+    const { companyId, actionType, limit = 10 } = queryResult.data;
 
     const where: Record<string, unknown> = { companyId };
     if (actionType) where.actionType = actionType;
@@ -68,17 +67,8 @@ export async function GET(req: NextRequest) {
       grouped.get(key)!.push(entry);
     }
 
-    return Response.json({
-      success: true,
-      data: { total: history.length, history, byType: Object.fromEntries(grouped) },
-      meta: { endpoint: 'action-history', durationMs: Date.now() - startedAt },
-    });
+    return utilitySuccess(ctx, { total: history.length, history, byType: Object.fromEntries(grouped) }, 'action-history', Date.now() - startedAt);
   } catch (err) {
-    const message = scrubError(err instanceof Error ? err.message : String(err));
-    logger.error('[intelligence/action-history] Error', { error: message });
-    return Response.json(
-      { success: false, error: 'Failed to fetch action history', details: message, meta: { endpoint: 'action-history', durationMs: Date.now() - startedAt } },
-      { status: 502 },
-    );
+    return utilityCatchError(ctx, err, 502, 'INTELLIGENCE_UNAVAILABLE', 'Failed to fetch action history', Date.now() - startedAt);
   }
 }

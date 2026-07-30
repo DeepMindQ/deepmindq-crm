@@ -10,18 +10,22 @@
  */
 
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { collectCompetitiveIntel, runCompetitiveScan } from '@/lib/intelligence-sources/competitive-intel/engine';
 import { logger } from '@/lib/logger';
-import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
-import { scrubError } from '@/lib/intelligence-api/handler';
+import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+
+const competitiveBodySchema = z.object({
+  competitorName: z.string().min(1).optional(),
+  fullScan: z.boolean().optional(),
+}).refine(d => d.competitorName || d.fullScan, {
+  message: 'Provide competitorName or fullScan: true',
+});
 
 export async function POST(req: NextRequest) {
-  let correlationId;
-  let responseHeaders;
+  let ctx: Awaited<ReturnType<typeof utilityGuard>>;
   try {
-    const ctx = utilityGuard(req, 'competitive');
-    correlationId = ctx.correlationId;
-    responseHeaders = ctx.responseHeaders;
+    ctx = utilityGuard(req, 'competitive');
   } catch (rlErr) {
     if (rlErr instanceof RateLimitedError) {
       return new Response(JSON.stringify(rlErr.errorBody), { status: 429, headers: rlErr.headers });
@@ -33,38 +37,26 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { competitorName, fullScan } = body;
+    const parsed = competitiveBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return utilityError(ctx, 400, `Validation failed: ${parsed.error.issues[0]?.message}`, 'VALIDATION_FAILED', Date.now() - startedAt);
+    }
+    const { competitorName, fullScan } = parsed.data;
 
     if (fullScan) {
       logger.info('[intelligence/competitive] Running full scan');
       const results = await runCompetitiveScan();
-      return Response.json({
-        success: true,
-        data: { events: results, totalEvents: results.length },
-        meta: { endpoint: 'competitive', durationMs: Date.now() - startedAt },
-      });
+      return utilitySuccess(ctx, { events: results, totalEvents: results.length }, 'competitive', Date.now() - startedAt);
     }
 
     if (competitorName) {
       logger.info('[intelligence/competitive] Collecting for', { competitorName });
       const results = await collectCompetitiveIntel(competitorName);
-      return Response.json({
-        success: true,
-        data: { events: results, totalEvents: results.length },
-        meta: { endpoint: 'competitive', durationMs: Date.now() - startedAt },
-      });
+      return utilitySuccess(ctx, { events: results, totalEvents: results.length }, 'competitive', Date.now() - startedAt);
     }
 
-    return Response.json(
-      { success: false, error: 'Provide competitorName or fullScan: true', meta: { endpoint: 'competitive', durationMs: Date.now() - startedAt } },
-      { status: 400 },
-    );
+    return utilityError(ctx, 400, 'Provide competitorName or fullScan: true', 'INVALID_REQUEST', Date.now() - startedAt);
   } catch (err) {
-    const message = scrubError(err instanceof Error ? err.message : String(err));
-    logger.error('[intelligence/competitive] Error', { error: message });
-    return Response.json(
-      { success: false, error: 'Competitive intelligence collection failed', details: message, meta: { endpoint: 'competitive', durationMs: Date.now() - startedAt } },
-      { status: 502 },
-    );
+    return utilityCatchError(ctx, err, 502, 'INTELLIGENCE_UNAVAILABLE', 'Competitive intelligence collection failed', Date.now() - startedAt);
   }
 }

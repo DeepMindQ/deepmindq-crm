@@ -221,3 +221,28 @@ Stage Summary:
 - Exit gates: TSC=0, 693/693 tests, ESLint=0
 - Commits: f59aa32 (partial), 3b23ad8 (complete)
 - Next: Phase 3 (Wire Orphaned Engines)
+
+---
+Task ID: 3
+Agent: main
+Task: Phase 3 — Wire Orphaned Engines to Intelligence API
+
+Work Log:
+- Identified 4 orphan engines: SynthesisEngine, GroundingEngine, RetrievalEngine, intelligence-sources/action-engine.ts (dead)
+- Expanded IntelligenceEndpoint type with +brief, +grounding, +retrieval
+- Replaced stub IntelligenceBrief with full SynthesisEngine-matching contract (sections, citations, evidenceChain, wordCount, etc.)
+- Created GET /api/intelligence/brief/[id]/route.ts — wires SynthesisEngine with ?briefType, ?depth, ?audience, ?focusAreas params
+- Created GET /api/intelligence/grounding/[id]/route.ts — wires GroundingEngine with ?maxEvidence, ?includeStale params
+- Created GET /api/intelligence/retrieval/[id]/route.ts — wires RetrievalEngine with ?q, ?topK, ?filter params
+- Updated intelligence-api/index.ts to re-export foundation engine types for internal composition
+- Updated intelligence-api/middleware.ts EndpointName type with 3 new endpoints
+- Fixed company + conversation routes to use new IntelligenceBrief shape (summary/keyThemes removed, full structured type)
+- Deleted dead intelligence-sources/action-engine.ts (1,333 lines, zero imports anywhere)
+- Fixed import in types.ts: EvidenceChain/EvidenceGap come from grounding-engine, not synthesis-engine
+
+Stage Summary:
+- 3 new Intelligence API endpoints created (brief, grounding, retrieval)
+- 1 dead file deleted (1,333 lines)
+- Net change: +679 lines added, -1,364 lines removed (685 lines net reduction)
+- Exit criteria met: TSC=0, 693/693 tests passed, all governance checks PASS
+- Pushed to GitHub: commit a1810f3
